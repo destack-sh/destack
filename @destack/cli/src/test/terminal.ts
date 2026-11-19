@@ -15,7 +15,7 @@ import { type InstallationRollout, Rollout, rollout } from "@destack/stack/objec
 import { type Identifier, type JsonObject, present, schema } from "@destack/schema";
 import { onTestFinished } from "@destack/test";
 import { testSimulation } from "@destack/test/world";
-import type { Scheduler } from "@destack/environment";
+import type { Scheduler, TerminalSize } from "@destack/environment";
 import { type Simulation, SimulatedProcess } from "@destack/environment/simulation";
 import { CommandLine } from "../command/run.ts";
 import { Context } from "../context/context.ts";
@@ -40,8 +40,8 @@ const ROLLOUT_MILLISECONDS = 120_000;
 export interface TerminalInput {
     /** The text or stream standard input reads, none by default. */
     readonly stdin?: string | ReadableStream<Uint8Array>;
-    /** Whether the command line runs on a terminal, as an interactive shell runs it. */
-    readonly isTerminal?: boolean;
+    /** The terminal the command line runs on, a pipe when absent. */
+    readonly terminal?: TerminalSize;
 }
 
 /** What a command line printed and how it exited. */
@@ -128,11 +128,10 @@ export class TerminalFixture {
         return this.computer.space(this.login.id, owner.account, name);
     }
 
-    /** Open a terminal without colour over a process, a person's or a program's. */
-    static terminal(isTerminal: boolean): Terminal {
-        const running = TerminalFixture.process({ NO_COLOR: "1" }, testHost().scheduler, {
-            isTerminal,
-        });
+    /** Open a terminal without colour of a size, else a program's pipe. */
+    static terminal(size?: TerminalSize): Terminal {
+        const input = size === undefined ? {} : { terminal: size };
+        const running = TerminalFixture.process({ NO_COLOR: "1" }, testHost().scheduler, input);
 
         return new Terminal(running, { timeZone: "UTC", locale: "en-US" });
     }
@@ -149,7 +148,7 @@ export class TerminalFixture {
                     input.stdin instanceof ReadableStream
                         ? input.stdin
                         : new TextEncoder().encode(input.stdin ?? ""),
-                isTerminal: input.isTerminal ?? false,
+                ...(input.terminal === undefined ? {} : { terminal: input.terminal }),
                 arguments: [],
                 variables,
                 workingDirectory: "/",

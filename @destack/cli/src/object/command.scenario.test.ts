@@ -1,3 +1,4 @@
+import { TerminalSize } from "@destack/environment";
 import { join } from "node:path";
 import { card } from "@destack/machine-board-fixture/object";
 import { schema } from "@destack/schema";
@@ -19,7 +20,10 @@ function open(installs: readonly TestInstall[] = []): Promise<TerminalFixture> {
 
 /** Run a command line in the home, returning what it printed. */
 function line(terminal: TerminalFixture, words: readonly string[], isTerminal = false) {
-    return terminal.printed(["--space", "home", ...words], { isTerminal });
+    return terminal.printed(
+        ["--space", "home", ...words],
+        isTerminal ? { terminal: TerminalSize.VT100 } : {},
+    );
 }
 
 /** Create a card of a title through the command line, returning its identifier. */
@@ -143,7 +147,8 @@ test("list a type's objects by its plural, restricted by field flags, a filter, 
     // expect the matching cards in order, each as stored
     expect([table.output, rows.output, json.output]).toEqual([
         [
-            "  ID                                         TITLE",
+            "  id                                         title",
+            `  ${"─".repeat(41)}  ${"─".repeat(5)}`,
             `  ${plans}  Plans`,
             `  ${ideas}  Ideas`,
             "",

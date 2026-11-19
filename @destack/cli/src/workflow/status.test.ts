@@ -1,3 +1,4 @@
+import { TerminalSize } from "@destack/environment";
 import { testSimulation } from "@destack/object/test";
 import { expect, test } from "@destack/test";
 import { schema } from "@destack/schema";
@@ -46,7 +47,7 @@ test("render a plan's steps with field diffs, then its totals, risk, digest and 
         InstallationStatus.renderPlan(
             plan,
             await Plan.digest(plan, crypto),
-            TerminalFixture.terminal(true),
+            TerminalFixture.terminal(TerminalSize.VT100),
         ).join("\n"),
     ).toBe(
         [
@@ -63,7 +64,7 @@ test("render a plan's steps with field diffs, then its totals, risk, digest and 
         InstallationStatus.renderPlan(
             { steps: [] },
             await Plan.digest({ steps: [] }, crypto),
-            TerminalFixture.terminal(true),
+            TerminalFixture.terminal(TerminalSize.VT100),
         ),
     ).toEqual(["  no changes"]);
 });
@@ -131,7 +132,7 @@ test("render a stack's readiness with aligned resources and the plan it waits on
             rollout: stack,
             resources,
             waiting: { plan: waiting, digest, approval: APPROVAL },
-        }).render(TerminalFixture.terminal(true)),
+        }).render(TerminalFixture.terminal(TerminalSize.VT100)),
     ).toBe(
         [
             "   Pending  installation 'stack' WaitingForResources",
@@ -192,7 +193,7 @@ test("render an application waiting to be granted more access, approved by its n
     // wait on the approval, and show the grant with the command approving it by the installation's name
     expect({
         progress: status.progress,
-        rendered: status.render(TerminalFixture.terminal(true)),
+        rendered: status.render(TerminalFixture.terminal(TerminalSize.VT100)),
     }).toEqual({
         progress: "approval",
         rendered: [

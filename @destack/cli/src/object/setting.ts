@@ -10,7 +10,8 @@ import { listCommand } from "./command.ts";
 import { LIST_OPTIONS } from "./flag.ts";
 import type { ObjectClient, ObjectConnection } from "@destack/object/client";
 import { Noun } from "./catalog.ts";
-import { Render } from "./render.ts";
+import { Cell } from "./cell.ts";
+import { Grid } from "./grid.ts";
 import { CliError } from "../error/index.ts";
 
 /** The scopes of `--scope`. */
@@ -516,9 +517,11 @@ class DeviceSettingValues implements SettingValues {
     /** Print every value the device stores, as JSON or a table. */
     async print(context: Context, json: boolean): Promise<void> {
         const rows = await this.#settings.query.deviceSetting.findMany();
-        const cells = rows.map((row) => [row.packageId, row.name, JSON.stringify(row.value)]);
+        const cells = rows.map((row) =>
+            [row.packageId, row.name, JSON.stringify(row.value)].map((each) => Cell.plain(each)),
+        );
         await context.terminal.print(
-            json ? JSON.stringify(rows) : Render.grid(DEVICE_COLUMNS, cells, context.terminal),
+            json ? JSON.stringify(rows) : Grid.draw(DEVICE_COLUMNS, cells, context.terminal),
         );
     }
 }

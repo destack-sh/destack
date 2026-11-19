@@ -6,7 +6,8 @@ import { RequestId, Scope } from "@destack/sync";
 import { type Verb, OptionValue } from "../command/command.ts";
 import type { Context } from "../context/context.ts";
 import { CliError } from "../error/index.ts";
-import { Render } from "../object/render.ts";
+import { Cell } from "../object/cell.ts";
+import { Grid } from "../object/grid.ts";
 
 /** The columns the invitations to a person list under. */
 const INVITATION_COLUMNS = ["ROLE", "OBJECT", "ID"];
@@ -92,12 +93,19 @@ export function invitedCommand(context: Context): Verb {
             const cells = items.map(({ id, relationship }) => {
                 const role = "relation" in relationship ? relationship.relation : relationship.role;
 
-                return [role, `${relationship.object.type} ${relationship.object.id}`, id];
+                return [
+                    Cell.plain(role),
+                    Cell.plain(`${relationship.object.type} ${relationship.object.id}`),
+                    {
+                        ...Cell.plain(id),
+                        paint: (text: string) => context.terminal.style("dim", text),
+                    },
+                ];
             });
             const { terminal } = context;
             const none = terminal.isTerminal ? `  ${terminal.style("dim", "no invitations")}` : "";
             const listed =
-                cells.length === 0 ? none : Render.grid(INVITATION_COLUMNS, cells, terminal, 2);
+                cells.length === 0 ? none : Grid.draw(INVITATION_COLUMNS, cells, terminal);
             await terminal.print(json ? JSON.stringify(items) : listed);
         },
     };

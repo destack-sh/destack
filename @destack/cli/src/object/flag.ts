@@ -5,6 +5,7 @@ import {
     Filter,
     type FilterOptions,
     type JsonCondition,
+    type OrderBy,
     TABLE,
 } from "@destack/db";
 import { type JsonObject, type JsonValue, present, schema, nth } from "@destack/schema";
@@ -327,6 +328,43 @@ export class FlagSet {
         }
 
         return identified;
+    }
+
+    /** Read the columns --fields names, refusing a field the rows lack, absent without it. */
+    columns(options: Options): string[] | undefined {
+        // take the named columns, refusing a property the rows lack
+        const fields = OptionValue.string(options["fields"], "fields");
+        if (fields === undefined) {
+            return undefined;
+        }
+        const named = fields.split(",").filter((field) => field !== "");
+        const unknown = named.find(
+            (field) => !Object.hasOwn(this.type.table[TABLE].columns, field),
+        );
+        if (unknown !== undefined) {
+            throw CliError.of(
+                "USAGE_INVALID",
+                `field '${unknown}' is invalid: '${this.type.plural}' have no such field`,
+            );
+        }
+
+        return named;
+    }
+
+    /** Read the order --sort gives, fields separated by commas, a minus first for descending. */
+    order(options: Options): OrderBy | undefined {
+        const sort = OptionValue.string(options["sort"], "sort");
+
+        return sort === undefined
+            ? undefined
+            : Object.fromEntries(
+                  sort
+                      .split(",")
+                      .filter((field) => field !== "")
+                      .map((field) =>
+                          field.startsWith("-") ? [field.slice(1), "desc"] : [field, "asc"],
+                      ),
+              );
     }
 
     /** Build the condition the given flags and --where restrict rows by, absent for none. */

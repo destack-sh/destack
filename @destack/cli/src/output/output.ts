@@ -1,5 +1,8 @@
 import { styleText } from "node:util";
 import type { Environment } from "@destack/environment";
+import { Localization, LocaleTag } from "@destack/locale";
+import { PRESETS, type Preset } from "@destack/color";
+import type { KeyPress } from "@destack/object";
 import { Prompt } from "./prompt.ts";
 
 /** A text format understood by the terminal. */
@@ -14,39 +17,46 @@ export type TerminalProcess = Environment<"process">["process"];
 /** Leave text unformatted. */
 const plain: Style = (_, text) => text;
 
-/** The colours a terminal paints in: the brand mark's orange, the theme's green and red. */
+/** The colours of a terminal's tones: the brand's orange, and the green and red swatches. */
 const TONES = {
-    accent: [255, 121, 46],
-    done: [48, 164, 108],
-    failed: [229, 72, 77],
+    accent: "#ff792e",
+    done: PRESETS.green,
+    failed: PRESETS.red,
 } as const;
+
+/** The COLORTERM values of terminals painting 24-bit colour. */
+const TRUECOLOR_TERMINALS = new Set(["truecolor", "24bit"]);
+
+/** The levels of each channel in the 256-colour palette's 6×6×6 cube. */
+const CUBE_LEVELS: readonly number[] = [0, 95, 135, 175, 215, 255];
+
+/** The index of the 256-colour palette's cube, after the 16 system colours. */
+const CUBE_START = 16;
 
 /** A colour a terminal paints in. */
 export type Tone = keyof typeof TONES;
 
-/** A key a pager answers. */
-export type Key = "up" | "down" | "left" | "right" | "enter" | "select" | "quit";
+/** The keys a terminal sends in raw mode as escape sequences or control bytes, by their bytes. */
+const SEQUENCES: Readonly<Record<string, string>> = {
+    "\x1b[A": "ArrowUp",
+    "\x1b[B": "ArrowDown",
+    "\x1b[C": "ArrowRight",
+    "\x1b[D": "ArrowLeft",
+    "\r": "Enter",
+    "\n": "Enter",
+    "\x1b": "Escape",
+    "\x7f": "Backspace",
+    "\t": "Tab",
+};
 
-/** The keys a terminal sends in raw mode, by their bytes. */
-const KEYS: Readonly<Record<string, Key>> = Object.fromEntries([
-    // arrows and vi's h j k l
-    ["\x1b[A", "up"],
-    ["k", "up"],
-    ["\x1b[B", "down"],
-    ["j", "down"],
-    ["\x1b[D", "left"],
-    ["h", "left"],
-    ["\x1b[C", "right"],
-    ["l", "right"],
+/** The first control byte, ctrl-a, which the control bytes count from. */
+const CONTROL_A = 0x01;
 
-    // enter, space to select, and q, escape or ctrl-c to quit
-    ["\r", "enter"],
-    [" ", "select"],
-    ["\n", "enter"],
-    ["q", "quit"],
-    ["\x1b", "quit"],
-    ["\x03", "quit"],
-] satisfies [string, Key][]);
+/** The character code of a, which ctrl-a stands for. */
+const LETTER_A = 0x61;
+
+/** The last control byte a letter makes, ctrl-z. */
+const CONTROL_Z = 0x1a;
 
 /** One key's bytes in a chunk: an escape sequence such as an arrow, else one character. */
 const KEY_SEQUENCE = /\x1b\[[A-D]|[\s\S]/gu;
@@ -84,6 +94,8 @@ export class Terminal implements AsyncDisposable {
     readonly style: Style;
     /** Paint text in a colour only when standard output is a terminal accepting colour. */
     readonly tone: (tone: Tone, text: string) => string;
+    /** Paint text in a swatch's colour, as objects and highlights take them. */
+    readonly swatch: (swatch: Preset, text: string) => string;
     /** Whether standard output is a terminal, which tables align for, else tab-separated. */
     readonly isTerminal: boolean;
     /** The answers a person types or a script pipes on standard input, read by one reader. */
@@ -92,6 +104,8 @@ export class Terminal implements AsyncDisposable {
     readonly timeZone: string;
     /** The locale the terminal writes dates in, such as de-AT. */
     readonly locale: string;
+    /** The messages the terminal writes, in its locale where a catalog has them. */
+    readonly localization: Localization;
 
     /** Write to a process's standard streams. */
     constructor(running: TerminalProcess, place: Pick<Environment, "timeZone" | "locale">) {
@@ -100,13 +114,16 @@ export class Terminal implements AsyncDisposable {
         this.isTerminal = running.stdout.isTerminal;
         this.timeZone = place.timeZone;
         this.locale = place.locale;
+        this.localization = Localization.of(LocaleTag.parse(place.locale), []);
         const isColored = this.isTerminal && running.variables["NO_COLOR"] === undefined;
         this.style = isColored
             ? (format, text) => styleText(format, text, { validateStream: false })
             : plain;
-        this.tone = isColored
-            ? (tone, text) => `\x1b[38;2;${TONES[tone].join(";")}m${text}\x1b[39m`
-            : (_, text) => text;
+        const isTruecolor = TRUECOLOR_TERMINALS.has(running.variables["COLORTERM"] ?? "");
+        const paint = (hex: string, text: string) =>
+            isColored ? `\x1b[${foreground(hex, isTruecolor)}m${text}\x1b[39m` : text;
+        this.tone = (tone, text) => paint(TONES[tone], text);
+        this.swatch = (swatch, text) => paint(PRESETS[swatch], text);
         this.prompt = new Prompt(running, (text) => this.question(text));
     }
 
@@ -121,7 +138,7 @@ export class Terminal implements AsyncDisposable {
     }
 
     /** Read the terminal's keys as they are pressed, in raw mode until the reading ends. */
-    async *keys(): AsyncGenerator<Key> {
+    async *keys(): AsyncGenerator<KeyPress> {
         // switch the terminal to raw mode and read its bytes
         const { stdin } = this.process;
         stdin.setRawMode(true);
@@ -133,10 +150,7 @@ export class Terminal implements AsyncDisposable {
             for (let read = await reader.read(); !read.done; read = await reader.read()) {
                 const text = decoder.decode(read.value, { stream: true });
                 for (const sequence of text.match(KEY_SEQUENCE) ?? []) {
-                    const key = KEYS[sequence];
-                    if (key !== undefined) {
-                        yield key;
-                    }
+                    yield pressOf(sequence);
                 }
             }
         } finally {
@@ -238,4 +252,43 @@ export class Live {
     release(): void {
         this.#lines = 0;
     }
+}
+
+/** Write a foreground colour's escape parameters: 24-bit, else the nearest 256-colour one. */
+function foreground(hex: string, isTruecolor: boolean): string {
+    // read the channels
+    const value = Number.parseInt(hex.slice(1), 16);
+    const channels = [(value >> 16) & 0xff, (value >> 8) & 0xff, value & 0xff];
+    if (isTruecolor) {
+        return `38;2;${channels.join(";")}`;
+    }
+
+    // take each channel's nearest cube level
+    const [red = 0, green = 0, blue = 0] = channels.map((channel) => {
+        const distances = CUBE_LEVELS.map((level) => Math.abs(level - channel));
+
+        return distances.indexOf(Math.min(...distances));
+    });
+
+    return `38;5;${String(CUBE_START + 36 * red + 6 * green + blue)}`;
+}
+
+/** Read a key's bytes as the key press a keyboard event reports. */
+function pressOf(sequence: string): KeyPress {
+    // read a named key, a control letter, or a character as typed
+    const named = SEQUENCES[sequence];
+    const byte = sequence.codePointAt(0) ?? 0;
+    const isControl =
+        sequence.length === 1 && byte >= CONTROL_A && byte <= CONTROL_Z && named === undefined;
+    const key = named ?? (isControl ? String.fromCodePoint(byte - CONTROL_A + LETTER_A) : sequence);
+    const isLetter = /^[a-z]$/iu.test(key);
+
+    return {
+        key,
+        code: isLetter ? `Key${key.toUpperCase()}` : key,
+        altKey: false,
+        ctrlKey: isControl,
+        metaKey: false,
+        shiftKey: isLetter && key !== key.toLowerCase(),
+    };
 }

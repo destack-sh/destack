@@ -3,12 +3,12 @@ import { connectBunSqlite } from "@destack/db/bun";
 import { ObjectClient, type ObjectConnection } from "@destack/object/client";
 import {
     CalendarLayout,
-    ObjectAppearance,
+    type ObjectType,
+    type Layout,
+    Presentation,
     ObjectView,
-    ObjectViewState,
     type ObjectQuery,
-    type TimelineLayout,
-    type TreeLayout,
+    type TimeWindow,
 } from "@destack/object";
 import { principal } from "@destack/access";
 import { Scope } from "@destack/sync";
@@ -16,14 +16,14 @@ import { type JsonObject, type JsonValue, present, schema } from "@destack/schem
 import { type Verb, type Group, OptionValue, type Options } from "../command/command.ts";
 import { Interrupt } from "../command/error.ts";
 import type { Context } from "../context/context.ts";
-import type { Live, Terminal } from "../output/index.ts";
+import type { Live } from "../output/index.ts";
 
 import { FlagSet, INPUT_OPTION, LIST_OPTIONS } from "./flag.ts";
 import { Noun, Catalog } from "./catalog.ts";
 import { Localization, SOURCE_LOCALE } from "@destack/locale";
 import { Command } from "@destack/object";
-import { Render } from "./render.ts";
-import { LayoutRender } from "./layout.ts";
+import { Frame } from "./frame.ts";
+import { Pager } from "./pager.ts";
 import { CliError } from "../error/index.ts";
 
 /** The lines a terminal is taken to have when it reports none: 24, the VT100's. */
@@ -108,87 +108,118 @@ export function listCommand(context: Context, noun: Noun): Verb {
                 context.environment.timeZone,
             );
             const where = flags.condition(options, filter);
-            const orderBy = Render.order(OptionValue.string(options["sort"], "sort"));
+            const orderBy = flags.order(options);
             const limit = OptionValue.count(options["limit"], "limit");
             const query = {
                 ...(where === undefined ? {} : { where: Condition.schema.parse(where) }),
                 ...(orderBy === undefined ? {} : { orderBy }),
                 ...(limit === undefined ? {} : { limit }),
             };
-            // pick the view the flags ask for, extending the query to read what it shows
-            const view = chosenView(noun, OptionValue.string(options["view"], "view"));
-            const { layout } = view;
-            const columns = Render.columns(
-                noun.type,
-                layout.kind === "table" ? layout : { kind: "table" },
-                OptionValue.string(options["fields"], "fields"),
-            );
-            const window =
-                layout.kind === "calendar"
-                    ? CalendarLayout.month(
-                          context.environment.clock.now(),
-                          context.environment.timeZone,
-                      )
-                    : undefined;
-            const laidOut = ObjectView.query(view, query, window);
-            const render = async (rows: readonly JsonObject[]) =>
+
+            // shape a view: a table's columns as --fields names them, its query and its window bound to now
+            const named = flags.columns(options);
+            const shape = (view: ObjectView): Shaped => {
+                // draw a table by the named columns, else the view's layout
+                const layout =
+                    view.layout.kind === "table" && named !== undefined
+                        ? { kind: "table" as const, fields: named }
+                        : view.layout;
+                const now = context.environment.clock.now();
+                const { timeZone } = context.environment;
+                const window =
+                    layout.kind === "calendar" ? CalendarLayout.month(now, timeZone) : undefined;
+                const laidOut = ObjectView.query(
+                    { ...view, layout },
+                    query,
+                    { now, timeZone },
+                    window,
+                );
+
+                return { view, layout, window, query: laidOut };
+            };
+            const shaped = shape(chosenView(noun, OptionValue.string(options["view"], "view")));
+            const draw = async (rows: readonly JsonObject[]) =>
                 json
                     ? JSON.stringify(rows)
-                    : layout.kind === "table"
-                      ? Render.table(
-                            await titled(context, noun, rows),
-                            columns,
-                            noun.type,
-                            context.terminal,
-                        )
-                      : LayoutRender.render(rows, layout, noun.type, context.terminal, window);
+                    : (await Frame.of(context, noun, rows)).draw(
+                          rows,
+                          shaped.layout,
+                          noun.type,
+                          shaped.window,
+                      );
 
-            // print the rows after every change until interrupted
+            // page the rows under the keys on a terminal, else print them after every change
             const remote = await noun.client(context);
+            const { terminal } = context;
             if (options["watch"] === true) {
-                const live = context.terminal.live(json);
+                const live = terminal.live(json);
                 using interrupted = new Interrupt(context.environment.process);
-                const followed = watch(noun, remote, laidOut, interrupted.signal, context);
-
-                // page a tree or a timeline under the keys on a terminal, else redraw each change
-                const { terminal } = context;
-                const isPaged =
-                    (layout.kind === "tree" || layout.kind === "timeline") &&
-                    terminal.isTerminal &&
-                    terminal.process.stdin.isTerminal &&
-                    !json;
-                if (isPaged) {
-                    await page(followed, layout, noun, live, terminal);
+                if (terminal.isTerminal && terminal.process.stdin.isTerminal && !json) {
+                    await page({
+                        shaped,
+                        shape,
+                        noun,
+                        remote,
+                        live,
+                        context,
+                        signal: interrupted.signal,
+                    });
                 } else {
-                    for await (const rows of followed) {
-                        await live.show(await render(rows));
+                    for await (const rows of watch(
+                        noun,
+                        remote,
+                        shaped.query,
+                        interrupted.signal,
+                        context,
+                    )) {
+                        await live.show(await draw(rows));
                     }
                 }
                 interrupted.require();
             }
             // print the rows once, nothing for a program when there are none
             else {
-                const rendered = await render(await remote.list(noun.type, laidOut));
-                if (rendered !== "") {
-                    await context.terminal.print(rendered);
+                const drawn = await draw(await remote.list(noun.type, shaped.query));
+                if (drawn !== "") {
+                    await terminal.print(drawn);
                 }
             }
         },
     };
 }
 
-/** Page followed rows as a tree or a timeline under a terminal's keys, until quit or their end. */
-async function page(
-    followed: AsyncGenerator<readonly JsonObject[]>,
-    layout: TreeLayout | TimelineLayout,
-    noun: Noun,
-    live: Live,
-    terminal: Terminal,
-): Promise<void> {
-    // read the rows and the keys at once, the pager's state kept across changes
+/** A view shaped for a list: its layout, its calendar window and the query reading its rows. */
+interface Shaped {
+    /** The view. */
+    readonly view: ObjectView;
+    /** The layout drawn, a table's columns as --fields names them. */
+    readonly layout: Layout;
+    /** The month a calendar shows, absent for other layouts. */
+    readonly window: TimeWindow | undefined;
+    /** The query reading the view's rows. */
+    readonly query: Pick<ObjectQuery, "where" | "orderBy" | "limit">;
+}
+
+/** Page followed rows under a terminal's keys: move, filter, switch views and run commands. */
+async function page(paging: {
+    readonly shaped: Shaped;
+    readonly shape: (view: ObjectView) => Shaped;
+    readonly noun: Noun;
+    readonly remote: ObjectConnection;
+    readonly live: Live;
+    readonly context: Context;
+    readonly signal: AbortSignal;
+}): Promise<void> {
+    // follow the view's rows and read the keys at once
+    const { shape, noun, remote, live, context, signal } = paging;
+    const { terminal } = context;
+    const { type } = noun;
     const keys = terminal.keys();
+    let shaped = paging.shaped;
+    let followed = watch(noun, remote, shaped.query, signal, context);
     let rows: readonly JsonObject[] = [];
-    let state = ObjectViewState.start();
+    let frame = await Frame.of(context, noun, rows);
+    let pager = Pager.start(type, noun.commands);
     let nextRows = followed.next();
     let nextKey = keys.next();
     try {
@@ -200,34 +231,90 @@ async function page(
             ]);
             const height = terminal.rows ?? DEFAULT_ROWS;
 
-            // take new rows, end on quit or the end of either, else answer the key
+            // take new rows and their frame, ending with them
             if (event.kind === "rows") {
                 if (event.read.done === true) {
                     return;
                 }
                 rows = event.read.value;
+                frame = await Frame.of(context, noun, rows);
                 nextRows = followed.next();
-            } else if (event.read.done === true || event.read.value === "quit") {
+            }
+            // end with the keys, else answer the key
+            else if (event.read.done === true) {
                 return;
             } else {
-                const drawn = LayoutRender.page(rows, layout, noun.type, terminal);
-                state = ObjectViewState.press(
-                    state,
-                    event.read.value,
-                    drawn.lines,
-                    LayoutRender.room(drawn, height),
-                );
                 nextKey = keys.next();
+                const drawn = frame.page(
+                    titled(rows, type, pager.filter),
+                    shaped.layout,
+                    type,
+                    shaped.window,
+                );
+                const answered = pager.press(event.read.value, drawn, shaped.view, frame, height);
+                pager = answered.pager;
+                const { step } = answered;
+
+                // quit, follow another view's rows, or run a command on its targets
+                if (step.kind === "quit") {
+                    return;
+                } else if (step.kind === "view") {
+                    await followed.return(undefined);
+                    shaped = shape(step.view);
+                    followed = watch(noun, remote, shaped.query, signal, context);
+                    nextRows = followed.next();
+                } else if (step.kind === "run") {
+                    pager = pager.told(
+                        await ran(step.command, step.targets, step.input, remote, frame),
+                    );
+                }
             }
 
             // draw the page under the pager
-            const drawn = LayoutRender.page(rows, layout, noun.type, terminal);
-            await live.show(LayoutRender.paged(drawn, state, height, terminal));
+            const drawn = frame.page(
+                titled(rows, type, pager.filter),
+                shaped.layout,
+                type,
+                shaped.window,
+            );
+            await live.show(pager.draw(drawn, frame, height));
         }
     } finally {
         await keys.return(undefined);
         await followed.return(undefined);
     }
+}
+
+/** Filter rows to those whose title contains a text, ignoring case. */
+function titled(rows: readonly JsonObject[], type: ObjectType, filter: string): JsonObject[] {
+    return rows.filter((row) =>
+        Presentation.title(type.presentation, row).toLowerCase().includes(filter.toLowerCase()),
+    );
+}
+
+/** Run a command on each target, telling what it did or why it failed. */
+async function ran(
+    command: Command,
+    targets: readonly JsonObject[],
+    input: JsonObject,
+    remote: ObjectConnection,
+    frame: Frame,
+): Promise<string> {
+    // call the method once per target, stopping at the first refusal
+    const title = frame.terminal.localization.render(command.title);
+    try {
+        for (const target of targets) {
+            await remote.run(
+                command.object,
+                command.method,
+                command.input({ ...input, id: target["id"] ?? null }),
+            );
+        }
+    } catch (error) {
+        return `${title} failed: ${error instanceof Error ? error.message : String(error)}`;
+    }
+
+    return `${title}: ${targets.length} ${targets.length === 1 ? command.object.name : command.object.plural}`;
 }
 
 /** Pick the view a list asks for by name, else the type's default. */
@@ -246,58 +333,6 @@ function chosenView(noun: Noun, name: string | undefined): ObjectView {
     }
 
     return chosen;
-}
-
-/** Write each reference in rows as its object's title, for a person on a terminal. */
-async function titled(
-    context: Context,
-    noun: Noun,
-    rows: readonly JsonObject[],
-): Promise<readonly JsonObject[]> {
-    // leave a program's identifiers as they are
-    if (!context.terminal.isTerminal) {
-        return rows;
-    }
-
-    // read the titles of each reference field's objects through their type's noun
-    const catalog = await context.catalog();
-    const titles = new Map<string, Map<string, string>>();
-    for (const [column, field] of Object.entries(noun.type.fields)) {
-        const target = field.target?.();
-        const referenced = catalog.nouns.find(
-            (each) => target !== undefined && each.type.same(target),
-        );
-        const ids = [
-            ...new Set(
-                rows.flatMap((row) => (typeof row[column] === "string" ? [row[column]] : [])),
-            ),
-        ];
-        if (referenced !== undefined && ids.length > 0) {
-            const remote = await referenced.client(context);
-            const objects = await remote.list(referenced.type, { where: { id: { in: ids } } });
-            titles.set(
-                column,
-                new Map(
-                    objects.map((row) => [
-                        schema.string().parse(row["id"]),
-                        ObjectAppearance.of(referenced.type, row).title,
-                    ]),
-                ),
-            );
-        }
-    }
-
-    // replace each referenced identifier by its title
-    return rows.map((row) =>
-        Object.fromEntries(
-            Object.entries(row).map(([column, value]) => [
-                column,
-                (typeof value === "string" ? titles.get(column)?.get(value) : undefined) ??
-                    value ??
-                    null,
-            ]),
-        ),
-    );
 }
 
 /** Build the commands of one noun's objects: create, and per object its get and its methods. */
@@ -379,11 +414,7 @@ function getCommand(context: Context, noun: Noun, id: string): Verb {
             const show = async (row: JsonObject) =>
                 json
                     ? JSON.stringify(row)
-                    : Render.object(
-                          schema.jsonObject().parse((await titled(context, noun, [row]))[0]),
-                          noun.type,
-                          context.terminal,
-                      );
+                    : (await Frame.of(context, noun, [row])).record(row, noun.type);
 
             // follow the object as it changes until interrupted
             if (options["watch"] === true) {
@@ -575,9 +606,9 @@ async function renderResult(
     if (!row.success) {
         return JSON.stringify(result);
     } else if (word === undefined) {
-        const [shown] = await titled(context, noun, [row.data]);
+        const frame = await Frame.of(context, noun, [row.data]);
 
-        return Render.object(schema.jsonObject().parse(shown), noun.type, context.terminal);
+        return frame.record(row.data, noun.type);
     }
 
     // say what happened to the object, by its title, with its identifier beside it

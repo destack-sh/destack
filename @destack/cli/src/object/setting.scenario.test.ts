@@ -1,3 +1,4 @@
+import { TerminalSize } from "@destack/environment";
 import { schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { TerminalFixture } from "../test/terminal.ts";
@@ -51,7 +52,7 @@ test("show a setting's effective value and where it comes from without --scope, 
         overridden: schema.array(schema.looseObject({ kind: schema.string() })),
     });
     const resolved = Resolution.parse(JSON.parse(await output(terminal, ["setting", "start"])));
-    const shown = await terminal.printed(["setting", "start"], { isTerminal: true });
+    const shown = await terminal.printed(["setting", "start"], { terminal: TerminalSize.VT100 });
     const piped = await terminal.printed(["setting", "start"]);
 
     // take the device's value over the default, naming both on a terminal
