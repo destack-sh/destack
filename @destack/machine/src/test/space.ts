@@ -1291,7 +1291,6 @@ export class TestSpace implements AsyncDisposable, TestScope {
                 ],
                 endpoint:
                     options.origin ?? (await test.directory.answering(test.id, test.clock.now())),
-                registry: FORGE_INSTALLATION,
                 destack: changed.destack ?? { oldest: DESTACK_VERSION, newest: DESTACK_VERSION },
                 authenticate: (request, audience, partition) =>
                     TestSpace.#authenticate(machine, request, audience, partition),
@@ -1665,12 +1664,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
     static #forgeUrl(home: TestSpace): Promise<string> {
         const { machine, id } = home;
 
-        return machine.directory.mount(
-            id,
-            machine.registry,
-            registryPackage.id,
-            machine.clock.now(),
-        );
+        return machine.directory.package(id, registryPackage.id, machine.clock.now());
     }
 
     /** Send requests to the residency's forge as the fixtures' owner, with a token each. */

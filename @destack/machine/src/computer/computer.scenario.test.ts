@@ -149,12 +149,7 @@ test("send an npm client to the forge of the handle it asks for, and answer 404 
     ).residency.locate({
         account: world.owner.account,
     });
-    const mount = await machine.directory.mount(
-        home,
-        machine.registry,
-        registryPackage.id,
-        machine.clock.now(),
-    );
+    const mount = await machine.directory.package(home, registryPackage.id, machine.clock.now());
     const forge = `${mount}${registryPackage.mounts.npm.path}`;
     expect([
         await ask(`@${handle}%2fnotes?write=true`),

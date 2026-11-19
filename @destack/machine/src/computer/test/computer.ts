@@ -1,5 +1,4 @@
 import { Observation } from "@destack/object";
-import { FORGE_INSTALLATION } from "@destack/forge/package";
 import {
     type Environment,
     type FileSystem,
@@ -489,7 +488,6 @@ export class TestComputer implements AsyncDisposable {
         const computer = await Computer.start({
             // run instances in this process on the world's clock and network, deterministic under simulation
             isolation: "host",
-            registry: FORGE_INSTALLATION,
             environment,
             directory,
             universe: universe.origin,

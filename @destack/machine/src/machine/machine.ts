@@ -135,8 +135,6 @@ export type MachineOptions = Pick<
     >;
     /** Every release the machine ships, whose manifests its registry answers before any forge's. */
     readonly shipped: readonly PackageRelease[];
-    /** The installation residency homes serve the registry protocol at, such as forge. */
-    readonly registry: string;
     /** The Destack versions whose releases the machine runs: the oldest it supports and its own. */
     readonly destack: VersionRange;
     /** The relay a personal machine tunnels through while enrolled, absent for none. */
@@ -197,8 +195,6 @@ export class Machine {
     readonly homes = new Map<Identifier<"account">, Promise<Identifier<"space">>>();
     /** The pulls in flight, by root and runtimes, which a pull of the same joins. */
     readonly #pulling = new Map<string, Promise<void>>();
-    /** The installation residency homes serve the registry protocol at. */
-    readonly registry: string;
     /** Whether the machine builds the commits its spaces' installations select. */
     readonly isBuilding: boolean;
     /** Whether the machine checks its spaces' use against their accounts' entitlements. */
@@ -321,7 +317,6 @@ export class Machine {
         this.#readEnrollment = options.enrollment;
         this.#partition = options.partition;
         this.#describe = options.describe;
-        this.registry = options.registry;
     }
 
     /** Capture a failure no request answers, as escaping the machine's background work. */
@@ -451,7 +446,7 @@ export class Machine {
 
     /** Locate the forge in a home: the URL its package's mounts lie below. */
     #registryUrl(home: Identifier<"space">): Promise<string> {
-        return this.directory.mount(home, this.registry, registryPackage.id, this.clock.now());
+        return this.directory.package(home, registryPackage.id, this.clock.now());
     }
 
     /** Open a published image's or build's objects at its package's forge, as the machine. */

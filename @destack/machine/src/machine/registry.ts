@@ -41,15 +41,9 @@ export function locateHome(
 
 /** Call the registry in a home as a machine bound to the home, or through a caller's fetch. */
 export function callRegistry(
-    machine: Pick<Machine, "directory" | "registry" | "fetch" | "environment">,
+    machine: Pick<Machine, "directory" | "fetch" | "environment">,
     home: Identifier<"space">,
     fetch: Fetch = machine.fetch(registryPackage.id, { partition: home }),
 ): ClientOf<typeof registryPackage> {
-    return machine.directory.client(
-        registryPackage,
-        home,
-        machine.registry,
-        fetch,
-        machine.environment,
-    );
+    return machine.directory.client(registryPackage, home, fetch, machine.environment);
 }

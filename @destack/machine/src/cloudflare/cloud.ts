@@ -82,8 +82,6 @@ export interface MachineBindings extends PartitionBindings, CloudflareStorageBin
     readonly DESTACK_SPACE_DOMAIN: string;
     /** The machine's own origin, whose paths address its spaces directly. */
     readonly DESTACK_ORIGIN: string;
-    /** The installation residency homes serve the registry protocol at. */
-    readonly DESTACK_REGISTRY: string;
     /** The binding of each cloud machine, by the hosts of it and its relay, as JSON. */
     readonly DESTACK_PEERS: string;
 }

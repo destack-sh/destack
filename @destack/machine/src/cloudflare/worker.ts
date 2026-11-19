@@ -465,7 +465,6 @@ export class PartitionObject {
             server: (image) => Promise.resolve(bundle.server(image)),
             linked: DistributionManifest.builtins(shipped, "workerd"),
             shipped: DistributionManifest.releases(shipped, "workerd"),
-            registry: bindings.DESTACK_REGISTRY,
             endpoint: bindings.DESTACK_ORIGIN,
             destack: { oldest: OLDEST_DESTACK, newest: machinePackage.version },
             authenticate: async (request, audience, partition) => {

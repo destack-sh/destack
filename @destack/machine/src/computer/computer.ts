@@ -152,8 +152,6 @@ export interface ComputerOptions {
     };
     /** How the machine isolates its instances: in sandboxed processes, or in this process. */
     readonly isolation: BunIsolation;
-    /** The installation residency homes serve the registry protocol at, such as forge. */
-    readonly registry: string;
     /** Run the machine's instances, calling out through an egress and reading its builds. */
     readonly runtime?: (
         egress: (scope: Identifier<"space">) => string,
@@ -405,7 +403,6 @@ export class Computer implements AsyncDisposable {
                     server: (image) => processes.server(image),
                     linked,
                     shipped,
-                    registry: options.registry,
                     endpoint,
                     destack: { oldest: OLDEST_DESTACK, newest: MACHINE_PACKAGE.version },
                     ...(options.relay === undefined
@@ -1102,7 +1099,7 @@ export class Computer implements AsyncDisposable {
 
     /** Serve this computer until shutdown, with its device's local objects. */
     static async run(
-        bundle: Pick<ComputerOptions, "localObjects" | "registry">,
+        bundle: Pick<ComputerOptions, "localObjects">,
         environment: ComputerOptions["environment"],
         configuration = Computer.configure(environment),
     ): Promise<void> {
