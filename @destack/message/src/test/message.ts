@@ -22,7 +22,7 @@ import { ObjectReference, RequestId } from "@destack/sync";
 import { defineVault } from "@destack/vault/declare";
 import { secret, vault } from "@destack/vault/object";
 import vaultPackage from "@destack/vault/package";
-import { VAULT } from "@destack/vault/test";
+import { VAULT } from "@destack/machine/test";
 import { mailConnector, mailProvider } from "@destack/mail/transport";
 import { type TestMailAnswer, TestMailTransport } from "@destack/mail/test";
 import { mail } from "@destack/stack/object";

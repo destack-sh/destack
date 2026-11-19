@@ -9,7 +9,7 @@ import { argument, plural, t } from "@destack/locale";
 /** The documents application, whose people's calls make the space's history. */
 export const DOCUMENTS = PackageVersion.parse({
     id: "package-019f5530-8000-7000-8000-0000000000d1",
-    name: "@example/documents",
+    name: "@acme/documents",
     version: "2026.10.0",
 });
 
