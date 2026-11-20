@@ -2,14 +2,17 @@ import { defineScenario } from "@destack/package/declare";
 import { terminalInteraction } from "../scenario/interaction.ts";
 import { CommandLine } from "./line.ts";
 
-/** Run the common command lines against the owner's home, each warm after its first run. */
-export const runCommonCommands = defineScenario({
+/** The runs and warm-up runs. */
+const PARAMETERS = { runs: 3, warmup: 1 };
+
+/** Ask who is signed in. */
+export const showWhoami = defineScenario({
     of: CommandLine,
     interaction: terminalInteraction,
-    name: "run-common-commands",
-    description: "ask who is signed in, list the owner's spaces and the home's installations",
+    name: "show-whoami",
+    description: "ask who is signed in",
     given: { examples: [] },
-    parameters: { runs: 3, warmup: 1 },
+    parameters: PARAMETERS,
     when: [
         {
             operation: "cli.whoami",
@@ -18,6 +21,18 @@ export const runCommonCommands = defineScenario({
             step: { action: "run", words: ["whoami", "--json"] },
             then: [{ observe: { read: "output", field: "status" }, is: "authenticated" }],
         },
+    ],
+});
+
+/** List the owner's spaces. */
+export const listSpaces = defineScenario({
+    of: CommandLine,
+    interaction: terminalInteraction,
+    name: "list-spaces",
+    description: "list the owner's spaces",
+    given: { examples: [] },
+    parameters: PARAMETERS,
+    when: [
         {
             operation: "space.list",
             times: "{runs}",
@@ -25,6 +40,18 @@ export const runCommonCommands = defineScenario({
             step: { action: "run", words: ["spaces", "--json"] },
             then: [{ observe: { read: "output", field: "name" }, is: ["home"] }],
         },
+    ],
+});
+
+/** List the home's installations. */
+export const listInstallations = defineScenario({
+    of: CommandLine,
+    interaction: terminalInteraction,
+    name: "list-installations",
+    description: "list the home's installations",
+    given: { examples: [] },
+    parameters: PARAMETERS,
+    when: [
         {
             operation: "installation.list",
             times: "{runs}",
