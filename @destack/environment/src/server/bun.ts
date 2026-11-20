@@ -2,9 +2,6 @@ import type { ServerWebSocket } from "bun";
 import type { Listener, ServeOptions, Server, ServerSocket } from "./server.ts";
 import { listenSocket } from "../network/socket/bun.ts";
 
-/** The seconds a request may idle: Node's 300 s request timeout, at Bun's 255 s limit. */
-const IDLE_TIMEOUT_SECONDS = 255;
-
 /** The media type of a response that streams events for as long as its client listens. */
 const EVENT_STREAM = "text/event-stream";
 
@@ -81,7 +78,9 @@ function serveHttp<Attachment>(options: ServeOptions<Attachment>): Listener {
             ? Bun.serve<BunSocketData<Attachment>>({
                   ...(options.hostname === undefined ? {} : { hostname: options.hostname }),
                   ...(options.port === undefined ? {} : { port: options.port }),
-                  idleTimeout: IDLE_TIMEOUT_SECONDS,
+                  ...(options.idleTimeout === undefined
+                      ? {}
+                      : { idleTimeout: options.idleTimeout }),
                   ...handler,
               })
             : Bun.serve<BunSocketData<Attachment>>({ unix: options.unix, ...handler });

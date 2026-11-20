@@ -53,6 +53,8 @@ export interface ServeOptions<Attachment> {
     ) => Response | ServerUpgrade<Attachment> | Promise<Response | ServerUpgrade<Attachment>>;
     /** Take the accepted sockets' events. */
     readonly websocket?: ServerSocketHandler<Attachment>;
+    /** The seconds a request may idle before the listener closes it, else the runtime's default. */
+    readonly idleTimeout?: number;
 }
 
 /** The accepting of connections: requests and WebSockets, and stream sockets. */
