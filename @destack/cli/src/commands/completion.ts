@@ -1,11 +1,10 @@
 import { Universe } from "@destack/update/release";
-import type { Command } from "../command/command.ts";
+import type { CommandBody } from "../command/command.ts";
 import { Completion, SHELLS } from "../distribution/completion.ts";
 import { CliError } from "../error/index.ts";
 
 /** Print the completion script of a shell. */
-export const completionCommand: Command = {
-    description: "Print the completion script of a shell: bash, zsh or fish",
+export const completionCommand: CommandBody = {
     arguments: [{ name: "shell", complete: async () => SHELLS }],
     async run({ arguments: { shell } }, context) {
         // require a shell with a completion script

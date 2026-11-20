@@ -4,7 +4,7 @@ import { pathToFileURL } from "node:url";
 import type { CheckResult } from "@destack/check/diagnostic";
 import type { Project, TestTier } from "@destack/check/project";
 import { present } from "@destack/schema";
-import type { Command } from "../command/command.ts";
+import type { CommandBody } from "../command/command.ts";
 import type { CommandContext } from "../command/context.ts";
 import { CliError } from "../error/index.ts";
 
@@ -12,8 +12,7 @@ import { CliError } from "../error/index.ts";
 const TEST_TIERS = new Set<string>(["unit", "scenario", "bench"]);
 
 /** Check a checkout's package: formatting, types, README listings, lints and its own check. */
-export const checkCommand: Command = {
-    description: "Check a package's formatting, types and lints with its pinned toolchain",
+export const checkCommand: CommandBody = {
     arguments: [{ name: "package", default: ".", isDirectory: true }],
     options: {
         since: {
@@ -35,8 +34,7 @@ export const checkCommand: Command = {
 };
 
 /** Fix a checkout's package: its generated settings, formatting, lints and its own fix. */
-export const fixCommand: Command = {
-    description: "Write a package's generated settings, format it and fix its lints",
+export const fixCommand: CommandBody = {
     arguments: [{ name: "package", default: ".", isDirectory: true }],
     isJson: true,
     async run({ arguments: { package: directory }, isJson: json }, context) {
@@ -49,8 +47,7 @@ export const fixCommand: Command = {
 };
 
 /** Run a checkout's package's tests, its files' names deriving their tiers and environments. */
-export const testCommand: Command = {
-    description: "Run a package's tests with its pinned toolchain, unit and scenario by default",
+export const testCommand: CommandBody = {
     arguments: [{ name: "package", default: ".", isDirectory: true }],
     rest: { name: "files", usage: "file" },
     options: {

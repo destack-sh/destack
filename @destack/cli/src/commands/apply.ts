@@ -2,7 +2,7 @@ import { canonicalize, type Identifier, present } from "@destack/schema";
 import objectPackage from "@destack/object/package";
 import stackPackage, { STACK_INSTALLATION } from "@destack/stack/package";
 import { ObjectReference, RequestId } from "@destack/sync";
-import { type Command, CommandOption, type CommandCall } from "../command/command.ts";
+import { CommandOption, type CommandCall, type CommandBody } from "../command/command.ts";
 import type { CommandContext } from "../command/context.ts";
 import { CliError } from "../error/index.ts";
 import { InstallationStatus } from "../installation/status.ts";
@@ -29,8 +29,7 @@ const EXPORT_OPTIONS = {
 } as const;
 
 /** Apply a checkout's stack to the space and follow it until applied. */
-export const applyCommand: Command = {
-    description: "Apply a checkout's stack to the space, following it until applied",
+export const applyCommand: CommandBody = {
     arguments: [{ name: "directory", default: ".", isDirectory: true }],
     isJson: true,
     options: {
@@ -49,9 +48,7 @@ export const applyCommand: Command = {
 };
 
 /** Show an installation, the space's stack by default, its resources and the plan it waits on. */
-export const planCommand: Command = {
-    description:
-        "Show an installation, the space's stack by default, its resources and the plan it waits on",
+export const planCommand: CommandBody = {
     arguments: [INSTALLATION_ARGUMENT],
     isJson: true,
     options: { watch: { type: "boolean", description: "Follow it as it changes" } },
@@ -74,17 +71,14 @@ export const planCommand: Command = {
 };
 
 /** Approve the plan an installation, the space's stack by default, waits on. */
-export const approveCommand: Command = decideCommand("approve");
+export const approveCommand: CommandBody = decideCommand("approve");
 
 /** Reject the plan an installation, the space's stack by default, waits on. */
-export const rejectCommand: Command = decideCommand("reject");
+export const rejectCommand: CommandBody = decideCommand("reject");
 
 /** Decide the plan an installation waits on through its change request, by the reviewed digest. */
-function decideCommand(decision: "approve" | "reject"): Command {
-    const verb = decision === "approve" ? "Approve" : "Reject";
-
+function decideCommand(decision: "approve" | "reject"): CommandBody {
     return {
-        description: `${verb} the plan an installation, the space's stack by default, waits on`,
         arguments: [INSTALLATION_ARGUMENT],
         isJson: true,
         options: {

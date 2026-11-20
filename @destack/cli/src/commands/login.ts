@@ -5,7 +5,7 @@ import type { schema } from "@destack/schema";
 
 import type { SpaceAddress } from "@destack/account/address";
 import { type Device, type SignInMethod } from "@destack/machine/device";
-import { type Command, CommandOption, type CommandCall } from "../command/command.ts";
+import { CommandOption, type CommandCall, type CommandBody } from "../command/command.ts";
 import type { Environment } from "@destack/environment";
 import { Prompt } from "../output/index.ts";
 import type { CommandContext } from "../command/context.ts";
@@ -109,9 +109,7 @@ export class SignInPrompt {
 }
 
 /** Sign a person in with a device code, through the browser, or with a mailed code. */
-export const loginCommand: Command = {
-    description:
-        "Sign in or up with a device code, enrolling this machine; --browser signs in through the browser, --email with a mailed code, which --handle signs a new person up with",
+export const loginCommand: CommandBody = {
     isJson: true,
     options: {
         browser: { type: "boolean", description: "Sign in through this computer's browser" },
@@ -159,8 +157,7 @@ export const loginCommand: Command = {
 };
 
 /** Sign the person out of this machine. */
-export const logoutCommand: Command = {
-    description: "Sign out of this machine",
+export const logoutCommand: CommandBody = {
     isJson: true,
     async run({ isJson: json }, context) {
         // revoke the session at its issuer and remove the login
@@ -175,8 +172,7 @@ export const logoutCommand: Command = {
 };
 
 /** Show the person signed in on this machine and the space the terminal acts in. */
-export const whoamiCommand: Command = {
-    description: "Show the person signed in on this machine and the space the terminal acts in",
+export const whoamiCommand: CommandBody = {
     isJson: true,
     async run({ isJson: json }, context) {
         // read the person and the address of the space

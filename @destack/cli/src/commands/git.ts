@@ -1,5 +1,4 @@
-import accountPackage from "@destack/account/package";
-import type { Command } from "../command/command.ts";
+import type { CommandBody } from "../command/command.ts";
 import type { CommandEnvironment } from "../command/context.ts";
 import { CliError } from "../error/index.ts";
 
@@ -18,8 +17,7 @@ const SELECTING_VARIABLES = [
 ] as const;
 
 /** Push and pull Destack repositories with git as the person signed in. */
-export const gitCommand: Command = {
-    description: "Push and pull Destack repositories with git as you",
+export const gitCommand: CommandBody = {
     commands: {
         setup: {
             description: "Register destack as git's credential helper, as gh auth setup-git does",
@@ -51,7 +49,7 @@ export const gitCommand: Command = {
 
                 // answer with the person's account token, which the universe exchanges for the repository's
                 const launcher = await context.launcher();
-                const token = await launcher.session.credential.token(accountPackage.id);
+                const token = await launcher.session.credential.accountToken();
                 await context.terminal.print(request.answer(token));
             },
         },

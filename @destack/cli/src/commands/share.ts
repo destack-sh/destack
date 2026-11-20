@@ -3,7 +3,7 @@ import { Account, space } from "@destack/account/object";
 import { Shareable } from "@destack/object";
 import { present, schema } from "@destack/schema";
 import { RequestId, Scope } from "@destack/sync";
-import { type Command, CommandOption } from "../command/command.ts";
+import { CommandOption, type CommandBody } from "../command/command.ts";
 import { CliError } from "../error/index.ts";
 import { Cell } from "../object/cell.ts";
 import { Grid } from "../object/grid.ts";
@@ -18,8 +18,7 @@ const DEFAULT_ROLE = "editor";
 const HANDLE_PREFIX = "@";
 
 /** Invite a person to the space the terminal acts in, by their handle or email. */
-export const shareCommand: Command = {
-    description: "Invite a person to the space, by @handle or email, as a role",
+export const shareCommand: CommandBody = {
     arguments: [{ name: "person", usage: "@handle|email" }],
     options: {
         role: {
@@ -72,8 +71,7 @@ export const shareCommand: Command = {
 };
 
 /** List the invitations to the person signed in. */
-export const invitedCommand: Command = {
-    description: "List the invitations to you",
+export const invitedCommand: CommandBody = {
     isJson: true,
     async run({ isJson: json }, context) {
         // read the invitations to the person and their verified email
@@ -101,8 +99,7 @@ export const invitedCommand: Command = {
 };
 
 /** Accept an invitation to the person signed in. */
-export const acceptCommand: Command = {
-    description: "Accept an invitation to you, which destack invited lists",
+export const acceptCommand: CommandBody = {
     arguments: [{ name: "invitation", usage: "invitation-…" }],
     isJson: true,
     async run({ arguments: { invitation }, isJson: json }, context) {

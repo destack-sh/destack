@@ -2,15 +2,14 @@ import { resolve } from "node:path";
 import { PackageName } from "@destack/package";
 import { present } from "@destack/schema";
 import { RequestId } from "@destack/sync";
-import { type Command, CommandOption } from "../command/command.ts";
+import { CommandOption, type CommandBody } from "../command/command.ts";
 import { readSpecifier } from "./install.ts";
 
 /** The template a package is made from unless another is asked for. */
 const DEFAULT_TEMPLATE = "@destack/blank";
 
 /** Make a package from a published template in a new checkout on this computer. */
-export const newCommand: Command = {
-    description: "Make a package from a template in a new directory, as a checkout",
+export const newCommand: CommandBody = {
     arguments: [
         { name: "package", usage: "@handle/name" },
         { name: "directory", default: "", isDirectory: true },

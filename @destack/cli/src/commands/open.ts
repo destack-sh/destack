@@ -2,7 +2,7 @@ import { Universe } from "@destack/update/release";
 import { Link } from "@destack/desktop/link";
 import { window } from "@destack/desktop/object";
 import { present } from "@destack/schema";
-import { type Command, CommandOption } from "../command/command.ts";
+import { CommandOption, type CommandBody } from "../command/command.ts";
 
 import type { CommandContext } from "../command/context.ts";
 import { Application } from "@destack/desktop/workload";
@@ -10,8 +10,7 @@ import { CliError } from "../error/index.ts";
 import type { Address } from "@destack/view/declare";
 
 /** Open a link, or an object by its identifier, in a desktop window or the browser. */
-export const openCommand: Command = {
-    description: "Open a link, or an object by its identifier, in a desktop window or the browser",
+export const openCommand: CommandBody = {
     arguments: [{ name: "target", usage: "link|id" }],
     isJson: true,
     options: {

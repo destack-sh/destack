@@ -1,4 +1,4 @@
-import { CallError } from "@destack/object";
+import { Failure } from "@destack/error";
 import { schema } from "@destack/schema";
 import type { Terminal } from "../output/index.ts";
 import { CliError } from "../error/error.ts";
@@ -69,21 +69,20 @@ export class CommandFailure {
     readonly error: unknown;
     /** The first failure with a code in the error's cause chain, absent for an uncoded one. */
     readonly cause: Error | undefined;
+    /** The call failure the coded cause declares, absent for an uncoded one. */
+    readonly failure: Failure | undefined;
 
     /** Read a failure and its first coded cause. */
     constructor(error: unknown) {
         // find the first failure with a code, which the HTTP client wraps
         this.error = error;
-        let cause = error;
-        while (cause instanceof Error && CallError.of(cause) === undefined) {
-            cause = cause.cause;
-        }
-        this.cause = cause instanceof Error ? cause : undefined;
+        this.cause = Failure.causes(error).find((cause) => Failure.declared(cause) !== undefined);
+        this.failure = Failure.declared(this.cause);
     }
 
     /** Read the code the failure reports in the call error vocabulary. */
     get code(): string {
-        return CallError.of(this.cause)?.code ?? "INTERNAL_SERVER_ERROR";
+        return this.failure?.code ?? "INTERNAL_SERVER_ERROR";
     }
 
     /** Read the message of the coded failure, else of the failure itself. */
@@ -111,7 +110,7 @@ export class CommandFailure {
     get trace(): string | undefined {
         const traced = schema
             .looseObject({ traceId: schema.string() })
-            .safeParse(CallError.of(this.cause)?.data);
+            .safeParse(this.failure?.data);
 
         return traced.success ? traced.data.traceId : undefined;
     }
@@ -132,7 +131,7 @@ export class CommandFailure {
         // exit as a command needing a sign-in, refused locally or by a service
         else if (
             CliError.is(this.cause, "SIGN_IN_UNAUTHENTICATED") ||
-            CallError.of(this.cause)?.code === "UNAUTHORIZED"
+            this.failure?.code === "UNAUTHORIZED"
         ) {
             return SIGN_IN_STATUS;
         }

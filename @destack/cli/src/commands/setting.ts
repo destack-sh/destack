@@ -1,7 +1,12 @@
 import { type JsonValue, present, schema, toJsonSchema, Identifier } from "@destack/schema";
 import { DeviceValue, type Setting, SettingResolution, type SettingSource } from "@destack/setting";
 import { deviceSetting, setting } from "@destack/setting/object";
-import { type Command, type CommandCall, CommandOption } from "../command/command.ts";
+import {
+    type Command,
+    type CommandCall,
+    CommandOption,
+    type CommandBody,
+} from "../command/command.ts";
 
 import type { CommandContext } from "../command/context.ts";
 import type { Terminal } from "../output/index.ts";
@@ -115,8 +120,7 @@ class SettingScope {
 }
 
 /** Build the commands of a setting by name. */
-export const settingCommand: Command = {
-    description: "Get, set or reset a setting at the scope --scope selects",
+export const settingCommand: CommandBody = {
     commands: {},
     target: {
         name: "name",
@@ -133,8 +137,7 @@ export const settingCommand: Command = {
 };
 
 /** Build the command listing the values at the scope of --scope. */
-export const settingsCommand: Command = {
-    description: "List the setting values at the scope --scope selects",
+export const settingsCommand: CommandBody = {
     isJson: true,
     options: { ...SCOPE_OPTION, ...LIST_OPTIONS },
     async run(call, context) {

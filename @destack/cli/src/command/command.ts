@@ -5,7 +5,6 @@ import { type JsonObject, nth, schema } from "@destack/schema";
 import type { Terminal } from "../output/index.ts";
 import type { CommandContext } from "./context.ts";
 import { CliError } from "../error/index.ts";
-import { MachineError } from "@destack/machine/error";
 
 /** The options every command line reads before its command's. */
 export const GLOBAL_OPTIONS = {
@@ -80,7 +79,12 @@ export interface Command {
     readonly journeys?: readonly CommandJourney[];
     /** Whether help and completion leave the command out. */
     readonly isHidden?: boolean;
+    /** Load the command when it runs. */
+    readonly load?: () => Promise<CommandBody>;
 }
+
+/** A command without its description, which its parent declares. */
+export type CommandBody = Omit<Command, "description">;
 
 /** A journey of a command's help: its word and the subcommands a person takes on it. */
 export interface CommandJourney {
@@ -160,8 +164,18 @@ export class CommandTree {
         const found = Object.hasOwn(named, word)
             ? named[word]
             : await command.resolve?.(word, this.context);
+        if (found?.load === undefined) {
+            return found ?? command.target?.command(word);
+        }
 
-        return found ?? command.target?.command(word);
+        // load a lazy subcommand, keeping its parent's description
+        const loaded = await found.load();
+
+        return {
+            ...loaded,
+            description: found.description,
+            ...(found.isHidden === undefined ? {} : { isHidden: found.isHidden }),
+        };
     }
 
     /** List a command's shown subcommands in help order, the loaded ones after the named ones. */
@@ -398,6 +412,7 @@ export class CommandTree {
                 children = await this.children(command);
             } catch (error) {
                 // list the named ones alone while the machine is stopped, nobody signed in or no space set
+                const { MachineError } = await import("@destack/machine/error");
                 const isOffline =
                     MachineError.is(error, "MACHINE_UNAVAILABLE") ||
                     CliError.is(error, "SIGN_IN_UNAUTHENTICATED") ||

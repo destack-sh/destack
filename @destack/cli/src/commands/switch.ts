@@ -1,10 +1,9 @@
 import { currentSpace } from "@destack/account/native";
 import { present } from "@destack/schema";
-import type { Command } from "../command/command.ts";
+import type { CommandBody } from "../command/command.ts";
 
 /** Switch the space command lines act in without --space. */
-export const switchCommand: Command = {
-    description: "Switch the space command lines act in, stored as this computer's space setting",
+export const switchCommand: CommandBody = {
     arguments: [
         {
             name: "space",

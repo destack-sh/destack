@@ -1,7 +1,5 @@
 import { isAbsolute, join, relative, resolve } from "node:path";
 import type { CommandEnvironment } from "../command/context.ts";
-import { Setup } from "./setup.ts";
-import { Release } from "@destack/update/release";
 
 /** The stable launcher, forwarding to the current installed distribution. */
 export const Launcher = {
@@ -17,6 +15,8 @@ export const Launcher = {
         }
 
         // read where this executable runs from and the current release
+        const { Setup } = await import("./setup.ts");
+        const { Release } = await import("@destack/update/release");
         const installer = (await Setup.current(environment)).installer();
         const inside = relative(installer.directory, resolve(environment.process.executable));
         const isRelease = !inside.startsWith("..") && !isAbsolute(inside);
@@ -33,7 +33,7 @@ export const Launcher = {
 
         // run the current release's command, passing the shell's input, output and status through
         const command = environment.process.spawn(
-            [join(current.directory, "bin", Release.executable("destack", os)), ...words],
+            [join(current.directory, "bin", Release.executable(os)), ...words],
             { stdin: "inherit", stdout: "inherit", stderr: "inherit" },
         );
 

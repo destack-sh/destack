@@ -4,7 +4,7 @@ import { type PackageId, PackageName } from "@destack/package";
 import { type Identifier, present, Version } from "@destack/schema";
 import objectPackage from "@destack/object/package";
 import { ObjectReference, RequestId } from "@destack/sync";
-import { type Command, CommandOption } from "../command/command.ts";
+import { CommandOption, type CommandBody } from "../command/command.ts";
 import type { CommandContext } from "../command/context.ts";
 import { CliError } from "../error/index.ts";
 import { InstallationStatus } from "../installation/status.ts";
@@ -13,9 +13,7 @@ import { InstallationStatus } from "../installation/status.ts";
 const VERSION_SEPARATOR = "@";
 
 /** Install a package or change what it follows, and follow it until its space serves it. */
-export const installCommand: Command = {
-    description:
-        "Install a package, following its latest release or a tag, or staying on a version",
+export const installCommand: CommandBody = {
     arguments: [{ name: "package", usage: "@scope/name[@version|@tag]" }],
     options: {
         name: {
@@ -77,8 +75,7 @@ export const installCommand: Command = {
 };
 
 /** Uninstall a package's installation, or the one of a name, following its removal. */
-export const uninstallCommand: Command = {
-    description: "Uninstall a package, or the installation of a name, deleting its resources",
+export const uninstallCommand: CommandBody = {
     arguments: [{ name: "installation", usage: "@scope/name|name" }],
     options: {
         yes: { type: "boolean", description: "Uninstall without asking" },

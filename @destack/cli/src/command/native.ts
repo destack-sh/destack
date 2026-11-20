@@ -1,5 +1,5 @@
 import type { Environment } from "@destack/environment";
-import { Device, type MachineCredential } from "@destack/machine/device";
+import type { Device, MachineCredential } from "@destack/machine/device";
 
 /** This computer's native device, opened on first use and closed with the command line. */
 export class NativeDevice implements AsyncDisposable {
@@ -17,13 +17,17 @@ export class NativeDevice implements AsyncDisposable {
 
     /** Open the device once, keeping it to close. */
     open(): Promise<Device<MachineCredential>> {
-        this.#opening ??= Device.current(this.#environment).then((device) => {
-            this.#device = device;
-
-            return device;
-        });
+        this.#opening ??= this.#open();
 
         return this.#opening;
+    }
+
+    /** Load the device's module and open the device, keeping it to close. */
+    async #open(): Promise<Device<MachineCredential>> {
+        const { Device } = await import("@destack/machine/device");
+        this.#device = await Device.current(this.#environment);
+
+        return this.#device;
     }
 
     /** Close the device if it opened. */

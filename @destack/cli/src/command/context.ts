@@ -1,13 +1,11 @@
-import { spaceAliases } from "@destack/account/declare";
-import { currentSpace, type Login, NATIVE_SETTINGS } from "@destack/account/native";
+import type { Login } from "@destack/account/native";
 import type { Environment } from "@destack/environment";
 import { dirname, relative } from "node:path";
-import { DESKTOP_SETTINGS } from "@destack/desktop/setting";
 import { type ObjectType, type Package } from "@destack/object";
-import { type ClientOf, type ObjectClient, createClient } from "@destack/object/client";
-import registryPackage from "@destack/registry/package";
+import type { ClientOf, ObjectClient } from "@destack/object/client";
+import type registryPackage from "@destack/registry/package";
 import { PackageName } from "@destack/package";
-import { Setting } from "@destack/setting";
+import type { Setting } from "@destack/setting";
 import type { PlacementEndpoint } from "@destack/account/object";
 import {
     type Launcher,
@@ -16,22 +14,14 @@ import {
     type MachineCredential,
 } from "@destack/machine/device";
 import type { StepUp } from "@destack/access";
-import { checkout, type Checkout } from "@destack/machine/checkout";
-import { RequestId } from "@destack/sync";
+import type { Checkout } from "@destack/machine/checkout";
 import { type Identifier, schema, Version } from "@destack/schema";
 
-import { Catalog } from "../object/catalog.ts";
+import type { Catalog } from "../object/catalog.ts";
 import { Terminal } from "../output/index.ts";
 import type { Decision, GrantRequest } from "@destack/account/authentication";
-import { Localization, SOURCE_LOCALE } from "@destack/locale";
 import type {} from "@destack/package/import-meta";
 import { CliError } from "../error/index.ts";
-
-/** The localization the terminal reads permissions in: the source language. */
-const SOURCE = Localization.of(SOURCE_LOCALE, []);
-
-/** The settings Destack's packages declare beside the space's installations'. */
-const BUILT_IN_SETTINGS: readonly Setting[] = [...NATIVE_SETTINGS, ...DESKTOP_SETTINGS];
 
 /** The environment capabilities a command line runs with. */
 export type CommandEnvironment = Environment<"files" | "process" | "host" | "opener" | "server">;
@@ -105,7 +95,11 @@ export class CommandContext implements AsyncDisposable {
 
     /** List the settings Destack's packages and the space's installations declare. */
     async settings(): Promise<Setting[]> {
-        return [...BUILT_IN_SETTINGS, ...(await this.catalog()).settings];
+        // take the native and desktop settings Destack declares, then the space's installations'
+        const { NATIVE_SETTINGS } = await import("@destack/account/native");
+        const { DESKTOP_SETTINGS } = await import("@destack/desktop/setting");
+
+        return [...NATIVE_SETTINGS, ...DESKTOP_SETTINGS, ...(await this.catalog()).settings];
     }
 
     /** Open the launcher of the person the terminal acts as, refusing one nobody signed in on. */
@@ -143,6 +137,7 @@ export class CommandContext implements AsyncDisposable {
             }
 
             // take this computer's space setting, absent without one
+            const { currentSpace } = await import("@destack/account/native");
             const set = await (await this.native()).setting(currentSpace);
 
             return set ?? undefined;
@@ -153,6 +148,7 @@ export class CommandContext implements AsyncDisposable {
 
     /** Resolve a space's name, as the signed-in person names it. */
     async resolve(name: string): Promise<Identifier<"space">> {
+        const { spaceAliases } = await import("@destack/account/declare");
         const aliases = await (await this.native()).setting(spaceAliases);
 
         return (await this.launcher()).resolve(name, aliases);
@@ -208,6 +204,8 @@ export class CommandContext implements AsyncDisposable {
         const home = await launcher.residency(accountId);
 
         // call the registry the home serves
+        const { createClient } = await import("@destack/object/client");
+        const { default: registryPackage } = await import("@destack/registry/package");
         const endpoint = await launcher.package(home, registryPackage.id);
 
         return {
@@ -244,6 +242,7 @@ export class CommandContext implements AsyncDisposable {
         consent: "ask" | "approve" = "ask",
     ) {
         // send as the person, answering at the terminal what a call asks of them
+        const { createClient } = await import("@destack/object/client");
         const client = await this.native();
         const session = await this.launcher();
 
@@ -286,9 +285,11 @@ export class CommandContext implements AsyncDisposable {
     /** Ask the person at the terminal whether to grant what an installation asks. */
     async #decide(request: GrantRequest): Promise<Decision> {
         // name the package, its address if any, its space and each permission as its package describes it
+        const { Localization, SOURCE_LOCALE } = await import("@destack/locale");
+        const source = Localization.of(SOURCE_LOCALE, []);
         const named = request.installation === undefined ? "" : ` (${request.installation})`;
         const permissions = request.permissions.map(
-            (permission) => `  - ${SOURCE.render(permission.description)}`,
+            (permission) => `  - ${source.render(permission.description)}`,
         );
         const question = [
             `${request.package}${named} in ${request.space} asks to:`,
@@ -313,6 +314,8 @@ export class CommandContext implements AsyncDisposable {
         }
 
         // query the checkouts registered at any of them
+        const { checkout } = await import("@destack/machine/checkout");
+        const { RequestId } = await import("@destack/sync");
         const client = await this.native();
         await using opened = new AsyncDisposableStack();
         const checkouts = await client.follow({ checkout }, opened);
@@ -377,7 +380,7 @@ export class CommandContext implements AsyncDisposable {
 
     /** Read the nouns and settings the stores describe, once. */
     catalog(): Promise<Catalog> {
-        this.#catalog ??= Catalog.of(this);
+        this.#catalog ??= import("../object/catalog.ts").then(({ Catalog }) => Catalog.of(this));
 
         return this.#catalog;
     }

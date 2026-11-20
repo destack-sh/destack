@@ -4,7 +4,7 @@ import { type PackageJson, PackageName } from "@destack/package";
 import { type Identifier, present, type Version } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import * as stackObject from "@destack/stack/object";
-import { type Command, CommandOption, type CommandCall } from "../command/command.ts";
+import { CommandOption, type CommandCall, type CommandBody } from "../command/command.ts";
 import type { CommandContext } from "../command/context.ts";
 
 import { preview } from "@destack/machine/checkout";
@@ -32,8 +32,7 @@ const OUTPUTS_OPTION = {
 } as const;
 
 /** Preview a checkout's package live against the space. */
-export const devCommand: Command = {
-    description: "Preview a checkout's package live against the space",
+export const devCommand: CommandBody = {
     arguments: [{ name: "package", default: ".", isDirectory: true }],
     isJson: true,
     async run({ arguments: { package: directory }, isJson: json }, context) {
@@ -42,8 +41,7 @@ export const devCommand: Command = {
 };
 
 /** Build a checkout's package in the space, following its phases. */
-export const buildCommand: Command = {
-    description: "Build a checkout's package in the space, following its phases",
+export const buildCommand: CommandBody = {
     arguments: [{ name: "package", default: ".", isDirectory: true }],
     isJson: true,
     options: OUTPUTS_OPTION,
@@ -63,8 +61,7 @@ export const buildCommand: Command = {
 };
 
 /** Build a checkout's package in the space and publish the build to the registry. */
-export const publishCommand: Command = {
-    description: "Build a checkout's package in the space and publish it to the registry",
+export const publishCommand: CommandBody = {
     arguments: [{ name: "package", default: ".", isDirectory: true }],
     isJson: true,
     options: {

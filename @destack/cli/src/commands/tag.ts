@@ -1,11 +1,10 @@
 import { present } from "@destack/schema";
 import { RequestId } from "@destack/sync";
-import type { Command } from "../command/command.ts";
+import type { CommandBody } from "../command/command.ts";
 import { readSpecifier } from "./install.ts";
 
 /** Point a package's distribution tag at one of its releases, as its publisher. */
-export const tagCommand: Command = {
-    description: "Point a package's distribution tag at one of its releases",
+export const tagCommand: CommandBody = {
     arguments: [
         { name: "package", usage: "@scope/name@version" },
         { name: "tag", usage: "name" },
