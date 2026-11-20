@@ -90,14 +90,8 @@ export const UNIVERSE_PAGES = {
     apps: "/apps",
 } as const;
 
-/** A link at the universe's origin: an account's profile, app or repository. */
+/** A link at the universe's origin: an account's app or repository. */
 export type UniverseLink =
-    | {
-          /** A profile, at `/@<handle>`. */
-          readonly kind: "profile";
-          /** The account's handle. */
-          readonly handle: string;
-      }
     | {
           /** An app, at `/@<handle>/<space>/<app>`, redirecting to its installation. */
           readonly kind: "app";
@@ -148,7 +142,7 @@ export const UniverseOrigin = {
         return undefined;
     },
 
-    /** Read the link a path holds: a profile at `/@<handle>`, or an app or repository below it. */
+    /** Read the app or repository link a path holds below `/@<handle>`. */
     link(pathname: string): UniverseLink | undefined {
         // split the path below its `@`
         const [handle, space, name, ...rest] = pathname.replace(/\/$/u, "").split("/").slice(1);
@@ -165,10 +159,6 @@ export const UniverseOrigin = {
             const path = below.length === 0 ? "" : `/${below.join("/")}`;
 
             return { kind: "repository", handle: account, name: repository.data, path };
-        }
-        // read a profile
-        else if (isHandle && space === undefined) {
-            return { kind: "profile", handle: account };
         }
         // read an app
         else if (

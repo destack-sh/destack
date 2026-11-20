@@ -14,7 +14,7 @@ test("cover the platform's domains and the hostnames and wildcards below them, b
     ).toEqual([true, true, true, false, false, false]);
 });
 
-test("read profile, app and repository links below the universe's origin, and nothing else", () => {
+test("read app and repository links below the universe's origin, and nothing else", () => {
     expect(
         [
             "/@ada",
@@ -30,8 +30,8 @@ test("read profile, app and repository links below the universe's origin, and no
             "/@A",
         ].map((path) => UniverseOrigin.link(path)),
     ).toEqual([
-        { kind: "profile", handle: "ada" },
-        { kind: "profile", handle: "ada" },
+        undefined,
+        undefined,
         { kind: "app", installation: { name: "notes", space: "home", handle: "ada" } },
         { kind: "repository", handle: "ada", name: "home", path: "" },
         { kind: "repository", handle: "ada", name: "home", path: "/info/refs" },
