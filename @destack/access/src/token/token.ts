@@ -17,8 +17,11 @@ import { AccessError } from "../error/index.ts";
 import { TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
 
-/** The longest lifetime of a token and of the verified identity and membership records in it. */
+/** The lifetime of a token whose caller asks for none: a minute. */
 export const TOKEN_LIFETIME_MILLISECONDS = 60000;
+
+/** The longest lifetime a caller may ask for: ten minutes, as a machine's tunnel token lasts. */
+export const MAX_TOKEN_LIFETIME_MILLISECONDS = 10 * 60_000;
 /** The credential kind of a machine's key. */
 export const MACHINE_KEY = "machine-key";
 /** The credential kind of an installation's key. */
@@ -180,12 +183,11 @@ export class TokenVerifier {
             );
         }
 
-        // refuse a token outliving its audience's lifetime
+        // refuse a token outliving the longest lifetime an issuer grants
         const claims = result.data;
         const { credential: presented, ...identity } = claims.caller;
         const verifiedAt = claims.iat * 1000;
-        const lifetime = this.options.lifetime ?? TOKEN_LIFETIME_MILLISECONDS;
-        if ((claims.exp - claims.iat) * 1000 > lifetime) {
+        if ((claims.exp - claims.iat) * 1000 > MAX_TOKEN_LIFETIME_MILLISECONDS) {
             throw AccessError.of(
                 "TOKEN_UNAUTHENTICATED",
                 "authentication required: access token claims do not verify",
@@ -204,7 +206,7 @@ export class TokenVerifier {
             audience,
             ...(claims.partition === undefined ? {} : { scope: claims.partition }),
             verifiedAt,
-            expiresAt: Math.min(claims.exp * 1000, verifiedAt + lifetime),
+            expiresAt: Math.min(claims.exp * 1000, verifiedAt + MAX_TOKEN_LIFETIME_MILLISECONDS),
             tokenId: claims.jti,
         };
 
@@ -261,7 +263,7 @@ export class TokenVerifier {
                     audience: PackageId.resource(audience),
                     algorithms: ["ES256"],
                     requiredClaims: ["iss", "aud", "sub", "client_id", "iat", "exp", "jti"],
-                    maxTokenAge: (this.options.lifetime ?? TOKEN_LIFETIME_MILLISECONDS) / 1000,
+                    maxTokenAge: MAX_TOKEN_LIFETIME_MILLISECONDS / 1000,
                     clockTolerance: CLOCK_TOLERANCE_MILLISECONDS / 1000,
                     now,
                 },
@@ -281,8 +283,6 @@ export interface TokenVerifierOptions {
     readonly issuers: (issuer: string) => Promise<TokenTrust | undefined>;
     /** The WebCrypto verifying, and the telemetry tracing each verify. */
     readonly environment: Pick<Environment, "crypto" | "telemetry">;
-    /** The longest lifetime of the tokens it accepts, a minute by default. */
-    readonly lifetime?: number;
 }
 
 /** The trust in an issuer: the identities it may assert and its current keys. */

@@ -124,7 +124,7 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
         { sub: "another-user" },
         { exp: issuedAt },
         { iat: issuedAt + 10, exp: issuedAt + 60 },
-        { exp: issuedAt + 61 },
+        { exp: issuedAt + 601 },
         { client_id: "user-example-client" },
         { client_id: "machine-019f7480-0000-7000-8000-000000000009" },
         { jti: "" },
