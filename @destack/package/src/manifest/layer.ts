@@ -318,6 +318,13 @@ export class BuildLayer {
         return this.#index.images[digest];
     }
 
+    /** List the shipped images listing a build. */
+    referrers(digest: Digest): Digest[] {
+        return Object.entries(this.#index.images)
+            .filter(([, image]) => BuildImage.builds(image).includes(digest))
+            .map(([image]) => Digest.parse(image));
+    }
+
     /** List the real directories the layer's files lie in: its own, its trees' and its builds'. */
     async directories(): Promise<readonly string[]> {
         // read none for a layer off disk
