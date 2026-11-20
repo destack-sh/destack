@@ -1,5 +1,5 @@
 import { Digest } from "@destack/schema";
-import { Universe } from "../release/index.ts";
+import { Profile } from "../release/index.ts";
 import { testHost } from "@destack/test/host";
 import { join } from "node:path";
 import { afterAll, beforeAll, expect, test } from "@destack/test";
@@ -39,7 +39,7 @@ test("stage a newer release once, keeping it staged while none newer is publishe
         running: new Release("2026.9.0", repository.target),
         executable: join(home, "bin", "destack"),
         applications: join(home, "Applications"),
-        universe: new Universe("production"),
+        profile: new Profile("release"),
         environment: repository.environment,
     });
     try {
@@ -84,7 +84,7 @@ test("check a toolchain out once, from earlier toolchains before the feed, keepi
         running: new Release("2026.9.0", repository.target),
         executable: join(resources, "destack"),
         applications: join(home, "Applications"),
-        universe: new Universe("production"),
+        profile: new Profile("release"),
         environment: repository.environment,
     });
 
@@ -150,28 +150,6 @@ test("check a toolchain out once, from earlier toolchains before the feed, keepi
             kept: [second, third].toSorted(),
             files: { second: [command.path], third: [desktop.path] },
         });
-    } finally {
-        await files.remove(home, { recursive: true });
-    }
-});
-
-test("take a local release's toolchain from its resources", async () => {
-    // run a local release whose executable's resources ship its toolchain
-    const { files } = testHost();
-    const home = await files.makeTemporaryDirectory("destack-distribution-");
-    const resources = join(home, "bin");
-    const distribution = new Distribution({
-        home,
-        repository: new URL("http://127.0.0.1/"),
-        root: Distribution.root(),
-        running: new Release("2026.9.0", "aarch64-apple-darwin"),
-        executable: join(resources, "destack"),
-        applications: join(home, "Applications"),
-        universe: new Universe("local"),
-        environment: testHost(),
-    });
-    try {
-        expect((await distribution.toolchain()).directory).toBe(join(resources, "toolchain"));
     } finally {
         await files.remove(home, { recursive: true });
     }

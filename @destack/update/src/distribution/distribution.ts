@@ -11,7 +11,7 @@ import { verifyApplication } from "../apple/install.ts";
 import { ShellPath } from "../install/path.ts";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import type { StagedRelease } from "../install/installer.ts";
-import { RELEASE_ROOT, Release, type Universe } from "../release/index.ts";
+import { RELEASE_ROOT, Release, type Profile } from "../release/index.ts";
 import { UpdateError } from "../error/index.ts";
 import { Updater } from "../update/index.ts";
 import { Manifest } from "../manifest/manifest.ts";
@@ -37,8 +37,11 @@ const WINDOWS_COMMAND = "helpers/destack.exe";
 /** The directory in a release's resources with the first-party releases it ships. */
 export const DISTRIBUTION_DIRECTORY = "distribution";
 
-/** The name of a toolchain directory: a local release's in its resources, or below the home. */
+/** The name of the toolchain directory below a home and beside a distribution build. */
 export const TOOLCHAIN_DIRECTORY = "toolchain";
+
+/** The feed every release comes from: the download origin's root. */
+const FEED = "https://download.destack.sh/";
 
 /** The checked-out toolchains a checkout keeps: the current one and the one before. */
 const KEPT_TOOLCHAINS = 2;
@@ -85,8 +88,8 @@ export interface DistributionOptions {
     readonly executable: string;
     /** The directory Mac applications install into. */
     readonly applications: string;
-    /** The universe installed, which names its commands, application and identifier. */
-    readonly universe: Universe;
+    /** The profile installed, which names its commands, application and identifier. */
+    readonly profile: Profile;
     /** The clock, network, files and processes updates run on. */
     readonly environment: DistributionEnvironment;
 }
@@ -116,7 +119,7 @@ export class Distribution {
 
         return (
             registration?.application ??
-            join(this.options.applications, `${this.options.universe.title}.app`)
+            join(this.options.applications, `${this.options.profile.title}.app`)
         );
     }
 
@@ -163,7 +166,7 @@ export class Distribution {
     ): Promise<string | undefined> {
         // leave a mounted or translocated Mac application unregistered
         const { application, method } = record;
-        const { universe } = this.options;
+        const { profile } = this.options;
         const { files, host } = this.options.environment;
         if (method === "application" && Distribution.#isTransient(application)) {
             return undefined;
@@ -173,7 +176,7 @@ export class Distribution {
         if (method === "application") {
             await verifyApplication(
                 application,
-                universe.applicationIdentifier,
+                profile.applicationIdentifier,
                 this.options.environment,
             );
         }
@@ -184,37 +187,37 @@ export class Distribution {
         await files.mkdir(bin, { recursive: true, mode: PRIVATE_MODE });
         const executable =
             method === "application"
-                ? await this.#linkApplication(application, bin, universe)
+                ? await this.#linkApplication(application, bin, profile)
                 : method === "nsis"
-                  ? await this.#linkNsis(bin, universe)
-                  : await this.#linkArchive(application, bin, universe);
+                  ? await this.#linkNsis(bin, profile)
+                  : await this.#linkArchive(application, bin, profile);
 
         // add the command to the user's shell and, on Linux, the archive's desktop to the menus
         if (options.isShell) {
-            await new ShellPath(bin, universe, this.options.environment).add();
+            await new ShellPath(bin, profile, this.options.environment).add();
         }
         if (options.isShell && method === "archive" && host.os === "linux") {
-            await this.#addDesktopEntry(universe, join(bin, universe.command), application);
+            await this.#addDesktopEntry(profile, join(bin, profile.command), application);
         }
 
         return executable;
     }
 
-    /** Remove the universe's launcher from the user's shell and menus, keeping the files. */
+    /** Remove the profile's launcher from the user's shell and menus, keeping the files. */
     async unlink(options: { readonly isShell: boolean }): Promise<void> {
         // remove the exact PATH entries, and the Linux desktop entry and icon
-        const { universe } = this.options;
+        const { profile } = this.options;
         if (options.isShell) {
             await new ShellPath(
                 join(this.options.home, "bin"),
-                universe,
+                profile,
                 this.options.environment,
             ).remove();
         }
         if (options.isShell && this.options.environment.host.os === "linux") {
             const directory = this.#desktopDirectory();
             const { files } = this.options.environment;
-            const identifier = universe.applicationIdentifier;
+            const identifier = profile.applicationIdentifier;
             await files.remove(join(directory, "applications", `${identifier}.desktop`), {
                 force: true,
             });
@@ -332,10 +335,10 @@ export class Distribution {
     }
 
     /** Link a Mac application's command into bin, replacing another link atomically. */
-    async #linkApplication(application: string, bin: string, universe: Universe) {
+    async #linkApplication(application: string, bin: string, profile: Profile) {
         // link the bundle's command unless the link already points at it
         const { files, random } = this.options.environment;
-        const path = join(bin, universe.command);
+        const path = join(bin, profile.command);
         const target = Distribution.bundled(application, Release.executable("darwin"));
         if ((await files.readLink(path).catch(FileSystemError.absent)) !== target) {
             const pending = join(bin, `.destack-${Uuid.v4(random)}`);
@@ -347,28 +350,28 @@ export class Distribution {
     }
 
     /** Write a native package's command shim into bin, following the activated Windows release. */
-    async #linkNsis(bin: string, universe: Universe) {
+    async #linkNsis(bin: string, profile: Profile) {
         // write a shim calling this executable, renamed into place
         const { files, process, random } = this.options.environment;
         const executable = await files.realPath(process.executable);
-        const pending = join(bin, `.${universe.command}-${Uuid.v4(random)}.cmd`);
+        const pending = join(bin, `.${profile.command}-${Uuid.v4(random)}.cmd`);
         const escaped = executable.replaceAll("%", "%%");
         await files.writeTextFile(
             pending,
             `@echo off\r\nsetlocal DisableDelayedExpansion\r\n"${escaped}" %*\r\n`,
             { createNew: true },
         );
-        await files.rename(pending, join(bin, `${universe.command}.cmd`));
+        await files.rename(pending, join(bin, `${profile.command}.cmd`));
 
         return executable;
     }
 
     /** Link an activated archive's command into bin, replacing another link atomically. */
-    async #linkArchive(application: string, bin: string, universe: Universe) {
+    async #linkArchive(application: string, bin: string, profile: Profile) {
         // link the release's command by its path, as it is a relative link to its launcher
         const { files, host, random } = this.options.environment;
         const release = dirname(application);
-        const path = join(bin, universe.command);
+        const path = join(bin, profile.command);
         const target = join(release, "bin", Release.executable(host.os));
         if ((await files.readLink(path).catch(FileSystemError.absent)) !== target) {
             const pending = join(bin, `.destack-${Uuid.v4(random)}`);
@@ -379,8 +382,8 @@ export class Distribution {
         return target;
     }
 
-    /** Register the desktop in the user's menu and as its universe's link handler. */
-    async #addDesktopEntry(universe: Universe, launcher: string, application: string) {
+    /** Register the desktop in the user's menu and as its profile's link handler. */
+    async #addDesktopEntry(profile: Profile, launcher: string, application: string) {
         // require a launcher path a desktop entry accepts
         if (!isAbsolute(launcher) || /[\r\n]/u.test(launcher)) {
             throw UpdateError.of(
@@ -392,7 +395,7 @@ export class Distribution {
         // copy the icon under the XDG data directory
         const { files, random } = this.options.environment;
         const directory = this.#desktopDirectory();
-        const identifier = universe.applicationIdentifier;
+        const identifier = profile.applicationIdentifier;
         const icons = join(directory, "icons/hicolor/scalable/apps");
         const applications = join(directory, "applications");
         await files.mkdir(icons, { recursive: true });
@@ -408,8 +411,8 @@ export class Distribution {
             .replaceAll("%", "%%")
             .replaceAll("\\", "\\\\");
 
-        // write the entry atomically, routing the universe's link scheme to the desktop
-        const source = `[Desktop Entry]\nType=Application\nName=${universe.title}\nExec="${command}" desktop %u\nIcon=${identifier}\nTerminal=false\nCategories=Utility;Development;\nMimeType=x-scheme-handler/${universe.command};\n`;
+        // write the entry atomically, routing the profile's link scheme to the desktop
+        const source = `[Desktop Entry]\nType=Application\nName=${profile.title}\nExec="${command}" desktop %u\nIcon=${identifier}\nTerminal=false\nCategories=Utility;Development;\nMimeType=x-scheme-handler/${profile.command};\n`;
         const pending = join(applications, `.${identifier}-${Uuid.v4(random)}`);
         await files.writeTextFile(pending, source, { mode: ENTRY_MODE, createNew: true });
         await files.rename(pending, join(applications, `${identifier}.desktop`));
@@ -464,6 +467,11 @@ export class Distribution {
         return JSON.stringify(RELEASE_ROOT);
     }
 
+    /** The feed every release comes from: the download origin's root. */
+    static feed(): URL {
+        return new URL(FEED);
+    }
+
     /** Find the Mac application containing an executable, absent outside one. */
     static bundle(executable: string): string | undefined {
         let directory = dirname(resolve(executable));
@@ -491,16 +499,11 @@ export class Distribution {
         return `toolchain-${architecture}.json`;
     }
 
-    /** Find the toolchain: a local release's in its resources, else one checked out by manifest. */
+    /** Find the toolchain the manifest in the release's resources lists, checking it out once. */
     async toolchain(): Promise<Toolchain> {
-        // take a local release's toolchain from its resources, as no feed publishes it
-        const { environment, executable, universe, home } = this.options;
-        const resources = Distribution.resources(executable);
-        if (universe.name === "local") {
-            return Toolchain.at(join(resources, TOOLCHAIN_DIRECTORY));
-        }
-
         // read the host's toolchain manifest from the resources, its digest naming its directory
+        const { environment, executable, home } = this.options;
+        const resources = Distribution.resources(executable);
         const { files, crypto, host } = environment;
         const manifest = join(resources, Distribution.toolchainManifest(host.architecture));
         const text = await files.readTextFile(manifest);
@@ -566,14 +569,6 @@ export class Distribution {
 
     /** Open a locked update session, refusing an installation that changed under it. */
     async open(isInstalling = false): Promise<Updater> {
-        // refuse a development build, which takes no published updates
-        if (this.options.universe.name === "local") {
-            throw UpdateError.of(
-                "DEVELOPMENT_BUILD_BLOCKED",
-                "cannot update: development builds cannot take published updates",
-            );
-        }
-
         // read how the distribution was installed, and where its Mac application lives
         const registration = await this.record();
         const application = await this.application();
@@ -585,7 +580,7 @@ export class Distribution {
             target: running.target,
             ...(isInstalling ? {} : { current: running }),
             ...(application === undefined ? {} : { application }),
-            applicationIdentifier: this.options.universe.applicationIdentifier,
+            applicationIdentifier: this.options.profile.applicationIdentifier,
             environment: this.options.environment,
         });
 
