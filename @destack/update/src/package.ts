@@ -10,6 +10,6 @@ export default definePackage({
     icon: "arrows-clockwise",
     color: "bronze",
     objects: [distribution],
-    commands: [checkForUpdates, restartToUpdate],
+    actions: [checkForUpdates, restartToUpdate],
     errors: UpdateError,
 });

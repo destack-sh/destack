@@ -3,7 +3,7 @@ import { testHost } from "@destack/test/host";
 import { join } from "node:path";
 import { principal } from "@destack/access";
 import { TestObjectStore } from "@destack/object/test";
-import { Identifier } from "@destack/schema";
+import { Identifier, present } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { afterAll, beforeAll, expect, onTestFinished, refusal, test } from "@destack/test";
 import { Distribution } from "../distribution/index.ts";
@@ -63,15 +63,16 @@ test("record a device's distribution once, stage the published release and offer
     await DistributionHost.record(served.store, deviceId, host);
     await served.simulation.idle();
 
-    // read the row and the update commands applying to it as the device, and refuse another device
+    // read the row and the update actions applying to it as the device, and refuse another device
     const offered = await Promise.all(
-        [checkForUpdates, restartToUpdate].map(async (command) => {
+        [checkForUpdates, restartToUpdate].map(async (action) => {
+            const call = present(action.call, "the action's call");
             const { items } = await served
                 .as(device)
                 .client(updatePackage)
-                .distribution.list({ deviceId, ...command.query() });
+                .distribution.list({ deviceId, ...call.query() });
 
-            return items.length === 1 ? [command.name] : [];
+            return items.length === 1 ? [action.name] : [];
         }),
     );
     const other = principal.device.reference(
