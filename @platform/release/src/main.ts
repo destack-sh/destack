@@ -104,7 +104,7 @@ const system = Environment.instrument(
     Telemetry.local(
         BunEnvironment.system.clock,
         (line) => printStatus(noun ?? "release", line.trimEnd(), BunEnvironment.system),
-        undefined,
+        BunEnvironment.system.telemetry.context,
         LineExporter.options(BunEnvironment.system.process.variables),
     ),
 );
