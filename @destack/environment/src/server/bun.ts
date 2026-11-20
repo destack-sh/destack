@@ -78,6 +78,9 @@ function serveHttp<Attachment>(options: ServeOptions<Attachment>): Listener {
             ? Bun.serve<BunSocketData<Attachment>>({
                   ...(options.hostname === undefined ? {} : { hostname: options.hostname }),
                   ...(options.port === undefined ? {} : { port: options.port }),
+                  ...(options.idleTimeout === undefined
+                      ? {}
+                      : { idleTimeout: options.idleTimeout }),
                   ...handler,
               })
             : Bun.serve<BunSocketData<Attachment>>({ unix: options.unix, ...handler });
