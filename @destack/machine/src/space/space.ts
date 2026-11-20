@@ -2706,22 +2706,13 @@ export class Space {
         resolve: () => Promise<InstallationRollout>,
         signal: AbortSignal,
     ): Promise<InstallationRollout> {
-        // answer an installation served now, or refuse other than as one not served yet
-        const unavailable = await resolve().then(
-            (served) => ({ served }),
-            (error: unknown) => {
-                if (!StackError.is(error, "INSTALLATION_UNAVAILABLE")) {
-                    throw error;
-                }
-
-                return { error };
-            },
-        );
-        if ("served" in unavailable) {
-            return unavailable.served;
+        // answer at once, holding only an installation not served yet
+        const first = await Space.#attempt(resolve);
+        if ("served" in first) {
+            return first.served;
         }
 
-        // wake on changes of installations, rollouts and spaces, until it serves or the wait ends
+        // read again after each change of installations, rollouts and spaces, until it serves or the wait ends
         const tables = new Set(
             [installation.table, rollout.table, accountObject.space.table].map(
                 (table) => table[TABLE].sqlName,
@@ -2733,27 +2724,36 @@ export class Space {
         ]);
         let served: InstallationRollout | undefined;
         const isServed = await this.database.log.waitUntil(async (changed) => {
-            // read again after a change of what serving depends on
-            if (![...changed].some((name) => tables.has(name))) {
-                return false;
-            }
-            served = await resolve().catch((error: unknown) => {
-                if (!StackError.is(error, "INSTALLATION_UNAVAILABLE")) {
-                    throw error;
-                }
-
-                return undefined;
-            });
+            const attempt = [...changed].some((name) => tables.has(name))
+                ? await Space.#attempt(resolve)
+                : undefined;
+            served = attempt !== undefined && "served" in attempt ? attempt.served : undefined;
 
             return served !== undefined;
         }, deadline);
 
-        // refuse as unavailable once the wait ends
+        // refuse as not served yet once the wait ends
         if (!isServed || served === undefined) {
-            throw unavailable.error;
+            throw first.error;
         }
 
         return served;
+    }
+
+    /** Read an installation once, taking a refusal as not served yet apart from other failures. */
+    static async #attempt(
+        resolve: () => Promise<InstallationRollout>,
+    ): Promise<{ readonly served: InstallationRollout } | { readonly error: unknown }> {
+        return resolve().then(
+            (served) => ({ served }),
+            (error: unknown) => {
+                if (!StackError.is(error, "INSTALLATION_UNAVAILABLE")) {
+                    throw error;
+                }
+
+                return { error };
+            },
+        );
     }
 
     /** Wait until an installation of the space is current and served, refusing once aborted. */
