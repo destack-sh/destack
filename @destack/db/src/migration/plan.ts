@@ -299,7 +299,7 @@ function planCreate(
 }
 
 /** Remove the parent index and the triggers of an ancestor index an earlier release maintained. */
-function removedTree(ancestors: string, dialect: Dialect): string[] {
+function dropTreeStatements(ancestors: string, dialect: Dialect): string[] {
     const index = `DROP INDEX IF EXISTS ${quote(`${ancestors}_parent`)}`;
 
     // drop each SQLite trigger
@@ -405,7 +405,7 @@ function planChange(
                 Address.join("table", name, "tree"),
                 "safe",
                 "drop tree index",
-                removedTree(previous.tree.ancestors, state.table.dialect),
+                dropTreeStatements(previous.tree.ancestors, state.table.dialect),
             ),
         );
     }
