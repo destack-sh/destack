@@ -73,7 +73,7 @@ import { BuildRunner } from "./build.ts";
 import { computerServer, machineWorkload, deviceWorkload } from "./server/workload.ts";
 import { Environment, HostAddress, LineExporter, Telemetry } from "@destack/environment";
 import { DOMAINS, MachineAddress } from "@destack/account/address";
-import { PartitionRequest } from "../space/index.ts";
+import { DEPLOYING_WAIT_MILLISECONDS, PartitionRequest } from "../space/index.ts";
 
 /** The origin the machine's own exports are addressed below until its owner's home is located. */
 const OWN_TELEMETRY_ORIGIN = "http://machine.local";
@@ -168,6 +168,9 @@ export interface ComputerOptions {
 
 /** The Destack process on a computer: its machine, native device, view origins and gateway. */
 export class Computer implements AsyncDisposable {
+    /** The seconds a request may idle at a machine: its longest hold plus one. */
+    static readonly idleTimeout = DEPLOYING_WAIT_MILLISECONDS / 1000 + 1;
+
     /** The database of the machine's own partition on a computer. */
     static readonly database = defineDatabase({
         name: "machine",
@@ -1176,6 +1179,7 @@ export class Computer implements AsyncDisposable {
                     port,
                     fetch: (request) => started.fetch(request),
                     hibernation: started.hibernation,
+                    idleTimeout: Computer.idleTimeout,
                 },
             ],
             environment,
@@ -1345,7 +1349,7 @@ export class Computer implements AsyncDisposable {
         const local = new LineExporter(write, options);
         const own = TelemetryScope.of(
             MACHINE_PACKAGE,
-            Telemetry.local(environment.clock, write, undefined, options),
+            Telemetry.local(environment.clock, write, environment.telemetry.context, options),
         );
         const exporter = new OtlpExporter(
             async (signal, body, abort) => {
