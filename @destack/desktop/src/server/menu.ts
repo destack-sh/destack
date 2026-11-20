@@ -1,5 +1,5 @@
 import type { Localization } from "@destack/locale";
-import type { Command } from "@destack/object";
+import type { Action } from "@destack/object";
 import type { ObjectClient } from "@destack/object/client";
 import { present } from "@destack/schema";
 import type { MenuItem, MenuName, Shell } from "../shell/index.ts";
@@ -50,10 +50,10 @@ export type MenuEntry =
           readonly run: () => Promise<void>;
       };
 
-/** A command a section offers on a followed row, and what runs once it is called. */
-export interface MenuCommand {
-    /** The command. */
-    readonly command: Command;
+/** An action a section offers on a followed row, and what runs once it is called. */
+export interface MenuAction {
+    /** The action. */
+    readonly action: Action;
     /** Run once the call confirms, on the row's identity. */
     readonly after?: (id: string) => Promise<void>;
 }
@@ -64,7 +64,7 @@ export class Menu {
     readonly #shell: Shell;
     /** The entries of each section, absent for an empty one. */
     readonly #sections: Map<MenuSection, readonly MenuEntry[]>;
-    /** The language commands' titles show in. */
+    /** The language actions' titles show in. */
     readonly #localization: Localization;
     /** The items each menu shows now, as last sent, by menu. */
     readonly #shown: Map<MenuName, string>;
@@ -99,43 +99,47 @@ export class Menu {
         );
     }
 
-    /** List a command's action on a target, none where the target misses its condition. */
+    /** List an action's entry on a target, none where the target misses its call's condition. */
     async offer(
-        offered: MenuCommand,
+        offered: MenuAction,
         client: Pick<ObjectClient, "queryType" | "call">,
         id: string,
     ): Promise<MenuEntry[]> {
-        // leave out a command whose condition the target misses, or which the person may not call
-        const { command, after } = offered;
-        const target = await client.queryType(command.object).findFirst(command.query([id]));
-        if (target === undefined) {
+        // leave out an action calling nothing, or whose condition the target misses, or which the person may not call
+        const { action, after } = offered;
+        const { call } = action;
+        const target =
+            call === undefined
+                ? undefined
+                : await client.queryType(call.object).findFirst(call.query([id]));
+        if (call === undefined || target === undefined) {
             return [];
         }
 
         // call it on the target, then run what follows it
         const run = async () => {
-            await client.call(command.object, command.method, command.input({ id })).confirmed;
+            await client.call(call.object, call.method, call.input({ id })).confirmed;
             await after?.(id);
         };
-        const title = this.#localization.render(command.title);
+        const title = this.#localization.render(action.title);
 
-        return [{ kind: "action", id: command.method, title, run }];
+        return [{ kind: "action", id: call.method, title, run }];
     }
 
-    /** Offer a watched row's commands in a section at each change, none without a row. */
+    /** Offer a watched row's actions in a section at each change, none without a row. */
     async follow(
         section: MenuSection,
         client: Pick<ObjectClient, "queryType" | "call">,
         rows: AsyncIterable<{ readonly id: string } | undefined>,
-        commands: readonly MenuCommand[],
+        actions: readonly MenuAction[],
     ): Promise<void> {
         for await (const found of rows) {
-            // offer each command applying to the row, nothing without one
+            // offer each action applying to the row, nothing without one
             const entries =
                 found === undefined
                     ? []
                     : await Promise.all(
-                          commands.map((offered) => this.offer(offered, client, found.id)),
+                          actions.map((offered) => this.offer(offered, client, found.id)),
                       );
             await this.set(section, entries.flat());
         }

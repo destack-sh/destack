@@ -476,15 +476,15 @@ export class Desktop implements AsyncDisposable {
         }
     }
 
-    /** Offer the distribution's update commands in the menus as it changes. */
+    /** Offer the distribution's update actions in the menus as it changes. */
     async #followUpdates(signal: AbortSignal): Promise<void> {
         await this.menu.follow(
             "update",
             this.#distributions,
             this.#distributions.query.distribution.findFirst().watch(signal),
             [
-                { command: checkForUpdates, after: (id) => this.#tellCurrent(id) },
-                { command: restartToUpdate },
+                { action: checkForUpdates, after: (id) => this.#tellCurrent(id) },
+                { action: restartToUpdate },
             ],
         );
     }

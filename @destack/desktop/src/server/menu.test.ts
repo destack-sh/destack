@@ -1,5 +1,5 @@
 import { Localization, SOURCE_LOCALE, t } from "@destack/locale";
-import { defineCommand } from "@destack/object";
+import { defineAction } from "@destack/object";
 import { testSimulation } from "@destack/object/test";
 import { expect, refusal, test } from "@destack/test";
 import { window } from "../object/index.ts";
@@ -45,8 +45,8 @@ test("fill each menu with its sections in order, separating the non-empty groups
     ]);
 });
 
-test("offer a command only on targets meeting its condition, and run it on the one chosen", async () => {
-    // open a view's window and a palette, and declare a command focusing views
+test("offer an action only on targets meeting its call's condition, and run it on the one chosen", async () => {
+    // open a view's window and a palette, and declare an action focusing views
     const objects = await desktopObjects(testSimulation().environment("desktop"));
     const view = await objects
         .mutate(window)
@@ -54,13 +54,11 @@ test("offer a command only on targets meeting its condition, and run it on the o
     const palette = await objects
         .mutate(window)
         .open({ link: "destack://home--personal--florian/command", kind: "palette" }).predicted;
-    const focus = defineCommand(
+    const focus = defineAction(
         {
             name: "focus-view",
             title: t`Focus`,
-            object: window,
-            method: "focus",
-            when: { kind: "view" },
+            call: { object: window, method: "focus", when: { kind: "view" } },
         },
         { package: window.package },
     );
@@ -69,8 +67,8 @@ test("offer a command only on targets meeting its condition, and run it on the o
     const { shell, sent } = recordShell();
     const menu = new Menu(shell, Localization.of(SOURCE_LOCALE, []));
     const offered = [
-        ...(await menu.offer({ command: focus }, objects, view.id)),
-        ...(await menu.offer({ command: focus }, objects, palette.id)),
+        ...(await menu.offer({ action: focus }, objects, view.id)),
+        ...(await menu.offer({ action: focus }, objects, palette.id)),
     ];
     await menu.set("settings", offered);
     await menu.choose("settings.focus");
