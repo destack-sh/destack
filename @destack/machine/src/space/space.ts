@@ -187,6 +187,9 @@ const ASSIGNMENT_PLACEMENT: Relation = {
 /** The origin in-process installations call their space's stack service at, in process. */
 const STACK_ORIGIN = "http://stack.localhost";
 
+/** How long a request waits for an installation still deploying: a long poll's 30 s. */
+const DEPLOYING_WAIT_MILLISECONDS = 30_000;
+
 /** How long a request waits for its space's instantiation: 5 s, as for its caller's watermarks. */
 const INSTANTIATION_WAIT_MILLISECONDS = 5000;
 
@@ -2698,6 +2701,61 @@ export class Space {
         }
     }
 
+    /** Read the installation a request reaches, holding it while that installation deploys. */
+    async waitServing(
+        resolve: () => Promise<InstallationRollout>,
+        signal: AbortSignal,
+    ): Promise<InstallationRollout> {
+        // answer an installation served now, or refuse other than as one not served yet
+        const unavailable = await resolve().then(
+            (served) => ({ served }),
+            (error: unknown) => {
+                if (!StackError.is(error, "INSTALLATION_UNAVAILABLE")) {
+                    throw error;
+                }
+
+                return { error };
+            },
+        );
+        if ("served" in unavailable) {
+            return unavailable.served;
+        }
+
+        // wake on changes of installations, rollouts and spaces, until it serves or the wait ends
+        const tables = new Set(
+            [installation.table, rollout.table, accountObject.space.table].map(
+                (table) => table[TABLE].sqlName,
+            ),
+        );
+        const deadline = AbortSignal.any([
+            signal,
+            this.machine.environment.clock.timeout(DEPLOYING_WAIT_MILLISECONDS),
+        ]);
+        let served: InstallationRollout | undefined;
+        const isServed = await this.database.log.waitUntil(async (changed) => {
+            // read again after a change of what serving depends on
+            if (![...changed].some((name) => tables.has(name))) {
+                return false;
+            }
+            served = await resolve().catch((error: unknown) => {
+                if (!StackError.is(error, "INSTALLATION_UNAVAILABLE")) {
+                    throw error;
+                }
+
+                return undefined;
+            });
+
+            return served !== undefined;
+        }, deadline);
+
+        // refuse as unavailable once the wait ends
+        if (!isServed || served === undefined) {
+            throw unavailable.error;
+        }
+
+        return served;
+    }
+
     /** Wait until an installation of the space is current and served, refusing once aborted. */
     async waitServed(name: string, signal: AbortSignal): Promise<void> {
         // wake on changes of installations and their rollouts
@@ -2766,8 +2824,8 @@ export class Space {
         });
     }
 
-    /** Find the one installation serving a package here: of the package, or implementing it. */
-    installation(packageId: PackageId): Promise<InstallationRollout> {
+    /** Find the one installation serving a package here, holding while it deploys. */
+    installation(packageId: PackageId, signal: AbortSignal): Promise<InstallationRollout> {
         // list the packages here implementing it: the store's own, and the workloads'
         const implementers = [
             ...this.instance.packages.map(
@@ -2784,11 +2842,15 @@ export class Space {
             .filter(([, protocols]) => protocols.includes(packageId))
             .map(([implementer]) => implementer);
 
-        return Rollout.requireServing(this.database, {
-            spaceId: this.id,
-            packageId,
-            implementers,
-        });
+        return this.waitServing(
+            () =>
+                Rollout.requireServing(this.database, {
+                    spaceId: this.id,
+                    packageId,
+                    implementers,
+                }),
+            signal,
+        );
     }
 
     /** List the mounts an installation the space serves declares. */

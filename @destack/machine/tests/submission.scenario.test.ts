@@ -700,6 +700,59 @@ test("find a served installation by identifier or name, else ask to wait or refu
     ]);
 });
 
+test("hold a request for an installation until it serves, and refuse one the space does not have at once", async () => {
+    // install notes without a build, then wait for it to serve as a request does
+    const fixture = await TestSpace.open();
+    await fixture.serve();
+    const space = await fixture.space;
+    const installer = fixture.as(fixture.owner.subject).client(objectPackage);
+    const notes = await installer.installation.create({
+        scope: ids.space,
+        requestId: RequestId.create(fixture.machine.environment),
+        packageId: ids.package,
+        ...following(followed),
+        name: "notes",
+    });
+    const read = () =>
+        Rollout.requireServed(fixture.database, { spaceId: ids.space, installation: "notes" });
+    const held = space.waitServing(read, new AbortController().signal);
+
+    // deploy its build while the request waits
+    const recorded = await fixture.recordBuild(
+        await fixtureBuild(ids.package, "2026.9.0", fixture.environment.crypto),
+    );
+    await fixture
+        .as(fixture.owner.subject)
+        .client(stackPackage)
+        .rollout.deploy({
+            spaceId: ids.space,
+            id: notes.id,
+            requestId: RequestId.create(fixture.machine.environment),
+            build: recorded.build,
+        });
+    await fixture.simulation.idle();
+
+    // answer the held request with notes, and refuse an installation the space does not have without holding
+    const waited = await refusal(
+        space.waitServing(
+            () =>
+                Rollout.requireServed(fixture.database, {
+                    spaceId: ids.space,
+                    installation: "tasks",
+                }),
+            new AbortController().signal,
+        ),
+    );
+    expect([(await held).installationId, waited]).toEqual([
+        notes.id,
+        [
+            "NOT_FOUND",
+            "INSTALLATION_NOT_FOUND",
+            "installation 'tasks' served by this machine in this space not found",
+        ],
+    ]);
+});
+
 test("find the one installation serving a package, else ask to wait or refuse", async () => {
     // install notes, then another package built from its checkout, which serves the same package as notes does
     const fixture = await TestSpace.open();
