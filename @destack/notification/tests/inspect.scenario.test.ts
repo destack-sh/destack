@@ -3,14 +3,14 @@ import { expect, expectTypeOf, test } from "@destack/test";
 import { schema } from "@destack/schema";
 import { defineNotification } from "../src/declare/index.ts";
 import { describeNotification, notificationVocabulary } from "../src/inspect/index.ts";
-import type { MutationName } from "@destack/object";
+import { type Action, defineAction } from "@destack/object";
 import {
-    type ActionDefinition,
+    type NotificationActionDefinition,
     type NotificationDefinition,
     type PayloadField,
 } from "../src/notification/index.ts";
 import { Preference } from "../src/preference/index.ts";
-import { document, mention, NOTES } from "../src/test/notes.ts";
+import { approve, document, mention, NOTES, reply } from "../src/test/notes.ts";
 
 /** A notification description read back from its JSON. */
 const Described = schema.jsonObject();
@@ -44,7 +44,7 @@ test("describe a declared notification for manifests with its actions, and key i
         actions: [
             {
                 name: "reply",
-                title: "Reply",
+                title: reply.title,
                 text: { placeholder: "Reply", button: "Send" },
                 type: document.typeReference,
                 method: "reply",
@@ -62,36 +62,32 @@ test("describe a declared notification for manifests with its actions, and key i
     expect(Preference.key(mention.reference)).toEqual(`${NOTES.id}/mention`);
 });
 
-test("refuse declarations whose names cannot key a preference, and unlabeled actions", () => {
-    // accept camel case names, and refuse kebab case names and empty action titles
+test("refuse declarations whose names cannot key a preference, and actions calling no method", () => {
+    // accept camel case names, and refuse kebab case names and an action the open view handles
+    const zoom = defineAction({ name: "zoom", title: t`Zoom` }, { package: NOTES });
     expect([
-        declare("reviewRequested", "approve", "Approve")().name,
-        issues(declare("review-requested", "approve", "Approve")),
-        issues(declare("review", "approve-all", "Approve")),
-        issues(declare("review", "approve", "")),
-    ]).toEqual([
-        "reviewRequested",
-        [["invalid_format", ["name"]]],
-        [["invalid_format", ["name"]]],
-        [["too_small", ["title"]]],
-    ]);
+        declare("reviewRequested", approve)().name,
+        issues(declare("review-requested", approve)),
+    ]).toEqual(["reviewRequested", [["invalid_format", ["name"]]]]);
+    expect(declare("review", zoom)).toThrow(
+        new TypeError("action 'zoom' of 'review' calls no method"),
+    );
 });
 
-test("type a declaration's content by its payload's fields, its summary by the count and its actions by mutating methods", () => {
+test("type a declaration's content by its payload's fields, its summary by the count and its actions' targets by string fields", () => {
     // take the payload's fields as the content's arguments, and only the count as the summary's
     expectTypeOf<PayloadField<typeof mention.definition.payload>>().toEqualTypeOf<
         "author" | "excerpt"
     >();
     expectTypeOf<NotificationDefinition["summary"]>().toEqualTypeOf<Message<"count">>();
 
-    // take a mutating method of the type, and a string field as the target
-    type Approval = ActionDefinition<{ id: string; count: number }, typeof document>;
-    expectTypeOf<Approval["method"]>().toEqualTypeOf<MutationName<typeof document>>();
+    // take a string field as an action's target
+    type Approval = NotificationActionDefinition<{ id: string; count: number }>;
     expectTypeOf<Approval["target"]>().toEqualTypeOf<"id" | undefined>();
 });
 
 /** Declare a review notification under a name with one action, deferred until called. */
-function declare(name: string, action: string, title: string) {
+function declare(name: string, action: Action) {
     return () =>
         defineNotification(
             {
@@ -103,7 +99,7 @@ function declare(name: string, action: string, title: string) {
                 preference: { channels: [], delivery: "immediate" },
                 content: { title: t`Review`, body: t`${argument("id")}` },
                 summary: t`${plural(argument("count"), { one: "# review", other: "# reviews" })}`,
-                actions: [{ name: action, title, type: document, method: "approve", target: "id" }],
+                actions: [{ action, target: "id" }],
             },
             { package: NOTES },
         );

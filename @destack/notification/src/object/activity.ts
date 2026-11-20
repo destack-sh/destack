@@ -1,12 +1,12 @@
 import { intersection, relation, through } from "@destack/access";
 import { type Select } from "@destack/db";
 import { defineObject, defineShape, field, ParentReference } from "@destack/object";
-import { PackageId } from "@destack/package";
+import { DeclarationName, PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 import { ObjectReference, type ReferenceColumns, Subject } from "@destack/sync";
 import { space } from "@destack/account/object";
 
-import { ActionMetadata, ActionName, NotificationContent } from "../notification/content.ts";
+import { NotificationAction, NotificationContent } from "../notification/content.ts";
 import { INTERRUPTION_LEVELS, Preference } from "../preference/preference.ts";
 import { REASONS } from "./subscription.ts";
 import { expiring, nested } from "@destack/object";
@@ -65,7 +65,7 @@ export const activity = defineObject(
             /** The line a summary shows for it, such as "3 mentions", in its recipient's locale. */
             summary: field.string(),
             /** The actions offered beside it, the first the default. */
-            actions: field.json(schema.array(ActionMetadata)),
+            actions: field.json(schema.array(NotificationAction)),
             /** How strongly it interrupts. */
             interruption: field.enum(INTERRUPTION_LEVELS),
             /** The preference its recipient starts from. */
@@ -135,7 +135,7 @@ export const activity = defineObject(
             permission: "read",
             input: schema.object({
                 /** The declared action's name. */
-                action: ActionName,
+                action: DeclarationName,
                 /** The text the action asks for. */
                 text: schema.string().min(1).exactOptional(),
             }),

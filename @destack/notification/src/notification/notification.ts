@@ -1,10 +1,5 @@
 import { type Localization, Message } from "@destack/locale";
-import {
-    MethodContext,
-    type MethodContextOf,
-    type ObjectType,
-    type ResultOf,
-} from "@destack/object";
+import { MethodContext, type MethodContextOf, type ResultOf } from "@destack/object";
 import { defineKind, PackageVersion } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
 import { Duration, JsonValue, schema, toJsonSchema, zip } from "@destack/schema";
@@ -17,7 +12,11 @@ import {
     type InterruptionLevel,
     Preference,
 } from "../preference/preference.ts";
-import { Action, type ActionDefinition, NotificationContentDefinition } from "./content.ts";
+import {
+    NotificationActionDescription,
+    type NotificationActionDefinition,
+    NotificationContentDefinition,
+} from "./content.ts";
 import type { Notice } from "./notice.ts";
 
 /** The largest payload as JSON, in bytes. */
@@ -51,7 +50,7 @@ export const NotificationDescription = NotificationMetadata.extend({
     /** The line summarizing a thread's notifications, its argument the count. */
     summary: Message,
     /** The actions, the first the default. */
-    actions: schema.array(Action),
+    actions: schema.array(NotificationActionDescription),
     /** How long after its first occurrence a notification collapses later ones of its thread. */
     collapse: Duration.schema.exactOptional(),
 });
@@ -68,10 +67,7 @@ export const NOTIFICATION_KIND = defineKind({
 export type PayloadField<Payload extends schema.Schema> = keyof schema.Infer<Payload> & string;
 
 /** A notification's declaration: typed data its build describes. */
-export interface NotificationDefinition<
-    Payload extends schema.Schema = schema.Schema,
-    Types extends readonly ObjectType[] = readonly ObjectType[],
-> {
+export interface NotificationDefinition<Payload extends schema.Schema = schema.Schema> {
     /** The name, in camel case. */
     readonly name: string;
     /** The label settings show, such as "Mentions". */
@@ -89,9 +85,7 @@ export interface NotificationDefinition<
     /** The line summarizing a thread's notifications, its argument the count. */
     readonly summary: Message<"count">;
     /** The actions beside it, the first the default. */
-    readonly actions?: {
-        readonly [Index in keyof Types]: ActionDefinition<schema.Infer<Payload>, Types[Index]>;
-    };
+    readonly actions?: readonly NotificationActionDefinition<schema.Infer<Payload>>[];
     /** How long after its first occurrence a notification collapses later ones of its thread. */
     readonly collapse?: Duration;
 }
@@ -105,7 +99,7 @@ export class NotificationType<Payload extends schema.Schema = schema.Schema> {
     /** The declaration beside its actions. */
     readonly definition: Omit<NotificationDefinition<Payload>, "actions">;
     /** The actions, the first the default. */
-    readonly actions: readonly Action[];
+    readonly actions: readonly NotificationActionDescription[];
     /** The declaration's reference, as its rows store it. */
     readonly reference: DeclarationReference;
 
@@ -113,7 +107,7 @@ export class NotificationType<Payload extends schema.Schema = schema.Schema> {
     constructor(
         owner: PackageVersion,
         definition: Omit<NotificationDefinition<Payload>, "actions">,
-        actions: readonly Action[],
+        actions: readonly NotificationActionDescription[],
     ) {
         // store the declaration and derive its reference and preference setting
         this.package = owner;
@@ -203,7 +197,7 @@ export class NotificationType<Payload extends schema.Schema = schema.Schema> {
             summary: locale.render(summary, { count }),
             actions: this.actions.map(({ name, title, isDestructive, text }) => ({
                 name,
-                title,
+                title: locale.render(title),
                 ...(isDestructive === undefined ? {} : { isDestructive }),
                 ...(text === undefined ? {} : { text }),
             })),
@@ -355,7 +349,7 @@ export class NotificationType<Payload extends schema.Schema = schema.Schema> {
     }
 
     /** Read the identifier of an action's target: a payload field, else the activity's source. */
-    static #target(row: Activity, action: Action): string {
+    static #target(row: Activity, action: NotificationActionDescription): string {
         // read the target the payload identifies
         if (action.target !== undefined) {
             const payload = schema.jsonObject().parse(row.payload);

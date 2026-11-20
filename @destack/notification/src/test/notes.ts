@@ -1,7 +1,7 @@
 import { space, user } from "@destack/account/object";
 import { principal, relation, union } from "@destack/access";
 import { argument, type Catalog, Message, plural, t } from "@destack/locale";
-import { defineObject, definePackage, field } from "@destack/object";
+import { defineAction, defineObject, definePackage, field } from "@destack/object";
 import { implementPackage } from "@destack/object/server";
 import { testBuild, testIdentity } from "@destack/object/test";
 import type { Crypto } from "@destack/environment";
@@ -210,6 +210,18 @@ export const changed = write`Document changed`;
 /** The summary of a thread's changes. */
 export const changes = write`${plural(argument("count"), { one: "# change", other: "# changes" })}`;
 
+/** Reply to a document's thread from a notification. */
+export const reply = defineAction(
+    { name: "reply", title: t`Reply`, call: { object: document, method: "reply" } },
+    { package: NOTES },
+);
+
+/** Approve a document from a notification. */
+export const approve = defineAction(
+    { name: "approve", title: t`Approve`, call: { object: document, method: "approve" } },
+    { package: NOTES },
+);
+
 /** Someone mentions the recipient in a remark to answer from the activity. */
 export const mention = defineNotification(
     {
@@ -224,15 +236,7 @@ export const mention = defineNotification(
             body: write`${argument("excerpt")}`,
         },
         summary: write`${plural(argument("count"), { one: "# mention", other: "# mentions" })}`,
-        actions: [
-            {
-                name: "reply",
-                title: "Reply",
-                text: { placeholder: "Reply", button: "Send" },
-                type: document,
-                method: "reply",
-            },
-        ],
+        actions: [{ action: reply, text: { placeholder: "Reply", button: "Send" } }],
     },
     { package: NOTES },
 );
@@ -248,7 +252,7 @@ export const review = defineNotification(
         preference: { channels: ["desktop", "push", "email"], delivery: "immediate" },
         content: { title: write`Approval requested`, body: write`${argument("title")}` },
         summary: write`${plural(argument("count"), { one: "# approval requested", other: "# approvals requested" })}`,
-        actions: [{ name: "approve", title: "Approve", type: document, method: "approve" }],
+        actions: [{ action: approve }],
     },
     { package: NOTES },
 );

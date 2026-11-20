@@ -164,13 +164,13 @@ export async function assignAndAnnounce(
 
 ### Reply from a notification
 
-An action calls a method of the source's type, here with text the person types in the banner.
+A notification offers a declared action calling a method of the source's type, here with text the person types in the banner.
 `timeSensitive` breaks through a focus, after `passive` and `active` and before `critical`.
 
 ```ts
 import { argument, plural, t } from "@destack/locale";
 import { defineNotification } from "@destack/notification/declare";
-import { defineObject, field } from "@destack/object";
+import { defineAction, defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 
 // declare documents people reply to
@@ -192,6 +192,9 @@ const document = defineObject(
     }),
 );
 
+// reply to a document
+export const reply = defineAction({ name: "reply", title: t`Reply`, call: { object: document, method: "reply" } });
+
 // ask for a review that breaks through focus, answered with a reply
 export const review = defineNotification({
     name: "review",
@@ -202,15 +205,7 @@ export const review = defineNotification({
     preference: { channels: ["desktop", "push", "email"], delivery: "immediate" },
     content: { title: t`Review requested`, body: t`${argument("title")}` },
     summary: t`${plural(argument("count"), { one: "# review", other: "# reviews" })}`,
-    actions: [
-        {
-            name: "reply",
-            title: "Reply",
-            text: { placeholder: "Reply", button: "Send" },
-            type: document,
-            method: "reply",
-        },
-    ],
+    actions: [{ action: reply, text: { placeholder: "Reply", button: "Send" } }],
 });
 ```
 

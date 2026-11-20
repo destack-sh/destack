@@ -1,10 +1,8 @@
 import { type Localization, Message } from "@destack/locale";
-import type { MutationName, ObjectType } from "@destack/object";
+import type { Action } from "@destack/object";
+import { DeclarationName } from "@destack/package";
 import { type JsonValue, schema } from "@destack/schema";
 import { ObjectTypeReference } from "@destack/sync";
-
-/** An action's name, in camel case, as notification actions' identifiers are. */
-export const ActionName = schema.string().regex(/^[a-z][a-zA-Z0-9]*$/u);
 
 /** The content every channel shows, rendered in its recipient's locale. */
 export const NotificationContent = schema.object({
@@ -58,29 +56,32 @@ export const NotificationContentDefinition = Object.assign(
     },
 );
 
-/** An action's metadata: what its button shows. */
-export const ActionMetadata = schema.object({
-    /** The name, in camel case. */
-    name: ActionName,
-    /** The button's label. */
+/** The text field a notification's action asks for, as Apple's text input actions do. */
+const NotificationActionText = schema.object({
+    /** The field's placeholder. */
+    placeholder: schema.string().min(1),
+    /** The send button's label. */
+    button: schema.string().min(1),
+});
+
+/** A notification's action as its recipient sees it, as the Web Notifications API's: its button. */
+export const NotificationAction = schema.object({
+    /** The declared action's name. */
+    name: DeclarationName,
+    /** The button's label, in the recipient's language. */
     title: schema.string().min(1),
-    /** Whether the action destroys or declines. */
+    /** Whether the action removes its target for good. */
     isDestructive: schema.boolean().exactOptional(),
     /** The text field it asks for. */
-    text: schema
-        .object({
-            /** The field's placeholder. */
-            placeholder: schema.string().min(1),
-            /** The send button's label. */
-            button: schema.string().min(1),
-        })
-        .exactOptional(),
+    text: NotificationActionText.exactOptional(),
 });
-/** An action's metadata. */
-export type ActionMetadata = schema.Infer<typeof ActionMetadata>;
+/** A notification's action as its recipient sees it. */
+export type NotificationAction = schema.Infer<typeof NotificationAction>;
 
-/** An action as its build describes it: its button, and the method of its package it calls. */
-export const Action = ActionMetadata.extend({
+/** A notification's action as its build describes it: its button and the method it calls. */
+export const NotificationActionDescription = NotificationAction.extend({
+    /** The button's label. */
+    title: Message,
     /** The type whose method it calls, of the declaring package. */
     type: ObjectTypeReference,
     /** The mutating method it calls, given the recipient's text as `text` where it asks. */
@@ -88,8 +89,8 @@ export const Action = ActionMetadata.extend({
     /** The payload field identifying the object it calls, the source when absent. */
     target: schema.string().min(1).exactOptional(),
 });
-/** An action as its build describes it. */
-export type Action = schema.Infer<typeof Action>;
+/** A notification's action as its build describes it. */
+export type NotificationActionDescription = schema.Infer<typeof NotificationActionDescription>;
 
 /** The payload fields with string values, which may identify an action's target. */
 type StringField<Payload> = {
@@ -97,15 +98,12 @@ type StringField<Payload> = {
 }[keyof Payload] &
     string;
 
-/** An action beside a notification: a call of its package's method as the recipient. */
-export interface ActionDefinition<
-    Payload,
-    Type extends ObjectType = ObjectType,
-> extends ActionMetadata {
-    /** The type whose method it calls, of the declaring package. */
-    readonly type: Type;
-    /** The mutating method it calls, given the recipient's text as `text` where it asks. */
-    readonly method: ObjectType extends Type ? string : MutationName<Type>;
+/** An action beside a notification, as its package defines it: a declared action it offers. */
+export interface NotificationActionDefinition<Payload> {
+    /** The declared action, which calls a mutating method of the declaring package. */
+    readonly action: Action;
     /** The payload field identifying the object it calls, the source when absent. */
     readonly target?: StringField<Payload>;
+    /** The text field it asks for, given to the method as `text`. */
+    readonly text?: schema.Infer<typeof NotificationActionText>;
 }
