@@ -6,9 +6,12 @@ import { MAIN_DATABASE } from "@destack/stack/declare";
 import { RequestId } from "@destack/sync";
 import { createClient } from "@destack/object/client";
 import { expect, refusal, test } from "@destack/test";
+import { testHost } from "@destack/test/host";
 import * as object from "@destack/stack/object";
 import stackPackage from "@destack/stack/package";
-import { ids, TestSpace } from "../test/index.ts";
+import { TestBuildStore } from "@destack/build/test";
+import { BuildImage } from "@destack/package/manifest";
+import { fixtureBuild, ids, TestSpace } from "../test/index.ts";
 
 test("serve a moving space's target only the blobs the space's rows reference and its machine stores", async () => {
     // enroll the target as a machine of the space's account and let the owner move the space there
@@ -88,4 +91,66 @@ test("serve a moving space's target only the blobs the space's rows reference an
             "transfer of this space to a machine the caller acts for not found",
         ],
     ]);
+});
+
+test("copy up a shipped release a moving space's rows reference, for a target that ships none", async () => {
+    // ship notes' release in the machine's layer
+    const host = testHost();
+    const directory = await host.files.makeTemporaryDirectory("destack-layer-");
+    const build = await fixtureBuild(ids.package, "2026.9.0", host.crypto);
+    const shipped = await TestBuildStore.layer([build], directory, host);
+    const image = present(shipped.images[0], "the shipped image");
+
+    // move the space with a snapshot row referencing the shipped image
+    const fixture = await TestSpace.open({ layer: shipped.layer });
+    const now = fixture.machine.clock.now();
+    const target = await fixture.universe.enroll(fixture.owner, ids.account, "http://target.test/");
+    await fixture.serve();
+    await fixture.simulation.idle();
+    const owner = fixture.as(fixture.owner.subject).stepUp().endpoint(stackPackage);
+    await createClient(stackPackage, owner, fixture.machine.environment).transfer.create({
+        spaceId: ids.space,
+        requestId: RequestId.create(fixture.machine.environment),
+        targetId: target.id,
+    });
+    await fixture.database.transaction(
+        async (transaction) =>
+            await transaction.insert(object.snapshot.table).values({
+                id: schema
+                    .identifier("snapshot")
+                    .parse(object.snapshot.generateId(fixture.environment)),
+                spaceId: ids.space,
+                resourceId: ResourceId.parse("database-01996ab0-0000-7000-8000-0000000000f2"),
+                recipient: (await Recipient.generate(fixture.environment)).key,
+                digest: image,
+                takenAt: now,
+                blobs: [image],
+                createdAt: now,
+                updatedAt: now,
+            }),
+    );
+
+    // list the image to the target, served from the space's own blobs after the copy-up
+    const handoff = fixture.handoff(fixture.as(target.id));
+    const listed = await handoff.blobs(ids.space);
+    const chunks: Uint8Array[] = [];
+    for await (const blob of handoff.batch(ids.space, [image])) {
+        for await (const chunk of blob.body) {
+            chunks.push(chunk);
+        }
+    }
+    const served = BuildImage.parse(JSON.parse(new TextDecoder().decode(Buffer.concat(chunks))));
+    const [main] = await fixture.database
+        .select({ states: object.database.table.states })
+        .from(object.database.table)
+        .where(eq(object.database.table.name, MAIN_DATABASE));
+    expect({
+        listed: listed.toSorted(),
+        root: served.root,
+        missing: await (await fixture.space).blobs.missing([image]),
+    }).toEqual({
+        listed: [image, ...present(main, "the main database").states].toSorted(),
+        root: shipped.layer.image(image)?.root,
+        missing: [],
+    });
 });

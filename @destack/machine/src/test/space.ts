@@ -24,7 +24,7 @@ import {
     TABLE,
     DatabaseHandle,
 } from "@destack/db";
-import { type BuildReader, BuildImage } from "@destack/package/manifest";
+import { type BuildReader, BuildImage, BuildLayer } from "@destack/package/manifest";
 import { ObjectTypeReference, RequestId, type Subject, ObjectReference } from "@destack/sync";
 import { TestBearer, TestCaller, type TestSigner, type TestScope } from "@destack/object/test";
 import { TestTemplate, TestDatabase, TestRun, type TemplateStorage } from "@destack/db/test";
@@ -155,6 +155,7 @@ const WORLD_OPTIONS = [
     "name",
     "stack",
     "releases",
+    "layer",
 ] as const satisfies readonly (keyof TestSpaceOptions)[];
 
 /** Describe a space world's state outside its databases: keys, files, stack and its own world. */
@@ -1130,7 +1131,11 @@ export class TestSpace implements AsyncDisposable, TestScope {
             environment,
             credentials: async () => BUCKET_CREDENTIALS,
         });
-        const builds = await TestBuildStore.open(join(directory, "builds"), environment);
+        const builds = await TestBuildStore.open(
+            join(directory, "builds"),
+            environment,
+            options.layer ?? BuildLayer.empty(),
+        );
         defer(async () => {
             await buckets[Symbol.asyncDispose]();
             await builds[Symbol.asyncDispose]();
@@ -2440,6 +2445,8 @@ export interface TestSpaceOptions {
     readonly servers?: readonly PackageImplementation[];
     /** The builds the machine links of its servers' packages, fixed before the space serves. */
     readonly linked?: readonly BuildReader[];
+    /** The builds the machine ships, read in place, none by default. */
+    readonly layer?: BuildLayer;
     /** The providers the machine's volumes offer beside its database host. */
     readonly providers?: readonly (SpaceProvider | StoreProvider)[];
     /** The moment a template's world starts at, which a restoring simulation's clock reads. */

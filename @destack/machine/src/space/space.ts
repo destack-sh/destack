@@ -331,7 +331,7 @@ export class Space {
     readonly universe: { readonly accounts: string; readonly issuer: string };
     /** The space's blobs, stored while its rows reference them. */
     readonly blobs: BlobStore;
-    /** The space's own builds, reading through to its machine's builds. */
+    /** The space's own builds, over the machine's shipped layer and builds. */
     readonly builds: BuildStore;
     /** The import maps of the space's images, by image, runtime and base, each mapped once. */
     readonly #closures = new Map<string, Promise<ImportClosure>>();
@@ -380,6 +380,7 @@ export class Space {
         this.builds = new BuildStore({
             blobs: fields.blobs,
             environment: fields.machine.environment,
+            layer: fields.machine.builds.layer,
             sources: [fields.machine.builds],
             pull: (packageId, digest) =>
                 fields.machine.pull(packageId, { kind: "manifest", digest }, "all"),
