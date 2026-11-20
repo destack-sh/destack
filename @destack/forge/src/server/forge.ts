@@ -607,7 +607,7 @@ export class Forge {
         // find the packages of the releases of the image
         const missing = `build '${digest}' not found`;
         const table = release.table;
-        const images = [digest, ...(await this.store.referencing(digest))];
+        const images = [digest, ...(await this.store.referrers(digest))];
         const rows = await objects.database
             .selectDistinct({ scope: table.scope, id: table.parentId })
             .from(table)
