@@ -1,3 +1,4 @@
+import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
 import { SeverityNumber } from "@opentelemetry/api";
 import { expect, test } from "@destack/test";
 import { Clock } from "../clock/clock.ts";
@@ -9,8 +10,10 @@ import { SpanPath } from "./span.ts";
 test("write each record to the runtime's log as one line with its time, severity and attributes, an exception with its type, message and stack", async () => {
     // log an event and an exception to a runtime's log
     const lines: [string, SeverityNumber][] = [];
-    const telemetry = Telemetry.local(Clock.system, (line, severity) =>
-        lines.push([line, severity]),
+    const telemetry = Telemetry.local(
+        Clock.system,
+        (line, severity) => lines.push([line, severity]),
+        new AsyncLocalStorageContextManager().enable(),
     );
     const logger = telemetry.loggers.getLogger("@example/notes");
     const time = Date.UTC(2026, 10, 18, 12, 4, 31);
@@ -46,10 +49,14 @@ test("write each record to the runtime's log as one line with its time, severity
     ]);
 });
 
-test("write each info span as one line once it ends, a failed one as an error, and leave debug spans out", async () => {
+test("write each info span as one line once it ends with its trace, a failed one as an error, and leave debug spans out", async () => {
     // run an info span, a failing info span and a debug span on a runtime's log
     const lines: string[] = [];
-    const telemetry = Telemetry.local(Clock.system, (line) => lines.push(line));
+    const telemetry = Telemetry.local(
+        Clock.system,
+        (line) => lines.push(line),
+        new AsyncLocalStorageContextManager().enable(),
+    );
     const span = SpanRunner.of(
         telemetry.tracers.getTracer("@example/notes"),
         telemetry.meters.getMeter("@example/notes"),
@@ -58,7 +65,10 @@ test("write each info span as one line once it ends, a failed one as an error, a
     await span(
         "notes.start",
         { "notes.count": 2 },
-        () => SpanPath.add(telemetry.context.active(), "notes.reads", 1),
+        async () => {
+            SpanPath.add(telemetry.context.active(), "notes.reads", 1);
+            await span("notes.open", {}, () => undefined, { level: "info" });
+        },
         { level: "info" },
     );
     await span("notes.load", {}, () => Promise.reject(new Error("the disk is gone")), {
@@ -66,12 +76,27 @@ test("write each info span as one line once it ends, a failed one as an error, a
     }).catch(() => undefined);
     await span("notes.request", {}, () => undefined);
 
-    // write the two info spans with their durations and without their totals, the failed one with its error type
+    // write the info spans with their durations, traces and parents, the failed one with its error type
+    const ids: string[] = [];
+    const named = (id: string) => {
+        // name each identifier by the order it first appears in
+        if (!ids.includes(id)) {
+            ids.push(id);
+        }
+
+        return `#${ids.indexOf(id)}`;
+    };
     expect(
-        lines.map((line) => line.replace(/^\d\d:\d\d:\d\d /u, "").replace(/=\d+\n$/u, "=…\n")),
+        lines.map((line) =>
+            line
+                .replace(/^\d\d:\d\d:\d\d /u, "")
+                .replace(/duration_ms=\d+/u, "duration_ms=…")
+                .replaceAll(/(?<==)[\da-f]{16,32}\b/gu, named),
+        ),
     ).toEqual([
-        "INFO  notes.start notes.count=2 duration_ms=…\n",
-        "ERROR notes.load error.type=INTERNAL_SERVER_ERROR duration_ms=…\n",
+        "INFO  notes.open duration_ms=… trace_id=#0 span_id=#1 parent_span_id=#2\n",
+        "INFO  notes.start notes.count=2 duration_ms=… trace_id=#0 span_id=#2\n",
+        "ERROR notes.load error.type=INTERNAL_SERVER_ERROR duration_ms=… trace_id=#3 span_id=#4\n",
     ]);
 });
 
@@ -81,7 +106,7 @@ test("write each record as one JSON object when the options ask for json", () =>
     const telemetry = Telemetry.local(
         Clock.system,
         (line) => lines.push(line),
-        undefined,
+        new AsyncLocalStorageContextManager().enable(),
         LineExporter.options({ DESTACK_LOG_FORMAT: "json" }),
     );
     telemetry.loggers.getLogger("@example/notes").emit({

@@ -77,7 +77,7 @@ export const Telemetry = {
     local(
         clock: Clock,
         write: ConstructorParameters<typeof LineExporter>[0],
-        context: ContextManager = new RootContextManager(),
+        context: ContextManager,
         options: LineExporterOptions = LineExporter.options({}),
     ): Telemetry {
         const exporter = new LineExporter(write, options);
