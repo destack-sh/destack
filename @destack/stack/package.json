@@ -44,20 +44,20 @@
     },
     "peerDependencies": {
         "@destack/test": "workspace:*",
-        "@destack/control": "workspace:*"
+        "@destack/universe": "workspace:*"
     },
     "peerDependenciesMeta": {
         "@destack/test": {
             "optional": true
         },
-        "@destack/control": {
+        "@destack/universe": {
             "optional": true
         }
     },
     "devDependencies": {
         "@destack/check": "workspace:*",
         "@destack/test": "workspace:*",
-        "@destack/control": "workspace:*",
+        "@destack/universe": "workspace:*",
         "@types/bun": "1.4.4",
         "miniflare": "4.20260730.0",
         "rolldown": "1.2.19"
