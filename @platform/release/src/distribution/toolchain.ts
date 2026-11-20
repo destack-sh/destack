@@ -11,14 +11,14 @@ import MagicString from "magic-string";
 import { Platform } from "./platform.ts";
 import { run } from "./command.ts";
 
-/** The bundled packages reading their own files at run time, by where their copies are. */
+/** The packages reading their own files at run time, by their copies' place. */
 const RUNTIME_FILES: ReadonlyMap<string, PackagePlace> = new Map([
     ["rolldown", "resources"],
     ["vite", "toolchain"],
     ["lightningcss", "toolchain"],
 ]);
 
-/** The expression a rewritten module reads its toolchain directory from, refusing a missing one. */
+/** The expression reading the toolchain directory, refusing a missing one. */
 const TOOLCHAIN_EXPRESSION = `(process.env.DESTACK_TOOLCHAIN ?? (() => { throw new Error("DESTACK_TOOLCHAIN is not set"); })())`;
 
 /** The fields of a package.json the toolchain reads. */
@@ -29,20 +29,20 @@ const PackageManifest = schema
     })
     .strip();
 
-/** Where a package goes: beside the programs, which load it at run time, or in the toolchain. */
+/** Where a package goes: the resources or the toolchain. */
 type PackagePlace = "resources" | "toolchain";
 
-/** A package the compiler reads at run time, found through its chain of dependents. */
+/** A package the compiler reads at run time. */
 interface ToolchainPackage {
-    /** The chain of packages from the workspace package to the package itself. */
+    /** The chain of packages from the workspace package to this one. */
     readonly chain: readonly string[];
-    /** Whether the package's dependencies come along, or only its package.json and destack.json. */
+    /** Whether its dependencies come along, else only its manifests. */
     readonly contents: "dependencies" | "metadata";
     /** Where the package goes. */
     readonly place: PackagePlace;
 }
 
-/** Lay out the packages beside the programs, and the compiler's packages and lint rules. */
+/** Lay out the resources' packages, the compiler's packages and the lint rules. */
 export async function buildToolchain(
     root: string,
     target: Target,
@@ -50,11 +50,11 @@ export async function buildToolchain(
     version: string,
     environment: Environment<"files" | "process">,
 ): Promise<void> {
-    // copy each package into its place's node_modules, the programs' first, so the toolchain leaves theirs out
+    // copy each package into its place's node_modules, the resources' first
     const { files } = environment;
     const nodeModules = new NodeModules(files, version);
 
-    // refuse a toolchain leaving out a package the builds take from it
+    // refuse a toolchain missing a package the builds need
     const listed = toolchainPackages(target);
     const shipped = new Set(listed.flatMap((entry) => entry.chain));
     const missing = [...TOOLCHAIN_PACKAGES].filter((name) => !shipped.has(name));
@@ -64,7 +64,7 @@ export async function buildToolchain(
         );
     }
 
-    // order the packages, the programs' first
+    // order the packages, the resources' first
     const packages = listed.toSorted(
         (left, right) => Number(left.place === "toolchain") - Number(right.place === "toolchain"),
     );
@@ -105,14 +105,14 @@ export async function buildToolchain(
     );
 }
 
-/** Write a toolchain's manifest into a release's resources, keeping recorded modes. */
+/** Write a toolchain's manifest into a release's resources. */
 export async function writeToolchainManifest(
     toolchain: string,
     resources: string,
     architecture: Architecture,
     environment: Environment<"files">,
 ): Promise<void> {
-    // read the toolchain's files, and the manifest written before, such as the build's before signing
+    // read the toolchain's files and the earlier manifest
     const { files } = environment;
     const read = await Manifest.read(toolchain, environment);
     const path = join(resources, Distribution.toolchainManifest(architecture));
@@ -120,22 +120,27 @@ export async function writeToolchainManifest(
         ? Manifest.parse(await files.readTextFile(path))
         : read;
 
-    // keep each file's recorded mode, as artifacts between release jobs drop the modes
+    // keep each file's recorded mode
     await files.writeTextFile(path, read.withModesOf(written).encode());
 }
 
 /** Point modules reading their own files at run time to their copies. */
 export function toolchainPlugin(target: Target, files: FileSystem): Bun.BunPlugin {
-    // locate the resources from the target's installed executable, as its modules live inside it
+    // locate the resources from the target's installed executable
     const { bundle } = Platform.of(target);
-    const executable = join("/", bundle.application, bundle.helpers, Release.executable(Release.system(target)));
+    const executable = join(
+        "/",
+        bundle.application,
+        bundle.helpers,
+        Release.executable(Release.system(target)),
+    );
     const resources = relative(dirname(executable), Distribution.resources(executable));
 
     return {
         name: "destack-executable-toolchain",
         setup(build) {
             build.onLoad({ filter: /[\\/]node_modules[\\/].+\.[cm]?js$/u }, async ({ path }) => {
-                // leave every package but those reading their own files
+                // skip packages that read no files of their own
                 const installed = installation(path);
                 const place =
                     installed === undefined ? undefined : RUNTIME_FILES.get(installed.name);
@@ -143,7 +148,7 @@ export function toolchainPlugin(target: Target, files: FileSystem): Bun.BunPlugi
                     return;
                 }
 
-                // locate the module's copy in the resources, else in the named toolchain
+                // locate the module's copy
                 const copy = `node_modules/${installed.name}/${installed.path}`;
                 const url =
                     place === "resources"
@@ -151,7 +156,7 @@ export function toolchainPlugin(target: Target, files: FileSystem): Bun.BunPlugi
                         : `Bun.pathToFileURL(${TOOLCHAIN_EXPRESSION} + ${JSON.stringify(`/${copy}`)}).href`;
                 const source = await files.readTextFile(path);
 
-                // require from the copy in a CommonJS module, its source taking that require as a parameter
+                // require from the copy in a CommonJS module
                 const isCommonJs =
                     path.endsWith(".cjs") ||
                     (path.endsWith(".js") && !(await isModulePackage(installed.directory, files)));
@@ -164,7 +169,7 @@ export function toolchainPlugin(target: Target, files: FileSystem): Bun.BunPlugi
                     };
                 }
 
-                // read the copy's URL as the module's own
+                // use the copy's URL as the module's own
                 return {
                     contents: replaceModuleUrl(path, source, url),
                     loader: "js",
@@ -174,9 +179,9 @@ export function toolchainPlugin(target: Target, files: FileSystem): Bun.BunPlugi
     };
 }
 
-/** List the packages the compiler reads at run time for a target, with its native tools. */
+/** List the packages the compiler reads at run time for a target. */
 function toolchainPackages(target: Target): readonly ToolchainPackage[] {
-    // name the target as package.json fields and napi-rs packages name platforms
+    // name the target's platform
     const { system: os, architecture: cpu } = Platform.of(target);
     const abi = /-(gnu|msvc)$/u.exec(target)?.[1];
     const native = `${os}-${cpu}${abi === undefined ? "" : `-${abi}`}`;
@@ -191,7 +196,7 @@ function toolchainPackages(target: Target): readonly ToolchainPackage[] {
             contents: "dependencies",
             place: "toolchain",
         },
-        // the bundler and its binding, which the programs load at run time
+        // the bundler and its binding
         { chain: [build, "rolldown"], contents: "dependencies", place: "resources" },
         {
             chain: [build, "rolldown", `@rolldown/binding-${native}`],
@@ -207,7 +212,7 @@ function toolchainPackages(target: Target): readonly ToolchainPackage[] {
             place: "toolchain",
         },
 
-        // the view compiler and the image renderer, with their native bindings
+        // the view compiler and the image renderer
         { chain: [view, "@solidjs/vite-plugin"], contents: "dependencies", place: "toolchain" },
         {
             chain: [
@@ -265,15 +270,15 @@ function toolchainPackages(target: Target): readonly ToolchainPackage[] {
     ];
 }
 
-/** The node_modules directories a distribution writes, laid out as npm installs packages. */
+/** The node_modules directories a distribution writes, laid out as npm does. */
 class NodeModules {
-    /** The installation each hoisted name has, across every place. */
+    /** Each hoisted name's installation. */
     readonly #hoisted = new Map<string, string>();
-    /** The installation each nested directory has. */
+    /** Each nested directory's installation. */
     readonly #nested = new Map<string, string>();
-    /** The file system the directories live on. */
+    /** The file system. */
     readonly #files: FileSystem;
-    /** The version the release gives each package it copies from source. */
+    /** The release's version for copied source packages. */
     readonly #version: string;
 
     /** Lay out node_modules directories on a file system, at a release's version. */
@@ -282,14 +287,14 @@ class NodeModules {
         this.#version = version;
     }
 
-    /** Copy a package and its dependencies, hoisted, else nested under the dependent. */
+    /** Copy a package and its dependencies, hoisted or nested. */
     async copy(
         name: string,
         directory: string,
         modules: string,
         ancestors: readonly string[] = [],
     ): Promise<void> {
-        // find the installation Node resolves from the dependent: the nearest nested one, else the hoisted one
+        // find the installation Node resolves from the dependent
         const files = this.#files;
         const real = await files.realPath(directory);
         const nearest = ancestors
@@ -307,7 +312,7 @@ class NodeModules {
         else if (resolved === undefined) {
             this.#hoisted.set(name, real);
         }
-        // nest another version under its dependent, as the root has one
+        // nest another version under its dependent
         else if (parent !== undefined && !this.#nested.has(join(parent, name))) {
             this.#nested.set(join(parent, name), real);
         }
@@ -318,13 +323,13 @@ class NodeModules {
             );
         }
 
-        // copy the package's own files, leaving out its installed dependencies
+        // copy the package's own files
         const destination =
             resolved === undefined ? join(modules, name) : join(parent ?? modules, name);
         await copyTree(real, destination, files);
         await releasePackage(destination, this.#version, files);
 
-        // copy its dependencies, resolved from the package, as seen from its own node_modules
+        // copy its dependencies
         const manifest = PackageManifest.parse(
             JSON.parse(await files.readTextFile(join(real, "package.json"))),
         );
@@ -336,13 +341,13 @@ class NodeModules {
     }
 }
 
-/** Write a release's version into a copied package file that has none, as a source package's. */
+/** Write the release's version into a copied package without one. */
 async function releasePackage(
     directory: string,
     version: string,
     files: FileSystem,
 ): Promise<void> {
-    // read the copy's package file, keeping a version it has
+    // read the copy's package file
     const path = join(directory, "package.json");
     const manifest = schema.jsonObject().parse(JSON.parse(await files.readTextFile(path)));
     if (manifest["version"] !== undefined) {
@@ -353,14 +358,14 @@ async function releasePackage(
     await files.writeTextFile(path, JSON.stringify({ ...manifest, version }));
 }
 
-/** Copy a directory's files with their links followed, leaving out installed dependencies. */
+/** Copy a directory's files, following links, without node_modules. */
 async function copyTree(source: string, destination: string, files: FileSystem): Promise<void> {
-    // create the directory, and list its entries but node_modules
+    // create the directory and list its entries
     await files.mkdir(destination, { recursive: true });
     const entries = await files.readDirectory(source);
     const copied = entries.filter((entry) => basename(entry.name) !== "node_modules");
 
-    // copy each entry, a link as what it points at
+    // copy each entry
     for (const entry of copied) {
         const from = join(source, entry.name);
         const to = join(destination, entry.name);
@@ -384,11 +389,11 @@ async function locate(name: string, from: string, files: FileSystem): Promise<st
     );
 }
 
-/** Read the installed package containing a module: its name, directory and module path. */
+/** Read the installed package containing a module. */
 function installation(
     path: string,
 ): { readonly name: string; readonly directory: string; readonly path: string } | undefined {
-    // take the package after the last node_modules segment, scoped or not
+    // take the package after the last node_modules segment
     const marker = `${sep}node_modules${sep}`;
     const start = path.lastIndexOf(marker);
     if (start < 0) {
@@ -414,7 +419,7 @@ async function isModulePackage(directory: string, files: FileSystem): Promise<bo
     return manifest.type === "module";
 }
 
-/** Replace each `import.meta.url` of a module with another URL expression. */
+/** Replace each `import.meta.url` with another URL expression. */
 function replaceModuleUrl(path: string, source: string, url: string): string {
     // find each import.meta.url
     const parsed = parseSync(path, source);

@@ -1,7 +1,7 @@
 import type { Universe } from "@destack/update/release";
 import { createRequire } from "node:module";
 import { basename, join, resolve } from "node:path";
-import type { Environment, FileSystem } from "@destack/environment";
+import type { Environment } from "@destack/environment";
 import type { Target } from "@destack/update/release";
 import { schema } from "@destack/schema";
 import { DependencyName } from "@destack/package";
@@ -10,10 +10,10 @@ import { modulePlugin } from "./module.ts";
 import { toolchainPlugin } from "./toolchain.ts";
 import { Platform } from "./platform.ts";
 
-/** The module whose table of shared modules a compiled program's build generates. */
+/** The shared modules table a compiled program's build generates. */
 const SHARED_MODULE = /[\\/]@destack[\\/]package[\\/]src[\\/]bun[\\/]shared\.ts$/u;
 
-/** The modules of a bundled graph with the specifiers each imports, as Bun's metafile has it. */
+/** A bundled graph's modules and imports, as Bun's metafile has them. */
 const ModuleGraph = schema
     .object({
         inputs: schema.record(
@@ -45,41 +45,41 @@ const PeerManifest = schema
     })
     .strip();
 
-/** Sources and target selected for a distribution's executable. */
+/** A distribution executable's sources and target. */
 export interface ExecutableOptions {
-    /** The checkout the executable's packages resolve from. */
+    /** The checkout. */
     root: string;
     /** Absolute executable source entrypoint. */
     entrypoint: string;
-    /** The directory of the package whose shared modules the executable's table lists. */
+    /** The directory of the package whose shared modules the table lists. */
     sharing: string;
     /** Absolute destination executable. */
     outfile: string;
-    /** The directory the executable's chunk source maps go to, for observability. */
+    /** The directory for the chunks' source maps. */
     maps: string;
     /** Native distribution target. */
     target: Target;
     /** Corresponding Bun compilation target. */
     runtime: Bun.Build.CompileTarget;
-    /** Packages the executable never loads, left out of its bundle. */
+    /** Packages left out of the bundle. */
     external?: string[];
-    /** Distribution version injected into executable package metadata. */
+    /** The distribution version stamped into package metadata. */
     version?: string;
-    /** The universe of the executable: its identity, issuer and device directory. */
+    /** The executable's universe. */
     universe?: Universe;
 }
 
-/** Compile an entrypoint's graph into one executable, its chunks as bytecode, their maps apart. */
+/** Compile an entrypoint into one executable with bytecode chunks. */
 export async function buildExecutable(
     options: ExecutableOptions,
     environment: Environment<"files" | "process">,
 ): Promise<void> {
-    // leave out the optional peers, and generate the table of shared modules the graph reads
+    // leave out the optional peers, and generate the shared modules table
     const peers = await optionalPeers(options.root, environment);
     const external = [...peers, ...(options.external ?? [])];
     const shared = await sharedPlugin(options, external, environment);
 
-    // compile the graph for the target, defining its operating system, its architecture read at runtime
+    // compile the graph for the target
     const { system } = Platform.of(options.target);
     const bundle = await Bun.build({
         entrypoints: [options.entrypoint],
@@ -90,7 +90,7 @@ export async function buildExecutable(
         bytecode: true,
         sourcemap: "external",
         external,
-        // ignore a project's .env, Bun configuration and tsconfig, and resolve packages by their package.json
+        // ignore a project's .env, bunfig and tsconfig
         compile: {
             target: options.runtime,
             outfile: options.outfile,
@@ -115,7 +115,7 @@ export async function buildExecutable(
         throw new AggregateError(bundle.logs, "executable compilation failed");
     }
 
-    // move the chunks' source maps, which Bun writes beside the executable, apart for observability
+    // move the source maps out of bin
     const { files } = environment;
     await files.mkdir(options.maps, { recursive: true });
     for (const output of bundle.outputs.filter((each) => each.kind === "sourcemap")) {
@@ -123,13 +123,13 @@ export async function buildExecutable(
     }
 }
 
-/** Generate the modules a program shares with the code it loads, when its graph reads the table. */
+/** Generate the modules a program shares with the code it loads. */
 async function sharedPlugin(
     options: ExecutableOptions,
     external: readonly string[],
     environment: Environment<"files" | "process">,
 ): Promise<Bun.BunPlugin | undefined> {
-    // read the program's module graph, leaving a program that reads no table
+    // read the module graph, skipping a program without the table
     const bundle = await Bun.build({
         entrypoints: [options.entrypoint],
         target: "bun",
@@ -145,7 +145,7 @@ async function sharedPlugin(
         return undefined;
     }
 
-    // record the file each specifier of a shared package resolved to in the graph
+    // record each shared specifier's resolved file
     const locator = new PackageLocator(environment.files);
     const shared = await locator.shared(options.sharing);
     const { workingDirectory } = environment.process;
@@ -162,7 +162,7 @@ async function sharedPlugin(
         }
     }
 
-    // load each from that file when asked, which the graph already holds, refusing two copies of one
+    // load each on demand, refusing two copies of one
     const entries = [...files].toSorted(([left], [right]) => left.localeCompare(right));
     const lines = entries.map(([specifier, resolved]) => {
         const [file, ...others] = resolved;
@@ -186,7 +186,7 @@ async function sharedPlugin(
 
 /** List vite's optional peers and their subpaths. */
 async function optionalPeers(root: string, environment: Environment<"files">): Promise<string[]> {
-    // read the peers of the vite @destack/build resolves
+    // read the peers of build's vite
     const require = createRequire(join(root, "@destack/build/package.json"));
     const text = await environment.files.readTextFile(require.resolve("vite/package.json"));
     const manifest = PeerManifest.parse(JSON.parse(text));
@@ -197,7 +197,7 @@ async function optionalPeers(root: string, environment: Environment<"files">): P
     return names.flatMap((name) => [name, `${name}/*`]);
 }
 
-/** Write the module banner that sets a universe's name, issuer and device directory. */
+/** Write the banner setting the universe's variables. */
 function channelBanner(universe: Universe): string {
     const directory = `process.getBuiltinModule("node:path").join(process.getBuiltinModule("node:os").homedir(), ${JSON.stringify(universe.directory)})`;
 
