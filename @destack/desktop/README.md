@@ -88,14 +88,14 @@ The shell is a Tauri process on the host's private pipes, one JSON line per comm
 
 ### Link to a view
 
-`format` writes a view's deep link under the universe's scheme, and leaves out the view's root location.
+`format` writes a view's deep link under the profile's scheme, and leaves out the view's root location.
 
 ```ts
 import { Link } from "@destack/desktop";
-import { Universe } from "@destack/update/release";
+import { Profile } from "@destack/update/release";
 
 // link to the open projects on a space's task board
-export const href = Link.of(Universe.of("production")).format({
+export const href = Link.of(new Profile("release")).format({
     space: "work--acme",
     installation: "tasks",
     view: "board",
@@ -109,11 +109,11 @@ export const href = Link.of(Universe.of("production")).format({
 
 ```ts
 import { Link } from "@destack/desktop";
-import { Universe } from "@destack/update/release";
+import { Profile } from "@destack/update/release";
 
-/** Read the name a deep link's window shows under, absent for a link of another universe. */
+/** Read the name a deep link's window shows under, absent for a link of another profile. */
 export function windowTitle(href: string): string | undefined {
-    const address = Link.of(Universe.of("production")).parse(href);
+    const address = Link.of(new Profile("release")).parse(href);
 
     return address === undefined ? undefined : Link.title(address);
 }

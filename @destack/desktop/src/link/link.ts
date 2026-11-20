@@ -1,5 +1,5 @@
 import { OriginPath } from "@destack/package";
-import type { Universe } from "@destack/update/release";
+import type { Profile } from "@destack/update/release";
 import { InstallationOrigin, SpaceAddress, SpaceOrigin } from "@destack/account/address";
 import {
     OBJECT_PARAMETER,
@@ -13,7 +13,7 @@ import {
 
 /** The deep links to views and objects under a universe's desktop scheme. */
 export class Link {
-    /** The URL scheme the system routes to the universe's desktop: the universe's command. */
+    /** The URL scheme the system routes to the profile's desktop: its command. */
     readonly scheme: string;
 
     /** Write and read links under a scheme. */
@@ -21,9 +21,9 @@ export class Link {
         this.scheme = scheme;
     }
 
-    /** Write and read the links of a universe's desktop. */
-    static of(universe: Universe): Link {
-        return new Link(universe.command);
+    /** Write and read the links of a profile's desktop. */
+    static of(profile: Profile): Link {
+        return new Link(profile.command);
     }
 
     /** Read the view or object of a link, or nothing for neither. */

@@ -4,7 +4,7 @@ import type { SimulatedTelemetry } from "@destack/environment/simulation";
 import type { Given, SetStep } from "@destack/package/declare";
 import { type JsonValue, schema } from "@destack/schema";
 import type { Driver } from "@destack/test";
-import { Universe } from "@destack/update/release";
+import { Profile } from "@destack/update/release";
 import { Link } from "../link/index.ts";
 import { DESKTOP_OBJECTS } from "../object/index.ts";
 import type { DesktopObservation, DesktopStep } from "../scenario/interaction.ts";
@@ -85,7 +85,7 @@ export class DesktopDriver implements Driver<DesktopStep, DesktopObservation> {
             const desktop = await Desktop.open(
                 this.#laptop.device,
                 shell.shell,
-                Link.of(new Universe("local")),
+                Link.of(new Profile("local")),
                 this.#laptop.environment,
             );
             const opened = shell.next(isWindowOpen);

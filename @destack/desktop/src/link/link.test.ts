@@ -1,6 +1,6 @@
 import type { Address } from "@destack/view/declare";
 import { expect, test } from "@destack/test";
-import { Universe } from "@destack/update/release";
+import { Profile } from "@destack/update/release";
 import { Link } from "./link.ts";
 
 /** The links of the stable desktop. */
@@ -94,7 +94,7 @@ test("read nothing from foreign schemes and malformed addresses", () => {
 
 test("route each universe by its scheme", () => {
     // read and write local links only on the local universe
-    const local = Link.of(new Universe("local"));
+    const local = Link.of(new Profile("local"));
     const href = "destack-local://notes--personal--florian/home";
     const address = local.parse(href);
     expect({

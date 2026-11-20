@@ -3,8 +3,8 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::{fs, io};
 
-/// The stable channel's device directory below the user profile, as `Stage` names it.
-const PRODUCTION_DIRECTORY: &str = ".destack";
+/// The release profile's device directory below the user profile, as `Profile` names it.
+const RELEASE_DIRECTORY: &str = ".destack";
 
 /// The target of the Windows releases this launcher starts.
 const WINDOWS_TARGET: &str = "x86_64-pc-windows-msvc";
@@ -41,12 +41,12 @@ pub fn forward() -> io::Result<bool> {
     if cfg!(debug_assertions) || !cfg!(windows) {
         return Ok(false);
     }
-    let identity = option_env!("DESTACK_UNIVERSE")
-        .ok_or_else(|| io::Error::other("missing desktop universe"))?;
-    let name = match identity {
-        "production" => PRODUCTION_DIRECTORY,
+    let profile = option_env!("DESTACK_PROFILE")
+        .ok_or_else(|| io::Error::other("missing desktop profile"))?;
+    let name = match profile {
+        "release" => RELEASE_DIRECTORY,
         "local" => return Ok(false),
-        _ => return Err(io::Error::other("invalid desktop universe")),
+        _ => return Err(io::Error::other("invalid desktop profile")),
     };
 
     // use the same explicit override and Windows home directory as the compiled CLI
