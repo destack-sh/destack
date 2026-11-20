@@ -1,3 +1,7 @@
+import {
+    MAX_TOKEN_LIFETIME_MILLISECONDS,
+    TOKEN_LIFETIME_MILLISECONDS,
+} from "@destack/access/token";
 import { type Authentication, Caller, principal } from "@destack/access";
 import { ACCESS_TOKEN_TYPE, TokenIdentity, TokenIssuerAuthority } from "@destack/access/token";
 import { type DatabaseConnection, Transaction } from "@destack/db";
@@ -12,7 +16,7 @@ import { AccountError } from "../error/error.ts";
 import type { OAuthConsent } from "../object/oauth-consent.ts";
 import { User } from "../object/user.ts";
 import { RefreshToken } from "../object/refresh-token.ts";
-import { PackageResource, type TokenLifetime } from "./resource.ts";
+import { PackageResource } from "./resource.ts";
 import { TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
 
@@ -54,6 +58,8 @@ export interface Issue {
     readonly scopes: readonly string[];
     /** The package the access token is for, absent for a person's claims alone. */
     readonly resource?: string;
+    /** The lifetime the caller asks for in milliseconds, a minute without one, ten at most. */
+    readonly lifetime?: number;
     /** The consent of the person signing the client in, with the family its refresh tokens join. */
     readonly consent?: {
         /** The consent. */
@@ -79,8 +85,6 @@ export interface TokenEndpointOptions {
     readonly objects: Pick<ObjectStore, "mutate" | "as">;
     /** The clock, the randomness of token identifiers, the WebCrypto and the telemetry. */
     readonly environment: Pick<Environment, "clock" | "crypto" | "random" | "telemetry">;
-    /** How long the packages' tokens live. */
-    readonly lifetime: TokenLifetime;
     /** Sign claims with the universe's active key. */
     readonly sign: (claims: JwtClaims, header: { readonly typ: string }) => Promise<string>;
     /** Read the universe's current key set, which access tokens verify with. */
@@ -173,12 +177,18 @@ export class TokenEndpoint {
 
     /** Issue a grant's tokens, ending the access token no later than its session or grant. */
     async issue(issue: Issue, transaction?: Transaction) {
-        // time the access token by its package, else as a person's claims alone, refusing a lapsed session or grant
-        const { issuer, environment, lifetime } = this.#options;
+        // time the access token as its caller asks up to the longest lifetime, refusing a lapsed session or grant
+        const { issuer, environment } = this.#options;
         const now = environment.clock.now();
         const audience =
             issue.resource === undefined ? undefined : PackageResource.package(issue.resource);
-        const lasts = audience === undefined ? PERSON_TOKEN_MILLISECONDS : lifetime.of(audience);
+        const lasts =
+            audience === undefined
+                ? PERSON_TOKEN_MILLISECONDS
+                : Math.min(
+                      issue.lifetime ?? TOKEN_LIFETIME_MILLISECONDS,
+                      MAX_TOKEN_LIFETIME_MILLISECONDS,
+                  );
         const lapse = issue.authentication.credential.expiresAt;
         if (lapse <= now) {
             throw OAuthError.of("GRANT_INVALID", "grant is invalid: the session or grant lapsed");

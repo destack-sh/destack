@@ -5,7 +5,7 @@ import { copyRequest, type Environment } from "@destack/environment";
 import { TokenCache } from "@destack/access/token";
 import { canonicalize } from "@destack/schema";
 import { TOKEN_PATH } from "../authentication/path.ts";
-import { OAuthError, TokenResponse } from "../authentication/token.ts";
+import { OAuthError, SECOND_MILLISECONDS, TokenResponse } from "../authentication/token.ts";
 import { SyncError } from "@destack/sync";
 import type { TokenBinding } from "./issuer.ts";
 import { JWT_BEARER } from "../oauth/bearer.ts";
@@ -67,8 +67,11 @@ export class IssuerCredential implements Credential {
     }
 
     /** Read the principal's granted token for a package, in a partition when bound. */
-    token(audience: PackageId, binding: Pick<TokenBinding, "partition">): Promise<string> {
-        const key = canonicalize([audience, binding.partition ?? null]);
+    token(
+        audience: PackageId,
+        binding: Pick<TokenBinding, "partition" | "lifetime">,
+    ): Promise<string> {
+        const key = canonicalize([audience, binding.partition ?? null, binding.lifetime ?? null]);
 
         return this.#tokens.token(key, this.#environment.clock.now(), () =>
             this.#grant(audience, binding),
@@ -81,7 +84,10 @@ export class IssuerCredential implements Credential {
     }
 
     /** Exchange an assertion for an access token at the issuer's token endpoint. */
-    async #grant(audience: PackageId, binding: Pick<TokenBinding, "partition">): Promise<string> {
+    async #grant(
+        audience: PackageId,
+        binding: Pick<TokenBinding, "partition" | "lifetime">,
+    ): Promise<string> {
         // post the assertion for the package's resource
         const endpoint = `${this.issuer}${TOKEN_PATH}`;
         const body = new URLSearchParams({
@@ -89,6 +95,9 @@ export class IssuerCredential implements Credential {
             assertion: await this.signer.assert(endpoint),
             resource: PackageId.resource(audience),
             ...(binding.partition === undefined ? {} : { partition: binding.partition }),
+            ...(binding.lifetime === undefined
+                ? {}
+                : { expiration_seconds: String(binding.lifetime / SECOND_MILLISECONDS) }),
         });
         const response = await this.#fetch(new Request(endpoint, { method: "POST", body }));
 

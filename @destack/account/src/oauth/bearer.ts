@@ -15,7 +15,7 @@ import { space } from "../object/space.ts";
 import { account } from "../object/account.ts";
 import { user } from "../object/user.ts";
 import accountPackage from "../package.ts";
-import { OAuthError } from "../authentication/token.ts";
+import { OAuthError, SECOND_MILLISECONDS } from "../authentication/token.ts";
 import { TokenEndpoint, type GrantType } from "./token.ts";
 import { PackageResource } from "./resource.ts";
 import { FederatedVerifier } from "./federation.ts";
@@ -35,6 +35,11 @@ const BearerRequest = schema.looseObject({
     resource: schema.string().min(1),
     /** The partition the call goes to: a space the machine serves, its own partition, or none. */
     partition: PartitionId.exactOptional(),
+    /** The lifetime asked for in seconds, which the issuer bounds (Kubernetes TokenRequest). */
+    expiration_seconds: schema
+        .string()
+        .regex(/^[1-9]\d*$/u)
+        .exactOptional(),
 });
 
 /** What the jwt-bearer grant verifies assertions with. */
@@ -82,6 +87,7 @@ export function bearerGrant(options: BearerOptions): GrantType {
             );
         }
         const { assertion, resource, partition } = request.data;
+        const asked = request.data.expiration_seconds;
         const audience = PackageResource.package(resource);
         if (audience === undefined) {
             throw OAuthError.of(
@@ -146,6 +152,7 @@ export function bearerGrant(options: BearerOptions): GrantType {
             clientId: TokenEndpoint.client(authentication),
             scopes: [],
             resource,
+            ...(asked === undefined ? {} : { lifetime: Number(asked) * SECOND_MILLISECONDS }),
         };
     };
 }

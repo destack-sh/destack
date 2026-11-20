@@ -281,6 +281,46 @@ test("enroll a machine as its account's owner, authenticate it across a key rota
     expect(await grant(accounts, identity)).toEqual(NO_STANDING_KEY);
 });
 
+test("grant a machine a token lasting as long as it asks, a minute without and ten at most, which verifies", async () => {
+    // take a token without a lifetime, one asked to last ten minutes, and one asked to last an hour
+    await using accounts = await TestAccountStore.open();
+    const { identity } = await enrollCloud(accounts);
+    const fetch = (request: Request) => accounts.fetch(request);
+    const minute = 60_000;
+    const brief = await identity.at(ISSUER, fetch).token(AUDIENCE, {});
+    const long = await identity.at(ISSUER, fetch).token(AUDIENCE, { lifetime: 10 * minute });
+    const longest = await identity.at(ISSUER, fetch).token(AUDIENCE, { lifetime: 60 * minute });
+
+    // verify the longest token by the universe's keys
+    const verifier = new TokenVerifier({
+        issuers: async (name) =>
+            name === ISSUER
+                ? {
+                      authority: { kind: "universe" },
+                      keys: await Identity.keys(
+                          Snapshot.live(accounts.database),
+                          Scope.universe.id,
+                          accounts.environment.crypto,
+                      ),
+                  }
+                : undefined,
+        environment: accounts.environment,
+    });
+    const verified = await verifier.verify(longest, {
+        audience: AUDIENCE,
+        now: accounts.clock.now(),
+    });
+    // last a minute, ten as asked, and ten for an hour asked
+    expect({
+        seconds: [brief, long, longest].map((token) => {
+            const { iat, exp } = TestJwt.claims(token);
+
+            return exp - iat;
+        }),
+        verified: verified.credential.expiresAt - verified.credential.verifiedAt,
+    }).toEqual({ seconds: [60, 600, 600], verified: 10 * minute });
+});
+
 test("grant a cloud machine a token for a minute as itself alone, by its enrolled key", async () => {
     // enroll a cloud machine of the residency and take a token as it
     await using accounts = await TestAccountStore.open();
