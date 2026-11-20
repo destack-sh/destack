@@ -11,6 +11,8 @@ const STOP_TIMEOUT: Duration = Duration::from_secs(5);
 const EXIT_POLL_INTERVAL: Duration = Duration::from_millis(10);
 /// Maximum number of unread native commands.
 const COMMAND_CAPACITY: usize = 32;
+/// The option starting the distribution's executable as its desktop process.
+const DESKTOP_PROCESS: &str = "--process=desktop";
 
 /// The TypeScript application host retained by the native shell.
 pub struct Host {
@@ -21,7 +23,7 @@ pub struct Host {
 impl Host {
     /// Start source in development or the compiled distribution host.
     pub fn start() -> io::Result<Self> {
-        // locate the host bundled with this executable
+        // locate the distribution's executable bundled with this one
         let executable = std::env::current_exe()?;
         let directory = executable
             .parent()
@@ -31,11 +33,7 @@ impl Host {
         } else {
             directory.join("helpers")
         };
-        let name = if cfg!(windows) {
-            "destack-desktop-host.exe"
-        } else {
-            "destack-desktop-host"
-        };
+        let name = if cfg!(windows) { "destack.exe" } else { "destack" };
 
         // run source in development and the bundled executable in distributions
         let mut command = if cfg!(debug_assertions) {
@@ -47,7 +45,9 @@ impl Host {
             ]);
             command
         } else {
-            process::Command::new(directory.join(name))
+            let mut command = process::Command::new(directory.join(name));
+            command.arg(DESKTOP_PROCESS);
+            command
         };
         command.args(std::env::args_os().skip(1));
 

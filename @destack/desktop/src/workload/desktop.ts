@@ -121,6 +121,7 @@ export class Desktop implements AsyncDisposable {
     /** Start this computer's machine and run the desktop until the shell closes its pipe. */
     static async start(
         environment: DesktopHost,
+        link: string | undefined,
         shell = Shell.of(environment.process),
     ): Promise<void> {
         // start this computer's machine and run as this user's one desktop
@@ -131,7 +132,6 @@ export class Desktop implements AsyncDisposable {
         await using desktop = await Desktop.open(native, shell, links, environment);
 
         // open the link the desktop launched with
-        const [link] = environment.process.arguments;
         await desktop.run(link);
     }
 

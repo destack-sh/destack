@@ -2,11 +2,9 @@
     "name": "@destack/desktop",
     "license": "Apache-2.0",
     "type": "module",
-    "bin": {
-        "destack-desktop-host": "./src/main.ts",
-        "destack-machine": "./src/machine.ts"
-    },
     "exports": {
+        "./main": "./src/main.ts",
+        "./machine": "./src/machine.ts",
         ".": "./src/index.ts",
         "./link": "./src/link/index.ts",
         "./server": "./src/server/index.ts",

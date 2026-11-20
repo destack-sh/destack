@@ -23,21 +23,21 @@ Apps link to each other:
 
 - `Link`: a `destack://` deep link to a view or an object.
 
-Start the machine and run the desktop until its shell closes:
+Start the machine and run the desktop until its shell closes, opening a link:
 
 ```ts
 import { Desktop } from "@destack/desktop";
 import { BunEnvironment } from "@destack/environment/bun";
 
-// start the machine and run the desktop
-await Desktop.start(BunEnvironment.system);
+// start the machine and run the desktop on a space's link
+await Desktop.start(BunEnvironment.system, "https://destack.app/@ada/trips");
 ```
 
 ## Reference
 
 ### Desktop
 
-`Desktop.start(environment)` starts this computer's machine and runs the desktop until the shell closes its pipe.
+`Desktop.start(environment, link)` starts this computer's machine and runs the desktop until the shell closes its pipe, opening `link` when given.
 
 | Verb                    | What it does                                         |
 | ----------------------- | ---------------------------------------------------- |
