@@ -141,17 +141,16 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
 
     /** Lease the stored blobs until a moment, storing the missing ones in one pack. */
     async #put(uploads: readonly BlobUpload[], until: number): Promise<void> {
-        // lease each blob once, the stored ones by their rows
+        // lease the stored blobs, learning the missing ones
         const unique = [...new Map(uploads.map((upload) => [upload.digest, upload])).values()];
-        await this.lease(
+        const leased = await this.lease(
             unique.map((upload) => upload.digest),
             until,
         );
 
         // store the missing ones in one pack, each body opened as the pack reaches it
-        const missing = new Set(await this.missing(unique.map((upload) => upload.digest)));
         const entries: BlobEntry[] = unique
-            .filter((upload) => missing.has(upload.digest))
+            .filter((upload) => !leased.has(upload.digest))
             .map(({ digest, size, open }) => ({
                 digest,
                 size,
@@ -350,14 +349,15 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
         return written.parse(JSON.parse(decoded));
     }
 
-    /** Lease stored blobs until a moment, rescuing any retired one. */
+    /** Lease stored blobs until a moment, rescuing retired ones, and answer which are stored. */
     async lease(
         digests: readonly Digest[],
         until: number = this.environment.clock.now() + this.leaseMilliseconds,
-    ): Promise<void> {
+    ): Promise<Set<Digest>> {
         // lease nothing for no blobs, without a transaction
+        const leased = new Set<Digest>();
         if (digests.length === 0) {
-            return;
+            return leased;
         }
 
         // lease each batch in one transaction
@@ -365,17 +365,28 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
             for (let start = 0; start < digests.length; start += BATCH_DIGESTS) {
                 // lease the batch, leaving a later lease, and take it out of retirement
                 const batch = [...new Set(digests.slice(start, start + BATCH_DIGESTS))];
-                await transaction
+                const rows = await transaction
                     .update(BlobStore.table)
                     .set({
-                        leasedUntil: sql`CASE WHEN ${BlobStore.table.leasedUntil} > ${until}
-                            THEN ${BlobStore.table.leasedUntil} ELSE ${until} END`,
+                        leasedUntil: BlobStore.#later(until),
                         isRetired: false,
                         freedAt: null,
                     })
-                    .where(inArray(BlobStore.table.digest, batch));
+                    .where(inArray(BlobStore.table.digest, batch))
+                    .returning({ digest: BlobStore.table.digest });
+                for (const { digest } of rows) {
+                    leased.add(digest);
+                }
             }
         });
+
+        return leased;
+    }
+
+    /** Keep a row's lease or a later moment, whichever ends last. */
+    static #later(until: number): SQL {
+        return sql`CASE WHEN ${BlobStore.table.leasedUntil} > ${until}
+            THEN ${BlobStore.table.leasedUntil} ELSE ${until} END`;
     }
 
     /** Retire blobs whose rows went without a mutation retiring them, for a collection to check. */
@@ -559,11 +570,12 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
 
     /** Record where blobs a storage stored lie, leased, deleting a pack no row points into. */
     async record(placements: readonly BlobPlacement[], until: number): Promise<void> {
-        // record each blob unless another writer recorded it first, then lease them all
+        // record each blob, or extend the lease of one already recorded
         const inserted = new Set<Digest>();
         await this.database.transaction(async (transaction) => {
             for (let start = 0; start < placements.length; start += BATCH_DIGESTS) {
                 const batch = placements.slice(start, start + BATCH_DIGESTS);
+                const ours = new Map(batch.map((placement) => [placement.digest, placement.pack]));
                 const rows = await transaction
                     .insert(BlobStore.table)
                     .values(
@@ -573,17 +585,24 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
                             isRetired: false,
                         })),
                     )
-                    .onConflictDoNothing()
-                    .returning({ digest: BlobStore.table.digest });
-                for (const { digest } of rows) {
-                    inserted.add(digest);
+                    .onConflictDoUpdate({
+                        target: [BlobStore.table.digest],
+                        set: {
+                            leasedUntil: BlobStore.#later(until),
+                            isRetired: false,
+                            freedAt: null,
+                        },
+                    })
+                    .returning({ digest: BlobStore.table.digest, pack: BlobStore.table.pack });
+
+                // count a row in this writer's pack as inserted here
+                for (const { digest, pack } of rows) {
+                    if (ours.get(digest) === pack) {
+                        inserted.add(digest);
+                    }
                 }
             }
         });
-        await this.lease(
-            placements.map(({ digest }) => digest),
-            until,
-        );
 
         // count the bytes of the blobs this writer stored
         const written = placements.filter(({ digest }) => inserted.has(digest));
