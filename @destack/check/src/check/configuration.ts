@@ -15,7 +15,26 @@ import { Toolchain } from "../toolchain/index.ts";
 import { present } from "@destack/schema";
 
 /** Where the compiler keeps what it checked, so a later run re-checks only what changed since. */
-const BUILD_INFO = "node_modules/.cache/destack/tsc.tsbuildinfo";
+export const BUILD_INFO = "node_modules/.cache/destack/tsc.tsbuildinfo";
+
+/** The rules that read types, each costing the type program of the file's tsconfig. */
+const TYPE_AWARE_RULES = [
+    "typescript/no-unsafe-type-assertion",
+    "typescript/no-unsafe-argument",
+    "typescript/no-unsafe-assignment",
+    "typescript/no-unsafe-call",
+    "typescript/no-unsafe-member-access",
+    "typescript/no-unsafe-return",
+    "typescript/no-floating-promises",
+    "typescript/no-misused-promises",
+    "typescript/strict-boolean-expressions",
+    "typescript/switch-exhaustiveness-check",
+    "typescript/unbound-method",
+    "typescript/no-misused-spread",
+    "typescript/only-throw-error",
+    "typescript/no-deprecated",
+    "typescript/no-unnecessary-type-assertion",
+] as const;
 
 /** A bunfig.toml preload list, its quoted modules captured. */
 const PRELOAD = /^\s*preload\s*=\s*\[([^\]]*)\]/gmu;
@@ -100,21 +119,7 @@ export function lintConfiguration(
                 "error",
                 { "ts-expect-error": true, "ts-ignore": true, "ts-nocheck": true },
             ],
-            "typescript/no-unsafe-type-assertion": "error",
-            "typescript/no-unsafe-argument": "error",
-            "typescript/no-unsafe-assignment": "error",
-            "typescript/no-unsafe-call": "error",
-            "typescript/no-unsafe-member-access": "error",
-            "typescript/no-unsafe-return": "error",
-            "typescript/no-floating-promises": "error",
-            "typescript/no-misused-promises": "error",
-            "typescript/strict-boolean-expressions": "error",
-            "typescript/switch-exhaustiveness-check": "error",
-            "typescript/unbound-method": "error",
-            "typescript/no-misused-spread": "error",
-            "typescript/only-throw-error": "error",
-            "typescript/no-deprecated": "error",
-            "typescript/no-unnecessary-type-assertion": "error",
+            ...Object.fromEntries(TYPE_AWARE_RULES.map((rule) => [rule, "error"])),
             "eslint/preserve-caught-error": "error",
             "eslint/no-shadow": "error",
             "eslint/no-loop-func": "error",
@@ -162,6 +167,11 @@ export function lintConfiguration(
             ...rules,
         },
         overrides: [
+            {
+                // lint the fixtures tests compile and run without a type program each
+                files: ["**/tests/fixture/**"],
+                rules: Object.fromEntries(TYPE_AWARE_RULES.map((rule) => [rule, "off"])),
+            },
             {
                 // stop server code from importing declarations and client-safe layers
                 files: [

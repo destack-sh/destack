@@ -16,7 +16,11 @@ import { checkMarkdown, fixMarkdown } from "../markdown/index.ts";
 import { Architecture } from "../architecture/index.ts";
 import { CheckError } from "../error/index.ts";
 import type { Plugin } from "../lint/plugin.ts";
-import { schema } from "@destack/schema";
+import { Digest, schema } from "@destack/schema";
+import { TransformCache } from "@destack/package/build";
+
+/** The directory below a package with its lint results, by the digest of what each lint read. */
+const LINT_CACHE = "node_modules/.cache/destack/lint";
 
 /** The file that lays out a workspace's packages in layers. */
 const ARCHITECTURE_FILE = "ARCHITECTURE.md";
@@ -42,6 +46,8 @@ export interface CheckOptions {
     plugins?: readonly Plugin[];
     /** The tools the check runs. */
     toolchain: Toolchain;
+    /** The digest of the program a typecheck just read, keying kept lint results. */
+    program?: Digest;
     /** The files, process and machine the tools run on. */
     environment: Environment<"files" | "process" | "host">;
 }
@@ -176,7 +182,7 @@ async function hasSources(path: string, files: FileSystem): Promise<boolean> {
 }
 
 /** List the files below a directory. */
-async function listFiles(directory: string, files: FileSystem): Promise<string[]> {
+export async function listFiles(directory: string, files: FileSystem): Promise<string[]> {
     const listed: string[] = [];
     for (const entry of await files.readDirectory(directory)) {
         // descend into real directories outside dependencies and hidden ones, such as .terraform
@@ -195,6 +201,23 @@ async function listFiles(directory: string, files: FileSystem): Promise<string[]
     }
 
     return listed;
+}
+
+/** Read a lint plugin's rules: a toolchain's bundle, else every file beside the plugin's module. */
+async function readRules(
+    plugin: string,
+    toolchain: Toolchain,
+    files: FileSystem,
+): Promise<string[]> {
+    // read the released bundle, else each source file in the plugin's directory, in a stable order
+    const paths =
+        toolchain.directory === undefined
+            ? (await listFiles(dirname(plugin), files)).toSorted()
+            : [plugin];
+
+    return await Promise.all(
+        paths.map(async (path) => `${path}\n${await files.readTextFile(path)}`),
+    );
 }
 
 /** Lint TypeScript and JavaScript sources with Oxc and the Destack rules. */
@@ -226,6 +249,35 @@ async function lintSources(options: CheckOptions, fix: boolean): Promise<CheckRe
         });
         await files.writeTextFile(configuration, JSON.stringify(lint));
         const ignore = await writeIgnore(temporary, files);
+        const selected = (await selectFiles(options)).map((file) =>
+            resolve(options.directory, file),
+        );
+
+        // reuse the result of the same program, files, rules and tools, never a fix's
+        const cache =
+            options.program === undefined || fix
+                ? undefined
+                : TransformCache.directory(
+                      join(options.directory, LINT_CACHE),
+                      options.environment,
+                  );
+        const plugins = [
+            toolchain.lint(),
+            ...(options.plugins ?? []).map((plugin) => plugin.specifier),
+        ];
+        const inputs = {
+            program: options.program,
+            lint,
+            selected,
+            rules: await Promise.all(plugins.map((plugin) => readRules(plugin, toolchain, files))),
+            tools: [executable, typeChecker],
+        };
+        const key =
+            cache === undefined ? undefined : await Digest.json(inputs, options.environment.crypto);
+        const stored = key === undefined ? undefined : await cache?.read(key);
+        if (stored !== undefined) {
+            return CheckResult.parse(JSON.parse(new TextDecoder().decode(stored)));
+        }
 
         // run the checker against the selected source
         const output = await runTool(
@@ -240,7 +292,7 @@ async function lintSources(options: CheckOptions, fix: boolean): Promise<CheckRe
                 "json",
                 ...(fix ? ["--fix"] : []),
                 "--",
-                ...(await selectFiles(options)).map((file) => resolve(options.directory, file)),
+                ...selected,
             ],
             options.directory,
             options.environment,
@@ -274,6 +326,11 @@ async function lintSources(options: CheckOptions, fix: boolean): Promise<CheckRe
                 "TOOL_BROKEN",
                 output.stderr.trim() || "oxlint failed without diagnostics",
             );
+        }
+
+        // keep the result under its inputs' digest
+        if (key !== undefined) {
+            await cache?.write(key, new TextEncoder().encode(JSON.stringify(result)));
         }
 
         return result;

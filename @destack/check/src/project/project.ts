@@ -1,8 +1,9 @@
 import { createRequire } from "node:module";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import type { Environment } from "@destack/environment";
-import { checkPackage, fixPackage } from "../check/check.ts";
-import { configurePackage } from "../check/configuration.ts";
+import { checkPackage, fixPackage, listFiles } from "../check/check.ts";
+import { BUILD_INFO, configurePackage } from "../check/configuration.ts";
+import { TransformCache } from "@destack/package/build";
 import { formatPackage } from "../check/format.ts";
 import { type Manifest, readManifest } from "../check/manifest.ts";
 import { runTool, type ToolResult } from "../check/tool.ts";
@@ -10,7 +11,17 @@ import type { CheckResult, Diagnostic } from "../diagnostic/diagnostic.ts";
 import { CheckError } from "../error/index.ts";
 import { Readme } from "../markdown/index.ts";
 import { Toolchain } from "../toolchain/index.ts";
-import { listChangedModules } from "../workspace/index.ts";
+import { listChangedModules, Workspace } from "../workspace/index.ts";
+import { Digest, schema } from "@destack/schema";
+
+/** The directory below a package with the digests of the test runs that passed. */
+const TEST_CACHE = "node_modules/.cache/destack/test";
+
+/** The files of a program and their versions, as tsc records them in its build info. */
+const BuildInfo = schema.looseObject({
+    fileNames: schema.array(schema.string()),
+    fileInfos: schema.array(schema.json()),
+});
 
 /** The test tiers a run selects, every tier but bench by default. */
 export type TestTier = "unit" | "scenario" | "bench";
@@ -94,13 +105,16 @@ export class Project {
             this.directory,
         );
 
-        // lint every module, or the modules changed since a base, none when none changed
+        // lint every module, or the modules changed since a base, reusing a result over the same program
         const files =
             options.since === undefined
                 ? undefined
                 : await listChangedModules(this.directory, options.since, this.environment);
+        const program = await this.#program();
         const linted =
-            files?.length === 0 ? [] : (await checkPackage(this.#options(files))).diagnostics;
+            files?.length === 0
+                ? []
+                : (await checkPackage({ ...this.#options(files), program })).diagnostics;
 
         // run the package's own check last
         const own = await this.#script("check");
@@ -127,6 +141,20 @@ export class Project {
 
     /** Run the package's tests through the plan its files derive, returning the run's exit code. */
     async test(options: TestOptions = {}): Promise<number> {
+        // reuse a pass over the same inputs, never a listing or a snapshot update
+        const cache = TransformCache.directory(join(this.directory, TEST_CACHE), this.environment);
+        const isKept = options.isListing !== true && options.isUpdating !== true;
+        const key = isKept ? await this.#testKey(options) : undefined;
+        if (key !== undefined && (await cache.read(key)) !== undefined) {
+            this.environment.process.stderr.writeSync(
+                new TextEncoder().encode(
+                    `tests passed before over the same inputs (${key.slice(0, 12)})\n`,
+                ),
+            );
+
+            return 0;
+        }
+
         // plan the tests with the toolchain's test kit and Vitest, loaded only when tests run
         const { TestPlan } = await import("@destack/test/plan");
         const require = createRequire(import.meta.url);
@@ -148,7 +176,52 @@ export class Project {
             ? await this.#vitest("node", [], vitest, configuration, options, "node")
             : 0;
 
-        return bun !== 0 ? bun : node;
+        // keep a pass under its inputs' digest
+        const code = bun !== 0 ? bun : node;
+        if (code === 0 && key !== undefined) {
+            await cache.write(key, new Uint8Array());
+        }
+
+        return code;
+    }
+
+    /** Digest what a test run reads: its packages' files, the lockfile and the options. */
+    async #testKey(options: TestOptions): Promise<Digest> {
+        // list the files of the package and every workspace member it depends on
+        const { files, process, crypto } = this.environment;
+        const workspace = await Workspace.read(this.directory, files);
+        if (workspace === undefined) {
+            throw CheckError.of(
+                "CONFIGURATION_INVALID",
+                `package '${this.directory}' is invalid: it is in no workspace`,
+            );
+        }
+        const member = relative(workspace.root, this.directory) || ".";
+        const directories = workspace
+            .dependencies(member)
+            .map((each) => join(workspace.root, each));
+        const listed = (
+            await Promise.all(directories.map((each) => listFiles(each, files)))
+        ).flat();
+        const paths = [...listed, join(workspace.root, "bun.lock")].toSorted((left, right) =>
+            left.localeCompare(right),
+        );
+
+        // digest each file, then the run's inputs together
+        const digests = await Promise.all(
+            paths.map(async (path) => [
+                relative(workspace.root, path),
+                await Digest.of(await files.readFile(path), crypto),
+            ]),
+        );
+        const variables = Object.entries(process.variables)
+            .filter(([name]) => name.startsWith("DESTACK_TEST_"))
+            .toSorted(([left], [right]) => left.localeCompare(right));
+
+        return await Digest.json(
+            { digests, runtime: process.runtime.revision, options, variables },
+            crypto,
+        );
     }
 
     /** Run Vitest over the plan's targets of a runtime, as the options select them. */
@@ -225,6 +298,14 @@ export class Project {
             environment: this.environment,
             ...(files === undefined ? {} : { files: [...files] }),
         };
+    }
+
+    /** Digest the program's files at the versions the last typecheck recorded in its build info. */
+    async #program(): Promise<Digest> {
+        const text = await this.environment.files.readTextFile(join(this.directory, BUILD_INFO));
+        const { fileNames, fileInfos } = BuildInfo.parse(JSON.parse(text));
+
+        return await Digest.json({ fileNames, fileInfos }, this.environment.crypto);
     }
 
     /** Typecheck the package's sources and tests with its generated settings. */
