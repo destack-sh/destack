@@ -14,6 +14,7 @@ import {
     and,
     type DatabaseConnection,
     eq,
+    inArray,
     isNotNull,
     isNull,
     Snapshot,
@@ -736,6 +737,13 @@ export const Rollout = {
                 },
             );
         }
+        // refuse a suspended installation at once, as it serves again only once enabled
+        else if (id !== undefined && (await isSuspended(database, spaceId, id))) {
+            throw StackError.of(
+                "INSTALLATION_BLOCKED",
+                `cannot reach installation '${installed.installation}': it is suspended`,
+            );
+        }
         // let a caller wait for an installation not served yet, such as one still deploying or one the space's stack may still create
         else if (
             (id !== undefined && served === undefined) ||
@@ -754,6 +762,54 @@ export const Rollout = {
                 `installation '${installed.installation}' served by this machine in this space not found`,
             );
         }
+    },
+
+    /** Read the one installation a machine serves of a package, or of a package implementing it. */
+    async requireServing(
+        database: DatabaseConnection,
+        serving: {
+            readonly spaceId: Identifier<"space">;
+            readonly packageId: PackageId;
+            readonly implementers: readonly PackageId[];
+        },
+    ): Promise<InstallationRollout> {
+        // list the installations of the package and its implementers, served, suspended or not
+        const { spaceId, packageId, implementers } = serving;
+        const installed = await database
+            .select({ id: installation.table.id, name: installation.table.name })
+            .from(installation.table)
+            .where(
+                and(
+                    installation.inScope(spaceId),
+                    isNull(installation.table.deletedAt),
+                    inArray(installation.table.packageId, [packageId, ...implementers]),
+                ),
+            );
+        const [only] = installed;
+
+        // let a caller wait while the space's stack may still install one, else refuse none
+        if (only === undefined && (await isStackPending(database, spaceId))) {
+            throw StackError.of(
+                "INSTALLATION_UNAVAILABLE",
+                `installation serving package '${packageId}' is unavailable: this space does not serve it yet`,
+                { data: { retryAfter: NOT_SERVED_RETRY_MILLISECONDS } },
+            );
+        } else if (only === undefined) {
+            throw StackError.of(
+                "INSTALLATION_NOT_FOUND",
+                `installation serving package '${packageId}' in this space not found`,
+            );
+        }
+        // refuse several, which callers reach by their names
+        else if (installed.length > 1) {
+            const names = installed.map((each) => each.name).join("', '");
+            throw StackError.of(
+                "INSTALLATION_CONFLICT",
+                `cannot route package '${packageId}': installations '${names}' each serve it`,
+            );
+        }
+
+        return await Rollout.requireServed(database, { spaceId, installation: only.id });
     },
 
     /** Find an installation of a space in a state, by its identifier or its name. */
@@ -864,6 +920,20 @@ export const InstallationRevision = {
         return Identifier.hash("installation-revision", REVISION_NAMESPACE, name, crypto);
     },
 };
+
+/** Report whether an installation of a space is suspended. */
+async function isSuspended(
+    database: DatabaseConnection,
+    spaceId: Identifier<"space">,
+    id: Identifier<"installation">,
+): Promise<boolean> {
+    const [found] = await database
+        .select({ status: installation.table.status })
+        .from(installation.table)
+        .where(and(installation.inScope(spaceId), eq(installation.table.id, id)));
+
+    return found?.status === "suspended";
+}
 
 /** Determine whether a space's stack may still create installations, before or during a pass. */
 async function isStackPending(
