@@ -29,7 +29,7 @@ import {
 import { present, schema } from "@destack/schema";
 import { SocialError } from "../error/index.ts";
 import { reaction } from "./reaction.ts";
-import { nested } from "@destack/object";
+import { defineAction, nested } from "@destack/object";
 
 /** The longest comment text in UTF-16 code units, about four pages. */
 const TEXT_LENGTH = 10_000;
@@ -313,14 +313,18 @@ export const Excerpt = schema.object({
 /** A comment as its notifications carry it. */
 export type Excerpt = schema.Infer<typeof Excerpt>;
 
-/** Reply in the notified comment's thread. */
-const answer = {
+/** Reply in a comment's thread. */
+export const answer = defineAction({
     name: "reply",
-    title: "Reply",
-    text: { placeholder: "Reply", button: "Send" },
-    type: comment,
-    method: "reply",
+    title: t`Reply`,
+    call: { object: comment, method: "reply" },
+});
+
+/** Reply in the notified comment's thread from a notification, typing the reply. */
+const answerInThread = {
+    action: answer,
     target: "thread",
+    text: { placeholder: "Reply", button: "Send" },
 } as const;
 
 /** A comment mentions the recipient. */
@@ -333,7 +337,7 @@ export const mention = defineNotification({
     preference: { channels: ["desktop", "push", "email"], delivery: "immediate" },
     content: { title: t`New mention`, body: t`${argument("text")}` },
     summary: t`${plural(argument("count"), { one: "# mention", other: "# mentions" })}`,
-    actions: [answer],
+    actions: [answerInThread],
 });
 
 /** A comment starts a thread on a subscribed object. */
@@ -346,7 +350,7 @@ export const thread = defineNotification({
     preference: { channels: ["desktop", "push", "email"], delivery: "immediate" },
     content: { title: t`New thread`, body: t`${argument("text")}` },
     summary: t`${plural(argument("count"), { one: "# thread", other: "# threads" })}`,
-    actions: [answer],
+    actions: [answerInThread],
 });
 
 /** A comment replies in a subscribed thread. */
@@ -359,5 +363,5 @@ export const reply = defineNotification({
     preference: { channels: ["desktop", "push", "email"], delivery: "immediate" },
     content: { title: t`New reply`, body: t`${argument("text")}` },
     summary: t`${plural(argument("count"), { one: "# reply", other: "# replies" })}`,
-    actions: [answer],
+    actions: [answerInThread],
 });
