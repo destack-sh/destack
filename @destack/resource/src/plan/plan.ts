@@ -18,8 +18,8 @@ export const Risk = schema.enum(RISKS);
 /** How consequential a step is, from least to most. */
 export type Risk = schema.Infer<typeof Risk>;
 
-/** What a step does to its target. */
-export const Action = schema.enum([
+/** What a step does to its target, as Terraform's plan actions are. */
+export const StepKind = schema.enum([
     "create",
     "update",
     "delete",
@@ -30,12 +30,12 @@ export const Action = schema.enum([
     "grant",
 ]);
 /** What a step does to its target. */
-export type Action = schema.Infer<typeof Action>;
+export type StepKind = schema.Infer<typeof StepKind>;
 
 /** One change a plan makes, as reviewers see it. */
 export const Step = schema.object({
     /** What the step does. */
-    action: Action,
+    action: StepKind,
     /** The changed target. */
     target: Address,
     /** How consequential the step is. */
