@@ -188,7 +188,7 @@ const ASSIGNMENT_PLACEMENT: Relation = {
 const STACK_ORIGIN = "http://stack.localhost";
 
 /** How long a request waits for an installation still deploying: a long poll's 30 s. */
-const DEPLOYING_WAIT_MILLISECONDS = 30_000;
+export const DEPLOYING_WAIT_MILLISECONDS = 30_000;
 
 /** How long a request waits for its space's instantiation: 5 s, as for its caller's watermarks. */
 const INSTANTIATION_WAIT_MILLISECONDS = 5000;
