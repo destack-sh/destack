@@ -1,3 +1,4 @@
+import type { UniverseOrigin } from "../address/address.ts";
 import { type DatabaseConnection, Snapshot } from "@destack/db";
 import { schema } from "@destack/schema";
 import type { Environment } from "@destack/environment";
@@ -16,6 +17,8 @@ const JWT_SEGMENTS = 3;
 
 /** What revocation and introspection read tokens with. */
 export interface TokenReadOptions {
+    /** The universe, below whose domains installations' clients answer. */
+    readonly universe: UniverseOrigin;
     /** The issuer's URL, which every token includes. */
     readonly issuer: string;
     /** The account database with the refresh tokens and consents. */
@@ -41,12 +44,7 @@ export class RevocationEndpoint {
         // authenticate the client and read the token
         const { database, objects, environment } = this.#options;
         const body = await TokenEndpoint.form(request);
-        const party = await ClientAuthentication.verify(
-            body,
-            request.headers,
-            database,
-            environment.crypto,
-        );
+        const party = await ClientAuthentication.verify(body, request.headers, this.#options);
         const token = body["token"];
         if (token === undefined) {
             throw OAuthError.of("REQUEST_INVALID", "request is invalid: it names no token");
@@ -86,14 +84,9 @@ export class IntrospectionEndpoint {
     /** Describe a token: a refresh token of the client, or an access token the issuer signed. */
     async fetch(request: Request): Promise<Response> {
         // authenticate the client and read the token
-        const { database, environment, issuer } = this.#options;
+        const { issuer } = this.#options;
         const body = await TokenEndpoint.form(request);
-        const party = await ClientAuthentication.verify(
-            body,
-            request.headers,
-            database,
-            environment.crypto,
-        );
+        const party = await ClientAuthentication.verify(body, request.headers, this.#options);
         const token = body["token"];
         if (token === undefined) {
             throw OAuthError.of("REQUEST_INVALID", "request is invalid: it names no token");

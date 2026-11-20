@@ -2,6 +2,7 @@ import { Forwarded, HostAddress } from "@destack/environment";
 import { type Identifier, present, schema } from "@destack/schema";
 import { AccountHandle, HANDLE_LENGTH } from "./handle.ts";
 import { MachineName } from "../object/machine.ts";
+import { Hostname } from "../object/domain.ts";
 import { InstallationName, PackageMount } from "@destack/object";
 import { RepositoryName } from "@destack/package";
 import { Label } from "./label.ts";
@@ -45,36 +46,6 @@ const NAME_SEPARATOR_PATTERN = /(?<!-)--(?!-)/u;
 /** The identifier schema of spaces. */
 const SPACE_IDENTIFIER = schema.identifier("space");
 
-/** The parent domains of view origins and machine addresses. */
-export interface Domains {
-    /** The domain of spaces' views, such as `destack.space`. */
-    readonly space: string;
-    /** The domain of machines, such as `destack.computer`. */
-    readonly machine: string;
-}
-
-/** The domains the platform serves itself, reserved from account claims and their subdomains. */
-export const DOMAINS = {
-    /** The site. */
-    site: "destack.sh",
-    /** The universe's issuer, the universe's origin. */
-    universe: "destack.app",
-    /** The spaces' views. */
-    space: "destack.space",
-    /** The machines. */
-    machine: "destack.computer",
-} as const;
-
-/** The platform's domains, whose hostnames reach its cloud machines through its own zone. */
-export const PlatformDomain = {
-    /** Whether a hostname or wildcard lies at or below one of the platform's domains. */
-    covers(hostname: string): boolean {
-        return Object.values(DOMAINS).some(
-            (domain) => hostname === domain || hostname.endsWith(`.${domain}`),
-        );
-    },
-};
-
 /** The domain installation origins answer below on a loopback machine, as browsers resolve it. */
 export const LOOPBACK_DOMAIN = "localhost";
 
@@ -109,27 +80,46 @@ export type UniverseLink =
           readonly path: string;
       };
 
-/** The universe's origin: its issuer, its links below `/@`, and its packages' mounts. */
-export const UniverseOrigin = {
-    /** Build the URL of one of the universe's pages, such as `https://destack.app/sign-in`. */
-    page(origin: string, page: keyof typeof UNIVERSE_PAGES): URL {
-        return new URL(UNIVERSE_PAGES[page], origin);
-    },
+/** A universe's address: its origin, and the parent domains of its spaces' and machines' names. */
+export class UniverseOrigin {
+    /** A universe's address as JSON: its origin and its domains. */
+    static readonly schema = schema.object({
+        /** The universe's origin, its issuer's, such as `https://destack.app`. */
+        origin: schema.url(),
+        /** The domains the universe serves beside its origin's. */
+        domains: schema.object({
+            /** The domain of spaces' views, such as `destack.space`. */
+            space: Hostname,
+            /** The domain of machines, such as `destack.computer`. */
+            machine: Hostname,
+            /** The domain of the universe's site, such as `destack.sh`. */
+            site: Hostname,
+        }),
+    });
+
+    /** The universe's origin, its issuer's, such as `https://destack.app`. */
+    readonly origin: string;
+    /** The domains the universe serves beside its origin's: its spaces', machines' and site's. */
+    readonly domains: schema.Infer<typeof UniverseOrigin.schema>["domains"];
+
+    /** Address a universe at its origin, with the domains its names answer below. */
+    constructor(origin: string, domains: UniverseOrigin["domains"]) {
+        this.origin = new URL(origin).origin;
+        this.domains = domains;
+    }
+
+    /** Read a universe's address from its JSON. */
+    static of(address: schema.Infer<typeof UniverseOrigin.schema>): UniverseOrigin {
+        return new UniverseOrigin(address.origin, address.domains);
+    }
 
     /** Build the issuer URL of the universe at an origin, such as `https://destack.app/oauth`. */
-    issuer(origin: string): string {
+    static issuer(origin: string): string {
         return `${new URL(origin).origin}${OAUTH_PATH}`;
-    },
+    }
 
-    /** Read what a URL addresses at the universe's origin: its issuer, a link or a package. */
-    of(url: string, origin: string): "issuer" | "link" | "package" | undefined {
-        const { origin: requested, pathname } = new URL(url);
-
-        return requested === new URL(origin).origin ? UniverseOrigin.path(pathname) : undefined;
-    },
-
-    /** Read what a path addresses below the universe's origin: its issuer, a link or a package. */
-    path(pathname: string): "issuer" | "link" | "package" | undefined {
+    /** Read what a path addresses below a universe's origin: its issuer, a link or a package. */
+    static path(pathname: string): "issuer" | "link" | "package" | undefined {
         // read the issuer's path
         if (pathname === OAUTH_PATH || pathname.startsWith(`${OAUTH_PATH}/`)) {
             return "issuer";
@@ -140,10 +130,10 @@ export const UniverseOrigin = {
         }
 
         return undefined;
-    },
+    }
 
     /** Read the app or repository link a path holds below `/@<handle>`. */
-    link(pathname: string): UniverseLink | undefined {
+    static link(pathname: string): UniverseLink | undefined {
         // split the path below its `@`
         const [handle, space, name, ...rest] = pathname.replace(/\/$/u, "").split("/").slice(1);
         if (handle === undefined || !handle.startsWith("@")) {
@@ -173,8 +163,68 @@ export const UniverseOrigin = {
         }
 
         return undefined;
-    },
-};
+    }
+
+    /** The URL of the universe's issuer, such as `https://destack.app/oauth`. */
+    get issuer(): string {
+        return UniverseOrigin.issuer(this.origin);
+    }
+
+    /** Build the URL of one of the universe's pages, such as `https://destack.app/sign-in`. */
+    page(page: keyof typeof UNIVERSE_PAGES): URL {
+        return new URL(UNIVERSE_PAGES[page], this.origin);
+    }
+
+    /** The universe's own domain, its origin's host name. */
+    get domain(): string {
+        return new URL(this.origin).hostname;
+    }
+
+    /** Read what a URL addresses at the universe's origin: its issuer, a link or a package. */
+    serves(url: string): "issuer" | "link" | "package" | undefined {
+        const { origin, pathname } = new URL(url);
+
+        return origin === this.origin ? UniverseOrigin.path(pathname) : undefined;
+    }
+
+    /** Report whether a hostname or wildcard lies at or below one of the universe's domains. */
+    covers(hostname: string): boolean {
+        return [this.domain, ...Object.values(this.domains)].some(
+            (domain) => hostname === domain || hostname.endsWith(`.${domain}`),
+        );
+    }
+
+    /** Write the URL a name below the universe's domains answers at: its scheme and port. */
+    url(hostname: string): string {
+        const url = new URL(this.origin);
+        url.hostname = hostname;
+
+        return url.origin;
+    }
+
+    /** Write the URL a machine's address answers at below the machines' domain. */
+    machine(address: MachineAddress): string {
+        return this.url(MachineAddress.format(address, this.domains.machine));
+    }
+
+    /** Write the URL an installation origin answers at, a loopback machine's below its own port. */
+    installation(origin: InstallationOrigin, machine: string): string {
+        // keep a loopback machine's port below the loopback domain
+        const url = new URL(machine);
+        if (url.hostname === LOOPBACK_DOMAIN || HostAddress.isLoopback(url.hostname)) {
+            url.hostname = InstallationOrigin.format(origin, LOOPBACK_DOMAIN);
+
+            return url.origin;
+        }
+
+        return this.url(InstallationOrigin.format(origin, this.domains.space));
+    }
+
+    /** Write the universe's address as JSON. */
+    toJSON(): schema.Infer<typeof UniverseOrigin.schema> {
+        return { origin: this.origin, domains: this.domains };
+    }
+}
 
 /** A machine of an account: `<machine>--<handle>.destack.computer`. */
 export interface MachineAddress {
@@ -318,27 +368,6 @@ export const InstallationOrigin = {
                   : branchedLabel(`${origin.name}${NAME_SEPARATOR}${origin.branch}`, origin);
 
         return domain === undefined ? label : `${label}.${domain}`;
-    },
-
-    /** Read the domain below which a machine's installation origins answer. */
-    domain(machine: string): string {
-        return HostAddress.isLoopbackName(new URL(machine).hostname)
-            ? LOOPBACK_DOMAIN
-            : DOMAINS.space;
-    },
-
-    /** Write the URL an installation origin answers at wherever its space's machine answers. */
-    url(origin: InstallationOrigin, machine: string): string {
-        // keep a loopback machine's port below the loopback domain
-        const domain = InstallationOrigin.domain(machine);
-        const url = new URL(machine);
-        if (domain === LOOPBACK_DOMAIN) {
-            url.hostname = InstallationOrigin.format(origin, domain);
-
-            return url.origin;
-        }
-
-        return `https://${InstallationOrigin.format(origin, domain)}`;
     },
 
     /** Read the installation origin of a request under a domain. */

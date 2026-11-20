@@ -72,7 +72,6 @@ import { UniverseOrigin } from "../address/address.ts";
 import { accountServer, Platform, PlatformDefinition } from "../server/index.ts";
 import { defineDatabase } from "@destack/db";
 import { type InstanceOf, tablesOf } from "@destack/object";
-import { TokenLifetime } from "../oauth/index.ts";
 import { TestBrowser } from "./browser.ts";
 import { TestDns } from "./dns.ts";
 import type { DnsResolver } from "../server/dns-resolver.ts";
@@ -99,8 +98,18 @@ const WORLD_START = Date.UTC(2026, 9, 1);
 /** The node the universe's calls run as in the fixture's world. */
 const WORLD_NODE = "universe";
 
+/** The parent domains of the universe's names. */
+export const DOMAINS: UniverseOrigin["domains"] = {
+    space: "destack.space",
+    machine: "destack.computer",
+    site: "destack.sh",
+};
+
+/** The universe's address. */
+export const UNIVERSE = new UniverseOrigin(ORIGIN, DOMAINS);
+
 /** The universe's issuer. */
-export const ISSUER = UniverseOrigin.issuer(ORIGIN);
+export const ISSUER = UNIVERSE.issuer;
 
 /** The email of the person operating the fixture's universe. */
 export const OPERATOR_EMAIL = "operator@example.com";
@@ -152,6 +161,7 @@ export const RESIDENCY_STACK: StackRelease = {
     selection: { kind: "release", version: "2026.9.0" },
     export: "RESIDENCY",
     settings: {},
+    routes: {},
 };
 
 /** The stand-in stacks spaces are born with by kind. */
@@ -161,12 +171,14 @@ export const STACKS: PlatformDefinition["stacks"] = {
         selection: { kind: "release", version: "2026.9.0" },
         export: "HOME",
         settings: {},
+        routes: {},
     },
     space: {
         packageId: PackageId.parse("package-01996ab0-0000-7000-8000-0000000000b3"),
         selection: { kind: "release", version: "2026.9.0" },
         export: "SPACE",
         settings: {},
+        routes: {},
     },
 };
 
@@ -1187,6 +1199,7 @@ export class TestAccountStore implements AsyncDisposable {
             servers: [
                 objectServer,
                 accountServer({
+                    universe: UNIVERSE,
                     resolver: options.resolver ?? new TestDns(),
                     stacks: options.stacks,
                     signIn: signIn.promise,
@@ -1227,13 +1240,11 @@ export class TestAccountStore implements AsyncDisposable {
                 ),
                 database,
                 callKey: testCallKey,
-                issuer: ISSUER,
-                trustedOrigins: [ORIGIN],
+                universe: UNIVERSE,
                 ipAddress: { disableIpTracking: true },
                 providers: {},
                 objects: store,
                 events,
-                lifetime: new TokenLifetime(new Map()),
                 mail,
                 ...options.signIn,
             });

@@ -1,3 +1,4 @@
+import type { UniverseOrigin } from "../address/address.ts";
 import type { DatabaseConnection } from "@destack/db";
 import type { Environment } from "@destack/environment";
 import type { ObjectStore } from "@destack/object/server";
@@ -22,6 +23,8 @@ const RefreshRequest = schema.looseObject({
 
 /** What the refresh grant reads tokens from and stores their successors in. */
 export interface RefreshOptions {
+    /** The universe, below whose domains installations' clients answer. */
+    readonly universe: UniverseOrigin;
     /** The account database with the tokens and consents. */
     readonly database: DatabaseConnection;
     /** The account objects, which rotate and revoke tokens. */
@@ -39,7 +42,7 @@ export function refreshGrant(options: RefreshOptions): GrantType {
             { body, headers },
             "refresh_token",
             RefreshRequest,
-            { database, crypto: environment.crypto },
+            options,
         );
 
         // find the client's unexpired token

@@ -15,7 +15,7 @@ import { Snapshot, TABLE } from "@destack/db";
 import { nth, Identifier, present, schema } from "@destack/schema";
 import { RequestId, ObjectReference, Scope } from "@destack/sync";
 import { expect, test, refusal, type Refusal } from "@destack/test";
-import { Directory, DOMAINS, MachineAddress } from "../src/address/index.ts";
+import { Directory } from "../src/address/index.ts";
 import {
     account,
     assignment,
@@ -34,7 +34,14 @@ import { ACCESS_TOKEN_TYPE } from "../src/oauth/index.ts";
 import { MachineKey } from "../src/client/index.ts";
 import { MemoryKeychain } from "@destack/identity";
 import accountPackage from "../src/package.ts";
-import { TestAccountStore, ISSUER, ids, type TestPerson, OWNER_EMAIL } from "../src/test/index.ts";
+import {
+    TestAccountStore,
+    ISSUER,
+    UNIVERSE,
+    ids,
+    type TestPerson,
+    OWNER_EMAIL,
+} from "../src/test/index.ts";
 import type { TestCaller } from "@destack/object/test";
 import { claimNames, firstPage, place } from "./fixture.ts";
 import {
@@ -189,7 +196,7 @@ async function relayed(
         .findFirst({ where: { id: schema.identifier("machine").parse(machineId) } });
     const address = { machine: present(named, `machine ${machineId}`).name, handle };
 
-    return `https://${MachineAddress.format(address, DOMAINS.machine)}`;
+    return UNIVERSE.machine(address);
 }
 
 /** Read where a space runs as a caller. */

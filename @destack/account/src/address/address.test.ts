@@ -1,7 +1,14 @@
 import { expect, test } from "@destack/test";
-import { PlatformDomain, UniverseOrigin } from "./address.ts";
+import { UniverseOrigin } from "./address.ts";
 
-test("cover the platform's domains and the hostnames and wildcards below them, but no account's own", () => {
+/** A universe at Destack's origin and domains. */
+const UNIVERSE = new UniverseOrigin("https://destack.app", {
+    space: "destack.space",
+    machine: "destack.computer",
+    site: "destack.sh",
+});
+
+test("cover the universe's domains and the hostnames and wildcards below them, but no account's own", () => {
     expect(
         [
             "destack.app",
@@ -10,8 +17,53 @@ test("cover the platform's domains and the hostnames and wildcards below them, b
             "notes.acme.com",
             "destack.app.acme.com",
             "notdestack.app",
-        ].map((hostname) => PlatformDomain.covers(hostname)),
+        ].map((hostname) => UNIVERSE.covers(hostname)),
     ).toEqual([true, true, true, false, false, false]);
+});
+
+test("write the URLs of a universe's names at its scheme and port, a loopback machine's below its own", () => {
+    // address a local universe on a port, beside the one at Destack's origin
+    const local = new UniverseOrigin("http://destack.localhost:4100", {
+        space: "space.localhost",
+        machine: "computer.localhost",
+        site: "site.localhost",
+    });
+    const home = { name: "home", space: "home", handle: "ada" };
+
+    expect({
+        issuer: [UNIVERSE.issuer, local.issuer],
+        page: [UNIVERSE.page("signIn").href, local.page("signIn").href],
+        machine: [
+            UNIVERSE.machine({ machine: "macbook", handle: "ada" }),
+            local.machine({ machine: "macbook", handle: "ada" }),
+        ],
+        installation: [
+            UNIVERSE.installation(home, "https://eu-central--platform.destack.computer"),
+            local.installation(home, "http://macbook--ada.computer.localhost:4100"),
+            local.installation(home, "http://127.0.0.1:4101"),
+        ],
+        serves: [
+            local.serves("http://destack.localhost:4100/oauth/oauth2/token"),
+            local.serves("http://destack.localhost:4100/@ada/home.git"),
+            local.serves("http://destack.localhost:4100/sign-in"),
+            local.serves("http://home--home--ada.space.localhost:4100/oauth"),
+        ],
+        json: UniverseOrigin.of(UniverseOrigin.schema.parse(local.toJSON())),
+    }).toEqual({
+        issuer: ["https://destack.app/oauth", "http://destack.localhost:4100/oauth"],
+        page: ["https://destack.app/sign-in", "http://destack.localhost:4100/sign-in"],
+        machine: [
+            "https://macbook--ada.destack.computer",
+            "http://macbook--ada.computer.localhost:4100",
+        ],
+        installation: [
+            "https://home--home--ada.destack.space",
+            "http://home--home--ada.space.localhost:4100",
+            "http://home--home--ada.localhost:4101",
+        ],
+        serves: ["issuer", "link", undefined, undefined],
+        json: local,
+    });
 });
 
 test("read app and repository links below the universe's origin, and nothing else", () => {

@@ -1,3 +1,4 @@
+import type { UniverseOrigin } from "../address/address.ts";
 import type { AuthContext } from "better-auth";
 import { AccessContext, accessGrant, Caller, Grant, principal } from "@destack/access";
 import { type DatabaseConnection, Snapshot, Transaction } from "@destack/db";
@@ -16,6 +17,8 @@ import { OAuthClient } from "./party.ts";
 
 /** What the consents endpoint reads and writes with. */
 export interface ConsentEndpointOptions {
+    /** The universe, below whose domains installations' clients answer. */
+    readonly universe: UniverseOrigin;
     /** The universe's database. */
     readonly database: DatabaseConnection;
     /** The account objects, which revoke as the person. */
@@ -91,7 +94,11 @@ export class ConsentEndpoint {
         const listed = await Promise.all(
             consents.map(async (consent) => {
                 // read the client, and how long the consent's grant lasts
-                const party = await OAuthClient.find(consent.clientId, database);
+                const party = await OAuthClient.find(
+                    consent.clientId,
+                    database,
+                    this.#options.universe,
+                );
                 const asked = consent.grant ?? undefined;
                 const lifetime =
                     asked === undefined ? undefined : await this.#lifetime(userId, asked.delegate);

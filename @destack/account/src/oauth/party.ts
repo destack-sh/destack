@@ -1,11 +1,16 @@
+import type { Environment } from "@destack/environment";
 import { OriginPath } from "@destack/package";
 import { type DatabaseConnection, eq, Snapshot } from "@destack/db";
-import type { Crypto } from "@destack/environment";
 import { Digest, schema } from "@destack/schema";
 import { OAuthError } from "../authentication/token.ts";
 import { client, DEVICE_CLIENT_NAME } from "../object/client.ts";
 import { OAUTH_SCOPES, type Application, application } from "../object/application.ts";
-import { DOMAINS, InstallationOrigin, LOOPBACK_DOMAIN, SpaceAddress } from "../address/address.ts";
+import {
+    InstallationOrigin,
+    LOOPBACK_DOMAIN,
+    SpaceAddress,
+    type UniverseOrigin,
+} from "../address/address.ts";
 
 /** The grant type of a device's sign-in by a code a person approves (RFC 8628 3.4). */
 export const DEVICE_CODE = "urn:ietf:params:oauth:grant-type:device_code";
@@ -76,7 +81,11 @@ export class OAuthClient {
     }
 
     /** Find a client by its identifier, refusing an unknown or withdrawn one. */
-    static async find(clientId: string, database: DatabaseConnection): Promise<OAuthClient> {
+    static async find(
+        clientId: string,
+        database: DatabaseConnection,
+        universe: UniverseOrigin,
+    ): Promise<OAuthClient> {
         // read a device's client, accepting one its program has yet to register
         if (client.identifies(clientId)) {
             const row = await Snapshot.live(database)
@@ -93,7 +102,7 @@ export class OAuthClient {
         }
 
         // read an installation's origin, its own identifier, named by its installation, else its hostname for a digest label
-        const origin = OAuthClient.#origin(clientId);
+        const origin = OAuthClient.#origin(clientId, universe);
         if (origin !== undefined) {
             const name = origin.digest === undefined ? origin.name : new URL(clientId).hostname;
 
@@ -207,20 +216,36 @@ export class OAuthClient {
         }
     }
 
-    /** Read the installation origin a client identifier is: a space's https or a loopback one. */
-    static #origin(clientId: string): InstallationOrigin | undefined {
-        // require a bare origin, https below the spaces' domain or http on a loopback machine
+    /** Read the installation origin a client identifier is: a space's or a loopback one. */
+    static #origin(clientId: string, universe: UniverseOrigin): InstallationOrigin | undefined {
+        // require a bare origin, a name below the spaces' domain or http on a loopback machine
         const url = URL.parse(clientId);
         if (url === null || url.origin !== clientId) {
             return undefined;
-        } else if (url.protocol === "https:") {
-            return InstallationOrigin.parse(url.hostname, DOMAINS.space);
-        } else if (url.protocol === "http:") {
-            return InstallationOrigin.parse(url.hostname, LOOPBACK_DOMAIN);
         }
 
-        return undefined;
+        // read a name below the spaces' domain, else one on a loopback machine
+        const named =
+            universe.url(url.hostname) === clientId
+                ? InstallationOrigin.parse(url.hostname, universe.domains.space)
+                : undefined;
+        const loopback =
+            url.protocol === "http:"
+                ? InstallationOrigin.parse(url.hostname, LOOPBACK_DOMAIN)
+                : undefined;
+
+        return named ?? loopback;
     }
+}
+
+/** What a client's authentication reads its registration and digests its secret with. */
+export interface ClientAuthenticationOptions {
+    /** The account database with the clients' registrations. */
+    readonly database: DatabaseConnection;
+    /** The universe, below whose domains installations' clients answer. */
+    readonly universe: UniverseOrigin;
+    /** The WebCrypto digesting a client's secret. */
+    readonly environment: Pick<Environment, "crypto">;
 }
 
 /** The authentication of a client by its secret, or by its identifier alone. */
@@ -230,16 +255,11 @@ export const ClientAuthentication = {
         request: { readonly body: Readonly<Record<string, string>>; readonly headers: Headers },
         grantType: string,
         shape: Shape,
-        options: { readonly database: DatabaseConnection; readonly crypto: Crypto },
+        options: ClientAuthenticationOptions,
     ): Promise<{ readonly party: OAuthClient; readonly asked: schema.Infer<Shape> }> {
         // verify the client, enabled and allowed the grant type
         const { body, headers } = request;
-        const party = await ClientAuthentication.verify(
-            body,
-            headers,
-            options.database,
-            options.crypto,
-        );
+        const party = await ClientAuthentication.verify(body, headers, options);
         party.requireEnabled();
         party.requireGrant(grantType);
 
@@ -259,8 +279,7 @@ export const ClientAuthentication = {
     async verify(
         body: Readonly<Record<string, string>>,
         headers: Headers,
-        database: DatabaseConnection,
-        crypto: Crypto,
+        options: ClientAuthenticationOptions,
     ): Promise<OAuthClient> {
         // read the client's identifier and secret from the basic header, else from the form
         const basic = headers.get("authorization");
@@ -277,7 +296,9 @@ export const ClientAuthentication = {
         }
 
         // find the client and how it sent its secret
-        const party = await OAuthClient.find(clientId, database);
+        const { database, universe } = options;
+        const { crypto } = options.environment;
+        const party = await OAuthClient.find(clientId, database, universe);
         const method = party.application?.tokenEndpointAuthMethod ?? "none";
         const sent =
             basic?.startsWith(BASIC) === true ? "client_secret_basic" : "client_secret_post";

@@ -1,3 +1,4 @@
+import type { UniverseOrigin } from "../address/address.ts";
 import type { Authorizer } from "@destack/access";
 import type { DatabaseConnection } from "@destack/db";
 import type { Environment } from "@destack/environment";
@@ -32,7 +33,6 @@ import { type CodeCheck, emailGrant } from "./email.ts";
 import { exchangeGrant, TOKEN_EXCHANGE } from "./exchange.ts";
 import { DEVICE_CODE, EMAIL_CODE } from "./party.ts";
 import { refreshGrant } from "./refresh.ts";
-import type { TokenLifetime } from "./resource.ts";
 import { IntrospectionEndpoint, RevocationEndpoint } from "./revocation.ts";
 import { TokenEndpoint } from "./token.ts";
 import { UserInfoEndpoint } from "./userinfo.ts";
@@ -60,8 +60,8 @@ const CLAIMS = [
 
 /** What the authorization server signs, stores, reads and pages with. */
 export interface AuthorizationServerOptions {
-    /** The issuer's URL, below which every endpoint answers. */
-    readonly issuer: string;
+    /** The universe, whose issuer every endpoint answers below. */
+    readonly universe: UniverseOrigin;
     /** The account database. */
     readonly database: DatabaseConnection;
     /** The account objects, which store the server's records and register devices' clients. */
@@ -70,8 +70,6 @@ export interface AuthorizationServerOptions {
     readonly environment: Environment;
     /** The policies expanding memberships, which token exchanges check. */
     readonly authorizer: Authorizer;
-    /** How long the packages' tokens live. */
-    readonly lifetime: TokenLifetime;
     /** Sign claims with the universe's active key. */
     readonly sign: (claims: JwtClaims, header: { readonly typ: string }) => Promise<string>;
     /** Read the universe's current key set. */
@@ -110,9 +108,11 @@ export class AuthorizationServer {
     readonly #objects: Pick<ObjectStore, "watermark">;
 
     /** Compose the server's endpoints. */
-    constructor(options: AuthorizationServerOptions) {
+    constructor(given: AuthorizationServerOptions) {
         // compose the endpoints that decide and issue
-        const { issuer, pages } = options;
+        const { pages } = given;
+        const { issuer } = given.universe;
+        const options = { ...given, issuer };
         this.#base = new URL(issuer).pathname;
         this.#objects = options.objects;
         const endpoint = `${issuer}${TOKEN_PATH}`;
@@ -135,7 +135,7 @@ export class AuthorizationServer {
         );
 
         // describe the server in one document at both metadata paths
-        const metadata = this.#metadata(issuer);
+        const metadata = { ...this.#metadata(issuer), domains: given.universe.domains };
         const document: Endpoint = { fetch: () => Promise.resolve(Response.json(metadata)) };
         this.#endpoints = new Map<string, Endpoint>([
             ...METADATA_PATHS.map((path) => [path, document] as const),

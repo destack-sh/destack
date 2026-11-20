@@ -28,7 +28,6 @@ import {
 } from "../authentication/path.ts";
 import { Identity } from "../object/identity.ts";
 import type { CodeCheck } from "../oauth/email.ts";
-import type { TokenLifetime } from "../oauth/resource.ts";
 import { AuthorizationServer } from "../oauth/server.ts";
 import { User } from "../object/user.ts";
 import { SignUp } from "./sign-up.ts";
@@ -37,7 +36,7 @@ import { Identifier, type UuidEnvironment, Uuid } from "@destack/schema";
 import { type Clock, type Environment, type Scheduler } from "@destack/environment";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
-import { UniverseOrigin } from "../address/address.ts";
+import type { UniverseOrigin } from "../address/address.ts";
 
 /** The limit of a sign-up form's reads, Better Auth's general rule: 100 requests per 10 seconds. */
 const FORM_READ_LIMIT = { window: 10, max: 100 } as const;
@@ -110,10 +109,8 @@ const MODELS = {
 
 /** Deployment inputs for Destack platform sign-in. */
 export interface BetterAuthAuthenticatorOptions {
-    /** The issuer's URL: the oauth adapter's, below the account package's mount. */
-    issuer: string;
-    /** Exact browser origins allowed to use platform sessions. */
-    trustedOrigins: string[];
+    /** The universe, whose issuer the oauth adapter answers below. */
+    universe: UniverseOrigin;
     /** Proxy and address headers trusted by the deployment's HTTP ingress. */
     ipAddress: NonNullable<NonNullable<BetterAuthOptions["advanced"]>["ipAddress"]>;
     /** The universe's keystore, whose identity signs the universe's tokens. */
@@ -131,8 +128,6 @@ export interface BetterAuthAuthenticatorOptions {
     >;
     /** The event log the journal stores audited calls in. */
     events: EventStore;
-    /** How long the packages' access tokens live. */
-    lifetime: TokenLifetime;
     /** The transport mailing sign-in links and codes. */
     mail: MailTransport;
 }
@@ -173,7 +168,7 @@ export class BetterAuthAuthenticator {
         this.database = options.database;
         this.environment = options.objects.environment;
         this.keystore = options.keystore;
-        this.issuer = options.issuer;
+        this.issuer = options.universe.issuer;
 
         // answer through the instance, the authorization server and the protocol
         this.auth = auth;
@@ -186,8 +181,8 @@ export class BetterAuthAuthenticator {
     static async create(options: BetterAuthAuthenticatorOptions): Promise<BetterAuthAuthenticator> {
         // audit the protocol below the issuer's URL
         const { keystore } = options;
-        const issuer = new URL(options.issuer);
-        const pages = resolvePages(issuer.origin);
+        const issuer = new URL(options.universe.issuer);
+        const pages = resolvePages(options.universe);
         const audit = new BetterAuthAudit(
             new Journal(options.database, options.callKey, {
                 events: options.events,
@@ -222,12 +217,11 @@ export class BetterAuthAuthenticator {
         // serve the authorization server, reading browsers' sessions without refreshing them
         const { environment } = options.objects;
         const server = new AuthorizationServer({
-            issuer: options.issuer,
+            universe: options.universe,
             database: options.database,
             objects: options.objects,
             environment,
             authorizer: options.objects.authorizer,
-            lifetime: options.lifetime,
             sign: (claims, header) =>
                 keystore.sign(options.database, Scope.universe.id, claims, header),
             keys: () =>
@@ -381,15 +375,15 @@ interface Pages {
 }
 
 /** Resolve the pages at the universe's origin the issuer sends a browser to. */
-function resolvePages(origin: string): Pages {
-    const secondFactor = UniverseOrigin.page(origin, "signIn");
+function resolvePages(universe: UniverseOrigin): Pages {
+    const secondFactor = universe.page("signIn");
     secondFactor.searchParams.set("step", "second-factor");
 
     return {
-        signIn: UniverseOrigin.page(origin, "signIn"),
-        signUp: UniverseOrigin.page(origin, "signUp"),
-        consent: UniverseOrigin.page(origin, "consent"),
-        verification: UniverseOrigin.page(origin, "verification"),
+        signIn: universe.page("signIn"),
+        signUp: universe.page("signUp"),
+        consent: universe.page("consent"),
+        verification: universe.page("verification"),
         secondFactor,
     };
 }
@@ -402,11 +396,11 @@ function settings(
 ) {
     return {
         appName: "Destack",
-        baseURL: new URL(options.issuer).origin,
-        basePath: new URL(options.issuer).pathname,
+        baseURL: new URL(options.universe.issuer).origin,
+        basePath: new URL(options.universe.issuer).pathname,
         secrets,
         database: betterAuthAdapter(options.database, options.objects),
-        trustedOrigins: options.trustedOrigins,
+        trustedOrigins: [options.universe.origin],
         telemetry: { enabled: false },
         disabledPaths: OBJECT_ROUTES,
         logger: { log: (level) => audit.log(level) },
@@ -473,7 +467,7 @@ function plugins(options: BetterAuthAuthenticatorOptions, audit: BetterAuthAudit
         passkeys(options),
         SignInProvider.plugin(options.providers, options.objects.environment),
         SignUp.plugin(options.database),
-        Home.plugin(options.database, options.objects.environment.clock),
+        Home.plugin(options.database, options.objects.environment.clock, options.universe),
         betterAuthSecondFactor({
             challengeUri: pages.secondFactor.href,
             keyring: options.keystore.keyring,
@@ -508,9 +502,9 @@ function plugins(options: BetterAuthAuthenticatorOptions, audit: BetterAuthAudit
 /** Build the passkey plugin for the platform origin. */
 function passkeys(options: BetterAuthAuthenticatorOptions) {
     return passkey({
-        rpID: new URL(options.issuer).hostname,
+        rpID: new URL(options.universe.issuer).hostname,
         rpName: "Destack",
-        origin: options.trustedOrigins,
+        origin: [options.universe.origin],
         authenticatorSelection: { userVerification: "required" },
         registration: {
             afterVerification: ({ verification }) => {

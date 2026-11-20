@@ -3,7 +3,7 @@ import { createAuthEndpoint, getSessionFromCtx } from "better-auth/api";
 import type { Clock } from "@destack/environment";
 import { type DatabaseConnection, Snapshot } from "@destack/db";
 import { present } from "@destack/schema";
-import { InstallationOrigin } from "../address/address.ts";
+import type { UniverseOrigin } from "../address/address.ts";
 import { Directory } from "../address/directory.ts";
 import { HOME_LOCATION_PATH } from "../authentication/path.ts";
 import { HomeLocation } from "../authentication/request.ts";
@@ -14,7 +14,12 @@ import { account, Account, HOME_APPLICATION, HOME_SPACE } from "../object/accoun
 /** A person's home: where Home answers in their personal account's home space. */
 export const Home = {
     /** Read where a person's Home answers, starting until its machine reports it serving. */
-    async locate(userId: string, database: DatabaseConnection, now: number): Promise<HomeLocation> {
+    async locate(
+        userId: string,
+        database: DatabaseConnection,
+        universe: UniverseOrigin,
+        now: number,
+    ): Promise<HomeLocation> {
         // find the machine answering for the person's home space
         const accountId = Account.personal(userId);
         const snapshot = Snapshot.live(database);
@@ -28,11 +33,11 @@ export const Home = {
         const handle = present(owner, `the account of ${userId}`).handle;
         const origin = { name: HOME_APPLICATION, space: HOME_SPACE, handle };
 
-        return { status: "serving", url: `${InstallationOrigin.url(origin, located.url)}/` };
+        return { status: "serving", url: `${universe.installation(origin, located.url)}/` };
     },
 
     /** Serve where the signed-in person's Home answers, for the views at the universe's origin. */
-    plugin(database: DatabaseConnection, clock: Clock): BetterAuthPlugin {
+    plugin(database: DatabaseConnection, clock: Clock, universe: UniverseOrigin): BetterAuthPlugin {
         return {
             id: "destack-home",
             endpoints: {
@@ -53,6 +58,7 @@ export const Home = {
                             const located = await Home.locate(
                                 session.user.id,
                                 database,
+                                universe,
                                 clock.now(),
                             );
 

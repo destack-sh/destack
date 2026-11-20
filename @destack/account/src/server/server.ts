@@ -1,3 +1,4 @@
+import type { UniverseOrigin } from "../address/address.ts";
 import { implementPackage, type PackageImplementation } from "@destack/object/server";
 import type { BetterAuthAuthenticator } from "../better-auth/authenticator.ts";
 import type { DnsResolver } from "./dns-resolver.ts";
@@ -25,6 +26,8 @@ import { implementUser } from "./user.ts";
 
 /** What the universe serves the account package with. */
 export interface AccountOptions {
+    /** The universe, below whose domains machines' names answer. */
+    readonly universe: UniverseOrigin;
     /** The resolver reading domains' challenge records. */
     readonly resolver: DnsResolver;
     /** The stacks spaces are born with. */
@@ -57,7 +60,7 @@ export function accountServer(options: AccountOptions): PackageImplementation {
             implementSpace(options.stacks),
             implementDomain({ resolver: options.resolver }),
             implementHostname(),
-            implementMachine(),
+            implementMachine(options.universe),
             implementIdentity(),
             implementOperation(),
             implementResidency(options.releases),

@@ -1,3 +1,4 @@
+import type { UniverseOrigin } from "../address/address.ts";
 import { type DatabaseConnection, Snapshot } from "@destack/db";
 import type { Environment } from "@destack/environment";
 import type { ObjectStore } from "@destack/object/server";
@@ -45,6 +46,8 @@ export type CodeCheck = (email: string, code: string) => Promise<void>;
 
 /** What the email code grant checks codes with and signs people in with. */
 export interface EmailOptions {
+    /** The universe, below whose domains installations' clients answer. */
+    readonly universe: UniverseOrigin;
     /** The account database with the people and their clients. */
     readonly database: DatabaseConnection;
     /** The account objects, which register the device's client and its consent. */
@@ -66,7 +69,7 @@ export function emailGrant(options: EmailOptions): GrantType {
             { body, headers },
             EMAIL_CODE,
             CodeRequest,
-            { database, crypto: environment.crypto },
+            options,
         );
         const { email, code, resource } = asked;
         const audience = PackageResource.package(resource);

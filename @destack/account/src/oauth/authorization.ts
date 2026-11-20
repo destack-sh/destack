@@ -1,3 +1,4 @@
+import type { UniverseOrigin } from "../address/address.ts";
 import type { AuthContext } from "better-auth";
 import { type AssertionVerifier, Pkce } from "@destack/access/token";
 import { AccessContext, Caller, Grant, GrantPermission, principal } from "@destack/access";
@@ -106,6 +107,8 @@ const CodeRequest = schema.looseObject({
 export interface AuthorizationOptions {
     /** The issuer's URL, which every answer to a client includes (RFC 9207). */
     readonly issuer: string;
+    /** The universe, below whose domains installations' clients answer. */
+    readonly universe: UniverseOrigin;
     /** The account database. */
     readonly database: DatabaseConnection;
     /** The account objects, which store requests, consents, codes and devices' clients. */
@@ -167,7 +170,11 @@ export class AuthorizationEndpoint {
     async review(requestUri: string, headers: Headers): Promise<AuthorizationReview> {
         // read the request, its client and the person's session
         const request = await this.#stored(requestUri);
-        const party = await OAuthClient.find(request.clientId, this.#options.database);
+        const party = await OAuthClient.find(
+            request.clientId,
+            this.#options.database,
+            this.#options.universe,
+        );
         const session = await this.#session(headers);
         const standing =
             session === undefined || request.grant === null
@@ -321,7 +328,11 @@ export class AuthorizationEndpoint {
         if (clientId === null) {
             throw OAuthError.of("REQUEST_INVALID", "request is invalid: it names no client");
         }
-        const party = await OAuthClient.find(clientId, this.#options.database);
+        const party = await OAuthClient.find(
+            clientId,
+            this.#options.database,
+            this.#options.universe,
+        );
         party.requireEnabled();
 
         // continue a stored request of the client
@@ -898,7 +909,7 @@ export async function requireBody<Body>(
 
 /** Redeem an authorization code for the person's tokens, with its verifier (RFC 6749 4.1.3). */
 export function codeGrant(
-    options: Pick<AuthorizationOptions, "database" | "objects" | "environment">,
+    options: Pick<AuthorizationOptions, "database" | "objects" | "environment" | "universe">,
 ): GrantType {
     return async ({ body, headers }) => {
         // authenticate the client and read the request
@@ -907,7 +918,7 @@ export function codeGrant(
             { body, headers },
             "authorization_code",
             CodeRequest,
-            { database, crypto: environment.crypto },
+            options,
         );
 
         // spend the code, then refuse another redirect than it was issued for

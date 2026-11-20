@@ -1,13 +1,19 @@
 import { nth, present, schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import {
-    DOMAINS,
     MachineAddress,
     InstallationOrigin,
     S3Origin,
     SpaceAddress,
     SpaceOrigin,
+    UniverseOrigin,
 } from "../src/address/index.ts";
+
+/** The parent domains of the universe the names are read and written below. */
+const DOMAINS = { space: "destack.space", machine: "destack.computer", site: "destack.sh" };
+
+/** The universe the names answer in. */
+const UNIVERSE = new UniverseOrigin("https://destack.app", DOMAINS);
 
 test("read the machine address of a server name, and nothing for other shapes", () => {
     expect(
@@ -74,8 +80,8 @@ test("write an installation origin's URL below the loopback domain on a loopback
     const origin = { name: "home", space: "home", handle: "ada" };
 
     expect([
-        InstallationOrigin.url(origin, "http://127.0.0.1:4102"),
-        InstallationOrigin.url(origin, "https://eu-central--platform.destack.computer"),
+        UNIVERSE.installation(origin, "http://127.0.0.1:4102"),
+        UNIVERSE.installation(origin, "https://eu-central--platform.destack.computer"),
     ]).toEqual(["http://home--home--ada.localhost:4102", "https://home--home--ada.destack.space"]);
 });
 

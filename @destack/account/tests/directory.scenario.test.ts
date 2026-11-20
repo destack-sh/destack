@@ -6,9 +6,16 @@ import { TestDatabase } from "@destack/db/test";
 import { Identifier, present, schema } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { expect, onTestFinished, Recording, test, refusal } from "@destack/test";
-import { Directory, DOMAINS, MachineAddress } from "../src/address/index.ts";
+import { Directory, MachineAddress } from "../src/address/index.ts";
 import { Account, endpoint, machine, placement } from "../src/object/index.ts";
-import { TestAccountStore, ids, STRANGER_EMAIL, OWNER_EMAIL } from "../src/test/index.ts";
+import {
+    DOMAINS,
+    TestAccountStore,
+    UNIVERSE,
+    ids,
+    STRANGER_EMAIL,
+    OWNER_EMAIL,
+} from "../src/test/index.ts";
 import { claimNames, place } from "./fixture.ts";
 import { Claimant } from "@destack/object";
 
@@ -84,7 +91,7 @@ async function openNotes() {
         handle,
         spaceId,
         machine: computer,
-        url: `https://${address}`,
+        url: UNIVERSE.url(address),
     };
 }
 

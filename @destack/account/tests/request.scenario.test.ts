@@ -18,8 +18,16 @@ import {
     placement,
     session,
 } from "../src/object/index.ts";
-import { DOMAINS, InstallationOrigin } from "../src/address/index.ts";
-import { ISSUER, ORIGIN, TestAccountStore, TestBrowser, TestDirectory } from "../src/test/index.ts";
+import { InstallationOrigin } from "../src/address/index.ts";
+import {
+    DOMAINS,
+    ISSUER,
+    ORIGIN,
+    TestAccountStore,
+    TestBrowser,
+    TestDirectory,
+    UNIVERSE,
+} from "../src/test/index.ts";
 import { DeviceGrant } from "./fixture.ts";
 
 /** The path of the stored authorization requests below the issuer. */
@@ -400,7 +408,10 @@ test("locate a signed-in person's Home once its machine reports it serving, star
         signedOut: [signedOut.status, await signedOut.json()],
     }).toEqual({
         placed: { status: "starting" },
-        serving: { status: "serving", url: "https://home--home--ada.destack.space/" },
+        serving: {
+            status: "serving",
+            url: `${UNIVERSE.url("home--home--ada.destack.space")}/`,
+        },
         unanswered: { status: "starting" },
         signedOut: [
             401,
@@ -639,7 +650,12 @@ async function askGrant(fixture: TestAccountStore, named = "notes") {
         spaceId,
         Identifier.create("installation", fixture.environment),
     );
-    const origin = `https://${InstallationOrigin.format({ name: "notes", space: HOME_SPACE, handle: owner.handle }, DOMAINS.space)}`;
+    const origin = UNIVERSE.url(
+        InstallationOrigin.format(
+            { name: "notes", space: HOME_SPACE, handle: owner.handle },
+            DOMAINS.space,
+        ),
+    );
     const asked = { ...session.permission("read"), scope: owner.id };
     const description = {
         package: accountPackage.id,

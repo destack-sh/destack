@@ -1,3 +1,4 @@
+import type { UniverseOrigin } from "../address/address.ts";
 import type { AuthContext } from "better-auth";
 import { type DatabaseConnection, eq, Snapshot, Transaction } from "@destack/db";
 import { type Environment, Random } from "@destack/environment";
@@ -56,6 +57,8 @@ const DeviceTokenRequest = schema.looseObject({
 
 /** What the device flow reads, stores and pages with. */
 export interface DeviceOptions {
+    /** The universe, below whose domains installations' clients answer. */
+    readonly universe: UniverseOrigin;
     /** The account database. */
     readonly database: DatabaseConnection;
     /** The account objects, which store the codes, consents and devices' clients. */
@@ -91,13 +94,13 @@ export class DeviceAuthorizationEndpoint {
     /** Answer a device authorization request with its codes and the page to enter them on. */
     async fetch(request: Request): Promise<Response> {
         // authenticate the client and read the request
-        const { database, objects, environment, verification } = this.#options;
+        const { objects, environment, verification } = this.#options;
         const body = await TokenEndpoint.form(request);
         const { party, asked } = await ClientAuthentication.grant(
             { body, headers: request.headers },
             DEVICE_CODE,
             DeviceRequest,
-            { database, crypto: environment.crypto },
+            this.#options,
         );
         const { scope, resource } = asked;
         party.requireScopes(spaceSeparated(scope));
@@ -160,7 +163,7 @@ export class DeviceAuthorizationEndpoint {
 
         return {
             row,
-            party: await OAuthClient.find(row.clientId, database),
+            party: await OAuthClient.find(row.clientId, database, this.#options.universe),
             decision: DeviceAuthorization.decision(row),
         };
     }
@@ -294,7 +297,7 @@ export function deviceGrant(options: Omit<DeviceOptions, "verification" | "sessi
             { body, headers },
             DEVICE_CODE,
             DeviceTokenRequest,
-            { database, crypto: environment.crypto },
+            options,
         );
 
         // find the client's codes

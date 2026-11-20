@@ -7,7 +7,7 @@ import { Proof, type PublicKey } from "@destack/identity";
 import type { Select } from "@destack/db";
 import { Endpoint, endpoint } from "../object/endpoint.ts";
 import { account } from "../object/account.ts";
-import { DOMAINS, MachineAddress } from "../address/address.ts";
+import type { UniverseOrigin } from "../address/address.ts";
 import { key, Key } from "../object/key.ts";
 import { machine, Machine } from "../object/machine.ts";
 import { residency } from "../object/residency.ts";
@@ -21,14 +21,14 @@ const PEERS = {
 };
 
 /** Implement machines. */
-export function implementMachine(): typeof machine {
+export function implementMachine(universe: UniverseOrigin): typeof machine {
     return machine.implement({
         methods: {
             // let every machine verify a new machine's keys, as its peers in moves
             enroll: { handle: enroll, relate: () => PEERS },
             declare: { handle: declare, relate: () => PEERS },
             delete: remove,
-            relay,
+            relay: (call) => relay(call, universe),
             enable: (call) => transition(call, "enabled"),
             drain: (call) => transition(call, "draining"),
             disable: (call) => transition(call, "disabled"),
@@ -102,6 +102,7 @@ async function declare(
 /** Record the tunnel a relay accepted from a personal machine, at its derived name. */
 async function relay(
     context: MethodContextOf<typeof machine, "relay">,
+    universe: UniverseOrigin,
 ): Promise<ResultOf<typeof machine, "relay">> {
     // require a personal machine, as a cloud one answers at its URL
     if (context.target.kind === "cloud") {
@@ -118,14 +119,11 @@ async function relay(
             .findFirst({ where: { id: account.identifier(context.target.scope) } }),
         `the account of machine ${context.target.id}`,
     );
-    const name = MachineAddress.format(
-        { machine: context.target.name, handle: owner.handle },
-        DOMAINS.machine,
-    );
+    const url = universe.machine({ machine: context.target.name, handle: owner.handle });
 
     // replace the machine's endpoint, or record its first one
     await Endpoint.upsert(context, context.target.id, {
-        url: `https://${name}`,
+        url,
         relay: context.input.url,
         lapsesAt: context.input.lapsesAt,
     });
