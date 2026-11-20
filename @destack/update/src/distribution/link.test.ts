@@ -72,7 +72,7 @@ test("link and unlink independent Linux desktop entries and link handlers for pr
         applications: await names("applications"),
         icons: await names("icons/hicolor/scalable/apps"),
     }).toEqual({
-        machine: join(release, "bin", "destack-machine"),
+        machine: join(release, "bin", "destack"),
         linked: { target: join(release, "bin", "destack"), launcher: "launcher" },
         entry: `[Desktop Entry]\nType=Application\nName=Destack\nExec="${directory}/.destack/bin/destack" desktop %u\nIcon=app.destack.desktop\nTerminal=false\nCategories=Utility;Development;\nMimeType=x-scheme-handler/destack;\n`,
         applications: ["app.destack.desktop.local.desktop"],

@@ -336,14 +336,14 @@ export class Distribution {
         // link the bundle's command unless the link already points at it
         const { files, random } = this.options.environment;
         const path = join(bin, universe.command);
-        const target = Distribution.bundled(application, "destack");
+        const target = Distribution.bundled(application, Release.executable("darwin"));
         if ((await files.readLink(path).catch(FileSystemError.absent)) !== target) {
             const pending = join(bin, `.destack-${Uuid.v4(random)}`);
             await files.symlink(target, pending);
             await files.rename(pending, path);
         }
 
-        return Distribution.bundled(application, Release.executable("destack-machine", "darwin"));
+        return target;
     }
 
     /** Write a native package's command shim into bin, following the activated Windows release. */
@@ -369,14 +369,14 @@ export class Distribution {
         const { files, host, random } = this.options.environment;
         const release = dirname(application);
         const path = join(bin, universe.command);
-        const target = join(release, "bin", "destack");
+        const target = join(release, "bin", Release.executable(host.os));
         if ((await files.readLink(path).catch(FileSystemError.absent)) !== target) {
             const pending = join(bin, `.destack-${Uuid.v4(random)}`);
             await files.symlink(target, pending);
             await files.rename(pending, path);
         }
 
-        return join(release, "bin", Release.executable("destack-machine", host.os));
+        return target;
     }
 
     /** Register the desktop in the user's menu and as its universe's link handler. */

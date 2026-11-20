@@ -21,6 +21,7 @@ export const UpdateError = defineErrorFamily({
         ENVIRONMENT_INVALID: {},
         METADATA_INVALID: {},
         OPTIONS_INVALID: {},
+        PROCESS_INVALID: {},
         REPOSITORY_INVALID: {},
         SIGNING_KEY_INVALID: {},
         UNIVERSE_INVALID: {},

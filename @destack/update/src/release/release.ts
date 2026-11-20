@@ -33,6 +33,15 @@ const ARCHITECTURES: Readonly<Record<string, string | undefined>> = {
     x64: "x86_64",
 };
 
+/** The processes a release's executable runs besides its command line, by their package. */
+export const PROCESSES = ["machine", "build", "sandbox", "desktop"] as const;
+
+/** A process a release's executable runs besides its command line. */
+export type ReleaseProcess = (typeof PROCESSES)[number];
+
+/** The option selecting the process a release's executable runs. */
+const PROCESS_OPTION = "--process=";
+
 /** The release system of each Node platform name. */
 const SYSTEMS: Readonly<Record<string, string | undefined>> = {
     darwin: "apple-darwin",
@@ -56,9 +65,32 @@ export class Release {
         return target.data;
     }
 
-    /** Read the file name of an executable in a release's `bin`, with `.exe` on Windows. */
-    static executable(name: "destack" | "destack-machine", os: OperatingSystem): string {
-        return os === "win32" ? `${name}.exe` : name;
+    /** Read the file name of a release's executable, with `.exe` on Windows. */
+    static executable(os: OperatingSystem): string {
+        return os === "win32" ? "destack.exe" : "destack";
+    }
+
+    /** Write the arguments starting a process of a release's executable. */
+    static arguments(process: ReleaseProcess): string[] {
+        return [`${PROCESS_OPTION}${process}`];
+    }
+
+    /** Read the process a release's executable starts with, absent for its command line. */
+    static process(words: readonly string[]): ReleaseProcess | undefined {
+        // take the process option as the first word alone
+        const [first = ""] = words;
+        if (!first.startsWith(PROCESS_OPTION)) {
+            return undefined;
+        }
+        const name = first.slice(PROCESS_OPTION.length);
+
+        // refuse a process the release does not run
+        const process = PROCESSES.find((each) => each === name);
+        if (process === undefined) {
+            throw UpdateError.of("PROCESS_INVALID", `process '${name}' is invalid: it is unknown`);
+        }
+
+        return process;
     }
 
     /** Read the operating system a release target runs on. */
