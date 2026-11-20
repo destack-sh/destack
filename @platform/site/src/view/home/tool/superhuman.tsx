@@ -9,7 +9,6 @@ import { superhuman } from "./superhuman.stylex";
 const glyphs = {
     menu: ["M4 7h16", "M4 12h16", "M4 17h16"],
     search: ["M10.5 17a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13z", "m20 20-4.8-4.8"],
-    warning: ["M12 3 2 20h20z", "M12 9v5", "M12 17h.01"],
 } satisfies Record<string, readonly string[]>;
 
 /** The inbox's splits: name and count, Important chosen. */
@@ -21,7 +20,7 @@ const splits: readonly (readonly [name: string, count: string])[] = [
     ["Other", "4"],
 ];
 
-/** Draw the launch mail in the fast client, its Gmail account refusing the waitlist send. */
+/** Draw your inbox in the fast client, your reply to Ines open below it. */
 export function Superhuman() {
     return (
         <div data-component="SuperhumanPage" {...style.attrs(styles.page)}>
@@ -72,28 +71,18 @@ export function Superhuman() {
             <section {...style.attrs(styles.compose)}>
                 <span {...style.attrs(styles.field)}>
                     <span {...style.attrs(styles.fieldName)}>To</span>
-                    maya@northwind.io, jonas@kettle.dev, tara@fieldnotes.co
-                    <span {...style.attrs(styles.more)}>+1,837</span>
+                    Ines Ferreira
                 </span>
-                <span {...style.attrs(styles.field, styles.subject)}>Destack opens Friday</span>
+                <span {...style.attrs(styles.field, styles.subject)}>Re: Phase 2</span>
                 <p {...style.attrs(styles.text)}>
-                    Hi there, Destack opens on Friday, and you're in. Your invite link works from
-                    09:00.
+                    Hi Ines, here's the estimate for phase 2: card payments at booking, and the app
+                    on your own domain.
                 </p>
                 <span {...style.attrs(styles.composeFoot)}>
                     <span {...style.attrs(styles.send)}>Send</span>
                     <span {...style.attrs(styles.hint)}>⌘ Enter</span>
                 </span>
             </section>
-
-            {/* the refusal */}
-            <span role="alert" {...style.attrs(styles.toast)}>
-                <span {...style.attrs(styles.toastMark)}>
-                    <Mark name="warning" size={15} />
-                </span>
-                Gmail didn't send this: 1,840 recipients, and a message takes 500 outside your
-                domain
-            </span>
         </div>
     );
 }
@@ -255,10 +244,6 @@ const styles = style.create({
     fieldName: {
         color: superhuman.muted,
     },
-    more: {
-        color: superhuman.split,
-        fontWeight: 600,
-    },
     subject: {
         fontWeight: 600,
     },
@@ -282,27 +267,5 @@ const styles = style.create({
     hint: {
         color: superhuman.muted,
         fontSize: "12px",
-    },
-    toast: {
-        alignItems: "center",
-        backgroundColor: superhuman.toast,
-        borderRadius: "8px",
-        bottom: "12px",
-        color: superhuman.onAccent,
-        display: "flex",
-        fontSize: "12px",
-        gap: "8px",
-        insetInlineStart: "50%",
-        maxWidth: "calc(100% - 32px)",
-        paddingBlock: "8px",
-        paddingInline: "12px",
-        position: "absolute",
-        transform: "translateX(-50%)",
-        whiteSpace: { default: "nowrap", [site.narrow]: "normal" },
-        width: { default: "auto", [site.narrow]: "calc(100% - 32px)" },
-    },
-    toastMark: {
-        color: superhuman.danger,
-        display: "flex",
     },
 });

@@ -24,7 +24,7 @@ export const makers: readonly Maker[] = [
             "Amp's mark",
         ).mark,
         agent: "Amp",
-        place: { kind: "sandbox", host: "launch-tracker.onamp.dev" },
+        place: { kind: "sandbox", host: "monday.onamp.dev" },
     },
 ];
 

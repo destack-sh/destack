@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-/** The colours of the launch tracker running on your laptop. */
+/** The colours of the phase 2 tracker running on your laptop. */
 export const tracker = style.defineConsts({
     /** The page background. */
     paper: "light-dark(#fafafa, #0d1117)",

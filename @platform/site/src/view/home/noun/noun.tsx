@@ -47,7 +47,7 @@ export const noun: Form = {
     },
 };
 
-/** Show the noun at work: your launch tracker on nine rented services, or on one engine. */
+/** Show the noun at work: your Monday page on rented services, or on one engine. */
 export function Noun(properties: { isOpen: boolean }) {
     // follow the motion the section shows
     const [section, setSection] = createSignal<HTMLElement>();
@@ -79,11 +79,8 @@ export function Noun(properties: { isOpen: boolean }) {
     };
 
     // run your agent's chat beside the app while it shows
-    const beat = createBeat(
-        () => !isReduced() && isShown(),
-        () => [properties.isOpen, maker()],
-    );
     const scene = createMemo(() => (properties.isOpen ? destackedScene : stackedSceneOf(maker())));
+    const beat = createBeat(() => !isReduced() && isShown(), scene);
     const moment = () => scene().at(isReduced() ? undefined : beat() % scene().length);
 
     // rent the service each category's row has turned to
@@ -206,7 +203,7 @@ export function Noun(properties: { isOpen: boolean }) {
                     </PaneLabel>
                 </LabelRow>
                 <AgentChat
-                    title="Launch tracker"
+                    title="Monday page"
                     isOpen={properties.isOpen}
                     moment={moment()}
                     assistant={maker().agent}

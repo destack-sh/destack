@@ -1,18 +1,18 @@
 import * as style from "@destack/style";
 
-import { joiners, perks } from "../verb/corner";
+import { overview, owed } from "../verb/corner";
 import { Favicon } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { bolt } from "./bolt.stylex";
 
-/** Draw your waitlist as an app built in the browser builder and hosted on its domain. */
+/** Draw your Monday page as an app built in the browser builder and hosted on its domain. */
 export function Bolt() {
     return (
         <div data-component="BoltPage" {...style.attrs(styles.page)}>
             <nav {...style.attrs(styles.nav)}>
                 <b {...style.attrs(styles.brand)}>
-                    <span {...style.attrs(styles.logo)}>D</span>
-                    Destack
+                    <span {...style.attrs(styles.logo)}>M</span>
+                    Monday
                 </b>
                 <span {...style.attrs(styles.navLink)}>Sign in</span>
             </nav>
@@ -21,25 +21,26 @@ export function Bolt() {
                     <span {...style.attrs(styles.dot)} />
                     Invites go out Thursday
                 </span>
-                <b {...style.attrs(styles.title)}>The software you'll actually own</b>
+                <b {...style.attrs(styles.title)}>Your week, from your inbox</b>
                 <span {...style.attrs(styles.line)}>
-                    Destack opens on Friday. Leave your email and we'll send you an invite.
+                    Ines, Jonas and Mia are waiting on you. Here's what you said you'd do, and when
+                    you can.
                 </span>
                 <span {...style.attrs(styles.form)}>
-                    <span {...style.attrs(styles.input)}>you@company.com</span>
-                    <span {...style.attrs(styles.button)}>Join waitlist</span>
+                    <span {...style.attrs(styles.input)}>Ask about your week</span>
+                    <span {...style.attrs(styles.button)}>Plan my week</span>
                 </span>
                 <span {...style.attrs(styles.proof)}>
-                    {joiners.map(([initial, tint]) => (
+                    {owed.map(([initial, tint]) => (
                         <span style={{ "background-color": tint }} {...style.attrs(styles.face)}>
                             {initial}
                         </span>
                     ))}
-                    <span {...style.attrs(styles.proofText)}>1,840 on the list</span>
+                    <span {...style.attrs(styles.proofText)}>3 waiting on you</span>
                 </span>
             </section>
             <ul {...style.attrs(styles.cards)}>
-                {perks.map(([title, line]) => (
+                {overview.map(([title, line]) => (
                     <li {...style.attrs(styles.card)}>
                         <b>{title}</b>
                         <span {...style.attrs(styles.cardLine)}>{line}</span>

@@ -16,7 +16,7 @@ const folders: readonly (readonly [folder: string, count: string])[] = [
     ["Drafts", "1"],
 ];
 
-/** Draw the launch mail as a rented inbox, with the waitlist pasted into a new message. */
+/** Draw your inbox as a rented mailbox, your reply to Ines open over it. */
 export function Gmail() {
     return (
         <GmailOf folder="Inbox" mails={mails}>
@@ -91,23 +91,20 @@ export function GmailOf(properties: {
     );
 }
 
-/** Draw the new message with the waitlist pasted in, over the limit. */
+/** Draw your reply to Ines, the estimate attached. */
 function Compose() {
     return (
         <div data-component="ComposeWindow" {...style.attrs(styles.gmWindow)}>
-            <span {...style.attrs(styles.gmWindowHead)}>New Message</span>
+            <span {...style.attrs(styles.gmWindowHead)}>Re: Phase 2</span>
             <span {...style.attrs(styles.gmField)}>
                 <span {...style.attrs(styles.gmPreview)}>To</span>
-                maya@northwind.io, jonas@kettle.dev, tara@fieldnotes.co, +1,837
+                Ines Ferreira
             </span>
-            <span {...style.attrs(styles.gmField)}>Destack opens Friday</span>
+            <span {...style.attrs(styles.gmField)}>Re: Phase 2</span>
             <p {...style.attrs(styles.gmBody)}>
-                Hi there, Destack opens on Friday, and you're in. Your invite link works from 09:00,
-                and early pricing holds for everyone on the waitlist.
+                Hi Ines, here's the estimate for phase 2: card payments at booking, and the app on
+                your own domain. Both ship before December.
             </p>
-            <span {...style.attrs(styles.gmWarning)}>
-                1,840 recipients: over the limit of 500 external recipients a message
-            </span>
             <span {...style.attrs(styles.gmTools)}>
                 <span {...style.attrs(styles.gmSend)}>Send</span>
                 <Glyph name="link" size={18} />
@@ -307,12 +304,6 @@ const styles = style.create({
         paddingBlock: "8px",
         textOverflow: "ellipsis",
         whiteSpace: "nowrap",
-    },
-    gmWarning: {
-        color: gmail.warning,
-        fontSize: "13px",
-        paddingBlock: "12px",
-        paddingInline: "16px",
     },
     gmSend: {
         backgroundColor: gmail.blue,

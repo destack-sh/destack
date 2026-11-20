@@ -14,7 +14,7 @@ export function Calendly() {
                 <div {...style.attrs(styles.calHost)}>
                     <span {...style.attrs(styles.calAvatar)}>F</span>
                     <b {...style.attrs(styles.calName)}>Florian</b>
-                    <b {...style.attrs(styles.calEvent)}>Destack demo</b>
+                    <b {...style.attrs(styles.calEvent)}>Call with Florian</b>
                     <span {...style.attrs(styles.calDetail)}>
                         <Glyph name="clock" size={20} />
                         30 min

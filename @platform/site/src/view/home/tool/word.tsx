@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { launch } from "../verb/corner";
+import { points } from "../verb/corner";
 import { Favicon } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { word } from "./word.stylex";
@@ -61,7 +61,7 @@ const ribbonTabs: readonly (readonly [name: string, isKept: boolean])[] = [
     ["Help", false],
 ];
 
-/** Draw the Destack launch plan as a document in the shared drive, open in the browser. */
+/** Draw your page on Ines as a document in the shared drive, open in the browser. */
 export function Word() {
     return (
         <div data-component="WordPage" {...style.attrs(styles.page)}>
@@ -70,7 +70,7 @@ export function Word() {
                 <Mark name="launcher" size={18} />
                 <Favicon icon="word" tint="#185abd" size={20} />
                 <span {...style.attrs(styles.file)}>
-                    <b>Destack launch</b>
+                    <b>Ines Ferreira</b>
                     <span {...style.attrs(styles.saved)}>
                         · Saved
                         <Mark name="caret" size={12} />
@@ -157,18 +157,19 @@ export function Word() {
             <div {...style.attrs(styles.desk)}>
                 <article {...style.attrs(styles.paper)}>
                     <b data-flip="title" {...style.attrs(styles.heading1)}>
-                        Destack launch
+                        Ines Ferreira
                     </b>
                     <p {...style.attrs(styles.meta)}>
-                        Status: In progress · Launch: October 24, 2025 · Demo: October 22, 11:00 ·
+                        Status: Client · Review: October 22, 11:00 · Hand over: November 28, 2025 ·
                         Owner: Florian
                     </p>
                     <p {...style.attrs(styles.text)}>
-                        Ship to the waitlist on Thursday, then open signups on Friday.
+                        Runs a physio practice with three rooms. Wants card payments and her own
+                        domain before December.
                     </p>
-                    <b {...style.attrs(styles.heading2)}>Before launch</b>
+                    <b {...style.attrs(styles.heading2)}>Open points</b>
                     <ul {...style.attrs(styles.list)}>
-                        {launch.map(([item, isDone]) => (
+                        {points.map(([item, isDone]) => (
                             <li {...style.attrs(styles.item)}>
                                 <span {...style.attrs(styles.box, isDone && styles.boxDone)}>
                                     {isDone ? (

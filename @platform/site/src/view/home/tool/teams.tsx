@@ -1,5 +1,7 @@
 import * as style from "@destack/style";
 
+import { palette } from "../../palette.stylex";
+
 import { messages } from "../verb/corner";
 import { site } from "../figure/site.stylex";
 import { teams } from "./teams.stylex";
@@ -44,15 +46,15 @@ const places: readonly (readonly [name: string, glyph: keyof typeof glyphs])[] =
     ["Apps", "apps"],
 ];
 
-/** The team's channels, launch chosen, with whether each has unread posts. */
+/** The team's channels, the booking app's chosen, with whether each has unread posts. */
 const channels: readonly (readonly [name: string, isUnread: boolean])[] = [
     ["General", false],
-    ["launch", false],
+    ["booking-app", false],
     ["design", true],
-    ["pricing", false],
+    ["invoices", false],
 ];
 
-/** Draw the launch channel in the office chat app, each message a post with its replies. */
+/** Draw the channel you share with Ines in the office chat app, a post per message. */
 export function Teams() {
     return (
         <div data-component="TeamsPage" {...style.attrs(styles.page)}>
@@ -110,7 +112,7 @@ export function Teams() {
                             {...style.attrs(
                                 styles.channel,
                                 isUnread && styles.channelUnread,
-                                name === "launch" && styles.channelOn,
+                                name === "booking-app" && styles.channelOn,
                             )}
                         >
                             {name}
@@ -122,7 +124,7 @@ export function Teams() {
                 <main {...style.attrs(styles.main)}>
                     <header {...style.attrs(styles.head)}>
                         <span {...style.attrs(styles.teamMark, styles.teamMarkLarge)}>S</span>
-                        <b {...style.attrs(styles.channelName)}>launch</b>
+                        <b {...style.attrs(styles.channelName)}>booking-app</b>
                         <span {...style.attrs(styles.tab, styles.tabOn)}>Posts</span>
                         <span {...style.attrs(styles.tab)}>Files</span>
                         <span {...style.attrs(styles.tab, styles.wide)}>Notes</span>
@@ -148,14 +150,16 @@ export function Teams() {
                                             styles.face,
                                             author === "Agent"
                                                 ? styles.faceAgent
-                                                : styles.faceFlorian,
+                                                : author === "Ines"
+                                                  ? styles.faceInes
+                                                  : styles.faceFlorian,
                                         )}
                                     >
-                                        {author === "Agent" ? "A" : "F"}
+                                        {author.slice(0, 1)}
                                     </span>
                                     <span {...style.attrs(styles.postText)}>
                                         <span {...style.attrs(styles.byline)}>
-                                            <b>{author === "Agent" ? "Agent" : "Florian"}</b>
+                                            <b>{author === "Ines" ? "Ines Ferreira" : author}</b>
                                             {author === "Agent" ? (
                                                 <span {...style.attrs(styles.bot)}>Bot</span>
                                             ) : undefined}
@@ -511,6 +515,9 @@ const styles = style.create({
     },
     faceFlorian: {
         backgroundColor: site.avatar,
+    },
+    faceInes: {
+        backgroundColor: palette.berry,
     },
     postText: {
         display: "grid",

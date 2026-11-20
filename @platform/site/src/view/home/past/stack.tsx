@@ -22,7 +22,7 @@ import {
     type WaterLayer,
     Waterline,
 } from "../../effect/water";
-import { commandEvents } from "../../layout/command";
+import { actionEvents } from "../../layout/action";
 import { lattice } from "../../layout/lattice.stylex";
 import { Crossfade } from "../figure/crossfade";
 import { Label } from "../entry/label";
@@ -523,7 +523,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
     // flip the stack whenever the page's switch asks for it
     createEventListener(
         () => document,
-        commandEvents.switchStack,
+        actionEvents.switchStack,
         () => flip(() => select(isOpen() ? "today" : "destack"), environment.display),
     );
 

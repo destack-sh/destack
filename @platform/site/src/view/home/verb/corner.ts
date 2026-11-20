@@ -1,16 +1,15 @@
-/** What the waitlist promises: a short title and its line. */
-export const perks: readonly (readonly [title: string, line: string])[] = [
-    ["Early pricing", "Lock in the launch rate"],
-    ["First invites", "1,840 people, in batches from Thursday"],
-    ["A direct line", "Book a call with Florian"],
+/** The Monday page's overview: a short title and its line. */
+export const overview: readonly (readonly [title: string, line: string])[] = [
+    ["Promised", "3 things you said you'd do"],
+    ["Due", "4 tasks before Friday"],
+    ["Free", "6 hours to do them"],
 ];
 
-/** The faces of the latest people to join the waitlist: an initial and a tint. */
-export const joiners: readonly (readonly [initial: string, tint: string])[] = [
-    ["M", "#c4683a"],
+/** The faces of the people waiting on a reply from you: an initial and a tint. */
+export const owed: readonly (readonly [initial: string, tint: string])[] = [
+    ["I", "#a0485f"],
     ["J", "#3f7d88"],
-    ["T", "#6f7a3f"],
-    ["L", "#6b5ca5"],
+    ["M", "#c4683a"],
 ];
 
 /** The month the booking page shows, October 2025, with its free and chosen days. */
@@ -25,18 +24,18 @@ export const month = {
 /** The free times on the chosen day. */
 export const times: readonly string[] = ["09:30", "10:00", "11:30", "15:00", "16:30"];
 
-/** The Destack launch plan's checklist: the item and whether it is done. */
-export const launch: readonly (readonly [item: string, isDone: boolean])[] = [
-    ["Freeze the pricing page", true],
-    ["Record the demo", false],
-    ["Email the waitlist", false],
-    ["Publish the launch post", false],
+/** The open points on Ines's page: the point and whether it is settled. */
+export const points: readonly (readonly [point: string, isDone: boolean])[] = [
+    ["Sign off the booking flow", true],
+    ["Send the estimate for phase 2", false],
+    ["Decide on card payments", false],
+    ["Move the app to her domain", false],
 ];
 
 /** A task's state, from not started to done. */
 export type TaskState = "todo" | "started" | "review" | "done";
 
-/** A launch task: its key, title, state, owner, owner's colour, and due date. */
+/** A task: its key, title, state, owner, owner's colour, and due date. */
 export type Task = readonly [
     id: string,
     title: string,
@@ -46,27 +45,27 @@ export type Task = readonly [
     due: string,
 ];
 
-/** The launch tasks. */
+/** Your tasks, yours and your agent's. */
 export const tasks: readonly Task[] = [
-    ["DST-12", "Pricing page", "done", "F", "#2f7d8c", "Oct 20"],
-    ["DST-14", "Record the demo", "started", "F", "#2f7d8c", "Oct 22"],
-    ["DST-16", "Email the waitlist", "review", "A", "#6b5ca5", "Oct 23"],
-    ["DST-13", "Turn on pricing", "todo", "F", "#2f7d8c", "Oct 24"],
-    ["DST-15", "Draft the launch post", "todo", "A", "#6b5ca5", "Oct 23"],
-    ["DST-17", "Open signups", "todo", "F", "#2f7d8c", "Oct 24"],
-    ["DST-18", "Find out who owns the Zapier account", "todo", "A", "#6b5ca5", "Oct 24"],
-    ["DST-19", "Cancel the other nine subscriptions", "todo", "F", "#2f7d8c", "Oct 27"],
+    ["T-12", "Ship the booking fix", "done", "F", "#2f7d8c", "Oct 20"],
+    ["T-14", "Send Ines the estimate", "started", "F", "#2f7d8c", "Oct 22"],
+    ["T-16", "Match October's receipts", "review", "A", "#6b5ca5", "Oct 23"],
+    ["T-13", "Invoice October", "todo", "F", "#2f7d8c", "Oct 24"],
+    ["T-15", "Draft the reply to Jonas", "todo", "A", "#6b5ca5", "Oct 21"],
+    ["T-17", "Renew my passport", "todo", "F", "#2f7d8c", "Oct 23"],
+    ["T-18", "Find out what the £19 charge is", "todo", "A", "#6b5ca5", "Oct 24"],
+    ["T-19", "Cancel the subscriptions I don't use", "todo", "F", "#2f7d8c", "Oct 27"],
 ];
 
-/** A message in the launch channel: who wrote it, when, and what they said. */
-export type Message = readonly [author: "Florian" | "Agent" | "Zapier", time: string, text: string];
+/** A message in the channel you share with Ines: who wrote it, when, and what they said. */
+export type Message = readonly [author: "Florian" | "Agent" | "Ines", time: string, text: string];
 
-/** The launch channel's messages. */
+/** The messages in the channel you share with Ines. */
 export const messages: readonly Message[] = [
-    ["Florian", "09:12", "Ines from Orbit Labs booked the demo. Wednesday at 11, apparently."],
-    ["Agent", "09:13", "Added it to DST-14 and the launch page: Wed 11:00."],
-    ["Agent", "09:40", "Drafted the Hacker News post. Two titles, the second one is spicier."],
-    ["Florian", "10:02", "The first one. We have a reputation to build."],
+    ["Ines", "09:12", "Could we take cards at booking? Half my clients ask for it."],
+    ["Agent", "09:13", "Added it to T-14 and her page: card payments, to decide Wednesday."],
+    ["Agent", "09:40", "Drafted the estimate for phase 2. Two options, the second adds cards."],
+    ["Florian", "10:02", "The second one. Send it after our call."],
 ];
 
 /** A block of your week. */
@@ -80,51 +79,50 @@ export type WeekBlock = readonly [
 
 /** Your week of October 20. */
 export const week: readonly WeekBlock[] = [
-    [0, 9, 9.5, "Standup", false],
-    [0, 10, 11, "Design review", false],
+    [0, 9, 11, "Focus", false],
+    [0, 11.5, 12, "Call · Ines", false],
     [0, 12.5, 13.5, "Run", false],
-    [0, 14, 15, "Pricing review · DST-12", false],
+    [0, 14, 15, "Booking fix · T-12", false],
     [0, 15.5, 16.5, "Bookable", true],
-    [1, 9, 9.5, "Standup", false],
-    [1, 10, 11, "Bookable", true],
-    [1, 11.5, 12.5, "Hiring call", false],
-    [1, 14, 15.5, "Record the demo · DST-14", false],
+    [1, 9, 11, "Focus", false],
+    [1, 11.5, 12.5, "Lunch · Jonas", false],
+    [1, 14, 15.5, "Estimate · T-14", false],
     [1, 15.5, 16.5, "Bookable", true],
-    [2, 9, 9.5, "Standup", false],
-    [2, 11, 12, "Demo · Ines", false],
+    [2, 9, 11, "Focus", false],
+    [2, 11, 12, "Review · Ines", false],
     [2, 13, 14, "Bookable", true],
-    [2, 15, 16, "Launch post · DST-15", false],
-    [3, 9, 10, "Invites · 400", false],
-    [3, 10.5, 11.5, "Rehearse the demo", false],
+    [2, 15, 16, "Receipts · T-16", false],
+    [3, 8.5, 9.5, "Passport · T-17", false],
+    [3, 10, 12, "Focus", false],
     [3, 12.5, 13.5, "Run", false],
     [3, 16, 17, "Bookable", true],
-    [4, 9, 10, "Go live · DST-17", false],
+    [4, 9, 10, "Invoices · T-13", false],
     [4, 11, 12, "Bookable", true],
-    [4, 13, 14.5, "Watch the launch", false],
-    [4, 16, 17, "Retro · why it took nine apps", false],
+    [4, 13, 14, "Accounts · Mia", false],
+    [4, 16, 17, "Weekly review", false],
 ];
 
-/** A signup's state, invited or still waiting. */
-export type SignupState = "invited" | "approved" | "waiting";
+/** A commitment's state: still open, waiting on someone else, or kept. */
+export type CommitmentState = "open" | "waiting" | "kept";
 
-/** A signup: their address, where they came from, when they joined, their state, and a note. */
-export type Signup = readonly [
-    email: string,
-    source: string,
-    joined: string,
-    state: SignupState,
+/** A commitment: who it is to, what you said, where you said it, its state, and a note. */
+export type Commitment = readonly [
+    person: string,
+    what: string,
+    said: string,
+    state: CommitmentState,
     note: string,
 ];
 
-/** The latest signups: the address. */
-export const signups: readonly Signup[] = [
-    ["maya@northwind.io", "Launch post", "2 min ago", "waiting", ""],
-    ["jonas@kettle.dev", "Website", "14 min ago", "waiting", ""],
-    ["tara@fieldnotes.co", "Friend", "1 h ago", "waiting", ""],
-    ["leo@brightpath.app", "Website", "3 h ago", "waiting", ""],
-    ["sam@quietly.so", "Launch post", "Yesterday", "invited", ""],
-    ["noor@papertrail.fm", "Demo day", "Yesterday", "invited", ""],
-    ["ines@orbitlabs.eu", "Website", "Oct 18", "invited", ""],
+/** What you said you'd do, in mail and chat, newest first. */
+export const commitments: readonly Commitment[] = [
+    ["Ines Ferreira", "Send the phase 2 estimate", "Mail · Oct 17", "open", ""],
+    ["Jonas Weber", "Tell him about Saturday", "Chat · Oct 18", "open", ""],
+    ["Mia Sørensen", "Send October's receipts", "Mail · Oct 14", "open", ""],
+    ["Kai Brandt", "Look at his onboarding sketch", "Mail · Oct 10", "waiting", ""],
+    ["Ines Ferreira", "Fix the double booking", "Call · Oct 13", "kept", ""],
+    ["Lena Okoye", "Send the handover notes", "Mail · Oct 9", "kept", ""],
+    ["Mia Sørensen", "Sign the engagement letter", "Mail · Oct 2", "kept", ""],
 ];
 
 /** A mail: its sender, their colour, subject, preview, time, and whether it is unread. */
@@ -142,57 +140,33 @@ export const mails: readonly Mail[] = [
     [
         "Ines Ferreira",
         "#a0485f",
-        "Re: Destack demo",
-        "Wednesday at 11 works. Will you be demoing it from Notion?",
+        "Re: Phase 2",
+        "Wednesday at 11 works. Can you bring the estimate?",
         "10:14",
         true,
     ],
     [
-        "Kai Brandt",
-        "#2f7d8c",
-        "Press kit?",
-        "Could you send the logo and a screenshot before Friday?",
+        "Jonas Weber",
+        "#3f7d88",
+        "Saturday?",
+        "Are you in? We'd leave at 8 and be back by dinner.",
         "09:31",
         true,
     ],
     [
-        "Tara Okafor",
-        "#4f8a5b",
-        "Waitlist question",
-        "Do invites go out by signup date or at random?",
+        "Mia Sørensen",
+        "#c4683a",
+        "October receipts",
+        "Could you send them before Friday? I'll file the return next week.",
         "08:52",
         false,
     ],
     [
-        "Calendly",
-        "#006bff",
-        "New event: Destack demo",
-        "Ines Ferreira booked Wed 22 Oct, 11:00 to 11:30",
+        "GitHub",
+        "#24292f",
+        "[booking] Fix double booking (#48)",
+        "Merged into main by florian",
         "Oct 20",
-        false,
-    ],
-    [
-        "Zapier",
-        "#ff4f00",
-        "Your Zap was turned off",
-        "Welcome new signups hit an error too many times in a row",
-        "Oct 20",
-        false,
-    ],
-    [
-        "Linear",
-        "#5e6ad2",
-        "DST-14 moved to Wednesday",
-        "Agent changed the due date of Record the demo",
-        "Oct 19",
-        false,
-    ],
-    [
-        "Owen Clarke",
-        "#5a7a2e",
-        "Re: Destack for Indie Hackers",
-        "Could I get an account for the write-up?",
-        "Oct 19",
         false,
     ],
     [
@@ -200,15 +174,23 @@ export const mails: readonly Mail[] = [
         "#635bff",
         "Your payout is on its way",
         "It arrives in your account on Oct 21",
-        "Oct 18",
+        "Oct 20",
         false,
     ],
     [
-        "Mia Sørensen",
-        "#c4683a",
-        "Re: Quietly feature",
-        "Could we run it the week after the launch?",
-        "Oct 18",
+        "Figma",
+        "#a259ff",
+        "Your receipt from Figma",
+        "Professional plan, 1 editor, monthly",
+        "Oct 19",
+        false,
+    ],
+    [
+        "Kai Brandt",
+        "#5a7a2e",
+        "Onboarding sketch",
+        "No rush, but I'd love your take before I build it.",
+        "Oct 19",
         false,
     ],
     [
@@ -223,46 +205,52 @@ export const mails: readonly Mail[] = [
         "Vercel",
         "#171717",
         "Failed production deployment",
-        "changelog-destack: the build failed on main",
+        "booking: the build failed on main",
         "Oct 17",
+        false,
+    ],
+    ["Notion", "#191919", "Your receipt from Notion", "Plus plan, monthly", "Oct 16", false],
+    [
+        "Trainline",
+        "#01c3a7",
+        "Your e-ticket",
+        "Return, Saturday 25 October, 08:04",
+        "Oct 15",
         false,
     ],
 ];
 
-/** A press contact's state, from pitched to scheduled. */
-export type PressState = "pitched" | "replied" | "scheduled";
+/** Whose turn it is with a person: yours to reply, theirs, or nobody's. */
+export type ReplyState = "owe" | "waiting" | "clear";
 
-/** The press list: each person, their outlet, the pitch's state, the last contact, and a tint. */
-export const press: readonly (readonly [
+/** The people you deal with: name, relation, whose turn it is, the last mail, and a tint. */
+export const people: readonly (readonly [
     name: string,
-    outlet: string,
-    state: PressState,
+    relation: string,
+    state: ReplyState,
     last: string,
     tint: string,
 ])[] = [
-    ["Ines Ferreira", "Orbit Labs Weekly", "scheduled", "Oct 22", "#a0485f"],
-    ["Kai Brandt", "Kettle Podcast", "replied", "Oct 21", "#2f7d8c"],
-    ["Lena Okoye", "Fieldnotes", "pitched", "Oct 20", "#4f8a5b"],
-    ["Ravi Patel", "Brightpath Daily", "pitched", "Oct 19", "#6b5ca5"],
-    ["Mia Sørensen", "Quietly", "replied", "Oct 18", "#c4683a"],
-    ["Tomás Ruiz", "The Stack Report", "pitched", "Oct 17", "#3c6e9e"],
-    ["Hana Sato", "Changelog FM", "replied", "Oct 16", "#8a5a2b"],
-    ["Owen Clarke", "Indie Hackers", "replied", "Oct 15", "#5a7a2e"],
-    ["Priya Nair", "Nair Studio", "pitched", "Oct 14", "#9c4f8a"],
+    ["Ines Ferreira", "Client · booking app", "owe", "Oct 22", "#a0485f"],
+    ["Jonas Weber", "Friend", "owe", "Oct 21", "#3f7d88"],
+    ["Mia Sørensen", "Accountant", "owe", "Oct 20", "#c4683a"],
+    ["Kai Brandt", "Designer", "waiting", "Oct 19", "#5a7a2e"],
+    ["Lena Okoye", "Former client", "clear", "Oct 9", "#4f8a5b"],
+    ["Ravi Patel", "Climbing", "clear", "Oct 4", "#6b5ca5"],
 ];
 
-/** The launch plan's columns: each name and its notes, a task's id or a plain note. */
+/** Your week's board: each column and its notes, a task's id or a plain note. */
 export const board: readonly (readonly [column: string, notes: readonly string[]])[] = [
-    ["Before", ["DST-12", "DST-14", "DST-16"]],
-    ["Launch day", ["DST-17", "Post on Hacker News", "DST-15"]],
-    ["After", ["DST-19", "Delete this board"]],
+    ["This week", ["T-14", "T-16", "T-13"]],
+    ["Waiting on", ["Kai's sketch", "Ines on cards"]],
+    ["Later", ["T-19", "Plan the winter trip"]],
 ];
 
-/** The welcome workflow's steps: the app it runs in, what it does, and the detail it shows. */
-export const welcome: readonly (readonly [app: string, step: string, detail: string])[] = [
-    ["Waitlist", "New signup", "When someone joins the waitlist"],
-    ["Slack", "Post in #launch", "“New signup: {email} from {source}”"],
-    ["Gmail", "Send welcome mail", "To {email}: “You're on the list”"],
+/** The booking automation's steps: the app it runs in, what it does, and the detail it shows. */
+export const bookingFlow: readonly (readonly [app: string, step: string, detail: string])[] = [
+    ["Booking page", "New booking", "When someone books a call with you"],
+    ["Google Sheets", "Add a row", "“{name}, {email}, {time}” to People"],
+    ["Gmail", "Send an email", "To {email}: “See you {time}”"],
 ];
 
 /** Your space's workflows: each name, what starts it, its runs this month, and its last run. */
@@ -272,10 +260,10 @@ export const workflows: readonly (readonly [
     runs: string,
     last: string,
 ])[] = [
-    ["welcome-signup", "on signup.create", "1,840", "2 min ago"],
-    ["invite-400", "Thu 09:00", "4", "Oct 23"],
-    ["press-followup", "on mail.reply from press", "12", "Oct 21"],
-    ["friday-digest", "Fri 17:00", "3", "Oct 17"],
+    ["file-receipts", "on mail.create from billing", "31", "2 min ago"],
+    ["owe-reply", "daily 08:00", "20", "today"],
+    ["weekly-review", "Fri 16:00", "3", "Oct 17"],
+    ["invoice-month", "1st of the month", "1", "Oct 1"],
 ];
 
 /** Your workflows' latest runs: the workflow, its subject, its steps, its duration and when. */
@@ -286,10 +274,10 @@ export const runs: readonly (readonly [
     duration: string,
     when: string,
 ])[] = [
-    ["welcome-signup", "maya@northwind.io", 3, "1.2 s", "2 min ago"],
-    ["welcome-signup", "jonas@kettle.dev", 3, "0.9 s", "14 min ago"],
-    ["press-followup", "Kai Brandt replied", 2, "0.6 s", "38 min ago"],
-    ["welcome-signup", "tara@fieldnotes.co", 3, "1.1 s", "1 h ago"],
-    ["welcome-signup", "leo@brightpath.app", 3, "1.0 s", "3 h ago"],
-    ["invite-400", "Batch 1 of 5", 400, "4 min 12 s", "Oct 23"],
+    ["file-receipts", "Figma · £12.00", 3, "0.8 s", "2 min ago"],
+    ["owe-reply", "3 people waiting", 2, "1.4 s", "08:00"],
+    ["file-receipts", "Notion · £8.00", 3, "0.7 s", "Oct 16"],
+    ["file-receipts", "Hetzner · £16.40", 3, "0.9 s", "Oct 17"],
+    ["weekly-review", "Week of Oct 13", 4, "6.2 s", "Oct 17"],
+    ["invoice-month", "September · 3 clients", 3, "2.1 s", "Oct 1"],
 ];

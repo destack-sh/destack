@@ -31,7 +31,7 @@ const glyphs = {
 /** The configuration pane's tabs, Parameters chosen. */
 const tabs: readonly string[] = ["Parameters", "Settings", "Code view", "About"];
 
-/** Draw the welcome flow in the cloud flows designer, its Slack step open for editing. */
+/** Draw the booking flow in the cloud flows designer, its Google Sheets step open for editing. */
 export function PowerAutomate() {
     return (
         <div data-component="PowerAutomatePage" {...style.attrs(styles.page)}>
@@ -41,7 +41,7 @@ export function PowerAutomate() {
                     <Mark name="back" size={16} />
                     Back
                 </span>
-                <span {...style.attrs(styles.name)}>Welcome new signups</span>
+                <span {...style.attrs(styles.name)}>Confirm new bookings</span>
                 <span {...style.attrs(styles.commandEnd)}>
                     <span {...style.attrs(styles.icons)}>
                         <Mark name="undo" size={17} />
@@ -76,8 +76,8 @@ export function PowerAutomate() {
                 {/* configuration pane */}
                 <aside {...style.attrs(styles.pane)}>
                     <span {...style.attrs(styles.paneHead)}>
-                        <Favicon icon="slack" tint="#4a154b" size={18} />
-                        <b {...style.attrs(styles.paneTitle)}>Post message (V2)</b>
+                        <Favicon icon="googlesheets" tint="#0f9d58" size={18} />
+                        <b {...style.attrs(styles.paneTitle)}>Insert row</b>
                         <Mark name="more" size={16} />
                         <Mark name="collapse" size={16} />
                     </span>
@@ -91,26 +91,28 @@ export function PowerAutomate() {
                         ))}
                     </span>
                     <span {...style.attrs(styles.label)}>
-                        Channel Name <span {...style.attrs(styles.required)}>*</span>
+                        Sheet <span {...style.attrs(styles.required)}>*</span>
                     </span>
                     <span {...style.attrs(styles.field)}>
-                        launch
+                        People
                         <Mark name="caret" size={14} />
                     </span>
                     <span {...style.attrs(styles.label)}>
-                        Message Text <span {...style.attrs(styles.required)}>*</span>
+                        Row <span {...style.attrs(styles.required)}>*</span>
                     </span>
                     <span {...style.attrs(styles.field, styles.area)}>
                         <span>
-                            New signup:{" "}
+                            <span {...style.attrs(styles.token)}>
+                                <Mark name="request" size={11} />
+                                name
+                            </span>{" "}
                             <span {...style.attrs(styles.token)}>
                                 <Mark name="request" size={11} />
                                 email
                             </span>{" "}
-                            from{" "}
                             <span {...style.attrs(styles.token)}>
                                 <Mark name="request" size={11} />
-                                source
+                                time
                             </span>
                         </span>
                     </span>
@@ -121,7 +123,7 @@ export function PowerAutomate() {
                     </span>
                     <span {...style.attrs(styles.connection)}>
                         <Mark name="link" size={14} />
-                        Connected to Symbol Slack.
+                        Connected to Florian's Google Sheets.
                         <span {...style.attrs(styles.linkText)}>Change connection</span>
                     </span>
                 </aside>
@@ -137,9 +139,9 @@ export function PowerAutomate() {
                         />
                         <Connector />
                         <Card
-                            icon={<Favicon icon="slack" tint="#4a154b" size={16} />}
+                            icon={<Favicon icon="googlesheets" tint="#0f9d58" size={16} />}
                             tile="plain"
-                            title="Post message (V2)"
+                            title="Insert row"
                             isChosen
                         />
                         <Connector />

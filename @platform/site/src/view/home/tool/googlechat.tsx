@@ -1,5 +1,7 @@
 import * as style from "@destack/style";
 
+import { palette } from "../../palette.stylex";
+
 import { messages } from "../verb/corner";
 import { Favicon } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
@@ -60,18 +62,18 @@ const glyphs = {
 
 /** The people the sidebar lists under direct messages: name and colour. */
 const people: readonly (readonly [name: string, tint: string])[] = [
-    ["Maya Chen", "#a0485f"],
-    ["Jonas Weber", "#2f7d8c"],
+    ["Jonas Weber", "#3f7d88"],
+    ["Mia Sørensen", "#c4683a"],
 ];
 
-/** The spaces the sidebar lists, the launch space chosen: name and emoji. */
+/** The spaces the sidebar lists, the booking app's chosen: name and emoji. */
 const spaces: readonly (readonly [name: string, emoji: string])[] = [
-    ["Launch", "🚀"],
-    ["Design", "🎨"],
-    ["General", "💬"],
+    ["Booking app", "📅"],
+    ["Climbing", "🧗"],
+    ["Family", "🏠"],
 ];
 
-/** Draw the launch conversation as a space in the workspace's chat. */
+/** Draw the conversation with Ines as a space in the workspace's chat. */
 export function GoogleChat() {
     return (
         <div data-component="GoogleChatPage" {...style.attrs(styles.page)}>
@@ -132,7 +134,9 @@ export function GoogleChat() {
                     ))}
                     <span {...style.attrs(styles.group)}>Spaces</span>
                     {spaces.map(([name, emoji]) => (
-                        <span {...style.attrs(styles.item, name === "Launch" && styles.itemOn)}>
+                        <span
+                            {...style.attrs(styles.item, name === "Booking app" && styles.itemOn)}
+                        >
                             <span {...style.attrs(styles.spaceMark)}>{emoji}</span>
                             {name}
                         </span>
@@ -144,7 +148,7 @@ export function GoogleChat() {
                     <header {...style.attrs(styles.head)}>
                         <span {...style.attrs(styles.spaceMark, styles.spaceMarkLarge)}>🚀</span>
                         <span {...style.attrs(styles.headText)}>
-                            <b>Launch</b>
+                            <b>Booking app</b>
                             <span {...style.attrs(styles.members)}>
                                 4 members
                                 <Mark name="caret" size={12} />
@@ -171,14 +175,18 @@ export function GoogleChat() {
                                 <span
                                     {...style.attrs(
                                         styles.face,
-                                        author === "Agent" ? styles.faceAgent : styles.faceFlorian,
+                                        author === "Agent"
+                                            ? styles.faceAgent
+                                            : author === "Ines"
+                                              ? styles.faceInes
+                                              : styles.faceFlorian,
                                     )}
                                 >
-                                    {author === "Agent" ? "A" : "F"}
+                                    {author.slice(0, 1)}
                                 </span>
                                 <span {...style.attrs(styles.messageBody)}>
                                     <span {...style.attrs(styles.byline)}>
-                                        <b>{author === "Agent" ? "Agent" : "Florian"}</b>
+                                        <b>{author === "Ines" ? "Ines Ferreira" : author}</b>
                                         {author === "Agent" ? (
                                             <span {...style.attrs(styles.app)}>App</span>
                                         ) : undefined}
@@ -498,6 +506,9 @@ const styles = style.create({
     },
     faceFlorian: {
         backgroundColor: site.avatar,
+    },
+    faceInes: {
+        backgroundColor: palette.berry,
     },
     messageBody: {
         display: "grid",

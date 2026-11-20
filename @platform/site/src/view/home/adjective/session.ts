@@ -26,75 +26,50 @@ export type Step = {
     slip: Slip | undefined;
 };
 
-/** What you asked your agent on Thursday evening. */
+/** What you asked your agent last night. */
 export const REQUEST =
-    "We launch Friday 9:00. Open signups, email the waitlist, publish the launch post and the press page, post in #launch, and get the demo requests onto the board and the calendar.";
+    "Tidy my inbox tonight: put what needs me on top, file receipts, archive the newsletters I never open, and send me a digest every morning at 8.";
 
-/** The steps your agent took for the request, in order. */
+/** The steps your agent took for the request, in order, all in preview until you keep them. */
 export const steps: readonly Step[] = [
     {
-        app: "table",
-        text: "Opened signups",
-        count: "1 change",
-        changes: [["table", "Signups: status open, from Fri 09:00"]],
+        app: "mail",
+        text: "Sorted by needs me",
+        count: "12 threads",
+        changes: [["mail", "Inbox: threads waiting on you first · Ines, Jonas, Mia"]],
         slip: undefined,
     },
     {
         app: "mail",
-        text: "Emailed the waitlist",
-        count: "1,840 sent",
+        text: "Filed receipts",
+        count: "31 mails",
         changes: [
-            ["mail", 'Sent "Destack opens Friday" to Waitlist · 1,840 people'],
-            ["table", "Included 400 invited Thursday: ines@orbitlabs.eu, jonas@kettle.dev, …"],
+            ["mail", "31 mails from billing → Receipts"],
+            ["table", "Receipts: 31 rows, each matched to its payment"],
         ],
-        slip: { text: "400 already invited", fixed: undefined },
+        slip: undefined,
     },
     {
-        app: "pages",
-        text: 'Scheduled "Destack is live"',
-        count: "Fri 09:00",
+        app: "mail",
+        text: "Archived newsletters",
+        count: "214 mails",
         changes: [
-            ["pages", "/blog/launch: draft → publish at Fri 09:00"],
-            ["pages", 'Linked "See pricing" to /pricing, still a draft'],
+            ["mail", "214 mails from 19 senders → Archive"],
+            ["mail", 'Included Kai Brandt, "Onboarding sketch"'],
         ],
-        slip: { text: "links to draft /pricing", fixed: "/pricing published" },
+        slip: { text: "Kai's sketch isn't a newsletter", fixed: "back in your inbox" },
     },
     {
-        app: "pages",
-        text: "Published the press page",
-        count: "1 change",
-        changes: [["pages", "/press: draft → published"]],
-        slip: undefined,
-    },
-    {
-        app: "chat",
-        text: "Scheduled the #launch post",
-        count: "Fri 09:00 UTC",
-        changes: [["chat", '#launch: "Destack is live 🚀" at Fri 09:00 UTC']],
-        slip: { text: "11:00 your time", fixed: "moved to 09:00" },
-    },
-    {
-        app: "tasks",
-        text: "Boarded 9 demo requests",
-        count: "9 cards",
-        changes: [["tasks", 'Created DST-31 to DST-39 "Demo · Ines", …']],
-        slip: undefined,
-    },
-    {
-        app: "calendar",
-        text: "Booked 9 demos",
-        count: "9 events",
-        changes: [["calendar", '"Demo with Ines" Mon 11:00, …']],
-        slip: undefined,
-    },
-    {
-        app: "tasks",
-        text: 'Closed "Record the demo"',
-        count: "1 change",
-        changes: [["tasks", "DST-14: open → done, attached demo.mp4 from Oct 14"]],
-        slip: { text: "demo.mp4 is last week's", fixed: "reopened" },
+        app: "sync",
+        text: "Set up a morning digest",
+        count: "daily 08:00",
+        changes: [
+            ["sync", "digest-daily: every day at 08:00"],
+            ["mail", "One mail a day: unread threads and tasks due"],
+        ],
+        slip: { text: "repeats your Monday page", fixed: "dropped" },
     },
 ];
 
-/** The changes the session made: 1 + 1 send + 2 + 1 + 1 + 9 cards + 9 events + 1. */
-export const CHANGE_COUNT = 25;
+/** The changes the session made: 1 sort + 31 filed + 214 archived + 1 workflow. */
+export const CHANGE_COUNT = 247;

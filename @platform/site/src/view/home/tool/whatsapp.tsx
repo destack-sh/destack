@@ -55,16 +55,16 @@ const chats: readonly (readonly [
     time: string,
     unread: number,
 ])[] = [
-    ["Destack launch", "#c64a17", "You: The first one. We have a reputation…", "10:02", 0],
-    ["Ines Ferreira", "#a0485f", "Wednesday at 11 works 👍", "09:58", 2],
-    ["Design", "#3f7d88", "Jonas: New mockups are up", "09:31", 0],
-    ["Tara Okafor", "#4f8a5b", "Do invites go out by signup date?", "Yesterday", 0],
+    ["Booking app", "#a0485f", "You: The second one. Send it after our call.", "10:02", 0],
+    ["Jonas Weber", "#3f7d88", "Are you in for Saturday?", "09:31", 2],
+    ["Mia Sørensen", "#c4683a", "Receipts by Friday please 🙏", "08:52", 0],
+    ["Climbing", "#6b5ca5", "Ravi: Thursday 7pm?", "Yesterday", 0],
 ];
 
 /** The filters over the chat list, All chosen. */
 const filters: readonly string[] = ["All", "Unread", "Favourites", "Groups"];
 
-/** Draw the launch conversation as a group chat in the browser, your messages on the right. */
+/** Draw the conversation with Ines as a group chat in the browser, your messages on the right. */
 export function WhatsApp() {
     return (
         <div data-component="WhatsAppPage" {...style.attrs(styles.page)}>
@@ -139,11 +139,11 @@ export function WhatsApp() {
             <main {...style.attrs(styles.main)}>
                 <header {...style.attrs(styles.head)}>
                     <span {...style.attrs(styles.chatFace, styles.headFace, styles.groupFace)}>
-                        D
+                        B
                     </span>
                     <span {...style.attrs(styles.headText)}>
-                        <span {...style.attrs(styles.headName)}>Destack launch</span>
-                        <span>Agent, Jonas, Maya, You</span>
+                        <span {...style.attrs(styles.headName)}>Booking app</span>
+                        <span>Agent, Ines, You</span>
                     </span>
                     <Mark name="video" size={22} />
                     <Mark name="search" size={20} />
@@ -162,8 +162,8 @@ export function WhatsApp() {
                                     styles.continued,
                             )}
                         >
-                            {author === "Agent" && messages[index - 1]?.[0] !== "Agent" ? (
-                                <b {...style.attrs(styles.sender)}>Agent</b>
+                            {author !== "Florian" && messages[index - 1]?.[0] !== author ? (
+                                <b {...style.attrs(styles.sender)}>{author}</b>
                             ) : undefined}
                             <span>
                                 {text}

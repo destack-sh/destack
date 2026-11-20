@@ -29,7 +29,7 @@ const glyphs = {
     lock: ["M7 11V7a5 5 0 0 1 10 0v4", "M5 11h14v10H5z"],
 } satisfies Record<string, readonly string[]>;
 
-/** The priority of each launch task, in its order: label and its pill. */
+/** The priority of each task, in its order: label and its pill. */
 const priorities: readonly (readonly [label: string, level: "high" | "medium" | "low"])[] = [
     ["High", "high"],
     ["High", "high"],
@@ -50,7 +50,7 @@ const tabs: readonly string[] = [
     "Files",
 ];
 
-/** Draw the launch tasks as the project's list, in a section for launch week. */
+/** Draw your tasks as the project's list, in a section for this week. */
 export function Asana() {
     return (
         <div data-component="AsanaPage" {...style.attrs(styles.page)}>
@@ -100,7 +100,7 @@ export function Asana() {
                     <span {...style.attrs(styles.group)}>Projects</span>
                     <span {...style.attrs(styles.link, styles.linkOn)}>
                         <span {...style.attrs(styles.swatch)} />
-                        Destack launch
+                        Work
                     </span>
                     <span {...style.attrs(styles.link)}>
                         <span {...style.attrs(styles.swatch, styles.swatchBlue)} />
@@ -114,7 +114,7 @@ export function Asana() {
                         <span {...style.attrs(styles.tile)}>
                             <Mark name="list" size={16} />
                         </span>
-                        <b {...style.attrs(styles.title)}>Destack launch</b>
+                        <b {...style.attrs(styles.title)}>Work</b>
                         <Mark name="caret" size={14} />
                         <Mark name="star" size={16} />
                         <span {...style.attrs(styles.status)}>
@@ -170,7 +170,7 @@ export function Asana() {
                         </span>
                         <b {...style.attrs(styles.section)}>
                             <Mark name="caret" size={13} />
-                            Launch week
+                            This week
                         </b>
                         {tasks.map(([, title, state, owner, tint, due], index) => (
                             <span {...style.attrs(styles.row)}>

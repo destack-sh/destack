@@ -33,7 +33,7 @@ const tools: readonly (keyof typeof glyphs)[] = [
 /** The sticky colour of each section, by its place on the board. */
 const tints: readonly ("yellow" | "green" | "sky")[] = ["yellow", "green", "sky"];
 
-/** Draw the launch plan as a whiteboard of sections and stickies, your agent's cursor on it. */
+/** Draw your week's board as a whiteboard of sections and stickies, your agent's cursor on it. */
 export function FigJam() {
     return (
         <div data-component="FigJamPage" {...style.attrs(styles.page)}>
@@ -82,7 +82,7 @@ export function FigJam() {
             {/* file menu */}
             <span {...style.attrs(styles.file)}>
                 <span {...style.attrs(styles.logo)} />
-                Destack launch plan
+                This week
                 <Mark name="caret" size={12} />
             </span>
 

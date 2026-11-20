@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { launch } from "../verb/corner";
+import { points } from "../verb/corner";
 import { Favicon } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { confluence } from "./confluence.stylex";
@@ -61,25 +61,25 @@ const glyphs = {
     ],
 } satisfies Record<string, readonly string[]>;
 
-/** The pages of the launch space, as its tree lists them: title, depth, and its state. */
+/** The pages of your personal space, as its tree lists them: title, depth, and its state. */
 const tree: readonly (readonly [
     title: string,
     depth: number,
     state: "open" | "closed" | "leaf",
 ])[] = [
     ["Overview", 0, "leaf"],
-    ["Launch", 0, "open"],
-    ["Destack launch", 1, "leaf"],
-    ["Pricing", 1, "leaf"],
-    ["Press kit", 1, "leaf"],
-    ["Retros", 0, "closed"],
-    ["How we work", 0, "closed"],
+    ["Clients", 0, "open"],
+    ["Ines Ferreira", 1, "leaf"],
+    ["Lena Okoye", 1, "leaf"],
+    ["Rates", 1, "leaf"],
+    ["Reviews", 0, "closed"],
+    ["Admin", 0, "closed"],
 ];
 
-/** The due date of each launch item, in its order. */
+/** The due date of each open point, in its order. */
 const dues: readonly string[] = ["Oct 20, 2025", "Oct 22, 2025", "Oct 23, 2025", "Oct 24, 2025"];
 
-/** Draw the Destack launch plan as a page of the team wiki, shared with guests by space. */
+/** Draw your page on Ines as a page of your wiki, shared with guests by space. */
 export function Confluence() {
     return (
         <div data-component="ConfluencePage" {...style.attrs(styles.page)}>
@@ -124,7 +124,7 @@ export function Confluence() {
                     </span>
                     <span {...style.attrs(styles.space)}>
                         <span {...style.attrs(styles.spaceMark)}>D</span>
-                        <b>Destack</b>
+                        <b>Personal</b>
                     </span>
                     <span {...style.attrs(styles.group)}>Content</span>
                     {tree.map(([title, depth, state]) => (
@@ -132,7 +132,7 @@ export function Confluence() {
                             style={{ "padding-inline-start": `${4 + depth * 16}px` }}
                             {...style.attrs(
                                 styles.node,
-                                title === "Destack launch" && styles.nodeOn,
+                                title === "Ines Ferreira" && styles.nodeOn,
                             )}
                         >
                             <span {...style.attrs(styles.twist)}>
@@ -149,7 +149,7 @@ export function Confluence() {
                 {/* the page */}
                 <main {...style.attrs(styles.main)}>
                     <span {...style.attrs(styles.bar)}>
-                        <span {...style.attrs(styles.crumbs)}>Spaces / Destack / Launch</span>
+                        <span {...style.attrs(styles.crumbs)}>Spaces / Personal / Clients</span>
                         <span {...style.attrs(styles.actions)}>
                             <Mark name="pencil" size={16} />
                             <span {...style.attrs(styles.shareButton)}>
@@ -164,7 +164,7 @@ export function Confluence() {
                             🚀
                         </span>
                         <b data-flip="title" {...style.attrs(styles.title)}>
-                            Destack launch
+                            Ines Ferreira
                         </b>
                         <span {...style.attrs(styles.byline)}>
                             <span {...style.attrs(styles.avatar)}>F</span>
@@ -181,20 +181,20 @@ export function Confluence() {
                                 <tr>
                                     <th {...style.attrs(styles.cellHead)}>Status</th>
                                     <td {...style.attrs(styles.cell)}>
-                                        <span {...style.attrs(styles.lozenge)}>In progress</span>
+                                        <span {...style.attrs(styles.lozenge)}>Client</span>
                                     </td>
                                 </tr>
                                 <tr>
-                                    <th {...style.attrs(styles.cellHead)}>Launch</th>
+                                    <th {...style.attrs(styles.cellHead)}>Hand over</th>
                                     <td {...style.attrs(styles.cell)}>
                                         <span {...style.attrs(styles.date)}>
                                             <Mark name="calendar" size={12} />
-                                            Oct 24, 2025
+                                            Nov 28, 2025
                                         </span>
                                     </td>
                                 </tr>
                                 <tr>
-                                    <th {...style.attrs(styles.cellHead)}>Demo</th>
+                                    <th {...style.attrs(styles.cellHead)}>Review</th>
                                     <td {...style.attrs(styles.cell)}>
                                         <span {...style.attrs(styles.date)}>
                                             <Mark name="calendar" size={12} />
@@ -216,12 +216,13 @@ export function Confluence() {
                             <span {...style.attrs(styles.panelMark)}>
                                 <Mark name="info" size={16} />
                             </span>
-                            Ship to the waitlist on Thursday, then open signups on Friday.
+                            Runs a physio practice with three rooms. Wants card payments and her own
+                            domain before December.
                         </p>
 
-                        <b {...style.attrs(styles.heading)}>Before launch</b>
+                        <b {...style.attrs(styles.heading)}>Open points</b>
                         <ul {...style.attrs(styles.list)}>
-                            {launch.map(([item, isDone], index) => (
+                            {points.map(([item, isDone], index) => (
                                 <li {...style.attrs(styles.item)}>
                                     <span {...style.attrs(styles.box, isDone && styles.boxDone)}>
                                         {isDone ? (

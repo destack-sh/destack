@@ -58,16 +58,16 @@ const lists: readonly (readonly [state: TaskState, name: string])[] = [
     ["done", "Done"],
 ];
 
-/** The checklist progress of each launch task, in its order. */
+/** The checklist progress of each task, in its order. */
 const checklists: readonly string[] = ["4/4", "1/3", "2/5", "0/2", "0/4", "0/3"];
 
-/** Draw the launch tasks on the board as they stand in the launch story. */
+/** Draw your tasks on the board as they stand this week. */
 export function Trello() {
     return <TrelloBoard tasks={tasks} />;
 }
 
 /** Draw tasks as cards on the team's board, one list per status. */
-export function TrelloBoard(properties: { tasks: readonly Task[] }) {
+function TrelloBoard(properties: { tasks: readonly Task[] }) {
     return (
         <div data-component="TrelloPage" {...style.attrs(styles.page)}>
             {/* app header */}
@@ -104,7 +104,7 @@ export function TrelloBoard(properties: { tasks: readonly Task[] }) {
 
             {/* board header */}
             <div {...style.attrs(styles.strip)}>
-                <b {...style.attrs(styles.title)}>Destack launch</b>
+                <b {...style.attrs(styles.title)}>Personal</b>
                 <Mark name="star" size={15} />
                 <Mark name="people" size={15} />
                 <span {...style.attrs(styles.view)}>
@@ -146,7 +146,7 @@ export function TrelloBoard(properties: { tasks: readonly Task[] }) {
                                         {state === "review" ? (
                                             <span {...style.attrs(styles.label, styles.yellow)} />
                                         ) : undefined}
-                                        {title.includes("waitlist") || title.includes("signups") ? (
+                                        {title.includes("Ines") || title.includes("Invoice") ? (
                                             <span {...style.attrs(styles.label, styles.purple)} />
                                         ) : undefined}
                                     </span>

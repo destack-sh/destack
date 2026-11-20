@@ -7,127 +7,70 @@ import { browserStyles } from "../figure/browser";
 import { Fade } from "../figure/fade";
 import { Favicon, Glyph } from "../figure/glyph";
 import { AuditLog } from "./log";
-import { AirtableSignupsOf } from "../tool/airtable";
 import { GmailOf } from "../tool/gmail";
-import { NotionPricing } from "../tool/notion";
-import { SlackChannel } from "../tool/slack";
-import { TrelloBoard } from "../tool/trello";
-import type { Mail, Message, Signup, Task } from "../verb/corner";
+import { type Mail, mails } from "../verb/corner";
 import type { Lane } from "./session";
 import { Cast } from "../figure/cast";
 
-/** A rented app you open to see what your agent did last night. */
-export type Console = "gmail" | "airtable" | "slack" | "trello" | "notion";
+/** A place in your rented mail you open to see what your agent did last night. */
+export type Console = "gmail" | "receipts" | "archive";
 
-/** The launch email's batches, newest first: Gmail sends to at most 500 recipients a message. */
-const batches: readonly (readonly [recipients: number, time: string])[] = [
-    [340, "17:24"],
-    [500, "17:24"],
-    [500, "17:23"],
-    [500, "17:23"],
+/** The Receipts label: the mail your agent's filter moved there, newest first. */
+const receipts: readonly Mail[] = [
+    ["Figma", "#a259ff", "Your receipt from Figma", "Professional plan, 1 editor", "Oct 19", false],
+    ["Hetzner", "#d50c2d", "Invoice for September", "Your invoice is ready", "Oct 17", false],
+    ["Notion", "#191919", "Your receipt from Notion", "Plus plan, monthly", "Oct 16", false],
+    ["Trainline", "#01c3a7", "Your e-ticket", "Return, Saturday 25 October", "Oct 15", false],
+    ["Vercel", "#171717", "Your Vercel invoice", "Pro plan, October", "Oct 1", false],
+    ["Spotify", "#1db954", "Your Spotify receipt", "Premium Individual", "Oct 1", false],
 ];
 
-/** The sent folder: the launch email in its batches, then Ines's invite from the afternoon. */
-const sent: readonly Mail[] = [
-    ...batches.map(([recipients, time]): Mail => [
-        `To: Waitlist (${recipients})`,
-        "#ea4335",
-        "Destack opens Friday",
-        "Hi there, Destack opens on Friday, and you're in.",
-        time,
-        false,
-    ]),
-    [
-        "Ines Ferreira",
-        "#a0485f",
-        "Your Destack invite",
-        "Welcome in! Your invite link works from Friday 09:00.",
-        "16:10",
-        false,
-    ],
+/** All Mail: the newsletters your agent archived, Kai's sketch swept up among them. */
+const archived: readonly Mail[] = [
     [
         "Kai Brandt",
-        "#2f7d8c",
-        "Re: Kettle Podcast",
-        "Tuesday works, I'll bring the demo.",
-        "Oct 21",
-        false,
-    ],
-    [
-        "Lena Okoye",
-        "#4f8a5b",
-        "Destack for Fieldnotes",
-        "A short pitch, and the press kit.",
-        "Oct 20",
-        false,
-    ],
-    [
-        "Ravi Patel",
-        "#6b5ca5",
-        "Destack for Brightpath",
-        "A short pitch, and the press kit.",
+        "#5a7a2e",
+        "Onboarding sketch",
+        "No rush, but I'd love your take before I build it.",
         "Oct 19",
         false,
     ],
     [
-        "Tomás Ruiz",
-        "#3c6e9e",
-        "Destack for The Stack Report",
-        "A short pitch, and the press kit.",
+        "Stratechery",
+        "#2f7d8c",
+        "The weekly article",
+        "This week: agents and the aggregators",
+        "Oct 20",
+        false,
+    ],
+    [
+        "The Pragmatic Engineer",
+        "#6b5ca5",
+        "The Pulse",
+        "What's new in engineering this week",
+        "Oct 18",
+        false,
+    ],
+    ["Product Hunt", "#da552f", "The Daily Digest", "Today's top launches", "Oct 18", false],
+    [
+        "Hacker Newsletter",
+        "#ff6600",
+        "Hacker Newsletter #745",
+        "The best of Hacker News this week",
         "Oct 17",
         false,
     ],
-    [
-        "Hana Sato",
-        "#8a5a2b",
-        "Re: Changelog FM",
-        "After the launch works, dates to follow.",
-        "Oct 16",
-        false,
-    ],
-    [
-        "Accounts",
-        "#5f6368",
-        "Fwd: October invoices",
-        "Nine subscriptions this month, attached.",
-        "Oct 15",
-        false,
-    ],
+    ["Figma", "#a259ff", "What's new in Figma", "Updates from Config", "Oct 15", false],
 ];
 
-/** The signups invited Thursday afternoon, each on the waitlist the email went to. */
-const invited: readonly Signup[] = [
-    ["ines@orbitlabs.eu", "Website", "Oct 18", "invited", "invited Thu 16:10"],
-    ["jonas@kettle.dev", "Website", "Oct 19", "invited", "invited Thu 16:10"],
-    ["priya@nair.studio", "Launch post", "Oct 19", "invited", "invited Thu 16:10"],
-    ["maya@northwind.io", "Launch post", "Oct 20", "invited", "invited Thu 16:10"],
-    ["tara@fieldnotes.co", "Friend", "Oct 20", "invited", "invited Thu 16:10"],
-    ["sam@quietly.so", "Launch post", "Oct 21", "invited", "invited Thu 16:10"],
-    ["leo@brightpath.app", "Website", "Oct 21", "invited", "invited Thu 16:10"],
-];
+/** The inbox after the night's filters: the mail neither filed as a receipt nor archived. */
+const inbox: readonly Mail[] = mails.filter(
+    ([sender, , subject]) =>
+        !receipts.some((mail) => mail[0] === sender) &&
+        !archived.some((mail) => mail[2] === subject),
+);
 
-/** The launch channel on launch morning: your questions, and no sign of a scheduled post. */
-const posts: readonly Message[] = [
-    ["Florian", "Thu 16:12", "400 invites are out 🎉"],
-    ["Florian", "09:12", "Ines says she got the launch email twice?"],
-    ["Florian", "09:14", "and the pricing link on the launch post is a 404"],
-    ["Florian", "09:15", "where's the launch post? wasn't it scheduled for 9?"],
-];
-
-/** The launch board: the demo cards, and the demo recording closed. */
-const board: readonly Task[] = [
-    ["DST-14", "Record the demo", "done", "F", "#2f7d8c", "Wed"],
-    ["DST-20", "Press kit", "review", "F", "#2f7d8c", "Thu"],
-    ["DST-15", "Launch post", "started", "A", "#6b5ca5", "Fri"],
-    ["DST-13", "Turn on pricing", "started", "F", "#2f7d8c", "Fri"],
-    ["DST-35", "Pricing FAQ", "review", "A", "#6b5ca5", "Thu"],
-    ["DST-31", "Demo · Ines (Orbit Labs)", "todo", "F", "#2f7d8c", "Mon 11:00"],
-    ["DST-32", "Demo · Jonas (Kettle)", "todo", "F", "#2f7d8c", "Mon 14:00"],
-    ["DST-33", "Demo · Priya (Nair Studio)", "todo", "F", "#2f7d8c", "Tue 10:00"],
-    ["DST-34", "Demo · Leo (Brightpath)", "todo", "F", "#2f7d8c", "Tue 11:00"],
-];
-
-/** The apps you rent, as tabs: key, logo, title, address and page. */
+/** The places your rented mail shows the night's work: key, logo, title, address and page. */
 const consoles: readonly (readonly [
     key: Console,
     logo: string,
@@ -136,46 +79,34 @@ const consoles: readonly (readonly [
     page: () => JSX.Element,
 ])[] = [
     [
-        "slack",
-        "slack",
-        "launch (Channel) - Symbol - Slack",
-        "app.slack.com/client/symbol/launch",
-        () => <SlackChannel messages={posts} />,
-    ],
-    [
         "gmail",
         "gmail",
-        "Sent Mail - Gmail",
-        "mail.google.com/mail/u/0/#sent",
-        () => <GmailOf folder="Sent" mails={sent} />,
+        "Inbox - Gmail",
+        "mail.google.com/mail/u/0/#inbox",
+        () => <GmailOf folder="Inbox" mails={inbox} />,
     ],
     [
-        "airtable",
-        "airtable",
-        "Launch: Signups - Airtable",
-        "airtable.com/appLaunch/tblSignups",
-        () => <AirtableSignupsOf signups={invited} />,
+        "receipts",
+        "gmail",
+        "Receipts - Gmail",
+        "mail.google.com/mail/u/0/#label/Receipts",
+        () => <GmailOf folder="Receipts" mails={receipts} />,
     ],
     [
-        "trello",
-        "trello",
-        "Launch | Trello",
-        "trello.com/b/launch",
-        () => <TrelloBoard tasks={board} />,
+        "archive",
+        "gmail",
+        "All Mail - Gmail",
+        "mail.google.com/mail/u/0/#all",
+        () => <GmailOf folder="All Mail" mails={archived} />,
     ],
-    ["notion", "notion", "Pricing | Notion", "notion.so/symbol/Pricing", () => <NotionPricing />],
 ];
 
 /** The colours of the vendor icons drawn from the glyph set. */
 const tints: Readonly<Record<string, string>> = {
-    slack: "#4a154b",
     gmail: "#ea4335",
-    airtable: "#18bfff",
-    trello: "#0052cc",
-    notion: "#191919",
 };
 
-/** Draw launch day: across rented consoles that each see a sliver, or on your own dashboard. */
+/** Draw last night's work: across your rented mail's folders, or in your space's log. */
 export function Inspector(properties: {
     isOpen: boolean;
     console: Console;

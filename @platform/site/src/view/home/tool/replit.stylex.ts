@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-/** The colours of the prompt-built waitlist app. */
+/** The colours of the prompt-built Monday page. */
 export const replit = style.defineConsts({
     /** The page background. */
     night: "light-dark(#ffffff, #0b0d17)",

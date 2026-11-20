@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { press, type PressState } from "../verb/corner";
+import { people, type ReplyState } from "../verb/corner";
 import { Favicon } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { excel } from "./excel.stylex";
@@ -50,19 +50,19 @@ const ribbonTabs: readonly (readonly [name: string, isKept: boolean])[] = [
 /** The grid's columns: letter and the table's header. */
 const columns: readonly (readonly [letter: string, header: string])[] = [
     ["A", "Name"],
-    ["B", "Outlet"],
+    ["B", "Who"],
     ["C", "Status"],
     ["D", "Last contact"],
 ];
 
 /** The name each status shows. */
-const statusNames: Readonly<Record<PressState, string>> = {
-    pitched: "Pitched",
-    replied: "Replied",
-    scheduled: "Call booked",
+const statusNames: Readonly<Record<ReplyState, string>> = {
+    owe: "Reply owed",
+    waiting: "Waiting on them",
+    clear: "Up to date",
 };
 
-/** Draw the press list as a workbook in the shared drive, a status cell chosen. */
+/** Draw the people you deal with as a workbook in your drive, a status cell chosen. */
 export function Excel() {
     return (
         <div data-component="ExcelPage" {...style.attrs(styles.page)}>
@@ -71,7 +71,7 @@ export function Excel() {
                 <Mark name="launcher" size={18} />
                 <Favicon icon="excel" tint="#107c41" size={20} />
                 <span {...style.attrs(styles.file)}>
-                    <b>Launch press list</b>
+                    <b>People</b>
                     <span {...style.attrs(styles.saved)}>· Saved</span>
                 </span>
                 <span {...style.attrs(styles.search)}>
@@ -172,7 +172,7 @@ export function Excel() {
                     ))}
                     <span {...style.attrs(styles.cell)} />
                 </span>
-                {press.map(([name, outlet, state, last], index) => (
+                {people.map(([name, relation, state, last], index) => (
                     <span {...style.attrs(styles.row)}>
                         <span {...style.attrs(styles.head, index === 1 && styles.headOn)}>
                             {index + 2}
@@ -181,7 +181,7 @@ export function Excel() {
                             {name}
                         </span>
                         <span {...style.attrs(styles.cell, index % 2 === 0 && styles.band)}>
-                            {outlet}
+                            {relation}
                         </span>
                         <span
                             {...style.attrs(
@@ -218,8 +218,8 @@ export function Excel() {
             {/* sheet tabs and status */}
             <footer {...style.attrs(styles.foot)}>
                 <Mark name="plus" size={15} />
-                <span {...style.attrs(styles.sheet)}>Press</span>
-                <span {...style.attrs(styles.sheetQuiet)}>Signups</span>
+                <span {...style.attrs(styles.sheet)}>People</span>
+                <span {...style.attrs(styles.sheetQuiet)}>Receipts</span>
                 <span {...style.attrs(styles.status)}>Ready</span>
                 <span {...style.attrs(styles.zoom)}>100%</span>
             </footer>

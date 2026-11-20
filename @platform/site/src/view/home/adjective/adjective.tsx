@@ -31,13 +31,7 @@ export const destackable: Form = {
 };
 
 /** The apps the stacked agent opens in the browser, by the server its connector calls. */
-const consoleNames: ReadonlySet<string> = new Set<Console>([
-    "gmail",
-    "airtable",
-    "slack",
-    "trello",
-    "notion",
-]);
+const consoleNames: ReadonlySet<string> = new Set<Console>(["gmail", "receipts", "archive"]);
 
 /** Show the adjective at work: one run in rented consoles or your space, your agent beside. */
 export function Adjective(properties: { isOpen: boolean }) {
@@ -46,12 +40,10 @@ export function Adjective(properties: { isOpen: boolean }) {
     const isReduced = createReducedMotion(section);
     const isShown = createVisibilityObserver(section, { initialValue: true });
 
-    // count beats until the reader opens the log, and start again on every switch
+    // count beats until the reader opens the log, going on from the shared steps on every switch
     const [isTouched, setIsTouched] = createSignal(false);
-    const beat = createBeat(
-        () => !isReduced() && isShown() && !isTouched(),
-        () => properties.isOpen,
-    );
+    const scene = () => (properties.isOpen ? destackedScene : stackedScene);
+    const beat = createBeat(() => !isReduced() && isShown() && !isTouched(), scene);
     createEffect(
         () => properties.isOpen,
         () => {
@@ -60,7 +52,6 @@ export function Adjective(properties: { isOpen: boolean }) {
     );
 
     // run the conversation in the state the stack is in, finished when still
-    const scene = () => (properties.isOpen ? destackedScene : stackedScene);
     const at = () => (isReduced() ? undefined : beat() % scene().length);
     const moment = () => (properties.isOpen ? destackedChatAt(at()) : stackedScene.at(at()));
 
@@ -75,12 +66,12 @@ export function Adjective(properties: { isOpen: boolean }) {
     // show the log where the conversation has it
     const lane = () => laneAt(at() ?? destackedScene.length);
 
-    // open the app the stacked agent last called, the launch channel before it calls any
+    // open the place the stacked agent last called, the inbox before it calls any
     const opened = (): Console => {
         const calls = moment().items.filter((item) => item.kind === "call");
         const last = calls.at(-1);
 
-        return last?.kind === "call" && isConsole(last.server) ? last.server : "slack";
+        return last?.kind === "call" && isConsole(last.server) ? last.server : "gmail";
     };
 
     // show the app or your agent below the desktop width, where one pane shows at a time
@@ -95,8 +86,8 @@ export function Adjective(properties: { isOpen: boolean }) {
             <FigureLabel
                 number={4}
                 isOpen={properties.isOpen}
-                stacked="five apps, five logs, your agent half-blind"
-                destacked="five apps, one log, your agent all-seeing"
+                stacked="your mail, changed live through filters and labels"
+                destacked="your mail, changed in preview until you keep it"
             >
                 <StackSwitch isOpen={properties.isOpen} place="label" />
             </FigureLabel>
@@ -111,7 +102,7 @@ export function Adjective(properties: { isOpen: boolean }) {
             >
                 <LabelRow end={undefined}>
                     <PaneLabel panes={PANES} shown={shownPane()} onShow={setShownPane}>
-                        {properties.isOpen ? "Your apps, in one log" : "Your apps, in five logs"}
+                        {properties.isOpen ? "Your apps, in one log" : "Your mail, in three places"}
                     </PaneLabel>
                 </LabelRow>
                 <Inspector
@@ -148,7 +139,7 @@ export function Adjective(properties: { isOpen: boolean }) {
                     </PaneLabel>
                 </LabelRow>
                 <AgentChat
-                    title="Launch day"
+                    title="Your inbox"
                     isOpen={properties.isOpen}
                     moment={moment()}
                     assistant={look()}

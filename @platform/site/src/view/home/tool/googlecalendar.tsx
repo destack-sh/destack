@@ -58,7 +58,7 @@ const days: readonly (readonly [weekday: string, date: number])[] = [
 /** The calendars in the side list: name and colour. */
 const calendars: readonly (readonly [name: string, tint: string])[] = [
     ["Florian", "#039be5"],
-    ["Destack launch", "#33b679"],
+    ["Booking app", "#33b679"],
     ["Tasks", "#4285f4"],
 ];
 
@@ -67,7 +67,7 @@ function rowOf(hour: number): number {
     return Math.round((hour - 9) * 2) + 2;
 }
 
-/** Draw the launch week in the calendar as it stands in the launch story. */
+/** Draw your week in the calendar as it stands. */
 export function GoogleCalendar() {
     return <GoogleCalendarWeek week={week} />;
 }
@@ -112,7 +112,7 @@ export function GoogleCalendarWeek(properties: { week: readonly WeekBlock[] }) {
                         <Mark name="booking" size={16} />
                         Booking pages
                     </span>
-                    <span {...style.attrs(styles.scheduleItem)}>Destack demo · 30 min</span>
+                    <span {...style.attrs(styles.scheduleItem)}>Call with Florian · 30 min</span>
                     <span {...style.attrs(styles.group)}>My calendars</span>
                     {calendars.map(([name, tint]) => (
                         <span {...style.attrs(styles.calendar)}>
@@ -166,7 +166,7 @@ export function GoogleCalendarWeek(properties: { week: readonly WeekBlock[] }) {
                                     styles.eventSecond,
                             )}
                         >
-                            <b>{isBookable ? "Destack demo" : title.split(" · ")[0]}</b>
+                            <b>{isBookable ? "Call with Florian" : title.split(" · ")[0]}</b>
                             <span>
                                 {isBookable
                                     ? "Open for booking"

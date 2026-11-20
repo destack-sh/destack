@@ -95,7 +95,7 @@ export const entities: Record<string, Entity> = {
     github: { label: "GitHub", icon: "github", role: listedOf("GitHub"), tint: "#24292f" },
     // homemade apps, each built with an agent on rented services
     tracker: {
-        label: "Launch tracker",
+        label: "Monday page",
         icon: "tasks",
         role: "Built with Claude",
         tint: "#b8862b",
@@ -106,7 +106,7 @@ export const entities: Record<string, Entity> = {
 
     // the homemade apps rebuilt on Destack
     ownTracker: {
-        label: "Launch tracker",
+        label: "Monday page",
         icon: "tasks",
         role: "Built on Destack",
         isRemix: true,
@@ -134,7 +134,7 @@ export const entities: Record<string, Entity> = {
     canvas: { label: "Canvas", icon: "canvas", role: "App" },
 
     // remixes, each named after the apps it joins
-    room: { label: "Launch room", icon: "chat", role: "Pages + Chat", isRemix: true },
+    room: { label: "Client room", icon: "chat", role: "Pages + Chat", isRemix: true },
     roadmap: { label: "Roadmap", icon: "tasks", role: "Pages + Tasks", isRemix: true },
     issues: { label: "Issues", icon: "notify", role: "Source + Tasks", isRemix: true },
     review: { label: "Design review", icon: "canvas", role: "Canvas + Notes", isRemix: true },

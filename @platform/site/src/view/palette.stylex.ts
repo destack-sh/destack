@@ -66,6 +66,8 @@ export const palette = style.defineConsts({
     gold: "#e0a030",
     /** The rust ink. */
     rust: "#a15c07",
+    /** The colour of Ines, the client, in every app that draws her. */
+    berry: "#a0485f",
     /** The white ground vendor logos sit on, as their marks expect. */
     logoGround: "#ffffff",
     /** The close button of a window's title bar. */

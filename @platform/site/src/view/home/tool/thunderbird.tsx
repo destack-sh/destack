@@ -40,7 +40,6 @@ const glyphs = {
     caret: ["m7 10 5 5 5-5"],
     filter: ["M4 6h16", "M7 12h10", "M10 18h4"],
     star: ["m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"],
-    warning: ["M12 3 2 20h20z", "M12 9v5", "M12 17h.01"],
 } satisfies Record<string, readonly string[]>;
 
 /** The spaces on the left bar, Mail chosen. */
@@ -55,7 +54,7 @@ const folders: readonly (readonly [name: string, glyph: keyof typeof glyphs, cou
     ["Trash", "trash", ""],
 ];
 
-/** Draw the launch mail in the desktop client, its server refusing the waitlist send. */
+/** Draw your inbox in the desktop client, as cards. */
 export function Thunderbird() {
     return (
         <div data-component="ThunderbirdPage" {...style.attrs(styles.page)}>
@@ -117,7 +116,7 @@ export function Thunderbird() {
                         ))}
                     </nav>
 
-                    {/* message cards, the server's refusal over them */}
+                    {/* message cards */}
                     <section {...style.attrs(styles.list)}>
                         <span {...style.attrs(styles.listHead)}>
                             <b>Inbox</b>
@@ -146,23 +145,6 @@ export function Thunderbird() {
                                 </span>
                             </span>
                         ))}
-
-                        <section role="alertdialog" {...style.attrs(styles.dialog)}>
-                            <span {...style.attrs(styles.dialogMark)}>
-                                <Mark name="warning" size={28} />
-                            </span>
-                            <span {...style.attrs(styles.dialogText)}>
-                                <b>Send Message Error</b>
-                                <span>
-                                    Sending of the message failed. The mail server smtp.gmail.com
-                                    responded: 452 4.5.3 Your message has too many recipients.
-                                </span>
-                                <span {...style.attrs(styles.dialogMeta)}>
-                                    1,840 recipients. Gmail accepts 100 a message over SMTP.
-                                </span>
-                            </span>
-                            <span {...style.attrs(styles.ok)}>OK</span>
-                        </section>
                     </section>
                 </div>
             </div>
@@ -427,40 +409,4 @@ const styles = style.create({
     },
 
     // error dialog
-    dialog: {
-        alignItems: "start",
-        backgroundColor: thunderbird.surface,
-        borderRadius: "8px",
-        boxShadow: thunderbird.lift,
-        columnGap: "14px",
-        display: "grid",
-        gridTemplateColumns: "auto minmax(0, 1fr)",
-        insetInline: "8%",
-        lineHeight: 1.45,
-        padding: "18px",
-        position: "absolute",
-        rowGap: "14px",
-        top: "30%",
-    },
-    dialogMark: {
-        color: thunderbird.error,
-    },
-    dialogText: {
-        display: "grid",
-        gap: "6px",
-    },
-    dialogMeta: {
-        color: thunderbird.muted,
-        fontSize: "12px",
-    },
-    ok: {
-        backgroundColor: thunderbird.blue,
-        borderRadius: "4px",
-        color: thunderbird.onAccent,
-        fontWeight: 600,
-        gridColumn: "1 / -1",
-        justifySelf: "end",
-        paddingBlock: "5px",
-        paddingInline: "22px",
-    },
 });

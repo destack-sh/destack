@@ -10,16 +10,16 @@ import { slack } from "./slack.stylex";
 const avatars: Readonly<Record<Message[0], readonly [tint: string, initial: string]>> = {
     Florian: ["#2f7d8c", "F"],
     Agent: ["#6b5ca5", "A"],
-    Zapier: ["#ff4f00", "Z"],
+    Ines: ["#a0485f", "I"],
 };
 
-/** Draw the launch channel as it stands in the launch story. */
+/** Draw the channel you share with Ines as it stands this week. */
 export function Slack() {
     return <SlackChannel messages={messages} />;
 }
 
-/** Draw the launch channel as a team chat seen through a guest invite. */
-export function SlackChannel(properties: { messages: readonly Message[] }) {
+/** Draw the channel you share with Ines, which she joins as a guest. */
+function SlackChannel(properties: { messages: readonly Message[] }) {
     return (
         <div data-component="SlackPage" {...style.attrs(styles.slack)}>
             <div {...style.attrs(styles.slackTop)}>
@@ -40,11 +40,11 @@ export function SlackChannel(properties: { messages: readonly Message[] }) {
                         Symbol <Glyph name="caret" size={12} />
                     </b>
                     <span {...style.attrs(styles.slackGroup)}>▾ Channels</span>
-                    {["general", "launch", "design", "pricing", "random"].map((name) => (
+                    {["general", "booking-app", "design", "invoices", "random"].map((name) => (
                         <span
                             {...style.attrs(
                                 styles.slackChannel,
-                                name === "launch" && styles.slackOn,
+                                name === "booking-app" && styles.slackOn,
                             )}
                         >
                             # {name}
@@ -58,7 +58,7 @@ export function SlackChannel(properties: { messages: readonly Message[] }) {
                 </nav>
                 <div {...style.attrs(styles.slackMain)}>
                     <span {...style.attrs(styles.slackHeader)}>
-                        <b># launch</b>
+                        <b># booking-app</b>
                         <span {...style.attrs(styles.slackMembers)}>
                             <span
                                 {...style.attrs(styles.slackFace)}
@@ -92,9 +92,9 @@ export function SlackChannel(properties: { messages: readonly Message[] }) {
                                 <span {...style.attrs(styles.slackBody)}>
                                     <span>
                                         <b>{author}</b>
-                                        {author === "Florian" ? undefined : (
+                                        {author === "Agent" ? (
                                             <span {...style.attrs(styles.slackApp)}>APP</span>
-                                        )}
+                                        ) : undefined}
                                         <span {...style.attrs(styles.slackMuted)}> {time}</span>
                                     </span>
                                     {text}
@@ -114,7 +114,7 @@ export function SlackChannel(properties: { messages: readonly Message[] }) {
                         ))}
                     </ul>
                     <span {...style.attrs(styles.slackComposer)}>
-                        <span {...style.attrs(styles.slackMuted)}>Message #launch</span>
+                        <span {...style.attrs(styles.slackMuted)}>Message #booking-app</span>
                         <span {...style.attrs(styles.slackTools)}>
                             <span>+</span>
                             <span>Aa</span>

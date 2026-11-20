@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { launch, press, type PressState } from "../verb/corner";
+import { people, points, type ReplyState } from "../verb/corner";
 import { Glyph, type GlyphName } from "../figure/glyph";
 import type { JSX } from "@destack/view";
 import { site } from "../figure/site.stylex";
@@ -19,18 +19,21 @@ export type NotionProperty = readonly [glyph: GlyphName, key: string, value: Not
 /** The top bar's tools: a public page's, or the editor's with its publish button. */
 export type NotionTools = "public" | "editor";
 
-/** Draw the Destack launch plan as a published page behind a public link. */
+/** Draw your page on Ines, a client, in your personal workspace. */
 export function Notion() {
     return (
         <NotionPage
-            crumbs={[["🚀", "Destack launch"]]}
+            crumbs={[
+                ["👥", "People"],
+                ["🪴", "Ines Ferreira"],
+            ]}
             tools="public"
-            icon="🚀"
-            title="Destack launch"
+            icon="🪴"
+            title="Ines Ferreira"
             properties={[
-                ["status", "Status", { kind: "status", text: "In progress", isDraft: false }],
-                ["calendar", "Launch", { kind: "text", text: "October 24, 2025" }],
-                ["calendar", "Demo", { kind: "text", text: "October 22, 2025 11:00 AM · Ines" }],
+                ["status", "Status", { kind: "status", text: "Client", isDraft: false }],
+                ["calendar", "Next", { kind: "text", text: "October 22, 2025 11:00 AM · Review" }],
+                ["link", "Project", { kind: "text", text: "Booking app · phase 2" }],
                 ["person", "Owner", { kind: "person", name: "Florian" }],
             ]}
         >
@@ -38,64 +41,12 @@ export function Notion() {
                 <span aria-hidden="true" {...style.attrs(styles.notionEmoji)}>
                     💡
                 </span>
-                Ship to the waitlist on Thursday, then open signups on Friday.
+                Runs a physio practice with three rooms. Wants card payments and her own domain
+                before December.
             </p>
-            <b {...style.attrs(styles.notionHeading)}>Before launch</b>
+            <b {...style.attrs(styles.notionHeading)}>Open points</b>
             <ul {...style.attrs(styles.notionTodos)}>
-                {launch.map(([item, isDone]) => (
-                    <li {...style.attrs(styles.notionTodo)}>
-                        <span {...style.attrs(styles.notionBox, isDone && styles.notionBoxDone)}>
-                            {isDone ? <Glyph name="check" size={12} weight={3} /> : undefined}
-                        </span>
-                        <span {...style.attrs(isDone && styles.notionDone)}>{item}</span>
-                    </li>
-                ))}
-            </ul>
-        </NotionPage>
-    );
-}
-
-/** The pricing draft's checklist before it publishes: each item and whether it is done. */
-const publishing: readonly (readonly [item: string, isDone: boolean])[] = [
-    ["Check the plans against the calculator", true],
-    ["Write the FAQ", true],
-    ["Link it from the launch post", false],
-    ["Publish /pricing", false],
-];
-
-/** Draw the pricing page in the site's workspace, edited Thursday and never published. */
-export function NotionPricing() {
-    return (
-        <NotionPage
-            crumbs={[
-                ["🌐", "Destack site"],
-                ["💳", "Pricing"],
-            ]}
-            tools="editor"
-            icon="💳"
-            title="Pricing"
-            properties={[
-                ["status", "Status", { kind: "status", text: "Draft", isDraft: true }],
-                ["link", "Path", { kind: "text", text: "/pricing · not published" }],
-                ["clock", "Edited", { kind: "text", text: "Thu 16:40" }],
-                ["person", "Owner", { kind: "person", name: "Florian" }],
-            ]}
-        >
-            <p {...style.attrs(styles.notionCallout)}>
-                <span aria-hidden="true" {...style.attrs(styles.notionEmoji)}>
-                    🎟️
-                </span>
-                Early pricing holds for everyone on the waitlist.
-            </p>
-            <b {...style.attrs(styles.notionHeading)}>Plans</b>
-            <ul {...style.attrs(styles.notionBullets)}>
-                <li>For people: your own space, every app included</li>
-                <li>For organisations: members, roles and audit logs</li>
-                <li>Usage billed by the hour, on both</li>
-            </ul>
-            <b {...style.attrs(styles.notionHeading)}>Before publishing</b>
-            <ul {...style.attrs(styles.notionTodos)}>
-                {publishing.map(([item, isDone]) => (
+                {points.map(([item, isDone]) => (
                     <li {...style.attrs(styles.notionTodo)}>
                         <span {...style.attrs(styles.notionBox, isDone && styles.notionBoxDone)}>
                             {isDone ? <Glyph name="check" size={12} weight={3} /> : undefined}
@@ -206,24 +157,24 @@ const marks = {
 } satisfies Record<string, readonly string[]>;
 
 /** The name each status tag shows. */
-const statusNames: Readonly<Record<PressState, string>> = {
-    pitched: "Pitched",
-    replied: "Replied",
-    scheduled: "Call booked",
+const statusNames: Readonly<Record<ReplyState, string>> = {
+    owe: "Reply owed",
+    waiting: "Waiting on them",
+    clear: "Up to date",
 };
 
-/** Draw the press list as a database on a page of the launch workspace. */
+/** Draw the people you deal with as a database in your personal workspace. */
 export function NotionDatabase() {
     return (
         <div data-component="NotionDatabasePage" {...style.attrs(styles.database)}>
             {/* top bar */}
             <nav {...style.attrs(styles.notionBar)}>
                 <span {...style.attrs(styles.notionCrumb)}>
-                    <span aria-hidden="true">🚀</span>
-                    Destack launch
+                    <span aria-hidden="true">🏠</span>
+                    Personal
                     <span {...style.attrs(styles.muted)}>/</span>
-                    <span aria-hidden="true">📰</span>
-                    Press
+                    <span aria-hidden="true">👥</span>
+                    People
                 </span>
                 <span {...style.attrs(styles.notionTools)}>
                     <span>Share</span>
@@ -236,15 +187,15 @@ export function NotionDatabase() {
             {/* title */}
             <div {...style.attrs(styles.databaseBody)}>
                 <b {...style.attrs(styles.databaseTitle)}>
-                    <span aria-hidden="true">📰</span>
-                    Press
+                    <span aria-hidden="true">👥</span>
+                    People
                 </b>
 
                 {/* views and tools */}
                 <span {...style.attrs(styles.views)}>
                     <span {...style.attrs(styles.view, styles.viewOn)}>
                         <Mark name="table" />
-                        All press
+                        All people
                     </span>
                     <span {...style.attrs(styles.view, styles.viewBoard)}>
                         <Mark name="board" />
@@ -271,7 +222,7 @@ export function NotionDatabase() {
                         </span>
                         <span {...style.attrs(styles.cell)}>
                             <Mark name="text" />
-                            Outlet
+                            Who
                         </span>
                         <span {...style.attrs(styles.cell)}>
                             <Mark name="select" />
@@ -282,17 +233,17 @@ export function NotionDatabase() {
                             Last contact
                         </span>
                     </span>
-                    {press.map(([name, outlet, state, last]) => (
+                    {people.map(([name, relation, state, last]) => (
                         <span {...style.attrs(styles.row)}>
                             <span {...style.attrs(styles.cell, styles.title)}>{name}</span>
-                            <span {...style.attrs(styles.cell)}>{outlet}</span>
+                            <span {...style.attrs(styles.cell)}>{relation}</span>
                             <span {...style.attrs(styles.cell)}>
                                 <span
                                     {...style.attrs(
                                         styles.tag,
-                                        state === "scheduled"
+                                        state === "clear"
                                             ? styles.tagGreen
-                                            : state === "replied"
+                                            : state === "owe"
                                               ? styles.tagBlue
                                               : styles.tagYellow,
                                     )}

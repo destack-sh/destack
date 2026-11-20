@@ -82,13 +82,13 @@ const offered: readonly Tool[] = tools.filter((tool) => tool.category in apps);
 
 /** The tools picked before the reader picks any, one for each job. */
 export const firstPicks: readonly Tool[] = [
-    "Notion",
-    "Calendly",
-    "Linear",
-    "Airtable",
-    "Slack",
     "Gmail",
-    "FigJam",
+    "Google Calendar",
+    "Notion",
+    "Google Sheets",
+    "Calendly",
+    "Slack",
+    "Trello",
     "Zapier",
 ].map(toolOf);
 
@@ -144,7 +144,7 @@ type Make = { name: string; icon: string; jobs: readonly Job[] };
 
 /** The apps you could make, each joining the apps of the jobs it needs. */
 const makes: readonly Make[] = [
-    { name: "Launch room", icon: "chat", jobs: ["documents", "chat"] },
+    { name: "Client room", icon: "chat", jobs: ["documents", "chat"] },
     { name: "Roadmap", icon: "tasks", jobs: ["documents", "tasks"] },
     { name: "Client portal", icon: "pages", jobs: ["documents", "tasks", "chat"] },
     { name: "CRM", icon: "table", jobs: ["tables", "mail", "calendar"] },

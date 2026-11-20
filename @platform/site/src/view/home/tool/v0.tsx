@@ -1,43 +1,44 @@
 import * as style from "@destack/style";
 
-import { joiners, perks } from "../verb/corner";
+import { overview, owed } from "../verb/corner";
 import { Favicon } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { v0 } from "./v0.stylex";
 
-/** Draw your waitlist as an app the UI generator made and deployed on the hosting platform. */
+/** Draw your Monday page as an app the UI generator made and deployed on the hosting platform. */
 export function V0() {
     return (
         <div data-component="V0Page" {...style.attrs(styles.page)}>
             <nav {...style.attrs(styles.nav)}>
-                <b>Destack</b>
+                <b>Monday</b>
                 <span {...style.attrs(styles.links)}>
-                    <span>Features</span>
-                    <span>FAQ</span>
+                    <span>Week</span>
+                    <span>People</span>
                 </span>
-                <span {...style.attrs(styles.navButton)}>Join waitlist</span>
+                <span {...style.attrs(styles.navButton)}>Sign in</span>
             </nav>
             <section {...style.attrs(styles.hero)}>
-                <span {...style.attrs(styles.badgeLine)}>Opens Friday, October 24 →</span>
-                <b {...style.attrs(styles.title)}>The software you'll actually own.</b>
+                <span {...style.attrs(styles.badgeLine)}>Week of October 20 →</span>
+                <b {...style.attrs(styles.title)}>What you said you'd do.</b>
                 <span {...style.attrs(styles.line)}>
-                    Destack opens on Friday. Leave your email and we'll send you an invite.
+                    Ines, Jonas and Mia are waiting on you. Here's what you said you'd do, and when
+                    you can.
                 </span>
                 <span {...style.attrs(styles.form)}>
-                    <span {...style.attrs(styles.input)}>name@example.com</span>
-                    <span {...style.attrs(styles.button)}>Join the waitlist</span>
+                    <span {...style.attrs(styles.input)}>Ask about your week</span>
+                    <span {...style.attrs(styles.button)}>Plan my week</span>
                 </span>
                 <span {...style.attrs(styles.proof)}>
                     <span {...style.attrs(styles.faces)}>
-                        {joiners.map(([initial]) => (
+                        {owed.map(([initial]) => (
                             <span {...style.attrs(styles.face)}>{initial}</span>
                         ))}
                     </span>
-                    Join 1,840 others
+                    3 waiting on you
                 </span>
             </section>
             <ul {...style.attrs(styles.cards)}>
-                {perks.map(([title, line]) => (
+                {overview.map(([title, line]) => (
                     <li {...style.attrs(styles.card)}>
                         <b>{title}</b>
                         <span {...style.attrs(styles.cardLine)}>{line}</span>

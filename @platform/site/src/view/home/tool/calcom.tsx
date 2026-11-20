@@ -30,7 +30,7 @@ export function CalCom() {
                 <div {...style.attrs(styles.event)}>
                     <span {...style.attrs(styles.avatar)}>F</span>
                     <span {...style.attrs(styles.host)}>Florian</span>
-                    <b {...style.attrs(styles.title)}>Destack demo</b>
+                    <b {...style.attrs(styles.title)}>Call with Florian</b>
                     <span {...style.attrs(styles.detail)}>
                         <Mark name="clock" size={16} />
                         30m

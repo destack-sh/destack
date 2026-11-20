@@ -10,7 +10,7 @@ import { Favicon, Glyph } from "../figure/glyph";
 import type { Entry, Item } from "../figure/item";
 import { entryOf, type Source } from "./source";
 import type { Stagger } from "../figure/stagger";
-import { type Change, remixOf, sectionOf } from "./apps";
+import { remixOf, sectionOf } from "./apps";
 import { AppRail, appStyles, appText } from "../figure/app";
 import { browserStyles } from "../figure/browser";
 import { AgentAvatar } from "../figure/agent";
@@ -118,7 +118,7 @@ const holdings: readonly Holding[] = [
         destacked: {
             label: "Custom",
             mark: { app: "build" },
-            name: "Waitlist",
+            name: "Monday",
             price: { kind: "included" },
         },
     },
@@ -174,7 +174,7 @@ const projects: Readonly<
     >
 > = {
     tracker: {
-        name: "Launch tracker",
+        name: "Booking app",
         icon: "computer",
         tint: "#57606a",
         site: "localhost:5173/",
@@ -184,7 +184,7 @@ const projects: Readonly<
         name: "Changelog",
         icon: "vercel",
         tint: "#111111",
-        site: "changelog-destack.vercel.app/",
+        site: "booking-changelog.vercel.app/",
         page: VercelChangelog,
     },
 };
@@ -194,7 +194,7 @@ function isProject(job: Job): job is Project {
     return job === "tracker" || job === "changelog";
 }
 
-/** Report whether you made the app on a row: the waitlist you built, or a project. */
+/** Report whether you made the app on a row: the Monday page you built, or a project. */
 function isYourApp(job: Job) {
     return job === "builder" || isProject(job);
 }
@@ -212,13 +212,13 @@ export const pages: readonly Page[] = [
     {
         row: 1,
         job: "documents",
-        path: "/launch",
+        path: "/notes/ines",
         viewers: ["Me", "Agent"],
     },
     {
         row: 2,
         job: "tables",
-        path: "/press",
+        path: "/people",
         viewers: ["Me", "Agent"],
     },
     {
@@ -248,7 +248,7 @@ export const pages: readonly Page[] = [
     {
         row: 7,
         job: "canvas",
-        path: "/plan",
+        path: "/board",
         viewers: ["Me", "Agent"],
     },
     {
@@ -260,8 +260,8 @@ export const pages: readonly Page[] = [
     {
         row: 9,
         job: "builder",
-        path: "/waitlist",
-        viewers: ["Me", "Agent", "Public"],
+        path: "/monday",
+        viewers: ["Me", "Agent"],
     },
     {
         row: 10,
@@ -272,8 +272,8 @@ export const pages: readonly Page[] = [
     {
         row: 11,
         job: "tracker",
-        path: "/launch-tracker",
-        viewers: ["Me", "Agent"],
+        path: "/booking",
+        viewers: ["Me", "Agent", "Public"],
     },
     {
         row: 12,
@@ -339,9 +339,9 @@ const sections: readonly (readonly [
     [6, "Mail", "mail", "#3d6fb0", ["Me", "Agent"]],
     [7, "Canvas", "canvas", "#c64a17", ["Me", "Agent"]],
     [8, "Workflows", "sync", "#3d6fb0", ["Me", "Agent"]],
-    [9, "Waitlist", "build", "#4f8a5b", ["Me", "Agent", "Public"]],
+    [9, "Monday", "build", "#4f8a5b", ["Me", "Agent"]],
     [10, "Connections", "cloud", "#3d6fb0", ["Me", "Agent"]],
-    [11, "Launch tracker", "telemetry", "#c64a17", ["Me", "Agent"]],
+    [11, "Booking app", "telemetry", "#c64a17", ["Me", "Agent", "Public"]],
     [12, "Changelog", "file", "#4f8a5b", ["Me", "Agent", "Public"]],
 ];
 
@@ -352,7 +352,6 @@ const railGlyphs: readonly string[] = [...RAIL_TOOLS, ...sections.map(([, , glyp
 export function SpaceBrowser(properties: {
     name: string;
     rows: readonly number[];
-    change: Change;
     isOpenAt: Stagger;
     page: Page;
     viewer: Viewer;
@@ -579,12 +578,7 @@ export function SpaceBrowser(properties: {
                             />
                             <main {...style.attrs(appStyles.main)}>
                                 {isAllowed() ? (
-                                    sectionOf(
-                                        properties.page.job,
-                                        properties.change,
-                                        properties.source,
-                                        isRemixed(),
-                                    )
+                                    sectionOf(properties.page.job, properties.source, isRemixed())
                                 ) : (
                                     <p data-component="AccessNote" {...style.attrs(styles.private)}>
                                         <Glyph name="lock" size={20} />

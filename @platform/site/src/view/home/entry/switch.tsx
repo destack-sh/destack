@@ -10,7 +10,7 @@ import { Timeout } from "@destack/view/primitives/timer";
 import { isMotionReduced } from "@destack/view/motion";
 import { palette } from "../../palette.stylex";
 
-import { commandEvents } from "../../layout/command";
+import { actionEvents } from "../../layout/action";
 import { Syllables } from "./entry";
 import { media } from "@destack/style/media.stylex";
 import { typeScale } from "../../layout/type.stylex";
@@ -50,7 +50,7 @@ export function StackSwitch(properties: {
                 onToggle={() => {
                     // flip the figures' rebuilt pieces in from now on and switch every figure
                     document.documentElement.dataset["switched"] = "";
-                    document.dispatchEvent(new CustomEvent(commandEvents.switchStack));
+                    document.dispatchEvent(new CustomEvent(actionEvents.switchStack));
                 }}
             />
         </span>
@@ -196,7 +196,7 @@ export function BottomBar(properties: { isOpen: boolean }) {
                 variant="ghost"
                 size="icon"
                 aria-label="Menu"
-                onClick={() => document.dispatchEvent(new CustomEvent(commandEvents.openMenu))}
+                onClick={() => document.dispatchEvent(new CustomEvent(actionEvents.openMenu))}
             >
                 <Icon icon={list} xstyle={styles.barIcon} />
             </Button>

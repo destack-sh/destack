@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-/** The colours of a waitlist the prompt-built app generator published, light and dark. */
+/** The colours of a Monday page the prompt-built app generator published, light and dark. */
 export const lovable = style.defineConsts({
     /** The page. */
     surface: "light-dark(#fffaf7, #110d0c)",

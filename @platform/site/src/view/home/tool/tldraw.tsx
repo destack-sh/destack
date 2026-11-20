@@ -69,7 +69,7 @@ const colours: readonly string[] = [
 /** The note colour of each column of the board, by its place. */
 const notes: readonly ("yellow" | "green" | "sky")[] = ["yellow", "green", "sky"];
 
-/** Draw the launch plan on the infinite canvas: one frame per column, a note per item. */
+/** Draw your week's board on the infinite canvas: one frame per column, a note per item. */
 export function Tldraw() {
     return (
         <div data-component="TldrawPage" {...style.attrs(styles.page)}>

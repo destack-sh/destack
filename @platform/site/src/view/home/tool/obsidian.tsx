@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { launch } from "../verb/corner";
+import { points } from "../verb/corner";
 import { site } from "../figure/site.stylex";
 import { obsidian } from "./obsidian.stylex";
 
@@ -58,25 +58,25 @@ const glyphs = {
 
 /** The vault's files, as the explorer lists them: name, depth, and whether it is a folder. */
 const files: readonly (readonly [name: string, depth: number, isFolder: boolean])[] = [
-    ["Launch", 0, true],
-    ["Destack launch", 1, false],
-    ["Pricing", 1, false],
-    ["Press kit", 1, false],
+    ["Clients", 0, true],
+    ["Ines Ferreira", 1, false],
+    ["Lena Okoye", 1, false],
+    ["Rates", 1, false],
     ["Meetings", 0, true],
-    ["Retros", 0, true],
+    ["Receipts", 0, true],
     ["Templates", 0, true],
     ["Inbox", 0, false],
 ];
 
 /** The note's properties: name, type glyph and value. */
 const fields: readonly (readonly [name: string, glyph: keyof typeof glyphs, value: string])[] = [
-    ["status", "text", "in progress"],
-    ["launch", "calendar", "2025-10-24"],
-    ["demo", "calendar", "2025-10-22 11:00"],
+    ["status", "text", "client"],
+    ["review", "calendar", "2025-10-22 11:00"],
+    ["handover", "calendar", "2025-11-28"],
     ["owner", "text", "Florian"],
 ];
 
-/** Draw the Destack launch plan as a note in a synced vault, in the app's default dark theme. */
+/** Draw your page on Ines as a note in a synced vault, in the app's default dark theme. */
 export function Obsidian() {
     return (
         <div data-component="ObsidianPage" {...style.attrs(styles.page)}>
@@ -109,18 +109,18 @@ export function Obsidian() {
                         {...style.attrs(
                             styles.file,
                             isFolder && styles.folder,
-                            name === "Destack launch" && styles.fileOn,
+                            name === "Ines Ferreira" && styles.fileOn,
                         )}
                     >
                         {isFolder ? (
-                            <Mark name={name === "Launch" ? "open" : "caret"} size={12} />
+                            <Mark name={name === "Clients" ? "open" : "caret"} size={12} />
                         ) : undefined}
                         {name}
                     </span>
                 ))}
                 <span {...style.attrs(styles.vault)}>
                     <Mark name="open" size={12} />
-                    Destack
+                    Personal
                     <span {...style.attrs(styles.vaultEnd)}>
                         <Mark name="help" size={14} />
                         <Mark name="gear" size={14} />
@@ -132,11 +132,11 @@ export function Obsidian() {
             <div {...style.attrs(styles.pane)}>
                 <span {...style.attrs(styles.tabs)}>
                     <span {...style.attrs(styles.tab)}>
-                        <span {...style.attrs(styles.tabName)}>Destack launch</span>
+                        <span {...style.attrs(styles.tabName)}>Ines Ferreira</span>
                         <Mark name="close" size={12} />
                     </span>
                     <span {...style.attrs(styles.tabQuiet)}>
-                        <span {...style.attrs(styles.tabName)}>Pricing</span>
+                        <span {...style.attrs(styles.tabName)}>Rates</span>
                     </span>
                     <span {...style.attrs(styles.newTab)}>
                         <Mark name="plus" size={14} />
@@ -146,9 +146,9 @@ export function Obsidian() {
                     <Mark name="back" size={16} />
                     <Mark name="forward" size={16} />
                     <span {...style.attrs(styles.crumbs)}>
-                        Launch
+                        Clients
                         <span {...style.attrs(styles.crumbRule)}>/</span>
-                        <span {...style.attrs(styles.crumbOn)}>Destack launch</span>
+                        <span {...style.attrs(styles.crumbOn)}>Ines Ferreira</span>
                     </span>
                     <Mark name="book" size={16} />
                     <Mark name="more" size={16} />
@@ -156,7 +156,7 @@ export function Obsidian() {
 
                 <article {...style.attrs(styles.note)}>
                     <b data-flip="title" {...style.attrs(styles.title)}>
-                        Destack launch
+                        Ines Ferreira
                     </b>
                     <span {...style.attrs(styles.propertiesHead)}>Properties</span>
                     <dl {...style.attrs(styles.properties)}>
@@ -174,8 +174,8 @@ export function Obsidian() {
                             tags
                         </dt>
                         <dd {...style.attrs(styles.value)}>
-                            <span {...style.attrs(styles.tag)}>launch</span>
-                            <span {...style.attrs(styles.tag)}>destack</span>
+                            <span {...style.attrs(styles.tag)}>client</span>
+                            <span {...style.attrs(styles.tag)}>booking-app</span>
                         </dd>
                     </dl>
                     <p {...style.attrs(styles.callout)}>
@@ -183,11 +183,12 @@ export function Obsidian() {
                             <Mark name="flame" size={16} />
                             Tip
                         </b>
-                        Ship to the waitlist on Thursday, then open signups on Friday.
+                        Runs a physio practice with three rooms. Wants card payments and her own
+                        domain before December.
                     </p>
-                    <b {...style.attrs(styles.heading)}>Before launch</b>
+                    <b {...style.attrs(styles.heading)}>Open points</b>
                     <ul {...style.attrs(styles.list)}>
-                        {launch.map(([item, isDone]) => (
+                        {points.map(([item, isDone]) => (
                             <li {...style.attrs(styles.item)}>
                                 <span {...style.attrs(styles.box, isDone && styles.boxDone)}>
                                     {isDone ? (
@@ -200,7 +201,7 @@ export function Obsidian() {
                             </li>
                         ))}
                     </ul>
-                    <span {...style.attrs(styles.link)}>[[Pricing]] · [[Press kit]]</span>
+                    <span {...style.attrs(styles.link)}>[[Rates]] · [[Booking app]]</span>
                 </article>
 
                 <span {...style.attrs(styles.status)}>

@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { welcome } from "../verb/corner";
+import { bookingFlow } from "../verb/corner";
 import { Favicon } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { make } from "./make.stylex";
@@ -47,14 +47,14 @@ const glyphs = {
 /** The mark of each module's app after the webhook: icon and colour. */
 const marks: readonly (readonly [icon: string, tint: string])[] = [
     ["", ""],
-    ["slack", "#4a154b"],
+    ["googlesheets", "#0f9d58"],
     ["gmail", "#ea4335"],
 ];
 
 /** The action of each module, as the builder names it. */
-const actions: readonly string[] = ["Custom webhook", "Create a Message", "Send an Email"];
+const actions: readonly string[] = ["Custom webhook", "Add a Row", "Send an Email"];
 
-/** Draw the welcome automation as a scenario of linked modules in the builder. */
+/** Draw the booking automation as a scenario of linked modules in the builder. */
 export function Make() {
     return (
         <div data-component="MakePage" {...style.attrs(styles.page)}>
@@ -78,7 +78,7 @@ export function Make() {
                 {/* header */}
                 <header {...style.attrs(styles.head)}>
                     <Mark name="back" size={18} />
-                    <b {...style.attrs(styles.name)}>Welcome new signups</b>
+                    <b {...style.attrs(styles.name)}>Confirm new bookings</b>
                     <Mark name="pencil" size={14} />
                     <span {...style.attrs(styles.headEnd)}>
                         <span {...style.attrs(styles.face)}>F</span>
@@ -88,7 +88,7 @@ export function Make() {
                 {/* modules */}
                 <div {...style.attrs(styles.canvas)}>
                     <div {...style.attrs(styles.modules)}>
-                        {welcome.map(([app], index) => (
+                        {bookingFlow.map(([app], index) => (
                             <>
                                 {index > 0 ? <span {...style.attrs(styles.link)} /> : undefined}
                                 <span {...style.attrs(styles.module)}>

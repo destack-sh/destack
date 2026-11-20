@@ -1,41 +1,42 @@
 import * as style from "@destack/style";
 
-import { joiners, perks } from "../verb/corner";
+import { overview, owed } from "../verb/corner";
 import { Favicon } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { replit } from "./replit.stylex";
 
-/** Draw your waitlist as an app built by prompt and hosted on the builder's own domain. */
+/** Draw your Monday page as an app built by prompt and hosted on the builder's own domain. */
 export function Replit() {
     return (
         <div data-component="ReplitPage" {...style.attrs(styles.replit)}>
             <nav {...style.attrs(styles.replitNav)}>
                 <b {...style.attrs(styles.replitBrand)}>
                     <span {...style.attrs(styles.replitLogo)}>✦</span>
-                    Destack
+                    Monday
                 </b>
                 <span {...style.attrs(styles.replitLinks)}>
-                    <span>Features</span>
-                    <span>Pricing</span>
-                    <span>FAQ</span>
+                    <span>Week</span>
+                    <span>People</span>
+                    <span>Tasks</span>
                 </span>
             </nav>
             <div {...style.attrs(styles.replitHero)}>
-                <span {...style.attrs(styles.replitPill)}>🚀 Launching Friday</span>
+                <span {...style.attrs(styles.replitPill)}>📅 Week of October 20</span>
                 <b {...style.attrs(styles.replitTitle)}>
                     The software{" "}
                     <span {...style.attrs(styles.replitGlow)}>you'll actually own</span>
                 </b>
                 <span {...style.attrs(styles.replitLine)}>
-                    Destack opens on Friday. Leave your email and we'll send you an invite.
+                    Ines, Jonas and Mia are waiting on you. Here's what you said you'd do, and when
+                    you can.
                 </span>
                 <span {...style.attrs(styles.replitForm)}>
-                    <span {...style.attrs(styles.replitInput)}>you@company.com</span>
-                    <span {...style.attrs(styles.replitButton)}>Join waitlist →</span>
+                    <span {...style.attrs(styles.replitInput)}>Ask about your week</span>
+                    <span {...style.attrs(styles.replitButton)}>Plan my week →</span>
                 </span>
                 <span {...style.attrs(styles.replitProof)}>
                     <span {...style.attrs(styles.replitFaces)}>
-                        {joiners.map(([initial, tint]) => (
+                        {owed.map(([initial, tint]) => (
                             <span
                                 style={{ "background-color": tint }}
                                 {...style.attrs(styles.replitFace)}
@@ -44,11 +45,11 @@ export function Replit() {
                             </span>
                         ))}
                     </span>
-                    Join 1,840 others on the list
+                    3 people waiting on a reply
                 </span>
             </div>
             <ul {...style.attrs(styles.replitPerks)}>
-                {perks.map(([title, line]) => (
+                {overview.map(([title, line]) => (
                     <li {...style.attrs(styles.replitPerk)}>
                         <b>{title}</b>
                         <span {...style.attrs(styles.replitPerkLine)}>{line}</span>

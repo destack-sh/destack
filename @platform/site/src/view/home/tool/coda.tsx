@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { press, type PressState } from "../verb/corner";
+import { people, type ReplyState } from "../verb/corner";
 import { Favicon } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { coda } from "./coda.stylex";
@@ -23,20 +23,20 @@ const glyphs = {
 
 /** The doc's pages: emoji, name, and whether it is the page shown. */
 const documentPages: readonly (readonly [emoji: string, name: string])[] = [
-    ["🚀", "Launch plan"],
-    ["📰", "Press"],
-    ["✉️", "Signups"],
+    ["📅", "This week"],
+    ["👥", "People"],
+    ["🧾", "Receipts"],
     ["📈", "Metrics"],
 ];
 
 /** The name each status chip shows. */
-const statusNames: Readonly<Record<PressState, string>> = {
-    pitched: "Pitched",
-    replied: "Replied",
-    scheduled: "Call booked",
+const statusNames: Readonly<Record<ReplyState, string>> = {
+    owe: "Reply owed",
+    waiting: "Waiting on them",
+    clear: "Up to date",
 };
 
-/** Draw the press list as a table on a page of the launch doc. */
+/** Draw the people you deal with as a table on a page of your personal doc. */
 export function Coda() {
     return (
         <div data-component="CodaPage" {...style.attrs(styles.page)}>
@@ -44,14 +44,14 @@ export function Coda() {
             <nav {...style.attrs(styles.side)}>
                 <span {...style.attrs(styles.doc)}>
                     <Favicon icon="coda" tint="#ee5a29" size={18} />
-                    <b>Destack launch</b>
+                    <b>Personal</b>
                 </span>
                 <span {...style.attrs(styles.search)}>
                     <Mark name="search" size={13} />
                     Search
                 </span>
                 {documentPages.map(([emoji, name]) => (
-                    <span {...style.attrs(styles.pageLink, name === "Press" && styles.pageOn)}>
+                    <span {...style.attrs(styles.pageLink, name === "People" && styles.pageOn)}>
                         <span>{emoji}</span>
                         {name}
                     </span>
@@ -65,7 +65,7 @@ export function Coda() {
             {/* the page */}
             <main {...style.attrs(styles.main)}>
                 <header {...style.attrs(styles.bar)}>
-                    <span {...style.attrs(styles.crumbs)}>Destack launch / Press</span>
+                    <span {...style.attrs(styles.crumbs)}>Personal / People</span>
                     <span {...style.attrs(styles.barEnd)}>
                         <span {...style.attrs(styles.face)}>F</span>
                         <span {...style.attrs(styles.share)}>Share</span>
@@ -76,13 +76,13 @@ export function Coda() {
                     <span aria-hidden="true" {...style.attrs(styles.emoji)}>
                         📰
                     </span>
-                    <b {...style.attrs(styles.title)}>Press</b>
+                    <b {...style.attrs(styles.title)}>People</b>
                     <p {...style.attrs(styles.text)}>
-                        Everyone we pitch for launch week, and where each conversation stands.
+                        Everyone I deal with, and whose turn it is to write.
                     </p>
 
                     <span {...style.attrs(styles.tableHead)}>
-                        <b>Press contacts</b>
+                        <b>People</b>
                         <span {...style.attrs(styles.viewChip)}>
                             All
                             <Mark name="caret" size={11} />
@@ -102,7 +102,7 @@ export function Coda() {
                             </span>
                             <span {...style.attrs(styles.cell)}>
                                 <Mark name="text" size={12} />
-                                Outlet
+                                Who
                             </span>
                             <span {...style.attrs(styles.cell)}>
                                 <Mark name="select" size={12} />
@@ -113,17 +113,17 @@ export function Coda() {
                                 Last contact
                             </span>
                         </span>
-                        {press.map(([name, outlet, state, last]) => (
+                        {people.map(([name, relation, state, last]) => (
                             <span {...style.attrs(styles.row)}>
                                 <span {...style.attrs(styles.cell, styles.strong)}>{name}</span>
-                                <span {...style.attrs(styles.cell)}>{outlet}</span>
+                                <span {...style.attrs(styles.cell)}>{relation}</span>
                                 <span {...style.attrs(styles.cell)}>
                                     <span
                                         {...style.attrs(
                                             styles.chip,
-                                            state === "scheduled"
+                                            state === "clear"
                                                 ? styles.green
-                                                : state === "replied"
+                                                : state === "owe"
                                                   ? styles.blue
                                                   : styles.yellow,
                                         )}

@@ -14,8 +14,8 @@ export const ifttt = style.defineConsts({
     tag: "light-dark(#e6e6e6, #333333)",
     /** The Webhooks service blue the applet's header wears, its trigger's colour. */
     webhooks: "#0099ff",
-    /** The Slack service tile. */
-    slack: "#4a154b",
+    /** The Google Sheets service tile. */
+    googlesheets: "#0f9d58",
     /** The Gmail service tile. */
     gmail: "#ea4335",
     /** The edge of the search field on the header band. */

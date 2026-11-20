@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { press, type PressState } from "../verb/corner";
+import { people, type ReplyState } from "../verb/corner";
 import { Favicon } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { googleSheets } from "./googlesheets.stylex";
@@ -47,20 +47,20 @@ const menus: readonly string[] = [
 /** The grid's columns: letter and header. */
 const columns: readonly (readonly [letter: string, header: string])[] = [
     ["A", "Name"],
-    ["B", "Outlet"],
+    ["B", "Who"],
     ["C", "Status"],
     ["D", "Last contact"],
     ["E", "Notes"],
 ];
 
 /** The name each status chip shows. */
-const statusNames: Readonly<Record<PressState, string>> = {
-    pitched: "Pitched",
-    replied: "Replied",
-    scheduled: "Call booked",
+const statusNames: Readonly<Record<ReplyState, string>> = {
+    owe: "Reply owed",
+    waiting: "Waiting on them",
+    clear: "Up to date",
 };
 
-/** Draw the press list as a shared spreadsheet, a status cell chosen. */
+/** Draw the people you deal with as a spreadsheet, a status cell chosen. */
 export function GoogleSheets() {
     return (
         <div data-component="GoogleSheetsPage" {...style.attrs(styles.page)}>
@@ -69,7 +69,7 @@ export function GoogleSheets() {
                 <Favicon icon="googlesheets" tint="#34a853" size={34} />
                 <span {...style.attrs(styles.titles)}>
                     <span {...style.attrs(styles.name)}>
-                        Launch – Press
+                        People
                         <span {...style.attrs(styles.nameTools)}>
                             <Mark name="star" size={16} />
                             <Mark name="move" size={16} />
@@ -153,20 +153,20 @@ export function GoogleSheets() {
                         <span {...style.attrs(styles.cell, styles.bold)}>{header}</span>
                     ))}
                 </span>
-                {press.map(([name, outlet, state, last], index) => (
+                {people.map(([name, relation, state, last], index) => (
                     <span {...style.attrs(styles.row)}>
                         <span {...style.attrs(styles.rowHead, index === 1 && styles.headOn)}>
                             {index + 2}
                         </span>
                         <span {...style.attrs(styles.cell)}>{name}</span>
-                        <span {...style.attrs(styles.cell)}>{outlet}</span>
+                        <span {...style.attrs(styles.cell)}>{relation}</span>
                         <span {...style.attrs(styles.cell, index === 1 && styles.cellOn)}>
                             <span
                                 {...style.attrs(
                                     styles.chip,
-                                    state === "scheduled"
+                                    state === "clear"
                                         ? styles.green
-                                        : state === "replied"
+                                        : state === "owe"
                                           ? styles.sky
                                           : styles.gray,
                                 )}
@@ -178,7 +178,7 @@ export function GoogleSheets() {
                         </span>
                         <span {...style.attrs(styles.cell, styles.number)}>{last}, 2025</span>
                         <span {...style.attrs(styles.cell, styles.quiet)}>
-                            {state === "scheduled" ? "Call Wed 15:00" : ""}
+                            {state === "owe" ? "Reply today" : ""}
                         </span>
                     </span>
                 ))}
@@ -197,10 +197,10 @@ export function GoogleSheets() {
                 <Mark name="plus" size={16} />
                 <Mark name="menu" size={16} />
                 <span {...style.attrs(styles.tab, styles.tabOn)}>
-                    Press
+                    People
                     <Mark name="caret" size={11} />
                 </span>
-                <span {...style.attrs(styles.tab)}>Signups</span>
+                <span {...style.attrs(styles.tab)}>Receipts</span>
                 <span {...style.attrs(styles.tab, styles.wideFlex)}>Content</span>
                 <span {...style.attrs(styles.explore)}>
                     <Mark name="explore" size={16} />

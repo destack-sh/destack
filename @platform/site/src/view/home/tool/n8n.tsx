@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { welcome } from "../verb/corner";
+import { bookingFlow } from "../verb/corner";
 import { Favicon } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { n8n } from "./n8n.stylex";
@@ -33,14 +33,14 @@ const glyphs = {
 /** The mark of each node's app after the webhook: icon and colour. */
 const marks: readonly (readonly [icon: string, tint: string])[] = [
     ["", ""],
-    ["slack", "#4a154b"],
+    ["googlesheets", "#0f9d58"],
     ["gmail", "#ea4335"],
 ];
 
 /** The operation each node runs, as the editor names it. */
-const operations: readonly string[] = ["POST /signup", "send: message", "send: message"];
+const operations: readonly string[] = ["POST /booking", "append: sheet", "send: message"];
 
-/** Draw the welcome automation as a workflow of nodes in the editor, its last run green. */
+/** Draw the booking automation as a workflow of nodes in the editor, its last run green. */
 export function N8n() {
     return (
         <div data-component="N8nPage" {...style.attrs(styles.page)}>
@@ -58,8 +58,8 @@ export function N8n() {
                 {/* header */}
                 <header {...style.attrs(styles.head)}>
                     <span {...style.attrs(styles.crumbs)}>Personal /</span>
-                    <b {...style.attrs(styles.name)}>Welcome new signups</b>
-                    <span {...style.attrs(styles.tag)}>launch</span>
+                    <b {...style.attrs(styles.name)}>Confirm new bookings</b>
+                    <span {...style.attrs(styles.tag)}>clients</span>
                     <span {...style.attrs(styles.headEnd)}>
                         <span {...style.attrs(styles.tabs)}>
                             <span {...style.attrs(styles.tabOn)}>Editor</span>
@@ -78,7 +78,7 @@ export function N8n() {
                 {/* nodes */}
                 <div {...style.attrs(styles.canvas)}>
                     <div {...style.attrs(styles.nodes)}>
-                        {welcome.map(([app, step], index) => (
+                        {bookingFlow.map(([app, step], index) => (
                             <>
                                 {index > 0 ? (
                                     <span {...style.attrs(styles.link)}>

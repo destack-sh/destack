@@ -29,11 +29,12 @@ import { AppHeader, appStyles, appText } from "../figure/app";
 import { AgentAvatar } from "../figure/agent";
 import {
     board,
+    commitments,
+    type CommitmentState,
     messages,
-    press,
-    type PressState,
+    people,
+    type ReplyState,
     runs,
-    signups,
     type TaskState,
     tasks,
     week,
@@ -64,12 +65,6 @@ const NOW = 10.6;
 /** The weekdays your week shows, with their dates. */
 const DAYS = ["Mon 20", "Tue 21", "Wed 22", "Thu 23", "Fri 24"];
 
-/** The workflow your agent adds in fig. 4, lit once it lands. */
-const ASKED_WORKFLOW = "asked-to-board";
-
-/** How far your agent has got in fig. 4: not yet, its board built, or its workflow added. */
-export type Change = "start" | "boarded" | "automated";
-
 /** The task states in the order the list groups them, with their names and marks. */
 const STATES: readonly (readonly [state: TaskState, name: string])[] = [
     ["started", "In progress"],
@@ -78,42 +73,42 @@ const STATES: readonly (readonly [state: TaskState, name: string])[] = [
     ["done", "Done"],
 ];
 
+/** The tasks you do for Ines, which her page lists. */
+const INES_TASKS: ReadonlySet<string> = new Set(["T-12", "T-14", "T-13"]);
+
 /** The object in another app each task points at, by the app's icon and the object's live value. */
 const taskLinks: Readonly<Record<string, readonly [icon: string, text: string]>> = {
-    "DST-12": ["pages", "Pricing · published"],
-    "DST-14": ["calendar", "Demo · Wed 11:00"],
-    "DST-16": ["mail", "400 of 400 sent"],
-    "DST-13": ["sync", "Runs Fri 09:00"],
-    "DST-15": ["pages", "Launch post"],
-    "DST-17": ["table", "1,840 waiting"],
-    "DST-18": ["sync", "Zapier · owner unknown"],
-    "DST-19": ["table", "9 subscriptions"],
+    "T-12": ["source", "PR #48 · merged"],
+    "T-14": ["calendar", "Review · Wed 11:00"],
+    "T-16": ["mail", "29 of 31 matched"],
+    "T-13": ["table", "3 clients"],
+    "T-15": ["mail", "Saturday?"],
+    "T-17": ["calendar", "Thu 08:30"],
+    "T-18": ["table", "Payments · Oct 12"],
+    "T-19": ["table", "4 unused"],
 };
 
-/** The messages each signup wrote in Chat, by address. */
-const signupMessages: Readonly<Record<string, string>> = {
-    "maya@northwind.io": "1 · #launch",
-    "noor@papertrail.fm": "3 · DM",
+/** The last you heard from the person behind each commitment, by person. */
+const lastHeard: Readonly<Record<string, string>> = {
+    "Ines Ferreira": "Mail · 10:14",
+    "Jonas Weber": "Mail · 09:31",
+    "Mia Sørensen": "Mail · 08:52",
+    "Kai Brandt": "Mail · Oct 19",
 };
 
-/** The invite each signup got from Mail, by address. */
-const signupInvites: Readonly<Record<string, string>> = {
-    "sam@quietly.so": "Opened",
-    "noor@papertrail.fm": "Clicked",
-    "ines@orbitlabs.eu": "Sent",
+/** The meeting coming up with the person behind each commitment, by person. */
+const nextMeeting: Readonly<Record<string, string>> = {
+    "Ines Ferreira": "Wed 11:00",
+    "Jonas Weber": "Tue 11:30",
+    "Mia Sørensen": "Fri 13:00",
 };
 
 /** Draw a section of your space by its row's job, changed by a call when one lands on it. */
-export function sectionOf(
-    job: Job,
-    change: Change,
-    source: Source,
-    isRemixed: boolean,
-): JSX.Element {
+export function sectionOf(job: Job, source: Source, isRemixed: boolean): JSX.Element {
     if (job === "documents") {
-        return <Launch isRemixed={isRemixed} />;
+        return <Person isRemixed={isRemixed} />;
     } else if (job === "tables") {
-        return <Press isRemixed={isRemixed} />;
+        return <People isRemixed={isRemixed} />;
     } else if (job === "tasks") {
         return <Tasks isRemixed={isRemixed} />;
     } else if (job === "calendar") {
@@ -123,11 +118,11 @@ export function sectionOf(
     } else if (job === "mail") {
         return <Mail isRemixed={isRemixed} />;
     } else if (job === "canvas") {
-        return <Plan isRemixed={isRemixed} />;
+        return <Board isRemixed={isRemixed} />;
     } else if (job === "workflows") {
-        return <Flows change={change} isRemixed={isRemixed} />;
+        return <Flows isRemixed={isRemixed} />;
     } else if (job === "builder") {
-        return <Signups change={change} isRemixed={isRemixed} />;
+        return <Commitments isRemixed={isRemixed} />;
     } else if (job === "tracker") {
         return <Tracker isRemixed={isRemixed} />;
     } else if (job === "changelog") {
@@ -137,42 +132,33 @@ export function sectionOf(
     return <Connection source={source} isRemixed={isRemixed} />;
 }
 
-/** Your workflows once your agent adds the one that puts new askers on the board. */
-const askedWorkflows = [
-    [ASKED_WORKFLOW, "on message.create in #launch", "0", "just now"] as const,
-    ...workflows,
-];
-
 /** A change your agent makes to an app of yours: what you ask for, and what it did. */
 type Remix = { ask: string; done: string };
 
 /** Return the change your agent makes to the app that does a job. */
 export function remixOf(job: Job, source: Source): Remix {
     if (job === "documents") {
-        return { ask: "Count down to the launch", done: "Added a countdown to the launch page" };
+        return { ask: "Show when I last talked to her", done: "Added Last talked to her page" };
     } else if (job === "tables") {
-        return { ask: "Flag press to follow up after 3 days", done: "Added Follow up to Press" };
+        return { ask: "Flag anyone I owe a reply for 3 days", done: "Added Owe a reply to People" };
     } else if (job === "tasks") {
         return { ask: "Add a priority to every task", done: "Added Priority to Tasks" };
     } else if (job === "calendar") {
         return { ask: "Keep my mornings free for focus", done: "Blocked 9–11 every weekday" };
     } else if (job === "chat") {
-        return { ask: "Pin the launch checklist in #launch", done: "Pinned the checklist" };
+        return { ask: "Pin what Ines and I agreed", done: "Pinned the agreed points" };
     } else if (job === "mail") {
-        return {
-            ask: "Add a P.S. with each person's referral link",
-            done: "Added a referral P.S.",
-        };
+        return { ask: "Attach the estimate when I reply", done: "Attached estimate-phase-2.pdf" };
     } else if (job === "canvas") {
-        return { ask: "Draw how the tasks depend on each other", done: "Drew task arrows" };
+        return { ask: "Draw what waits on what", done: "Drew the waiting arrows" };
     } else if (job === "workflows") {
         return { ask: "Tell me in Chat when a run fails", done: "Added failure alerts" };
     } else if (job === "builder") {
-        return { ask: "Show who referred each signup", done: "Added Referred by to Signups" };
+        return { ask: "Show when I last heard from each", done: "Added Last heard to Monday" };
     } else if (job === "tracker") {
         return { ask: "Link each milestone to its task", done: "Linked milestones to Tasks" };
     } else if (job === "changelog") {
-        return { ask: "Post each release to #launch", done: "Added Posted to Changelog" };
+        return { ask: "Post each release to Ines's channel", done: "Added Posted to Changelog" };
     }
 
     return { ask: `Chart my ${source.data} by week`, done: `Charted ${source.table} by week` };
@@ -180,19 +166,12 @@ export function remixOf(job: Job, source: Source): Remix {
 
 /** The priority your agent gives each task once you ask it to add one. */
 const priorities: Readonly<Record<string, string>> = {
-    "DST-14": "P1",
-    "DST-16": "P1",
-    "DST-13": "P2",
-    "DST-15": "P2",
-    "DST-17": "P3",
-    "DST-12": "P3",
-};
-
-/** Who referred each signup, which your agent reads from the launch post's links. */
-const referrals: Readonly<Record<string, string>> = {
-    "maya@northwind.io": "sam@quietly.so",
-    "tara@fieldnotes.co": "noor@papertrail.fm",
-    "sam@quietly.so": "Launch post",
+    "T-14": "P1",
+    "T-16": "P1",
+    "T-13": "P1",
+    "T-15": "P2",
+    "T-17": "P2",
+    "T-12": "P3",
 };
 
 /** The weekly totals of a connected app's chart, as shares of the busiest week. */
@@ -341,15 +320,15 @@ function StateMark(properties: { state: TaskState }) {
     );
 }
 
-/** Draw the launch plan: a page you and your agent edit, made of your other apps' parts. */
-function Launch(properties: { isRemixed: boolean }) {
-    // count the launch tasks done
-    const launchTasks = tasks.slice(0, 4);
-    const done = launchTasks.filter(([, , state]) => state === "done").length;
+/** Draw your page on Ines: notes you and your agent keep, made of your other apps' parts. */
+function Person(properties: { isRemixed: boolean }) {
+    // count her tasks done
+    const herTasks = tasks.filter(([id]) => INES_TASKS.has(id));
+    const done = herTasks.filter(([, , state]) => state === "done").length;
 
     return (
         <Paned>
-            <AppHeader title="Destack launch">
+            <AppHeader title="Ines Ferreira">
                 <Present />
                 <span {...style.attrs(appStyles.action, styles.wide)}>Agent edited just now</span>
                 <span {...style.attrs(appStyles.primary)}>Share</span>
@@ -358,46 +337,48 @@ function Launch(properties: { isRemixed: boolean }) {
                 <div {...style.attrs(appStyles.properties)}>
                     <span {...style.attrs(appStyles.property)}>
                         <StateMark state="started" />
-                        In progress
+                        Client
                     </span>
-                    <span {...style.attrs(appStyles.property)}>Fri 24 Oct</span>
+                    <span {...style.attrs(appStyles.property)}>Booking app</span>
                     <span data-xray="Analytics" {...style.attrs(appStyles.property, styles.wide)}>
-                        312 views
+                        14 mails this month
                     </span>
                     <span
                         data-xray="Jobs"
                         data-source="Calendar event"
                         {...style.attrs(appStyles.property)}
                     >
-                        Demo · Wed 11:00
+                        Review · Wed 11:00
                     </span>
                     {properties.isRemixed ? (
                         <span {...style.attrs(appStyles.property, styles.on, styles.changed)}>
-                            3 days to launch
+                            Last talked Mon 11:30
                         </span>
                     ) : undefined}
                 </div>
                 <p {...style.attrs(appText.body)}>
-                    Ship to the waitlist on Thursday, then open signups on Friday. Pricing goes live
-                    with the launch post.
+                    Runs a physio practice with three rooms. Phase 2 adds card payments and moves
+                    the app to her own domain before December.
                 </p>
                 <div {...style.attrs(styles.annotated)}>
-                    {/* the launch tasks, a live view of the Tasks app */}
+                    {/* her tasks, a live view of the Tasks app */}
                     <div
                         data-xray="Database"
                         data-source="Tasks list"
                         {...style.attrs(styles.embed)}
                     >
                         <span {...style.attrs(appText.meta, styles.embedHead)}>
-                            <b>Launch tasks</b>
-                            <span {...style.attrs(styles.quiet)}>{done} of 4 done</span>
+                            <b>Tasks for Ines</b>
+                            <span {...style.attrs(styles.quiet)}>
+                                {done} of {herTasks.length} done
+                            </span>
                             <Progress
-                                value={done * 25}
+                                value={(done * 100) / herTasks.length}
                                 aria-label="Tasks done"
                                 xstyle={styles.progress}
                             />
                         </span>
-                        {launchTasks.map(([id, title, state, owner, tint, due]) => (
+                        {herTasks.map(([id, title, state, owner, tint, due]) => (
                             <span {...style.attrs(appText.body, styles.embedRow)}>
                                 <StateMark state={state} />
                                 <span
@@ -430,20 +411,20 @@ function Launch(properties: { isRemixed: boolean }) {
                             <span {...style.attrs(appText.meta, styles.quiet)}>09:13</span>
                         </span>
                         <span {...style.attrs(appText.meta)}>
-                            Ines booked the demo for Wednesday, so I linked it here and in DST-14.
+                            She asked about card payments, so I linked it here and in T-14.
                         </span>
                         <span {...style.attrs(appText.meta, styles.quiet)}>Reply</span>
                     </aside>
                 </div>
 
-                {/* the launch week, a live view of the Calendar app */}
+                {/* this week, a live view of the Calendar app */}
                 <div
                     data-xray="Database"
                     data-source="Calendar week"
                     {...style.attrs(styles.embed)}
                 >
                     <span {...style.attrs(appText.meta, styles.embedHead)}>
-                        <b>Launch week</b>
+                        <b>This week</b>
                         <span {...style.attrs(styles.quiet)}>Oct 20 – 24</span>
                     </span>
                     <span {...style.attrs(styles.days)}>
@@ -476,11 +457,11 @@ function Launch(properties: { isRemixed: boolean }) {
                     </span>
                 </div>
 
-                {/* the pricing draft, attached */}
+                {/* the estimate draft, attached */}
                 <span {...style.attrs(styles.attachment)}>
                     <Icon icon={fileText} />
-                    <span>pricing-v3.pdf</span>
-                    <span {...style.attrs(appText.meta, styles.quiet)}>2.4 MB</span>
+                    <span>estimate-phase-2.pdf</span>
+                    <span {...style.attrs(appText.meta, styles.quiet)}>180 KB</span>
                 </span>
             </article>
         </Paned>
@@ -494,17 +475,17 @@ function timeOf(hour: number): string {
     return `${String(Math.floor(hour))}:${String(minutes).padStart(2, "0")}`;
 }
 
-/** Report whether a launch item carries the agent's comment. */
+/** Report whether a task carries the agent's comment. */
 function isCommented(item: string): boolean {
-    return item.startsWith("Record");
+    return item.startsWith("Send Ines");
 }
 
-/** Draw the launch tasks: your list grouped by state, your agent working through its share. */
+/** Draw your tasks: your list grouped by state, your agent working through its share. */
 function Tasks(properties: { isRemixed: boolean }) {
     return (
         <Paned>
             <Toolbar
-                title="Launch tasks"
+                title="Tasks"
                 actions={<span {...style.attrs(appStyles.primary)}>+ New task</span>}
             >
                 <span {...style.attrs(appStyles.property, styles.on)}>
@@ -521,7 +502,7 @@ function Tasks(properties: { isRemixed: boolean }) {
                 </span>
                 <span data-xray="Jobs" {...style.attrs(appStyles.property, styles.wide)}>
                     <ServiceGlyph icon="sync" />
-                    When done, post in #launch
+                    When done, tell whoever asked
                 </span>
                 {properties.isRemixed ? (
                     <span {...style.attrs(appStyles.property, styles.on, styles.changed)}>
@@ -565,7 +546,7 @@ function Tasks(properties: { isRemixed: boolean }) {
                                                 </span>
                                             ) : undefined}
                                             {title}
-                                            {id === "DST-15" ? (
+                                            {id === "T-15" ? (
                                                 <span
                                                     data-xray="Jobs"
                                                     {...style.attrs(styles.agentNote)}
@@ -588,28 +569,28 @@ function Tasks(properties: { isRemixed: boolean }) {
     );
 }
 
-/** Draw the launch channel: its topic and members, a day of messages, and the composer. */
+/** Draw the channel you share with Ines: its members, a day of messages, and the composer. */
 function Chat(properties: { isRemixed: boolean }) {
     return (
         <Paned>
             <div {...style.attrs(styles.channelHead)}>
-                <b {...style.attrs(appText.heading)}># launch</b>
+                <b {...style.attrs(appText.heading)}># booking-app</b>
                 <span {...style.attrs(appText.meta, styles.quiet, styles.wide)}>
-                    Ship v4 on Friday
+                    Phase 2 before December
                 </span>
                 <span data-xray="Identity" {...style.attrs(styles.members)}>
                     <AvatarGroup aria-label="Members">
                         <Face owner="F" />
                         <Face owner="A" />
-                        <Face owner="M" tint={palette.rust} />
+                        <Face owner="I" tint={palette.berry} />
                     </AvatarGroup>
-                    <span {...style.attrs(appText.meta, styles.quiet)}>4</span>
+                    <span {...style.attrs(appText.meta, styles.quiet)}>3</span>
                 </span>
             </div>
             {/* the checklist your agent pins when asked */}
             {properties.isRemixed ? (
                 <div {...style.attrs(appText.meta, styles.pinned, styles.changed)}>
-                    <b>Pinned</b> Launch checklist · 4 of 6 done
+                    <b>Pinned</b> Agreed · cards at booking, her domain by December
                 </div>
             ) : undefined}
             <div {...style.attrs(appText.meta, styles.divider)}>
@@ -623,7 +604,11 @@ function Chat(properties: { isRemixed: boolean }) {
                         data-xray={index === 0 ? "Database" : undefined}
                         {...style.attrs(styles.message)}
                     >
-                        <Face owner={author === "Agent" ? "A" : "F"} size="default" />
+                        <Face
+                            owner={author === "Agent" ? "A" : author.slice(0, 1)}
+                            tint={author === "Ines" ? palette.berry : palette.teal}
+                            size="default"
+                        />
                         <div {...style.attrs(styles.messageBody)}>
                             <span {...style.attrs(appText.body)}>
                                 <b>{author}</b> <span {...style.attrs(styles.quiet)}>{time}</span>
@@ -633,7 +618,9 @@ function Chat(properties: { isRemixed: boolean }) {
                                 <span {...style.attrs(styles.linked)}>
                                     <StateMark state="started" />
                                     <span {...style.attrs(styles.linkedText)}>
-                                        <b {...style.attrs(appText.meta)}>DST-14 Record the demo</b>
+                                        <b {...style.attrs(appText.meta)}>
+                                            T-14 Send Ines the estimate
+                                        </b>
                                         <span {...style.attrs(appText.meta, styles.quiet)}>
                                             Tasks · due Wed 11:00
                                         </span>
@@ -643,9 +630,9 @@ function Chat(properties: { isRemixed: boolean }) {
                             {index === 1 ? (
                                 <span {...style.attrs(styles.inline)}>
                                     <span {...style.attrs(styles.reaction, styles.reactionOn)}>
-                                        👍 2
+                                        👍 1
                                     </span>
-                                    <span {...style.attrs(styles.reaction)}>🚀 1</span>
+                                    <span {...style.attrs(styles.reaction)}>🙏 1</span>
                                 </span>
                             ) : undefined}
                             {index === 2 ? (
@@ -665,7 +652,7 @@ function Chat(properties: { isRemixed: boolean }) {
                 ))}
             </div>
             <div {...style.attrs(styles.composer)}>
-                <span {...style.attrs(appText.body, styles.quiet)}>Message #launch</span>
+                <span {...style.attrs(appText.body, styles.quiet)}>Message #booking-app</span>
                 <span {...style.attrs(styles.composerTools)}>
                     <Icon icon={paperclip} />
                     <Icon icon={at} />
@@ -683,12 +670,12 @@ function Chat(properties: { isRemixed: boolean }) {
     );
 }
 
-/** Draw the press list as a table, its mail and calls read live from Mail and Calendar. */
-function Press(properties: { isRemixed: boolean }) {
+/** Draw the people you deal with, their mail and meetings read live from Mail and Calendar. */
+function People(properties: { isRemixed: boolean }) {
     return (
         <Paned>
             <Toolbar
-                title="Press"
+                title="People"
                 actions={
                     <>
                         <span {...style.attrs(appStyles.action)}>Grid</span>
@@ -698,11 +685,11 @@ function Press(properties: { isRemixed: boolean }) {
             >
                 <span data-xray="Database" {...style.attrs(appStyles.property)}>
                     <Icon icon={magnifyingGlass} />
-                    Search {press.length} contacts
+                    Search {people.length} people
                 </span>
                 {properties.isRemixed ? (
                     <span {...style.attrs(appStyles.property, styles.on, styles.changed)}>
-                        Follow up after 3 days
+                        Owe a reply after 3 days
                     </span>
                 ) : undefined}
             </Toolbar>
@@ -710,7 +697,7 @@ function Press(properties: { isRemixed: boolean }) {
                 <TableHeader>
                     <TableRow>
                         <TableHead>Name</TableHead>
-                        <TableHead>Outlet</TableHead>
+                        <TableHead>Who</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>
                             <span {...style.attrs(styles.joined)}>
@@ -720,18 +707,18 @@ function Press(properties: { isRemixed: boolean }) {
                         </TableHead>
                         <TableHead xstyle={properties.isRemixed && styles.changed}>
                             {properties.isRemixed ? (
-                                "Follow up"
+                                "Owe a reply"
                             ) : (
                                 <span {...style.attrs(styles.joined)}>
                                     <ServiceGlyph icon="calendar" />
-                                    Call
+                                    Next
                                 </span>
                             )}
                         </TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {press.map(([name, outlet, state, last, tint]) => (
+                    {people.map(([name, relation, state, last, tint]) => (
                         <TableRow>
                             <TableCell xstyle={appText.body}>
                                 <span {...style.attrs(styles.inline)}>
@@ -739,25 +726,25 @@ function Press(properties: { isRemixed: boolean }) {
                                     {name}
                                 </span>
                             </TableCell>
-                            <TableCell xstyle={[appText.body, styles.quiet]}>{outlet}</TableCell>
+                            <TableCell xstyle={[appText.body, styles.quiet]}>{relation}</TableCell>
                             <TableCell xstyle={appText.body}>
                                 <span {...style.attrs(appStyles.property)}>
                                     <span
                                         {...style.attrs(
                                             styles.dot,
-                                            state === "scheduled"
+                                            state === "clear"
                                                 ? styles.live
-                                                : state === "replied"
-                                                  ? styles.amber
-                                                  : styles.idle,
+                                                : state === "waiting"
+                                                  ? styles.idle
+                                                  : styles.amber,
                                         )}
                                     />
-                                    {pressStates[state]}
+                                    {replyStates[state]}
                                 </span>
                             </TableCell>
                             <TableCell xstyle={[appText.body, styles.quiet]}>{last}</TableCell>
                             <TableCell xstyle={[appText.body, styles.quiet]}>
-                                {callOf(state, properties.isRemixed)}
+                                {nextOf(name, state, properties.isRemixed)}
                             </TableCell>
                         </TableRow>
                     ))}
@@ -767,30 +754,30 @@ function Press(properties: { isRemixed: boolean }) {
     );
 }
 
-/** Return a press row's last column: its follow-up once remixed, or else its call's time. */
-function callOf(state: PressState, isRemixed: boolean): string {
-    // follow up on the pitched once remixed
+/** Return a person's last column: a reply you owe once remixed, else your next meeting. */
+function nextOf(name: string, state: ReplyState, isRemixed: boolean): string {
+    // flag the replies you owe once remixed
     if (isRemixed) {
-        return state === "pitched" ? "Due tomorrow" : "–";
+        return state === "owe" ? "Today" : "–";
     }
 
-    // read the call from the demo booking
-    return state === "scheduled" ? "Wed 11:00" : "–";
+    // read the next meeting from Calendar
+    return nextMeeting[name] ?? "–";
 }
 
-/** The name each press state shows. */
-const pressStates: Readonly<Record<PressState, string>> = {
-    pitched: "Pitched",
-    replied: "Replied",
-    scheduled: "Call booked",
+/** The name each reply state shows. */
+const replyStates: Readonly<Record<ReplyState, string>> = {
+    owe: "Reply owed",
+    waiting: "Waiting on them",
+    clear: "Up to date",
 };
 
-/** Draw the launch plan as a board of notes, each task's note live from Tasks. */
-function Plan(properties: { isRemixed: boolean }) {
+/** Draw your week as a board of notes, each task's note live from Tasks. */
+function Board(properties: { isRemixed: boolean }) {
     return (
         <Paned>
             <Toolbar
-                title="Launch plan"
+                title="This week"
                 actions={
                     <>
                         <Present />
@@ -800,7 +787,7 @@ function Plan(properties: { isRemixed: boolean }) {
             >
                 {properties.isRemixed ? (
                     <span {...style.attrs(appStyles.property, styles.on, styles.changed)}>
-                        Tasks drawn as arrows
+                        What waits on what, drawn as arrows
                     </span>
                 ) : undefined}
             </Toolbar>
@@ -835,11 +822,8 @@ function Plan(properties: { isRemixed: boolean }) {
     );
 }
 
-/** Draw the workflows of your space and their runs, a new one first once your agent adds it. */
-function Flows(properties: { change: Change; isRemixed: boolean }) {
-    // list your agent's workflow first once it adds it
-    const isAutomated = () => properties.change === "automated";
-
+/** Draw the workflows of your space and their runs. */
+function Flows(properties: { isRemixed: boolean }) {
     return (
         <Paned>
             <Toolbar
@@ -852,7 +836,7 @@ function Flows(properties: { change: Change; isRemixed: boolean }) {
                 }
             >
                 <span data-xray="Jobs" {...style.attrs(appStyles.property)}>
-                    {isAutomated() ? "5 workflows" : "4 workflows"}
+                    {workflows.length} workflows
                 </span>
                 {properties.isRemixed ? (
                     <span {...style.attrs(appStyles.property, styles.on, styles.changed)}>
@@ -870,25 +854,21 @@ function Flows(properties: { change: Change; isRemixed: boolean }) {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {(isAutomated() ? askedWorkflows : workflows).map(
-                        ([name, trigger, total, last]) => (
-                            <TableRow
-                                xstyle={isAutomated() && name === ASKED_WORKFLOW && styles.changed}
-                            >
-                                <TableCell xstyle={appText.body}>
-                                    <span {...style.attrs(styles.inline)}>
-                                        <ServiceGlyph icon="sync" />
-                                        <b {...style.attrs(styles.code)}>{name}</b>
-                                    </span>
-                                </TableCell>
-                                <TableCell xstyle={[appText.body, styles.quiet, styles.code]}>
-                                    {trigger}
-                                </TableCell>
-                                <TableCell xstyle={[appText.body, styles.quiet]}>{total}</TableCell>
-                                <TableCell xstyle={[appText.body, styles.quiet]}>{last}</TableCell>
-                            </TableRow>
-                        ),
-                    )}
+                    {workflows.map(([name, trigger, total, last]) => (
+                        <TableRow>
+                            <TableCell xstyle={appText.body}>
+                                <span {...style.attrs(styles.inline)}>
+                                    <ServiceGlyph icon="sync" />
+                                    <b {...style.attrs(styles.code)}>{name}</b>
+                                </span>
+                            </TableCell>
+                            <TableCell xstyle={[appText.body, styles.quiet, styles.code]}>
+                                {trigger}
+                            </TableCell>
+                            <TableCell xstyle={[appText.body, styles.quiet]}>{total}</TableCell>
+                            <TableCell xstyle={[appText.body, styles.quiet]}>{last}</TableCell>
+                        </TableRow>
+                    ))}
                 </TableBody>
             </Table>
 
@@ -955,9 +935,9 @@ function Week(properties: { isRemixed: boolean }) {
                     );
                 })}
 
-                {/* run the launch across the whole week */}
+                {/* run the month's books across the whole week */}
                 <span {...style.attrs(styles.allDayName)}>all day</span>
-                <span {...style.attrs(styles.allDay)}>Launch week</span>
+                <span {...style.attrs(styles.allDay)}>Books close Friday</span>
 
                 {/* rule the hours, and part the days */}
                 <span
@@ -1041,7 +1021,7 @@ function EventTitle(properties: { title: string }) {
     return (
         <span {...style.attrs(styles.eventName)}>
             {link === undefined ? undefined : (
-                <ServiceGlyph icon={link.startsWith("DST-") ? "tasks" : "mail"} />
+                <ServiceGlyph icon={link.startsWith("T-") ? "tasks" : "mail"} />
             )}
             <span {...style.attrs(styles.clip)}>{name}</span>
         </span>
@@ -1053,122 +1033,104 @@ function rowOf(hour: number): number {
     return 3 + (hour - OPEN) * 2;
 }
 
-/** Draw the launch mail. */
+/** Draw Ines's mail in your inbox, her person card beside it from Notes and Calendar. */
 function Mail(properties: { isRemixed: boolean }) {
     return (
         <Paned>
             <Toolbar
-                title="Destack opens Friday"
+                title="Re: Phase 2"
                 actions={
                     <>
-                        <span {...style.attrs(appStyles.action, styles.wide)}>
-                            Agent drafted 09:40
-                        </span>
-                        <span data-xray="Jobs" {...style.attrs(appStyles.primary)}>
-                            Send Fri 09:00
-                        </span>
+                        <span {...style.attrs(appStyles.action, styles.wide)}>Archive</span>
+                        <span {...style.attrs(appStyles.primary)}>Reply</span>
                     </>
                 }
             >
                 <span data-xray="Database" {...style.attrs(appStyles.property, styles.on)}>
                     <Icon icon={at} />
-                    To Signups · Waiting
+                    From Ines Ferreira
                 </span>
-                <span {...style.attrs(appStyles.property)}>1,840 people</span>
                 <span data-xray="Messaging" {...style.attrs(appStyles.property)}>
-                    From hello@destack.sh
+                    10:14
                 </span>
                 {properties.isRemixed ? (
                     <span {...style.attrs(appStyles.property, styles.on, styles.changed)}>
-                        P.S. with referral link
+                        estimate-phase-2.pdf
                     </span>
                 ) : undefined}
             </Toolbar>
-            {/* the agent's send, held for your approval until it goes */}
-            <div {...style.attrs(styles.approval)}>
-                <Face owner="A" />
-                <span {...style.attrs(appText.meta)}>
-                    Claude wants to send this to 1,840 people
-                </span>
-                <span {...style.attrs(styles.approvalButtons)}>
-                    <span {...style.attrs(appStyles.action)}>Decline</span>
-                    <span {...style.attrs(appStyles.primary)}>Approve</span>
-                </span>
-            </div>
             <article {...style.attrs(styles.document)}>
-                <p {...style.attrs(appText.body)}>Hi Maya,</p>
+                <p {...style.attrs(appText.body)}>Hi Florian,</p>
                 <p {...style.attrs(appText.body)}>
-                    Destack opens on Friday, and you're in. Your invite link works from 09:00, and
-                    early pricing holds for everyone on the waitlist.
+                    Wednesday at 11 works. Can you bring the estimate? I'd like to decide on card
+                    payments then.
                 </p>
-                <p {...style.attrs(appText.body)}>See you there, Florian</p>
+                <p {...style.attrs(appText.body)}>Ines</p>
+
+                {/* her person card, the same one People shows, from Notes and Calendar */}
+                <div data-xray="Database" data-source="Person card" {...style.attrs(styles.embed)}>
+                    <span {...style.attrs(appText.meta, styles.embedHead)}>
+                        <Face owner="I" tint={palette.berry} />
+                        <b>Ines Ferreira</b>
+                        <span {...style.attrs(styles.quiet)}>Client · booking app</span>
+                    </span>
+                    {card.map(([icon, label, value]) => (
+                        <span {...style.attrs(appText.body, styles.embedRow, styles.recipient)}>
+                            <span {...style.attrs(styles.inline)}>
+                                <ServiceGlyph icon={icon} />
+                                {label}
+                            </span>
+                            <span {...style.attrs(styles.clip)}>{value}</span>
+                        </span>
+                    ))}
+                </div>
                 <aside {...style.attrs(styles.note)}>
                     <span {...style.attrs(styles.commentHead)}>
                         <Face owner="A" />
                         <b {...style.attrs(appText.meta)}>Agent</b>
-                        <span {...style.attrs(appText.meta, styles.quiet)}>09:40</span>
+                        <span {...style.attrs(appText.meta, styles.quiet)}>10:15</span>
                     </span>
                     <span {...style.attrs(appText.meta)}>
-                        Reads Signups at send time, so Thursday's joiners get it too.
+                        The estimate is drafted in T-14. I'll attach it when you reply.
                     </span>
                 </aside>
-
-                {/* the recipients, a live view of the Signups table */}
-                <div data-xray="Database" data-source="Tables view" {...style.attrs(styles.embed)}>
-                    <span {...style.attrs(appText.meta, styles.embedHead)}>
-                        <b>Signups</b>
-                        <span {...style.attrs(styles.quiet)}>Waiting · 1,840</span>
-                    </span>
-                    {signups
-                        .filter(([, , , state]) => state === "waiting")
-                        .map(([email, source, joined]) => (
-                            <span {...style.attrs(appText.body, styles.embedRow, styles.recipient)}>
-                                <span {...style.attrs(styles.clip)}>{email}</span>
-                                <span {...style.attrs(appText.meta, styles.quiet)}>{source}</span>
-                                <span {...style.attrs(appText.meta, styles.quiet)}>{joined}</span>
-                            </span>
-                        ))}
-                    <span {...style.attrs(appText.meta, styles.quiet, styles.more)}>
-                        and 1,836 more
-                    </span>
-                </div>
             </article>
         </Paned>
     );
 }
 
-/** Draw your waitlist's signups. */
-function Signups(properties: { change: Change; isRemixed: boolean }) {
-    // show your agent's board as a view of the signups once it builds it
-    const isBoarded = () => properties.change !== "start";
+/** Ines's person card in Mail: each line's app, its label and its live value. */
+const card: readonly (readonly [icon: string, label: string, value: string])[] = [
+    ["pages", "Notes", "4 notes"],
+    ["calendar", "Last talked", "Mon 11:30"],
+    ["calendar", "Next", "Wed 11:00"],
+    ["tasks", "You owe her", "The estimate"],
+];
 
+/** Draw your Monday page: what you said you'd do in mail and chat, and to whom. */
+function Commitments(properties: { isRemixed: boolean }) {
     return (
         <Paned>
             <Toolbar
-                title="Signups"
+                title="Monday"
                 actions={
                     <>
                         <span data-xray="Analytics" {...style.attrs(appStyles.action)}>
-                            24 joined today
+                            3 open
                         </span>
-                        <span {...style.attrs(appStyles.primary)}>Invite 400</span>
+                        <span {...style.attrs(appStyles.primary)}>Plan my week</span>
                     </>
                 }
             >
                 <span data-xray="Database" {...style.attrs(appStyles.property)}>
                     <Icon icon={magnifyingGlass} />
-                    Search 1,840 signups
+                    Search {commitments.length} commitments
                 </span>
                 <span {...style.attrs(appStyles.property, styles.on)}>
                     <Icon icon={funnel} />
-                    Waiting
+                    Open
                 </span>
-                <span {...style.attrs(appStyles.property)}>Source: any</span>
-                {isBoarded() ? (
-                    <span {...style.attrs(appStyles.property, styles.on, styles.changed)}>
-                        Launch askers · 9 · shared with Jonas
-                    </span>
-                ) : undefined}
+                <span {...style.attrs(appStyles.property)}>From mail and chat</span>
             </Toolbar>
             <Table data-xray="Database">
                 <TableHeader>
@@ -1176,54 +1138,54 @@ function Signups(properties: { change: Change; isRemixed: boolean }) {
                         <TableHead xstyle={styles.select}>
                             <Checkbox aria-label="Select all" indeterminate />
                         </TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Source</TableHead>
+                        <TableHead>To</TableHead>
+                        <TableHead>What you said</TableHead>
                         <TableHead xstyle={properties.isRemixed && styles.changed}>
                             {properties.isRemixed ? (
-                                "Referred by"
-                            ) : (
                                 <span {...style.attrs(styles.joined)}>
-                                    <ServiceGlyph icon="chat" />
-                                    Messages
+                                    <ServiceGlyph icon="mail" />
+                                    Last heard
                                 </span>
+                            ) : (
+                                "Said"
                             )}
                         </TableHead>
                         <TableHead>
                             <span {...style.attrs(styles.joined)}>
-                                <ServiceGlyph icon="mail" />
-                                Invite
+                                <ServiceGlyph icon="calendar" />
+                                Next
                             </span>
                         </TableHead>
                         <TableHead>Status</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {signups.map(([email, source, , state], index) => (
+                    {commitments.map(([person, what, said, state]) => (
                         <TableRow>
                             <TableCell xstyle={styles.select}>
-                                <Checkbox checked={index < 4} aria-label={email} />
+                                <Checkbox checked={state === "kept"} aria-label={what} />
                             </TableCell>
-                            <TableCell xstyle={appText.body}>{email}</TableCell>
-                            <TableCell xstyle={appText.body}>
-                                <span {...style.attrs(appStyles.property)}>{source}</span>
+                            <TableCell xstyle={appText.body}>{person}</TableCell>
+                            <TableCell xstyle={appText.body}>{what}</TableCell>
+                            <TableCell xstyle={[appText.body, styles.quiet]}>
+                                {properties.isRemixed ? (lastHeard[person] ?? "–") : said}
                             </TableCell>
                             <TableCell xstyle={[appText.body, styles.quiet]}>
-                                {properties.isRemixed
-                                    ? (referrals[email] ?? "–")
-                                    : (signupMessages[email] ?? "–")}
-                            </TableCell>
-                            <TableCell xstyle={[appText.body, styles.quiet]}>
-                                {signupInvites[email] ?? (index < 4 ? "Batch 1" : "Next batch")}
+                                {nextMeeting[person] ?? "–"}
                             </TableCell>
                             <TableCell xstyle={appText.body}>
                                 <span {...style.attrs(appStyles.property)}>
                                     <span
                                         {...style.attrs(
                                             styles.dot,
-                                            state === "invited" ? styles.live : styles.amber,
+                                            state === "kept"
+                                                ? styles.live
+                                                : state === "waiting"
+                                                  ? styles.idle
+                                                  : styles.amber,
                                         )}
                                     />
-                                    {state === "invited" ? "Invited" : "Waiting"}
+                                    {commitmentStates[state]}
                                 </span>
                             </TableCell>
                         </TableRow>
@@ -1232,33 +1194,40 @@ function Signups(properties: { change: Change; isRemixed: boolean }) {
             </Table>
             <span {...style.attrs(appText.meta, styles.inline, styles.quiet)}>
                 <Icon icon={dotsThree} />
-                1,833 more · filled by your public waitlist form
+                Read from your mail and chat as they come in
             </span>
         </Paned>
     );
 }
 
-/** Draw your launch tracker as an app of your space, its dates from Calendar. */
+/** The name each commitment state shows. */
+const commitmentStates: Readonly<Record<CommitmentState, string>> = {
+    open: "Open",
+    waiting: "Waiting",
+    kept: "Done",
+};
+
+/** Draw Ines's booking app project as an app of your space, its dates from Calendar. */
 function Tracker(properties: { isRemixed: boolean }) {
     return (
         <Paned>
             <Toolbar
-                title="Launch tracker"
+                title="Booking app"
                 actions={
                     <>
                         <Present />
                         <span data-xray="Analytics" {...style.attrs(appStyles.action, styles.wide)}>
-                            24 signups today
+                            38 bookings today
                         </span>
                         <span data-xray="Messaging" {...style.attrs(appStyles.primary)}>
-                            Email the waitlist
+                            Update Ines
                         </span>
                     </>
                 }
             >
-                <span {...style.attrs(appStyles.property, styles.on)}>3 days to go</span>
+                <span {...style.attrs(appStyles.property, styles.on)}>Phase 2</span>
                 <span data-xray="Jobs" {...style.attrs(appStyles.property)}>
-                    Reminder · Fri 09:00
+                    Status to Ines · Fri 16:00
                 </span>
                 <span data-xray="Observability" {...style.attrs(appStyles.property)}>
                     0 errors today
@@ -1358,7 +1327,7 @@ function Changelog(properties: { isRemixed: boolean }) {
                             </TableCell>
                             <TableCell xstyle={[appText.body, styles.quiet]}>{date}</TableCell>
                             <TableCell xstyle={[appText.body, styles.quiet]}>
-                                {properties.isRemixed ? "#launch" : "1,840"}
+                                {properties.isRemixed ? "#booking-app" : "Ines"}
                             </TableCell>
                         </TableRow>
                     ))}
@@ -1621,20 +1590,6 @@ const styles = style.create({
         transitionDuration: motion.durationShort,
         transitionProperty: "background-color",
         transitionTimingFunction: motion.easingStandard,
-    },
-    approval: {
-        alignItems: "center",
-        backgroundColor: `color-mix(in srgb, ${palette.amber} 14%, transparent)`,
-        borderRadius: radius[2],
-        display: "flex",
-        gap: space[2],
-        paddingBlock: space[2],
-        paddingInline: space[3],
-    },
-    approvalButtons: {
-        display: "flex",
-        gap: space[2],
-        marginLeft: "auto",
     },
     taskId: {
         fontVariantNumeric: "tabular-nums",

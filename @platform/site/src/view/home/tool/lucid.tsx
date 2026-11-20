@@ -36,7 +36,7 @@ const tools: readonly (keyof typeof glyphs)[] = [
 /** The sticky note colour of each frame, by its place on the board. */
 const tints: readonly ("yellow" | "green" | "blue")[] = ["yellow", "green", "blue"];
 
-/** Draw the launch plan as a brainstorming board of frames and sticky notes. */
+/** Draw your week's board as a brainstorming board of frames and sticky notes. */
 export function Lucid() {
     return (
         <div data-component="LucidPage" {...style.attrs(styles.page)}>
@@ -45,7 +45,7 @@ export function Lucid() {
                 <span {...style.attrs(styles.logo)}>L</span>
                 <span {...style.attrs(styles.titles)}>
                     <span {...style.attrs(styles.title)}>
-                        <b>Destack launch plan</b>
+                        <b>This week</b>
                         <Mark name="star" size={14} />
                     </span>
                     <span {...style.attrs(styles.menus)}>

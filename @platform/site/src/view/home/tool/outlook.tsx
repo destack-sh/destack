@@ -54,7 +54,6 @@ const glyphs = {
         "m6.3 17.7 1.4-1.4",
         "m16.3 7.7 1.4-1.4",
     ],
-    warning: ["M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z", "M12 7v6", "M12 16.5h.01"],
     shield: ["M12 3 5 6v6c0 4.5 3 7.5 7 9 4-1.5 7-4.5 7-9V6z", "M12 8v5", "M12 16h.01"],
     sweep: ["M14 4 9 13", "M5 14h8l-1 7H6z", "m15 9 5-3"],
     replyAll: ["M11 8 6 12l5 4", "M7 8l-4 4 4 4", "M6 12h8a5 5 0 0 1 5 5v1"],
@@ -75,7 +74,7 @@ const folders: readonly (readonly [name: string, glyph: keyof typeof glyphs, cou
     ["Deleted Items", "trash", ""],
 ];
 
-/** Draw the launch mail in the office inbox, the waitlist pasted into a new message. */
+/** Draw your inbox in the office mail app, your reply to Ines open in it. */
 export function Outlook() {
     return (
         <div data-component="OutlookPage" {...style.attrs(styles.page)}>
@@ -241,25 +240,14 @@ export function Outlook() {
                                 <Mark name="attach" size={16} />
                                 <span {...style.attrs(styles.discard)}>Discard</span>
                             </span>
-                            <span {...style.attrs(styles.warningBar)}>
-                                <Mark name="warning" size={16} />
-                                This message can't be sent. It has 1,840 recipients, and the limit
-                                is 500.
-                            </span>
                             <span {...style.attrs(styles.field)}>
                                 <span {...style.attrs(styles.fieldName)}>To</span>
-                                <span {...style.attrs(styles.recipient)}>Maya Chen</span>
-                                <span {...style.attrs(styles.recipient)}>Jonas Weber</span>
-                                <span {...style.attrs(styles.recipient)}>Tara Okafor</span>
-                                <span {...style.attrs(styles.more)}>+1,837</span>
+                                <span {...style.attrs(styles.recipient)}>Ines Ferreira</span>
                             </span>
-                            <span {...style.attrs(styles.field, styles.subject)}>
-                                Destack opens Friday
-                            </span>
+                            <span {...style.attrs(styles.field, styles.subject)}>Re: Phase 2</span>
                             <p {...style.attrs(styles.text)}>
-                                Hi there, Destack opens on Friday, and you're in. Your invite link
-                                works from 09:00, and early pricing holds for everyone on the
-                                waitlist.
+                                Hi Ines, here's the estimate for phase 2: card payments at booking,
+                                and the app on your own domain. Both ship before December.
                             </p>
                         </section>
                     </div>
@@ -722,18 +710,6 @@ const styles = style.create({
         paddingBlock: "5px",
         paddingInline: "12px",
     },
-    warningBar: {
-        alignItems: "center",
-        backgroundColor: outlook.warning,
-        borderRadius: "4px",
-        color: outlook.warningInk,
-        display: "flex",
-        fontSize: "13px",
-        gap: "8px",
-        lineHeight: 1.4,
-        paddingBlock: "8px",
-        paddingInline: "10px",
-    },
     field: {
         alignItems: "center",
         borderBottomColor: outlook.line,
@@ -754,11 +730,6 @@ const styles = style.create({
         fontSize: "13px",
         paddingBlock: "1px",
         paddingInline: "6px",
-    },
-    more: {
-        color: outlook.blue,
-        fontSize: "13px",
-        fontWeight: 600,
     },
     subject: {
         fontSize: "15px",

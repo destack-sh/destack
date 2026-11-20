@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-/** The colours of a waitlist the UI generator made and the platform hosts, light and dark. */
+/** The colours of a Monday page the UI generator made and the platform hosts, light and dark. */
 export const v0 = style.defineConsts({
     /** The page. */
     surface: "light-dark(#ffffff, #0a0a0a)",

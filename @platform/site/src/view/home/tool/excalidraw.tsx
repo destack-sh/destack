@@ -47,7 +47,7 @@ const tools: readonly (keyof typeof glyphs)[] = [
 /** The fill of each column's boxes, by its place on the board. */
 const tints: readonly ("yellow" | "green" | "blue")[] = ["yellow", "green", "blue"];
 
-/** Draw the launch plan as a hand-drawn sketch of boxes and arrows. */
+/** Draw your week's board as a hand-drawn sketch of boxes and arrows. */
 export function Excalidraw() {
     return (
         <div data-component="ExcalidrawPage" {...style.attrs(styles.page)}>

@@ -49,7 +49,7 @@ const palette: readonly (keyof typeof glyphs)[] = [
 /** The colour of each frame's notes, by the frame's place on the board. */
 const frameStickies: readonly ("yellow" | "green" | "blue")[] = ["yellow", "green", "blue"];
 
-/** Draw the launch plan as a whiteboard of frames and sticky notes, your agent's cursor on it. */
+/** Draw your week's board as a whiteboard of frames and sticky notes, your agent's cursor on it. */
 export function Miro() {
     return (
         <div data-component="MiroPage" {...style.attrs(styles.page)}>
@@ -98,7 +98,7 @@ export function Miro() {
             {/* board header */}
             <header {...style.attrs(styles.boardCard)}>
                 <span {...style.attrs(styles.logo)}>miro</span>
-                <b {...style.attrs(styles.boardName)}>Destack launch plan</b>
+                <b {...style.attrs(styles.boardName)}>This week</b>
                 <span {...style.attrs(styles.cardTools)}>
                     <Mark name="gear" size={16} />
                     <Mark name="upload" size={16} />

@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-/** The colours of a waitlist the in-browser app builder published, in its usual dark style. */
+/** The colours of a Monday page the in-browser app builder published, in its usual dark style. */
 export const bolt = style.defineConsts({
     /** The page. */
     surface: "#0b0d12",

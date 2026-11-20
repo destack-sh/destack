@@ -34,8 +34,8 @@ export const discord = style.defineConsts({
     link: "#00a8fc",
     /** The owner's role colour. */
     owner: "#f0b232",
-    /** Maya's avatar. */
-    maya: "#a0485f",
+    /** Ines's avatar. */
+    ines: "#a0485f",
     /** White, for the chosen server's pill and unread channels. */
     white: "#ffffff",
     /** The typeface the app sets, or the nearest one a machine has. */

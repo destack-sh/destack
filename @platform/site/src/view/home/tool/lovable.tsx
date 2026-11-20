@@ -1,11 +1,11 @@
 import * as style from "@destack/style";
 
-import { joiners, perks } from "../verb/corner";
+import { overview, owed } from "../verb/corner";
 import { Favicon } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { lovable } from "./lovable.stylex";
 
-/** Draw your waitlist as an app generated from a prompt and published on the builder's domain. */
+/** Draw your Monday page as an app generated from a prompt, published on the builder's domain. */
 export function Lovable() {
     return (
         <div data-component="LovablePage" {...style.attrs(styles.page)}>
@@ -13,31 +13,32 @@ export function Lovable() {
             <nav {...style.attrs(styles.nav)}>
                 <b {...style.attrs(styles.brand)}>
                     <span {...style.attrs(styles.logo)} />
-                    Destack
+                    Monday
                 </b>
                 <span {...style.attrs(styles.links)}>
-                    <span>How it works</span>
-                    <span>Pricing</span>
+                    <span>Week</span>
+                    <span>People</span>
                 </span>
-                <span {...style.attrs(styles.navButton)}>Get early access</span>
+                <span {...style.attrs(styles.navButton)}>Sign in with Google</span>
             </nav>
 
             {/* hero */}
             <section {...style.attrs(styles.hero)}>
-                <span {...style.attrs(styles.pill)}>✨ Launching Friday, October 24</span>
+                <span {...style.attrs(styles.pill)}>📅 Week of October 20</span>
                 <b {...style.attrs(styles.title)}>
-                    Own your software. <span {...style.attrs(styles.gradientText)}>Finally.</span>
+                    Good morning, <span {...style.attrs(styles.gradientText)}>Florian.</span>
                 </b>
                 <span {...style.attrs(styles.line)}>
-                    Destack opens on Friday. Join the waitlist and we'll send your invite.
+                    Ines, Jonas and Mia are waiting on you. Here's what you said you'd do, and when
+                    you can.
                 </span>
                 <span {...style.attrs(styles.form)}>
-                    <span {...style.attrs(styles.input)}>Enter your email</span>
-                    <span {...style.attrs(styles.button)}>Join the waitlist</span>
+                    <span {...style.attrs(styles.input)}>Ask about your week</span>
+                    <span {...style.attrs(styles.button)}>Plan my week</span>
                 </span>
                 <span {...style.attrs(styles.proof)}>
                     <span {...style.attrs(styles.faces)}>
-                        {joiners.map(([initial, tint]) => (
+                        {owed.map(([initial, tint]) => (
                             <span
                                 style={{ "background-color": tint }}
                                 {...style.attrs(styles.face)}
@@ -46,13 +47,13 @@ export function Lovable() {
                             </span>
                         ))}
                     </span>
-                    1,840 people already joined
+                    3 people waiting on a reply
                 </span>
             </section>
 
-            {/* perks */}
+            {/* overview */}
             <ul {...style.attrs(styles.cards)}>
-                {perks.map(([title, line]) => (
+                {overview.map(([title, line]) => (
                     <li {...style.attrs(styles.card)}>
                         <b>{title}</b>
                         <span {...style.attrs(styles.cardLine)}>{line}</span>

@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { welcome } from "../verb/corner";
+import { bookingFlow } from "../verb/corner";
 import { Favicon } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { ifttt } from "./ifttt.stylex";
@@ -29,29 +29,29 @@ const glyphs = {
 /** The applet's steps: its word, service, title, detail and ingredients. */
 const steps: readonly (readonly [
     word: "If" | "Then",
-    service: "webhooks" | "slack" | "gmail",
+    service: "webhooks" | "googlesheets" | "gmail",
     title: string,
     detail: string,
     ingredients: readonly string[],
-])[] = welcome.map(([, step, detail], index) =>
+])[] = bookingFlow.map(([, step, detail], index) =>
     index === 0
         ? ([
               "If",
               "webhooks",
               "Receive a web request",
-              `${detail}, event “signup”`,
+              `${detail}, event “booking”`,
               ["EventName", "Value1", "OccurredAt"],
           ] as const)
         : ([
               "Then",
-              index === 1 ? "slack" : "gmail",
-              index === 1 ? "Post to channel" : "Send an email",
+              index === 1 ? "googlesheets" : "gmail",
+              index === 1 ? "Add row to spreadsheet" : "Send an email",
               `${step}: ${detail}`,
               [],
           ] as const),
 );
 
-/** Draw the welcome workflow as an applet: a web request from the waitlist, then two actions. */
+/** Draw the booking workflow as an applet: a request from the booking page, then two actions. */
 export function Ifttt() {
     return (
         <div data-component="IftttPage" {...style.attrs(styles.page)}>
@@ -84,11 +84,11 @@ export function Ifttt() {
                 <div {...style.attrs(styles.hero)}>
                     <span {...style.attrs(styles.services)}>
                         <Mark name="webhooks" size={46} />
-                        <Favicon icon="slack" tint={ifttt.onAccent} size={42} />
+                        <Favicon icon="googlesheets" tint={ifttt.onAccent} size={42} />
                         <Favicon icon="gmail" tint={ifttt.onAccent} size={42} />
                     </span>
                     <b {...style.attrs(styles.title)}>
-                        Post new waitlist signups to #launch and welcome them by email
+                        Add new bookings to People and confirm them by email
                     </b>
                     <span {...style.attrs(styles.meta)}>
                         <Mark name="webhooks" size={14} />
@@ -108,8 +108,8 @@ export function Ifttt() {
                 <div {...style.attrs(styles.about)}>
                     <b {...style.attrs(styles.aboutTitle)}>About this Applet</b>
                     <span {...style.attrs(styles.aboutText)}>
-                        Each new waitlist signup posts to #launch in Slack and gets a welcome email
-                        from Gmail.
+                        Each new booking from your booking page goes into People in Google Sheets
+                        and gets a confirmation from Gmail.
                     </span>
                 </div>
                 <div {...style.attrs(styles.card)}>
@@ -120,8 +120,8 @@ export function Ifttt() {
                                 <span
                                     {...style.attrs(
                                         styles.tile,
-                                        service === "slack"
-                                            ? styles.tileSlack
+                                        service === "googlesheets"
+                                            ? styles.tileSheets
                                             : service === "gmail"
                                               ? styles.tileGmail
                                               : styles.tileWebhooks,
@@ -399,8 +399,8 @@ const styles = style.create({
     tileWebhooks: {
         backgroundColor: ifttt.webhooks,
     },
-    tileSlack: {
-        backgroundColor: ifttt.slack,
+    tileSheets: {
+        backgroundColor: ifttt.googlesheets,
     },
     tileGmail: {
         backgroundColor: ifttt.gmail,

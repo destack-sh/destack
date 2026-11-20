@@ -34,7 +34,7 @@ const statuses: readonly (readonly [state: TaskState, name: string, tint: string
     ["done", "Complete", "#008844"],
 ];
 
-/** The priority of each launch task, in its order. */
+/** The priority of each task, in its order. */
 const priorities: readonly ("urgent" | "high" | "normal" | "low")[] = [
     "high",
     "urgent",
@@ -44,7 +44,7 @@ const priorities: readonly ("urgent" | "high" | "normal" | "low")[] = [
     "normal",
 ];
 
-/** Draw the launch tasks as the list of a space's folder, grouped by status. */
+/** Draw your tasks as the list of a space's folder, grouped by status. */
 export function ClickUp() {
     return (
         <div data-component="ClickUpPage" {...style.attrs(styles.page)}>
@@ -92,11 +92,11 @@ export function ClickUp() {
                     <span {...style.attrs(styles.group)}>Spaces</span>
                     <span {...style.attrs(styles.link)}>
                         <span {...style.attrs(styles.spaceMark)}>D</span>
-                        Destack
+                        Personal
                     </span>
                     <span {...style.attrs(styles.link, styles.indent)}>
                         <Mark name="folder" size={15} />
-                        Launch
+                        Work
                     </span>
                     <span {...style.attrs(styles.link, styles.indentTwice, styles.linkOn)}>
                         <Mark name="list" size={15} />
@@ -109,7 +109,7 @@ export function ClickUp() {
                 <main {...style.attrs(styles.main)}>
                     <span {...style.attrs(styles.crumbs)}>
                         <span {...style.attrs(styles.spaceMark)}>D</span>
-                        Destack / Launch /<b {...style.attrs(styles.crumbOn)}>Tasks</b>
+                        Personal / Work /<b {...style.attrs(styles.crumbOn)}>Tasks</b>
                         <Mark name="star" size={14} />
                     </span>
                     <span {...style.attrs(styles.views)}>

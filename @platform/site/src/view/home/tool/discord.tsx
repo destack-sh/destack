@@ -67,7 +67,7 @@ const categories: readonly (readonly [
         "Text channels",
         [
             ["general", true],
-            ["launch", false],
+            ["booking-app", false],
             ["design", false],
             ["random", true],
         ],
@@ -80,7 +80,7 @@ const servers: readonly (readonly [initial: string, tint: string])[] = [
     ["TS", "#3178c6"],
 ];
 
-/** Draw the launch channel on the team's server, in the app's default dark theme. */
+/** Draw the channel you share with Ines on your server, in the app's default dark theme. */
 export function Discord() {
     return (
         <div data-component="DiscordPage" {...style.attrs(styles.page)}>
@@ -130,7 +130,7 @@ export function Discord() {
                                     {...style.attrs(
                                         styles.channel,
                                         isUnread && styles.channelUnread,
-                                        name === "launch" && styles.channelOn,
+                                        name === "booking-app" && styles.channelOn,
                                     )}
                                 >
                                     {isUnread ? (
@@ -155,8 +155,8 @@ export function Discord() {
                         florian
                     </span>
                     <span {...style.attrs(styles.voice)}>
-                        <span {...style.attrs(styles.voiceFace, styles.faceMaya)}>M</span>
-                        maya
+                        <span {...style.attrs(styles.voiceFace, styles.faceInes)}>I</span>
+                        ines
                     </span>
                 </div>
 
@@ -180,7 +180,7 @@ export function Discord() {
             <main {...style.attrs(styles.main)}>
                 <header {...style.attrs(styles.head)}>
                     <Mark name="hash" size={22} />
-                    <b {...style.attrs(styles.headName)}>launch</b>
+                    <b {...style.attrs(styles.headName)}>booking-app</b>
                     <span {...style.attrs(styles.topic)}>Ship v4 on Friday</span>
                     <span {...style.attrs(styles.headTools)}>
                         <Mark name="threads" size={20} />
@@ -204,10 +204,14 @@ export function Discord() {
                             <span
                                 {...style.attrs(
                                     styles.avatar,
-                                    author === "Agent" ? styles.faceAgent : styles.faceFlorian,
+                                    author === "Agent"
+                                        ? styles.faceAgent
+                                        : author === "Ines"
+                                          ? styles.faceInes
+                                          : styles.faceFlorian,
                                 )}
                             >
-                                {author === "Agent" ? "A" : "F"}
+                                {author.slice(0, 1)}
                             </span>
                             <span {...style.attrs(styles.byline)}>
                                 <b
@@ -215,7 +219,7 @@ export function Discord() {
                                         author === "Agent" ? styles.nameAgent : styles.nameOwner,
                                     )}
                                 >
-                                    {author === "Agent" ? "Agent" : "florian"}
+                                    {author.toLowerCase()}
                                 </b>
                                 {author === "Agent" ? (
                                     <span {...style.attrs(styles.app)}>
@@ -252,7 +256,7 @@ export function Discord() {
                 {/* composer */}
                 <span {...style.attrs(styles.composer)}>
                     <Mark name="plus" size={22} />
-                    <span {...style.attrs(styles.placeholder)}>Message #launch</span>
+                    <span {...style.attrs(styles.placeholder)}>Message #booking-app</span>
                     <Mark name="gift" size={22} />
                     <span {...style.attrs(styles.gif)}>GIF</span>
                     <Mark name="sticker" size={22} />
@@ -464,8 +468,8 @@ const styles = style.create({
         justifyContent: "center",
         width: "24px",
     },
-    faceMaya: {
-        backgroundColor: discord.maya,
+    faceInes: {
+        backgroundColor: discord.ines,
     },
     user: {
         alignItems: "center",

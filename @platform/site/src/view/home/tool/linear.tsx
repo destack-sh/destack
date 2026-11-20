@@ -13,7 +13,7 @@ const groups: readonly (readonly [state: TaskState, name: string])[] = [
     ["done", "Done"],
 ];
 
-/** Draw the launch tasks as an issue tracker's list, seen from your own seat. */
+/** Draw your tasks as an issue tracker's list, seen from your own seat. */
 export function Linear() {
     return (
         <div data-component="LinearPage" {...style.attrs(styles.linear)}>
@@ -49,7 +49,7 @@ export function Linear() {
                 <span {...style.attrs(styles.linGroup)}>Your teams</span>
                 <span {...style.attrs(styles.linItem)}>
                     <span {...style.attrs(styles.linTeam)}>D</span>
-                    Destack
+                    Florian
                 </span>
                 <span {...style.attrs(styles.linItem, styles.linSub, styles.linOn)}>
                     <Glyph name="target" size={15} weight={1.75} />
@@ -102,7 +102,7 @@ export function Linear() {
                                     <span {...style.attrs(styles.linTitle)}>{title}</span>
                                     <span {...style.attrs(styles.linLabel)}>
                                         <span {...style.attrs(styles.linLabelDot)} />
-                                        Launch
+                                        Work
                                     </span>
                                     <span {...style.attrs(styles.linDue)}>{due}</span>
                                     <span

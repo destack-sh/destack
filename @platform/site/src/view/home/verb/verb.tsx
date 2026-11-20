@@ -47,8 +47,8 @@ const firstRemixAt = 1800;
 /** The row of Tasks, which your agent remixes once on its own. */
 const TASKS_ROW = rowOf("tasks");
 
-/** The row of the press list your agent makes, which the browser turns to once it is done. */
-const TABLES_ROW = rowOf("tables");
+/** The row of Mail your agent changes, which the browser turns to once you ask. */
+const MAIL_ROW = rowOf("mail");
 
 /** The verb, which titles the page. */
 export const verb: Form = {
@@ -83,7 +83,7 @@ export function Verb(properties: { isOpen: boolean; picks: readonly Tool[] }) {
     };
 
     // read the bill for a team of the size the reader dials
-    const [people, setPeople] = createSignal<number>(5);
+    const [people, setPeople] = createSignal<number>(1);
 
     // follow the motion the section shows, and whether it is on screen
     const [section, setSection] = createSignal<HTMLElement>();
@@ -94,11 +94,8 @@ export function Verb(properties: { isOpen: boolean; picks: readonly Tool[] }) {
     const isOpenAt: Stagger = () => properties.isOpen;
 
     // run your agent's chat beside the space while it shows
-    const beat = createBeat(
-        () => !isReduced() && isShown(),
-        () => properties.isOpen,
-    );
     const scene = () => (properties.isOpen ? destackedScene : stackedScene);
+    const beat = createBeat(() => !isReduced() && isShown(), scene);
     const moment = () => scene().at(isReduced() ? undefined : beat() % scene().length);
     const {
         look,
@@ -144,9 +141,9 @@ export function Verb(properties: { isOpen: boolean; picks: readonly Tool[] }) {
         return latest ?? lineupAt(turnsOf(rowOf(category)))(category);
     };
 
-    // show the page the reader chose, the press list once your agent says it is done, or the turned page
-    const isDone = () => moment().items.some((item) => item.kind === "reply");
-    const shownRow = () => chosen() ?? (isDone() ? TABLES_ROW : undefined);
+    // show the page the reader chose, Mail once your message is sent, or the turned page
+    const isAsked = () => moment().items.some((item) => item.kind === "ask");
+    const shownRow = () => chosen() ?? (isAsked() ? MAIL_ROW : undefined);
     const page = () =>
         present(
             pages.find((candidate) => candidate.row === shownRow()) ??
@@ -252,7 +249,6 @@ export function Verb(properties: { isOpen: boolean; picks: readonly Tool[] }) {
                 <SpaceBrowser
                     name="space"
                     rows={everyRow}
-                    change="start"
                     isOpenAt={isOpenAt}
                     page={page()}
                     viewer={viewer()}
@@ -298,7 +294,7 @@ export function Verb(properties: { isOpen: boolean; picks: readonly Tool[] }) {
                     </PaneLabel>
                 </LabelRow>
                 <AgentChat
-                    title="Press outreach"
+                    title="Notes in my mail"
                     isOpen={properties.isOpen}
                     moment={moment()}
                     assistant={look()}

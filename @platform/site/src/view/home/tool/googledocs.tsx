@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { launch } from "../verb/corner";
+import { points } from "../verb/corner";
 import { Favicon } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { googleDocuments } from "./googledocs.stylex";
@@ -57,7 +57,7 @@ const menus: readonly string[] = [
     "Help",
 ];
 
-/** Draw the Destack launch plan as a shared document, its link open to anyone who has it. */
+/** Draw your page on Ines as a shared document, its link open to anyone who has it. */
 export function GoogleDocuments() {
     return (
         <div data-component="GoogleDocsPage" {...style.attrs(styles.page)}>
@@ -66,7 +66,7 @@ export function GoogleDocuments() {
                 <Favicon icon="googledocs" tint="#4285f4" size={36} />
                 <span {...style.attrs(styles.titles)}>
                     <span {...style.attrs(styles.name)}>
-                        Destack launch
+                        Ines Ferreira
                         <span {...style.attrs(styles.nameTools)}>
                             <Mark name="star" size={16} />
                             <Mark name="move" size={16} />
@@ -162,20 +162,20 @@ export function GoogleDocuments() {
                 </span>
                 <article {...style.attrs(styles.paper)}>
                     <b data-flip="title" {...style.attrs(styles.title)}>
-                        Destack launch
+                        Ines Ferreira
                     </b>
                     <p {...style.attrs(styles.meta)}>
                         <span {...style.attrs(styles.status)}>
-                            In progress
+                            Client
                             <Mark name="caret" size={12} />
                         </span>
                         <span {...style.attrs(styles.chip)}>
                             <Mark name="calendar" size={13} />
-                            Oct 24, 2025
+                            Nov 28, 2025
                         </span>
                         <span {...style.attrs(styles.chip)}>
                             <Mark name="calendar" size={13} />
-                            Demo · Oct 22, 11:00
+                            Review · Oct 22, 11:00
                         </span>
                         <span {...style.attrs(styles.chip)}>
                             <span {...style.attrs(styles.person)}>F</span>
@@ -183,11 +183,12 @@ export function GoogleDocuments() {
                         </span>
                     </p>
                     <p {...style.attrs(styles.text)}>
-                        Ship to the waitlist on Thursday, then open signups on Friday.
+                        Runs a physio practice with three rooms. Wants card payments and her own
+                        domain before December.
                     </p>
-                    <b {...style.attrs(styles.heading)}>Before launch</b>
+                    <b {...style.attrs(styles.heading)}>Open points</b>
                     <ul {...style.attrs(styles.list)}>
-                        {launch.map(([item, isDone]) => (
+                        {points.map(([item, isDone]) => (
                             <li {...style.attrs(styles.item)}>
                                 <span {...style.attrs(styles.box, isDone && styles.boxDone)}>
                                     {isDone ? (

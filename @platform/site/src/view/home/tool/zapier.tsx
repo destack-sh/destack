@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { welcome } from "../verb/corner";
+import { bookingFlow } from "../verb/corner";
 import { Favicon } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { zapier } from "./zapier.stylex";
@@ -26,11 +26,11 @@ const glyphs = {
 /** The mark of each step's app: its icon and colour, or a glyph of the editor's own. */
 const marks: readonly (readonly [icon: string, tint: string])[] = [
     ["", ""],
-    ["slack", "#4a154b"],
+    ["googlesheets", "#0f9d58"],
     ["gmail", "#ea4335"],
 ];
 
-/** Draw the welcome automation as a zap in its editor, its Slack step chosen. */
+/** Draw the booking automation as a zap in its editor, its Google Sheets step chosen. */
 export function Zapier() {
     return (
         <div data-component="ZapierPage" {...style.attrs(styles.page)}>
@@ -38,7 +38,7 @@ export function Zapier() {
             <header {...style.attrs(styles.head)}>
                 <Mark name="back" size={18} />
                 <Favicon icon="zapier" tint="#ff4f00" size={20} />
-                <b {...style.attrs(styles.zapName)}>Welcome new signups</b>
+                <b {...style.attrs(styles.zapName)}>Confirm new bookings</b>
                 <Mark name="pencil" size={14} />
                 <span {...style.attrs(styles.status)}>
                     <span {...style.attrs(styles.statusDot)} />
@@ -56,7 +56,7 @@ export function Zapier() {
             <div {...style.attrs(styles.body)}>
                 {/* steps on the canvas */}
                 <div {...style.attrs(styles.canvas)}>
-                    {welcome.map(([app, step, detail], index) => (
+                    {bookingFlow.map(([app, step, detail], index) => (
                         <>
                             {index > 0 ? (
                                 <span {...style.attrs(styles.joint)}>
@@ -112,8 +112,8 @@ export function Zapier() {
                 {/* the chosen step's setup */}
                 <aside {...style.attrs(styles.panel)}>
                     <span {...style.attrs(styles.panelHead)}>
-                        <Favicon icon="slack" tint="#4a154b" size={18} />
-                        <b>2. Post in #launch</b>
+                        <Favicon icon="googlesheets" tint="#0f9d58" size={18} />
+                        <b>2. Add to People</b>
                     </span>
                     <span {...style.attrs(styles.tabs)}>
                         <span {...style.attrs(styles.tabOn)}>Setup</span>
@@ -123,21 +123,21 @@ export function Zapier() {
                     <span {...style.attrs(styles.field)}>
                         <span {...style.attrs(styles.fieldName)}>App</span>
                         <span {...style.attrs(styles.input)}>
-                            Slack
+                            Google Sheets
                             <Mark name="caret" size={12} />
                         </span>
                     </span>
                     <span {...style.attrs(styles.field)}>
                         <span {...style.attrs(styles.fieldName)}>Action event</span>
                         <span {...style.attrs(styles.input)}>
-                            Send Channel Message
+                            Create Spreadsheet Row
                             <Mark name="caret" size={12} />
                         </span>
                     </span>
                     <span {...style.attrs(styles.field)}>
                         <span {...style.attrs(styles.fieldName)}>Account</span>
                         <span {...style.attrs(styles.input)}>
-                            Slack Symbol #2
+                            Google Sheets Florian #1
                             <Mark name="caret" size={12} />
                         </span>
                     </span>

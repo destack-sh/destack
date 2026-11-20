@@ -10,7 +10,7 @@ export const site = style.defineConsts({
     avatar: "#2f7d8c",
     /** Your agent's avatar on every rented site. */
     agent: "#6b5ca5",
-    /** The launch space's mark on every rented site. */
+    /** Your space's mark on every rented site. */
     space: "#c64a17",
     /** The system font the rented sites fall back to. */
     system: '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif',

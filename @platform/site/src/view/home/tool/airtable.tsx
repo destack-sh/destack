@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { press, type PressState, type Signup, signups } from "../verb/corner";
+import { people, type ReplyState } from "../verb/corner";
 import { site } from "../figure/site.stylex";
 import { airtable } from "./airtable.stylex";
 
@@ -38,56 +38,27 @@ const baseTabs: readonly string[] = ["Data", "Automations", "Interfaces", "Forms
 /** The fields over the grid: name and type glyph. */
 const fields: readonly (readonly [name: string, glyph: keyof typeof glyphs])[] = [
     ["Name", "text"],
-    ["Outlet", "link"],
+    ["Who", "link"],
     ["Status", "select"],
-    ["Last contact", "date"],
+    ["Last mail", "date"],
     ["Owner", "person"],
 ];
 
-/** The fields over the signups' grid: name and type glyph. */
-const signupFields: readonly (readonly [name: string, glyph: keyof typeof glyphs])[] = [
-    ["Email", "text"],
-    ["Source", "select"],
-    ["Joined", "date"],
-    ["Status", "select"],
-    ["Notes", "text"],
-];
-
-/** The name each signup's status pill shows. */
-const signupNames: Readonly<Record<Signup[3], string>> = {
-    invited: "Invited",
-    approved: "Approved",
-    waiting: "Waiting",
-};
-
 /** The name each status pill shows. */
-const statusNames: Readonly<Record<PressState, string>> = {
-    pitched: "Pitched",
-    replied: "Replied",
-    scheduled: "Call booked",
+const statusNames: Readonly<Record<ReplyState, string>> = {
+    owe: "Reply owed",
+    waiting: "Waiting on them",
+    clear: "Up to date",
 };
 
-/** The tables of the launch base. */
-type Table = "Press" | "Signups";
-
-/** Draw the press list as the launch base's grid. */
+/** Draw the people you deal with in the personal base: its tabs, its view bar and its grid. */
 export function Airtable() {
-    return <Base table="Press" signups={signups} />;
-}
-
-/** Draw some signups as the launch base's grid. */
-export function AirtableSignupsOf(properties: { signups: readonly Signup[] }) {
-    return <Base table="Signups" signups={properties.signups} />;
-}
-
-/** Draw the launch base with one of its tables open: its tabs, its view bar and its grid. */
-function Base(properties: { table: Table; signups: readonly Signup[] }) {
     return (
         <div data-component="AirtablePage" {...style.attrs(styles.page)}>
             {/* base header */}
             <header {...style.attrs(styles.head)}>
-                <span {...style.attrs(styles.baseIcon)}>L</span>
-                <b {...style.attrs(styles.baseName)}>Launch</b>
+                <span {...style.attrs(styles.baseIcon)}>P</span>
+                <b {...style.attrs(styles.baseName)}>Personal</b>
                 <Mark name="caret" size={14} />
                 <span {...style.attrs(styles.baseTabs)}>
                     {baseTabs.map((tab) => (
@@ -107,8 +78,8 @@ function Base(properties: { table: Table; signups: readonly Signup[] }) {
 
             {/* table tabs */}
             <div {...style.attrs(styles.tables)}>
-                <TableTab name="Press" isOn={properties.table === "Press"} />
-                <TableTab name="Signups" isOn={properties.table === "Signups"} />
+                <TableTab name="People" isOn />
+                <TableTab name="Commitments" isOn={false} />
                 <span {...style.attrs(styles.table)}>Content</span>
                 <span {...style.attrs(styles.table, styles.add)}>
                     <Mark name="plus" size={13} />
@@ -149,17 +120,13 @@ function Base(properties: { table: Table; signups: readonly Signup[] }) {
             </div>
 
             {/* grid */}
-            {properties.table === "Press" ? (
-                <PressGrid />
-            ) : (
-                <SignupsGrid signups={properties.signups} />
-            )}
+            <PeopleGrid />
         </div>
     );
 }
 
 /** Draw a table's tab, open or not. */
-function TableTab(properties: { name: Table; isOn: boolean }) {
+function TableTab(properties: { name: string; isOn: boolean }) {
     return (
         <span {...style.attrs(styles.table, properties.isOn && styles.tableOn)}>
             {properties.name}
@@ -168,8 +135,8 @@ function TableTab(properties: { name: Table; isOn: boolean }) {
     );
 }
 
-/** Draw the press list's grid. */
-function PressGrid() {
+/** Draw the people grid. */
+function PeopleGrid() {
     return (
         <div {...style.attrs(styles.grid)}>
             <span {...style.attrs(styles.row, styles.headRow)}>
@@ -187,20 +154,20 @@ function PressGrid() {
                     </span>
                 ))}
             </span>
-            {press.map(([name, outlet, state, last], index) => (
+            {people.map(([name, relation, state, last], index) => (
                 <span {...style.attrs(styles.row)}>
                     <span {...style.attrs(styles.number)}>{index + 1}</span>
                     <span {...style.attrs(styles.cell, styles.primary)}>{name}</span>
                     <span {...style.attrs(styles.cell)}>
-                        <span {...style.attrs(styles.chip)}>{outlet}</span>
+                        <span {...style.attrs(styles.chip)}>{relation}</span>
                     </span>
                     <span {...style.attrs(styles.cell)}>
                         <span
                             {...style.attrs(
                                 styles.pill,
-                                state === "scheduled"
+                                state === "clear"
                                     ? styles.green
-                                    : state === "replied"
+                                    : state === "owe"
                                       ? styles.blue
                                       : styles.gray,
                             )}
@@ -220,61 +187,7 @@ function PressGrid() {
                     <Mark name="plus" size={13} />
                 </span>
             </span>
-            <span {...style.attrs(styles.footer)}>{press.length} records</span>
-        </div>
-    );
-}
-
-/** Draw the signups' grid: the latest of the waitlist's people. */
-function SignupsGrid(properties: { signups: readonly Signup[] }) {
-    return (
-        <div {...style.attrs(styles.grid)}>
-            <span {...style.attrs(styles.row, styles.headRow)}>
-                <span {...style.attrs(styles.number)} />
-                {signupFields.map(([name, glyph], index) => (
-                    <span
-                        {...style.attrs(
-                            styles.cell,
-                            styles.headCell,
-                            index === 0 && styles.primary,
-                        )}
-                    >
-                        <Mark name={glyph} size={13} />
-                        {name}
-                    </span>
-                ))}
-            </span>
-            {properties.signups.map(([email, source, joined, state, note], index) => (
-                <span {...style.attrs(styles.row)}>
-                    <span {...style.attrs(styles.number)}>{index + 1}</span>
-                    <span {...style.attrs(styles.cell, styles.primary)}>{email}</span>
-                    <span {...style.attrs(styles.cell)}>
-                        <span {...style.attrs(styles.chip)}>{source}</span>
-                    </span>
-                    <span {...style.attrs(styles.cell)}>{joined}</span>
-                    <span {...style.attrs(styles.cell)}>
-                        <span
-                            {...style.attrs(
-                                styles.pill,
-                                state === "invited"
-                                    ? styles.green
-                                    : state === "approved"
-                                      ? styles.blue
-                                      : styles.gray,
-                            )}
-                        >
-                            {signupNames[state]}
-                        </span>
-                    </span>
-                    <span {...style.attrs(styles.cell, styles.note)}>{note}</span>
-                </span>
-            ))}
-            <span {...style.attrs(styles.row)}>
-                <span {...style.attrs(styles.number)}>
-                    <Mark name="plus" size={13} />
-                </span>
-            </span>
-            <span {...style.attrs(styles.footer)}>1,840 records</span>
+            <span {...style.attrs(styles.footer)}>{people.length} records</span>
         </div>
     );
 }

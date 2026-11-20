@@ -585,7 +585,7 @@ const automation = personal({ hours: 0.5, requests: 170, database: 90 * MB, file
 /** Connection: a personal app synced every 15 minutes, 10 seconds a sync, and a year of rows. */
 const connection = personal({ hours: 0.35, requests: 131, database: 10 * MB, files: 0 });
 
-/** Builder: a waitlist app of the team's own code, and each signup's page loads. */
+/** Builder: a Monday page of your own code, and each visit's page loads. */
 const builder = workloadFrom({
     shared: { files: 150 * MB },
     perPerson: { hours: 0.5, requests: 100 },

@@ -70,7 +70,7 @@ const views: readonly (readonly [name: string, glyph: keyof typeof glyphs])[] = 
     ["Calendar", "calendar"],
 ];
 
-/** Draw the launch tasks as the project's board, one column per status. */
+/** Draw your tasks as the project's board, one column per status. */
 export function Jira() {
     return (
         <div data-component="JiraPage" {...style.attrs(styles.page)}>
@@ -116,7 +116,7 @@ export function Jira() {
                     <span {...style.attrs(styles.group)}>Projects</span>
                     <span {...style.attrs(styles.project)}>
                         <span {...style.attrs(styles.projectMark)}>D</span>
-                        <b>Destack</b>
+                        <b>Personal</b>
                     </span>
                     {views.map(([name, glyph]) => (
                         <span {...style.attrs(styles.view, name === "Board" && styles.viewOn)}>
@@ -128,9 +128,9 @@ export function Jira() {
 
                 {/* the board */}
                 <main {...style.attrs(styles.main)}>
-                    <span {...style.attrs(styles.crumbs)}>Projects / Destack</span>
+                    <span {...style.attrs(styles.crumbs)}>Projects / Work</span>
                     <span {...style.attrs(styles.titleRow)}>
-                        <b {...style.attrs(styles.title)}>DST board</b>
+                        <b {...style.attrs(styles.title)}>T board</b>
                         <Mark name="star" size={16} />
                         <Mark name="more" size={16} />
                     </span>
@@ -176,7 +176,7 @@ export function Jira() {
                                     .map(([id, title, , owner, tint], index) => (
                                         <article {...style.attrs(styles.card)}>
                                             <span {...style.attrs(styles.cardTitle)}>{title}</span>
-                                            <span {...style.attrs(styles.epic)}>Launch</span>
+                                            <span {...style.attrs(styles.epic)}>Booking app</span>
                                             <span {...style.attrs(styles.cardFoot)}>
                                                 <span
                                                     {...style.attrs(

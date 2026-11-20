@@ -29,8 +29,8 @@ const permanentCount = steps.filter(
 
 /** Draw your space's log: your agent's session, its request, its steps, and any slips. */
 export function AuditLog(properties: { lane: Lane; onTouch: () => void }) {
-    // open the waitlist email until the reader opens another step
-    const [opened, setOpened] = createSignal<Step | undefined>(steps[1]);
+    // open the archived newsletters until the reader opens another step
+    const [opened, setOpened] = createSignal<Step | undefined>(steps[2]);
     const toggle = (step: Step) => {
         properties.onTouch();
         setOpened((current) => (current === step ? undefined : step));
@@ -60,7 +60,7 @@ export function AuditLog(properties: { lane: Lane; onTouch: () => void }) {
                         <span {...style.attrs(styles.key)}>by:</span> Agent
                     </span>
                     <span {...style.attrs(styles.token)}>
-                        <span {...style.attrs(styles.key)}>since:</span> Thu 17:00
+                        <span {...style.attrs(styles.key)}>since:</span> yesterday 22:00
                     </span>
                 </div>
 
@@ -69,19 +69,19 @@ export function AuditLog(properties: { lane: Lane; onTouch: () => void }) {
                     {/* your agent's fixes */}
                     {properties.lane === "fixed" ? (
                         <Line
-                            text="Fixed 3 changes from launch prep, at your request"
+                            text="Kept 3 changes to your mail, dropped 1, at your request"
                             badge={undefined}
                             isFlagged={false}
-                            stamp="Fri 09:31"
+                            stamp="08:41"
                         />
                     ) : undefined}
 
                     {/* the session, its request, and its steps */}
                     <Line
-                        text="Prepared launch day, at your request"
+                        text="Tidied your inbox in preview, at your request"
                         badge={review() === 0 ? `${CHANGE_COUNT} changes` : `${review()} to review`}
                         isFlagged={review() > 0}
-                        stamp="Thu 17:20"
+                        stamp="22:04"
                     />
                     <q {...style.attrs(styles.request)}>{REQUEST}</q>
                     <div {...style.attrs(styles.branch)}>

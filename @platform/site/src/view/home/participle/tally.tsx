@@ -32,7 +32,7 @@ export function Tally(properties: {
     const { isOpenAt } = createSteps(() => properties.isOpen, lineCount, isReduced);
 
     // read the bill for a team of the size the reader dials
-    const [people, setPeople] = createSignal<number>(5);
+    const [people, setPeople] = createSignal<number>(1);
 
     // show the tools or their bill below the desktop width, where one pane shows at a time
     const [shownPane, setShownPane] = createSignal(0);

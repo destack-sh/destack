@@ -49,7 +49,7 @@ const CUSTOM_DOMAIN = "mydomain.com";
 /** The address a dev server serves your app at, Vite's default port. */
 const DEV_SERVER = "localhost:5173";
 
-/** Your apps on the rail once owned, the launch tracker first. */
+/** Your apps on the rail once owned, the Monday page first. */
 const apps: readonly (readonly [
     job: Job,
     icon: string,
@@ -57,16 +57,16 @@ const apps: readonly (readonly [
     slug: string,
     path: string,
 ])[] = [
-    ["tracker", "telemetry", "Launch tracker", "launch-tracker", "/launch-tracker"],
-    ["documents", "pages", "Destack launch", "documents", "/launch"],
-    ["tables", "table", "Press", "press", "/press"],
-    ["tasks", "tasks", "Launch tasks", "tasks", "/tasks"],
+    ["builder", "build", "Monday", "monday", "/monday"],
+    ["documents", "pages", "Ines Ferreira", "notes", "/notes/ines"],
+    ["tables", "table", "People", "people", "/people"],
+    ["tasks", "tasks", "Tasks", "tasks", "/tasks"],
     ["calendar", "calendar", "October 20 – 24", "calendar", "/book"],
-    ["chat", "chat", "# launch", "chat", "/chat"],
-    ["mail", "mail", "Destack opens Friday", "mail", "/mail"],
-    ["canvas", "canvas", "Launch plan", "plan", "/plan"],
+    ["chat", "chat", "# booking-app", "chat", "/chat"],
+    ["mail", "mail", "Re: Phase 2", "mail", "/mail"],
+    ["canvas", "canvas", "This week", "board", "/board"],
     ["workflows", "sync", "Workflows", "workflows", "/workflows"],
-    ["builder", "build", "Signups", "waitlist", "/waitlist"],
+    ["tracker", "telemetry", "Booking app", "booking", "/booking"],
 ];
 
 /** The apps of your space on its rail, by the page each opens. */
@@ -79,8 +79,8 @@ const rail: readonly (readonly [icon: string, label: string])[] = [
     ["mail", "Mail"],
     ["canvas", "Canvas"],
     ["sync", "Workflows"],
-    ["build", "Waitlist"],
-    ["telemetry", "Launch tracker"],
+    ["build", "Monday"],
+    ["telemetry", "Booking app"],
 ];
 
 /** The space in pixels every outline leaves around the element it marks. */
@@ -116,7 +116,7 @@ type Box = {
 /** A rectangle in the browser's own coordinates. */
 type Rectangle = { left: number; top: number; right: number; bottom: number };
 
-/** Draw your launch tracker in a browser, x-rayed: each part outlined with its service. */
+/** Draw your Monday page in a browser, x-rayed: each part outlined with its service. */
 export function XRay(properties: {
     rented: readonly Service[];
     maker: Maker;
@@ -130,7 +130,7 @@ export function XRay(properties: {
     const [boxes, setBoxes] = createSignal<readonly Box[]>([]);
 
     // hold the app the browser shows, by its page
-    const [row, setRow] = createSignal<Job>("tracker");
+    const [row, setRow] = createSignal<Job>("builder");
     const app = () => appOf(row());
 
     // measure every marked element against the browser, only while it shows
@@ -343,20 +343,10 @@ export function XRay(properties: {
                         <main {...style.attrs(appStyles.main, styles.page)}>
                             {isStacked() ? (
                                 <MadeFrame assistant={assistant()} title={app()[2]}>
-                                    {sectionOf(
-                                        row(),
-                                        "start",
-                                        present(sources[0], "first source"),
-                                        false,
-                                    )}
+                                    {sectionOf(row(), present(sources[0], "first source"), false)}
                                 </MadeFrame>
                             ) : (
-                                sectionOf(
-                                    row(),
-                                    "start",
-                                    present(sources[0], "first source"),
-                                    false,
-                                )
+                                sectionOf(row(), present(sources[0], "first source"), false)
                             )}
                         </main>
                         <p {...style.attrs(appStyles.statusBar)}>

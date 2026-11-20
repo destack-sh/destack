@@ -4,25 +4,18 @@ import { Favicon } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { changelog } from "./changelog.stylex";
 
-/** The launch's releases, newest first: version, date, title and what changed. */
+/** The booking app's releases, newest first: version, date, title and what changed. */
 export const releases: readonly (readonly [
     version: string,
     date: string,
     title: string,
     notes: readonly string[],
 ])[] = [
-    [
-        "0.9",
-        "Oct 20",
-        "Pricing",
-        ["Plans for people and organisations", "Usage billed by the hour"],
-    ],
-    ["0.8", "Oct 14", "Waitlist", ["Invites go out in batches of 400"]],
-    ["0.7", "Oct 7", "Desktop app", ["Signed builds for macOS", "Updates in the background"]],
-    ["0.6", "Sep 30", "Tables", ["Formulas across apps", "Import from Airtable and CSV"]],
-    ["0.5", "Sep 22", "Agents", ["Your agent works in every app", "Undo any change it makes"]],
-    ["0.4", "Sep 9", "Calendar", ["Booking pages", "Events from tasks and mail"]],
-    ["0.3", "Aug 28", "Mail", ["Send from your own domain", "Approve before an agent sends"]],
+    ["1.4", "Oct 20", "No more double bookings", ["Two clients can't take the same room and time"]],
+    ["1.3", "Oct 9", "Reminders", ["A text the day before", "Cancel from the reminder"]],
+    ["1.2", "Sep 25", "Rooms", ["Three rooms, each with its own hours"]],
+    ["1.1", "Sep 11", "Waiting list", ["Offered the next free slot when someone cancels"]],
+    ["1.0", "Aug 28", "Online booking", ["Clients book and move their own sessions"]],
 ];
 
 /** Draw your changelog as a small site you deployed to its own Vercel address. */

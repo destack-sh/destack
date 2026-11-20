@@ -28,9 +28,9 @@ export const jira = style.defineConsts({
     task: "#4688ec",
     /** A high priority's arrow. */
     priority: "#e06c00",
-    /** The launch epic's lozenge. */
+    /** The booking app epic's lozenge. */
     epic: "light-dark(#f3f0ff, #2b2451)",
-    /** The launch epic's text. */
+    /** The booking app epic's text. */
     epicInk: "light-dark(#5e4db2, #b8acf6)",
     /** A card's lift off its column. */
     lift: "0 1px 1px rgb(30 31 33 / 0.25), 0 0 1px rgb(30 31 33 / 0.31)",

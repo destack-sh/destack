@@ -68,7 +68,7 @@ function rowOf(hour: number): number {
     return Math.round((hour - 9) * 2) + 2;
 }
 
-/** Draw the launch week in the office calendar, its bookable times offered through bookings. */
+/** Draw your week in the office calendar, its bookable times offered through bookings. */
 export function OutlookCalendar() {
     return (
         <div data-component="OutlookCalendarPage" {...style.attrs(styles.page)}>
@@ -143,7 +143,7 @@ export function OutlookCalendar() {
                             </span>
                             <span {...style.attrs(styles.calendar)}>
                                 <span {...style.attrs(styles.box, styles.boxBooking)} />
-                                Destack demo · 30 min
+                                Call with Florian · 30 min
                             </span>
                         </nav>
 
@@ -173,7 +173,9 @@ export function OutlookCalendar() {
                                     }}
                                     {...style.attrs(styles.event, isBookable && styles.booking)}
                                 >
-                                    <b>{isBookable ? "Destack demo" : title.split(" · ")[0]}</b>
+                                    <b>
+                                        {isBookable ? "Call with Florian" : title.split(" · ")[0]}
+                                    </b>
                                     <span>{isBookable ? "Bookings with me" : "Florian"}</span>
                                 </span>
                             ))}

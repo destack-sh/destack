@@ -18,11 +18,11 @@ export const trello = style.defineConsts({
     ink: "light-dark(#172b4d, #b6c2cf)",
     /** Secondary text and badges. */
     muted: "light-dark(#44546f, #9fadbc)",
-    /** The launch label. */
+    /** The work label. */
     green: "#4bce97",
     /** The review label. */
     yellow: "#f5cd47",
-    /** The waitlist label. */
+    /** The client label. */
     purple: "#9f8fef",
     /** A done card's due badge. */
     done: "#1f845a",
