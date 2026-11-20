@@ -579,6 +579,7 @@ Pick the commit type:
   - `feat`: extend, generalise, or add non-trivial model changes
   - `refactor`: replace or reshape the model in some non-trivial way
   - `fix`: correct the model in some non-trivial sense that did not require a refactor
+  - `perf`: make the model faster without changing its (intended) behavior
   - `test`: extend, update, bless, or otherwise modify the tests
   - `chore`: modify or adapt in a semantically trivial way (format, trivial API adaptation, ..)
   - `docs`: edit the docs (in code or otherwise)
