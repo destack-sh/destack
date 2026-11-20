@@ -226,6 +226,16 @@ async function open(tables: readonly Table[]) {
     return storage.database;
 }
 
+/** List the tables a database has applied state for, by name. */
+async function appliedTables(database: Awaited<ReturnType<typeof open>>): Promise<string[]> {
+    const rows = await database.execute(
+        sql`SELECT "table" FROM ${sql.relation(STATE)} ORDER BY "table"`,
+        schema.object({ table: schema.string() }),
+    );
+
+    return rows.map((row) => row.table);
+}
+
 /** Summarize a plan's steps. */
 function review(plan: TablePlan) {
     return plan.steps.map((step) => `${step.risk} ${step.action} ${step.target}: ${step.detail}`);
@@ -935,6 +945,47 @@ test("roll back without contracting what a newer release added, and refuse table
                 target: `table/${table(folderOne)}`,
                 detail: `rollback to ${CURRENT_VERSION} cannot read the table ${NEXT_RELEASE.package.version} renamed to ${table(directoryTable)}`,
             },
+        ],
+    });
+});
+
+test("rename a table with its state under the new name alone, and forget the state a past rename left under the old name", async () => {
+    // rename folders to directories, then add themes, which plans again
+    const renamed = await open([folderOne]);
+    await renamed.migrate([directoryTable]);
+    const added = await renamed.migrate([directoryTable, themeTable]);
+
+    // leave the folders' state behind after the rename, as earlier releases did, then add themes
+    const left = await open([folderOne]);
+    await left.migrate([folderOne]);
+    const [folder] = await left.execute(
+        sql`SELECT state FROM ${sql.relation(STATE)}`,
+        schema.object({ state: schema.string() }),
+    );
+    await left.migrate([directoryTable]);
+    await left.transaction(
+        async (transaction) =>
+            await transaction.run(
+                sql`INSERT INTO ${sql.relation(STATE)} ("table", manager, package_id, state, applied_at)
+                    VALUES (${table(folderOne)}, ${DATABASE_MANAGER}, ${folderOne[TABLE].package.id}, ${present(folder, "the folders' state").state}, 0)`,
+            ),
+    );
+    const healed = await left.migrate([directoryTable, themeTable]);
+
+    // create the themes alone after a rename, and forget the leftover state without dropping a table
+    expect({
+        added: review(added),
+        healed: review(healed),
+        states: [await appliedTables(renamed), await appliedTables(left)],
+    }).toEqual({
+        added: [`safe create table/${table(themeTable)}: create table`],
+        healed: [
+            `safe delete table/${table(folderOne)}: forget renamed table`,
+            `safe create table/${table(themeTable)}: create table`,
+        ],
+        states: [
+            [table(directoryTable), table(themeTable)].toSorted(),
+            [table(directoryTable), table(themeTable)].toSorted(),
         ],
     });
 });

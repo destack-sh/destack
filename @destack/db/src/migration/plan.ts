@@ -208,6 +208,22 @@ function planDeclared(
             (state.moved?.table === undefined ? undefined : remaining.get(state.moved.table));
         remaining.delete(previous?.table.name ?? name);
 
+        // forget the state an earlier rename left under the table's old name
+        const left =
+            state.moved?.table === undefined ? undefined : remaining.get(state.moved.table);
+        if (left !== undefined && previous?.table.name === name) {
+            remaining.delete(left.table.name);
+            steps.push(
+                step(
+                    "delete",
+                    Address.join("table", left.table.name),
+                    "safe",
+                    "forget renamed table",
+                    [deleteState(left.table.name, input.namespace)],
+                ),
+            );
+        }
+
         // create each missing table unless a newer release renamed it or an unmanaged one has it
         if (!previous) {
             const creating = planCreate(state, input, problems);
@@ -226,7 +242,16 @@ function planDeclared(
         // change an applied table whose declared state differs, or which follows a rebuilt table
         else if (input.changed.has(previous.table.name) || following.has(name)) {
             const isEmpty = input.empty.has(name);
-            steps.push(...planChange(state, previous, isEmpty, problems, following.has(name)));
+            steps.push(
+                ...planChange(
+                    state,
+                    previous,
+                    isEmpty,
+                    problems,
+                    following.has(name),
+                    input.namespace,
+                ),
+            );
         }
     }
 
@@ -322,8 +347,9 @@ function planChange(
     isEmpty: boolean,
     problems: Problem[],
     isFollowing: boolean,
+    namespace: string | undefined,
 ): TableStep[] {
-    // rename a moved table before changing it
+    // rename a moved table before changing it, with its state under the new name alone
     const name = state.table.name;
     const steps: TableStep[] = [];
     if (previous.table.name !== name) {
@@ -333,7 +359,10 @@ function planChange(
                 Address.join("table", name),
                 "backward-incompatible",
                 `rename table from ${previous.table.name}`,
-                [statement.renameTable(previous.table.name, name)],
+                [
+                    statement.renameTable(previous.table.name, name),
+                    deleteState(previous.table.name, namespace),
+                ],
             ),
         );
     }

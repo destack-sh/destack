@@ -28,6 +28,8 @@ import {
     readListing,
     readManagers,
     upgradeUnmanaged,
+    readReplication,
+    type Replication,
     readState,
     readTables,
     unappliedTables,
@@ -485,9 +487,7 @@ export class DatabaseConnection<
 
     /** Read from the applied states which tables the database replicates. */
     async #readApplied(): Promise<void> {
-        const { namespace } = this.state;
-        const applied = (await readState(this)).map((entry) => localState(entry.state, namespace));
-        this.state.readApplied(applied);
+        this.state.readApplied(await readReplication(this));
     }
 
     /** Plan a manager's migration from its applied tables to the declared ones. */
@@ -902,15 +902,15 @@ export class ConnectionState {
     }
 
     /** Read which tables the applied states replicate. */
-    readApplied(states: readonly Pick<TableState, "table" | "isReplicated">[]): void {
+    readApplied(states: readonly Replication[]): void {
         // take the declared and applied replicas but the tables applied as their package declares them
-        const replicas = states.filter((state) => state.isReplicated === true);
+        const replicas = states.filter((state) => state.isReplicated);
         const replicated = new Set([
             ...this.declaredReplicas,
-            ...replicas.map((state) => state.table.name),
+            ...replicas.map((state) => state.table),
         ]);
-        for (const state of states.filter((each) => each.isReplicated !== true)) {
-            replicated.delete(state.table.name);
+        for (const state of states.filter((each) => !each.isReplicated)) {
+            replicated.delete(state.table);
         }
         this.#replicated = replicated;
     }

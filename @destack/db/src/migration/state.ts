@@ -276,11 +276,14 @@ export function localState(state: TableState, namespace: string | undefined): Ta
     }
 
     // drop the namespace's prefix from each relation
+    return renameState(state, (name) => localName(name, namespace));
+}
+
+/** Drop a namespace's prefix from a relation's name, leaving any other name as it is. */
+export function localName(name: string, namespace: string | undefined): string {
     const prefix = relation("", namespace);
 
-    return renameState(state, (name) =>
-        name.startsWith(prefix) ? name.slice(prefix.length) : name,
-    );
+    return name.startsWith(prefix) ? name.slice(prefix.length) : name;
 }
 
 /** Rename the table, its indexes and every table the state refers to. */
@@ -360,6 +363,38 @@ export interface Listing {
     readonly tables: string[];
     /** Its state and stamp tables without the manager column, by name. */
     readonly unmanaged: string[];
+}
+
+/** An applied table's name without the namespace's prefix, and whether it is a replica. */
+export interface Replication {
+    /** The table's name in its database's namespace. */
+    readonly table: string;
+    /** Whether the table replicates another database's table. */
+    readonly isReplicated: boolean;
+}
+
+/** Read which applied tables are replicas, by name, without decoding their full states. */
+export async function readReplication(database: DatabaseConnection): Promise<Replication[]> {
+    // find the state table
+    const tables = await readTables(database);
+    if (!tables.includes(relation(STATE, database.state.namespace))) {
+        return [];
+    }
+
+    // read each table's replica flag from its stored state
+    const rows = await database.execute(
+        dialectSQL({
+            sqlite: sql`SELECT "table", CASE WHEN json_extract(state, '$.isReplicated') = 1 THEN 1 ELSE 0 END AS replicated FROM ${sql.relation(STATE)}`,
+            postgresql: sql`SELECT "table", CASE WHEN (state::jsonb ->> 'isReplicated') = 'true' THEN 1 ELSE 0 END AS replicated FROM ${sql.relation(STATE)}`,
+        }),
+        schema.object({ table: schema.string(), replicated: schema.number() }),
+    );
+    const { namespace } = database.state;
+
+    return rows.map((row) => ({
+        table: localName(row.table, namespace),
+        isReplicated: row.replicated === 1,
+    }));
 }
 
 /** List a database's tables with the columns of its state and stamp tables, in one statement. */
