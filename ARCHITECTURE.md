@@ -23,7 +23,7 @@ Where packages run: machines, the spaces they serve, and the relays reaching the
 | [`@destack/machine`](@destack/machine) | Run a machine: serve the spaces placed on it with their modules (buckets, vaults, connections, messages, observability, audit), route their installations' calls and keep their builds. | — |
 | [`@destack/relay`](@destack/relay) | Relay HTTP requests for Destack names to the machines serving them. | Cloudflare Tunnel, ngrok |
 | [`@destack/tunnel`](@destack/tunnel) | Carry HTTP requests over one WebSocket session between a machine and a relay, as a tunnel. | Cloudflare Tunnel |
-| [`@destack/control`](@destack/control) | Run a universe: the account, object, setting and control packages over one store at one origin. | Kubernetes control plane |
+| [`@destack/universe`](@destack/universe) | Run a universe: the account, object, setting and universe packages over one store at one origin. | Kubernetes control plane |
 
 ## 03 Service
 
