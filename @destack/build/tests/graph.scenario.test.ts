@@ -69,8 +69,11 @@ import { LOUD_LOOK } from "./card.look.ts";
 /** The state a completed card shows. */
 const DONE = "done";
 
+/** The step that completes a card. */
+const DONE_STEP = { action: "done" } as const;
+
 /** The steps that complete a card and quiet it. */
-const STEPS = [{ action: "done" }, { action: "set", properties: { tone: "quiet" } }] as const;
+const STEPS = [{ ...DONE_STEP }, { action: "set", properties: { tone: "quiet" } }] as const;
 
 /** A loud card. */
 export const noteCardLoud = defineExample({
@@ -89,7 +92,7 @@ export const noteCardComplete = defineScenario({
     description: "complete a card",
     given: { examples: [noteCardLoud], globals: { width: 320 } },
     parameters: {},
-    when: STEPS,
+    when: [...STEPS],
     then: [{ observe: { kind: "state" }, is: DONE }],
 });
 `;

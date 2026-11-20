@@ -2,7 +2,7 @@ import type { ESTree } from "rolldown/utils";
 import type { FamilyError } from "@destack/error";
 import type { graph } from "@destack/package";
 import type { SourceRange } from "@destack/package/source";
-import type { JsonValue } from "@destack/schema";
+import { JsonValue } from "@destack/schema";
 import { BuildError, type BuildReason } from "../error/index.ts";
 import { children, qualifiedName } from "./node.ts";
 
@@ -274,7 +274,7 @@ export class DefinitionFields {
             throw this.#error("an object literal");
         }
 
-        // take each named field
+        // take each named field, and the fields of a spread constant in its place
         const fields = new Map<string, ESTree.Node>();
         for (const property of node.properties) {
             const key =
@@ -282,10 +282,16 @@ export class DefinitionFields {
                     ? propertyName(property.key)
                     : undefined;
             const isMethod = property.type === "Property" && property.method;
-            if (property.type === "Property" && key !== undefined && !isMethod) {
+            if (property.type === "SpreadElement") {
+                for (const [spreadKey, value] of this.#nested(
+                    this.#constant(property.argument),
+                ).#fields) {
+                    fields.set(spreadKey, value);
+                }
+            } else if (property.type === "Property" && key !== undefined && !isMethod) {
                 fields.set(key, property.value);
             } else if (!isMethod) {
-                throw this.#error("named fields without computed keys or spreads");
+                throw this.#error("named fields without computed keys");
             }
         }
 
@@ -319,11 +325,20 @@ export class DefinitionFields {
         ) {
             return -node.argument.value;
         }
-        // read arrays and objects field by field
+        // read arrays element by element, splicing in the elements of a spread constant
         else if (node.type === "ArrayExpression") {
-            return node.elements.map((element) =>
-                element === null ? null : this.#json(element, name),
-            );
+            return node.elements.flatMap((element): readonly JsonValue[] => {
+                if (element?.type === "SpreadElement") {
+                    const spread = this.#json(element.argument, name);
+                    if (!JsonValue.isArray(spread)) {
+                        throw this.#error(`${name} as literal JSON`);
+                    }
+
+                    return spread;
+                }
+
+                return [element === null ? null : this.#json(element, name)];
+            });
         } else if (node.type === "ObjectExpression") {
             return Object.fromEntries(
                 [...this.#nested(node).#fields].map(([key, value]) => [
@@ -346,6 +361,20 @@ export class DefinitionFields {
 
         // refuse anything that needs evaluation
         throw this.#error(`${name} as literal JSON`);
+    }
+
+    /** Read the literal a module constant holds, through type assertions. */
+    #constant(node: ESTree.Node): ESTree.Node {
+        // follow a constant's name to its value, unwrapping assertions
+        if (node.type === "Identifier") {
+            const value = this.#constants.get(node.name);
+
+            return value === undefined ? node : this.#constant(value);
+        } else if (node.type === "TSAsExpression" || node.type === "TSSatisfiesExpression") {
+            return this.#constant(node.expression);
+        }
+
+        return node;
     }
 
     /** Describe a definition the reader cannot read. */
