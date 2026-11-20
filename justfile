@@ -6,7 +6,7 @@ set dotenv-filename := ".env.local"
 # run every database test on SQLite and the test PostgreSQL
 export DESTACK_TEST_POSTGRES := "postgres://postgres@127.0.0.1:55432/postgres"
 
-# the CI check runners: 54 checks paid 81 of 108 runner minutes in setup, 8 pay 12
+# the CI check runners
 runners := "8"
 
 _default:
@@ -29,11 +29,11 @@ build:
 generate:
     bun run --cwd @platform/site generate
 
-# fix every package through its pinned toolchain: its generated settings, formatting and lints, the only recipe that writes
+# fix every package's settings, formatting and lints
 fix:
     #!/usr/bin/env bash
     set -euo pipefail
-    # write the workspace root's settings, then fix each package in turn
+    # write the root's settings, then fix each package
     bun run destack-check configure
     cd "{{justfile_directory()}}/@destack/cli"
     for definition in "{{justfile_directory()}}"/@destack/*/destack.json "{{justfile_directory()}}"/@platform/*/destack.json; do
@@ -42,12 +42,12 @@ fix:
 
 alias fmt := fix
 
-# check the workflows, the repository's documents and the shared settings, writing nothing
+# check the workflows, documents and shared settings
 check-repository:
     actionlint
     bun run destack-check check README.md AGENTS.md ARCHITECTURE.md CONTRIBUTING.md SECURITY.md @platform/site/content
 
-# check the repository, then check and test each package the changes since a base affect, as CI does
+# check and test the packages changed since a base, as CI does
 check base="": (postgres "up")
     #!/usr/bin/env bash
     set -euo pipefail
@@ -59,7 +59,7 @@ check base="": (postgres "up")
         just test "$directory"
     done
 
-# check the same packages with their unit tests alone, the loop while working
+# check the changed packages with their unit tests alone
 check-fast base="":
     #!/usr/bin/env bash
     set -euo pipefail
@@ -68,12 +68,12 @@ check-fast base="":
     base="${base:-$(git merge-base HEAD origin/main)}"
     for directory in $(just affected "$base"); do
         echo "check $directory"
-        # lint only the package's modules changed since the base, as the type checker checks only what it lints
+        # lint only the modules changed since the base
         just check-package "$directory" --since "$base"
         just test "$directory" --fast
     done
 
-# check and test every package in every tier, as a release does
+# check and test every package in every tier
 check-all: (postgres "up")
     #!/usr/bin/env bash
     set -euo pipefail
@@ -84,7 +84,7 @@ check-all: (postgres "up")
         just test "$directory"
     done
 
-# list the packages the changes since a base commit affect with their dependents, or every package
+# list the packages changed since a base and their dependents, else every package
 affected base="":
     #!/usr/bin/env bash
     set -euo pipefail
@@ -92,42 +92,68 @@ affected base="":
     if [ -n "{{base}}" ]; then
         directories="$(bun run destack-check affected "{{base}}")"
     fi
-    # list every package when a change reaches every package
+    # list every package for a change reaching all of them
     if [ "$directories" = "*" ]; then
         directories="$(printf '%s\n' @destack/* @platform/*)"
     fi
-    # keep packages with sources, leaving out test fixtures
+    # keep packages with sources, without test fixtures
     for directory in $directories; do
         if [ -f "$directory/package.json" ] && [ -d "$directory/src" ] && [[ "$directory" != */tests/* ]]; then
             echo "$directory"
         fi
     done
 
-# check a package's formatting, types and lints, writing nothing: lint every source, or those `--since <base>` changed
+# check a package's formatting, types and lints
 check-package directory *arguments:
     #!/usr/bin/env bash
     set -euo pipefail
-    # check the package through its pinned toolchain with the command line's sources
+    # check the package with its pinned toolchain
     cd "{{justfile_directory()}}/@destack/cli"
     bun run --silent dev check "{{justfile_directory()}}/{{directory}}" {{arguments}}
 
-# test a package in every tier, or its unit tier with --fast, or the given test files of it
+# test a package, its unit tier with --fast, its bench tier with --bench, or given files
 test directory *arguments:
     #!/usr/bin/env bash
     set -euo pipefail
-    # read --fast as the unit tier alone, the other arguments as test files
+    # read the tier flags and the test files
     options=()
     files=()
     for argument in {{arguments}}; do
         if [ "$argument" = --fast ]; then
             options+=(--tier unit)
+        elif [ "$argument" = --bench ]; then
+            options+=(--tier bench)
         else
             files+=("$argument")
         fi
     done
-    # run the package's tests through its plan with the command line's sources
+    # run the package's tests through its plan
     cd "{{justfile_directory()}}/@destack/cli"
     bun run --silent dev test "{{justfile_directory()}}/{{directory}}" ${options[@]+"${options[@]}"} ${files[@]+"${files[@]}"}
+
+# bench every package's scenarios, then print the table
+bench *packages:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd "{{justfile_directory()}}"
+    # select the named packages, else every package with scenarios
+    packages="{{packages}}"
+    if [ -z "$packages" ]; then
+        packages="$(grep -rl --include='*.scenario.ts' -e defineScenario @destack @platform | grep -v node_modules | cut -d/ -f1,2 | sort -u)"
+    fi
+    # name the run after the commit
+    baseline="$(git rev-parse --short HEAD)"
+    if [ -n "$(git status --porcelain)" ]; then
+        baseline="$baseline-dirty"
+    fi
+    # clear and bench each package
+    for directory in $packages; do
+        echo "bench $directory"
+        name="$(jq --raw-output .name "$directory/package.json")"
+        rm -rf "target/bench/$baseline/$name"
+        just test "$directory" --bench
+    done
+    bun run @destack/test/src/bench/main.ts target/bench "$baseline"
 
 # list a package's vitest test files
 test-files directory:
@@ -135,7 +161,7 @@ test-files directory:
     set -euo pipefail
     cd "{{justfile_directory()}}/{{directory}}"
     test="$(jq -r '.scripts.test // ""' package.json)"
-    # list files with the test script's own options
+    # list the files with the test script's options
     if [[ "$test" == *"vitest run"* && "$test" != *"&&"* && "$test" != *";"* ]]; then
         listed="$(mktemp)"
         PATH="$PWD/node_modules/.bin:{{justfile_directory()}}/node_modules/.bin:$PATH" \
@@ -149,7 +175,7 @@ test-durations directory milliseconds:
     #!/usr/bin/env bash
     set -euo pipefail
     cd "{{justfile_directory()}}/{{directory}}"
-    # share the run by each file's durations over its projects, from the results Vitest reads
+    # sum each file's durations over its projects
     shopt -s nullglob
     jq --slurp --compact-output --arg package "{{directory}}" --argjson milliseconds "{{milliseconds}}" '
         [.[] | select(.version == 1) | .projects[] | .files // {} | to_entries[]]
@@ -160,15 +186,11 @@ test-durations directory milliseconds:
         | from_entries
     ' node_modules/.vite/vitest/*/results.json /dev/null
 
-# weigh a file by its duration, else its package's median, else the median, else 1
-# keep a package whole, and cut a measured one heavier than the average runner into parts
-# pack each package or part onto the lightest runner, heaviest first
-# check a package on the runner with its largest share
-# divide packages across the runners as JSON
+# divide packages across the runners by duration, as JSON
 check-runners durations +directories:
     #!/usr/bin/env bash
     set -euo pipefail
-    # read the recorded durations, if any
+    # read the recorded durations
     durations="{{durations}}"
     if [ ! -f "$durations" ]; then
         durations=/dev/null
@@ -180,7 +202,7 @@ check-runners durations +directories:
             '{ package: $package, files: (split("\n") | map(select(. != ""))) }'
     done | jq --slurp --compact-output --argjson runners "{{runners}}" --slurpfile table "$durations" '
         def median: sort | if length == 0 then null else .[length / 2 | floor] end;
-        # pack items onto the lightest bin, heaviest first
+        # pack items onto the lightest bin
         def pack($count): sort_by(-.weight, .key)
             | reduce .[] as $item ([range($count) | { weight: 0, items: [] }];
                 (to_entries | min_by(.value.weight) | .key) as $lightest
@@ -204,7 +226,7 @@ check-runners durations +directories:
         | (map({ key: .package, value: .check }) | from_entries) as $checks
         | ((map(.weight) | add) / $runners) as $average
 
-        # cut measured packages heavier than the average into parts
+        # split packages heavier than the average runner
         | [
             .[]
             | .package as $package
@@ -219,7 +241,7 @@ check-runners durations +directories:
             end
         ]
 
-        # pack the runners, one run per package
+        # pack the runners
         | pack($runners)
         | [
             to_entries[]
@@ -239,7 +261,7 @@ check-runners durations +directories:
             }
         ]
 
-        # check each package on the runner with its largest share
+        # check each package on its largest runner
         | (reduce (.[] | .runner as $runner | .work[] | { package, share, runner: $runner }) as $part ({};
             if (.[$part.package].share // -1) < $part.share then .[$part.package] = $part else . end)) as $owners
         | map(
@@ -249,13 +271,13 @@ check-runners durations +directories:
         )
     '
 
-# start, stop or report the test PostgreSQL on port 55432, or start it unless it runs (up)
+# start, stop or report the test PostgreSQL
 postgres action:
     #!/usr/bin/env bash
     set -euo pipefail
     bin="$(brew --prefix postgresql@18)/bin"
     data=target/postgres
-    # leave a server that already answers, such as CI's service, else start the local one
+    # reuse a running server, else start the local one
     if [ "{{action}}" = up ]; then
         pg_isready --host 127.0.0.1 --port 55432 >/dev/null 2>&1 || "$bin/pg_ctl" --pgdata "$data" status >/dev/null 2>&1 || just postgres start
         exit 0
@@ -263,11 +285,11 @@ postgres action:
     if [ "{{action}}" = start ] && [ ! -d "$data" ]; then
         "$bin/initdb" --pgdata "$data" --username postgres --auth trust --encoding UTF8 >/dev/null
     fi
-    # run without durability, as the test cluster's data is disposable, with connections for a worker per core
+    # run without durability, with a connection per worker
     options="-p 55432 -k /tmp -c fsync=off -c synchronous_commit=off -c full_page_writes=off -c max_connections=300"
     "$bin/pg_ctl" --pgdata "$data" --log "$data/server.log" --options "$options" --wait "{{action}}"
 
-# serve the local universe (local reset drops its state), and run the desktop app or the cli on it with local desktop and local cli
+# run the local universe: serve, reset, desktop or cli
 [no-exit-message]
 [positional-arguments]
 local *arguments:
@@ -282,6 +304,6 @@ pack target="":
 company-dev:
     cd @platform/company && bunx wrangler@4.134.0 dev --port 3838
 
-# deploy the company site with its token from .env.local
+# deploy the company site
 company-deploy:
     cd @platform/company && CLOUDFLARE_API_TOKEN="${CLOUDFLARE_COMPANY_API_TOKEN:?CLOUDFLARE_COMPANY_API_TOKEN is required}" bunx wrangler@4.134.0 deploy
