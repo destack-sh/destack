@@ -18,7 +18,7 @@ const CatalogDownload = schema.object({
 /** One public archive or installer in the download catalog. */
 type CatalogDownload = schema.Infer<typeof CatalogDownload>;
 
-// NOTE #Architecture: mirrors @platform/release's Catalog so the site skips release's build closure
+// NOTE #Architecture: mirrors @platform/distribution's Catalog so the site skips distribution's build closure
 /** The public download choices of one signed release. */
 const Catalog = schema.object({
     /** Calendar version shared by every download. */
