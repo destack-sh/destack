@@ -1,9 +1,9 @@
 import { dirname, join, resolve } from "node:path";
-import { COMMANDS, Platform, RUNTIME } from "./index.ts";
+import { Platform } from "./index.ts";
 import type { Environment, HostCapability } from "@destack/environment";
 import { Device } from "@destack/machine/device";
 import { schema } from "@destack/schema";
-import type { Target } from "@destack/update/release";
+import { Release, type Target } from "@destack/update/release";
 import { SANDBOX_TOOLS, SandboxTool } from "@destack/sandbox";
 
 /** How long one checked command may run, in milliseconds: a machine start with its keychain. */
@@ -108,21 +108,15 @@ async function checkExecutables(
         system === "linux"
             ? SANDBOX_TOOLS.map((tool) => join(helpers, SandboxTool.file(tool)))
             : [];
-    const paths = [
-        join(application, bundle.executable),
-        join(helpers, RUNTIME),
-        join(helpers, "destack-desktop-host"),
-        ...tools,
-    ];
+    const name = Release.executable(Release.system(target));
+    const executable = join(helpers, name);
+    const paths = [join(application, bundle.executable), executable, ...tools];
 
-    // require each command in the application, and its link from bin
-    for (const name of COMMANDS) {
-        paths.push(join(helpers, name));
-        const link = join(root, "bin", name);
-        const linked = await environment.files.readLink(link);
-        if (resolve(dirname(link), linked) !== join(helpers, name)) {
-            throw new Error(`'${link}' links to '${linked}', not the application's '${name}'`);
-        }
+    // require the executable's link from bin
+    const link = join(root, "bin", name);
+    const linked = await environment.files.readLink(link);
+    if (resolve(dirname(link), linked) !== executable) {
+        throw new Error(`'${link}' links to '${linked}', not the application's '${name}'`);
     }
 
     // reject empty files, links and missing executable permissions before runtime checks

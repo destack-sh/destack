@@ -3,7 +3,7 @@ import { CHECKOUT } from "./distribution.ts";
 import { Universe } from "@destack/update/release";
 import { checkDistribution } from "./check.ts";
 import { buildSandboxTools } from "./tools.ts";
-import { DESKTOP_ENTRY, PlatformBuild } from "../deployment/index.ts";
+import { PlatformBuild } from "../deployment/index.ts";
 import { basename, dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Release } from "@destack/update/release";
@@ -13,13 +13,7 @@ import type { Environment, HostCapability } from "@destack/environment";
 import {
     buildExecutable,
     buildToolchain,
-    COMMANDS,
-    CONFIGURATION_FILE,
-    PROGRAM_DIRECTORY,
-    RUNTIME,
-    toolchainOptions,
     writeToolchainManifest,
-    type ExecutableOptions,
     Platform,
     readWorkspace,
     releaseVersion,
@@ -72,11 +66,11 @@ export async function buildDistribution(
     await files.mkdir(staging, { recursive: true });
     const directory = await files.makeTemporaryDirectory(`${target}-`, { directory: staging });
 
-    // compile the commands, bundle the desktop and place the commands inside it
-    await compileExecutables(directory, platform, universe, version, environment);
+    // compile the executable, bundle the desktop and place the executable inside it
+    await compileExecutable(directory, platform, universe, version, environment);
     const application = await bundleDesktop(directory, platform, universe, version, environment);
     const helpers = join(application, platform.bundle.helpers);
-    await placeCommands(directory, helpers, platform, environment);
+    await placeExecutable(directory, helpers, platform, environment);
 
     // build the sandbox's tools beside its launcher on Linux, where the sandbox runs them
     if (platform.system === "linux") {
@@ -99,57 +93,30 @@ export async function buildDistribution(
     print(destination, environment);
 }
 
-/** Compile every executable into `bin` with the packages they load, the toolchain beside it. */
-async function compileExecutables(
+/** Compile the executable into `bin` with the packages it loads, the toolchain beside it. */
+async function compileExecutable(
     directory: string,
     platform: Platform,
     universe: Universe,
     version: string,
     environment: Environment<HostCapability>,
 ): Promise<void> {
-    // select the executables `bin` has, with the options each needs
-    const { files } = environment;
-    const executables: readonly {
-        readonly name: string;
-        readonly entrypoint: string;
-        readonly options: Pick<ExecutableOptions, "external" | "plugins">;
-    }[] = [
-        { name: "destack", entrypoint: "@destack/cli/src/main.ts", options: {} },
-        { name: "destack-machine", entrypoint: DESKTOP_ENTRY, options: toolchainOptions(files) },
-        {
-            name: "destack-sandbox",
-            entrypoint: "@destack/sandbox/src/main.ts",
-            options: {},
-        },
-        {
-            name: "destack-build",
-            entrypoint: "@destack/build/src/main.ts",
-            options: toolchainOptions(files),
-        },
-        {
-            name: "destack-desktop-host",
-            entrypoint: "@destack/desktop/src/main.ts",
-            options: {},
-        },
-    ];
-
-    // compile each executable from the installed workspace graph
+    // compile the command line's entry, which runs every other process, its maps beside the distribution
     const bin = join(directory, "bin");
-    for (const executable of executables) {
-        await buildExecutable(
-            {
-                root: CHECKOUT,
-                entrypoint: join(CHECKOUT, executable.entrypoint),
-                outfile: join(bin, executable.name),
-                target: platform.target,
-                runtime: platform.runtime,
-                version,
-                universe,
-                ...executable.options,
-            },
-            environment,
-        );
-    }
+    await buildExecutable(
+        {
+            root: CHECKOUT,
+            entrypoint: join(CHECKOUT, "@destack/cli/src/main.ts"),
+            sharing: join(CHECKOUT, "@destack/build"),
+            outfile: join(bin, Release.executable(Release.system(platform.target))),
+            maps: join(directory, MAPS_DIRECTORY),
+            target: platform.target,
+            runtime: platform.runtime,
+            version,
+            universe,
+        },
+        environment,
+    );
     await buildToolchain(
         CHECKOUT,
         platform.target,
@@ -228,8 +195,8 @@ async function bundleDesktop(
     return application;
 }
 
-/** Move the runtime, the launchers and their resources into the application, linked from `bin`. */
-async function placeCommands(
+/** Move the executable and its resources into the application, linked from `bin`. */
+async function placeExecutable(
     directory: string,
     helpers: string,
     platform: Platform,
@@ -238,45 +205,23 @@ async function placeCommands(
     // create the platform's helper directory and its resources
     const { files } = environment;
     const bin = join(directory, "bin");
-    const resources = Distribution.resources(join(helpers, "destack"));
+    const name = Release.executable(Release.system(platform.target));
+    const resources = Distribution.resources(join(helpers, name));
     await files.mkdir(helpers, { recursive: true });
     await files.mkdir(resources, { recursive: true });
 
-    // move the bundles' source maps beside the distribution, for observability
-    const programs = join(bin, PROGRAM_DIRECTORY);
-    await files.mkdir(join(directory, MAPS_DIRECTORY));
-    for (const entry of await files.readDirectory(programs)) {
-        if (entry.name.endsWith(".map")) {
-            await files.rename(
-                join(programs, entry.name),
-                join(directory, MAPS_DIRECTORY, entry.name),
-            );
-        }
-    }
-
-    // move the bundles, their configuration, the packages they load and the first-party releases into the resources
-    for (const name of [
-        PROGRAM_DIRECTORY,
-        CONFIGURATION_FILE,
-        "node_modules",
-        DISTRIBUTION_DIRECTORY,
-    ]) {
-        await files.rename(join(bin, name), join(resources, name));
+    // move the packages the executable loads and the first-party releases into the resources
+    for (const each of ["node_modules", DISTRIBUTION_DIRECTORY]) {
+        await files.rename(join(bin, each), join(resources, each));
     }
 
     // list the toolchain beside the application in its resources
     const toolchain = join(directory, TOOLCHAIN_DIRECTORY);
     await writeToolchainManifest(toolchain, resources, platform.architecture, environment);
 
-    // move the runtime and the launchers the desktop starts into the helpers
-    for (const name of [RUNTIME, "destack-desktop-host", ...COMMANDS]) {
-        await files.rename(join(bin, name), join(helpers, name));
-    }
-
-    // link each command from bin, which resolves the launcher through the link
-    for (const name of COMMANDS) {
-        await files.symlink(relative(bin, join(helpers, name)), join(bin, name));
-    }
+    // move the executable the desktop starts into the helpers, linked from bin
+    await files.rename(join(bin, name), join(helpers, name));
+    await files.symlink(relative(bin, join(helpers, name)), join(bin, name));
 }
 
 /** Move a staged distribution to its destination, moving the previous build aside. */

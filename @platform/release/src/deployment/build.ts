@@ -53,9 +53,6 @@ const STACK_EXPORTS = RESIDENCIES.map(
 /** A stack definition's installations, by name. */
 const INSTALLATIONS = schema.record(schema.string(), InstallationDefinition);
 
-/** The desktop machine's entry below the checkout, the runtime computers ship. */
-export const DESKTOP_ENTRY = "@destack/desktop/src/machine.ts";
-
 /** The desktop package, whose workspace builds the release of the program computers run. */
 const DESKTOP = "@destack/desktop";
 

@@ -3,7 +3,6 @@ import { dirname, extname } from "node:path";
 import { PackageLocator } from "@destack/package/locator";
 import { Version } from "@destack/schema";
 import { DECLARED_MODULE, DECLARED_PASSTHROUGH, transformModule } from "@destack/package/transform";
-import { transformAssets } from "./asset.ts";
 
 /** The namespace the declaration recorder loads from, apart from the files. */
 const DECLARED_NAMESPACE = "destack-declared";
@@ -11,13 +10,8 @@ const DECLARED_NAMESPACE = "destack-declared";
 /** The Bun loader of each source extension, TypeScript for every other. */
 const LOADERS: Readonly<Record<string, Bun.Loader>> = { ".tsx": "tsx", ".jsx": "jsx" };
 
-/** Compose package metadata and asset references within Bun's single source load. */
-export function modulePlugin(
-    root: string,
-    assets: Set<string>,
-    files: FileSystem,
-    version?: string,
-): Bun.BunPlugin {
+/** Stamp package metadata into each source within Bun's single source load. */
+export function modulePlugin(files: FileSystem, version?: string): Bun.BunPlugin {
     // share package lookup results across modules in this compilation
     const packages = new PackageLocator(files);
 
@@ -34,30 +28,27 @@ export function modulePlugin(
                 loader: "js",
             }));
 
-            // stamp each source file
+            // stamp each source file of a package
             build.onLoad({ filter: /\.[cm]?[jt]sx?$/u }, async ({ path }) => {
-                // preserve directory references before injecting declaration metadata
-                const source = await files.readTextFile(path);
-                const transformed = await transformAssets(source, path, root, assets, files);
+                // leave files outside Destack packages to the bundler
                 const owner = await packages.find(path);
+                if (owner === undefined) {
+                    return;
+                }
 
                 // stamp the distribution version into the metadata of each package no release gave one
-                let contents = transformed;
-                if (owner !== undefined) {
-                    const isVersioned =
-                        version !== undefined &&
-                        owner.metadata.package.version === Version.development;
-                    const metadata = isVersioned
-                        ? { ...owner.metadata, package: { ...owner.metadata.package, version } }
-                        : owner.metadata;
-                    const result = await transformModule(
-                        transformed ?? source,
-                        path,
-                        { ...owner, metadata },
-                        packages,
-                    );
-                    contents = result?.code ?? transformed;
-                }
+                const isVersioned =
+                    version !== undefined && owner.metadata.package.version === Version.development;
+                const metadata = isVersioned
+                    ? { ...owner.metadata, package: { ...owner.metadata.package, version } }
+                    : owner.metadata;
+                const source = await files.readTextFile(path);
+                const contents = await transformModule(
+                    source,
+                    path,
+                    { ...owner, metadata },
+                    packages,
+                );
                 if (contents === undefined) {
                     return;
                 }

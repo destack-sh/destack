@@ -1,9 +1,9 @@
 import { CHECKOUT } from "../distribution/distribution.ts";
 import { dirname, join } from "node:path";
-import { COMMANDS, type Installer, RUNTIME, releaseVersion } from "../distribution/index.ts";
+import { type Installer, releaseVersion } from "../distribution/index.ts";
 import { MacSigning } from "../signing/apple.ts";
 import { run } from "../distribution/command.ts";
-import { Universe } from "@destack/update/release";
+import { Release, Universe } from "@destack/update/release";
 import type { Environment, HostCapability } from "@destack/environment";
 import { DISTRIBUTION_MANIFEST, DistributionManifest } from "@destack/package";
 import { DISTRIBUTION_DIRECTORY } from "@destack/update";
@@ -48,12 +48,7 @@ export async function buildMacInstaller(
         const contents = join(application, "Contents");
 
         // merge each executable of both slices, then their resources
-        for (const name of [
-            "MacOS/Destack",
-            `Helpers/${RUNTIME}`,
-            "Helpers/destack-desktop-host",
-            ...COMMANDS.map((command) => `Helpers/${command}`),
-        ]) {
+        for (const name of ["MacOS/Destack", `Helpers/${Release.executable("darwin")}`]) {
             await mergeExecutable(name, contents, slices, environment);
         }
         await mergeResources(contents, slices, environment);

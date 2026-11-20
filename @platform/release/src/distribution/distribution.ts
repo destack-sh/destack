@@ -16,9 +16,6 @@ export const WorkspaceManifest = schema.looseObject({
 /** The workspace manifest's fields a release reads. */
 export type WorkspaceManifest = schema.Infer<typeof WorkspaceManifest>;
 
-/** The standalone commands each distribution ships in `bin` and beside its native desktop. */
-export const COMMANDS = ["destack", "destack-machine", "destack-sandbox", "destack-build"];
-
 /** Read the workspace manifest at a checkout's root. */
 export async function readWorkspace(
     root: string,

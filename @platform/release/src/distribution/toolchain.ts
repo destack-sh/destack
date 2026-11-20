@@ -1,7 +1,8 @@
 import { createRequire } from "node:module";
-import { basename, dirname, join, sep } from "node:path";
+import { basename, dirname, join, relative, sep } from "node:path";
 import type { Architecture, Environment, FileSystem } from "@destack/environment";
 import { Distribution, Manifest } from "@destack/update";
+import { Release } from "@destack/update/release";
 import type { Target } from "@destack/update/release";
 import { schema } from "@destack/schema";
 import { TOOLCHAIN_PACKAGES } from "@destack/package/build";
@@ -124,7 +125,12 @@ export async function writeToolchainManifest(
 }
 
 /** Point modules reading their own files at run time to their copies. */
-export function toolchainPlugin(files: FileSystem): Bun.BunPlugin {
+export function toolchainPlugin(target: Target, files: FileSystem): Bun.BunPlugin {
+    // locate the resources from the target's installed executable, as its modules live inside it
+    const { bundle } = Platform.of(target);
+    const executable = join("/", bundle.application, bundle.helpers, Release.executable(Release.system(target)));
+    const resources = relative(dirname(executable), Distribution.resources(executable));
+
     return {
         name: "destack-executable-toolchain",
         setup(build) {
@@ -137,11 +143,11 @@ export function toolchainPlugin(files: FileSystem): Bun.BunPlugin {
                     return;
                 }
 
-                // locate the module's copy beside the programs, one directory above the bundle, else in the named toolchain
+                // locate the module's copy in the resources, else in the named toolchain
                 const copy = `node_modules/${installed.name}/${installed.path}`;
                 const url =
                     place === "resources"
-                        ? `new URL(${JSON.stringify(`../${copy}`)}, Bun.pathToFileURL(Bun.main)).href`
+                        ? `new URL(${JSON.stringify(join(resources, copy))}, Bun.pathToFileURL(process.execPath)).href`
                         : `Bun.pathToFileURL(${TOOLCHAIN_EXPRESSION} + ${JSON.stringify(`/${copy}`)}).href`;
                 const source = await files.readTextFile(path);
 

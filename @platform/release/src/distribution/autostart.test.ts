@@ -5,7 +5,7 @@ import { Autostart, MachineProcess } from "@destack/machine/computer";
 import { Device } from "@destack/machine/device";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildExecutable, toolchainOptions } from "./executable.ts";
+import { buildExecutable } from "./executable.ts";
 
 /** The real host the compiled machine registers on. */
 const HOST = testHost();
@@ -21,17 +21,18 @@ test.skipIf(HOST.host.os !== "darwin" || HOST.process.variables["DESTACK_TEST_AU
         const host = HOST;
         const directory = await host.files.makeTemporaryDirectory("destack-autostart-");
         const registration = await Autostart.of(directory, host);
-        const executable = join(directory, "destack-machine");
+        const executable = join(directory, "destack");
         try {
             await buildExecutable(
                 {
                     root,
-                    entrypoint: join(root, "@destack/desktop/src/machine.ts"),
+                    entrypoint: join(root, "@destack/cli/src/main.ts"),
+                    sharing: join(root, "@destack/build"),
                     outfile: executable,
+                    maps: join(directory, "maps"),
                     target: isArm ? "aarch64-apple-darwin" : "x86_64-apple-darwin",
                     runtime: isArm ? "bun-darwin-arm64" : "bun-darwin-x64",
                     version: "2026.9.123",
-                    ...toolchainOptions(host.files),
                 },
                 host,
             );
