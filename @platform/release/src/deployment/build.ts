@@ -171,21 +171,25 @@ export class PlatformBuild implements AsyncDisposable {
                     const builds = `${url}${registryPackage.mounts.builds.path}/${handle}/`;
                     await new RemoteBuildStore(builds, fetch).push(this.store, images);
 
-                    // publish the account's packages in each image, the forge releasing those an image requires first
+                    // publish the account's packages layer by layer, each layer's at once
                     const registry = createClient(
                         registryPackage,
                         { url, fetch },
                         this.store.environment,
                     );
-                    for (const image of images) {
-                        await registry.package.publish({
-                            spaceId: home,
-                            requestId: RequestId.create(this.store.environment),
-                            accountId,
-                            image,
-                            tag,
-                            ...options,
-                        });
+                    for (const layer of PlatformBuild.#layers(names, this.releases)) {
+                        await Promise.all(
+                            layer.map((name) =>
+                                registry.package.publish({
+                                    spaceId: home,
+                                    requestId: RequestId.create(this.store.environment),
+                                    accountId,
+                                    image: found(this.images, name),
+                                    tag,
+                                    ...options,
+                                }),
+                            ),
+                        );
                     }
                 }
             },
@@ -241,6 +245,48 @@ export class PlatformBuild implements AsyncDisposable {
         }
 
         return runs;
+    }
+
+    /** Order a handle's releases into layers, each after the layers holding what it requires. */
+    static #layers(
+        names: readonly string[],
+        releases: ReadonlyMap<string, BuildReader>,
+    ): string[][] {
+        // read each release's requirements among the handle's releases
+        const pending = new Map(
+            names.map((name) => [
+                name,
+                new Set(
+                    Object.keys(found(releases, name).manifest.requires).filter(
+                        (required) => required !== name && names.includes(required),
+                    ),
+                ),
+            ]),
+        );
+
+        // take every release whose requirements earlier layers hold, refusing a cycle
+        const layers: string[][] = [];
+        while (pending.size > 0) {
+            const layer = [...pending]
+                .filter(([, required]) => required.size === 0)
+                .map(([name]) => name);
+            if (layer.length === 0) {
+                throw new Error(
+                    `releases '${[...pending.keys()].join("', '")}' require each other`,
+                );
+            }
+            layers.push(layer);
+            for (const name of layer) {
+                pending.delete(name);
+            }
+            for (const required of pending.values()) {
+                for (const name of layer) {
+                    required.delete(name);
+                }
+            }
+        }
+
+        return layers;
     }
 
     /** Close the builds' store, releasing its lock. */
