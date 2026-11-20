@@ -94,6 +94,26 @@
     },
     "overrides": [
         {
+            "files": ["**/tests/fixture/**"],
+            "rules": {
+                "typescript/no-unsafe-type-assertion": "off",
+                "typescript/no-unsafe-argument": "off",
+                "typescript/no-unsafe-assignment": "off",
+                "typescript/no-unsafe-call": "off",
+                "typescript/no-unsafe-member-access": "off",
+                "typescript/no-unsafe-return": "off",
+                "typescript/no-floating-promises": "off",
+                "typescript/no-misused-promises": "off",
+                "typescript/strict-boolean-expressions": "off",
+                "typescript/switch-exhaustiveness-check": "off",
+                "typescript/unbound-method": "off",
+                "typescript/no-misused-spread": "off",
+                "typescript/only-throw-error": "off",
+                "typescript/no-deprecated": "off",
+                "typescript/no-unnecessary-type-assertion": "off"
+            }
+        },
+        {
             "files": [
                 "**/src/service/**",
                 "**/src/connection/**",
@@ -586,6 +606,7 @@
                 "@destack/sandbox/src/main.ts",
                 "@destack/stack/src/bun/runner.ts",
                 "@destack/stack/src/cloudflare/workload.ts",
+                "@destack/test/src/bench/main.ts",
                 "@destack/test/src/host/host.ts",
                 "@destack/test/src/plan/vitest.ts",
                 "@destack/theme/src/token/generate.ts",
