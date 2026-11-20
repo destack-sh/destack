@@ -1,3 +1,4 @@
+import { Failure } from "@destack/error";
 import {
     Operation,
     Reference,
@@ -116,16 +117,22 @@ export const Runner = {
         const measurements: Measurement[] = [];
         const fingerprints: number[] = [];
         for (const entry of when) {
+            // take the step
             const taken = clock.now();
-            if (Operation.is(entry)) {
-                const measurement = await measure(driver, entry, process.usage);
-                failures.push(
-                    ...measurement.failures,
-                    ...(await observe(driver, entry.then ?? [], labelOf(entry))),
-                );
-                measurements.push(measurement);
-            } else {
-                await driver.act(Reference.repeat(entry, 0));
+            try {
+                if (Operation.is(entry)) {
+                    const measurement = await measure(driver, entry, process.usage);
+                    failures.push(
+                        ...measurement.failures,
+                        ...(await observe(driver, entry.then ?? [], labelOf(entry))),
+                    );
+                    measurements.push(measurement);
+                } else {
+                    await driver.act(Reference.repeat(entry, 0));
+                }
+            } catch (error) {
+                failures.push(`${labelOf(entry)}: ${Failure.of(error).message}`);
+                break;
             }
             report(scenario, labelOf(entry), taken);
             fingerprints.push(driver.fingerprint());
