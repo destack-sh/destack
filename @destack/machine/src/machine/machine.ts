@@ -5,7 +5,7 @@ import { BuildObject, type BuildStore, RemoteBuildStore } from "@destack/build/s
 import type * as packageRuntime from "@destack/package/runtime";
 import { Traffic } from "../gateway/traffic.ts";
 import { Authentication, Caller, type ChainOptions, principal } from "@destack/access";
-import { Directory, DOMAINS, UniverseOrigin } from "@destack/account/address";
+import { Directory, UniverseOrigin } from "@destack/account/address";
 import { AccountError } from "@destack/account/error";
 import {
     type Enrollment,
@@ -53,7 +53,12 @@ import type {
     Server,
 } from "@destack/object/server";
 import { PackageId, PackageName, PackageRelease } from "@destack/package";
-import { TUNNEL_PATH, TunnelClient, type TunnelStatus } from "@destack/tunnel";
+import {
+    TUNNEL_PATH,
+    TUNNEL_TOKEN_LIFETIME_MILLISECONDS,
+    TunnelClient,
+    type TunnelStatus,
+} from "@destack/tunnel";
 import { Bearer, type PartitionId, SPACE_KEY, TokenVerifier } from "@destack/access/token";
 import { createClient, type ClientOf, ObjectConnection } from "@destack/object/client";
 import { Health, type Voucher } from "@destack/object/server";
@@ -560,12 +565,9 @@ export class Machine {
         return new Map(Object.entries(rates));
     }
 
-    /** Read the account package's URL and the issuer of the universe this machine enrolled at. */
-    async universe(): Promise<{ readonly accounts: string; readonly issuer: string }> {
-        const enrollment = await this.enrolled("serving spaces");
-        const accounts = PackageMount.url(enrollment.universe, accountPackage.id);
-
-        return { accounts, issuer: UniverseOrigin.issuer(enrollment.universe) };
+    /** Read the universe this machine enrolled at. */
+    async universe(): Promise<UniverseOrigin> {
+        return UniverseOrigin.of((await this.enrolled("serving spaces")).universe);
     }
 
     /** Wait until the directory replica is a complete snapshot, as informers sync caches. */
@@ -585,7 +587,7 @@ export class Machine {
         return createClient(
             accountPackage,
             {
-                url: PackageMount.url(enrollment.universe, accountPackage.id),
+                url: PackageMount.url(enrollment.universe.origin, accountPackage.id),
                 fetch: this.#fetchAs(enrollment, accountPackage.id),
             },
             this.environment,
@@ -697,7 +699,7 @@ export class Machine {
     /** Enroll this machine under an account as a personal machine with a new key. */
     enroll(
         accounts: ClientOf<typeof accountPackage>,
-        universe: string,
+        universe: UniverseOrigin,
         input: Omit<PersonalEnrollment, "scope" | "requestId" | "kind"> & {
             readonly accountId: Identifier<"account">;
         },
@@ -706,9 +708,14 @@ export class Machine {
         return this.scope.span("destack.machine.enroll", {}, async () => {
             // skip enrollment for a standing key
             const { accountId, ...enrollment } = input;
-            const issuer = UniverseOrigin.issuer(universe);
-            if (await this.identity.isStanding(issuer, (request) => this.send(request))) {
-                return { kind: "personal", universe, accountId, status: "enrolled" };
+            const enrolled: MachineEnrollment = {
+                kind: "personal",
+                universe: universe.toJSON(),
+                accountId,
+                status: "enrolled",
+            };
+            if (await this.identity.isStanding(universe.issuer, (request) => this.send(request))) {
+                return enrolled;
             }
 
             // enroll through the approving person's client with a new key
@@ -719,7 +726,7 @@ export class Machine {
                 kind: "personal",
             });
 
-            return { kind: "personal", universe, accountId, status: "enrolled" };
+            return enrolled;
         });
     }
 
@@ -740,7 +747,7 @@ export class Machine {
         const accounts = createClient(
             accountPackage,
             {
-                url: PackageMount.url(enrollment.universe, accountPackage.id),
+                url: PackageMount.url(enrollment.universe.origin, accountPackage.id),
                 fetch: this.#fetchAs(enrollment, accountPackage.id),
             },
             this.environment,
@@ -1025,7 +1032,9 @@ export class Machine {
     #accounts(): Promise<ObjectConnection> {
         this.#accountConnection ??= this.enrolled("serving spaces").then((enrollment) =>
             ObjectConnection.open({
-                url: ObjectConnection.url(PackageMount.url(enrollment.universe, accountPackage.id)),
+                url: ObjectConnection.url(
+                    PackageMount.url(enrollment.universe.origin, accountPackage.id),
+                ),
                 authorize: this.authorize(accountPackage.id),
                 environment: this.environment,
             }),
@@ -1112,13 +1121,17 @@ export class Machine {
             return sent;
         }
 
-        // find the space of the name's installation origin, S3 origin or route
+        // find the space of the name, refusing one not placed yet
         const claims = ClaimLookup.of(this.directory.snapshot.read(claimTable));
-        const routed = await SpaceRequest.named(request, {
-            domain: DOMAINS.space,
-            ...SpaceRequest.served(this.directory, this.id),
+        const { domains } = await this.universe();
+        const routed = await SpaceRequest.host(request, {
+            domain: domains.space,
+            ...SpaceRequest.served(this.directory, this.id, this.clock),
             route: (host, path) => stackObject.Route.locate(claims, host, path),
-        });
+        }).catch((error: unknown) => refusal(error, this.environment.telemetry));
+        if (routed instanceof Response) {
+            return routed;
+        }
 
         return this.#serve(routed);
     }
@@ -1274,7 +1287,7 @@ export class Machine {
 
     /** Serve a request in the space the machine found for it. */
     async #serve(routed: SpaceRequest | undefined, voucher?: Voucher): Promise<Response> {
-        // answer 404 to a request naming no space, and move one at a former name to the current one
+        // answer 404 to a request naming no space, and move one at a former name or placed elsewhere
         if (routed === undefined) {
             return new Response(null, { status: 404 });
         } else if (routed.moved !== undefined) {
@@ -1471,10 +1484,18 @@ export class Machine {
             return { [Symbol.asyncDispose]: async () => {} };
         }
 
-        // renew the tunnel at the configured relay, else the account residency's, at each renewal's name
-        const issuer = Machine.#issuer(enrollment);
-        const url =
-            relayed.url ?? `${await this.#residencyRelay(enrollment.accountId)}${TUNNEL_PATH}`;
+        // dial the configured relay, else the account residency's with a token bound to the residency's home
+        const universe = UniverseOrigin.of(enrollment.universe);
+        const { issuer } = universe;
+        const residency = (await this.accounts()).residency;
+        const account = enrollment.accountId;
+        const url = relayed.url ?? `${await residency.relay({ account })}${TUNNEL_PATH}`;
+        const binding = {
+            lifetime: TUNNEL_TOKEN_LIFETIME_MILLISECONDS,
+            ...(relayed.url === undefined
+                ? { partition: await residency.locate({ account }) }
+                : {}),
+        };
         const tunnel = TunnelClient.open({
             url,
             machineId: this.id,
@@ -1487,19 +1508,14 @@ export class Machine {
                 ),
             environment: this.environment,
             token: (audience) =>
-                this.identity.at(issuer, (request) => this.send(request)).token(audience, {}),
+                this.identity.at(issuer, (request) => this.send(request)).token(audience, binding),
             renewed: ({ name }) => {
-                this.#origin = `https://${name}`;
+                this.#origin = universe.url(name);
             },
             changed: relayed.changed,
         });
 
         return { [Symbol.asyncDispose]: () => tunnel.close() };
-    }
-
-    /** Read the relay origin of the residency an account stores its data in. */
-    async #residencyRelay(account: Identifier<"account">): Promise<string> {
-        return (await this.accounts()).residency.relay({ account });
     }
 
     /** Wrap the machine's network to call a package as the machine. */
@@ -1510,7 +1526,7 @@ export class Machine {
     ): Fetch {
         const send: Fetch = (request) => this.send(request);
         const session = new Session(this.identity.at(Machine.#issuer(enrollment), send), {
-            universe: enrollment.universe,
+            universe: enrollment.universe.origin,
             send,
             bookmark: new Bookmark(),
             environment: this.environment,
@@ -1521,7 +1537,7 @@ export class Machine {
 
     /** Read the issuer of this machine's tokens: its universe's. */
     static #issuer(enrollment: MachineEnrollment): string {
-        return UniverseOrigin.issuer(enrollment.universe);
+        return UniverseOrigin.of(enrollment.universe).issuer;
     }
 
     /** Read this machine's valid enrollment, absent before it enrolls and after a revoke. */
