@@ -1,4 +1,3 @@
-import { PackageInspection } from "@destack/package/code";
 import { PackageId } from "@destack/package";
 import { contained, principal, through, union } from "@destack/access";
 import * as accountObject from "@destack/account/object";
@@ -85,19 +84,6 @@ export const checkout = defineObject(
             permission: "read",
             output: schema.array(schema.string().min(1)),
             prepared: schema.array(schema.string().min(1)),
-        }),
-        /** Inspect a package directory of the checkout for one of its outputs. */
-        inspect: method.query({
-            title: t`Inspect`,
-            permission: "read",
-            input: schema.object({
-                /** The package directory, relative to the checkout's root. */
-                directory: schema.string().min(1),
-                /** The output whose runtime the inspection compiles for. */
-                output: schema.string().min(1),
-            }),
-            output: PackageInspection,
-            prepared: PackageInspection,
         }),
         /** Build a stack package directory of the checkout in a space, answering its submission. */
         submit: method.mutation({

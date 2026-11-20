@@ -6,7 +6,7 @@ import type { CommandHost } from "../../process/command.ts";
 import { join } from "node:path";
 import * as check from "@destack/check/workspace";
 import { and, eq } from "@destack/db";
-import { nth, present, schema } from "@destack/schema";
+import { nth, schema } from "@destack/schema";
 import type { Select } from "@destack/db";
 import { type Digest, Identifier } from "@destack/schema";
 import {
@@ -16,9 +16,8 @@ import {
     type WorkingTreeSource,
 } from "../object/index.ts";
 import { Git } from "./git.ts";
-import { type CompilerPool, outputsOf, Workspace } from "@destack/build";
+import { type CompilerPool } from "@destack/build";
 import { Template } from "@destack/build/template";
-import { PackageInspection } from "@destack/package/code";
 import { ObjectReference, RequestId } from "@destack/sync";
 import { build, Build } from "@destack/stack/object";
 import type { CheckoutSource } from "../../../installation/build.ts";
@@ -141,10 +140,6 @@ export class CheckoutServer {
                             context.target.directory,
                             host.files,
                         ),
-                    handle: (context) => Promise.resolve(context.prepared),
-                },
-                inspect: {
-                    prepare: (context) => this.#inspect(context.target, context.input),
                     handle: (context) => Promise.resolve(context.prepared),
                 },
                 submit: {
@@ -294,27 +289,6 @@ export class CheckoutServer {
         const existing = (await host.files.exists(path)) ? await host.files.readTextFile(path) : "";
         const registries = withScopes(existing, scopes.toSorted(), `${universe}/npm/`);
         await host.files.writeFile(path, new TextEncoder().encode(registries));
-    }
-
-    /** Inspect a checkout's package directory for one output, on its dependencies' builds. */
-    async #inspect(
-        registered: Select<typeof checkout.table>,
-        input: { readonly directory: string; readonly output: string },
-    ): Promise<PackageInspection> {
-        // read the output's runtime, refusing an output the package does not build
-        const located = WorkingTree.package(registered.root, input.directory);
-        const workspacePackage = await (
-            await Workspace.open(located.path, this.compilers)
-        ).package();
-        const [selected] = Object.values(
-            outputsOf(workspacePackage.root.packageJson, [input.output]),
-        );
-        const { runtime } = present(selected, `the output ${input.output}`);
-
-        // inspect with the package's warm compiler on its workspace units' stored builds
-        const inspection = await workspacePackage.inspect({ runtime });
-
-        return PackageInspection.parse(inspection);
     }
 
     /** Build a checkout's stack package in its space. */
