@@ -286,7 +286,7 @@ function ownObjects(
             publish: space.publish.bind(space),
         }),
         implementTransfer(transfers),
-        implementRoute(space.machine.isServingHostnames),
+        implementRoute(space.machine.isServingHostnames, space.universe),
     ];
 
     return stackObjects(served);

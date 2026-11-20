@@ -1,4 +1,4 @@
-import { UNIVERSE_NODE } from "@destack/control/test";
+import { UNIVERSE_NODE } from "@destack/universe/test";
 import { RetryPolicy } from "@destack/environment";
 import { MAIN_DATABASE } from "@destack/stack/declare";
 import { JWS_ALGORITHMS, Jwks, Jwt, Recipient } from "@destack/identity";

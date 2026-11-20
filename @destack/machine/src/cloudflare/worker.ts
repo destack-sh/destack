@@ -6,7 +6,7 @@ import { WorkerdDistribution } from "@destack/package/workerd";
 import { ServerBundle } from "./bundle.ts";
 import { ProcessRuntime } from "../runtime/process.ts";
 import { traceSampling } from "@destack/stack/setting";
-import { Directory, type SpaceAddress, UniverseOrigin } from "@destack/account/address";
+import { Directory, type SpaceAddress } from "@destack/account/address";
 import * as accountObject from "@destack/account/object";
 import { AlarmClock, Snapshot } from "@destack/db";
 import { type DurableObjectStorage, Jurisdiction, CONTENT_PATH } from "@destack/db/cloudflare";
@@ -516,16 +516,16 @@ export class MachineWorker {
     /** The cloud machine the isolate resolves origins' spaces as, once derived. */
     readonly #cloud = new Once<CloudMachine>();
 
-    /** Answer a request in the object of its space, stating a refused upgrade on a socket. */
+    /** Serve a request in the object of its space, stating a refused upgrade on a socket. */
     async fetch(given: Request, bindings: MachineBindings): Promise<Response> {
-        // answer the request, passing on anything but a refused upgrade
-        const answer = await this.#answer(given, bindings);
-        const refused = await SocketRefusal.of(given, answer);
+        // serve the request, passing on anything but a refused upgrade
+        const response = await this.#serve(given, bindings);
+        const refused = await SocketRefusal.of(given, response);
         if (refused === undefined) {
-            return answer;
+            return response;
         }
 
-        // open a socket in the isolate to state the refusal, which a browser cannot read from the answer
+        // open a socket in the isolate to state the refusal, which a browser cannot read from the response
         const pair = new WebSocketPair();
         pair[1].accept();
         const end = pair[1];
@@ -538,34 +538,39 @@ export class MachineWorker {
         return new Response(null, upgrade);
     }
 
-    /** Answer a request in the object of its space in the residency's jurisdiction. */
-    async #answer(given: Request, bindings: MachineBindings): Promise<Response> {
+    /** Serve a request in the object of its space in the residency's jurisdiction. */
+    async #serve(given: Request, bindings: MachineBindings): Promise<Response> {
         // take a public request's client from Cloudflare, and the head a service binding hands on as it is
         const client = given.headers.get(CONNECTING_IP_HEADER);
         const request = client === null ? given : Forwarded.replace(given, { for: client });
 
         // hand the universe its issuer and package mounts at its origin, which it serves behind the machines
-        if (UniverseOrigin.of(request.url, bindings.DESTACK_UNIVERSE_ORIGIN) !== undefined) {
+        if (CloudMachine.universe(bindings).serves(request.url) !== undefined) {
             return bindings.UNIVERSE.fetch(request);
         }
 
         // find the spaces served here alone, by a request to the machine's own host or a name
         const isOwn = new URL(request.url).host === new URL(bindings.DESTACK_ORIGIN).host;
         const served = async () => {
-            const { replica, id } = await this.#machine(bindings);
+            const { replica, id, environment } = await this.#machine(bindings);
 
-            return SpaceRequest.served(new Directory(Snapshot.live(replica)), id);
+            return SpaceRequest.served(
+                new Directory(Snapshot.live(replica)),
+                id,
+                environment.clock,
+            );
         };
         const origins = {
             domain: bindings.DESTACK_SPACE_DOMAIN,
             find: async (address: SpaceAddress) => (await served()).find(address),
             serves: async (space: Identifier<"space">) => (await served()).serves(space),
+            locate: async (space: Identifier<"space">) => (await served()).locate(space),
         };
 
-        // find the space of a name: its installation origin's or S3 origin's, else its route's
+        // find the space of a name, refusing one not placed yet
         const routed = isOwn
             ? await SpaceRequest.of(request, origins)
-            : await SpaceRequest.named(request, {
+            : await SpaceRequest.host(request, {
                   ...origins,
                   route: async (host, path) => {
                       // match the route's hostname claims in the directory replica
@@ -574,14 +579,17 @@ export class MachineWorker {
 
                       return Route.locate(claims, host, path);
                   },
-              });
+              }).catch((error: unknown) => refusal(error, WorkerdEnvironment.system.telemetry));
+        if (routed instanceof Response) {
+            return routed;
+        }
 
         // refuse a request outside every space, or to the path the tail posts traced work at
         if (routed === undefined || new URL(routed.request.url).pathname === TRACES_PATH) {
             return new Response(null, { status: 404 });
         }
 
-        // move a request at a former name to the space's current origin
+        // move a request at a former name, or for a space placed elsewhere
         if (routed.moved !== undefined) {
             return SpaceRequest.move(routed.moved);
         }

@@ -229,7 +229,7 @@ export class InstallationOriginServer {
             view.space,
             machine.clock.now(),
         );
-        const origin = InstallationOrigin.url(
+        const origin = this.#space.universe.installation(
             { ...SpaceAddress.origin(view.space), name: view.installation },
             located.url,
         );
@@ -758,7 +758,7 @@ export class InstallationOriginServer {
             located === undefined
                 ? {
                       package: PackageVersion.of(accountPackage),
-                      url: PackageMount.url(new URL(universe.issuer).origin, accountPackage.id),
+                      url: PackageMount.url(universe.origin, accountPackage.id),
                       home: { kind: "universe" as const },
                   }
                 : {
@@ -1228,7 +1228,7 @@ export class InstallationOriginServer {
                 ),
                 view: name,
                 base,
-                universe: new URL(this.#space.universe.issuer).origin,
+                universe: this.#space.universe.origin,
                 catalogs: await InstallationOriginServer.#memo(
                     this.#catalogs,
                     `${page.image} ${base}`,
@@ -1323,7 +1323,7 @@ export class InstallationOriginServer {
         return createClient(
             accountPackage,
             {
-                url: PackageMount.url(new URL(universe.issuer).origin, accountPackage.id),
+                url: PackageMount.url(universe.origin, accountPackage.id),
                 fetch: async (request) => {
                     // exchange the person's token for the account package
                     const token = await this.#gateway.exchange(this.#acting(page), person, target);

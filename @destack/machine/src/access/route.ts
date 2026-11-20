@@ -1,4 +1,4 @@
-import { PlatformDomain } from "@destack/account/address";
+import type { UniverseOrigin } from "@destack/account/address";
 import { hostname } from "@destack/account/object";
 import { type MethodContext } from "@destack/object";
 import { Route, route, type RouteRule } from "@destack/stack/object";
@@ -6,12 +6,12 @@ import type {} from "@destack/package/import-meta";
 import { StackError } from "@destack/stack/error";
 
 /** Implement the routes of a space, refusing an account's own hostname a machine does not serve. */
-export function implementRoute(isServingHostnames: boolean) {
+export function implementRoute(isServingHostnames: boolean, universe: UniverseOrigin) {
     return route.implement({
         methods: {
             create: async (call, next) => {
                 // refuse a route on an account's own hostname no request would reach, then a hostname outside the account
-                if (!isServingHostnames && !PlatformDomain.covers(call.input.hostname)) {
+                if (!isServingHostnames && !universe.covers(call.input.hostname)) {
                     throw StackError.of(
                         "HOSTNAME_BLOCKED",
                         `cannot route '${call.input.hostname}': its requests do not reach this space's machine`,

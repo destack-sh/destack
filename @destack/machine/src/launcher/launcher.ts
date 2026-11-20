@@ -2,7 +2,7 @@ import type { DatabaseConnection } from "@destack/db";
 import type { GrantClaim, PermissionReference } from "@destack/access";
 import { Account, HOME_SPACE, RESIDENCY_SPACE } from "@destack/account/object";
 import { GrantPermission, principal, StepUp } from "@destack/access";
-import { InstallationOrigin, SpaceAddress } from "@destack/account/address";
+import { SpaceAddress } from "@destack/account/address";
 import { AccountError } from "@destack/account/error";
 import {
     ConsentRequest,
@@ -455,7 +455,7 @@ export class Launcher {
             grants: [grant.id],
         });
         const url = new URL(
-            ViewAddress.url(view, Launcher.#origin(view.space, view.installation, place.url)),
+            ViewAddress.url(view, await this.#origin(view.space, view.installation, place.url)),
         );
         url.searchParams.set(TOKEN_PARAMETER, token);
 
@@ -469,7 +469,7 @@ export class Launcher {
     }> {
         // find where the space serves and the view the address opens
         const { view, place } = await this.#locate(address);
-        const origin = Launcher.#origin(view.space, view.installation, place.url);
+        const origin = await this.#origin(view.space, view.installation, place.url);
 
         return { url: ViewAddress.url(view, origin), space: place.placement.space };
     }
@@ -896,8 +896,10 @@ export class Launcher {
     }
 
     /** Write an installation's origin wherever its space's machine answers. */
-    static #origin(space: SpaceAddress, installation: string, endpoint: string): string {
-        return InstallationOrigin.url(
+    async #origin(space: SpaceAddress, installation: string, endpoint: string): Promise<string> {
+        const universe = await this.user.issuer.universe();
+
+        return universe.installation(
             { ...SpaceAddress.origin(space), name: installation },
             endpoint,
         );

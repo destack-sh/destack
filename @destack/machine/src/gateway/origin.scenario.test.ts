@@ -1,8 +1,8 @@
+import { TEST_UNIVERSE } from "@destack/universe/test";
 import { testIdentity } from "@destack/object/test";
 import { type Crypto, WebSocketUpgrade } from "@destack/environment";
 import { eq } from "@destack/db";
 import { testHost } from "@destack/test/host";
-import { DOMAINS } from "@destack/account/address";
 import accountPackage from "@destack/account/package";
 import { TestDns } from "@destack/account/test";
 import { Jwt, KeyPair, Proof, PROOF_HEADER } from "@destack/identity";
@@ -1478,7 +1478,7 @@ test("launch and call a space another machine serves", async () => {
         document: document.status,
         listed: listed.map((row) => [row["title"], row["status"]]),
     }).toEqual({
-        host: `tasks--${work.address}.${DOMAINS.space}`,
+        host: `tasks--${work.address}.${TEST_UNIVERSE.domains.space}`,
         traded: [303, "/board"],
         document: 200,
         listed: [["Write the report", "open"]],

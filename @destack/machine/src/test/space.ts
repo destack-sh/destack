@@ -72,15 +72,16 @@ import { SocketRegistry, type InstallationBuild } from "../index.ts";
 import { Machine } from "../machine/machine.ts";
 import { Space } from "../space/space.ts";
 import { type StoreProvider, type SpaceProvider } from "@destack/stack/object";
-import { Control } from "@destack/control";
+import { Universe } from "@destack/universe";
 import {
     MachineWorld,
+    TEST_UNIVERSE,
     TestMachine,
-    TestControl,
-    type TestControlOptions,
-    ControlWorld,
+    TestUniverse,
+    type TestUniverseOptions,
+    UniverseWorld,
     UNIVERSE_NODE,
-} from "@destack/control/test";
+} from "@destack/universe/test";
 import type { TestPerson } from "@destack/account/test";
 import type { ClientOf } from "@destack/object/client";
 import stackPackage, { PUSH_PATH } from "@destack/stack/package";
@@ -107,7 +108,8 @@ import { PackageManifest } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import type { StackRelease } from "@destack/account/object";
 import { RemoteBuildStore, BuildStore } from "@destack/build/store";
-import { fixtureGraph, TestBuildStore } from "@destack/build/test";
+import { fixtureGraph, TestBuildStore, testStore } from "@destack/build/test";
+import { TestDistribution } from "../computer/test/distribution.ts";
 import { RolloutTarget } from "../installation/target.ts";
 import { testWorldOptions } from "@destack/test/world";
 
@@ -162,7 +164,7 @@ const WORLD_OPTIONS = [
 function spaceWorldOf<World extends JsonValue>(world: schema.Schema<World>) {
     return schema.object({
         /** The universe's keys and its people's sign-ins. */
-        universe: ControlWorld,
+        universe: UniverseWorld,
         /** The machine's keyring secrets. */
         machine: MachineWorld,
         /** The directory of the machine's buckets and the spaces' databases, copied per test. */
@@ -236,7 +238,7 @@ export type WorldSpace = (
 
 /** The databases of a space world: the universe's and the machine's replica. */
 type SpaceDatabases = {
-    readonly universe: typeof Control.database;
+    readonly universe: typeof Universe.database;
     readonly machine: typeof TestMachine.database;
 };
 
@@ -304,7 +306,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
     /** The account the space belongs to. */
     readonly account: Identifier<"account">;
     /** The universe the space lives in. */
-    readonly universe: TestControl;
+    readonly universe: TestUniverse;
     /** The space's owner, signed up at the universe. */
     readonly owner: TestPerson;
     /** The machine hosting the space, by its identifier in the world's machines. */
@@ -315,8 +317,6 @@ export class TestSpace implements AsyncDisposable, TestScope {
     readonly simulation: Simulation;
     /** Open each residency's home the world serves with its forge, once, by residency. */
     readonly homes: Map<ResidencyCode, () => Promise<TestSpace>>;
-    /** The system builds the world's machines ship, which its universe opens before the forge's. */
-    readonly distributed: BuildReader[];
     /** The world's machines answering at their origins, this space's machine among them. */
     readonly gateway: TestGateway;
     /** The world's running machines, by machine. */
@@ -357,13 +357,12 @@ export class TestSpace implements AsyncDisposable, TestScope {
     private constructor(fields: {
         readonly id: Identifier<"space">;
         readonly account: Identifier<"account">;
-        readonly universe: TestControl;
+        readonly universe: TestUniverse;
         readonly owner: TestPerson;
         readonly machine: Identifier<"machine">;
         readonly test: TestMachine;
         readonly simulation: Simulation;
         readonly homes: Map<ResidencyCode, () => Promise<TestSpace>>;
-        readonly distributed: BuildReader[];
         readonly gateway: TestGateway;
         readonly machines: Map<Identifier<"machine">, Machine>;
         readonly starts: Map<
@@ -390,7 +389,6 @@ export class TestSpace implements AsyncDisposable, TestScope {
         this.#test = fields.test;
         this.simulation = fields.simulation;
         this.homes = fields.homes;
-        this.distributed = fields.distributed;
         this.gateway = fields.gateway;
         this.machines = fields.machines;
         this.starts = fields.starts;
@@ -547,7 +545,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
 
         return new TestTemplate({
             name: `stack.world ${new Date(start).toISOString()} ${world.name} ${tables}`,
-            databases: { universe: Control.database, machine: TestMachine.database },
+            databases: { universe: Universe.database, machine: TestMachine.database },
             volume: TestSpace.#base(options),
             value: spaceWorldOf(world.value),
             world: { seed: WORLD_SEED, start },
@@ -828,7 +826,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
 
     /** Create the fixture's account as its owner, answering the owner's account client. */
     static async account(
-        universe: TestControl,
+        universe: TestUniverse,
         owner: TestPerson,
         created: { readonly id: Identifier<"account">; readonly handle: string } = FIXTURE_ACCOUNT,
     ): Promise<ClientOf<typeof accountPackage>> {
@@ -1002,7 +1000,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
             /** The database the universe stores in, a fresh one by default. */
             readonly storage?: TestDatabase;
             /** The universe's world a template wrote, none by default. */
-            readonly world?: ControlWorld;
+            readonly world?: UniverseWorld;
         } = {},
     ): Promise<TestSpaceWorld> {
         // join the given world
@@ -1015,8 +1013,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
         const environment = simulation.environment(UNIVERSE_NODE);
         const { source } = await TestSpace.releases(environment.crypto);
         const homes = new Map<ResidencyCode, () => Promise<TestSpace>>();
-        const distributed: BuildReader[] = [];
-        const universe = await TestControl.open({
+        const universe = await TestUniverse.open({
             stacks: {
                 home: { ...RESIDENCY_STACK, export: HOME_EXPORT },
                 space:
@@ -1025,29 +1022,13 @@ export class TestSpace implements AsyncDisposable, TestScope {
                         : { ...RESIDENCY_STACK, export: HOME_EXPORT },
             },
             home: RESIDENCY_STACK,
-            // open releases at the residency's forge, as a universe opens them at the forges
-            releases: {
-                open: async (packageId, named) => {
-                    // open a release the world's machines ship first, as a universe opens its distribution's
-                    const shipped = distributed.find(
-                        (build) =>
-                            PackageManifest.package(build.manifest).id === packageId &&
-                            PackageManifest.package(build.manifest).version === named,
-                    );
-                    if (shipped !== undefined) {
-                        return shipped;
-                    }
-
-                    // open the forge once a space of the world hosts, as the first release asked opens it
-                    const home = await present(homes.get(RESIDENCY), "the residency's home")();
-
-                    return await TestSpace.#openRelease(home, packageId, named);
-                },
-                distribution: [],
-            },
+            // ship the forge's and the space's linked builds, as a deploy ships its distribution
+            ...(await TestSpace.#distribution(
+                TestSpace.#withForge(options).linked ?? [],
+                environment,
+            )),
             ...(storage === undefined ? {} : { storage }),
             ...(world === undefined ? {} : { world }),
-            policies: TestSpace.#withForge(options).policies ?? [],
             ...(options.residencies === undefined ? {} : { residencies: options.residencies }),
             ...(options.publishers === undefined ? {} : { publishers: options.publishers }),
             simulation,
@@ -1062,7 +1043,6 @@ export class TestSpace implements AsyncDisposable, TestScope {
             simulation,
             universe,
             homes,
-            distributed,
             gateway,
             machines: new Map(),
             starts: new Map(),
@@ -1245,7 +1225,10 @@ export class TestSpace implements AsyncDisposable, TestScope {
                 enrollment: async () => {
                     // read how the universe enrolled the machine: under an account, or as the residency's
                     const row = await enrolledAs();
-                    const enrolled = { universe: universe.origin, status: "enrolled" } as const;
+                    const enrolled = {
+                        universe: TEST_UNIVERSE.toJSON(),
+                        status: "enrolled",
+                    } as const;
 
                     return row?.kind === "personal"
                         ? {
@@ -1423,11 +1406,6 @@ export class TestSpace implements AsyncDisposable, TestScope {
                 world.servers.push(server);
             }
         }
-        for (const build of withForge.linked ?? []) {
-            if (!world.distributed.includes(build)) {
-                world.distributed.push(build);
-            }
-        }
         const machine = await TestSpace.#machine(world, test, options, {
             defer,
             ...(lifetime.directory === undefined ? {} : { directory: lifetime.directory }),
@@ -1455,7 +1433,6 @@ export class TestSpace implements AsyncDisposable, TestScope {
             test,
             simulation,
             homes: world.homes,
-            distributed: world.distributed,
             gateway,
             machines: world.machines,
             starts: world.starts,
@@ -1646,23 +1623,23 @@ export class TestSpace implements AsyncDisposable, TestScope {
         return image;
     }
 
-    /** Open the root build of a package's release at the residency's forge, by version or tag. */
-    static async #openRelease(
-        home: TestSpace,
-        packageId: PackageId,
-        named: string,
-    ): Promise<BuildReader> {
-        // resolve the release, then open its image's root build where the forge serves builds
-        const { machine } = home;
-        const fetch = TestSpace.#fetchAs(home);
-        const found = await callRegistry(machine, home.id, fetch).release.resolve({
-            spaceId: home.id,
-            parentId: packageId,
-            release: named,
-        });
-        const builds = `${await TestSpace.#forgeUrl(home)}${registryPackage.mounts.builds.path}`;
+    /** Write a layer of linked builds once per process, as a deploy ships its distribution. */
+    static async #distribution(
+        linked: readonly BuildReader[],
+        environment: Environment<"files" | "process" | "host">,
+    ): Promise<Pick<TestUniverseOptions, "distribution" | "layer">> {
+        // image each build in the run's store, then write their layer
+        await using store = await testStore(environment);
+        const images = await Promise.all(
+            linked.map(async (build) => (await imageBuild(store, build, [])).image),
+        );
+        const layer = await TestDistribution.layer(images, store);
+        const distribution = linked.map((build, index) => ({
+            package: PackageManifest.package(build.manifest),
+            image: nth(images, index),
+        }));
 
-        return await RemoteBuildStore.open(builds, fetch, found.image, machine.environment.crypto);
+        return { distribution, layer };
     }
 
     /** Locate the forge in the residency's home: the URL its package's mounts lie below. */
@@ -1714,7 +1691,6 @@ export class TestSpace implements AsyncDisposable, TestScope {
             providers: union(forge.providers, options.providers),
             tables: union(forge.tables, options.tables),
             follows: union(forge.follows, options.follows),
-            policies: union(forge.policies, options.policies),
             resources,
         };
     }
@@ -2397,7 +2373,6 @@ export type TestSpaceWorld = Pick<
     | "simulation"
     | "universe"
     | "homes"
-    | "distributed"
     | "gateway"
     | "machines"
     | "starts"
@@ -2429,12 +2404,10 @@ export interface TestSpaceOptions {
     readonly tables?: readonly Table[];
     /** The world the space joins: its simulation, universe and registry, a new one by default. */
     readonly world?: TestSpaceWorld;
-    /** The policies a new universe decides with its own, such as the forge's, none by default. */
-    readonly policies?: TestControlOptions["policies"];
     /** The residencies a new universe declares, Europe alone by default. */
-    readonly residencies?: TestControlOptions["residencies"];
+    readonly residencies?: TestUniverseOptions["residencies"];
     /** The handles a new universe's platform publishes under, none by default. */
-    readonly publishers?: TestControlOptions["publishers"];
+    readonly publishers?: TestUniverseOptions["publishers"];
     /** The owner of the space, a new sign-up by default, such as a move's source's owner. */
     readonly owner?: TestPerson;
     /** The origin the test serves the hosting machine at, its published one by default. */

@@ -95,7 +95,6 @@ export const FORGE_HOME_OPTIONS = {
     tables: gitStorage.tables,
     // replicate the connections the forge follows as its installation, beside its names and callers
     follows: [{ shape: connectionShape, keys: [] }, claimFollow, standingFollow],
-    policies: Object.values(forgePackage.objects).map((object) => object.policy),
     resources: (directory: string, environment: Environment<"files" | "process" | "host">) => ({
         providers: [localGitProvider(directory, gitStorage, environment)],
         connectors: [LocalGitStorage.connector(directory, environment)],

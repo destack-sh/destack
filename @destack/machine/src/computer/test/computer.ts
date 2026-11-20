@@ -9,14 +9,12 @@ import { type CapturedRecord, TestTelemetry } from "@destack/telemetry/test";
 import { Refusal } from "../../test/refusal.ts";
 import { basename, dirname, join } from "node:path";
 import { Account, type ResidencyCode } from "@destack/account/object";
-import { DOMAINS } from "@destack/account/address";
 import type { StepUp } from "@destack/access";
 import type { Login } from "@destack/account/native";
 import { freshHandle, type TestPerson } from "@destack/account/test";
 import { type DatabaseConnection, Snapshot } from "@destack/db";
 import { TestTemplate, type TestDatabase, TestRun } from "@destack/db/test";
 import { Simulation, SimulatedClock } from "@destack/environment/simulation";
-import { reference, repository } from "@destack/registry/object";
 import { MemoryKeychain } from "@destack/identity";
 import { installation, type ObjectType, type Package, PackageMount } from "@destack/object";
 import { createClient } from "@destack/object/client";
@@ -30,9 +28,8 @@ import { RequestId, Scope, ObjectReference } from "@destack/sync";
 import { RolloutTarget } from "../../installation/target.ts";
 import type { PackageId } from "@destack/package";
 import { inject, onTestFinished } from "@destack/test";
-import { Control } from "@destack/control";
-import { TestControl, ControlWorld } from "@destack/control/test";
-import relayPackage, { TUNNEL_TOKEN_LIFETIME_MILLISECONDS } from "@destack/relay/package";
+import { Universe } from "@destack/universe";
+import { TEST_UNIVERSE, TestUniverse, UniverseWorld } from "@destack/universe/test";
 import { TestRelay } from "@destack/relay/test";
 import type { MachineEnrollment } from "../device/object/index.ts";
 import machinePackage from "../../package.ts";
@@ -83,16 +80,13 @@ const READY_MILLISECONDS = 30_000;
 /** How long an install may take to apply: 2 min, as a space pulls an app's closure in ~30 s. */
 const INSTALL_MILLISECONDS = 120_000;
 
-/** The policies of the forge's objects, which the universe decides repository access with. */
-const POLICIES = [repository.policy, reference.policy];
-
 /** What a test computer's resources live as long as: the test, or a template's write. */
 type Defer = (cleanup: () => Promise<void> | void) => void;
 
 /** The world the universe template wrote: the universe's keys. */
 const UniverseTemplate = schema.object({
     /** The universe's keys and its people's sign-ins. */
-    universe: ControlWorld,
+    universe: UniverseWorld,
 });
 /** The world the universe template wrote. */
 type UniverseTemplate = schema.Infer<typeof UniverseTemplate>;
@@ -100,7 +94,7 @@ type UniverseTemplate = schema.Infer<typeof UniverseTemplate>;
 /** The world a home template wrote: the universe, the cloud computer's state, the login. */
 const HomeWorld = schema.object({
     /** The universe's keys and its people's sign-ins. */
-    universe: ControlWorld,
+    universe: UniverseWorld,
     /** The cloud computer's state directory in the run's directory. */
     directory: schema.string(),
     /** The secrets of the cloud computer's keychains, by service and name. */
@@ -150,7 +144,7 @@ export interface TestWorld {
     /** The simulation whose clock and network every node runs on. */
     readonly simulation: Simulation;
     /** The universe, answering at its origin on the simulated network. */
-    readonly universe: TestControl;
+    readonly universe: TestUniverse;
     /** What the computers ship. */
     readonly distribution: TestDistribution;
     /** The owner, signed up at the universe. */
@@ -288,7 +282,7 @@ export class TestComputer implements AsyncDisposable {
         simulation: Simulation,
         restored: {
             readonly storage?: TestDatabase;
-            readonly world?: ControlWorld;
+            readonly world?: UniverseWorld;
         },
         defer: Defer,
     ): Promise<TestWorld> {
@@ -298,13 +292,12 @@ export class TestComputer implements AsyncDisposable {
         defer(() => telemetry[Symbol.dispose]());
 
         // start the universe on the simulation, answering at its origin on the network
-        const universe = await TestControl.open({
+        const universe = await TestUniverse.open({
             simulation,
-            releases: distribution,
+            distribution: distribution.distribution,
+            layer: distribution.layer,
             stacks: distribution.stacks,
             home: distribution.home,
-            policies: POLICIES,
-            lifetimes: new Map([[relayPackage.id, TUNNEL_TOKEN_LIFETIME_MILLISECONDS]]),
             ...(restored.storage === undefined ? {} : { storage: restored.storage }),
             ...(restored.world === undefined ? {} : { world: restored.world }),
         });
@@ -322,11 +315,11 @@ export class TestComputer implements AsyncDisposable {
     /** Describe the run's universe with its owner signed up, which the run writes once. */
     static #universe(): TestTemplate<
         UniverseTemplate,
-        { readonly universe: typeof Control.database }
+        { readonly universe: typeof Universe.database }
     > {
         return new TestTemplate({
             name: "machine.universe",
-            databases: { universe: Control.database },
+            databases: { universe: Universe.database },
             value: UniverseTemplate,
             world: { seed: SEED, start: START },
             build: async ({ databases, simulation }) => {
@@ -361,7 +354,7 @@ export class TestComputer implements AsyncDisposable {
             host,
             environment: simulation.environment(RELAY_NODE),
             hostname: RELAY_HOSTNAME,
-            names: [`*.${DOMAINS.machine}`, `*.${DOMAINS.space}`],
+            names: [`*.${TEST_UNIVERSE.domains.machine}`, `*.${TEST_UNIVERSE.domains.space}`],
         });
         defer(() => relay[Symbol.asyncDispose]());
 
@@ -459,7 +452,7 @@ export class TestComputer implements AsyncDisposable {
         const declared =
             cloud === undefined
                 ? undefined
-                : universe.control.definition.platform.machines.find(
+                : universe.universe.definition.platform.machines.find(
                       (machine) => machine.id === cloud.id,
                   )?.origin;
         if (cloud !== undefined && declared === undefined) {
@@ -482,7 +475,7 @@ export class TestComputer implements AsyncDisposable {
                 : {
                       kind: "cloud",
                       residencyId: options.residency,
-                      universe: universe.origin,
+                      universe: TEST_UNIVERSE.toJSON(),
                       status: "enrolled",
                   };
         const computer = await Computer.start({
@@ -597,7 +590,7 @@ export class TestComputer implements AsyncDisposable {
         organizations: readonly TestOrganization[],
         installs: readonly TestInstall[] = [],
         published: readonly string[] = [],
-    ): TestTemplate<HomeWorld, { readonly universe: typeof Control.database }> {
+    ): TestTemplate<HomeWorld, { readonly universe: typeof Universe.database }> {
         // name the template by what its world holds
         const handles = organizations.map((organization) => organization.handle);
         const installed = installs.map((install) => `${install.fixture}@${install.name}`);
@@ -605,7 +598,7 @@ export class TestComputer implements AsyncDisposable {
 
         return new TestTemplate({
             name: ["machine.home", ...handles, ...installed, ...released].join("."),
-            databases: { universe: Control.database },
+            databases: { universe: Universe.database },
             value: HomeWorld,
             world: { seed: SEED, start: START },
             build: async ({ databases, directory, simulation }) => {

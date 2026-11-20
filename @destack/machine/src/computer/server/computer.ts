@@ -462,7 +462,7 @@ export class ComputerServer {
         const { input } = context;
         const { session, user } = await this.launcher(input.login);
 
-        return this.machine.enroll(session.accounts(), new URL(user.issuer.url).origin, {
+        return this.machine.enroll(session.accounts(), await user.issuer.universe(), {
             accountId: schema.identifier("account").parse(input.accountId),
             name: input.name ?? ComputerServer.#label(this.platform.hostname),
             version: target.version,

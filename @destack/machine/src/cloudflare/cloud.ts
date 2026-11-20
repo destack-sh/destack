@@ -72,8 +72,8 @@ export interface MachineBindings extends PartitionBindings, CloudflareStorageBin
     readonly DESTACK_ROOT_KEY: string;
     /** The machine's private key, as `KeyPair.generate` writes it, sealed as its envelope says. */
     readonly DESTACK_MACHINE_KEY: string;
-    /** The universe's origin, serving the account package. */
-    readonly DESTACK_UNIVERSE_ORIGIN: string;
+    /** The universe's address, as `UniverseOrigin` JSON. */
+    readonly DESTACK_UNIVERSE: string;
     /** The objects of the builds' graph views, one per manifest. */
     readonly GRAPH: DurableObjectNamespace;
     /** The jurisdiction of the machine's objects, empty for none. */
@@ -172,9 +172,17 @@ export class CloudMachine {
         this.issuer = fields.issuer;
     }
 
+    /** Read the universe's address from a Worker's bindings. */
+    static universe(bindings: Pick<MachineBindings, "DESTACK_UNIVERSE">): UniverseOrigin {
+        return UniverseOrigin.of(
+            UniverseOrigin.schema.parse(JSON.parse(bindings.DESTACK_UNIVERSE)),
+        );
+    }
+
     /** Read the cloud machine of a Worker's bindings in the isolate's system environment. */
     static async read(bindings: MachineBindings, system: Environment): Promise<CloudMachine> {
         // send the universe's and peers' requests through their bindings, others out
+        const universe = CloudMachine.universe(bindings);
         const peers = peersOf(bindings);
         const source = HttpTransport.sourceOf(system.network);
         const environment: Environment = {
@@ -185,10 +193,7 @@ export class CloudMachine {
                     fetch: (request: Request, options?: FetchOptions) => {
                         // call the universe, and a peer machine or its relay, through their bindings
                         const peer = peers.get(new URL(request.url).host);
-                        if (
-                            UniverseOrigin.of(request.url, bindings.DESTACK_UNIVERSE_ORIGIN) !==
-                            undefined
-                        ) {
+                        if (universe.serves(request.url) !== undefined) {
                             return bindings.UNIVERSE.fetch(request);
                         } else if (peer !== undefined) {
                             return peer.fetch(internal(request));
@@ -232,7 +237,7 @@ export class CloudMachine {
             identity,
             environment,
             replica,
-            issuer: UniverseOrigin.issuer(bindings.DESTACK_UNIVERSE_ORIGIN),
+            issuer: universe.issuer,
         });
     }
 
@@ -254,7 +259,7 @@ export class CloudMachine {
         return {
             kind: "cloud",
             residencyId: row.residencyId,
-            universe: this.bindings.DESTACK_UNIVERSE_ORIGIN,
+            universe: CloudMachine.universe(this.bindings).toJSON(),
             status: "enrolled",
         };
     }
@@ -295,7 +300,7 @@ export class CloudMachine {
         // follow them as the machine through the universe's account package
         const publisher = ObjectConnection.open({
             url: ObjectConnection.url(
-                PackageMount.url(this.bindings.DESTACK_UNIVERSE_ORIGIN, accountPackage.id),
+                PackageMount.url(CloudMachine.universe(this.bindings).origin, accountPackage.id),
             ),
             authorize: (request) =>
                 this.identity

@@ -73,7 +73,7 @@ import { InstallationOriginServer } from "./origin.ts";
 import { MachineError } from "../error/index.ts";
 import { Failure } from "@destack/error";
 import { HOOK_WORKLOAD } from "@destack/stack/workload";
-import { DOMAINS, InstallationOrigin, S3Origin, SpaceAddress } from "@destack/account/address";
+import { InstallationOrigin, S3Origin, SpaceAddress } from "@destack/account/address";
 import { RouteRequest } from "./route.ts";
 import { PartitionRequest } from "../space/route.ts";
 import type {} from "@destack/package/import-meta";
@@ -293,7 +293,7 @@ export class Gateway {
             const origin =
                 InstallationMount.of(request) === undefined
                     ? (InstallationOrigin.of(request, this.#space.machine.domain) ??
-                      InstallationOrigin.of(request, DOMAINS.space))
+                      InstallationOrigin.of(request, this.#space.universe.domains.space))
                     : undefined;
             const routed =
                 origin === undefined
@@ -436,7 +436,7 @@ export class Gateway {
         const installed = InstallationMount.of(request);
         const isS3 =
             S3Origin.of(request, this.#space.machine.domain) !== undefined ||
-            S3Origin.of(request, DOMAINS.space) !== undefined;
+            S3Origin.of(request, this.#space.universe.domains.space) !== undefined;
         // send an instance's call out
         if (url.pathname.startsWith(`${Egress.path}/`)) {
             return await this.egress(request);
@@ -691,7 +691,7 @@ export class Gateway {
 
         // forward the caller
         const runtime = this.#runtime(serving.runtime);
-        const named = PartitionRequest.named(request);
+        const selected = PartitionRequest.header(request);
 
         // forward a large body or one of unknown length once, to the partition the call selects
         const resendable = await Gateway.#resendable(request);
@@ -699,7 +699,7 @@ export class Gateway {
             return this.#forward(runtime, serving.instanceId, path, request, {
                 authentication,
                 voucher,
-                partition: named,
+                partition: selected,
             });
         }
 
@@ -709,7 +709,7 @@ export class Gateway {
             const partition =
                 misdirected !== undefined && "partition" in misdirected
                     ? misdirected.partition
-                    : named;
+                    : selected;
             const call = copyRequest(request, { body });
 
             return this.#forward(runtime, serving.instanceId, path, call, {
@@ -1164,7 +1164,7 @@ export class Gateway {
     ): Promise<Destination> {
         // call a package of the universe at the universe's mount
         if (PackageName.safeParse(address).success) {
-            const url = PackageMount.url(new URL(this.#space.universe.accounts).origin, audience);
+            const url = PackageMount.url(this.#space.universe.origin, audience);
 
             return { kind: "universe", url, audience };
         }

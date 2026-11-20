@@ -1,5 +1,5 @@
 import { contained, principal } from "@destack/access";
-import { AccountHandle, SpaceAddress } from "@destack/account/address";
+import { AccountHandle, SpaceAddress, UniverseOrigin } from "@destack/account/address";
 import { PlacementEndpoint } from "@destack/account/object";
 import { MachineName, ResidencyCode } from "@destack/account/object";
 import { defineObject, device, field } from "@destack/object";
@@ -13,8 +13,8 @@ export const COMPUTER_TUNNELS = ["none", ...TUNNEL_STATUSES] as const;
 
 /** The fields of every enrollment: its universe and its validity. */
 const ENROLLMENT_FIELDS = {
-    /** The origin of the universe the machine enrolled at, whose issuer signs its credentials. */
-    universe: schema.url(),
+    /** The universe the machine enrolled at, whose issuer signs its credentials. */
+    universe: UniverseOrigin.schema,
     /** Whether the enrollment is valid, or was revoked. */
     status: schema.enum(["enrolled", "revoked"]),
 };

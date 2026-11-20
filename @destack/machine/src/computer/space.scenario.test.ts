@@ -1,3 +1,4 @@
+import { TEST_UNIVERSE } from "@destack/universe/test";
 import { RolloutTarget } from "../installation/target.ts";
 import { testIdentity } from "@destack/object/test";
 import type { ResourceDeclaration } from "@destack/resource";
@@ -26,7 +27,7 @@ import {
     defineInstallationBinding,
     installation,
 } from "@destack/object";
-import { DOMAINS, UniverseOrigin } from "@destack/account/address";
+import { UniverseOrigin } from "@destack/account/address";
 import accountPackage from "@destack/account/package";
 import { createClient } from "@destack/object/client";
 import { RequestId, Scope, ObjectReference } from "@destack/sync";
@@ -853,7 +854,10 @@ test("publish a renamed machine's relay name without a restart", async () => {
             .from(accountObject.endpoint.table)
             .where(eq(accountObject.endpoint.table.parentId, machine.id));
 
-        return published?.url === `https://renamed--${world.owner.handle}.${DOMAINS.machine}`;
+        return (
+            published?.url ===
+            TEST_UNIVERSE.machine({ machine: "renamed", handle: world.owner.handle })
+        );
     });
     expect(computer.captured()).toEqual([]);
 });

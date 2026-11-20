@@ -1,3 +1,4 @@
+import { TEST_UNIVERSE } from "@destack/universe/test";
 import { testHost } from "@destack/test/host";
 import { log, LogData } from "@destack/observability/object";
 import { ObjectReference, Scope, RequestId } from "@destack/sync";
@@ -428,7 +429,7 @@ test("serve spaces only while the machine is enrolled", async () => {
         isEnrolled: [false, true, false],
         enrolled: {
             kind: "personal",
-            universe: universe.origin,
+            universe: TEST_UNIVERSE.toJSON(),
             accountId: owner.account,
             status: "enrolled",
         },

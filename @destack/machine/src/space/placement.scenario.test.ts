@@ -1,4 +1,4 @@
-import { UNIVERSE_NODE } from "@destack/control/test";
+import { UNIVERSE_NODE } from "@destack/universe/test";
 import accountPackage from "@destack/account/package";
 import * as accountObject from "@destack/account/object";
 import { BuildStore } from "@destack/build/store";

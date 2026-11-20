@@ -64,7 +64,7 @@ import {
 import { Authenticator } from "./device/authentication/index.ts";
 import { Device } from "./device/device.ts";
 import { MachineError } from "../error/index.ts";
-import { LOOPBACK_DOMAIN } from "@destack/account/address";
+import { InstallationOrigin, LOOPBACK_DOMAIN, S3Origin } from "@destack/account/address";
 import { ComputerServer } from "./server/index.ts";
 import { LocalSpaceStorage } from "./storage.ts";
 import { computer, type MachineEnrollment, signIn, visit } from "./device/object/index.ts";
@@ -72,7 +72,7 @@ import { MachineProcess, LOCK_FILE, UniverseHome } from "./process/index.ts";
 import { BuildRunner } from "./build.ts";
 import { computerServer, machineWorkload, deviceWorkload } from "./server/workload.ts";
 import { Environment, HostAddress, LineExporter, Telemetry } from "@destack/environment";
-import { DOMAINS, MachineAddress } from "@destack/account/address";
+import { MachineAddress } from "@destack/account/address";
 import { DEPLOYING_WAIT_MILLISECONDS, PartitionRequest } from "../space/index.ts";
 
 /** The origin the machine's own exports are addressed below until its owner's home is located. */
@@ -1033,7 +1033,7 @@ export class Computer implements AsyncDisposable {
         // take the universe the environment names, else the universe's
         const environment = host.process.variables;
         const home = UniverseHome.current(host);
-        const universe = home.universe.origin;
+        const { universe } = home;
         if (!URL.canParse(universe)) {
             throw MachineError.of(
                 "CONFIGURATION_BROKEN",
@@ -1051,17 +1051,13 @@ export class Computer implements AsyncDisposable {
             );
         }
 
-        // open a tunnel to the relay at a URL, else to the account residency's in production
+        // open a tunnel to the relay at a URL, else to the account residency's
         const url = environment["DESTACK_RELAY"];
         if (url !== undefined && !URL.canParse(url)) {
             throw MachineError.of("CONFIGURATION_BROKEN", `DESTACK_RELAY is not a URL: '${url}'`);
         }
         const relay: ComputerOptions["relay"] =
-            url !== undefined
-                ? { kind: "url", url }
-                : home.universe.name === "production"
-                  ? { kind: "residency" }
-                  : undefined;
+            url === undefined ? { kind: "residency" } : { kind: "url", url };
 
         // ship the distribution the environment names, else the one in a release's resources
         const { executable, runtime } = host.process;
@@ -1136,7 +1132,8 @@ export class Computer implements AsyncDisposable {
         const stopping = new AbortController();
         const home = UniverseHome.current(environment);
         const installed = home.distribution(environment);
-        const toolchain = environment.process.runtime.isStandalone
+        const { isStandalone } = environment.process.runtime;
+        const toolchain = isStandalone
             ? () => installed.distribution.toolchain()
             : async () => Toolchain.workspace();
         const started = await Computer.start({
@@ -1156,7 +1153,7 @@ export class Computer implements AsyncDisposable {
                 pid: environment.process.id,
                 startedAt: environment.clock.now(),
             },
-            ...(home.universe.name === "local" ? {} : { distribution: installed }),
+            ...(isStandalone ? { distribution: installed } : {}),
             toolchain,
             shutdown: () => stopping.abort(),
         });
@@ -1246,11 +1243,8 @@ export class Computer implements AsyncDisposable {
         else if (own?.found !== undefined) {
             return own.found.server.fetch(own.found.request);
         }
-        // serve a name at any host but loopback, the endpoint and its origins
-        else if (
-            !HostAddress.isLoopbackName(url.hostname) &&
-            url.hostname !== new URL(this.machine.endpoint).hostname
-        ) {
+        // serve a name at any host but the machine's own: loopback, its endpoint and its loopback origins
+        else if (!Computer.#isOwnHost(url.hostname, this.machine.endpoint)) {
             return this.machine.serveName(request);
         }
 
@@ -1258,11 +1252,23 @@ export class Computer implements AsyncDisposable {
         return this.machine.serve(request);
     }
 
+    /** Report whether a host is the computer's own: loopback, its endpoint, or its origins. */
+    static #isOwnHost(hostname: string, endpoint: string): boolean {
+        // take loopback, the endpoint, and the installation and S3 origins below the loopback domain
+        const isLoopback = hostname === LOOPBACK_DOMAIN || HostAddress.isLoopback(hostname);
+        const isEndpoint = hostname === new URL(endpoint).hostname;
+        const isInstallation = InstallationOrigin.parse(hostname, LOOPBACK_DOMAIN) !== undefined;
+        const isBucket = S3Origin.parse(hostname, LOOPBACK_DOMAIN) !== undefined;
+
+        return isLoopback || isEndpoint || isInstallation || isBucket;
+    }
+
     /** Route a request the relay forwards through this machine's tunnel. */
     async relay(request: Request): Promise<Response> {
         // serve a name the relay routes here, else the machine's peers
         const url = new URL(request.url);
-        if (MachineAddress.parse(url.hostname, DOMAINS.machine) === undefined) {
+        const { domains } = await this.machine.universe();
+        if (MachineAddress.parse(url.hostname, domains.machine) === undefined) {
             return this.machine.serveName(request);
         }
 

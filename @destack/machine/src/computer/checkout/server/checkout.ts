@@ -287,7 +287,7 @@ export class CheckoutServer {
         const scopes = [...new Set(names.map((name) => `@${PackageName.split(name).handle}`))];
         const path = join(directory, BUNFIG_FILE);
         const existing = (await host.files.exists(path)) ? await host.files.readTextFile(path) : "";
-        const registries = withScopes(existing, scopes.toSorted(), `${universe}/npm/`);
+        const registries = withScopes(existing, scopes.toSorted(), `${universe.origin}/npm/`);
         await host.files.writeFile(path, new TextEncoder().encode(registries));
     }
 

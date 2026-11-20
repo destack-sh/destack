@@ -1,6 +1,6 @@
 import { Identity } from "@destack/account/object";
 import { TokenVerifier } from "@destack/access/token";
-import { Directory } from "@destack/account/address";
+import { Directory, UniverseOrigin } from "@destack/account/address";
 import type { S3Server } from "@destack/bucket/s3";
 import { installation, type Package } from "@destack/object";
 import { ids, type TestSpace } from "../../test/space.ts";
@@ -16,8 +16,12 @@ import { TokenIssuer } from "@destack/access/token";
 import type { JwtClaims } from "@destack/identity";
 import { Traffic } from "../traffic.ts";
 
-/** The universe's account package the fixture gateway calls, below the universe's origin. */
-const ACCOUNTS = "https://destack.cloud/packages/account";
+/** The universe the fixture gateway's space enrolled at. */
+const UNIVERSE = new UniverseOrigin("https://destack.cloud", {
+    space: "destack.space",
+    machine: "destack.computer",
+    site: "destack.sh",
+});
 
 /** Refuse a call a test leaves to no fixture. */
 function refuse(verb: string): () => Promise<never> {
@@ -58,7 +62,7 @@ export function openGateway(
     const { database } = space;
     const directory = options.directory ?? space.machine.directory;
     const verifier = new TokenVerifier({
-        issuers: (issuer) => Identity.trust(directory.snapshot, issuer, `${ACCOUNTS}/oauth`),
+        issuers: (issuer) => Identity.trust(directory.snapshot, issuer, UNIVERSE.issuer),
         environment: space.machine.environment,
     });
     const borrow = options.borrow ?? refuse("lend connections");
@@ -75,7 +79,7 @@ export function openGateway(
             borrow,
             mounts: options.mounts ?? (() => []),
             instance: { implements: () => false },
-            universe: { accounts: ACCOUNTS, issuer: `${ACCOUNTS}/oauth` },
+            universe: UNIVERSE,
             identityOf: () => {
                 throw new Error("the fixture cannot sign as a space");
             },
