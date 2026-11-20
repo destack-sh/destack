@@ -666,7 +666,7 @@ test("find a served installation by identifier or name, else ask to wait or refu
         ],
     ]);
 
-    // suspend it and answer its callers to wait
+    // suspend it and refuse its callers at once, as only enabling it serves it again
     await installer.installation.update({
         scope: ids.space,
         id: notes.id,
@@ -675,9 +675,9 @@ test("find a served installation by identifier or name, else ask to wait or refu
         status: "suspended",
     });
     expect(await served(ids.space, "notes")).toEqual([
-        "SERVICE_UNAVAILABLE",
-        "INSTALLATION_UNAVAILABLE",
-        "installation 'notes' is unavailable: this space does not serve it yet",
+        "PRECONDITION_FAILED",
+        "INSTALLATION_BLOCKED",
+        "cannot reach installation 'notes': it is suspended",
     ]);
 
     // reset the space's stack to before its first pass, and answer a name it may still create to wait until it applies
@@ -785,8 +785,8 @@ test("find the one installation serving a package, else ask to wait or refuse", 
     };
     const serving = (
         spaceId: Identifier<"space">,
-        packageId: string,
-        implementers: readonly string[] = [],
+        packageId: PackageId,
+        implementers: readonly PackageId[] = [],
     ) =>
         refusal(
             Rollout.requireServing(database, { spaceId, packageId, implementers }).then(
