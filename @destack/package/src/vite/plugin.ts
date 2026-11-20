@@ -29,7 +29,10 @@ export function modulePlugin(transformer: ModuleTransformer): Plugin {
                     return;
                 }
 
-                return await transformer.transform(code, path);
+                // keep earlier maps, since stamps move no line
+                const stamped = await transformer.transform(code, path);
+
+                return stamped === undefined ? undefined : { code: stamped, map: null };
             },
         },
     };

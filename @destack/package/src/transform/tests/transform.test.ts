@@ -40,10 +40,8 @@ test("stamp declaration constructors and metadata reads with the calling module"
     if (transformed === undefined) {
         throw new TypeError("the module was left unchanged");
     }
-    const result = transformed.code;
-    expect(result.split("\n")).toEqual([
-        `const __destackModule = Object.freeze(${metadata});`,
-        'import { defineNote } from "./declare.ts";',
+    expect(transformed.split("\n")).toEqual([
+        `const __destackModule = Object.freeze(${metadata}); import { defineNote } from "./declare.ts";`,
         'import { defineKind } from "@destack/package";',
         'import * as notes from "./declare.ts";',
         'export const note = defineNote("note", undefined, __destackModule);',
@@ -78,9 +76,8 @@ test("pass the calling module to stamped tags and to members of named and namesp
     // call bare tags with the module, and append it to calls building tags
     const metadata = JSON.stringify(owner.metadata);
     const transformed = await transformModule(code, NOTE_PATH, owner, new PackageLocator(files));
-    expect(transformed?.code.split("\n")).toEqual([
-        `const __destackModule = Object.freeze(${metadata});`,
-        'import { Note, note } from "./declare.ts";',
+    expect(transformed?.split("\n")).toEqual([
+        `const __destackModule = Object.freeze(${metadata}); import { Note, note } from "./declare.ts";`,
         'import * as notes from "./declare.ts";',
         "export const greeting = note.withModule(__destackModule)`Hello ${name}`;",
         'export const title = Note.titled("heading", __destackModule)`Trips`;',
@@ -100,9 +97,8 @@ test("keep an executable module's hashbang first, the binding after it", async (
     const transformed = await transformModule(code, NOTE_PATH, owner, new PackageLocator(files));
 
     // declare the binding below the hashbang, which only the first line may hold
-    expect(transformed?.code.split("\n")).toEqual([
+    expect(transformed?.split("\n")).toEqual([
         "#!/usr/bin/env bun",
-        `const __destackModule = Object.freeze(${JSON.stringify(owner.metadata)});`,
-        "export const id = __destackModule.package.id;",
+        `const __destackModule = Object.freeze(${JSON.stringify(owner.metadata)}); export const id = __destackModule.package.id;`,
     ]);
 });

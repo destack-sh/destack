@@ -1,4 +1,4 @@
-import MagicString, { SourceMap } from "magic-string";
+import MagicString from "magic-string";
 import { parseAst } from "rolldown/parseAst";
 import { type ESTree, Visitor } from "rolldown/utils";
 import { relative, sep } from "node:path";
@@ -28,22 +28,8 @@ const IMPORT_SOURCE = /(?<!["'])\bfrom\s*["']([^"'\n]+)["']/gu;
 const TransformEntry = schema.object({
     /** The digest of the module's package, imported stamps and text. */
     inputs: schema.string(),
-    /** The stamped text and its map, null for a module left unchanged. */
-    result: schema
-        .object({
-            /** The stamped text. */
-            code: schema.string(),
-            /** The map from the stamped text to the authored one, as its JSON. */
-            map: schema.object({
-                version: schema.number(),
-                file: schema.string().exactOptional(),
-                sources: schema.array(schema.string()),
-                sourcesContent: schema.array(schema.string().nullable()).exactOptional(),
-                names: schema.array(schema.string()),
-                mappings: schema.string(),
-            }),
-        })
-        .nullable(),
+    /** The stamped text, null for a module left unchanged. */
+    code: schema.string().nullable(),
 });
 
 /** A local import binding of a package with stamped functions. */
@@ -52,14 +38,6 @@ interface Binding {
     readonly functions: ReadonlyMap<string, StampedFunction>;
     /** The export path the binding references, empty for a namespace. */
     readonly path: readonly string[];
-}
-
-/** A module's stamped text and the map to its authored text. */
-export interface ModuleTransform {
-    /** The stamped text. */
-    readonly code: string;
-    /** The map from the stamped text to the authored one. */
-    readonly map: ReturnType<MagicString["generateMap"]>;
 }
 
 /** A build's module transformer: it stamps each module once per text, whichever pass reads it. */
@@ -77,7 +55,7 @@ export class ModuleTransformer {
     /** Each module's text and its transform, by path. */
     readonly #transformed = new Map<
         string,
-        { readonly code: string; readonly result: Promise<ModuleTransform | undefined> }
+        { readonly code: string; readonly result: Promise<string | undefined> }
     >();
 
     /** Stamp modules of the packages on an environment's files at a build's versions. */
@@ -100,22 +78,22 @@ export class ModuleTransformer {
     }
 
     /** Stamp a module of a Destack package, once per text, absent for one that needs no stamps. */
-    transform(code: string, path: string): Promise<ModuleTransform | undefined> {
+    transform(code: string, path: string): Promise<string | undefined> {
         // reuse the transform of the same text
         const previous = this.#transformed.get(path);
         if (previous?.code === code) {
             return previous.result;
         }
 
-        // stamp the module and generate its map once
+        // stamp the module once
         const result = this.#transform(code, path);
         this.#transformed.set(path, { code, result });
 
         return result;
     }
 
-    /** Stamp a module of a Destack package with its map, reading its entry from the cache. */
-    async #transform(code: string, path: string): Promise<ModuleTransform | undefined> {
+    /** Stamp a module of a Destack package, reading its entry from the cache. */
+    async #transform(code: string, path: string): Promise<string | undefined> {
         // leave files outside Destack packages unchanged, and stamp the others without a cache
         const owner = await this.packages.find(path);
         if (owner === undefined) {
@@ -137,19 +115,12 @@ export class ModuleTransformer {
                 ? undefined
                 : TransformEntry.parse(JSON.parse(new TextDecoder().decode(stored)));
         if (entry?.inputs === inputs) {
-            const { result } = entry;
-
-            return result === null
-                ? undefined
-                : { code: result.code, map: new SourceMap(result.map) };
+            return entry.code ?? undefined;
         }
 
         // stamp it and write its entry, replacing the entry of an earlier text
         const result = await transformModule(code, path, owner, this.packages);
-        const written = {
-            inputs,
-            result: result === undefined ? null : { code: result.code, map: result.map },
-        };
+        const written = { inputs, code: result ?? null };
         await cache.write(slot, new TextEncoder().encode(JSON.stringify(written)));
 
         return result;
@@ -230,13 +201,13 @@ function moduleBindings(program: ESTree.Program): Map<number, DeclarationSite["b
     return bound;
 }
 
-/** Inject module metadata into import.meta.destack and the calls and tags of stamped functions. */
+/** Inject module metadata into import.meta.destack and stamped calls and tags, in place. */
 export async function transformModule(
     code: string,
     path: string,
     owner: ModulePackage,
     packages: PackageLocator,
-): Promise<ModuleTransform | undefined> {
+): Promise<string | undefined> {
     // skip modules without metadata reads or imported stamped functions
     if (!(await isStampable(code, path, owner.metadata, packages))) {
         return undefined;
@@ -326,23 +297,20 @@ export async function transformModule(
         return undefined;
     }
 
-    // declare the frozen binding, and import a declaring module's recorder, first after any hashbang
+    // declare the frozen binding, and import a declaring module's recorder, on the first line after any hashbang
     const start = code.startsWith("#!") ? code.indexOf("\n") + 1 : 0;
     source.prependLeft(
         start,
-        `const ${BINDING} = Object.freeze(${JSON.stringify(owner.metadata)});\n`,
+        `const ${BINDING} = Object.freeze(${JSON.stringify(owner.metadata)}); `,
     );
     if (isDeclaring) {
         source.prependLeft(
             start,
-            `import { declare as ${DECLARE} } from ${JSON.stringify(DECLARED_MODULE)};\n`,
+            `import { declare as ${DECLARE} } from ${JSON.stringify(DECLARED_MODULE)}; `,
         );
     }
 
-    return {
-        code: source.toString(),
-        map: source.generateMap({ source: path, hires: true }),
-    };
+    return source.toString();
 }
 
 /** Report whether a module reads its metadata or imports a stamped function, without parsing it. */

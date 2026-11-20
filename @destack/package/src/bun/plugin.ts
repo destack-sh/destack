@@ -19,19 +19,12 @@ export function modulePlugin(transformer: ModuleTransformer): Bun.BunPlugin {
                 // stamp the module's source, passing unchanged sources on to later bundler plugins
                 const code = await transformer.environment.files.readTextFile(path);
                 const result = await transformer.transform(code, path);
-                if (!result && isBundling) {
+                if (result === undefined && isBundling) {
                     return undefined;
                 }
                 const loader = /\.[cm]?tsx$/u.test(path) ? "tsx" : "ts";
-                if (!result) {
-                    return { contents: code, loader };
-                }
 
-                // map stamped sources back to their authored lines
-                return {
-                    contents: `${result.code}\n//# sourceMappingURL=${result.map.toUrl()}`,
-                    loader,
-                };
+                return { contents: result ?? code, loader };
             });
         },
     };
