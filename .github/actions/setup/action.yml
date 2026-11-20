@@ -1,19 +1,17 @@
 name: Set up
-description: Install the pinned Bun, the Node the oxlint rule tests need, and the workspace's dependencies.
+description: Install Bun's latest canary, the Node the oxlint rule tests need, and the workspace's dependencies.
 
 runs:
     using: composite
     steps:
-        - name: Read Bun version
-          id: version
-          shell: bash
-          run: |
-              version=$(jq -er '.packageManager | select(startswith("bun@")) | ltrimstr("bun@")' package.json)
-              echo "bun=${version}" >> "${GITHUB_OUTPUT}"
         - name: Install Bun
           uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
           with:
-              bun-version: ${{ steps.version.outputs.bun }}
+              bun-version: canary
+        - name: Read Bun version
+          id: version
+          shell: bash
+          run: echo "bun=$(bun --revision)" >> "${GITHUB_OUTPUT}"
         - name: Install Node
           uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
           with:
