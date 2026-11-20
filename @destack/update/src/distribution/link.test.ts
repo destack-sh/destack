@@ -1,12 +1,12 @@
 import { join } from "node:path";
 import { Simulation } from "@destack/environment/simulation";
-import { Release, Universe } from "../release/index.ts";
+import { Release, Profile } from "../release/index.ts";
 import { testSimulation } from "@destack/object/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { Distribution, type DistributionEnvironment } from "./distribution.ts";
 import { testWorldOptions } from "@destack/test/world";
 
-test("link and unlink independent Linux desktop entries and link handlers for production and local archives", async () => {
+test("link and unlink independent Linux desktop entries and link handlers for release and local archives", async () => {
     // give a Linux person a home with an activated archive release
     const { files } = testSimulation().environment("setup");
     const directory = await files.makeTemporaryDirectory("destack-menu-");
@@ -46,21 +46,21 @@ test("link and unlink independent Linux desktop entries and link handlers for pr
         '<svg xmlns="http://www.w3.org/2000/svg"/>',
     );
 
-    // link the production and local universes, production twice, then unlink production twice
+    // link the release and local profiles, the release twice, then unlink the release twice
     const record = { method: "archive" as const, application: join(release, "Destack") };
-    const production = distributionAt(join(directory, ".destack"), "production", environment);
+    const published = distributionAt(join(directory, ".destack"), "release", environment);
     const local = distributionAt(join(directory, ".destack-local"), "local", environment);
-    const machine = await production.link(record, { isShell: true });
+    const machine = await published.link(record, { isShell: true });
     await local.link(record, { isShell: true });
-    await production.link(record, { isShell: true });
+    await published.link(record, { isShell: true });
     const entry = await files.readTextFile(join(data, "applications/app.destack.desktop.desktop"));
     const command = join(directory, ".destack", "bin", "destack");
     const linked = {
         target: await files.readLink(command),
         launcher: await files.readTextFile(command),
     };
-    await production.unlink({ isShell: true });
-    await production.unlink({ isShell: true });
+    await published.unlink({ isShell: true });
+    await published.unlink({ isShell: true });
 
     // keep local's entry and icon, answer the archive's machine, and reach the launcher through the command
     const names = async (path: string) =>
@@ -80,10 +80,10 @@ test("link and unlink independent Linux desktop entries and link handlers for pr
     });
 });
 
-/** Describe a universe's Linux distribution in a home. */
+/** Describe a profile's Linux distribution in a home. */
 function distributionAt(
     home: string,
-    universe: "production" | "local",
+    profile: "release" | "local",
     environment: DistributionEnvironment,
 ): Distribution {
     return new Distribution({
@@ -93,7 +93,7 @@ function distributionAt(
         running: new Release("2026.9.0", "x86_64-unknown-linux-gnu"),
         executable: join(home, "bin", "destack"),
         applications: join(home, "Applications"),
-        universe: new Universe(universe),
+        profile: new Profile(profile),
         environment,
     });
 }

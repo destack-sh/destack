@@ -51,7 +51,7 @@ export async function updateNow(distribution: Distribution) {
 ### Distribution
 
 `new Distribution(options)` describes an installation.
-A development build of the `local` stage refuses every update.
+A development build has no installed distribution, so its device refuses every update.
 
 | Option         | What it is                                                                            |
 | -------------- | ------------------------------------------------------------------------------------- |
@@ -61,7 +61,7 @@ A development build of the `local` stage refuses every update.
 | `running`      | the `Release` running now                                                             |
 | `executable`   | the running command's path                                                            |
 | `applications` | the directory a Mac application is installed in                                       |
-| `universe`     | the `Universe`: `production` or `local`, with its feed, origin and command            |
+| `profile`      | the `Profile`: `release` or `local`, with its command, identity and default universe  |
 | `environment`  | the files, processes and host the update runs on                                      |
 
 | Verb                               | What it does                                                    |

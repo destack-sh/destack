@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { Simulation } from "@destack/environment/simulation";
-import { Universe } from "../release/index.ts";
+import { Profile } from "../release/index.ts";
 import { testSimulation } from "@destack/object/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { ShellPath } from "./path.ts";
@@ -28,18 +28,18 @@ test("register the terminal command once in the user's shell file, keeping their
         },
     });
     const host = simulation.environment("mac");
-    const profile = join(home, ".zshrc");
+    const zshrc = join(home, ".zshrc");
     const original = "export EDITOR=vim\n";
-    await files.writeTextFile(profile, original);
+    await files.writeTextFile(zshrc, original);
 
     // register the stable command twice, then remove it
-    const universe = new Universe("production");
+    const profile = new Profile("release");
     const bin = join(home, ".destack/bin");
-    await new ShellPath(bin, universe, host).add();
-    await new ShellPath(bin, universe, host).add();
-    const registered = await files.readTextFile(profile);
-    await new ShellPath(bin, universe, host).remove();
-    expect([registered, await files.readTextFile(profile)]).toEqual([
+    await new ShellPath(bin, profile, host).add();
+    await new ShellPath(bin, profile, host).add();
+    const registered = await files.readTextFile(zshrc);
+    await new ShellPath(bin, profile, host).remove();
+    expect([registered, await files.readTextFile(zshrc)]).toEqual([
         `${original}\n# Destack\ncase ":$PATH:" in *":$HOME/.destack/bin:"*) ;; *) export PATH="$HOME/.destack/bin:$PATH" ;; esac\n`,
         original,
     ]);

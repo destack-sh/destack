@@ -1,7 +1,7 @@
 import { testSimulation } from "@destack/object/test";
 import { join } from "node:path";
 import { expect, test, refusal } from "@destack/test";
-import { Release, Universe } from "../release/index.ts";
+import { Release, Profile } from "../release/index.ts";
 import { Distribution, type DistributionEnvironment } from "./distribution.ts";
 
 test("keep a distribution's record across reopening and refuse changing its installer", async () => {
@@ -49,7 +49,7 @@ test("install a downloaded Mac application into the Applications folder, then wh
             running: new Release("2026.9.0", "aarch64-apple-darwin"),
             executable: join(download, "Contents/Helpers/destack"),
             applications: join(directory, "Applications"),
-            universe: new Universe("production"),
+            profile: new Profile("release"),
             environment,
         });
         const unregistered = await distribution.application();
@@ -77,7 +77,7 @@ function distributionAt(home: string, environment: DistributionEnvironment): Dis
         running: new Release("2026.9.0", "aarch64-apple-darwin"),
         executable: join(home, "bin", "destack"),
         applications: join(home, "Applications"),
-        universe: new Universe("production"),
+        profile: new Profile("release"),
         environment,
     });
 }

@@ -19,12 +19,12 @@ export const UpdateError = defineErrorFamily({
 
         // invalid
         ENVIRONMENT_INVALID: {},
+        PROFILE_INVALID: {},
         METADATA_INVALID: {},
         OPTIONS_INVALID: {},
         PROCESS_INVALID: {},
         REPOSITORY_INVALID: {},
         SIGNING_KEY_INVALID: {},
-        UNIVERSE_INVALID: {},
         TARGET_INVALID: {},
 
         // blocked
