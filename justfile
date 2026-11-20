@@ -42,10 +42,11 @@ fix:
 
 alias fmt := fix
 
-# check the workflows, documents and shared settings
+# check the workflows, documents, shared settings and the company site's format
 check-repository:
     actionlint
     bun run destack-check check README.md AGENTS.md ARCHITECTURE.md CONTRIBUTING.md SECURITY.md @platform/site/content
+    bun run destack-check format-check @platform/company/public
 
 # check and test the packages changed since a base, as CI does
 check base="": (postgres "up")
