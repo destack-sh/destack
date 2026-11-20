@@ -165,19 +165,30 @@ export class PlatformBuild implements AsyncDisposable {
             async () => {
                 // release each handle's images into its account's forge, after the handles they require
                 for (const { handle, names } of PlatformBuild.#runs(this.releases)) {
-                    // push the handle's images once below its handle
+                    // find the handle's images its forge has yet to release
                     const { accountId, home, url, fetch } = await open(handle);
-                    const images = names.map((name) => found(this.images, name));
-                    const builds = `${url}${registryPackage.mounts.builds.path}/${handle}/`;
-                    await new RemoteBuildStore(builds, fetch).push(this.store, images);
-
-                    // publish the account's packages layer by layer, each layer's at once
                     const registry = createClient(
                         registryPackage,
                         { url, fetch },
                         this.store.environment,
                     );
-                    for (const layer of PlatformBuild.#layers(names, this.releases)) {
+                    const { items } = await registry.release.list({
+                        spaceId: home,
+                        where: { image: { in: names.map((name) => found(this.images, name)) } },
+                        limit: names.length,
+                    });
+                    const released = new Set(items.map((item) => item.image));
+                    const unreleased = names.filter(
+                        (name) => !released.has(found(this.images, name)),
+                    );
+
+                    // push those images once below the handle
+                    const images = unreleased.map((name) => found(this.images, name));
+                    const builds = `${url}${registryPackage.mounts.builds.path}/${handle}/`;
+                    await new RemoteBuildStore(builds, fetch).push(this.store, images);
+
+                    // publish them layer by layer, each layer's at once
+                    for (const layer of PlatformBuild.#layers(unreleased, this.releases)) {
                         await Promise.all(
                             layer.map((name) =>
                                 registry.package.publish({
