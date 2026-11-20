@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import type { Environment } from "@destack/environment";
-import { type ToolResult, runTool } from "../check/tool.ts";
+import { type ToolResult, runBun } from "../check/tool.ts";
 import { CheckError } from "../error/index.ts";
 import { Toolchain } from "../toolchain/index.ts";
 
@@ -60,16 +60,21 @@ export const Readme = {
         // compile them on the package's tsconfig, as rustdoc compiles doc listings apart from the crate
         const configuration = {
             extends: "../../../../tsconfig.json",
-            compilerOptions: { tsBuildInfoFile: "../readme.tsbuildinfo" },
             include: [],
             files: names,
         };
         await files.writeTextFile(join(folder, "tsconfig.json"), JSON.stringify(configuration));
-        const typescript = toolchain.locate(["typescript"], Toolchain.packageDirectory());
 
-        return await runTool(
-            join(typescript, "bin/tsc"),
-            ["--project", folder],
+        return await runBun(
+            [
+                "check",
+                "--no-script",
+                "--project",
+                folder,
+                "--no-pretty",
+                ...names.map((name) => join(folder, name)),
+            ],
+            "bun check",
             directory,
             environment,
         );

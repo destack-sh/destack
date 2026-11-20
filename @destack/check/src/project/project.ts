@@ -2,26 +2,20 @@ import { createRequire } from "node:module";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import type { Environment } from "@destack/environment";
 import { checkPackage, fixPackage, listFiles } from "../check/check.ts";
-import { BUILD_INFO, configurePackage } from "../check/configuration.ts";
+import { configurePackage } from "../check/configuration.ts";
 import { TransformCache } from "@destack/package/build";
 import { formatPackage } from "../check/format.ts";
 import { type Manifest, readManifest } from "../check/manifest.ts";
-import { runTool, type ToolResult } from "../check/tool.ts";
+import { runBun, runTool, type ToolResult } from "../check/tool.ts";
 import type { CheckResult, Diagnostic } from "../diagnostic/diagnostic.ts";
 import { CheckError } from "../error/index.ts";
 import { Readme } from "../markdown/index.ts";
 import { Toolchain } from "../toolchain/index.ts";
 import { listChangedModules, Workspace } from "../workspace/index.ts";
-import { Digest, schema } from "@destack/schema";
+import { Digest } from "@destack/schema";
 
 /** The directory of a package's passed test runs, by digest. */
 const TEST_CACHE = "node_modules/.cache/destack/test";
-
-/** A program's files and versions in tsc's build info. */
-const BuildInfo = schema.looseObject({
-    fileNames: schema.array(schema.string()),
-    fileInfos: schema.array(schema.json()),
-});
 
 /** The test tiers a run selects, every tier but bench by default. */
 export type TestTier = "unit" | "scenario" | "bench";
@@ -105,16 +99,13 @@ export class Project {
             this.directory,
         );
 
-        // lint every module or the changed ones, reusing the result of the same program
+        // lint every module or the changed ones
         const files =
             options.since === undefined
                 ? undefined
                 : await listChangedModules(this.directory, options.since, this.environment);
-        const program = await this.#program();
         const linted =
-            files?.length === 0
-                ? []
-                : (await checkPackage({ ...this.#options(files), program })).diagnostics;
+            files?.length === 0 ? [] : (await checkPackage(this.#options(files))).diagnostics;
 
         // run the package's own check last
         const own = await this.#script("check");
@@ -303,25 +294,11 @@ export class Project {
         };
     }
 
-    /** Digest the program's files at the last typecheck's versions. */
-    async #program(): Promise<Digest> {
-        const text = await this.environment.files.readTextFile(join(this.directory, BUILD_INFO));
-        const { fileNames, fileInfos } = BuildInfo.parse(JSON.parse(text));
-
-        return await Digest.json({ fileNames, fileInfos }, this.environment.crypto);
-    }
-
     /** Typecheck the package's sources and tests with its generated settings. */
     #typecheck(): Promise<ToolResult> {
-        const executable = join(
-            this.toolchain.locate(["typescript"], Toolchain.packageDirectory()),
-            "bin",
-            "tsc",
-        );
-
-        return runTool(
-            executable,
-            ["--project", "tsconfig.json", "--pretty", "false"],
+        return runBun(
+            ["check", "--no-script", "--project", "tsconfig.json", "--no-pretty"],
+            "bun check",
             this.directory,
             this.environment,
         );
