@@ -432,7 +432,7 @@ export class Control implements AsyncDisposable {
             : server.fetch(mounted.request);
     }
 
-    /** Open a link: redirect an app or a repository to its installation, or show a profile. */
+    /** Redirect an app link to its installation, or forward a repository link to its registry. */
     async #open(link: UniverseLink, request: Request): Promise<Response> {
         // redirect an app by rewriting its path into its installation's hostname
         if (link.kind === "app") {
@@ -444,56 +444,49 @@ export class Control implements AsyncDisposable {
             });
         }
 
-        // find the account the handle names, none for an unclaimed handle
+        // forward a repository to its owner's registry, refusing an unclaimed handle
         const snapshot = Snapshot.live(this.store.database);
-        const found = await Account.byHandle(snapshot, link.handle);
-        if (found === undefined) {
+        const owner = await Account.byHandle(snapshot, link.handle);
+        if (owner === undefined) {
             return new Response(null, { status: 404 });
         }
+        const { pathname } = new URL(request.url);
 
-        // forward Git to the repository's registry, so git sees the universe's origin alone
-        if (link.kind === "repository") {
-            return await this.#forwardGit(request, link, found, snapshot);
-        }
-
-        // show the public profile of the account
-        const name = escapeHtml(found.name);
-        const handle = escapeHtml(found.handle);
-        const page = `<!doctype html><title>${name}</title><h1>${name}</h1><p>@${handle}</p>`;
-
-        return new Response(page, { headers: { "content-type": "text/html; charset=utf-8" } });
+        return await this.#forward(request, owner, snapshot, registryPackage.id, {
+            mount: registryPackage.mounts.git.path,
+            path: pathname,
+        });
     }
 
-    /** Forward a Git request to the registry in the account's residency home, as its caller. */
-    async #forwardGit(
+    /** Forward a request below a package's mount in the owner's residency home, as its caller. */
+    async #forward(
         request: Request,
-        link: Extract<UniverseLink, { readonly kind: "repository" }>,
         owner: Account,
         snapshot: Snapshot,
+        packageId: PackageId,
+        target: { readonly mount: string; readonly path: string },
     ): Promise<Response> {
-        // locate the registry's Git mount in the account's home, on its machine now
+        // locate the package in the owner's home, on its machine now
         const home = await Account.locate(snapshot, owner.id);
         const now = this.store.environment.clock.now();
-        const registry = await new Directory(snapshot).package(home, registryPackage.id, now);
+        const endpoint = await new Directory(snapshot).package(home, packageId, now);
         const { search } = new URL(request.url);
-        const target = `${registry}${registryPackage.mounts.git.path}/@${link.handle}/${link.name}.git${link.path}${search}`;
+        const url = `${endpoint}${target.mount}${target.path}${search}`;
 
-        // exchange the caller's account token for the registry's in the home, an anonymous caller going on as one
+        // exchange the caller's account token for the package's in the home, an anonymous caller going on as one
         const headers = new Headers(request.headers);
         const presented = /^Bearer (?<token>\S+)$/u.exec(
             headers.get("authorization") ?? "",
         )?.groups;
         if (presented?.["token"] !== undefined) {
             const exchanged = await this.#exchanger
-                .exchange(
-                    { token: presented["token"], type: ACCESS_TOKEN_TYPE },
-                    registryPackage.id,
-                    { partition: home },
-                )
+                .exchange({ token: presented["token"], type: ACCESS_TOKEN_TYPE }, packageId, {
+                    partition: home,
+                })
                 .then(
                     (granted) => ({ granted }),
                     (error: unknown) => {
-                        // answer the issuer's refusal of the token as Git's 401, failing loudly on anything else
+                        // answer the issuer's refusal as a 401, failing loudly on anything else
                         if (!OAuthError.is(error)) {
                             throw error;
                         }
@@ -511,7 +504,7 @@ export class Control implements AsyncDisposable {
         }
 
         return await this.#send(
-            new Request(target, {
+            new Request(url, {
                 method: request.method,
                 headers,
                 body: request.body,
@@ -537,9 +530,4 @@ export class Control implements AsyncDisposable {
         // close the publishers the store followed through
         this.#publishers.dispose();
     }
-}
-
-/** Escape text for HTML. */
-function escapeHtml(text: string): string {
-    return text.replace(/[&<>"']/gu, (character) => `&#${character.charCodeAt(0)};`);
 }
