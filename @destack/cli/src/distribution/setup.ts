@@ -482,10 +482,10 @@ export class Setup {
     ): Promise<void> {
         // supervise the selected release's machine
         const { os } = this.environment.host;
-        const machine = Release.executable("destack-machine", os);
+        const machine = Release.executable(os);
         const executable = selected
             ? join(selected.directory, "bin", machine)
-            : MachineProcess.executable(this.environment);
+            : this.environment.process.executable;
         if (os !== "win32" && (await this.autostart.isRegistered())) {
             const program =
                 os === "darwin" && application !== undefined

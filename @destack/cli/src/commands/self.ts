@@ -1,21 +1,19 @@
-import { MachineProcess } from "@destack/machine/computer";
-import { type Command, CommandOption } from "../command/command.ts";
+import { CommandOption, type CommandBody } from "../command/command.ts";
 
 import { Setup } from "../distribution/setup.ts";
 
 /** Install, start, stop, update and uninstall this Destack distribution itself. */
-export const selfCommand: Command = {
-    description: "Install, start, stop, update and uninstall this Destack distribution",
+export const selfCommand: CommandBody = {
     commands: {
         start: {
             description: "Start this computer's machine, or use the one running",
             isJson: true,
             async run({ isJson: json }, context) {
-                // start the machine beside this executable, reusing one that runs
+                // start the machine of this executable, reusing one that runs
                 const { environment } = context;
                 const setup = await Setup.current(environment);
                 await setup.start(
-                    MachineProcess.executable(environment),
+                    environment.process.executable,
                     environment.process.runtime.isStandalone,
                 );
                 await context.terminal.print(

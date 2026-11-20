@@ -108,9 +108,6 @@
     },
     "@destack/build": {
       "name": "@destack/build",
-      "bin": {
-        "destack-build": "./src/main.ts",
-      },
       "dependencies": {
         "@cloudflare/workers-types": "5.20260917.1",
         "@destack/bucket": "workspace:*",
@@ -195,6 +192,7 @@
         "@destack/package": "workspace:*",
         "@destack/registry": "workspace:*",
         "@destack/resource": "workspace:*",
+        "@destack/sandbox": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/setting": "workspace:*",
         "@destack/stack": "workspace:*",
@@ -329,10 +327,6 @@
     },
     "@destack/desktop": {
       "name": "@destack/desktop",
-      "bin": {
-        "destack-desktop-host": "./src/main.ts",
-        "destack-machine": "./src/machine.ts",
-      },
       "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
@@ -945,9 +939,6 @@
     },
     "@destack/sandbox": {
       "name": "@destack/sandbox",
-      "bin": {
-        "destack-sandbox": "./src/main.ts",
-      },
       "dependencies": {
         "@anthropic-ai/sandbox-runtime": "0.0.77",
         "@destack/environment": "workspace:*",
@@ -955,6 +946,7 @@
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/telemetry": "workspace:*",
+        "@destack/update": "workspace:*",
       },
       "devDependencies": {
         "@destack/test": "workspace:*",

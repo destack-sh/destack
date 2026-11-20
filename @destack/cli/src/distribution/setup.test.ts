@@ -42,7 +42,7 @@ const environment = new Simulation({
 
 /** The machine executable of a release. */
 function machineIn(release: InstalledRelease): string {
-    return join(release.directory, "bin", Release.executable("destack-machine", "darwin"));
+    return join(release.directory, "bin", Release.executable("darwin"));
 }
 
 /** A supervision that runs, recording what it does. */

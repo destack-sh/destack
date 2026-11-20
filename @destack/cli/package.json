@@ -20,6 +20,7 @@
         "@destack/package": "workspace:*",
         "@destack/registry": "workspace:*",
         "@destack/resource": "workspace:*",
+        "@destack/sandbox": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/setting": "workspace:*",
         "@destack/stack": "workspace:*",
