@@ -35,6 +35,9 @@ import { t } from "@destack/locale";
 /** A space whose stack this machine has not applied yet. */
 const UNAPPLIED_SPACE = "space-01996ab0-0000-7000-8000-0000000000f4";
 
+/** A second package built from the notes checkout, implementing notes' package beside it. */
+const OTHER_PACKAGE = PackageId.parse("package-01996ab0-0000-7000-8000-0000000000f5");
+
 /** The checkout the stack's builds come from. */
 const source = {
     kind: "checkout" as const,
@@ -663,7 +666,7 @@ test("find a served installation by identifier or name, else ask to wait or refu
         ],
     ]);
 
-    // suspend it and answer its callers to wait
+    // suspend it and refuse its callers at once, as only enabling it serves it again
     await installer.installation.update({
         scope: ids.space,
         id: notes.id,
@@ -672,9 +675,9 @@ test("find a served installation by identifier or name, else ask to wait or refu
         status: "suspended",
     });
     expect(await served(ids.space, "notes")).toEqual([
-        "SERVICE_UNAVAILABLE",
-        "INSTALLATION_UNAVAILABLE",
-        "installation 'notes' is unavailable: this space does not serve it yet",
+        "PRECONDITION_FAILED",
+        "INSTALLATION_BLOCKED",
+        "cannot reach installation 'notes': it is suspended",
     ]);
 
     // reset the space's stack to before its first pass, and answer a name it may still create to wait until it applies
@@ -694,6 +697,131 @@ test("find a served installation by identifier or name, else ask to wait or refu
         "SERVICE_UNAVAILABLE",
         "INSTALLATION_UNAVAILABLE",
         "installation 'tasks' is unavailable: this space does not serve it yet",
+    ]);
+});
+
+test("hold a request for an installation until it serves, and refuse one the space does not have at once", async () => {
+    // install notes without a build, then wait for it to serve as a request does
+    const fixture = await TestSpace.open();
+    await fixture.serve();
+    const space = await fixture.space;
+    const installer = fixture.as(fixture.owner.subject).client(objectPackage);
+    const notes = await installer.installation.create({
+        scope: ids.space,
+        requestId: RequestId.create(fixture.machine.environment),
+        packageId: ids.package,
+        ...following(followed),
+        name: "notes",
+    });
+    const read = () =>
+        Rollout.requireServed(fixture.database, { spaceId: ids.space, installation: "notes" });
+    const held = space.waitServing(read, new AbortController().signal);
+
+    // deploy its build while the request waits
+    const recorded = await fixture.recordBuild(
+        await fixtureBuild(ids.package, "2026.9.0", fixture.environment.crypto),
+    );
+    await fixture
+        .as(fixture.owner.subject)
+        .client(stackPackage)
+        .rollout.deploy({
+            spaceId: ids.space,
+            id: notes.id,
+            requestId: RequestId.create(fixture.machine.environment),
+            build: recorded.build,
+        });
+    await fixture.simulation.idle();
+
+    // answer the held request with notes, and refuse an installation the space does not have without holding
+    const waited = await refusal(
+        space.waitServing(
+            () =>
+                Rollout.requireServed(fixture.database, {
+                    spaceId: ids.space,
+                    installation: "tasks",
+                }),
+            new AbortController().signal,
+        ),
+    );
+    expect([(await held).installationId, waited]).toEqual([
+        notes.id,
+        [
+            "NOT_FOUND",
+            "INSTALLATION_NOT_FOUND",
+            "installation 'tasks' served by this machine in this space not found",
+        ],
+    ]);
+});
+
+test("find the one installation serving a package, else ask to wait or refuse", async () => {
+    // install notes, then another package built from its checkout, which serves the same package as notes does
+    const fixture = await TestSpace.open();
+    const { database } = fixture;
+    await fixture.serve();
+    const installer = fixture.as(fixture.owner.subject).client(objectPackage);
+    const install = async (name: string, packageId: PackageId) => {
+        const recorded = await fixture.recordBuild(
+            await fixtureBuild(packageId, "2026.9.0", fixture.environment.crypto),
+        );
+        const created = await installer.installation.create({
+            scope: ids.space,
+            requestId: RequestId.create(fixture.machine.environment),
+            packageId,
+            ...following(followed),
+            name,
+        });
+        await fixture
+            .as(fixture.owner.subject)
+            .client(stackPackage)
+            .rollout.deploy({
+                spaceId: ids.space,
+                id: created.id,
+                requestId: RequestId.create(fixture.machine.environment),
+                build: recorded.build,
+            });
+        await fixture.simulation.idle();
+
+        return created;
+    };
+    const serving = (
+        spaceId: Identifier<"space">,
+        packageId: PackageId,
+        implementers: readonly PackageId[] = [],
+    ) =>
+        refusal(
+            Rollout.requireServing(database, { spaceId, packageId, implementers }).then(
+                ({ installationId }) => installationId,
+            ),
+        );
+    const notes = await install("notes", ids.package);
+    const alone = await Rollout.requireServing(database, {
+        spaceId: ids.space,
+        packageId: ids.package,
+        implementers: [],
+    });
+    const unknown = await serving(ids.space, OTHER_PACKAGE);
+    const pending = await serving(schema.identifier("space").parse(UNAPPLIED_SPACE), ids.package);
+    await install("other", OTHER_PACKAGE);
+    const twice = await serving(ids.space, ids.package, [OTHER_PACKAGE]);
+
+    // find notes alone, refuse an unknown package, ask to wait before the stack applies, and refuse two
+    expect([alone.installationId, unknown, pending, twice]).toEqual([
+        notes.id,
+        [
+            "NOT_FOUND",
+            "INSTALLATION_NOT_FOUND",
+            `installation serving package '${OTHER_PACKAGE}' in this space not found`,
+        ],
+        [
+            "SERVICE_UNAVAILABLE",
+            "INSTALLATION_UNAVAILABLE",
+            `installation serving package '${ids.package}' is unavailable: this space does not serve it yet`,
+        ],
+        [
+            "CONFLICT",
+            "INSTALLATION_CONFLICT",
+            `cannot route package '${ids.package}': installations 'notes', 'other' each serve it`,
+        ],
     ]);
 });
 

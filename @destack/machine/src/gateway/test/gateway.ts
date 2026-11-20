@@ -69,6 +69,8 @@ export function openGateway(
             database,
             call: options.call ?? refuse("serve calls"),
             installation: refuse("find installations"),
+            // route without holding, as these routes reach installations served already
+            waitServing: (resolve) => resolve(),
             observe: options.observe ?? refuse("receive telemetry"),
             borrow,
             mounts: options.mounts ?? (() => []),

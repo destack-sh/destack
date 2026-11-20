@@ -187,6 +187,9 @@ const ASSIGNMENT_PLACEMENT: Relation = {
 /** The origin in-process installations call their space's stack service at, in process. */
 const STACK_ORIGIN = "http://stack.localhost";
 
+/** How long a request waits for an installation still deploying: a long poll's 30 s. */
+export const DEPLOYING_WAIT_MILLISECONDS = 30_000;
+
 /** How long a request waits for its space's instantiation: 5 s, as for its caller's watermarks. */
 const INSTANTIATION_WAIT_MILLISECONDS = 5000;
 
@@ -2698,6 +2701,61 @@ export class Space {
         }
     }
 
+    /** Read the installation a request reaches, holding it while that installation deploys. */
+    async waitServing(
+        resolve: () => Promise<InstallationRollout>,
+        signal: AbortSignal,
+    ): Promise<InstallationRollout> {
+        // answer at once, holding only an installation not served yet
+        const first = await Space.#attempt(resolve);
+        if ("served" in first) {
+            return first.served;
+        }
+
+        // read again after each change of installations, rollouts and spaces, until it serves or the wait ends
+        const tables = new Set(
+            [installation.table, rollout.table, accountObject.space.table].map(
+                (table) => table[TABLE].sqlName,
+            ),
+        );
+        const deadline = AbortSignal.any([
+            signal,
+            this.machine.environment.clock.timeout(DEPLOYING_WAIT_MILLISECONDS),
+        ]);
+        let served: InstallationRollout | undefined;
+        const isServed = await this.database.log.waitUntil(async (changed) => {
+            const attempt = [...changed].some((name) => tables.has(name))
+                ? await Space.#attempt(resolve)
+                : undefined;
+            served = attempt !== undefined && "served" in attempt ? attempt.served : undefined;
+
+            return served !== undefined;
+        }, deadline);
+
+        // refuse as not served yet once the wait ends
+        if (!isServed || served === undefined) {
+            throw first.error;
+        }
+
+        return served;
+    }
+
+    /** Read an installation once, taking a refusal as not served yet apart from other failures. */
+    static async #attempt(
+        resolve: () => Promise<InstallationRollout>,
+    ): Promise<{ readonly served: InstallationRollout } | { readonly error: unknown }> {
+        return resolve().then(
+            (served) => ({ served }),
+            (error: unknown) => {
+                if (!StackError.is(error, "INSTALLATION_UNAVAILABLE")) {
+                    throw error;
+                }
+
+                return { error };
+            },
+        );
+    }
+
     /** Wait until an installation of the space is current and served, refusing once aborted. */
     async waitServed(name: string, signal: AbortSignal): Promise<void> {
         // wake on changes of installations and their rollouts
@@ -2766,10 +2824,10 @@ export class Space {
         });
     }
 
-    /** Find the one installation serving a package here: of the package, or implementing it. */
-    async installation(packageId: PackageId): Promise<InstallationRollout> {
-        // read the protocols the packages here implement: the store's own, and the workloads'
-        const implemented = new Map<string, readonly string[]>([
+    /** Find the one installation serving a package here, holding while it deploys. */
+    installation(packageId: PackageId, signal: AbortSignal): Promise<InstallationRollout> {
+        // list the packages here implementing it: the store's own, and the workloads'
+        const implementers = [
             ...this.instance.packages.map(
                 (handle) => [handle.id, handle.protocols.map((protocol) => protocol.id)] as const,
             ),
@@ -2780,31 +2838,19 @@ export class Space {
                         PackageDescription.find(entry.declarations)?.protocols ?? [],
                     ] as const,
             ),
-        ]);
+        ]
+            .filter(([, protocols]) => protocols.includes(packageId))
+            .map(([implementer]) => implementer);
 
-        // list the served installations of the package or of a package implementing it
-        const installed = (await Rollout.list(this.database, this.id, "served")).filter(
-            (served) =>
-                served.installation.packageId === packageId ||
-                (implemented.get(served.installation.packageId) ?? []).includes(packageId),
+        return this.waitServing(
+            () =>
+                Rollout.requireServing(this.database, {
+                    spaceId: this.id,
+                    packageId,
+                    implementers,
+                }),
+            signal,
         );
-        const [only] = installed;
-
-        // refuse none, and several, which callers reach by their names
-        if (only === undefined) {
-            throw MachineError.of(
-                "INSTALLATION_NOT_FOUND",
-                `installation serving package '${packageId}' in this space not found`,
-            );
-        } else if (installed.length > 1) {
-            const names = installed.map((served) => served.installation.name).join("', '");
-            throw MachineError.of(
-                "INSTALLATION_CONFLICT",
-                `cannot route package '${packageId}': installations '${names}' each serve it`,
-            );
-        }
-
-        return only;
     }
 
     /** List the mounts an installation the space serves declares. */

@@ -179,6 +179,7 @@ export type GatewaySpace = Pick<
     | "universe"
     | "call"
     | "installation"
+    | "waitServing"
     | "observe"
     | "borrow"
     | "mounts"
@@ -314,7 +315,7 @@ export class Gateway {
                     voucher,
                 );
             } else if (packageId !== undefined) {
-                const served = await this.#space.installation(packageId);
+                const served = await this.#space.installation(packageId, request.signal);
                 const url = new URL(request.url);
                 const at = `${InstallationMount.url(request.url, this.#space.id, served.installationId)}${url.pathname}${url.search}`;
                 const forwarded = copyRequest(request, {}, at);
@@ -364,10 +365,14 @@ export class Gateway {
         }
         // serve the views below the route's path, without the machine's headers
         else if (routed.kind === "view") {
-            const found = await Rollout.requireServed(this.#space.database, {
-                spaceId: this.#space.id,
-                installation: routed.installation,
-            });
+            const found = await this.#space.waitServing(
+                () =>
+                    Rollout.requireServed(this.#space.database, {
+                        spaceId: this.#space.id,
+                        installation: routed.installation,
+                    }),
+                routed.request.signal,
+            );
 
             return routed.respond(
                 await this.#originServer.serve(
@@ -400,10 +405,14 @@ export class Gateway {
         }
 
         // read the installation of the origin's name the space serves
-        const found = await Rollout.requireServed(this.#space.database, {
-            spaceId: this.#space.id,
-            installation: origin.name,
-        });
+        const found = await this.#space.waitServing(
+            () =>
+                Rollout.requireServed(this.#space.database, {
+                    spaceId: this.#space.id,
+                    installation: origin.name,
+                }),
+            request.signal,
+        );
         const mount = InstallationMount.url(request.url, this.#space.id, found.installationId);
         const url = new URL(request.url);
 
@@ -533,7 +542,10 @@ export class Gateway {
         // count the request's bytes as they stream in, once the installation serving it is known
         const { database } = this.#space;
         const { traffic } = this.#space.machine;
-        const served = await Rollout.requireServed(database, mounted);
+        const served = await this.#space.waitServing(
+            () => Rollout.requireServed(database, mounted),
+            mounted.request.signal,
+        );
         const { scope, installationId } = served;
         const request = traffic.countIngress(scope, installationId, mounted.request);
         const installed = { ...mounted, request };
