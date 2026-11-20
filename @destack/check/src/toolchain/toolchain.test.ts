@@ -12,12 +12,11 @@ const PackageName = schema.object({ name: schema.string() }).strip();
 const DIGEST = "c0ffee".padEnd(64, "0");
 
 test("resolve each package of a chain from the one before in a workspace", async () => {
-    // locate the formatter and its native binding through the formatter that installed it
-    const { files, host } = testHost();
+    // locate the formatter and its worker pool through the formatter that installed it
+    const { files } = testHost();
     const toolchain = Toolchain.workspace();
-    const native = `@oxfmt/binding-${host.os}-${host.architecture}`;
     const formatter = toolchain.locate(["oxfmt"], Toolchain.packageDirectory());
-    const binding = toolchain.locate(["oxfmt", native], Toolchain.packageDirectory());
+    const pool = toolchain.locate(["oxfmt", "tinypool"], Toolchain.packageDirectory());
     const name = async (directory: string) =>
         PackageName.parse(JSON.parse(await files.readTextFile(join(directory, "package.json"))))
             .name;
@@ -25,12 +24,12 @@ test("resolve each package of a chain from the one before in a workspace", async
     expect({
         directory: toolchain.directory,
         formatter: await name(formatter),
-        binding: await name(binding),
+        pool: await name(pool),
         lint: toolchain.lint(),
     }).toEqual({
         directory: undefined,
         formatter: "oxfmt",
-        binding: native,
+        pool: "tinypool",
         lint: fileURLToPath(new URL("../lint/index.ts", import.meta.url)),
     });
 });
