@@ -1,5 +1,3 @@
-import { DOMAINS } from "@destack/account/address";
-import type { ResidencyCode } from "@destack/account/object";
 import { install } from "@destack/stack/declare";
 import connectionPackage, { CONNECTION_INSTALLATION } from "@destack/connection/package";
 import { connectionVault } from "@destack/connection/stack";
@@ -20,27 +18,12 @@ import { HOME_APPLICATION } from "@destack/account/object";
 import { defineVault } from "@destack/vault/declare";
 import vaultPackage from "@destack/vault/package";
 import { CREDIT_PRICES, PLANS } from "@platform/pricing";
-import { PLATFORM } from "../platform/platform.ts";
 
 /** The platform account's vault in a residency's home, whose secrets the operator writes once. */
 export const platformVault = defineVault({ name: "platform" });
 
-/** Route a hostname's every path to the relay's names. */
-function relayRoute(hostname: string): NonNullable<StackInput["routes"]>[string] {
-    return {
-        hostname,
-        path: "/",
-        match: "prefix",
-        installation: "relay",
-        rules: [{ entry: { kind: "mount", mount: "names" } }],
-    };
-}
-
-/** Declare a residency home's stack: the registry, billing, its relay, and the edge it serves. */
-function residencyStack(edge: {
-    readonly routes: NonNullable<StackInput["routes"]>;
-    readonly installations: NonNullable<StackInput["installations"]>;
-}) {
+/** Declare a residency home's stack: the registry, billing, its relay and its own apps. */
+function residencyStack(own: NonNullable<StackInput["installations"]>) {
     return defineStack({
         types: [financePackage, vaultPackage, connectionPackage, forgePackage, gitStorage],
         sellers: { platform: { provider: "stripe", creditPrices: CREDIT_PRICES } },
@@ -98,7 +81,7 @@ function residencyStack(edge: {
                 {},
                 { name: HOME_APPLICATION, selection: { kind: "host" } },
             ),
-            ...edge.installations,
+            ...own,
             social: install(socialPackage, {}, { isolation: "host", name: "social" }),
             observability: install(
                 observabilityPackage,
@@ -106,46 +89,13 @@ function residencyStack(edge: {
                 { isolation: "host", name: "observability" },
             ),
         },
-        routes: edge.routes,
     });
 }
 
-/** Route a relay's own host, and on the platform residency's home the edge and the site. */
-function edgeOf(code: ResidencyCode) {
-    const own = { [`relay-${code}`]: relayRoute(`relay-${code}.${DOMAINS.machine}`) };
-    const edge = {
-        spaces: relayRoute(`*.${DOMAINS.space}`),
-        machines: relayRoute(`*.${DOMAINS.machine}`),
-        // serve the universe's root from the home application's start
-        start: {
-            hostname: DOMAINS.universe,
-            path: "/",
-            match: "prefix",
-            installation: "home",
-            rules: [{ entry: { kind: "view", view: "start" } }],
-        },
-        // serve the site's static pages at its own domain
-        site: {
-            hostname: DOMAINS.site,
-            path: "/",
-            match: "prefix",
-            installation: "site",
-            rules: [{ entry: { kind: "view", view: "site" } }],
-        },
-    } satisfies NonNullable<StackInput["routes"]>;
-
-    return code === PLATFORM.residencyId
-        ? {
-              routes: { ...own, ...edge },
-              installations: {
-                  site: install(sitePackage, {}, { name: "site", selection: { kind: "host" } }),
-              },
-          }
-        : { routes: own, installations: {} };
-}
-
-/** The stack of the European Union's home, the platform residency's, taking the edge's names. */
-export const RESIDENCY_STACK_EU = residencyStack(edgeOf("eu"));
+/** The stack of the European Union's home, the platform residency's, with the site. */
+export const RESIDENCY_STACK_EU = residencyStack({
+    site: install(sitePackage, {}, { name: "site", selection: { kind: "host" } }),
+});
 
 /** The stack of the United States' home. */
-export const RESIDENCY_STACK_US = residencyStack(edgeOf("us"));
+export const RESIDENCY_STACK_US = residencyStack({});

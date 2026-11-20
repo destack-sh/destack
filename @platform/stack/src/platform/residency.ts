@@ -19,7 +19,7 @@ export interface PlatformResidency {
         readonly id: Identifier<"machine">;
         readonly name: string;
     };
-    /** The export of its home's stack in production, with the edge's routes. */
+    /** The export of its home's stack. */
     readonly stack: "RESIDENCY_STACK_EU" | "RESIDENCY_STACK_US";
 }
 
