@@ -71,12 +71,12 @@
                 }
             ]
         },
-        "defineCommand": {
+        "defineAction": {
             "describes": [
                 {
-                    "kind": "command",
-                    "function": "./inspect#describeCommand",
-                    "symbols": "./inspect#commandSymbols"
+                    "kind": "action",
+                    "function": "./inspect#describeAction",
+                    "symbols": "./inspect#actionSymbols"
                 }
             ]
         }
@@ -100,7 +100,7 @@
         "defineWorkload": {
             "module": 1
         },
-        "defineCommand": {
+        "defineAction": {
             "module": 1
         }
     },

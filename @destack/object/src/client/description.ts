@@ -1,7 +1,7 @@
 import type { Kind } from "@destack/package";
 import { present, type schema } from "@destack/schema";
 import { ObjectTypeReference } from "@destack/sync";
-import { Command, COMMAND_KIND } from "../declare/command.ts";
+import { Action, ACTION_KIND } from "../declare/action.ts";
 import { ObjectDescription, ObjectTypePool } from "../object/description.ts";
 import type { ObjectType } from "../object/object.ts";
 import type { Client } from "../procedure/index.ts";
@@ -68,14 +68,16 @@ export class ObjectStoreDescription {
         return kind.select(implementation.declarations);
     }
 
-    /** List the commands a package declares, each on the type it calls. */
-    commands(implementation: PackageImplementationDescription): Command[] {
-        return this.declarations(implementation, COMMAND_KIND).map(({ name, description }) =>
-            Command.of(
-                name,
-                description,
-                this.type({ packageId: description.packageId, type: description.type }),
-            ),
-        );
+    /** List the actions a package declares, each call on the type it calls. */
+    actions(implementation: PackageImplementationDescription): Action[] {
+        return this.declarations(implementation, ACTION_KIND).map(({ name, description }) => {
+            const { call } = description;
+            const type =
+                call === undefined
+                    ? undefined
+                    : this.type({ packageId: call.packageId, type: call.type });
+
+            return Action.of(name, description, type);
+        });
     }
 }

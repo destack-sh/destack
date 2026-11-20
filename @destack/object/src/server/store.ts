@@ -82,7 +82,7 @@ import {
     zip,
 } from "@destack/schema";
 import type { ServerContext } from "../workload/workload.ts";
-import { COMMAND_KIND } from "../declare/command.ts";
+import { ACTION_KIND } from "../declare/action.ts";
 import type { Watermark } from "@destack/sync";
 import { refuseInput } from "../error/error.ts";
 import { copyRequest } from "@destack/environment";
@@ -104,7 +104,8 @@ import {
     Shape,
 } from "../replica/shape.ts";
 import { followKey, STORE_FOLLOWER } from "../replica/key.ts";
-import { ACCESS_PUBLICATION, QUERIES_PUBLICATION } from "../replica/replica.ts";
+import { ACCESS_PUBLICATION, QUERIES_PUBLICATION, QueriesParameters } from "../replica/replica.ts";
+import { CONNECTION_PATH } from "../replica/connection.ts";
 import {
     WriterId,
     storeProcedures,
@@ -923,14 +924,14 @@ export class ObjectStore {
         // describe each served package by its installation or as its scope's own, with its listed types
         const served = await Promise.all(
             this.#catalog.served.map(async ({ package: packaged, objects, server }) => {
-                // read an installed build's listed declarations, else an own package's commands
+                // read an installed build's listed declarations, else an own package's actions
                 const declarations =
                     server !== undefined
                         ? await ObjectStore.#declarations(server)
-                        : Object.values(packaged.commands).map((command) => ({
-                              ...COMMAND_KIND.identity,
-                              name: command.name,
-                              description: command.describe(),
+                        : Object.values(packaged.actions).map((action) => ({
+                              ...ACTION_KIND.identity,
+                              name: action.name,
+                              description: action.describe(),
                           }));
 
                 return {
@@ -1615,6 +1616,11 @@ export class ObjectStore {
 
         return store.router({
             push: store.push.handler(async ({ input, context }) => {
+                // refuse a called type outside the protocol the caller connected through
+                for (const call of input.mutations.flatMap((mutation) => mutation.calls)) {
+                    this.requireProtocolType(context, call.type);
+                }
+
                 // enter the pushed scope as the request's caller, and run the mutations as it
                 await this.enter(context, input.scope, true);
 
@@ -1637,6 +1643,7 @@ export class ObjectStore {
                     name,
                     input: called,
                 } = this.#resolve(input.call, false, CallSite.of(context.access(input.scope)));
+                this.requireProtocolType(context, object.typeReference);
                 if (object.readScope(name, called) !== input.scope) {
                     throw ObjectError.of(
                         "SCOPE_INVALID",
@@ -1647,7 +1654,8 @@ export class ObjectStore {
                 return await this.#answer(object, name, called, context);
             }),
             broadcast: store.broadcast.handler(async ({ input, context }) => {
-                // send as the request's caller, in the scope it entered
+                // send as the request's caller, in the scope it entered, refusing a type outside its protocol
+                this.requireProtocolType(context, input.object);
                 await this.enter(context, input.scope, false);
                 await this.source.broadcast(
                     input.scope,
@@ -1667,11 +1675,73 @@ export class ObjectStore {
 
                 return {};
             }),
-            describe: store.describe.handler(async ({ input }) => ({
-                objects: this.describe(input.types),
-                packages: await this.describePackages(),
-            })),
+            describe: store.describe.handler(async ({ input, context }) => {
+                // describe every type, or a protocol's alone to a caller connected through it
+                const protocol = this.#protocol(context);
+                const packages = await this.describePackages();
+                if (protocol === undefined) {
+                    return { objects: this.describe(input.types), packages };
+                }
+                const reached = (
+                    input.types ?? this.#catalog.declared.map((type) => type.typeReference)
+                ).filter((type) => type.packageId === protocol);
+
+                return {
+                    objects: this.describe(reached),
+                    packages: packages.flatMap((described) => {
+                        const types = described.types.filter((type) => type.packageId === protocol);
+
+                        return types.length === 0
+                            ? []
+                            : [{ ...described, types, declarations: [] }];
+                    }),
+                };
+            }),
         });
+    }
+
+    /** Read the protocol a request connected through, absent for a served package's own. */
+    #protocol(context: RequestContext): string | undefined {
+        const isProtocol = this.#catalog.served.some((entry) =>
+            entry.package.protocols.some((protocol) => protocol.id === context.audience),
+        );
+
+        return isProtocol ? context.audience : undefined;
+    }
+
+    /** Refuse a type outside the protocol a request connected through. */
+    requireProtocolType(
+        context: RequestContext,
+        type: Pick<ObjectTypeReference, "packageId" | "type">,
+    ): void {
+        const protocol = this.#protocol(context);
+        if (protocol !== undefined && type.packageId !== protocol) {
+            throw ObjectError.of(
+                "TYPE_NOT_FOUND",
+                `type '${type.packageId}/${type.type}' not found`,
+            );
+        }
+    }
+
+    /** Refuse a subscription outside the protocol a request connected through. */
+    requireProtocolSubscription(context: RequestContext, subscription: sync.Subscription): void {
+        // follow a protocol's types through named queries of them alone
+        if (this.#protocol(context) === undefined) {
+            return;
+        }
+        const queries =
+            subscription.publication === QUERIES_PUBLICATION
+                ? QueriesParameters.parse(subscription.parameters).queries
+                : undefined;
+        if (queries === undefined) {
+            throw ObjectError.of(
+                "PUBLICATION_NOT_FOUND",
+                `publication '${subscription.publication}' not found`,
+            );
+        }
+        for (const query of Object.values(queries)) {
+            this.requireProtocolType(context, { packageId: query.package, type: query.object });
+        }
     }
 
     /** Read a request's caller for its audit: anonymous when its credential failed. */
@@ -4281,10 +4351,11 @@ export class ObjectStore {
             );
         }
 
-        // route its types' collections and its mounts' paths
+        // route its types' collections, its mounts' paths and the store's connection
         return new Set([
             ...types.map((type) => `${type.route.prefix}/${Casing.kebab(type.plural)}`),
             ...mounts.map((mount) => mount.path),
+            CONNECTION_PATH,
         ]);
     }
 

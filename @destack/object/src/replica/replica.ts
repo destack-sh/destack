@@ -102,7 +102,7 @@ export const PackageImplementationDescription = schema.object({
         .exactOptional(),
     /** The object types it lists, its own and those of other packages it serves. */
     types: schema.array(ObjectTypeReference),
-    /** Its declarations: an installed build's listed ones, an own package's commands. */
+    /** Its declarations: an installed build's listed ones, an own package's actions. */
     declarations: schema.array(
         schema.object({
             /** The declaration kind, such as `setting` or `command`. */

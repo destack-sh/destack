@@ -219,6 +219,7 @@ export class ObjectSource {
         // read the subscription by its publication, refusing invalid parameters, and allow the caller by its audience
         const publication = this.publication(request);
         const subscription = publication.read(request);
+        this.store.requireProtocolSubscription(context, request);
         const follower = await this.#authorizeFollower(publication, subscription, context);
         // refuse a session whose credential lapsed already, for the follower to resume with a fresh one
         const credential = context.authentication?.credential;
@@ -1180,6 +1181,7 @@ export class ObjectSource {
     async requestFrom(subscription: sync.Subscription, context: RequestContext): Promise<void> {
         // read the subscription by its publication, refusing invalid parameters, and require an authenticated caller
         const read = this.publication(subscription).read(subscription);
+        this.store.requireProtocolSubscription(context, subscription);
         const caller = ObjectSource.#caller(context);
         if (caller === undefined) {
             throw ObjectError.of(

@@ -4,7 +4,7 @@ import {
     Caller,
     principal,
 } from "@destack/access";
-import type { PackageId } from "@destack/package";
+import { PackageId } from "@destack/package";
 import { Subject } from "@destack/sync";
 import { SPACE_KEY, TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
 
@@ -13,6 +13,9 @@ const BEARER_PREFIX = "Bearer ";
 
 /** The header of a test request whose caller stepped up just now (RFC 9470 step-up). */
 const STEP_UP_HEADER = "x-destack-step-up";
+
+/** The header of a test request naming the package its token is for, as a token's audience does. */
+const AUDIENCE_HEADER = "x-destack-audience";
 
 /** The assurance of a second factor, NIST SP 800-63B's AAL2. */
 const AAL2 = 2;
@@ -24,12 +27,20 @@ export const TestBearer = {
         return `${BEARER_PREFIX}${Subject.key(subject)}`;
     },
 
-    /** Write a subject's test request headers, with a fresh second factor once stepped up. */
-    headers(subject: Subject, isSteppedUp: boolean): Record<string, string> {
+    /** Write a subject's test request headers for an audience, a second factor once stepped up. */
+    headers(subject: Subject, isSteppedUp: boolean, audience?: PackageId): Record<string, string> {
         return {
             authorization: TestBearer.header(subject),
             ...(isSteppedUp ? { [STEP_UP_HEADER]: "1" } : {}),
+            ...(audience === undefined ? {} : { [AUDIENCE_HEADER]: audience }),
         };
+    },
+
+    /** Read the package a test request's token is for, the served one when it names none. */
+    audience(request: Request, served: PackageId): PackageId {
+        const named = request.headers.get(AUDIENCE_HEADER);
+
+        return named === null ? served : PackageId.parse(named);
     },
 
     /** Read a test request's assurance: a second factor as it arrives, once stepped up. */

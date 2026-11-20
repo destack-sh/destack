@@ -461,10 +461,10 @@ export class TestObjectStore implements TestScope, AsyncDisposable {
         groups: ReadonlyMap<string, readonly Subject[]>,
     ): TestCredential {
         return {
-            sign: async (request, { subject, isSteppedUp }) => {
+            sign: async (request, { subject, isSteppedUp, audience }) => {
                 const headers = new Headers(request.headers);
                 for (const [name, value] of Object.entries(
-                    TestBearer.headers(subject, isSteppedUp),
+                    TestBearer.headers(subject, isSteppedUp, audience),
                 )) {
                     headers.set(name, value);
                 }
@@ -473,7 +473,7 @@ export class TestObjectStore implements TestScope, AsyncDisposable {
             },
             authenticate: async (request, audience) =>
                 TestObjectStore.#authenticate(request, {
-                    audience,
+                    audience: TestBearer.audience(request, audience),
                     scope: store.scope,
                     groups,
                     now: store.clock.now(),

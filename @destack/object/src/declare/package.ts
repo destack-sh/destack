@@ -18,7 +18,7 @@ import { mapValues, Version } from "@destack/schema";
 import type { Message } from "@destack/locale";
 import { SwatchName } from "@destack/color";
 import { MountPath, Capability, IconName } from "./description.ts";
-import type { Command } from "./command.ts";
+import type { Action } from "./action.ts";
 import type { ProcedureRouter } from "../procedure/index.ts";
 import { GrantDeclaration, type Policy } from "@destack/access";
 import type { ObjectTypeReference } from "@destack/sync";
@@ -71,8 +71,8 @@ export interface PackageOptions {
     readonly protocols?: readonly Package[];
     /** The views the package offers. */
     readonly views?: readonly Declaration[];
-    /** The commands the package declares on its objects. */
-    readonly commands?: readonly Command[];
+    /** The actions the package declares: its objects' method calls, and its views' operations. */
+    readonly actions?: readonly Action[];
     /** The mounts serving protocols others define below the package. */
     readonly mounts?: readonly MountDeclaration[];
     /** The resources the package uses and the secrets it reads. */
@@ -104,8 +104,8 @@ export interface Package<Options extends PackageOptions = PackageOptions> extend
     readonly protocols: readonly Package[];
     /** The views the package offers, by name. */
     readonly views: ByName<Options["views"]>;
-    /** The commands the package declares on its objects, by name. */
-    readonly commands: ByName<Options["commands"]>;
+    /** The actions the package declares, by name. */
+    readonly actions: ByName<Options["actions"]>;
     /** The mounts serving protocols others define below the package, by name. */
     readonly mounts: ByName<Options["mounts"]>;
     /** The resources the package uses, by name. */
@@ -201,7 +201,7 @@ function handleOf<const Options extends PackageOptions, Identity extends object>
     const listed = options.resources ?? [];
     const objects = byRoute(options.objects ?? []);
     const views = byName(options.views ?? []);
-    const commands = byName(options.commands ?? []);
+    const actions = byName(options.actions ?? []);
     const mounts = byName(options.mounts ?? []);
     const bound = Object.values(byName(listed));
     const resources = byName(bound.filter((each) => isProvisioned(each)));
@@ -216,21 +216,22 @@ function handleOf<const Options extends PackageOptions, Identity extends object>
         );
     }
 
-    // refuse a command on an object type the package does not serve, or named as one of its methods
+    // refuse a call of an object type the package does not serve, or an action named as one of its methods
     const served = new Set<unknown>(Object.values(objects));
-    const stray = Object.values(commands).find((command) => !served.has(command.object));
-    const renaming = Object.values(commands).find(
-        (command) => command.name in command.object.methods,
+    const calls = Object.values(actions).flatMap((action) =>
+        action.call === undefined ? [] : [{ name: action.name, object: action.call.object }],
     );
+    const stray = calls.find((call) => !served.has(call.object));
+    const renaming = calls.find((call) => call.name in call.object.methods);
     if (stray !== undefined) {
         throw PackageError.of(
             "DEFINITION_INVALID",
-            `command '${stray.name}' is invalid: '${owner.name}' lists it on ${stray.object.name}, which it does not serve`,
+            `action '${stray.name}' is invalid: '${owner.name}' lists it on ${stray.object.name}, which it does not serve`,
         );
     } else if (renaming !== undefined) {
         throw PackageError.of(
             "DEFINITION_INVALID",
-            `command '${renaming.name}' is invalid: it takes the name of a method of ${renaming.object.name}`,
+            `action '${renaming.name}' is invalid: it takes the name of a method of ${renaming.object.name}`,
         );
     }
 
@@ -299,7 +300,7 @@ function handleOf<const Options extends PackageOptions, Identity extends object>
         tables: [...(options.tables ?? [])],
         protocols: [...(options.protocols ?? [])],
         views: mapValues<typeof views, ByName<Options["views"]>>(views, (each) => each),
-        commands: mapValues<typeof commands, ByName<Options["commands"]>>(commands, (each) => each),
+        actions: mapValues<typeof actions, ByName<Options["actions"]>>(actions, (each) => each),
         mounts: mapValues<typeof mounts, ByName<Options["mounts"]>>(mounts, (each) => each),
         resources: mapValues<typeof resources, Keyed<ResourceOf<Listed<Options["resources"]>>>>(
             resources,

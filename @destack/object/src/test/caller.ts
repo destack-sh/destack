@@ -126,14 +126,17 @@ export class TestCaller {
         };
     }
 
-    /** Open sockets to a package's server, each upgrade signed as the caller. */
-    websocket(handle: Package): (url: string, protocols: readonly string[]) => ClientSocket {
-        return (url, protocols) => this.#scope.open(handle, this.#signer(handle), url, protocols);
+    /** Open sockets to a package's server, each upgrade signed as the caller for an audience. */
+    websocket(
+        handle: Package,
+        audience: Package = handle,
+    ): (url: string, protocols: readonly string[]) => ClientSocket {
+        return (url, protocols) => this.#scope.open(handle, this.#signer(audience), url, protocols);
     }
 
-    /** Sign a connection's upgrade and each call as the caller, fresh each time. */
-    authorize(handle: Package): (request: Request) => Promise<Request> {
-        return (request) => this.#scope.sign(request, this.#signer(handle));
+    /** Sign a connection's upgrade and each call as the caller for an audience, fresh each time. */
+    authorize(audience: Package): (request: Request) => Promise<Request> {
+        return (request) => this.#scope.sign(request, this.#signer(audience));
     }
 
     /** Describe the caller signing for a package. */
@@ -141,18 +144,19 @@ export class TestCaller {
         return { subject: this.subject, audience: handle.id, isSteppedUp: this.#isSteppedUp };
     }
 
-    /** Connect to the store through a package's server, following the scope served by default. */
+    /** Connect to the store through a package's server, for it or a protocol it implements. */
     connect(
         handle: Package,
         options: Omit<ConnectionOptions, "url" | "authorize" | "websocket" | "environment"> = {
             scope: this.#scope.scope,
         },
+        audience: Package = handle,
     ): ObjectConnection {
         return ObjectConnection.open({
             ...options,
             url: TEST_CONNECTION_URL,
-            authorize: this.authorize(handle),
-            websocket: this.websocket(handle),
+            authorize: this.authorize(audience),
+            websocket: this.websocket(handle, audience),
             environment: this.#scope.environment,
         });
     }

@@ -13,7 +13,8 @@ Packages declare object types:
 - `field.text`: a collaborative text with marks and nodes, read as `TextSpan[]`.
 - Traits, such as `shareable` and `nested`: columns, permissions and methods a type adopts.
 - `method`: a type's methods, standard or its own.
-- `definePackage`: a package's object types, views, mounts and resources.
+- `defineAction`: an operation people run from keys, menus, the palette or a notification, calling a method or handled by a view.
+- `definePackage`: a package's object types, actions, views, mounts and resources.
 
 Servers implement them:
 
@@ -318,9 +319,21 @@ store ─► sandbox: authorize, relate, expand, prepare, handle(next ─► sto
 
 `confirm` and `cancel` run at the store, where the settlement is kept.
 
+### defineAction
+
+`defineAction(definition)` declares an operation people run, as VS Code's commands and Raycast's actions: with a `call`, it calls a method of one of the package's types; without one, a view handles it.
+
+| Option          | What it is                                                                  |
+| --------------- | --------------------------------------------------------------------------- |
+| `name`, `title` | the name, unique among the package's actions, and the title people read     |
+| `category`      | the group menus and the palette show it under                               |
+| `keybinding`    | the key combination, such as `"mod+shift+g"`                                |
+| `focus`         | `"page"` by default, outside form fields, or `"any"`                        |
+| `call`          | the `object` and `method` it calls, its preset `input` and `when` condition |
+
 ### definePackage
 
-`definePackage({ title, description, icon, color, objects, views, commands, mounts, resources, access, errors })` declares a package's handle, with how people recognise it: its title, its description, its Phosphor icon and the swatch the stack draws it in.
+`definePackage({ title, description, icon, color, objects, views, actions, mounts, resources, access, errors })` declares a package's handle, with how people recognise it: its title, its description, its Phosphor icon and the swatch the stack draws it in.
 `implementPackage(handle, code)` implements it, from code or per installation.
 
 ## Examples
