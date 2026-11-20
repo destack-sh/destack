@@ -756,6 +756,52 @@ export const Rollout = {
         }
     },
 
+    /** Read the one installation a machine serves of a package, or of a package implementing it. */
+    async requireServing(
+        database: DatabaseConnection,
+        serving: {
+            readonly spaceId: Identifier<"space">;
+            readonly packageId: string;
+            readonly implementers: readonly string[];
+        },
+    ): Promise<InstallationRollout> {
+        // list the installed ones of the package and its implementers, served or not
+        const { spaceId, packageId, implementers } = serving;
+        const installed = (await Rollout.list(database, spaceId, "launchable")).filter(
+            (each) =>
+                each.installation.packageId === packageId ||
+                implementers.includes(each.installation.packageId),
+        );
+        const [only] = installed;
+
+        // let a caller wait while the space's stack may still install one, else refuse none
+        if (only === undefined && (await isStackPending(database, spaceId))) {
+            throw StackError.of(
+                "INSTALLATION_UNAVAILABLE",
+                `installation serving package '${packageId}' is unavailable: this space does not serve it yet`,
+                { data: { retryAfter: NOT_SERVED_RETRY_MILLISECONDS } },
+            );
+        } else if (only === undefined) {
+            throw StackError.of(
+                "INSTALLATION_NOT_FOUND",
+                `installation serving package '${packageId}' in this space not found`,
+            );
+        }
+        // refuse several, which callers reach by their names
+        else if (installed.length > 1) {
+            const names = installed.map((each) => each.installation.name).join("', '");
+            throw StackError.of(
+                "INSTALLATION_CONFLICT",
+                `cannot route package '${packageId}': installations '${names}' each serve it`,
+            );
+        }
+
+        return await Rollout.requireServed(database, {
+            spaceId,
+            installation: only.installation.id,
+        });
+    },
+
     /** Find an installation of a space in a state, by its identifier or its name. */
     async find(
         database: DatabaseConnection,
