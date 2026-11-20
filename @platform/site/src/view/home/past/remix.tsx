@@ -271,11 +271,15 @@ export const todayScenes: readonly Scene[] = [
     ),
 ];
 
+/** Return the app that replaces a silo, or the id itself when nothing does. */
+function replacementOf(id: string): string {
+    return replacements[id] ?? id;
+}
+
 /** The open loop. */
 export const scenes: readonly Scene[] = todayScenes.flatMap((scene) => {
     // replace each silo in its place, and point each person at the replacement
-    const swap = (id: string) => replacements[id] ?? id;
-    const lower = scene.lower.map((card) => swap(card.id));
+    const lower = scene.lower.map((card) => replacementOf(card.id));
     const [first, second, third] = lower;
     if (first === undefined || second === undefined || third === undefined) {
         throw new TypeError("a locked scene holds three silos");
@@ -283,7 +287,10 @@ export const scenes: readonly Scene[] = todayScenes.flatMap((scene) => {
     const replaced: Scene = {
         upper: scene.upper,
         lower: lower.map((id) => ({ id, span: 1 })),
-        links: scene.links.map(([person, target]): [string, string] => [person, swap(target)]),
+        links: scene.links.map(([person, target]): [string, string] => [
+            person,
+            replacementOf(target),
+        ]),
     };
 
     // join the first two replacements into their remix beside the third
@@ -485,6 +492,16 @@ export function Remix(properties: {
     const last = new Map<string, Placement>();
     let released: { id: string; until: number | undefined } | undefined;
 
+    // tell whether a drag holds a card or it springs home from one, away from its placement
+    const isLoose = (id: string, now: number) => {
+        // start a released card's spring home on the first frame after the drop
+        if (released !== undefined && released.until === undefined) {
+            released.until = now + duration.medium;
+        }
+
+        return drag()?.id === id || (released?.id === id && now < (released.until ?? now));
+    };
+
     // pick the scene on show: the locked stack today, the loop once open
     const shown = () =>
         properties.isOpen
@@ -632,16 +649,6 @@ export function Remix(properties: {
             }
 
             return geometry;
-        };
-
-        // tell whether a drag holds a card or it springs home from one, away from its placement
-        const isLoose = (id: string, now: number) => {
-            // start a released card's spring home on the first frame after the drop
-            if (released !== undefined && released.until === undefined) {
-                released.until = now + duration.medium;
-            }
-
-            return drag()?.id === id || (released?.id === id && now < (released.until ?? now));
         };
 
         // place a card from its placement, or read it while a drag holds it or it springs home
