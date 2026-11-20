@@ -61,6 +61,7 @@ test("give birth to placed spaces from their replicated rows with main in their 
         selection: { kind: "release" as const, version: stacked.version },
         export: name,
         settings: {},
+        routes: {},
     });
 
     // create a space carrying each stack at the universe, home on the residency's machine
@@ -148,6 +149,7 @@ test("retain a person's own apply of a placed space's stack, and submit the spac
         selection: { kind: "release" as const, version: stacked.version },
         export: "home",
         settings: {},
+        routes: {},
     };
     const fixture = await TestSpace.open({ stack: carried, releases: builds });
 

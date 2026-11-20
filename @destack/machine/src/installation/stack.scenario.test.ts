@@ -73,7 +73,7 @@ async function submit(
     stack: InstallationRollout,
     submission: Omit<Submission, "build" | "stack"> & {
         /** The export, its arguments and the definition the stack's build declares there. */
-        readonly stack: Omit<StackEvaluation, "settings">;
+        readonly stack: Omit<StackEvaluation, "settings" | "routes">;
     },
 ): Promise<InstallationRollout> {
     // record a build of the stack declaring the definition, and submit it for the space to evaluate
@@ -912,7 +912,7 @@ test("install the packages a stack declares without its libraries, refusing a mi
             await installingStack(installed, world),
             Object.values(entriesOf(fixtures)),
             "space",
-            {},
+            { settings: {}, routes: {} },
             read,
         );
     const definition = StackDefinition.collections(await declare([notes, vault]));
@@ -954,7 +954,7 @@ test("keep a stack's installation pins as declared, and the version it was built
             stack,
             Object.values(entriesOf([vault, notes])),
             "space",
-            {},
+            { settings: {}, routes: {} },
             read,
         ),
     );

@@ -158,7 +158,7 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
                 };
             }),
         );
-        const layer = await TestDistribution.#distribute(shipped, store);
+        const layer = await TestDistribution.layer(shipped, store);
 
         // read the root of every shipped release, which the distribution opens by version
         const builds = await Promise.all(shipped.map((image) => store.root(image)));
@@ -348,10 +348,7 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
     }
 
     /** Write a layer of release images once per process as a distribution does, and open it. */
-    static async #distribute(
-        releases: readonly Digest[],
-        store: LocalBuildStore,
-    ): Promise<BuildLayer> {
+    static async layer(releases: readonly Digest[], store: LocalBuildStore): Promise<BuildLayer> {
         // write it once per process on the host's store, one long operation of the world whether written before or not
         const key = JSON.stringify(releases);
         const writing = TestDistribution.#distributed.get(key) ?? TestDistribution.#write(releases);
@@ -436,6 +433,7 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
             selection: { kind: "release", version },
             export: exported,
             settings: {},
+            routes: {},
         };
     }
 

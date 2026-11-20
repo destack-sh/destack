@@ -495,7 +495,7 @@ export const RolloutTarget = {
             await options.space.builds.contents(image.root),
             releases,
             inputs.export,
-            inputs.settings,
+            inputs,
             (packageId, manifest) => options.space.read(packageId, manifest),
         );
 
@@ -511,15 +511,20 @@ export const RolloutTarget = {
         const exported = present(installed.export, `the export of ${installed.packageId}`);
         const parameters = present(installed.parameters, `the arguments of ${exported}`);
 
-        // take the setting values of the space's stack while the installation follows its package
+        // take the settings and routes the space's stack places while the installation follows its package
         const [owner] = await snapshot.read(space.table).findMany({
             where: { id: schema.identifier("space").parse(installed.scope) },
             limit: 1,
         });
         const stack = present(owner, `the space ${installed.scope}`).stack;
-        const settings = stack.packageId === installed.packageId ? stack.settings : {};
+        const isFollowing = stack.packageId === installed.packageId;
 
-        return { export: exported, parameters, settings };
+        return {
+            export: exported,
+            parameters,
+            settings: isFollowing ? stack.settings : {},
+            routes: isFollowing ? stack.routes : {},
+        };
     },
 
     /** Resolve an installation's value of each space setting its build declares, by setting key. */

@@ -58,6 +58,7 @@ export async function openSpaceDatabase(): Promise<{
                     selection: { kind: "release", version: stackPackage.version },
                     export: "default",
                     settings: {},
+                    routes: {},
                 },
                 createdAt: now,
                 updatedAt: now,
