@@ -10,7 +10,7 @@ import { testWorldOptions } from "@destack/test/world";
 const DIRECTORY = '/tmp/destack & "dev" %state';
 
 /** A machine executable with native configuration metacharacters. */
-const EXECUTABLE = "/Applications/Destack & Dev.app/Contents/Helpers/destack-machine";
+const EXECUTABLE = "/Applications/Destack & Dev.app/Contents/Helpers/destack";
 
 /** Locate the machine's registration on a host of an operating system, with the host. */
 async function autostart(os: OperatingSystem) {
@@ -61,7 +61,7 @@ test("describe the machine as a launchd agent, a systemd unit and a startup shor
         launchd: `<?xml version="1.0" encoding="UTF-8"?>
 <plist version="1.0"><dict>
 <key>Label</key><string>${darwin.name}</string>
-<key>ProgramArguments</key><array><string>/Applications/Destack &amp; Dev.app/Contents/Helpers/destack-machine</string></array>
+<key>ProgramArguments</key><array><string>/Applications/Destack &amp; Dev.app/Contents/Helpers/destack</string><string>--process=machine</string></array>
 <key>EnvironmentVariables</key><dict><key>DESTACK_DIRECTORY</key><string>/tmp/destack &amp; &quot;dev&quot; %state</string></dict>
 <key>RunAtLoad</key><true/>
 <key>KeepAlive</key><dict><key>SuccessfulExit</key><false/></dict>
@@ -75,7 +75,7 @@ Description=Destack machine
 
 [Service]
 Type=exec
-ExecStart=:"/Applications/Destack & Dev.app/Contents/Helpers/destack-machine"
+ExecStart=:"/Applications/Destack & Dev.app/Contents/Helpers/destack" "--process=machine"
 Environment="DESTACK_DIRECTORY=/tmp/destack & \\"dev\\" %%state"
 Restart=on-failure
 RestartSec=2

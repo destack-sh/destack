@@ -1,3 +1,4 @@
+import { Release } from "@destack/update/release";
 import { join } from "node:path";
 import type { AutostartRegistration } from "./autostart.ts";
 import { Command, type CommandHost, SERVICE_MILLISECONDS } from "../process/command.ts";
@@ -94,14 +95,16 @@ export class LaunchAgent implements AutostartRegistration {
 
     /** Describe the foreground machine as a property list, escaping its strings. */
     describe(executable: string): string {
-        // escape the program, the state directory and the log
-        const program = LaunchAgent.#xml(executable);
+        // escape the program and its machine process argument, the state directory and the log
+        const program = [executable, ...Release.arguments("machine")]
+            .map((each) => `<string>${LaunchAgent.#xml(each)}</string>`)
+            .join("");
         const directory = LaunchAgent.#xml(this.directory);
         const log = LaunchAgent.#xml(join(this.directory, "machine.log"));
 
         return `<?xml version="1.0" encoding="UTF-8"?>\n<plist version="1.0"><dict>
 <key>Label</key><string>${this.name}</string>
-<key>ProgramArguments</key><array><string>${program}</string></array>
+<key>ProgramArguments</key><array>${program}</array>
 <key>EnvironmentVariables</key><dict><key>DESTACK_DIRECTORY</key><string>${directory}</string></dict>
 <key>RunAtLoad</key><true/>
 <key>KeepAlive</key><dict><key>SuccessfulExit</key><false/></dict>

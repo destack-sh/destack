@@ -1,6 +1,6 @@
 import { TelemetryScope } from "@destack/telemetry";
 import { Bookmark } from "@destack/object/client";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { CommandHost } from "./command.ts";
 import { Release } from "@destack/update/release";
@@ -77,15 +77,6 @@ export class MachineProcess {
         return new MachineProcess(UniverseHome.current(environment).directory, environment);
     }
 
-    /** Locate the machine executable beside this standalone executable, else this runtime. */
-    static executable(environment: CommandHost): string {
-        const { executable } = environment.process;
-
-        return environment.process.runtime.isStandalone
-            ? join(dirname(executable), Release.executable("destack-machine", environment.host.os))
-            : executable;
-    }
-
     /** Recognize connection failures retained by the service client's transport error. */
     static isUnavailable(error: unknown): boolean {
         // recognize a stopped machine
@@ -114,7 +105,7 @@ export class MachineProcess {
     /** Start a detached machine and wait until it accepts requests. */
     start(
         entry: string,
-        executable = MachineProcess.executable(this.environment),
+        executable = this.environment.process.executable,
         isStandalone = this.environment.process.runtime.isStandalone,
     ): Promise<void> {
         return this.#scope.span("destack.machine.launch", {}, () =>
@@ -232,7 +223,7 @@ export class MachineProcess {
         const variables = { DESTACK_DIRECTORY: this.directory, ...Object.fromEntries(passed) };
         const runArguments =
             entry === undefined
-                ? []
+                ? Release.arguments("machine")
                 : [
                       "run",
                       "--preload",

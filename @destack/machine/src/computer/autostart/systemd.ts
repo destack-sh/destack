@@ -1,3 +1,4 @@
+import { Release } from "@destack/update/release";
 import { join } from "node:path";
 import type { AutostartRegistration } from "./autostart.ts";
 import { Command, type CommandHost, SERVICE_MILLISECONDS } from "../process/command.ts";
@@ -89,7 +90,10 @@ export class SystemdService implements AutostartRegistration {
 
     /** Describe the foreground machine as a unit. */
     describe(executable: string): string {
-        const program = JSON.stringify(executable.replaceAll("%", "%%"));
+        // quote the program and its machine process argument, escaping systemd's specifiers
+        const program = [executable, ...Release.arguments("machine")]
+            .map((each) => JSON.stringify(each.replaceAll("%", "%%")))
+            .join(" ");
         const environment = JSON.stringify(
             `DESTACK_DIRECTORY=${this.directory}`.replaceAll("%", "%%"),
         );
