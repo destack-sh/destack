@@ -14,6 +14,7 @@ import { Favicon, Glyph } from "../figure/glyph";
 import { accentOf } from "../figure/item";
 import type { Stagger } from "../figure/stagger";
 import { sectionOf } from "../verb/apps";
+import { MadeMonday } from "../project/monday";
 import { ArtifactFrame, artifactAddressOf, type Publisher } from "../command/artifact";
 import type { Job } from "../verb/space";
 import type { Maker } from "./maker";
@@ -342,8 +343,8 @@ export function XRay(properties: {
                         ) : undefined}
                         <main {...style.attrs(appStyles.main, styles.page)}>
                             {isStacked() ? (
-                                <MadeFrame assistant={assistant()} title={app()[2]}>
-                                    {sectionOf(row(), present(sources[0], "first source"), false)}
+                                <MadeFrame assistant={assistant()} title="Monday">
+                                    <MadeMonday />
                                 </MadeFrame>
                             ) : (
                                 sectionOf(row(), present(sources[0], "first source"), false)
