@@ -224,6 +224,7 @@ export class BunCloud implements AsyncDisposable {
         const listener = environment.server.http({
             hostname: origin.hostname,
             port: Number(origin.port),
+            idleTimeout: Computer.idleTimeout,
             ...listening,
         });
         stack.defer(async () => listener.stop(true));
