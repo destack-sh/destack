@@ -110,8 +110,10 @@ export class Desktop implements AsyncDisposable {
         this.environment = environment;
         this.local = TelemetryScope.of(
             import.meta.destack.package,
-            Telemetry.local(environment.clock, (line) =>
-                environment.process.stderr.writeSync(line),
+            Telemetry.local(
+                environment.clock,
+                (line) => environment.process.stderr.writeSync(line),
+                environment.telemetry.context,
             ),
         );
     }
