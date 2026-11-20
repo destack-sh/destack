@@ -1,7 +1,10 @@
 import type { Environment, HostCapability } from "@destack/environment";
-import { printStatus } from "../distribution/output.ts";
-import { CHECKOUT } from "../distribution/distribution.ts";
-import { PlatformBuild } from "./build.ts";
+import { IssuerCredential, Session } from "@destack/account/client";
+import { Bookmark } from "@destack/object/client";
+import { LATEST_TAG } from "@destack/registry/object";
+import { CHECKOUT, PlatformBuild, printStatus } from "@platform/distribution";
+import { Cloudflare } from "../cloudflare/cloudflare.ts";
+import { ActionsToken } from "../github/oidc.ts";
 import { Deployment } from "./deployment.ts";
 import { Root } from "./root.ts";
 
@@ -56,7 +59,7 @@ export async function deployPlatform(
     // deploy a whole environment
     const [name] = arguments_;
     if (arguments_.length === 1 && name !== undefined && !Root.isShared(name)) {
-        await Deployment.deployed(name, environment).deploy();
+        await new Cloudflare(Deployment.cloudflare(name, environment)).deploy();
     }
     // apply one root
     else {
@@ -76,7 +79,21 @@ export async function publishPlatform(
             `platform publish takes a universe, then nothing more: '${rest.join(" ")}'`,
         );
     }
-    await Deployment.deployed(name, environment).publish();
+
+    // sign in as the workflow's trusted publisher, by the job's OIDC token for the token endpoint
+    const deployment = Deployment.cloudflare(name, environment);
+    const send = (request: Request) => environment.network.fetch(request);
+    const signer = { assert: (endpoint: string) => ActionsToken.request(endpoint, environment) };
+    const session = new Session(
+        new IssuerCredential(signer, deployment.universe.issuer, send, environment),
+        { universe: deployment.universe.origin, send, bookmark: new Bookmark(), environment },
+    );
+
+    // publish the checkout's releases under the universe's tag, pointing latest, which installs follow
+    await using build = await PlatformBuild.build(CHECKOUT, environment);
+    await build.publish(session, deployment.universe.origin, deployment.tag, {
+        tags: [LATEST_TAG],
+    });
 }
 
 /** Build the checkout's first-party releases into its store. */
@@ -98,7 +115,7 @@ export async function sealCustody(
     if (rest.length > 0) {
         throw new Error(`custody seal takes a universe, then nothing more: '${rest.join(" ")}'`);
     }
-    await Deployment.deployed(name, environment).seal((title, line) =>
+    await new Cloudflare(Deployment.cloudflare(name, environment)).seal((title, line) =>
         printStatus(title, line, environment),
     );
 }

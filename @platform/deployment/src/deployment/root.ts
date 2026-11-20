@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import type { Environment, HostCapability } from "@destack/environment";
-import { CloudflareCredentials } from "./cloudflare/credential.ts";
+import { CloudflareCredentials } from "../cloudflare/credential.ts";
 import type { EnvelopeConfiguration } from "@destack/identity/aws";
 import type { S3Location } from "@destack/bucket/s3";
 import { schema } from "@destack/schema";
@@ -111,14 +111,14 @@ export class Root {
 
     /** Select the platform's identities, the global infrastructure, or one universe and scope. */
     constructor(selection: readonly string[], environment: Environment<HostCapability>) {
-        // select a stageless root, or one stage and scope
+        // select a shared root, or one universe and scope
         const [universe, scope] = selection;
         if (selection.length === 1 && Root.isShared(universe)) {
             this.name = universe;
             this.directory = resolve(ROOT, "src/deployment/roots", universe);
             this.state = `${universe}.tfstate`;
         }
-        // select one stage and scope
+        // select one universe and scope
         else if (
             selection.length === 2 &&
             universe === "production" &&

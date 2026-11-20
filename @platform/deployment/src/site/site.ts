@@ -7,10 +7,10 @@ import { DistributionManifest } from "@destack/package";
 import type { BuildImage } from "@destack/package/manifest";
 import { WORKERD_COMPATIBILITY_DATE } from "@destack/package/runtime";
 import { type Digest, found } from "@destack/schema";
-import { PlatformBuild } from "../deployment/build.ts";
-import { ACCOUNT_ID, CloudflareCredentials } from "../deployment/cloudflare/credential.ts";
+import { PlatformBuild } from "@platform/distribution";
+import { ACCOUNT_ID, CloudflareCredentials } from "../cloudflare/credential.ts";
 import { ROOT, Root, WRANGLER_VARIABLES } from "../deployment/root.ts";
-import { CHECKOUT } from "../distribution/distribution.ts";
+import { CHECKOUT } from "@platform/distribution";
 
 /** The site's package, by its directory below the checkout's root. */
 const SITE = "@platform/site";

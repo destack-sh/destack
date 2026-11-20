@@ -11,7 +11,7 @@ import { testSimulation } from "@destack/test/world";
 import { Custody } from "./index.ts";
 
 /** The label the test derives a secret under. */
-const LABEL = { label: "@platform/release/test", context: "" };
+const LABEL = { label: "@platform/deployment/test", context: "" };
 
 /** The envelope of the test KMS's key. */
 const SEAL: EnvelopeConfiguration = {

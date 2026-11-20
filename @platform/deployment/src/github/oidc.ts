@@ -19,7 +19,7 @@ export const ActionsToken = {
         const requested = new URL(url);
         requested.searchParams.set("audience", audience);
         const response = await environment.network.fetch(
-            new Request(requested, { headers: { authorization: `Bearer ${token}` } }),
+            new Request(requested.href, { headers: { authorization: `Bearer ${token}` } }),
         );
         if (!response.ok) {
             await response.body?.cancel();
