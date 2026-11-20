@@ -1,9 +1,11 @@
 import { Snapshot } from "@destack/db";
+import { PackageId } from "@destack/package";
+import { present, schema } from "@destack/schema";
 import registryPackage from "@destack/registry/package";
 import { Account, group, Placement } from "@destack/account/object";
 import accountPackage from "@destack/account/package";
 import { DOMAINS, MachineAddress } from "@destack/account/address";
-import { expect, test } from "@destack/test";
+import { expect, onTestFinished, test } from "@destack/test";
 import { TestMachine } from "./machine.ts";
 import { TestControl } from "./control.ts";
 
@@ -46,31 +48,82 @@ test("place a person's home on their residency's cloud machine, as the machine's
     expect(placed).toEqual({ space: home, scope: ada.account, machine: machine.id, epoch: 1 });
 });
 
-test("redirect a repository link to the registry of its account's residency home, keeping Git's path, and refuse an unknown handle", async () => {
-    // sign ada up and place the residency's home on its cloud machine
+test("forward Git for a repository link to its account's registry as the caller, refusing a token the issuer refuses and an unknown handle", async () => {
+    // sign ada up, place the residency's home, and answer as its machine, recording what arrives
     await using universe = await TestControl.open();
     const ada = await universe.signIn("ada@example.test");
     const machine = await universe.machine();
     await universe.simulation.idle();
-    const open = async (path: string) => {
+    const home = await Account.locate(Snapshot.live(universe.control.store.database), ada.account);
+    const url = new URL(await machine.directory.answering(machine.id, universe.clock.now()));
+    const received: { readonly url: string; readonly authorization: string | null }[] = [];
+    const listener = universe.simulation.network.server("registry-machine").http({
+        hostname: url.hostname,
+        port: Number(url.port || "443"),
+        fetch: (request) => {
+            received.push({
+                url: request.url,
+                authorization: request.headers.get("authorization"),
+            });
+
+            return new Response("refs");
+        },
+    });
+    onTestFinished(() => listener.stop(true));
+
+    // ask as git does: anonymously, with ada's account token, with a token the issuer refuses, and for an unknown handle
+    const ask = async (path: string, token?: string) => {
         const response = await universe.control.fetch(
-            new Request(`https://${DOMAINS.universe}${path}`),
+            new Request(`https://${DOMAINS.universe}${path}`, {
+                headers: token === undefined ? {} : { authorization: `Bearer ${token}` },
+            }),
         );
 
-        return [response.status, response.headers.get("location")];
+        return [response.status, await response.text()];
+    };
+    const references = `/@${ada.handle}/site.git/info/refs?service=git-upload-pack`;
+    const answers = [
+        await ask(references),
+        await ask(references, (await ada.token()).token),
+        await ask(references, "not-a-token"),
+        await ask("/@nobody/site.git/info/refs?service=git-upload-pack"),
+    ];
+    const claims = (index: number) => {
+        // read a forwarded token's audience, binding and subject
+        const token = received[index]?.authorization?.split(" ")[1]?.split(".")[1];
+        const payload = schema
+            .looseObject({ aud: schema.string(), partition: schema.string(), sub: schema.string() })
+            .parse(
+                JSON.parse(
+                    atob(
+                        present(token, "the forwarded token")
+                            .replaceAll("-", "+")
+                            .replaceAll("_", "/"),
+                    ),
+                ),
+            );
+
+        return { aud: payload.aud, partition: payload.partition, sub: payload.sub };
     };
 
-    // redirect git's first request below the registry of the home the residency serves her from
-    const home = await Account.locate(Snapshot.live(universe.control.store.database), ada.account);
-    const url = await machine.directory.answering(machine.id, universe.clock.now());
-    const registry = new URL(`/spaces/${home}/${registryPackage.id}/git`, url).href;
-    expect([
-        await open(`/@${ada.handle}/site.git/info/refs?service=git-upload-pack`),
-        await open("/@nobody/site.git/info/refs?service=git-upload-pack"),
-    ]).toEqual([
-        [307, `${registry}/@${ada.handle}/site.git/info/refs?service=git-upload-pack`],
-        [404, null],
-    ]);
+    // answer through the registry of her home: anonymous as anonymous, her token exchanged for the registry's there
+    const registry = `${url.origin}/spaces/${home}/${registryPackage.id}/git/@${ada.handle}/site.git/info/refs?service=git-upload-pack`;
+    expect({
+        answers,
+        urls: received.map((each) => each.url),
+        anonymous: received[0]?.authorization,
+        claims: claims(1),
+    }).toEqual({
+        answers: [
+            [200, "refs"],
+            [200, "refs"],
+            [401, "the token endpoint refused the request: invalid_grant: invalid access token"],
+            [404, ""],
+        ],
+        urls: [registry, registry],
+        anonymous: null,
+        claims: { aud: PackageId.resource(registryPackage.id), partition: home, sub: ada.id },
+    });
 });
 
 test("enroll a person's machine of their account, published at its name through its residency's relay, as the directory reads it", async () => {

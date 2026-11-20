@@ -14,12 +14,13 @@ import {
 } from "@destack/account/better-auth";
 import type { MailTransport } from "@destack/mail/transport";
 import { IdentityKeystore, IdentityRegistry } from "@destack/account/identity";
-import { Session } from "@destack/account/client";
+import { Issuer, Session } from "@destack/account/client";
+import { OAuthError } from "@destack/account/authentication";
 import { Bookmark } from "@destack/object/client";
 import { Account, claim, Residency } from "@destack/account/object";
 import registryPackage from "@destack/registry/package";
 import accountPackage from "@destack/account/package";
-import { TokenLifetime } from "@destack/account/oauth";
+import { ACCESS_TOKEN_TYPE, TokenLifetime } from "@destack/account/oauth";
 import {
     accountServer,
     DnsOverHttps,
@@ -129,6 +130,10 @@ export class Control implements AsyncDisposable {
     readonly #running: Promise<void>;
     /** Closes the publishers of the residencies' homes the store follows. */
     readonly #publishers: DisposableStack;
+    /** The universe's issuer as a client, exchanging callers' tokens for their packages'. */
+    readonly #exchanger: Issuer;
+    /** Sends to other origins, and to the universe's own in process. */
+    readonly #send: Fetch;
 
     /** Create a started control. */
     private constructor(
@@ -142,6 +147,8 @@ export class Control implements AsyncDisposable {
             readonly running: Promise<void>;
             readonly publishers: DisposableStack;
         },
+        exchanger: Issuer,
+        send: Fetch,
     ) {
         // keep the definition, the servers, the store, the issuer, the connections and the store's loop
         this.definition = definition;
@@ -152,6 +159,8 @@ export class Control implements AsyncDisposable {
         this.#stopping = loop.stopping;
         this.#running = loop.running;
         this.#publishers = loop.publishers;
+        this.#exchanger = exchanger;
+        this.#send = send;
     }
 
     /** Migrate the universe's database to this release, then start its packages over it. */
@@ -387,11 +396,17 @@ export class Control implements AsyncDisposable {
         for (const [packageId, server] of servers) {
             connections.serve(PackageId.parse(packageId), server);
         }
-        const control = new Control(definition, servers, store, accounts, connections, {
-            stopping,
-            running,
-            publishers: following,
-        });
+        const exchanger = new Issuer(issuer, identity.send, options.environment, new Bookmark());
+        const control = new Control(
+            definition,
+            servers,
+            store,
+            accounts,
+            connections,
+            { stopping, running, publishers: following },
+            exchanger,
+            identity.send,
+        );
         serving.resolve(control);
 
         return control;
@@ -405,7 +420,7 @@ export class Control implements AsyncDisposable {
         if (UniverseOrigin.path(pathname) === "issuer") {
             return this.issuer.fetch(request);
         } else if (link !== undefined) {
-            return this.#open(link, new URL(request.url).search);
+            return this.#open(link, request);
         }
 
         // answer the package mounted at the path, nothing elsewhere
@@ -418,7 +433,7 @@ export class Control implements AsyncDisposable {
     }
 
     /** Open a link: redirect an app or a repository to its installation, or show a profile. */
-    async #open(link: UniverseLink, search: string): Promise<Response> {
+    async #open(link: UniverseLink, request: Request): Promise<Response> {
         // redirect an app by rewriting its path into its installation's hostname
         if (link.kind === "app") {
             const hostname = InstallationOrigin.format(link.installation, DOMAINS.space);
@@ -436,12 +451,9 @@ export class Control implements AsyncDisposable {
             return new Response(null, { status: 404 });
         }
 
-        // redirect a repository to its account's registry, keeping Git's path below it
+        // forward Git to the repository's registry, so git sees the universe's origin alone
         if (link.kind === "repository") {
-            const registry = await this.#registry(found, snapshot);
-            const location = `${registry}/@${link.handle}/${link.name}.git${link.path}${search}`;
-
-            return new Response(null, { status: 307, headers: { location } });
+            return await this.#forwardGit(request, link, found, snapshot);
         }
 
         // show the public profile of the account
@@ -452,14 +464,60 @@ export class Control implements AsyncDisposable {
         return new Response(page, { headers: { "content-type": "text/html; charset=utf-8" } });
     }
 
-    /** Locate the Git mount of the registry in an account's residency home. */
-    async #registry(owner: Account, snapshot: Snapshot): Promise<string> {
-        // find the registry the account's home serves, on its machine now
+    /** Forward a Git request to the registry in the account's residency home, as its caller. */
+    async #forwardGit(
+        request: Request,
+        link: Extract<UniverseLink, { readonly kind: "repository" }>,
+        owner: Account,
+        snapshot: Snapshot,
+    ): Promise<Response> {
+        // locate the registry's Git mount in the account's home, on its machine now
         const home = await Account.locate(snapshot, owner.id);
         const now = this.store.environment.clock.now();
         const registry = await new Directory(snapshot).package(home, registryPackage.id, now);
+        const { search } = new URL(request.url);
+        const target = `${registry}${registryPackage.mounts.git.path}/@${link.handle}/${link.name}.git${link.path}${search}`;
 
-        return `${registry}${registryPackage.mounts.git.path}`;
+        // exchange the caller's account token for the registry's in the home, an anonymous caller going on as one
+        const headers = new Headers(request.headers);
+        const presented = /^Bearer (?<token>\S+)$/u.exec(
+            headers.get("authorization") ?? "",
+        )?.groups;
+        if (presented?.["token"] !== undefined) {
+            const exchanged = await this.#exchanger
+                .exchange(
+                    { token: presented["token"], type: ACCESS_TOKEN_TYPE },
+                    registryPackage.id,
+                    { partition: home },
+                )
+                .then(
+                    (granted) => ({ granted }),
+                    (error: unknown) => {
+                        // answer the issuer's refusal of the token as Git's 401, failing loudly on anything else
+                        if (!OAuthError.is(error)) {
+                            throw error;
+                        }
+
+                        return { refused: error.message };
+                    },
+                );
+            if ("refused" in exchanged) {
+                return new Response(exchanged.refused, {
+                    status: 401,
+                    headers: { "www-authenticate": 'Bearer realm="destack"' },
+                });
+            }
+            headers.set("authorization", `Bearer ${exchanged.granted.accessToken}`);
+        }
+
+        return await this.#send(
+            new Request(target, {
+                method: request.method,
+                headers,
+                body: request.body,
+                redirect: "manual",
+            }),
+        );
     }
 
     /** Wait until the store's loop is idle, or until a deadline. */
