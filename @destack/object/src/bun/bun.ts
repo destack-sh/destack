@@ -38,6 +38,8 @@ export type BunEndpoint = (
     readonly fetch: (request: Request) => Response | Promise<Response>;
     /** The WebSockets the endpoint hibernates for instances. */
     readonly hibernation?: HibernationHost;
+    /** The seconds a request may idle, the runtime's default when absent. */
+    readonly idleTimeout?: number;
 };
 
 /** The endpoints and lifecycle of one process. */
@@ -95,10 +97,11 @@ export async function serveProcess(options: BunProcessOptions): Promise<void> {
 function listen(server: Server, endpoint: BunEndpoint): Pick<Listener, "url" | "stop"> {
     // answer each request plainly on an endpoint without sockets
     const { hibernation } = endpoint;
+    const idle = endpoint.idleTimeout === undefined ? {} : { idleTimeout: endpoint.idleTimeout };
     const address =
         "unix" in endpoint
             ? { unix: endpoint.unix }
-            : { hostname: endpoint.hostname, port: endpoint.port };
+            : { hostname: endpoint.hostname, port: endpoint.port, ...idle };
     if (hibernation === undefined) {
         return server.http({
             ...address,
