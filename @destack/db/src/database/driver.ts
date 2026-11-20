@@ -9,7 +9,7 @@ import { SpanPath } from "@destack/environment";
 import { LOG_TABLES } from "../log/schema.ts";
 import type {} from "@destack/package/import-meta";
 
-/** The statement verbs the database runs, as OpenTelemetry's `db.operation.name` reports them. */
+/** The statement verbs, as OpenTelemetry's `db.operation.name`. */
 const OPERATIONS: ReadonlySet<string> = new Set([
     "SELECT",
     "INSERT",
@@ -23,20 +23,20 @@ const OPERATIONS: ReadonlySet<string> = new Set([
     "TRANSACTION",
 ]);
 
-/** The tables no script wrote, which a plain write passes. */
+/** The tables a plain write passes. */
 const UNSCRIPTED: ReadonlySet<string> = new Set();
 
-/** A session and its statements' lifetime, counting and failures. */
+/** A session running measured statements. */
 export class DatabaseDriver {
     /** The session running statements. */
     readonly session: Session;
     /** The shared connection lifecycle. */
     readonly state: ConnectionState;
-    /** The active transaction state, when present. */
+    /** The active transaction's state. */
     readonly transaction: TransactionState | undefined;
     /** Create the driver. */
     constructor(session: Session, state: ConnectionState, transaction?: TransactionState) {
-        // store the session, the connection's state and the transaction
+        // keep the session, the connection's state and the transaction
         this.session = session;
         this.state = state;
         this.transaction = transaction;
@@ -62,9 +62,9 @@ export class DatabaseDriver {
         return this.transaction ? this.transaction.run(reported) : this.state.run(reported);
     }
 
-    /** Run a statement, recording its duration, its record and the running spans' totals. */
+    /** Run a statement, measuring it. */
     #measure<Value>(statement: DriverStatement, run: () => Promise<Value>): Promise<Value> {
-        // name the operation and its declared first table
+        // name the operation and its first table
         const { state } = this;
         const operation = OPERATIONS.has(statement.operation) ? statement.operation : undefined;
         const table = statement.tables[0];
@@ -77,7 +77,7 @@ export class DatabaseDriver {
             ...(isDeclared ? { "db.collection.name": table } : {}),
         };
 
-        // run it measured, adding its seconds to its record and the running spans' totals, failed or not
+        // run it measured, failed or not
         const { context } = state.environment.telemetry;
         let rows = 0;
 
@@ -85,9 +85,16 @@ export class DatabaseDriver {
             "db.client.operation.duration",
             attributes,
             async () => {
-                // run it, counting the rows it returns
+                // run it, counting its rows, none for a transaction
                 const value = await run();
-                rows = Array.isArray(value) ? value.length : typeof value === "number" ? value : 0;
+                const isTransaction = operation === "TRANSACTION";
+                rows = isTransaction
+                    ? 0
+                    : Array.isArray(value)
+                      ? value.length
+                      : typeof value === "number"
+                        ? value
+                        : 0;
 
                 return value;
             },
@@ -134,7 +141,7 @@ export class DatabaseDriver {
         );
     }
 
-    /** Run work that commits by itself, then announce the tables it wrote and its last sequence. */
+    /** Run self-committing work, then announce its tables and last sequence. */
     async commit<Value>(
         operation: () => Promise<Value>,
         tables: ReadonlySet<string>,
@@ -143,7 +150,7 @@ export class DatabaseDriver {
         sequence: () => number | undefined = () => undefined,
         changed: (value: Value) => number = () => 1,
     ): Promise<Value> {
-        // record the tables in the enclosing transaction, marking a replica's write that derives rows first
+        // record the tables in the enclosing transaction
         const transaction = this.transaction;
         if (transaction !== undefined) {
             const mark = transaction.replicaMark;
@@ -165,7 +172,7 @@ export class DatabaseDriver {
         // commit
         const result = await this.run(operation, statement);
 
-        // announce a commit that changed rows of tables, with the last sequence it logged
+        // announce a commit that changed rows
         if (tables.size > 0 && changed(result) > 0) {
             this.state.commits.notify(tables, scripted, sequence());
         }
@@ -195,9 +202,9 @@ export class DatabaseDriver {
             : read();
     }
 
-    /** Run a bound statement for its effect: a write of its tables, or a read such as a lock. */
+    /** Run a bound statement for its effect. */
     async execute(statement: DriverStatement): Promise<void> {
-        // run a read alone, writing no table
+        // run a read
         this.transaction?.assertActive();
         const run = (session: Session) =>
             failing(statement, session.run(statement.text, statement.parameters), this.state);
@@ -207,18 +214,18 @@ export class DatabaseDriver {
             return;
         }
 
-        // run a write of its tables
+        // run a write
         await this.write(run, statement, (count) => count);
     }
 
-    /** Run a statement returning rows, as a read or as a write of the tables it references. */
+    /** Run a statement returning rows. */
     #query<Value extends readonly unknown[]>(
         statement: DriverStatement,
         query: (session: Session) => Promise<Value>,
     ): Promise<Value> {
         this.transaction?.assertActive();
 
-        // read, or announce a write whenever it runs, as the rows it answers need not be the rows it wrote
+        // read, or announce every write
         return statement.isRead
             ? this.run(() => failing(statement, query(this.session), this.state), statement)
             : this.write(
@@ -228,7 +235,7 @@ export class DatabaseDriver {
               );
     }
 
-    /** Decide whether a read may be cached: a live read of versioned tables only. */
+    /** Decide whether a read may be cached. */
     #isCacheable(statement: DriverStatement): boolean {
         const { commits } = this.state;
 
@@ -240,13 +247,13 @@ export class DatabaseDriver {
         );
     }
 
-    /** Read a statement once per version of its tables, every caller sharing its frozen rows. */
+    /** Read a statement once per version of its tables, sharing frozen rows. */
     async #cached<Row>(
         statement: DriverStatement,
         cache: ReadCache<Row[]>,
         read: () => Promise<Row[]>,
     ): Promise<Row[]> {
-        // read from the database until the watch receives every commit, listening from the first read
+        // read directly until the watch sees every commit
         const { commits } = this.state;
         if (!commits.isComplete) {
             void commits.listen();
@@ -254,14 +261,14 @@ export class DatabaseDriver {
             return await read();
         }
 
-        // key the read by its text and parameters, at its tables' versions before it runs
+        // key the read by its text, parameters and table versions
         const versions = commits.versions(statement.tables);
         const key = `${statement.text} ${JSON.stringify(statement.parameters, encodeKey)}`;
 
         return await cache.get(key, versions, async () => freeze(await read()));
     }
 
-    /** Decide whether a write fires derivations, dependents only on deletes. */
+    /** Decide whether a write fires derivations. */
     #isDerived(tables: readonly string[], statement: DriverStatement): boolean {
         const { aggregated, dependent, declared, unlogged } = this.state;
         const isDeleting = writeOperation(statement) === "DELETE";
@@ -274,13 +281,13 @@ export class DatabaseDriver {
         );
     }
 
-    /** Run a write stamped in its transaction, refusing a logged write outside one. */
+    /** Run a stamped write, refusing a logged write outside a transaction. */
     async #identified<Value>(
         operation: (session: Session) => Promise<Value>,
         logging: Logging,
         logged: readonly string[],
     ): Promise<Value> {
-        // stamp a write that may log inside a transaction, in statement order
+        // stamp a logging write in its transaction
         if (this.transaction !== undefined && logging !== "unlogged") {
             await this.transaction.identity.stamp();
 
@@ -293,14 +300,14 @@ export class DatabaseDriver {
                 `a logged write of '${logged.join(", ")}' runs outside a transaction: run it in a transaction`,
             );
         }
-        // run any other write as it is, the triggers refusing an unknown table's logged change
+        // run any other write as it is
         else {
             return await operation(this.session);
         }
     }
 }
 
-/** Report a driver failure with its statement, leaving classified failures as they are. */
+/** Report a driver failure with its statement. */
 async function failing<Value>(
     statement: DriverStatement,
     pending: Promise<Value>,
@@ -309,7 +316,7 @@ async function failing<Value>(
     try {
         return await pending;
     } catch (error) {
-        // rethrow a classified failure, and report another with its statement
+        // rethrow a classified failure, else report it with the statement
         const classified = classifyError(error, state.declared);
         if (DatabaseError.is(classified)) {
             throw classified;
@@ -321,19 +328,19 @@ async function failing<Value>(
     }
 }
 
-/** Read a statement's write operation, a delete for any other, as it cascades furthest. */
+/** Read a statement's write operation, a delete for any other. */
 function writeOperation(statement: DriverStatement): WriteOperation {
     const { operation } = statement;
 
     return operation === "INSERT" || operation === "UPDATE" ? operation : "DELETE";
 }
 
-/** Encode a cached read's parameters as a key, bigints apart from strings. */
+/** Encode a cached read's parameters as a key. */
 function encodeKey(_key: string, value: unknown): unknown {
     return typeof value === "bigint" ? { bigint: String(value) } : value;
 }
 
-/** Freeze rows and each row, so callers share them and a write to one fails loudly. */
+/** Freeze rows and each row. */
 function freeze<Row>(rows: Row[]): Row[] {
     for (const row of rows) {
         Object.freeze(row);
