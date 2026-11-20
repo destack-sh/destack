@@ -5,7 +5,7 @@ import { principal } from "@destack/access";
 import { copyRequest } from "@destack/environment";
 import { Snapshot } from "@destack/db";
 import { MemoryBlobStorage } from "@destack/resource";
-import { DOMAINS } from "@destack/account/address";
+import { UniverseOrigin } from "@destack/account/address";
 import {
     directoryShape,
     identityShape,
@@ -27,7 +27,7 @@ import {
 import { Failure } from "@destack/error";
 import { present, schema } from "@destack/schema";
 import { RequestId, Scope } from "@destack/sync";
-import { issuer, origin, residency } from "../declare/setting.ts";
+import { origin, residency, universe } from "../declare/setting.ts";
 import { RelayError } from "../error/index.ts";
 import relayPackage from "../package.ts";
 import { Relay } from "./relay.ts";
@@ -97,6 +97,7 @@ async function serveRoot(
 
     // follow the directory and the identities into memory
     const code = residency.read(server.settings);
+    const address = UniverseOrigin.of(universe.read(server.settings));
     const residents = residentsFollow(code);
     const follows = [DIRECTORY_FOLLOW, IDENTITY_FOLLOW, residents];
     const names = (request: Request) =>
@@ -104,8 +105,7 @@ async function serveRoot(
     const store = await openReplica(context, server, follows, answer, names);
     const relay = new Relay({
         origin: origin.read(server.settings),
-        issuer: issuer.read(server.settings),
-        domains: DOMAINS,
+        universe: address,
         itself: server.at(Egress.address(server.name, server.scope)),
         view: Snapshot.live(store.database),
         fetch: (request) => server.fetch(request),
@@ -149,7 +149,7 @@ async function servePartition(
         hibernation: present(context.hibernation, "the hibernation of the tunnel's sockets"),
         url: new URL(TUNNEL_PATH, origin.read(server.settings)).href,
         tokens: new TunnelToken(
-            issuer.read(server.settings),
+            UniverseOrigin.of(universe.read(server.settings)).issuer,
             Snapshot.live(store.database),
             context.environment,
         ),

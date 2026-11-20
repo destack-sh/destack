@@ -6,7 +6,7 @@ import {
 } from "@destack/tunnel";
 import {
     Directory,
-    type Domains,
+    type UniverseOrigin,
     InstallationOrigin,
     MachineAddress,
     S3Origin,
@@ -47,14 +47,12 @@ import { TunnelToken } from "./token.ts";
 export interface RelayOptions {
     /** The relay's own origin, where machines open their tunnels. */
     readonly origin: string;
-    /** The universe's issuer, which machines' tokens carry. */
-    readonly issuer: string;
+    /** The universe, whose issuer signs machines' tokens and whose domains names resolve under. */
+    readonly universe: UniverseOrigin;
     /** The relay installation itself, which calls each machine's tunnel in its partition. */
     readonly itself: { readonly url: string; readonly fetch: Fetch };
     /** The replica of the universe's directory, identities and the relay's residency's accounts. */
     readonly view: Snapshot;
-    /** The domains names resolve under. */
-    readonly domains: Domains;
     /** Call cloud machines at their published endpoints. */
     readonly fetch: Fetch;
     /** The clock tokens and endpoints lapse on, and the WebCrypto verifying the tokens. */
@@ -70,8 +68,8 @@ export type Destination =
 
 /** The edge of Destack's names. */
 export class Relay {
-    /** The domains names resolve under. */
-    readonly domains: Domains;
+    /** The universe names resolve in. */
+    readonly universe: UniverseOrigin;
 
     /** The replica of the directory and the identities: placements, machines and keys. */
     readonly #view: Snapshot;
@@ -109,8 +107,8 @@ export class Relay {
         this.#telemetry = options.environment.telemetry;
 
         // set the token verifier and the calls to tunnels and cloud machines
-        this.#tokens = new TunnelToken(options.issuer, this.#view, options.environment);
-        this.domains = options.domains;
+        this.#tokens = new TunnelToken(options.universe.issuer, this.#view, options.environment);
+        this.universe = options.universe;
         this.#itself = options.itself;
         this.#origin = new URL(options.origin);
         this.#fetch = options.fetch;
@@ -397,9 +395,9 @@ export class Relay {
     /** Find where a name's requests go through the replicas of the directory and the machines. */
     async #resolve(name: string): Promise<Destination> {
         // read the name as a space's origin, a space's S3 origin or a machine's name
-        const origin = InstallationOrigin.parse(name, this.domains.space);
-        const s3 = S3Origin.parse(name, this.domains.space);
-        const computer = MachineAddress.parse(name, this.domains.machine);
+        const origin = InstallationOrigin.parse(name, this.universe.domains.space);
+        const s3 = S3Origin.parse(name, this.universe.domains.space);
+        const computer = MachineAddress.parse(name, this.universe.domains.machine);
 
         // route a space's name, and its branches', to its placement's machine
         if (origin !== undefined) {
@@ -502,7 +500,7 @@ export class Relay {
         const address = { machine: replicated.name, handle };
 
         return {
-            name: MachineAddress.format(address, this.domains.machine),
+            name: MachineAddress.format(address, this.universe.domains.machine),
             account: schema.identifier("account").parse(replicated.scope),
         };
     }

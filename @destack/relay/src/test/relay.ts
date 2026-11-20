@@ -26,9 +26,10 @@ import { Identifier, present, schema, Uuid } from "@destack/schema";
 import { Replica, Scope, type Subject } from "@destack/sync";
 import type { ObjectRemote } from "@destack/object/client";
 import { TelemetryScope } from "@destack/telemetry";
-import type { TestMachine, TestControl } from "@destack/control/test";
+import type { TestMachine, TestUniverse } from "@destack/universe/test";
 import relayPackage from "../package.ts";
-import { issuer, origin, relayWorkload, TUNNELS_PATH } from "../server/index.ts";
+import { origin, relayWorkload, TUNNELS_PATH } from "../server/index.ts";
+import * as setting from "../declare/setting.ts";
 import { residency } from "../declare/setting.ts";
 
 /** The port HTTPS names reach the relay at. */
@@ -51,7 +52,7 @@ interface Instance {
 /** What a test relay is served with: its host, its node's environment and its relays' number. */
 export interface TestRelayOptions {
     /** The universe whose names the relay routes. */
-    readonly universe: TestControl;
+    readonly universe: TestUniverse;
     /** The residency's cloud machine hosting the relay in the residency's home. */
     readonly host: TestMachine;
     /** The clock and server of the relay's node. */
@@ -71,7 +72,7 @@ export class TestRelay implements AsyncDisposable {
     /** The origin the relay answers at. */
     readonly origin: string;
     /** The universe whose rows the relay follows. */
-    readonly #universe: TestControl;
+    readonly #universe: TestUniverse;
     /** The memory databases of the instances, the root's under no partition. */
     readonly #memories: ReadonlyMap<string | undefined, Promise<DatabaseConnection>>;
     /** The instances started so far, the root's under no partition. */
@@ -91,7 +92,7 @@ export class TestRelay implements AsyncDisposable {
 
     /** Keep a started relay's instances and listeners. */
     private constructor(
-        universe: TestControl,
+        universe: TestUniverse,
         installation: Subject,
         relayOrigin: string,
         running: {
@@ -137,11 +138,11 @@ export class TestRelay implements AsyncDisposable {
 
         // stand in for the home space's replicas: the universe's rows as its machine follows them
         const accounts = ObjectConnection.open({
-            url: ObjectConnection.url(host.universe.accounts),
+            url: ObjectConnection.url(PackageMount.url(host.universe.origin, accountPackage.id)),
             authorize: host.authorize(accountPackage.id),
             environment,
         });
-        const universal = universe.control.store.remote;
+        const universal = universe.universe.store.remote;
         const replicas: ObjectRemote = {
             ...universal,
             async *stream(subscription, signal) {
@@ -192,7 +193,7 @@ export class TestRelay implements AsyncDisposable {
         );
         const settings = {
             [DeclarationReference.key(origin.reference)]: relayOrigin,
-            [DeclarationReference.key(issuer.reference)]: host.universe.issuer,
+            [DeclarationReference.key(setting.universe.reference)]: host.universe.toJSON(),
             [DeclarationReference.key(residency.reference)]: code,
         };
         const start = (partition: string | undefined): Promise<Instance> => {

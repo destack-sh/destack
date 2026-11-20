@@ -1,9 +1,10 @@
-import type { UniverseDefinition } from "@destack/control";
+import type { UniverseDefinition } from "@destack/universe";
 import { testSimulation } from "@destack/test/world";
 import { Failure } from "@destack/error";
 import { type ClientSocket, type Environment, MemoryWebSocket } from "@destack/environment";
-import { DOMAINS, MachineAddress } from "@destack/account/address";
+import { MachineAddress } from "@destack/account/address";
 import { endpoint, type Endpoint, machine, type ResidencyCode } from "@destack/account/object";
+import { PackageMount } from "@destack/object";
 import accountPackage from "@destack/account/package";
 import type { TestPerson } from "@destack/account/test";
 import { Snapshot } from "@destack/db";
@@ -13,10 +14,14 @@ import { Identifier, present } from "@destack/schema";
 import { RequestId, type Subject } from "@destack/sync";
 import { TelemetryScope } from "@destack/telemetry";
 import { TestTelemetry } from "@destack/telemetry/test";
-import { type TestMachine, TestControl } from "@destack/control/test";
+import { TEST_UNIVERSE, type TestMachine, TestUniverse } from "@destack/universe/test";
 import relayPackage from "../package.ts";
-import { TUNNEL_TOKEN_LIFETIME_MILLISECONDS } from "../package.ts";
-import { type Renewal, TunnelClient, type TunnelClientOptions } from "@destack/tunnel";
+import {
+    type Renewal,
+    TUNNEL_TOKEN_LIFETIME_MILLISECONDS,
+    TunnelClient,
+    type TunnelClientOptions,
+} from "@destack/tunnel";
 import { TestRelay } from "./relay.ts";
 
 /** The residencies of the universe, each with its cloud machine. */
@@ -53,7 +58,7 @@ export class TestTunnelMachine implements AsyncDisposable {
     /** The simulation the universe, the relays and the computer run in. */
     readonly simulation: Simulation;
     /** The universe whose names the relays route. */
-    readonly universe: TestControl;
+    readonly universe: TestUniverse;
     /** The owner of the computer's account. */
     readonly owner: TestPerson;
     /** The computer, enrolled as a personal machine of the account. */
@@ -85,7 +90,7 @@ export class TestTunnelMachine implements AsyncDisposable {
     /** Wrap an enrolled computer and the space it serves. */
     private constructor(fields: {
         readonly simulation: Simulation;
-        readonly universe: TestControl;
+        readonly universe: TestUniverse;
         readonly owner: TestPerson;
         readonly machine: TestMachine;
         readonly accountId: Identifier<"account">;
@@ -118,10 +123,9 @@ export class TestTunnelMachine implements AsyncDisposable {
     ): Promise<TestTunnelMachine> {
         // open the universe, closed again should the enrollment fail
         await using opening = new AsyncDisposableStack();
-        const universe = await TestControl.open({
+        const universe = await TestUniverse.open({
             residencies: RESIDENCIES,
             simulation,
-            lifetimes: new Map([[relayPackage.id, TUNNEL_TOKEN_LIFETIME_MILLISECONDS]]),
         });
         opening.use(universe);
 
@@ -247,7 +251,10 @@ export class TestTunnelMachine implements AsyncDisposable {
             .findFirst({ where: { id: this.machine.id } });
         const name = present(enrolled, `machine ${this.machine.id}`).name;
 
-        return MachineAddress.format({ machine: name, handle: HANDLE }, DOMAINS.machine);
+        return MachineAddress.format(
+            { machine: name, handle: HANDLE },
+            TEST_UNIVERSE.domains.machine,
+        );
     }
 
     /** Open a forwarded upgrade's socket in the computer, greeting each message. */
@@ -294,7 +301,7 @@ export class TestTunnelMachine implements AsyncDisposable {
         const client = TunnelClient.open({
             url: relay.url,
             machineId: this.machine.id,
-            token: (audience) => this.machine.token(audience),
+            token: (audience) => this.machine.token(audience, TUNNEL_TOKEN_LIFETIME_MILLISECONDS),
             fetch: async (request) => {
                 // record the request, and greet it with its method, path and body
                 const url = new URL(request.url);
@@ -389,7 +396,7 @@ export class TestTunnelMachine implements AsyncDisposable {
         return createClient(
             accountPackage,
             {
-                url: caller.universe.accounts,
+                url: PackageMount.url(caller.universe.origin, accountPackage.id),
                 fetch: caller.fetch(accountPackage.id),
             },
             this.simulation.environment(caller.id),

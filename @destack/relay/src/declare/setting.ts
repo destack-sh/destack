@@ -1,3 +1,4 @@
+import { UniverseOrigin } from "@destack/account/address";
 import { ResidencyCode } from "@destack/account/object";
 import { schema } from "@destack/schema";
 import { defineSetting } from "@destack/setting/declare";
@@ -27,12 +28,12 @@ export const residency = defineSetting({
     required: true,
 });
 
-/** The issuer of the universe's tokens machines open their tunnels with. */
-export const issuer = defineSetting({
-    name: "issuer",
-    title: t`Universe issuer`,
-    description: t`The issuer of the universe's tokens machines open their tunnels with.`,
-    schema: schema.url(),
+/** The universe whose machines open their tunnels at a relay installation. */
+export const universe = defineSetting({
+    name: "universe",
+    title: t`Universe`,
+    description: t`The universe whose machines open their tunnels at this relay.`,
+    schema: UniverseOrigin.schema,
     scope: "space",
     overrides: ["installation"],
     apply: "restart",

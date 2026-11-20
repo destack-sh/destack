@@ -1,15 +1,21 @@
 import { WebSocketUpgrade } from "@destack/environment";
 import { Failure } from "@destack/error";
 import { CallError } from "@destack/object";
-import { DOMAINS, S3Origin } from "@destack/account/address";
+import { S3Origin } from "@destack/account/address";
+import { TEST_UNIVERSE } from "@destack/universe/test";
 import accountPackage from "@destack/account/package";
 import { Snapshot } from "@destack/db";
 import { RequestId } from "@destack/sync";
 import { expect, refusal, test } from "@destack/test";
 import relayPackage from "../src/package.ts";
-import { TUNNEL_TOKEN_LIFETIME_MILLISECONDS } from "../src/package.ts";
 import { Relay, Tunnel } from "../src/server/index.ts";
-import { type Renewal, TUNNEL_PROTOCOL, TunnelError, TunnelProtocol } from "@destack/tunnel";
+import {
+    type Renewal,
+    TUNNEL_PROTOCOL,
+    TUNNEL_TOKEN_LIFETIME_MILLISECONDS,
+    TunnelError,
+    TunnelProtocol,
+} from "@destack/tunnel";
 import { TestTunnelMachine } from "../src/test/index.ts";
 
 /** Describe the refusal of a name that resolves to nothing. */
@@ -60,7 +66,7 @@ test("forward a request for a space's name or S3 origin through its machine's tu
     ]);
 
     // call the space's buckets by its S3 origin
-    const s3 = S3Origin.format(computer.spaceId, DOMAINS.space);
+    const s3 = S3Origin.format(computer.spaceId, TEST_UNIVERSE.domains.space);
     expect(await computer.request(relay, s3, "/bucket-1/notes.txt")).toBe(
         "hello GET /bucket-1/notes.txt",
     );
@@ -226,10 +232,9 @@ test("refuse a handshake with a person's token, of a machine left keyless, and o
     const host = await computer.host("eu");
     const handshakes = new Relay({
         origin: relay.origin,
-        issuer: host.universe.issuer,
+        universe: host.universe,
         itself: { url: relay.origin, fetch: async () => new Response(null) },
         view: Snapshot.live(computer.universe.storage.database),
-        domains: DOMAINS,
         fetch: async () => new Response(null),
         synced: async () => {},
         environment: computer.environment,
@@ -296,10 +301,9 @@ test("refuse a machine's handshake at a relay of another residency than its acco
     const host = await computer.host("us");
     const handshakes = new Relay({
         origin: us.origin,
-        issuer: host.universe.issuer,
+        universe: host.universe,
         itself: { url: us.origin, fetch: async () => new Response(null) },
         view: Snapshot.live(await us.memory()),
-        domains: DOMAINS,
         fetch: async () => new Response(null),
         synced: async () => {},
         environment: computer.environment,
@@ -442,7 +446,7 @@ test("forward a name or an S3 origin a cloud machine serves to the machine's end
     await computer.waitCaughtUp(relay);
 
     const name = "notes--site--acme.destack.space";
-    const s3 = S3Origin.format(site, DOMAINS.space);
+    const s3 = S3Origin.format(site, TEST_UNIVERSE.domains.space);
     expect([
         await computer.request(relay, name, "/"),
         await computer.request(relay, s3, "/bucket-1"),
@@ -479,7 +483,7 @@ test("route a request from an eu relay to a machine's name in the us residency t
     // tunnel a us account's machine to the us relay, offering its first token alone, and start the eu relay
     await using computer = await TestTunnelMachine.open("us");
     const us = await computer.relay({ residency: "us" });
-    const first = await computer.machine.token(relayPackage.id);
+    const first = await computer.machine.token(relayPackage.id, TUNNEL_TOKEN_LIFETIME_MILLISECONDS);
     await computer.tunnel(us, { token: async () => first, heartbeat: 60_000 });
     const eu = await computer.relay();
     const name = await computer.computer();
@@ -696,11 +700,13 @@ test("end a machine's socket once its token lapses, and route to the machine aga
     const relay = await computer.relay();
 
     // offer the first token alone until told otherwise, so the machine cannot renew before the lapse
-    const first = await computer.machine.token(relayPackage.id);
+    const first = await computer.machine.token(relayPackage.id, TUNNEL_TOKEN_LIFETIME_MILLISECONDS);
     let isRenewable = false;
     await computer.tunnel(relay, {
         token: () =>
-            isRenewable ? computer.machine.token(relayPackage.id) : Promise.resolve(first),
+            isRenewable
+                ? computer.machine.token(relayPackage.id, TUNNEL_TOKEN_LIFETIME_MILLISECONDS)
+                : Promise.resolve(first),
         heartbeat: 60_000,
     });
     const before = await computer.request(relay, computer.notes, "/");
@@ -735,7 +741,7 @@ test("close a machine's tunnel as moved at a relay its endpoint no longer leads 
     const told: [string, unknown][] = [];
     const elsewhere = new Relay({
         origin: "http://other.relay.test",
-        issuer: host.universe.issuer,
+        universe: host.universe,
         itself: {
             url: "http://other.relay.test",
             fetch: async (request) => {
@@ -748,7 +754,6 @@ test("close a machine's tunnel as moved at a relay its endpoint no longer leads 
             },
         },
         view: Snapshot.live(computer.universe.storage.database),
-        domains: DOMAINS,
         fetch: async () => new Response(null),
         synced: async () => {},
         environment: computer.environment,

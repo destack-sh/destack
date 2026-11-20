@@ -7,7 +7,7 @@ import { Jws } from "@destack/identity";
 import { schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { RelayError } from "../error/index.ts";
-import relayPackage, { TUNNEL_TOKEN_LIFETIME_MILLISECONDS } from "../package.ts";
+import relayPackage from "../package.ts";
 import type { TunnelAttachment } from "./tunnel.ts";
 
 /** The universe's tunnel tokens, which machines open and renew their tunnels with. */
@@ -32,7 +32,6 @@ export class TunnelToken {
             issuers: async (name) =>
                 name === issuer ? await Identity.trust(replica, name, issuer) : undefined,
             environment,
-            lifetime: TUNNEL_TOKEN_LIFETIME_MILLISECONDS,
         });
     }
 

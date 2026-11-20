@@ -10,7 +10,7 @@ A residency's home installs it with three settings:
 
 - `origin`: the relay's own origin, where machines open their tunnels.
 - `residency`: the residency it serves.
-- `issuer`: the issuer of machines' tunnel tokens.
+- `universe`: the universe's address, whose issuer signs machines' tunnel tokens and whose domains its names answer below.
 
 Routing:
 
