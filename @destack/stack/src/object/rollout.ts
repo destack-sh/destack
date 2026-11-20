@@ -316,6 +316,9 @@ export const installationRevision = defineObject(
     }),
 );
 
+/** Which installations a read of rollouts takes: the launchable ones, or those served now. */
+export type RolloutState = "launchable" | "served";
+
 /** How an installation of a space rolls out its package's revisions. */
 export type Rollout = Select<typeof rollout.table>;
 
@@ -681,50 +684,6 @@ export const Rollout = {
             : ObjectReference.at("submittedBy", target);
     },
 
-    /** Read an installation a machine serves now, at a revision its space records as served. */
-    async findServed(
-        database: DatabaseConnection,
-        id: Identifier<"installation">,
-    ): Promise<InstallationRollout | undefined> {
-        const [joined] = await database
-            .select({ rollout: rollout.table, installation: installation.table })
-            .from(rollout.table)
-            .innerJoin(installation.table, joinedInstallation())
-            .innerJoin(space.table, eq(space.table.id, rollout.table.scope))
-            .where(
-                and(
-                    eq(rollout.table.installationId, id),
-                    isNotNull(rollout.table.servedRevisionId),
-                    Space.served(),
-                    launchable(),
-                ),
-            );
-
-        return joined === undefined ? undefined : Rollout.join(joined.rollout, joined.installation);
-    },
-
-    /** List the installations a space serves, with their rollouts. */
-    async listServed(
-        database: DatabaseConnection,
-        spaceId: Identifier<"space">,
-    ): Promise<InstallationRollout[]> {
-        const joined = await database
-            .select({ rollout: rollout.table, installation: installation.table })
-            .from(rollout.table)
-            .innerJoin(installation.table, joinedInstallation())
-            .innerJoin(space.table, eq(space.table.id, rollout.table.scope))
-            .where(
-                and(
-                    eq(rollout.table.scope, spaceId),
-                    isNotNull(rollout.table.servedRevisionId),
-                    Space.served(),
-                    launchable(),
-                ),
-            );
-
-        return joined.map((row) => Rollout.join(row.rollout, row.installation));
-    },
-
     /** Read where an installation's space moves while a transfer fences it here. */
     async moved(
         database: DatabaseConnection,
@@ -756,11 +715,11 @@ export const Rollout = {
     ): Promise<InstallationRollout> {
         // take the installation served in the call's space, by its identifier or its name
         const spaceId = schema.identifier("space").parse(installed.spaceId);
-        const id = await identify(database, spaceId, installed.installation);
-        const served = id === undefined ? undefined : await Rollout.findServed(database, id);
-        if (served?.scope === spaceId) {
+        const served = await Rollout.find(database, spaceId, installed.installation, "served");
+        if (served !== undefined) {
             return served;
         }
+        const id = await identify(database, spaceId, installed.installation);
 
         // answer a moving space's installation with where it moves
         const moved =
@@ -797,50 +756,30 @@ export const Rollout = {
         }
     },
 
-    /** Find a space's enabled installation not being deleted by its name. */
+    /** Find an installation of a space in a state, by its identifier or its name. */
     async find(
         database: DatabaseConnection,
         spaceId: Identifier<"space">,
-        name: string,
+        reference: string,
+        state: RolloutState,
     ): Promise<InstallationRollout | undefined> {
-        const [found] = await database
-            .select({ rollout: rollout.table, installation: installation.table })
-            .from(rollout.table)
-            .innerJoin(installation.table, joinedInstallation())
-            .where(and(rollout.inScope(spaceId), eq(installation.table.name, name), launchable()));
+        // match the identifier as given, else the name
+        const id = schema.identifier("installation").safeParse(reference);
+        const keyed = id.success
+            ? eq(installation.table.id, id.data)
+            : eq(installation.table.name, reference);
+        const [found] = await selectRollouts(database, [rollout.inScope(spaceId), keyed], state);
 
-        return found === undefined ? undefined : Rollout.join(found.rollout, found.installation);
+        return found;
     },
 
-    /** List a space's enabled, undeleted installations, oldest first, with their revisions. */
-    async list(
+    /** List a space's installations in a state, oldest first. */
+    list(
         database: DatabaseConnection,
         spaceId: Identifier<"space">,
-    ): Promise<
-        {
-            rollout: InstallationRollout;
-            revision: InstallationRevision;
-        }[]
-    > {
-        const rows = await database
-            .select({
-                rollout: rollout.table,
-                installation: installation.table,
-                revision: installationRevision.table,
-            })
-            .from(rollout.table)
-            .innerJoin(installation.table, joinedInstallation())
-            .innerJoin(
-                installationRevision.table,
-                eq(installationRevision.table.id, rollout.table.targetRevisionId),
-            )
-            .where(and(rollout.inScope(spaceId), launchable()))
-            .orderBy(installation.table.createdAt, installation.table.id);
-
-        return rows.map((row) => ({
-            rollout: Rollout.join(row.rollout, row.installation),
-            revision: row.revision,
-        }));
+        state: RolloutState,
+    ): Promise<InstallationRollout[]> {
+        return selectRollouts(database, [rollout.inScope(spaceId)], state);
     },
 };
 
@@ -941,6 +880,26 @@ async function isStackPending(
 /** Match the installations a machine launches: enabled, and their rollouts not being deleted. */
 function launchable(): SQL {
     return and(eq(installation.table.status, "enabled"), isNull(installation.table.deletedAt));
+}
+
+/** Select rollouts with their installations meeting some conditions in a state, oldest first. */
+async function selectRollouts(
+    database: DatabaseConnection,
+    conditions: readonly SQL[],
+    state: RolloutState,
+): Promise<InstallationRollout[]> {
+    // take the launchable ones, and of those the ones a machine serves now when asked
+    const served =
+        state === "served" ? [isNotNull(rollout.table.servedRevisionId), Space.served()] : [];
+    const rows = await database
+        .select({ rollout: rollout.table, installation: installation.table })
+        .from(rollout.table)
+        .innerJoin(installation.table, joinedInstallation())
+        .innerJoin(space.table, eq(space.table.id, rollout.table.scope))
+        .where(and(launchable(), ...conditions, ...served))
+        .orderBy(installation.table.createdAt, installation.table.id);
+
+    return rows.map((row) => Rollout.join(row.rollout, row.installation));
 }
 
 /** Join a rollout's installation, which shares its identifier and scope. */
