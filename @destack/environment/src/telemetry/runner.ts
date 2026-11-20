@@ -141,7 +141,10 @@ export const SpanRunner = {
                     failure === undefined ? {} : { "error.type": Failure.of(failure).code };
                 if (failure !== undefined) {
                     recordSpanException(span, failure);
-                    span.setStatus({ code: SpanStatusCode.ERROR });
+                    span.setStatus({
+                        code: SpanStatusCode.ERROR,
+                        message: Failure.of(failure).message,
+                    });
                 }
                 const totals = SpanPath.totals(entered);
                 const listed =
