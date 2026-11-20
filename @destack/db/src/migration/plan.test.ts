@@ -8,7 +8,7 @@ import { defineDatabase } from "../declare/database.ts";
 import { mergeStates } from "./merge.ts";
 import { applyPlan } from "./apply.ts";
 import { TestDatabase } from "../test/database.ts";
-import { DATABASE_MANAGER, declareState, STATE } from "./state.ts";
+import { DATABASE_MANAGER, declareState, STAMP, STATE } from "./state.ts";
 import type { TablePlan } from "./plan.ts";
 import { Expression } from "../expression/expression.ts";
 import { ResourceError } from "@destack/resource/error";
@@ -987,6 +987,72 @@ test("rename a table with its state under the new name alone, and forget the sta
             [table(directoryTable), table(themeTable)].toSorted(),
             [table(directoryTable), table(themeTable)].toSorted(),
         ],
+    });
+});
+
+test("drop the parent index and triggers of an ancestor index an earlier release applied, and record the state without it", async () => {
+    // apply the tasks, then store their state with the ancestor index and its trigger as releases before 2026.11.19 did
+    const database = await open([taskOne]);
+    await database.migrate([taskOne]);
+    const ancestors = `${table(taskOne)}_ancestors`;
+    const [stored] = await database.execute(
+        sql`SELECT state FROM ${sql.relation(STATE)}`,
+        schema.object({ state: schema.string() }),
+    );
+    const state = schema
+        .looseObject({})
+        .parse(JSON.parse(present(stored, "the stored state").state));
+    const tree = {
+        name: "parent",
+        table: table(taskOne),
+        id: "id",
+        scope: "id",
+        parent: "id",
+        ancestors,
+        revision: `${ancestors}_revision`,
+    };
+    const triggered =
+        database.dialect === "sqlite"
+            ? [
+                  `CREATE TRIGGER "${ancestors}_insert" AFTER INSERT ON "${table(taskOne)}" BEGIN SELECT 1; END`,
+              ]
+            : [
+                  `CREATE FUNCTION "${ancestors}_after"() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NULL; END $$`,
+                  `CREATE TRIGGER "${ancestors}_maintain" AFTER INSERT ON "${table(taskOne)}" FOR EACH ROW EXECUTE FUNCTION "${ancestors}_after"()`,
+              ];
+    await database.transaction(async (transaction) => {
+        // record the tree, and drop the stamp the earlier declaration left, as a changed declaration does
+        await transaction.run(
+            sql`UPDATE ${sql.relation(STATE)} SET state = ${JSON.stringify({ ...state, tree })}`,
+        );
+        await transaction.run(sql`DELETE FROM ${sql.relation(STAMP)}`);
+        for (const statement of triggered) {
+            await transaction.run(sql.raw(statement));
+        }
+    });
+
+    // migrate the same declaration again
+    const plan = await database.migrate([taskOne]);
+    const triggers = await database.execute(
+        database.dialect === "sqlite"
+            ? sql`SELECT name FROM sqlite_schema WHERE type = 'trigger' AND name LIKE ${`${ancestors}%`}`
+            : sql`SELECT tgname AS name FROM pg_trigger WHERE tgname LIKE ${`${ancestors}%`}`,
+        schema.object({ name: schema.string() }),
+    );
+    const [rewritten] = await database.execute(
+        sql`SELECT state FROM ${sql.relation(STATE)}`,
+        schema.object({ state: schema.string() }),
+    );
+
+    // drop the tree's trigger and record the state without the tree
+    expect({
+        plan: review(plan),
+        triggers,
+        isTreeRecorded: "tree" in JSON.parse(present(rewritten, "the rewritten state").state),
+    }).toEqual({
+        plan: [`safe delete table/${table(taskOne)}/tree: drop tree index`],
+        triggers: [],
+        isTreeRecorded: false,
     });
 });
 

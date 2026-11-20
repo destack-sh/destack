@@ -48,6 +48,25 @@ export const TableState = schema.object({
     dependents: schema.array(DependentDescription).exactOptional(),
     /** The SQL names of the text columns the full-text index reads. */
     fullText: schema.array(schema.string().min(1)).exactOptional(),
+    /** The ancestor index releases before 2026.11.19 maintained, which planning removes. */
+    tree: schema
+        .object({
+            /** The tree's declaration name. */
+            name: schema.string().min(1),
+            /** The SQL name of the table with the nodes. */
+            table: schema.string().min(1),
+            /** The SQL column with the node identity. */
+            id: schema.string().min(1),
+            /** The SQL column with the tree scope. */
+            scope: schema.string().min(1),
+            /** The SQL column with the nullable parent identity. */
+            parent: schema.string().min(1),
+            /** The SQL name of the ancestor index table. */
+            ancestors: schema.string().min(1),
+            /** The SQL name of the table serializing hierarchy writes per scope. */
+            revision: schema.string().min(1),
+        })
+        .exactOptional(),
     /** The global indexes over the rows, with the SQL names of each row's identifier and scope. */
     globalIndexes: schema
         .array(

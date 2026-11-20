@@ -8,6 +8,7 @@ import { dependentTriggers } from "../dependent/trigger.ts";
 import { createStamp, createState, deleteState, coversState, type TableState } from "./state.ts";
 import * as statement from "./statement.ts";
 import { literal, quote } from "../dialect/quote.ts";
+import { assertNever } from "../error/error.ts";
 import { relation } from "../table/namespace.ts";
 import { bridgeTriggers } from "./bridge.ts";
 import type { TriggerSet } from "./trigger.ts";
@@ -297,6 +298,35 @@ function planCreate(
     }
 }
 
+/** Remove the parent index and the triggers of an ancestor index an earlier release maintained. */
+function removedTree(ancestors: string, dialect: Dialect): string[] {
+    const index = `DROP INDEX IF EXISTS ${quote(`${ancestors}_parent`)}`;
+
+    // drop each SQLite trigger
+    if (dialect === "sqlite") {
+        const suffixes = ["insert_check", "insert", "move_check", "move", "delete_check", "delete"];
+
+        return [
+            index,
+            ...suffixes.map(
+                (suffix) => `DROP TRIGGER IF EXISTS ${quote(`${ancestors}_${suffix}`)}`,
+            ),
+        ];
+    }
+    // drop the PostgreSQL trigger functions with their triggers
+    else if (dialect === "postgresql") {
+        return [
+            index,
+            `DROP FUNCTION IF EXISTS ${quote(`${ancestors}_before`)}() CASCADE`,
+            `DROP FUNCTION IF EXISTS ${quote(`${ancestors}_after`)}() CASCADE`,
+        ];
+    }
+    // refuse any other dialect
+    else {
+        return assertNever(dialect);
+    }
+}
+
 /** Order a plan's steps around its rebuilds: the renames and new tables, the rebuilds, the rest. */
 function rebuildSteps(
     steps: readonly TableStep[],
@@ -363,6 +393,19 @@ function planChange(
                     statement.renameTable(previous.table.name, name),
                     deleteState(previous.table.name, namespace),
                 ],
+            ),
+        );
+    }
+
+    // remove an ancestor index an earlier release maintained: its parent index and triggers, its tables dropping as undeclared
+    if (previous.tree !== undefined) {
+        steps.push(
+            step(
+                "delete",
+                Address.join("table", name, "tree"),
+                "safe",
+                "drop tree index",
+                removedTree(previous.tree.ancestors, state.table.dialect),
             ),
         );
     }
