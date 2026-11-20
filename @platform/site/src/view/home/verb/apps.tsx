@@ -1,4 +1,13 @@
 import { Icon } from "@destack/ui/icon";
+import archive from "@destack/icon/phosphor/archive";
+import arrowBendDoubleUpLeft from "@destack/icon/phosphor/arrow-bend-double-up-left";
+import arrowBendUpLeft from "@destack/icon/phosphor/arrow-bend-up-left";
+import arrowBendUpRight from "@destack/icon/phosphor/arrow-bend-up-right";
+import flag from "@destack/icon/phosphor/flag";
+import folderSimple from "@destack/icon/phosphor/folder-simple";
+import funnelSimple from "@destack/icon/phosphor/funnel-simple";
+import notePencil from "@destack/icon/phosphor/note-pencil";
+import trash from "@destack/icon/phosphor/trash";
 import at from "@destack/icon/phosphor/at";
 import checkCircle from "@destack/icon/phosphor/check-circle";
 import circle from "@destack/icon/phosphor/circle";
@@ -31,6 +40,7 @@ import {
     board,
     commitments,
     type CommitmentState,
+    mails,
     messages,
     people,
     type ReplyState,
@@ -1033,78 +1043,121 @@ function rowOf(hour: number): number {
     return 3 + (hour - OPEN) * 2;
 }
 
-/** Draw Ines's mail in your inbox, her person card beside it from Notes and Calendar. */
+/** Draw your Mail app after Apple Mail: the inbox beside Ines's open message, her card under it. */
 function Mail(properties: { isRemixed: boolean }) {
     return (
-        <Paned>
-            <Toolbar
-                title="Re: Phase 2"
-                actions={
-                    <>
-                        <span {...style.attrs(appStyles.action, styles.wide)}>Archive</span>
-                        <span {...style.attrs(appStyles.primary)}>Reply</span>
-                    </>
-                }
-            >
-                <span data-xray="Database" {...style.attrs(appStyles.property, styles.on)}>
-                    <Icon icon={at} />
-                    From Ines Ferreira
-                </span>
-                <span data-xray="Messaging" {...style.attrs(appStyles.property)}>
-                    10:14
-                </span>
-                {properties.isRemixed ? (
-                    <span {...style.attrs(appStyles.property, styles.on, styles.changed)}>
-                        estimate-phase-2.pdf
-                    </span>
-                ) : undefined}
-            </Toolbar>
-            <article {...style.attrs(styles.document)}>
-                <p {...style.attrs(appText.body)}>Hi Florian,</p>
-                <p {...style.attrs(appText.body)}>
-                    Wednesday at 11 works. Can you bring the estimate? I'd like to decide on card
-                    payments then.
-                </p>
-                <p {...style.attrs(appText.body)}>Ines</p>
-
-                {/* her person card, the same one People shows, from Notes and Calendar */}
-                <div data-xray="Database" data-source="Person card" {...style.attrs(styles.embed)}>
-                    <span {...style.attrs(appText.meta, styles.embedHead)}>
-                        <Face owner="I" tint={palette.berry} />
-                        <b>Ines Ferreira</b>
-                        <span {...style.attrs(styles.quiet)}>Client · booking app</span>
-                    </span>
-                    {card.map(([icon, label, value]) => (
-                        <span {...style.attrs(appText.body, styles.embedRow, styles.recipient)}>
-                            <span {...style.attrs(styles.inline)}>
-                                <ServiceGlyph icon={icon} />
-                                {label}
-                            </span>
-                            <span {...style.attrs(styles.clip)}>{value}</span>
+        <article inert {...style.attrs(styles.mail)}>
+            {/* the inbox: its title, its categories, and its messages, Ines's open */}
+            <div data-xray="Database" data-source="Mail inbox" {...style.attrs(styles.mailList)}>
+                <span {...style.attrs(styles.mailListHead)}>
+                    <span {...style.attrs(styles.fromText)}>
+                        <b {...style.attrs(appText.body)}>Inbox</b>
+                        <span {...style.attrs(appText.meta, styles.quiet)}>
+                            Primary · {mails.length} messages
                         </span>
-                    ))}
+                    </span>
+                    <span {...style.attrs(styles.mailTools)}>
+                        <Icon icon={funnelSimple} />
+                        <Icon icon={dotsThree} />
+                    </span>
+                </span>
+                {mails.slice(0, 7).map(([sender, , subject, preview, time, isUnread], index) => (
+                    <span
+                        {...style.attrs(
+                            styles.thread,
+                            index === 0 && styles.threadOn,
+                            index === 1 && styles.threadAfter,
+                        )}
+                    >
+                        <span {...style.attrs(styles.threadTop)}>
+                            <b {...style.attrs(appText.body, styles.clip)}>
+                                {isUnread ? (
+                                    <span {...style.attrs(styles.dot, styles.unread)} />
+                                ) : undefined}{" "}
+                                {sender}
+                            </b>
+                            <span {...style.attrs(appText.meta, styles.threadTime)}>{time}</span>
+                        </span>
+                        <span {...style.attrs(appText.meta, styles.clip)}>{subject}</span>
+                        <span {...style.attrs(appText.meta, styles.preview)}>{preview}</span>
+                    </span>
+                ))}
+            </div>
+
+            {/* the open message under the toolbar */}
+            <div {...style.attrs(styles.reading)}>
+                <span {...style.attrs(styles.mailToolbar)}>
+                    <Icon icon={notePencil} />
+                    <span {...style.attrs(styles.mailToolGroup)}>
+                        <Icon icon={arrowBendUpLeft} />
+                        <Icon icon={arrowBendDoubleUpLeft} />
+                        <Icon icon={arrowBendUpRight} />
+                    </span>
+                    <span {...style.attrs(styles.mailToolGroup)}>
+                        <Icon icon={archive} />
+                        <Icon icon={trash} />
+                    </span>
+                    <span {...style.attrs(styles.mailToolGroup, styles.wide)}>
+                        <Icon icon={folderSimple} />
+                        <Icon icon={flag} />
+                    </span>
+                    <span {...style.attrs(appText.meta, styles.mailSearch, styles.wide)}>
+                        <Icon icon={magnifyingGlass} />
+                        Search
+                    </span>
+                </span>
+                <div {...style.attrs(styles.mailMessage)}>
+                    <span data-xray="Messaging" {...style.attrs(styles.from)}>
+                        <Face owner="I" tint={palette.berry} size="default" />
+                        <span {...style.attrs(styles.fromText)}>
+                            <b {...style.attrs(appText.body)}>Ines Ferreira</b>
+                            <span {...style.attrs(appText.meta)}>Re: Phase 2</span>
+                            <span {...style.attrs(appText.meta, styles.quiet)}>To: Florian</span>
+                        </span>
+                        <span {...style.attrs(styles.fromEnd)}>
+                            <span {...style.attrs(appText.meta, styles.quiet)}>10:14</span>
+                            <span {...style.attrs(appText.meta, styles.details)}>Details</span>
+                        </span>
+                    </span>
+
+                    {/* her card, the same one People shows, from Notes, Calendar and Tasks */}
+                    <span
+                        data-xray="Database"
+                        data-source="Person card"
+                        {...style.attrs(styles.personCard)}
+                    >
+                        {card.map(([label, value]) => (
+                            <span {...style.attrs(styles.cardField)}>
+                                <span {...style.attrs(appText.meta, styles.quiet)}>{label}</span>
+                                <span {...style.attrs(appText.body)}>{value}</span>
+                            </span>
+                        ))}
+                    </span>
+                    <p {...style.attrs(appText.body)}>Hi Florian,</p>
+                    <p {...style.attrs(appText.body)}>
+                        Wednesday at 11 works. Can you bring the estimate? I'd like to decide on
+                        card payments then.
+                    </p>
+                    <p {...style.attrs(appText.body)}>Thanks, Ines</p>
+                    {properties.isRemixed ? (
+                        <span {...style.attrs(styles.attachment, styles.changed)}>
+                            <Icon icon={paperclip} />
+                            <span>estimate-phase-2.pdf</span>
+                            <span {...style.attrs(appText.meta, styles.quiet)}>180 KB</span>
+                        </span>
+                    ) : undefined}
                 </div>
-                <aside {...style.attrs(styles.note)}>
-                    <span {...style.attrs(styles.commentHead)}>
-                        <Face owner="A" />
-                        <b {...style.attrs(appText.meta)}>Agent</b>
-                        <span {...style.attrs(appText.meta, styles.quiet)}>10:15</span>
-                    </span>
-                    <span {...style.attrs(appText.meta)}>
-                        The estimate is drafted in T-14. I'll attach it when you reply.
-                    </span>
-                </aside>
-            </article>
-        </Paned>
+            </div>
+        </article>
     );
 }
 
-/** Ines's person card in Mail: each line's app, its label and its live value. */
-const card: readonly (readonly [icon: string, label: string, value: string])[] = [
-    ["pages", "Notes", "4 notes"],
-    ["calendar", "Last talked", "Mon 11:30"],
-    ["calendar", "Next", "Wed 11:00"],
-    ["tasks", "You owe her", "The estimate"],
+/** Ines's card in Mail: each line's label and its live value from Notes, Calendar and Tasks. */
+const card: readonly (readonly [label: string, value: string])[] = [
+    ["Notes", "4 notes"],
+    ["Last talked", "Mon 11:30"],
+    ["Next", "Wed 11:00"],
+    ["You owe her", "Estimate"],
 ];
 
 /** Draw your Monday page: what you said you'd do in mail and chat, and to whom. */
@@ -1413,9 +1466,6 @@ const styles = style.create({
         paddingBlock: "0.375rem",
         paddingInline: "0.75rem",
     },
-    recipient: {
-        gridTemplateColumns: "minmax(0, 1fr) 6rem 5rem",
-    },
     more: {
         borderTopColor: color.border,
         borderTopStyle: "solid",
@@ -1483,6 +1533,154 @@ const styles = style.create({
         marginTop: "1.75rem",
         paddingBlock: "0.625rem",
         paddingInline: "0.75rem",
+    },
+    mail: {
+        display: "grid",
+        gridTemplateColumns: { default: "15rem minmax(0, 1fr)", [NARROW]: "minmax(0, 1fr)" },
+        minHeight: 0,
+        minWidth: 0,
+        overflow: "hidden",
+    },
+    mailList: {
+        alignContent: "start",
+        backgroundColor: color.card,
+        borderInlineEndColor: color.border,
+        borderInlineEndStyle: "solid",
+        borderInlineEndWidth: stroke.border,
+        display: { default: "grid", [NARROW]: "none" },
+        maskImage: "linear-gradient(to bottom, black calc(100% - 3rem), transparent)",
+        minHeight: 0,
+        overflow: "hidden",
+        paddingInline: "0.5rem",
+    },
+    mailListHead: {
+        alignItems: "center",
+        display: "flex",
+        gap: space[2],
+        paddingBlock: "0.75rem",
+        paddingInline: "0.5rem",
+    },
+    mailTools: {
+        color: color.mutedForeground,
+        display: "inline-flex",
+        gap: space[3],
+    },
+    thread: {
+        borderTopColor: color.border,
+        borderTopStyle: "solid",
+        borderTopWidth: stroke.border,
+        display: "grid",
+        gap: "0.0625rem",
+        minWidth: 0,
+        paddingBlock: "0.5rem",
+        paddingInline: "0.625rem",
+    },
+    threadOn: {
+        backgroundColor: `color-mix(in srgb, ${color.primary} 14%, transparent)`,
+        borderRadius: "8px",
+        borderTopColor: "transparent",
+    },
+    threadAfter: {
+        borderTopColor: "transparent",
+    },
+    threadTop: {
+        alignItems: "baseline",
+        display: "grid",
+        gap: space[2],
+        gridTemplateColumns: "minmax(0, 1fr) auto",
+    },
+    threadTime: {
+        opacity: 0.7,
+    },
+    preview: {
+        WebkitBoxOrient: "vertical",
+        WebkitLineClamp: 2,
+        display: "-webkit-box",
+        opacity: 0.7,
+        overflow: "hidden",
+    },
+    unread: {
+        backgroundColor: palette.indigo,
+        marginInlineEnd: "0.25rem",
+    },
+    reading: {
+        display: "grid",
+        gridTemplateRows: "auto minmax(0, 1fr)",
+        minHeight: 0,
+        minWidth: 0,
+        overflow: "hidden",
+    },
+    mailToolbar: {
+        alignItems: "center",
+        borderBlockEndColor: color.border,
+        borderBlockEndStyle: "solid",
+        borderBlockEndWidth: stroke.border,
+        color: color.mutedForeground,
+        display: "flex",
+        gap: space[4],
+        paddingBlock: "0.625rem",
+        paddingInline: "1rem",
+    },
+    mailToolGroup: {
+        display: "inline-flex",
+        gap: space[3],
+    },
+    mailSearch: {
+        alignItems: "center",
+        backgroundColor: color.muted,
+        borderRadius: radius.full,
+        gap: "0.25rem",
+        marginInlineStart: "auto",
+        paddingBlock: "0.25rem",
+        paddingInline: "0.625rem",
+    },
+    mailMessage: {
+        alignContent: "start",
+        display: "grid",
+        gap: space[3],
+        gridAutoRows: "max-content",
+        maskImage: "linear-gradient(to bottom, black calc(100% - 3rem), transparent)",
+        minHeight: 0,
+        overflow: "hidden",
+        paddingBlock: "1rem",
+        paddingInline: { default: "1.25rem", [NARROW]: "1rem" },
+    },
+    from: {
+        alignItems: "start",
+        display: "flex",
+        gap: space[3],
+    },
+    fromText: {
+        display: "grid",
+        flexGrow: 1,
+        minWidth: 0,
+    },
+    fromEnd: {
+        display: "grid",
+        justifyItems: "end",
+    },
+    details: {
+        color: palette.indigo,
+    },
+    personCard: {
+        borderColor: color.border,
+        borderRadius: "8px",
+        borderStyle: "solid",
+        borderWidth: stroke.border,
+        columnGap: space[4],
+        display: "grid",
+        gridTemplateColumns: {
+            default: "repeat(4, minmax(0, 1fr))",
+            [NARROW]: "repeat(2, minmax(0, 1fr))",
+        },
+        paddingBlock: "0.625rem",
+        paddingInline: "0.875rem",
+        rowGap: space[2],
+    },
+    cardField: {
+        display: "grid",
+        gap: "0.125rem",
+        minWidth: 0,
     },
     note: {
         backgroundColor: color.card,
