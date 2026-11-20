@@ -1,4 +1,4 @@
-import type { Environment } from "@destack/environment";
+import { type Environment, Once } from "@destack/environment";
 import { GRANT_DETAIL, type GrantRequest } from "../authentication/request.ts";
 import { type Fetch, PackageMount } from "@destack/object";
 import { ListPage } from "@destack/object";
@@ -11,6 +11,7 @@ import { type PartitionId, Pkce } from "@destack/access/token";
 import {
     AUTHORIZATION_PATH,
     DEVICE_AUTHORIZATION_PATH,
+    METADATA_PATHS,
     REVOCATION_PATH,
     TOKEN_PATH,
 } from "../authentication/path.ts";
@@ -22,6 +23,7 @@ import type { Residency } from "../object/residency.ts";
 import type { SignUp } from "../better-auth/sign-up.ts";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
+import { UniverseOrigin } from "../address/address.ts";
 
 /** The default wait between device polls, in seconds (RFC 8628 3.2). */
 const DEVICE_INTERVAL_SECONDS = 5;
@@ -126,6 +128,8 @@ export type DevicePoll =
 export interface TokenBinding {
     /** The partition the token acts in, absent toward a universe package. */
     readonly partition?: PartitionId;
+    /** The lifetime asked for in milliseconds, which the issuer bounds. */
+    readonly lifetime?: number;
     /** The person the token acts as, or for under their grants to the caller. */
     readonly subject?: Subject;
     /** The chain of grants the token acts under. */
@@ -135,6 +139,12 @@ export interface TokenBinding {
     /** The person's session or client the token lives within, refused once it ends. */
     readonly credential?: Identifier<"session"> | Identifier<"client">;
 }
+
+/** The members of the issuer's metadata a client reads: the universe's domains. */
+const IssuerMetadata = schema.looseObject({
+    /** The domains the universe serves beside its origin's. */
+    domains: UniverseOrigin.schema.shape.domains,
+});
 
 /** The issuer a native device signs people in with, by redirect or device code. */
 export class Issuer {
@@ -146,6 +156,8 @@ export class Issuer {
     readonly #environment: Environment;
     /** The positions the caller's calls saw, which the issuer's answers add to. */
     readonly #bookmark: Bookmark;
+    /** The universe's address, read from the issuer's metadata on first use. */
+    readonly #universe = new Once<UniverseOrigin>();
 
     /** Call an issuer through a fetch, in an environment, keeping the positions it answers. */
     constructor(url: string, fetch: Fetch, environment: Environment, bookmark: Bookmark) {
@@ -154,6 +166,29 @@ export class Issuer {
         this.#fetch = fetch;
         this.#environment = environment;
         this.#bookmark = bookmark;
+    }
+
+    /** Read the universe's address from the issuer's metadata, once (RFC 8414 3). */
+    universe(): Promise<UniverseOrigin> {
+        return this.#universe.get(() => this.#discover());
+    }
+
+    /** Fetch the issuer's metadata and address the universe by it. */
+    async #discover(): Promise<UniverseOrigin> {
+        // fetch the metadata below the issuer's URL
+        const [path] = METADATA_PATHS;
+        const response = await this.#fetch(new Request(`${this.url}${path}`));
+        if (!response.ok) {
+            throw AccountError.of(
+                "METADATA_UNREACHABLE",
+                `could not read the issuer's metadata: status ${response.status}`,
+            );
+        }
+
+        // address the universe at the issuer's origin with the domains it publishes
+        const { domains } = IssuerMetadata.parse(await response.json());
+
+        return new UniverseOrigin(new URL(this.url).origin, domains);
     }
 
     /** Start a browser sign-in returning to a client's redirect, fresh for a step-up. */

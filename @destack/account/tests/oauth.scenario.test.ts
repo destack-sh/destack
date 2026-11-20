@@ -6,11 +6,14 @@ import { expect, test, refusal } from "@destack/test";
 import { Credential } from "../src/credential/credential.ts";
 import { client } from "../src/object/client.ts";
 import { session } from "../src/object/session.ts";
+import { UniverseOrigin } from "../src/address/index.ts";
 import { nth, Identifier, type JsonValue, present, schema } from "@destack/schema";
 import { verification } from "../src/authentication/index.ts";
 import { deviceAuthorization } from "../src/object/device-authorization.ts";
 import {
+    DOMAINS,
     ISSUER,
+    UNIVERSE,
     ORIGIN,
     OPERATOR_EMAIL,
     TestAccountStore,
@@ -90,6 +93,8 @@ const Discovery = schema
         code_challenge_methods_supported: schema.array(schema.string()),
         /** The claims the server can issue. */
         claims_supported: schema.array(schema.string()),
+        /** The domains the universe serves beside its origin's. */
+        domains: UniverseOrigin.schema.shape.domains,
     })
     .strip();
 
@@ -197,8 +202,12 @@ test("sign a user in to another application through the authorization code flow 
                 "locale",
                 "zoneinfo",
             ],
+            domains: DOMAINS,
         },
     ]);
+
+    // address the universe by the domains its metadata publishes, as an enrolling machine does
+    expect(await fixture.issuer.universe()).toEqual(UNIVERSE);
 
     // authorize with a PKCE challenge, which sends the signed-in user to the consent page
     const verifier = Pkce.verifier(fixture.environment.random);

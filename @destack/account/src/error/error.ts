@@ -124,6 +124,7 @@ export const AccountError = defineErrorFamily({
         HOST_UNREACHABLE: {},
         ID_TOKEN_UNREACHABLE: {},
         MAIL_UNREACHABLE: {},
+        METADATA_UNREACHABLE: {},
         REFRESH_TOKEN_UNREACHABLE: {},
         REVOCATION_UNREACHABLE: {},
         TOKEN_ENDPOINT_UNREACHABLE: {},
