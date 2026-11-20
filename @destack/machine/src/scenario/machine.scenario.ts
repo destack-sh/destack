@@ -2,12 +2,12 @@ import { defineScenario } from "@destack/package/declare";
 import { Machine } from "../machine/machine.ts";
 import { machineInteraction } from "./interaction.ts";
 
-/** Wake the owner's home after a night, holding a team's issues. */
-export const wakeAfterNight = defineScenario({
+/** Wake a home holding a team's issues after a night. */
+export const wakeMachineAfterNight = defineScenario({
     of: Machine,
     interaction: machineInteraction,
-    name: "wake-after-night",
-    description: "wake a home after a night holding its issues",
+    name: "wake-machine-after-night",
+    description: "wake a home holding a team's issues after a night",
     given: { examples: [] },
     parameters: { members: 3, issues: 50, night: 28_800_000 },
     when: [
@@ -16,7 +16,6 @@ export const wakeAfterNight = defineScenario({
         { action: "join", members: "{members}", devices: 1 },
         { call: "team.create", as: "owner", input: { name: "Platform" }, bind: "team" },
         {
-            operation: "team.grant",
             times: "{members}",
             step: {
                 call: "team.grant",
@@ -39,12 +38,12 @@ export const wakeAfterNight = defineScenario({
     then: [{ observe: { count: "issue" }, is: "{issues}" }],
 });
 
-/** Restart the owner's home computer while three computers follow it, until it serves again. */
-export const restartAndServeAgain = defineScenario({
+/** Restart a home computer followed by three computers. */
+export const restartMachine = defineScenario({
     of: Machine,
     interaction: machineInteraction,
-    name: "restart-and-serve-again",
-    description: "restart a home computer and start its three spaces again",
+    name: "restart-machine",
+    description: "restart a home computer followed by three computers",
     given: { examples: [] },
     parameters: { restarts: 2 },
     when: [
@@ -55,7 +54,7 @@ export const restartAndServeAgain = defineScenario({
             operation: "machine.restart",
             times: "{restarts}",
             step: { action: "restart" },
-            // expect each restart to start the home's three spaces
+            // expect three space starts per restart
             then: [
                 { spans: { name: "destack.space.start", host: "home" }, count: "{restarts * 3}" },
             ],

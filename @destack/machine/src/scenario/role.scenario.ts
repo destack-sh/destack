@@ -2,13 +2,12 @@ import { role } from "@destack/object";
 import { defineScenario } from "@destack/package/declare";
 import { machineInteraction } from "./interaction.ts";
 
-/** Create roles in the owner's settled home while three enrolled computers follow it. */
-export const createWhileComputersFollow = defineScenario({
+/** Create roles in a settled home followed by three computers. */
+export const createRole = defineScenario({
     of: role,
     interaction: machineInteraction,
-    name: "create-while-computers-follow",
-    description:
-        "create roles in the owner's settled home while three enrolled computers follow it",
+    name: "create-role",
+    description: "create roles in a settled home followed by three computers",
     given: { examples: [] },
     parameters: { roles: 3, settle: 60_000 },
     when: [
@@ -30,6 +29,6 @@ export const createWhileComputersFollow = defineScenario({
             },
         },
     ],
-    // expect the six roles a home starts with beside the created ones
+    // expect the home's six roles plus the created ones
     then: [{ observe: { count: "role" }, is: "{6 + roles}" }],
 });

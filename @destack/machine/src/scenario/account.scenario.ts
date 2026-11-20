@@ -2,12 +2,12 @@ import { account } from "@destack/account/object";
 import { defineScenario } from "@destack/package/declare";
 import { machineInteraction } from "./interaction.ts";
 
-/** Sign a person in with a first device following the owner's home and its app. */
-export const joinOnFirstDevice = defineScenario({
+/** Join a member on their first device. */
+export const joinMember = defineScenario({
     of: account,
     interaction: machineInteraction,
-    name: "join-on-first-device",
-    description: "sign a member in on their first device",
+    name: "join-member",
+    description: "join a member on their first device",
     given: { examples: [] },
     parameters: {},
     when: [
@@ -21,12 +21,12 @@ export const joinOnFirstDevice = defineScenario({
     ],
 });
 
-/** Open a member's new device on a team's fifty issues, syncing them first. */
-export const syncNewDevice = defineScenario({
+/** Sync a team's fifty issues onto a member's new device. */
+export const syncDevice = defineScenario({
     of: account,
     interaction: machineInteraction,
-    name: "sync-new-device",
-    description: "sync a team's issues onto a new device",
+    name: "sync-device",
+    description: "sync a team's fifty issues onto a member's new device",
     given: { examples: [] },
     parameters: { members: 3, issues: 50 },
     when: [
@@ -35,7 +35,6 @@ export const syncNewDevice = defineScenario({
         { action: "join", members: "{members}", devices: 1 },
         { call: "team.create", as: "owner", input: { name: "Platform" }, bind: "team" },
         {
-            operation: "team.grant",
             times: "{members}",
             step: {
                 call: "team.grant",

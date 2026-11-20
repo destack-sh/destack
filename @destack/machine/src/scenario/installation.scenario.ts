@@ -2,13 +2,12 @@ import { installation } from "@destack/object";
 import { defineScenario } from "@destack/package/declare";
 import { machineInteraction } from "./interaction.ts";
 
-/** Publish an app's release and install it in the owner's home until the home applies it. */
-export const publishAndInstall = defineScenario({
+/** Publish an app's release. */
+export const publishRelease = defineScenario({
     of: installation,
     interaction: machineInteraction,
-    name: "publish-and-install",
-    description:
-        "publish an app's release and install it in the owner's home until the home applies it",
+    name: "publish-release",
+    description: "publish an app's release",
     given: { examples: [] },
     parameters: {},
     when: [
@@ -17,6 +16,19 @@ export const publishAndInstall = defineScenario({
             times: 1,
             step: { action: "publish", fixture: "apps" },
         },
+    ],
+});
+
+/** Install a published app in the owner's home. */
+export const installApp = defineScenario({
+    of: installation,
+    interaction: machineInteraction,
+    name: "install-app",
+    description: "install a published app in the owner's home",
+    given: { examples: [] },
+    parameters: {},
+    when: [
+        { action: "publish", fixture: "apps" },
         {
             operation: "app.install",
             times: 1,
@@ -26,13 +38,12 @@ export const publishAndInstall = defineScenario({
     then: [{ observe: { count: "team" }, is: 0 }],
 });
 
-/** Launch the start page in the owner's home from the browser, until its document loads. */
-export const launchFromBrowser = defineScenario({
+/** Launch the start page from the browser. */
+export const launchApp = defineScenario({
     of: installation,
     interaction: machineInteraction,
-    name: "launch-from-browser",
-    description:
-        "launch the start page in the owner's home from the browser until its document loads",
+    name: "launch-app",
+    description: "launch the start page from the browser",
     given: { examples: [] },
     parameters: { launches: 3 },
     when: [
@@ -44,23 +55,18 @@ export const launchFromBrowser = defineScenario({
     ],
 });
 
-/** Publish an app's next release and update its installation in the owner's home until applied. */
-export const updateToNewRelease = defineScenario({
+/** Update an installed app to its next release. */
+export const updateApp = defineScenario({
     of: installation,
     interaction: machineInteraction,
-    name: "update-to-new-release",
-    description:
-        "publish an app's next release and update its installation in the owner's home until it applies",
+    name: "update-app",
+    description: "update an installed app to its next release",
     given: { examples: [] },
     parameters: {},
     when: [
         { action: "publish", fixture: "apps" },
         { action: "install", fixture: "apps" },
-        {
-            operation: "release.publish",
-            times: 1,
-            step: { action: "publish", fixture: "apps-next" },
-        },
+        { action: "publish", fixture: "apps-next" },
         {
             operation: "app.update",
             times: 1,

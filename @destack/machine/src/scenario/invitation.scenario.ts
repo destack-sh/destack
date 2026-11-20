@@ -2,12 +2,12 @@ import { invitation } from "@destack/object";
 import { defineScenario } from "@destack/package/declare";
 import { machineInteraction } from "./interaction.ts";
 
-/** Invite a person to own a new space with the owner, and accept as them. */
-export const acceptIntoSpace = defineScenario({
+/** Invite a person to own a new space. */
+export const createInvitation = defineScenario({
     of: invitation,
     interaction: machineInteraction,
-    name: "accept-into-space",
-    description: "invite a person to own a new space with the owner, and accept as them",
+    name: "create-invitation",
+    description: "invite a person to own a new space",
     given: { examples: [] },
     parameters: {},
     when: [
@@ -18,6 +18,21 @@ export const acceptIntoSpace = defineScenario({
             times: 1,
             step: { action: "invite", member: "member-0", space: "team" },
         },
+    ],
+});
+
+/** Accept an invitation to own a new space. */
+export const acceptInvitation = defineScenario({
+    of: invitation,
+    interaction: machineInteraction,
+    name: "accept-invitation",
+    description: "accept an invitation to own a new space",
+    given: { examples: [] },
+    parameters: {},
+    when: [
+        { action: "create", space: "team" },
+        { action: "join", members: 1, devices: 0 },
+        { action: "invite", member: "member-0", space: "team" },
         {
             operation: "invitation.accept",
             times: 1,
