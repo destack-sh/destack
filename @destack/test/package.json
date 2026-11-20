@@ -5,6 +5,7 @@
     "sideEffects": false,
     "description": "Write and run Destack tests: unit tests on Vitest, simulated worlds, and scenarios played through drivers.",
     "exports": {
+        "./bench": "./src/bench/index.ts",
         "./plan": "./src/plan/index.ts",
         "./plan/vitest": "./src/plan/vitest.ts",
         ".": "./src/index.ts",

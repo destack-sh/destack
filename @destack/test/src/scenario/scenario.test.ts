@@ -219,7 +219,13 @@ test("measure an operation in Go benchmark lines", async () => {
 
 test("name the first step two plays differ after", () => {
     // compare a play with itself and with one that marks once more after its second step
-    const play = { failures: [], measurements: [], fingerprints: [3, 4, 8], errors: [] };
+    const play = {
+        failures: [],
+        measurements: [],
+        fingerprints: [3, 4, 8],
+        errors: [],
+        telemetry: [],
+    };
     const diverging = { ...play, fingerprints: [3, 5, 9] };
 
     expect([

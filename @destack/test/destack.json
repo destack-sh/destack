@@ -4,5 +4,5 @@
     "role": "library",
     "language": "typescript",
     "runtimes": ["bun"],
-    "entrypoints": ["src/host/host.ts", "src/plan/vitest.ts"]
+    "entrypoints": ["src/bench/main.ts", "src/host/host.ts", "src/plan/vitest.ts"]
 }
