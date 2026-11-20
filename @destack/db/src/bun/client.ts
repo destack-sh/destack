@@ -1,6 +1,6 @@
 import type { DatabaseEnvironment } from "../database/connection.ts";
 /// <reference types="bun" />
-import * as bun from "bun:sqlite";
+import type * as bun from "bun:sqlite";
 import type { DriverValue } from "../table/column.ts";
 import {
     SQLITE_LIMITS,
@@ -11,7 +11,6 @@ import {
     type SqliteQueryClient,
 } from "../sqlite/client.ts";
 import { SqliteScript } from "../sqlite/script.ts";
-import { DriverStatement } from "../sql/render.ts";
 import { present } from "@destack/schema";
 import { TelemetryScope } from "@destack/telemetry";
 import { Cache } from "../cache/cache.ts";
@@ -22,9 +21,6 @@ const PREPARED_TEXTS = 512;
 
 /** The work queue of each database file by its real path: one writer per file in the process. */
 const FILE_QUEUES = new Map<string, SqliteWorkQueue>();
-
-/** The wait for a WAL checkpoint in milliseconds, the writer's own busy timeout. */
-const READER_BUSY_TIMEOUT_MILLISECONDS = 5000;
 
 /** Statements on one SQLite database, prepared once per text. */
 export class BunQuery implements SqliteQueryClient {
@@ -108,10 +104,6 @@ export class BunClient extends BunQuery implements SqliteConnectionClient {
     readonly #queue: SqliteWorkQueue;
     /** The environment the client's turns wait in. */
     readonly #environment: DatabaseEnvironment;
-    /** The database's file, empty in memory. */
-    readonly #file: string;
-    /** The query-only connection to the file, opened on first use. */
-    #reader: BunQuery | undefined;
 
     /** Create the client, its turns waited for in an environment. */
     constructor(database: bun.Database, environment: DatabaseEnvironment) {
@@ -123,39 +115,6 @@ export class BunClient extends BunQuery implements SqliteConnectionClient {
         });
         this.#queue = queue;
         this.#environment = environment;
-
-        // remember the file, which a reader opens beside the writer
-        this.#file = BunClient.file(database);
-    }
-
-    /** Read every row as an array of values, a read beside the writer. */
-    override values(sql: string, parameters: readonly DriverValue[]): Promise<unknown[][]> {
-        const reader = DriverStatement.isRead(sql) ? this.#readerMaybe() : undefined;
-
-        return reader === undefined
-            ? super.values(sql, parameters)
-            : reader.values(sql, parameters);
-    }
-
-    /** Read every row by column name, a read beside the writer. */
-    override all(sql: string, parameters: readonly DriverValue[]): Promise<unknown[]> {
-        const reader = DriverStatement.isRead(sql) ? this.#readerMaybe() : undefined;
-
-        return reader === undefined ? super.all(sql, parameters) : reader.all(sql, parameters);
-    }
-
-    /** Open the query-only connection on first use, none in memory. */
-    #readerMaybe(): BunQuery | undefined {
-        // open the reader on the first read of a file
-        if (this.#reader === undefined && this.#file !== "") {
-            // open it writable for the WAL index, refusing writes
-            const reader = new bun.Database(this.#file, { readwrite: true, create: false });
-            reader.run(`PRAGMA busy_timeout = ${READER_BUSY_TIMEOUT_MILLISECONDS}`);
-            reader.run("PRAGMA query_only = ON");
-            this.#reader = new BunQuery(reader, new BunStatementCache(reader, this.#environment));
-        }
-
-        return this.#reader;
     }
 
     /** Read the work queue of a database's file by its real path, or a separate one in memory. */
@@ -218,11 +177,8 @@ export class BunClient extends BunQuery implements SqliteConnectionClient {
     /** Close the database after its work. */
     async close(): Promise<void> {
         await this.#queue.run(async () => {
-            // close the writer, then the reader
             this.statements.close();
             this.database.close();
-            this.#reader?.statements.close();
-            this.#reader?.database.close();
         }, this.#environment);
     }
 
