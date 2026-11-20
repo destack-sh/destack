@@ -9,13 +9,13 @@ import {
 } from "vite";
 import type { WorkspacePackage } from "@destack/build";
 import { loadTransforms } from "@destack/build/local";
-import { DeclarationDescription, OriginPath } from "@destack/package";
+import { OriginPath } from "@destack/package";
 import type { Plugin } from "@destack/package/build";
 import { runtimeConditions, runtimeCss, runtimeTarget } from "@destack/package/build";
 import { PackageLocator } from "@destack/package/locator";
 import { baselinePlugin, modulePlugin } from "@destack/package/vite";
 import { ModuleTransformer } from "@destack/package/transform";
-import { present, schema } from "@destack/schema";
+import { present } from "@destack/schema";
 import { OtlpExport, type OtlpSignal } from "@destack/telemetry/otlp";
 import type { PageHead, RouteTable } from "../static/page.ts";
 import { ViewError } from "../error/error.ts";
@@ -150,7 +150,7 @@ async function serve(
     // find the view among the workspace root's declarations
     const { workspace, environment } = options;
     const directory = workspace.root.directory;
-    const views = await inspect(workspace);
+    const views = await readViews(workspace);
     const view = views.located.find((each) => each.name === options.view);
     if (view?.render.mode !== "static") {
         throw ViewError.of(
@@ -200,15 +200,12 @@ async function serve(
 }
 
 /** Read a workspace root's views, each at the module and symbol declaring it. */
-async function inspect(
+async function readViews(
     workspace: WorkspacePackage,
 ): Promise<{ readonly package: ViewPackage; readonly located: LocatedView[] }> {
-    // read the root's declarations from its inspection
+    // evaluate the root's declarations from source
     const { root } = workspace;
-    const inspection = await workspace.inspect({ runtime: "bun" });
-    const { declarations } = schema
-        .looseObject({ declarations: schema.array(DeclarationDescription) })
-        .parse(inspection.descriptions);
+    const declarations = await workspace.declarations({ runtime: "bun" });
 
     // locate each at the module and export declaring it
     const owned: ViewPackage = {
