@@ -210,7 +210,6 @@ const HOME_OPTIONS = {
     ...TestPackage.options(PACKAGES),
     tables: FORGE_HOME_OPTIONS.tables,
     follows: FORGE_HOME_OPTIONS.follows,
-    policies: FORGE_HOME_OPTIONS.policies,
     resources: FORGE_HOME_OPTIONS.resources,
     publishers: ["platform"],
     clients: [],
