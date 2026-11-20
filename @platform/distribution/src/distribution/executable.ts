@@ -1,4 +1,4 @@
-import type { Universe } from "@destack/update/release";
+import type { Profile } from "@destack/update/release";
 import { createRequire } from "node:module";
 import { basename, join, resolve } from "node:path";
 import type { Environment } from "@destack/environment";
@@ -65,8 +65,8 @@ export interface ExecutableOptions {
     external?: string[];
     /** The distribution version stamped into package metadata. */
     version?: string;
-    /** The executable's universe. */
-    universe?: Universe;
+    /** The executable's profile. */
+    profile?: Profile;
 }
 
 /** Compile an entrypoint into one executable with bytecode chunks. */
@@ -99,7 +99,7 @@ export async function buildExecutable(
             autoloadTsconfig: false,
             autoloadPackageJson: true,
         },
-        ...(options.universe !== undefined && { banner: channelBanner(options.universe) }),
+        ...(options.profile !== undefined && { banner: profileBanner(options.profile) }),
         plugins: [
             ...(shared === undefined ? [] : [shared]),
             toolchainPlugin(options.target, environment.files),
@@ -197,11 +197,11 @@ async function optionalPeers(root: string, environment: Environment<"files">): P
     return names.flatMap((name) => [name, `${name}/*`]);
 }
 
-/** Write the banner setting the universe's variables. */
-function channelBanner(universe: Universe): string {
-    const directory = `process.getBuiltinModule("node:path").join(process.getBuiltinModule("node:os").homedir(), ${JSON.stringify(universe.directory)})`;
+/** Write the banner setting the profile's variables. */
+function profileBanner(profile: Profile): string {
+    const directory = `process.getBuiltinModule("node:path").join(process.getBuiltinModule("node:os").homedir(), ${JSON.stringify(profile.directory)})`;
 
-    return `process.env.DESTACK_UNIVERSE = ${JSON.stringify(universe.name)};
-    process.env.DESTACK_UNIVERSE_ORIGIN ??= ${JSON.stringify(universe.origin)};
+    return `process.env.DESTACK_PROFILE = ${JSON.stringify(profile.name)};
+    process.env.DESTACK_UNIVERSE_ORIGIN ??= ${JSON.stringify(profile.universe)};
     process.env.DESTACK_DIRECTORY ??= ${directory};`;
 }

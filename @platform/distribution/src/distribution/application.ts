@@ -1,4 +1,4 @@
-import { Universe } from "@destack/update/release";
+import { Profile } from "@destack/update/release";
 import type { Environment } from "@destack/environment";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,7 +8,7 @@ import { run } from "./command.ts";
 export async function configureApplication(
     root: string,
     directory: string,
-    identity: Universe,
+    profile: Profile,
     version: string,
     environment: Environment<"files" | "process" | "host">,
 ): Promise<string> {
@@ -16,13 +16,13 @@ export async function configureApplication(
     const isMac = environment.host.os === "darwin";
     if (isMac) {
         return JSON.stringify({
-            productName: identity.title,
+            productName: profile.title,
             version,
-            identifier: identity.applicationIdentifier,
+            identifier: profile.applicationIdentifier,
             bundle: {
                 icon: [
-                    brand(`icon${identity.suffix}-macos.png`),
-                    brand(`icon${identity.suffix}.icns`),
+                    brand(`icon${profile.suffix}-macos.png`),
+                    brand(`icon${profile.suffix}.icns`),
                 ],
             },
         });
@@ -34,15 +34,15 @@ export async function configureApplication(
     const tauri = join(root, "@destack/desktop/node_modules/@tauri-apps/cli/tauri.js");
     await run(
         environment.process.executable,
-        ["run", tauri, "icon", brand(`icon${identity.suffix}-rounded.svg`), "--output", icons],
+        ["run", tauri, "icon", brand(`icon${profile.suffix}-rounded.svg`), "--output", icons],
         environment,
         root,
     );
 
     return JSON.stringify({
-        productName: identity.title,
+        productName: profile.title,
         version,
-        identifier: identity.applicationIdentifier,
+        identifier: profile.applicationIdentifier,
         bundle: {
             icon: [join(icons, "icon.png"), join(icons, "icon.ico")],
         },

@@ -2,25 +2,25 @@ import { CHECKOUT } from "./distribution.ts";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Environment, HostCapability } from "@destack/environment";
-import { Universe } from "@destack/update/release";
+import { Profile } from "@destack/update/release";
 import { run } from "./command.ts";
 
 /** The brand package's icon directory, resolved through its exports. */
 const BRAND_ICONS = dirname(fileURLToPath(import.meta.resolve("@platform/brand/icon/icon.svg")));
 
-/** Build every universe's macOS icons into the brand package. */
+/** Build every profile's macOS icons into the brand package. */
 export async function buildIcons(environment: Environment<HostCapability>): Promise<void> {
     // refuse a host without the macOS image tools
     if (environment.host.os !== "darwin") {
         throw new Error("the macOS icons are built on macOS");
     }
 
-    // build every universe's icons in a directory of their own
+    // build every profile's icons in a directory of their own
     const { files } = environment;
     const temporary = await files.makeTemporaryDirectory("destack-icon-");
     const tauri = join(CHECKOUT, "@destack/desktop/node_modules/@tauri-apps/cli/tauri.js");
     try {
-        for (const { suffix } of Universe.names.map((name) => Universe.of(name))) {
+        for (const { suffix } of Profile.names.map((name) => new Profile(name))) {
             await buildMacIcon(suffix, tauri, join(temporary, `icon${suffix}`), environment);
         }
     } finally {
@@ -28,7 +28,7 @@ export async function buildIcons(environment: Environment<HostCapability>): Prom
     }
 }
 
-/** Pad a universe's raster icon as macOS applications are, and generate its `.icns` container. */
+/** Pad a profile's raster icon as macOS applications are, and generate its `.icns` container. */
 async function buildMacIcon(
     suffix: string,
     tauri: string,
@@ -44,7 +44,7 @@ async function buildMacIcon(
         [
             "-module-cache-path",
             join(directory, "swift"),
-            join(CHECKOUT, "@platform/release/src/distribution/icon.swift"),
+            join(CHECKOUT, "@platform/distribution/src/distribution/icon.swift"),
             join(BRAND_ICONS, `icon${suffix}-rounded.png`),
             padded,
         ],

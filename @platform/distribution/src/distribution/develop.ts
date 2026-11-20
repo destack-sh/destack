@@ -1,10 +1,10 @@
-import { Universe } from "@destack/update/release";
+import { Profile } from "@destack/update/release";
 import { join } from "node:path";
 import type { Environment, HostCapability } from "@destack/environment";
 import { configureApplication } from "./application.ts";
 import { CHECKOUT, releaseVersion } from "./distribution.ts";
 
-/** Run the native shell with the development identity and icons, on a device's variables. */
+/** Run the native shell with the local profile and its icons, on a device's variables. */
 export async function developDistribution(
     environment: Environment<HostCapability>,
     device: Readonly<Record<string, string>> = {},
@@ -14,7 +14,7 @@ export async function developDistribution(
     const staging = join(CHECKOUT, "dist/.build");
     await files.mkdir(staging, { recursive: true });
     const directory = await files.makeTemporaryDirectory("desktop-dev-", { directory: staging });
-    const identity = Universe.of("local");
+    const profile = new Profile("local");
     const version = releaseVersion(environment);
 
     // retain generated icons for Cargo's build and the complete interactive lifetime
@@ -22,7 +22,7 @@ export async function developDistribution(
         const configuration = await configureApplication(
             CHECKOUT,
             directory,
-            identity,
+            profile,
             version,
             environment,
         );
@@ -32,9 +32,9 @@ export async function developDistribution(
                 ...process.variables,
                 ...device,
                 TAURI_CONFIG: configuration,
-                DESTACK_UNIVERSE: identity.name,
+                DESTACK_PROFILE: profile.name,
                 DESTACK_UNIVERSE_ORIGIN:
-                    process.variables["DESTACK_UNIVERSE_ORIGIN"] ?? identity.origin,
+                    process.variables["DESTACK_UNIVERSE_ORIGIN"] ?? profile.universe,
                 CARGO_TARGET_DIR: join(CHECKOUT, "dist/.native"),
             },
             stdin: "inherit",

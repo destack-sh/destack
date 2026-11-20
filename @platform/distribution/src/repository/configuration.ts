@@ -1,5 +1,5 @@
 import type { Environment } from "@destack/environment";
-import { Universe } from "@destack/update/release";
+import { Distribution } from "@destack/update";
 import { Metadata, MetadataKind, type Root } from "@tufjs/models";
 import { TrustedRoot } from "@destack/update/publish";
 import { RELEASE_ROOT } from "@destack/update/release";
@@ -23,7 +23,7 @@ export class RepositoryConfiguration {
     /** Select the feed, below a rehearsal's origin when the environment sets one. */
     constructor(environment: Environment<"process">, options: RepositoryConfigurationOptions = {}) {
         // address the feed, the same path below a rehearsal's origin
-        const feed = Universe.of("production").feed;
+        const feed = Distribution.feed();
         const origin = environment.process.variables["DESTACK_RELEASE_ORIGIN"];
         this.url = origin === undefined ? feed : new URL(feed.pathname.slice(1), origin);
 

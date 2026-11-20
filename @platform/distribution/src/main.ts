@@ -1,6 +1,5 @@
-import { Environment, type HostCapability, LineExporter, Telemetry } from "@destack/environment";
-import { printStatus } from "./distribution/output.ts";
 import { BunEnvironment } from "@destack/environment/bun";
+import { Command } from "./distribution/output.ts";
 import { provisionAppleCredential } from "./signing/credential.ts";
 import { archiveBackup } from "./key/archive.ts";
 import { buildDistribution } from "./distribution/build.ts";
@@ -24,27 +23,8 @@ import { publishUpdate } from "./repository/upload.ts";
 import { verifyUpdate } from "./repository/verify.ts";
 import { signPlatform } from "./signing/sign.ts";
 import { verifyAttestations } from "./key/attestation.ts";
-import {
-    buildPlatform,
-    checkPlatformFormat,
-    deployPlatform,
-    diffPlatform,
-    formatPlatform,
-    initializePlatform,
-    publishPlatform,
-    sealCustody,
-    validatePlatform,
-} from "./deployment/command.ts";
-import { cliLocal, desktopLocal, resetLocal, serveLocal } from "./local/command.ts";
-import { deploySite } from "./site/site.ts";
 
-/** A release command: it runs on the host with the words after its noun and verb. */
-type Command = (
-    environment: Environment<HostCapability>,
-    arguments_: readonly string[],
-) => Promise<void>;
-
-/** The release commands by their noun and verb, each checking its own arguments. */
+/** The distribution commands by their noun and verb, each checking its own arguments. */
 const COMMANDS: Readonly<Record<string, Command>> = {
     "distribution build": buildDistribution,
     "distribution pack": packDistribution,
@@ -76,47 +56,7 @@ const COMMANDS: Readonly<Record<string, Command>> = {
     "github credential": provisionGithubCredential,
 
     "signing credential": provisionAppleCredential,
-
-    "platform validate": validatePlatform,
-    "platform format": formatPlatform,
-    "platform format-check": checkPlatformFormat,
-    "platform init": initializePlatform,
-    "platform diff": diffPlatform,
-    "platform build": buildPlatform,
-    "platform deploy": deployPlatform,
-    "platform publish": publishPlatform,
-    "custody seal": sealCustody,
-
-    "site deploy": deploySite,
-
-    "local serve": serveLocal,
-    "local reset": resetLocal,
-    "local desktop": desktopLocal,
-    "local cli": cliLocal,
 };
 
-/** The noun and verb the command line requests, followed by the command's arguments. */
-const [noun, verb, ...requestedArguments] = BunEnvironment.system.process.arguments;
-
-/** The host every command runs on, printing its records as status lines under the noun. */
-const system = Environment.instrument(
-    BunEnvironment.system,
-    Telemetry.local(
-        BunEnvironment.system.clock,
-        (line) => printStatus(noun ?? "release", line.trimEnd(), BunEnvironment.system),
-        BunEnvironment.system.telemetry.context,
-        LineExporter.options(BunEnvironment.system.process.variables),
-    ),
-);
-
-/** The command the noun and verb select. */
-const selected = COMMANDS[`${noun} ${verb}`];
-
-// run the selected command
-if (selected !== undefined) {
-    await selected(system, requestedArguments);
-}
-// refuse an unknown noun and verb
-else {
-    throw new Error(`use '${Object.keys(COMMANDS).join(", ")}'`);
-}
+// run the command the noun and verb select
+await Command.run(COMMANDS, "distribution", BunEnvironment.system);

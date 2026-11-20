@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 import { type Installer, releaseVersion } from "../distribution/index.ts";
 import { MacSigning } from "../signing/apple.ts";
 import { run } from "../distribution/command.ts";
-import { Release, Universe } from "@destack/update/release";
+import { Release, Profile } from "@destack/update/release";
 import type { Environment, HostCapability } from "@destack/environment";
 import { DISTRIBUTION_MANIFEST, DistributionManifest } from "@destack/package";
 import { DISTRIBUTION_DIRECTORY } from "@destack/update";
@@ -36,7 +36,7 @@ export async function buildMacInstaller(
     const output = join(CHECKOUT, "dist", version);
     const staging = await files.makeTemporaryDirectory("destack-macos-");
     const image = join(staging, "image");
-    const title = new Universe("production").title;
+    const title = new Profile("release").title;
     const application = join(image, `${title}.app`);
     const signing = new MacSigning(environment);
     try {

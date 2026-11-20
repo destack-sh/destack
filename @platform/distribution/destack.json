@@ -13,17 +13,10 @@
             }
         ]
     },
-    "entrypoints": [
-        "src/main.ts",
-        "src/key/tests/bitwarden.ts",
-        "src/deployment/cloudflare/universe.ts"
-    ],
+    "entrypoints": ["src/main.ts", "src/key/tests/bitwarden.ts"],
     "exports": {
         "./catalog": {
             "runtimes": ["browser", "bun", "workerd"]
-        },
-        "./deployment/universe": {
-            "runtimes": ["workerd"]
         }
     }
 }

@@ -1,9 +1,9 @@
 import { DistributionPlatform } from "@destack/package";
 import { CHECKOUT } from "./distribution.ts";
-import { Universe } from "@destack/update/release";
+import { Profile } from "@destack/update/release";
 import { checkDistribution } from "./check.ts";
 import { buildSandboxTools } from "./tools.ts";
-import { PlatformBuild } from "../deployment/index.ts";
+import { PlatformBuild } from "../build/build.ts";
 import { basename, dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Release } from "@destack/update/release";
@@ -51,7 +51,7 @@ export async function buildDistribution(
     const release = new Release(version, selected ?? Release.target(os, architecture));
     const target = release.target;
     const platform = Platform.of(target);
-    const universe = new Universe("production");
+    const profile = new Profile("release");
     if (os !== platform.system) {
         throw new Error("build desktop distributions on their target operating system");
     }
@@ -67,8 +67,8 @@ export async function buildDistribution(
     const directory = await files.makeTemporaryDirectory(`${target}-`, { directory: staging });
 
     // compile the executable, bundle the desktop and place the executable inside it
-    await compileExecutable(directory, platform, universe, version, environment);
-    const application = await bundleDesktop(directory, platform, universe, version, environment);
+    await compileExecutable(directory, platform, profile, version, environment);
+    const application = await bundleDesktop(directory, platform, profile, version, environment);
     const helpers = join(application, platform.bundle.helpers);
     await placeExecutable(directory, helpers, platform, environment);
 
@@ -97,7 +97,7 @@ export async function buildDistribution(
 async function compileExecutable(
     directory: string,
     platform: Platform,
-    universe: Universe,
+    profile: Profile,
     version: string,
     environment: Environment<HostCapability>,
 ): Promise<void> {
@@ -113,7 +113,7 @@ async function compileExecutable(
             target: platform.target,
             runtime: platform.runtime,
             version,
-            universe,
+            profile,
         },
         environment,
     );
@@ -135,17 +135,17 @@ async function compileExecutable(
 async function bundleDesktop(
     directory: string,
     platform: Platform,
-    universe: Universe,
+    profile: Profile,
     version: string,
     environment: Environment<HostCapability>,
 ): Promise<string> {
-    // build the native window with the universe's identity and icons
+    // build the native window with the profile's identity and icons
     const output = join(CHECKOUT, "dist/.native");
     const tauri = join(CHECKOUT, "@destack/desktop/node_modules/@tauri-apps/cli/tauri.js");
     const configuration = await configureApplication(
         CHECKOUT,
         output,
-        universe,
+        profile,
         version,
         environment,
     );
@@ -159,7 +159,7 @@ async function bundleDesktop(
         arguments_,
         environment,
         join(CHECKOUT, "@destack/desktop/native"),
-        { CARGO_TARGET_DIR: output, DESTACK_UNIVERSE: universe.name },
+        { CARGO_TARGET_DIR: output, DESTACK_PROFILE: profile.name },
     );
     const { files } = environment;
 
@@ -167,7 +167,7 @@ async function bundleDesktop(
     const compiled = join(output, target, "release");
     const application = join(directory, bundle.application);
     if (bundle.tauri === "app") {
-        await files.copy(join(compiled, `bundle/macos/${universe.title}.app`), application);
+        await files.copy(join(compiled, `bundle/macos/${profile.title}.app`), application);
 
         return application;
     }
@@ -183,7 +183,7 @@ async function bundleDesktop(
     if (platform.system === "linux") {
         await files.copyFile(
             fileURLToPath(
-                import.meta.resolve(`@platform/brand/icon/icon${universe.suffix}-rounded.svg`),
+                import.meta.resolve(`@platform/brand/icon/icon${profile.suffix}-rounded.svg`),
             ),
             join(application, "icon.svg"),
         );
