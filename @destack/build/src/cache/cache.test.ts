@@ -7,8 +7,8 @@ import { testWorldOptions } from "@destack/test/world";
 /** The resources of a release's application, beside its helpers. */
 const RESOURCES = "/Applications/Destack.app/Contents/Resources";
 
-/** The bundle a release's compiler runs, as its launcher starts it. */
-const SCRIPT = `${RESOURCES}/program/destack-build.js`;
+/** The bundle a release's compiler runs, embedded in its executable. */
+const SCRIPT = "/$bunfs/root/destack";
 
 /** Identify a release compiler by its runtime build, its bundle and its toolchain manifest. */
 async function identify(revision: string, bundle: string, manifest: string): Promise<string> {
@@ -24,15 +24,14 @@ async function identify(revision: string, bundle: string, manifest: string): Pro
             workingDirectory: "/",
             id: 1,
             userId: 501,
-            executable: "/Applications/Destack.app/Contents/Helpers/bun",
+            executable: "/Applications/Destack.app/Contents/Helpers/destack",
             script: SCRIPT,
             runtime: { revision, isStandalone: true },
         },
     });
     const environment = simulation.environment("compiler");
-    await environment.files.mkdir(`${RESOURCES}/program`, {
-        recursive: true,
-    });
+    await environment.files.mkdir("/$bunfs/root", { recursive: true });
+    await environment.files.mkdir(RESOURCES, { recursive: true });
     await environment.files.writeTextFile(SCRIPT, bundle);
     const shipped = Distribution.toolchainManifest(environment.host.architecture);
     await environment.files.writeTextFile(`${RESOURCES}/${shipped}`, manifest);

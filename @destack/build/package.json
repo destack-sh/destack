@@ -4,10 +4,8 @@
     "type": "module",
     "sideEffects": false,
     "description": "Compile Destack packages into one module output per runtime, and keep the builds by content.",
-    "bin": {
-        "destack-build": "./src/main.ts"
-    },
     "exports": {
+        "./main": "./src/main.ts",
         "./browser": "./src/browser.d.ts",
         "./local": "./src/local/index.ts",
         "./template": "./src/template/index.ts",

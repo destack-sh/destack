@@ -1,51 +1,60 @@
 #!/usr/bin/env bun
-// load package sources with their module metadata, which loads rolldown's native binding
-await import("@destack/package/bun/preload");
 
-// remove the binding's path, which every other native binding would load as its own
-delete process.env["NAPI_RS_NATIVE_LIBRARY_PATH"];
+/** Run the compiler, answering the host's requests on this machine. */
+export async function main(): Promise<void> {
+    // load package sources with their module metadata, which loads rolldown's native binding
+    await import("@destack/package/bun/preload");
 
-/** The environments of the machine Bun runs on. */
-const { BunEnvironment } = await import("@destack/environment/bun");
+    // remove the binding's path, which every other native binding would load as its own
+    delete process.env["NAPI_RS_NATIVE_LIBRARY_PATH"];
 
-/** The compiler's own program, package locator and definition. */
-const [{ Program }, { PackageLocator }, { DependencyName, PackageDefinition }, own] =
-    await Promise.all([
-        import("@destack/package/bun"),
-        import("@destack/package/locator"),
-        import("@destack/package"),
-        import("../destack.json", { with: { type: "json" } }),
-    ]);
+    // load the environments of the machine Bun runs on
+    const { BunEnvironment } = await import("@destack/environment/bun");
 
-/** The modules the compiler shares with the code it loads, from its compiled table or its files. */
-const program = await Program.current(
-    async () => new PackageLocator(BunEnvironment.system.files).shared(import.meta.dirname),
-    BunEnvironment.system.process.loader,
-);
+    // load the compiler's own program, package locator and definition
+    const [{ Program }, { PackageLocator }, { DependencyName, PackageDefinition }, own] =
+        await Promise.all([
+            import("@destack/package/bun"),
+            import("@destack/package/locator"),
+            import("@destack/package"),
+            import("../destack.json", { with: { type: "json" } }),
+        ]);
 
-/** The packages the compiler's definition shares, its toolchain, apart from the builtins. */
-const { shares = [] } = PackageDefinition.parse(own.default);
+    // read the modules the compiler shares with the code it loads, from its compiled table or its files
+    const program = await Program.current(
+        async () => new PackageLocator(BunEnvironment.system.files).shared(import.meta.dirname),
+        BunEnvironment.system.process.loader,
+    );
 
-// link their modules known before loading, so the extensions the compiler imports share them
-await program.link(program.specifiers.filter((each) => shares.includes(DependencyName.of(each))));
+    // read the packages the compiler's definition shares, its toolchain, apart from the builtins
+    const { shares = [] } = PackageDefinition.parse(own.default);
 
-/** The toolchain directory the compiler's starter names, required in a release. */
-const directory = BunEnvironment.system.process.variables["DESTACK_TOOLCHAIN"];
+    // link their modules known before loading, so the extensions the compiler imports share them
+    await program.link(
+        program.specifiers.filter((each) => shares.includes(DependencyName.of(each))),
+    );
 
-// refuse a release started without its toolchain
-if (BunEnvironment.system.process.runtime.isStandalone && directory === undefined) {
-    throw new Error("DESTACK_TOOLCHAIN is not set");
+    // read the toolchain directory the compiler's starter names, required in a release
+    const directory = BunEnvironment.system.process.variables["DESTACK_TOOLCHAIN"];
+
+    // refuse a release started without its toolchain
+    if (BunEnvironment.system.process.runtime.isStandalone && directory === undefined) {
+        throw new Error("DESTACK_TOOLCHAIN is not set");
+    }
+
+    // load the tools on disk: a checked-out toolchain, or a workspace's packages
+    const { Toolchain } = await import("@destack/check/toolchain");
+
+    // select the named toolchain, else the workspace's
+    const toolchain = directory === undefined ? Toolchain.workspace() : Toolchain.at(directory);
+
+    // answer the host's requests on this machine
+    await (
+        await import("./build/worker.ts")
+    ).CompilerWorker.run(program, toolchain, BunEnvironment.system);
 }
 
-/** The tools on disk: a checked-out toolchain, or a workspace's packages. */
-const { Toolchain } = await import("@destack/check/toolchain");
-
-/** The tools the compiler runs: the named toolchain, else the workspace's. */
-const toolchain = directory === undefined ? Toolchain.workspace() : Toolchain.at(directory);
-
-// answer the host's requests on this machine
-await (
-    await import("./build/worker.ts")
-).CompilerWorker.run(program, toolchain, BunEnvironment.system);
-
-export {};
+// run the compiler as a program
+if (import.meta.main) {
+    await main();
+}

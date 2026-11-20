@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { Sandbox } from "@destack/sandbox";
 import { Toolchain } from "@destack/check/toolchain";
 import { Distribution } from "@destack/update";
+import { Release } from "@destack/update/release";
 import { FamilyError } from "@destack/error";
 import { BuildError } from "../error/index.ts";
 import { locateWorkspace } from "@destack/check/workspace";
@@ -32,9 +33,6 @@ import type {} from "@destack/package/import-meta";
 import { TelemetryScope } from "@destack/telemetry";
 import { OtlpExport } from "@destack/telemetry/otlp";
 
-/** The compiler executable beside a standalone Destack executable. */
-const EXECUTABLE = "destack-build";
-
 /** The build store's directory of the files transforms derive. */
 const TRANSFORM_DIRECTORY = "transforms";
 
@@ -58,7 +56,7 @@ export interface CompilerCommand {
 
 /** The commands that start the compiler: a release's beside its executables, or from source. */
 export const CompilerCommand = {
-    /** Find the released `destack-build` beside an executable, running a toolchain. */
+    /** Start a release's executable as its build process, running a toolchain. */
     beside(
         executable: string,
         toolchain: Toolchain,
@@ -71,16 +69,15 @@ export const CompilerCommand = {
         }
 
         // load rolldown's native binding from where the release lays it out in its resources
-        const compiler = join(dirname(executable), EXECUTABLE);
         const resources = Distribution.resources(executable);
         const platform = Toolchain.platform(environment.host);
         const binding = join(resources, "node_modules", "@rolldown", `binding-${platform}`);
 
         return {
-            executable: compiler,
-            arguments: [],
-            // read the launchers', the resources' and the toolchain's directories
-            read: [dirname(compiler), resources, directory],
+            executable,
+            arguments: Release.arguments("build"),
+            // read the executable's, the resources' and the toolchain's directories
+            read: [dirname(executable), resources, directory],
             variables: {
                 NAPI_RS_NATIVE_LIBRARY_PATH: join(binding, `rolldown-binding.${platform}.node`),
                 DESTACK_TOOLCHAIN: directory,
