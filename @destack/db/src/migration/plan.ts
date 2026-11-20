@@ -13,7 +13,7 @@ import { bridgeTriggers } from "./bridge.ts";
 import type { TriggerSet } from "./trigger.ts";
 import type { Merge } from "./merge.ts";
 import { canonicalize, Edition, present, Version } from "@destack/schema";
-import { Address, Plan, type Action, type Risk, type Step } from "@destack/resource";
+import { Address, Plan, type Risk, type Step, type StepKind } from "@destack/resource";
 import { type PlanProblem, ResourceError, unreachablePlan } from "@destack/resource/error";
 
 /** The generated triggers every plan removes and reinstalls. */
@@ -1195,7 +1195,7 @@ function filledColumns(
 
 /** Build a step. */
 function step(
-    action: Action,
+    action: StepKind,
     target: Address,
     risk: Risk,
     detail: string,
