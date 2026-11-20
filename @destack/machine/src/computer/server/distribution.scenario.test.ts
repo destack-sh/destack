@@ -2,7 +2,7 @@ import { testHost } from "@destack/test/host";
 import { join } from "node:path";
 import { RequestId } from "@destack/sync";
 import { expect, refusal, test } from "@destack/test";
-import { Distribution, Release, Universe } from "@destack/update";
+import { Distribution, Release, Profile } from "@destack/update";
 import { distribution } from "@destack/update/object";
 import updatePackage from "@destack/update/package";
 import { SignedRepository } from "@destack/update/publish";
@@ -36,7 +36,7 @@ test("record this machine's distribution, stage the published release and hand i
         running: new Release("2026.9.0", repository.target),
         executable: join(home, "bin", "destack"),
         applications: join(home, "Applications"),
-        universe: new Universe("production"),
+        profile: new Profile("release"),
         environment: repository.environment,
     });
     try {
@@ -105,7 +105,7 @@ test("report a universe its repository refuses as the controller's failure", asy
             running: new Release("2026.9.0", "x86_64-unknown-linux-gnu"),
             executable: join(home, "bin", "destack"),
             applications: join(home, "Applications"),
-            universe: new Universe("production"),
+            profile: new Profile("release"),
             environment: fixture.environment,
         });
 

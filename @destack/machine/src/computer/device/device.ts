@@ -150,7 +150,7 @@ export class Device<
     ): Promise<Device<MachineCredential>> {
         const home = UniverseHome.current(environment);
 
-        return Device.open({ home: home.directory, environment, universe: home.universe.origin });
+        return Device.open({ home: home.directory, environment, universe: home.universe });
     }
 
     /** Create the device and its local objects at the machine's first start, with the keychain. */
