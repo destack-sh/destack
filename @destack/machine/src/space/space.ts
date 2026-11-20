@@ -19,6 +19,7 @@ import {
 } from "@destack/access";
 import { Exchange, PartitionId } from "@destack/access/token";
 import { type Identity, IdentityKeystore, type IdentityRegistry } from "@destack/account/identity";
+import type { UniverseOrigin } from "@destack/account/address";
 import accountPackage from "@destack/account/package";
 import {
     and,
@@ -327,8 +328,8 @@ export class Space {
     readonly volume: Volume;
     /** The keystore of the space's keys under the machine's keyring. */
     readonly keystore: IdentityKeystore;
-    /** The account package's URL at the universe, and the universe's issuer. */
-    readonly universe: { readonly accounts: string; readonly issuer: string };
+    /** The universe the space's machine enrolled at. */
+    readonly universe: UniverseOrigin;
     /** The space's blobs, stored while its rows reference them. */
     readonly blobs: BlobStore;
     /** The space's own builds, over the machine's shipped layer and builds. */
@@ -549,11 +550,6 @@ export class Space {
                     const { servers, isolates } = await this.#servers(start.installed, start);
                     const store = openStore(this, start, this.#storeServers(servers), isolates);
                     start.store.resolve(store);
-
-                    // instantiate a primary placed here before it serves
-                    if (start.role === "primary") {
-                        await this.#place(this.id, store, this.machine.volumes.main);
-                    }
                     start.gateway.resolve(new Gateway(this, start, store));
 
                     return {
@@ -968,7 +964,7 @@ export class Space {
     /** Call packages with a credential through the machine's network, toward its universe. */
     session(credential: Credential): Session {
         return new Session(credential, {
-            universe: new URL(this.universe.issuer).origin,
+            universe: this.universe.origin,
             send: (request) => this.machine.send(request),
             bookmark: new Bookmark(),
             environment: this.machine.environment,
@@ -980,7 +976,7 @@ export class Space {
         return createClient(
             accountPackage,
             {
-                url: this.universe.accounts,
+                url: PackageMount.url(this.universe.origin, accountPackage.id),
                 fetch:
                     subject === undefined
                         ? this.machine.fetch(accountPackage.id)
@@ -1053,7 +1049,7 @@ export class Space {
                 : (request: Request) =>
                       this.identityOf(subject).granted.authorize(request, accountPackage.id, {});
         const connection = ObjectConnection.open({
-            url: ObjectConnection.url(this.universe.accounts),
+            url: ObjectConnection.url(PackageMount.url(this.universe.origin, accountPackage.id)),
             authorize,
             environment: this.machine.environment,
         });
@@ -2153,15 +2149,6 @@ export class Space {
         resolved: ResolvedStack,
     ): Promise<void> {
         await Transaction.run(this.database, async (transaction) => {
-            // leave a space instantiated already, as its start and its placement both instantiate it
-            const [instantiated] = await transaction
-                .view()
-                .read(Scope.table)
-                .findMany({ where: { scope: spaceId } });
-            if (instantiated !== undefined) {
-                return;
-            }
-
             // receive its scope, create its main database and follow its stack
             await this.#receive(store, spaceId, ancestors, transaction);
             await this.#createMain(store, main, spaceId, transaction);
