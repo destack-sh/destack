@@ -33,6 +33,14 @@ const document = defineTable("document", {
         .references(() => folderTwo.id),
 });
 
+/** Pages, each in a folder. */
+const page = defineTable("page", {
+    id: text("id").primaryKey(),
+    folderId: text("folder_id")
+        .notNull()
+        .references(() => folderTwo.id),
+});
+
 /** Another package's release, declaring its documents' attachments. */
 const ATTACHMENT_RELEASE = {
     package: PackageVersion.parse({
@@ -318,6 +326,19 @@ test("drop only the applied tables of the migrating manager that it leaves out",
     // drop the tasks once their manager leaves them out
     const dropped = await database.migrate([], { manager: "tasks" });
     expect(review(dropped)).toEqual([`destructive delete table/${table(taskOne)}: drop table`]);
+});
+
+test("drop a referencing table before the table it references", async () => {
+    // apply the folders and the pages referencing them, then leave both out
+    const database = await open([]);
+    await database.migrate([folderTwo, page], { manager: "files" });
+    const dropped = await database.migrate([], { manager: "files" });
+
+    // drop the pages first, as their foreign key blocks dropping the folders
+    expect(review(dropped)).toEqual([
+        `destructive delete table/${table(page)}: drop table`,
+        `destructive delete table/${table(folderTwo)}: drop table`,
+    ]);
 });
 
 test("refuse taking over a table another manager applied, leaving it as applied", async () => {

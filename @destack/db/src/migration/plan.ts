@@ -156,7 +156,7 @@ export function planTables(input: PlanInput): TablePlan {
     steps.push(...declared.flatMap((state) => globalIndexSteps(state, applied, input.namespace)));
 
     // drop applied tables no longer declared, except a newer release's tables
-    const dropped = droppedTables(declared, remaining);
+    const dropped = droppedTables(declared, remaining, problems);
     for (const name of dropped) {
         const previous = present(remaining.get(name), `the applied state of ${name}`);
         steps.push(
@@ -599,10 +599,11 @@ function foreignKeySteps(created: readonly TableDescription[]): TableStep[] {
     );
 }
 
-/** List the remaining applied tables to drop. */
+/** List the applied tables to drop, each table before the tables it references. */
 function droppedTables(
     declared: readonly TableState[],
     remaining: ReadonlyMap<string, TableState>,
+    problems: Problem[],
 ): string[] {
     // find each declared package's newest release
     const releases = new Map<string, Version>();
@@ -613,14 +614,49 @@ function droppedTables(
         }
     }
 
-    // drop the tables of no newer release
-    return [...remaining.values()]
+    // take the tables of no newer release
+    let pending = [...remaining.values()]
         .filter((previous) => {
             const release = releases.get(previous.package.id);
 
             return release === undefined || Version.compare(previous.package.version, release) <= 0;
         })
-        .map((previous) => previous.table.name);
+        .map((previous) => previous.table);
+
+    // drop the tables in layers, as a foreign key blocks dropping the table it references
+    const ordered: string[] = [];
+    let layer = unreferencedTables(pending);
+    while (layer.length > 0) {
+        const names = layer.map((table) => table.name);
+        ordered.push(...names);
+        pending = pending.filter((table) => !names.includes(table.name));
+        layer = unreferencedTables(pending);
+    }
+
+    // refuse the tables left, whose foreign keys form a cycle
+    problems.push(
+        ...pending.map((table) => ({
+            target: Address.join("table", table.name),
+            detail: "drop table: its foreign keys form a cycle",
+        })),
+    );
+
+    return ordered;
+}
+
+/** Select the tables that no other table in the list references. */
+function unreferencedTables(tables: readonly TableDescription[]): TableDescription[] {
+    // collect the names the foreign keys point at, leaving out a table's own name
+    const referenced = new Set(
+        tables.flatMap((table) =>
+            table.constraints
+                .filter((constraint) => constraint.kind === "foreignKey")
+                .map((key) => key.table)
+                .filter((name) => name !== table.name),
+        ),
+    );
+
+    return tables.filter((table) => !referenced.has(table.name));
 }
 
 /** Remove the applied generated triggers before changed steps and install declared ones after. */
