@@ -336,7 +336,8 @@ jobs:
 
     publish:
         name: Publish release
-        needs: [prepare, sign]
+        # publish the clients only onto a deployed production, so no client runs ahead of its servers
+        needs: [prepare, sign, deploy]
         if: needs.prepare.outputs.publish == 'true'
         runs-on: ubuntu-24.04
         timeout-minutes: 20
