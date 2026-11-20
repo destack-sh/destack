@@ -20,10 +20,10 @@ install:
 update:
     bun update
 
-# build the site and the release
+# build the site and the distribution
 build:
     bun run --cwd @platform/site build
-    bun run --cwd @platform/release build
+    bun run --cwd @platform/distribution build
 
 # generate the site's pricing and headwords
 generate:
@@ -293,11 +293,11 @@ postgres action:
 [positional-arguments]
 local *arguments:
     @case "${1:-serve}" in serve | reset) just postgres up ;; esac
-    @bun run --cwd @platform/release local "$@"
+    @bun run --cwd @platform/deployment local "$@"
 
 # pack
 pack target="":
-    bun run --cwd @platform/release pack {{target}}
+    bun run --cwd @platform/distribution pack {{target}}
 
 # serve the company site locally
 company-dev:
