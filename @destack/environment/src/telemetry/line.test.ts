@@ -96,7 +96,7 @@ test("write each info span as one line once it ends with its trace, a failed one
     ).toEqual([
         "INFO  notes.open duration_ms=… trace_id=#0 span_id=#1 parent_span_id=#2\n",
         "INFO  notes.start notes.count=2 duration_ms=… trace_id=#0 span_id=#2\n",
-        "ERROR notes.load error.type=INTERNAL_SERVER_ERROR duration_ms=… trace_id=#3 span_id=#4\n",
+        'ERROR notes.load error.type=INTERNAL_SERVER_ERROR error.message="the disk is gone" duration_ms=… trace_id=#3 span_id=#4\n',
     ]);
 });
 

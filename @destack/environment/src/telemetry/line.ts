@@ -102,6 +102,9 @@ export class LineExporter {
         const severity = isFailed ? SeverityNumber.ERROR : SeverityNumber.INFO;
         const line = this.#render(at, isFailed ? "ERROR" : "INFO", span.name, {
             ...attributes,
+            ...(isFailed && span.status.message !== undefined
+                ? { "error.message": span.status.message }
+                : {}),
             duration_ms: duration,
             trace_id: traceId,
             span_id: spanId,
