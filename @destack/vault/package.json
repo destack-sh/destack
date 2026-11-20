@@ -32,7 +32,7 @@
     "peerDependencies": {
         "@destack/environment": "workspace:*",
         "@destack/test": "workspace:*",
-        "@destack/control": "workspace:*"
+        "@destack/universe": "workspace:*"
     },
     "peerDependenciesMeta": {
         "@destack/environment": {
@@ -41,12 +41,12 @@
         "@destack/test": {
             "optional": true
         },
-        "@destack/control": {
+        "@destack/universe": {
             "optional": true
         }
     },
     "devDependencies": {
-        "@destack/control": "workspace:*",
+        "@destack/universe": "workspace:*",
         "@destack/environment": "workspace:*",
         "@destack/machine": "workspace:*",
         "@destack/test": "workspace:*",
