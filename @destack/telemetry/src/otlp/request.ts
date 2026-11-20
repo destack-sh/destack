@@ -1,15 +1,20 @@
 import type { Attributes, HrTime } from "@opentelemetry/api";
 import { hrTimeDuration } from "@opentelemetry/core";
-import { JsonTraceSerializer } from "@opentelemetry/otlp-transformer";
+import {
+    JsonLogsSerializer,
+    JsonMetricsSerializer,
+    JsonTraceSerializer,
+} from "@opentelemetry/otlp-transformer";
 import { resourceFromAttributes } from "@opentelemetry/resources";
 import type { ReadableLogRecord } from "@opentelemetry/sdk-logs";
+import type { ResourceMetrics } from "@opentelemetry/sdk-metrics";
 import type { ReadableSpan } from "@opentelemetry/sdk-trace";
 import { schema } from "@destack/schema";
 import { StackFrame } from "@destack/package/stack";
 import { TelemetryError } from "../error/error.ts";
 import { FRAMES_ATTRIBUTE, type OtlpSignal } from "./exporter.ts";
 
-/** The resource attributes the forwarding machine sets on each export, by emitter field. */
+/** The resource attributes a forwarding machine sets, by emitter field. */
 export const EMITTER_ATTRIBUTES = {
     installation: "destack.installation.id",
     instance: "service.instance.id",
@@ -19,14 +24,14 @@ export const EMITTER_ATTRIBUTES = {
     userAgent: "user_agent.original",
 } as const;
 
-/** The field of an export request keeping its resources' groups, by signal. */
+/** The field holding an export's resource groups, by signal. */
 const RESOURCE_GROUPS = {
     logs: "resourceLogs",
     traces: "resourceSpans",
     metrics: "resourceMetrics",
 } as const;
 
-/** A 64-bit integer as OTLP/JSON writes it: a decimal string, or a number when small. */
+/** A 64-bit integer in OTLP/JSON: a decimal string or a number. */
 const Integer = schema.union([schema.string().regex(/^-?\d+$/u), schema.number().int()]);
 
 /** An OTLP attribute value. */
@@ -43,7 +48,7 @@ export type OtlpValue = {
 /** An OTLP attribute. */
 export type OtlpKeyValue = { readonly key: string; readonly value?: OtlpValue };
 
-/** An OTLP attribute value, recursive through arrays and key-value lists. */
+/** An OTLP attribute value, recursive. */
 const OtlpValue: schema.Schema<OtlpValue> = schema.lazy(() =>
     schema.looseObject({
         stringValue: schema.string().exactOptional(),
@@ -90,7 +95,7 @@ const OptionalSpan = schema
     .regex(/^(?:[0-9a-f]{16})?$/u)
     .exactOptional();
 
-/** An OTLP attribute keeping an exception's symbolicated frames as JSON text. */
+/** The attribute holding an exception's symbolicated frames. */
 const FramesEntry = schema.looseObject({
     key: schema.literal(FRAMES_ATTRIBUTE),
     value: schema.looseObject({ stringValue: schema.string() }),
@@ -212,7 +217,7 @@ const OtlpBuckets = schema
     })
     .default({ offset: 0, bucketCounts: [] });
 
-/** An OTLP/JSON metrics export request, of delta sums, gauges and exponential histograms. */
+/** An OTLP/JSON metrics export request. */
 export const OtlpMetricsRequest = schema.looseObject({
     resourceMetrics: schema
         .array(
@@ -296,9 +301,23 @@ export class OtlpExport {
         return new OtlpExport("traces", body);
     }
 
-    /** Read a traces export's spans as ended spans, keeping their identifiers and times. */
+    /** Export one resource's metrics as an OTLP/JSON metrics request. */
+    static metrics(metrics: ResourceMetrics): OtlpExport {
+        const bytes = JsonMetricsSerializer.serializeRequest(metrics);
+
+        return new OtlpExport("metrics", JSON.parse(new TextDecoder().decode(bytes)));
+    }
+
+    /** Export log records as an OTLP/JSON logs request. */
+    static logs(records: readonly ReadableLogRecord[]): OtlpExport {
+        const bytes = JsonLogsSerializer.serializeRequest([...records]);
+
+        return new OtlpExport("logs", JSON.parse(new TextDecoder().decode(bytes)));
+    }
+
+    /** Read a traces export's spans as ended spans. */
     spans(): ReadableSpan[] {
-        // read each scope's spans below its resource
+        // read each scope's spans
         const request = this.#read(OtlpTracesRequest);
 
         return request.resourceSpans.flatMap(({ resource, scopeSpans }) => {
@@ -306,7 +325,7 @@ export class OtlpExport {
 
             return scopeSpans.flatMap(({ scope, spans }) =>
                 spans.map((span): ReadableSpan => {
-                    // read the span's context, its parent's, and its times
+                    // read the span's context and times
                     const context = { traceId: span.traceId, spanId: span.spanId, traceFlags: 1 };
                     const parent =
                         span.parentSpanId === undefined || span.parentSpanId === ""
@@ -345,9 +364,9 @@ export class OtlpExport {
         });
     }
 
-    /** Read a logs export's records as emitted records, with their times and spans. */
+    /** Read a logs export's records as emitted records. */
     records(): ReadableLogRecord[] {
-        // read each scope's records below its resource
+        // read each scope's records
         const request = this.#read(OtlpLogsRequest);
 
         return request.resourceLogs.flatMap(({ resource, scopeLogs }) => {
@@ -355,14 +374,14 @@ export class OtlpExport {
 
             return scopeLogs.flatMap(({ scope, logRecords }) =>
                 logRecords.map((record): ReadableLogRecord => {
-                    // read the record's times, the observed one standing in for a missing one
+                    // read the record's times
                     const observed = hrTimeOf(record.observedTimeUnixNano ?? 0);
                     const at =
                         record.timeUnixNano === undefined
                             ? observed
                             : hrTimeOf(record.timeUnixNano);
 
-                    // read the span the record was emitted in, where it names one
+                    // read the record's span
                     const context =
                         record.traceId === undefined ||
                         record.traceId === "" ||
@@ -390,9 +409,9 @@ export class OtlpExport {
         });
     }
 
-    /** Read the request by a schema of its signal, refusing a body it does not match. */
+    /** Parse the request by its signal's schema. */
     #read<Request>(shape: schema.Schema<Request>): Request {
-        // refuse it naming each mismatch at its path
+        // refuse it with each mismatch
         const parsed = shape.safeParse(this.body);
         if (!parsed.success) {
             const issues = parsed.error.issues.map(
@@ -407,9 +426,9 @@ export class OtlpExport {
         return parsed.data;
     }
 
-    /** Set the emitter a forwarding machine knows on each resource, refusing a claimed emitter. */
+    /** Set the known emitter on each resource, refusing a claimed one. */
     stamp(emitter: Readonly<Partial<Record<keyof typeof EMITTER_ATTRIBUTES, string>>>): OtlpExport {
-        // refuse resources claiming the forwarder's emitter attribute
+        // refuse resources claiming the emitter
         const groups = RESOURCE_GROUPS[this.signal];
         const request = this.#read(
             schema.looseObject({
@@ -432,7 +451,7 @@ export class OtlpExport {
             );
         }
 
-        // append the known attributes as text to each resource's own
+        // append the known attributes
         const known = Object.entries(EMITTER_ATTRIBUTES).flatMap(([name, key]) => {
             const value: unknown = Reflect.get(emitter, name);
 
@@ -446,7 +465,7 @@ export class OtlpExport {
         return new OtlpExport(this.signal, { ...request, [groups]: stamped });
     }
 
-    /** Attribute the frames of the exceptions the export's logs and span events keep. */
+    /** Attribute the exception frames in the export's logs and span events. */
     async attribute(
         attribute: (frames: readonly StackFrame[]) => Promise<StackFrame[]>,
     ): Promise<OtlpExport> {
@@ -476,27 +495,27 @@ export class OtlpExport {
 
             return new OtlpExport(this.signal, request);
         }
-        // keep metrics, which record no exceptions
+        // keep metrics as they are
         else {
             return this;
         }
     }
 }
 
-/** Attribute the symbolicated frames an exception's attributes keep, leaving other attributes. */
+/** Attribute an exception's symbolicated frames. */
 async function attributeFrames(
     attributes: OtlpAttributes,
     attribute: (frames: readonly StackFrame[]) => Promise<StackFrame[]>,
 ): Promise<OtlpAttributes> {
     return Promise.all(
         attributes.map(async (entry) => {
-            // leave an attribute other than the frames
+            // keep other attributes
             const frames = FramesEntry.safeParse(entry);
             if (!frames.success) {
                 return entry;
             }
 
-            // rewrite the frames as their build attributes them
+            // rewrite the frames
             const read = StackFrame.array().parse(JSON.parse(frames.data.value.stringValue));
 
             return { ...entry, value: { stringValue: JSON.stringify(await attribute(read)) } };
@@ -504,7 +523,7 @@ async function attributeFrames(
     );
 }
 
-/** The nanoseconds in a second, as OTLP times count nanoseconds since the epoch. */
+/** Nanoseconds per second. */
 const NANOSECONDS_PER_SECOND = 1_000_000_000n;
 
 /** Read an OTLP time in nanoseconds as seconds and nanoseconds. */
@@ -514,7 +533,7 @@ function hrTimeOf(nanoseconds: string | number): HrTime {
     return [Number(total / NANOSECONDS_PER_SECOND), Number(total % NANOSECONDS_PER_SECOND)];
 }
 
-/** Read OTLP attributes as span attributes, leaving out values spans cannot hold. */
+/** Read OTLP attributes as span attributes. */
 function attributesOf(attributes: OtlpAttributes): Attributes {
     return Object.fromEntries(
         attributes.flatMap(({ key, value }) => {
@@ -525,7 +544,7 @@ function attributesOf(attributes: OtlpAttributes): Attributes {
     );
 }
 
-/** Read an OTLP value as an attribute value: a scalar, or an array of scalars. */
+/** Read an OTLP value as an attribute value. */
 function valueOf(value: OtlpValue): Attributes[string] {
     // read a scalar
     if (value.stringValue !== undefined) {
@@ -537,7 +556,7 @@ function valueOf(value: OtlpValue): Attributes[string] {
     } else if (value.doubleValue !== undefined) {
         return value.doubleValue;
     }
-    // read an array of strings, numbers or booleans alike
+    // read an array of scalars
     else if (value.arrayValue !== undefined) {
         const items = (value.arrayValue.values ?? []).map((item) => valueOf(item));
         const strings = items.filter((item) => typeof item === "string");
@@ -552,7 +571,7 @@ function valueOf(value: OtlpValue): Attributes[string] {
                 ? booleans
                 : undefined;
     }
-    // leave bytes and key-value lists out
+    // drop bytes and key-value lists
     else {
         return undefined;
     }
