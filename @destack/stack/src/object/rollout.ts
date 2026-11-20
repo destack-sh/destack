@@ -903,6 +903,7 @@ export const InstallationRevision = {
                       export: inputs.export,
                       parameters: inputs.parameters,
                       settings: inputs.settings,
+                      routes: inputs.routes,
                       bindings,
                   },
             crypto,

@@ -3,7 +3,7 @@ import { AWAITING_APPROVAL, PackageDirectory } from "@destack/object";
 import { ObjectReference } from "@destack/sync";
 import { StackDefinition } from "../declare/index.ts";
 
-/** A stack's evaluation: its export, arguments, settings, and the definition they give. */
+/** A stack's evaluation: its export, arguments, placed settings and routes, and its definition. */
 export const StackEvaluation = schema.object({
     /** The exported definition or parameterised function. */
     export: schema.string().min(1),
@@ -11,6 +11,8 @@ export const StackEvaluation = schema.object({
     parameters: schema.jsonObject(),
     /** The setting values of the space's stack the export read, none for another package's. */
     settings: schema.record(schema.string(), schema.json()),
+    /** The routes of the space's stack the export read, none for another package's. */
+    routes: schema.record(schema.string(), schema.jsonObject()),
     /** The evaluated stack definition. */
     definition: StackDefinition,
 });

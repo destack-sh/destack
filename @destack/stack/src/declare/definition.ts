@@ -25,6 +25,8 @@ const StackCollections = schema.looseObject({
     installations: schema.record(schema.string(), InstallationDefinition).default({}),
     /** The setting values the stack places, by key. */
     settings: schema.jsonObject().default({}),
+    /** The routes the stack declares, by key. */
+    routes: schema.jsonObject().default({}),
 });
 
 /** A stack definition as JSON, keyed by collection and validated by each object when applied. */
@@ -37,12 +39,15 @@ export const StackDefinition = Object.assign(schema.jsonObject(), {
         return StackCollections.parse(definition);
     },
 
-    /** Read the stack a package declares at an export, requiring every installation it binds to. */
+    /** Read the stack a package declares at an export with what its space places in it. */
     async declared(
         reader: BuildReader,
         releases: readonly DependencyRelease[],
         name: string,
-        settings: Readonly<Record<string, JsonValue>>,
+        placed: {
+            readonly settings: Readonly<Record<string, JsonValue>>;
+            readonly routes: Readonly<Record<string, JsonObject>>;
+        },
         read: (packageId: PackageId, manifest: Digest) => Promise<BuildReader>,
     ): Promise<JsonObject> {
         // require the package's stack declared at the export the name has
@@ -139,7 +144,8 @@ export const StackDefinition = Object.assign(schema.jsonObject(), {
 
         return StackDefinition.parse({
             ...declared,
-            settings: { ...document.settings, ...StackDefinition.placed(settings) },
+            settings: { ...document.settings, ...StackDefinition.placed(placed.settings) },
+            routes: { ...document.routes, ...placed.routes },
         });
     },
 
