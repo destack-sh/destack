@@ -24,8 +24,9 @@ import {
 /** The start of a statement that may only read: SELECT, or common tables ahead of one. */
 const READ = /^\s*(?:SELECT|WITH)\b/iu;
 
-/** A verb that writes, as a main statement, a common table's body or a row lock. */
-const WRITING = /\b(?:INSERT|UPDATE|DELETE)\b|\bREPLACE\s+INTO\b/iu;
+/** A verb that writes, or a SQLite function reading the connection rather than the database. */
+const WRITING =
+    /\b(?:INSERT|UPDATE|DELETE)\b|\bREPLACE\s+INTO\b|\b(?:changes|total_changes|last_insert_rowid)\s*\(/iu;
 
 /** A statement's quoted spans: string literals and quoted identifiers. */
 const QUOTED = /'(?:[^']|'')*'|"(?:[^"]|"")*"/gu;

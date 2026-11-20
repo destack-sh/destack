@@ -166,6 +166,11 @@ export class DurableObjectQuery implements SqliteQueryClient {
 
 /** A connection client over Durable Object SQLite storage, one transaction at a time. */
 export class DurableObjectClient extends DurableObjectQuery implements SqliteConnectionClient {
+    /** Read through this connection alone, which serves every read already. */
+    reader(): undefined {
+        return undefined;
+    }
+
     /** Wait for a queued client's work, leaving the storage to its Durable Object. */
     async close(): Promise<void> {
         // wait for the queued work of a queued client

@@ -44,6 +44,8 @@ export interface Session {
     readonly run: (text: string, parameters: readonly DriverValue[]) => Promise<number>;
     /** Run a script of statements in one round trip. */
     readonly exec: (script: string) => Promise<void>;
+    /** Answer the session reads run through, a reader beside the writer where one exists. */
+    readonly reader: () => Session;
     /** Commit work in a transaction, or in a savepoint within one, rolling back when it fails. */
     readonly transaction: <Value>(
         operation: (session: Session) => Promise<Value>,
@@ -105,6 +107,13 @@ export class SqliteSession implements Session {
     /** Run a script of statements in one round trip. */
     async exec(script: string): Promise<void> {
         await this.client.exec(script);
+    }
+
+    /** Answer the connection's reader outside a transaction, else this session. */
+    reader(): Session {
+        const reader = this.#connection?.reader();
+
+        return reader === undefined ? this : new SqliteSession(reader, this.#scheduler);
     }
 
     /** Commit work in a transaction, immediate unless read-only, or nest it in a savepoint. */
@@ -197,6 +206,11 @@ export class PostgresSession implements Session {
     /** Run a script of statements as one simple query, one implicit transaction outside one. */
     async exec(script: string): Promise<void> {
         await this.#statement((client) => client.unsafe(script).simple().execute());
+    }
+
+    /** Answer this session, as a pool reads beside its writers already. */
+    reader(): Session {
+        return this;
     }
 
     /** Commit work in a transaction on a reserved connection, or nest it in a savepoint. */

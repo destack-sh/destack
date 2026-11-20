@@ -227,7 +227,10 @@ export class DatabaseDriver {
 
         // read, or announce every write
         return statement.isRead
-            ? this.run(() => failing(statement, query(this.session), this.state), statement)
+            ? this.run(
+                  () => failing(statement, query(this.session.reader()), this.state),
+                  statement,
+              )
             : this.write(
                   (session) => failing(statement, query(session), this.state),
                   statement,
