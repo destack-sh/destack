@@ -11,7 +11,7 @@ concurrency:
 
 defaults:
     run:
-        working-directory: "@platform/release"
+        working-directory: "@platform/distribution"
 
 jobs:
     prepare:
@@ -77,6 +77,9 @@ jobs:
 
     releases:
         name: Build first-party releases
+        defaults:
+            run:
+                working-directory: "@platform/deployment"
         needs: [prepare]
         if: needs.prepare.outputs.build == 'true'
         runs-on: ubuntu-24.04
@@ -451,6 +454,9 @@ jobs:
 
     deploy:
         name: Deploy production
+        defaults:
+            run:
+                working-directory: "@platform/deployment"
         needs: [prepare, releases]
         # deploy the built releases beside the desktop's signing, on the roots and keys the operator applied once
         if: needs.prepare.outputs.publish == 'true'
@@ -503,6 +509,9 @@ jobs:
 
     deploy-site:
         name: Deploy site
+        defaults:
+            run:
+                working-directory: "@platform/deployment"
         needs: [prepare, publish]
         # deploy the site the release's install buttons point at, from the released commit
         if: needs.prepare.outputs.publish == 'true'
