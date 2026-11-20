@@ -176,12 +176,14 @@ test("route nested routes, streams and installation mounts to their space", asyn
     ]);
 });
 
-test("route a name to its installation, S3 origin or route, redirecting former names", async () => {
-    // serve work--ada here and route notes.acme.com/blog to a route of another space
+test("route a name to its installation, S3 origin or route, redirecting moved spaces", async () => {
+    // serve work--ada here, route notes.acme.com/blog to a route of another space, placed in us
     const ROUTED = "space-01996ab0-0000-7000-8000-000000000003";
     const ROUTE = "route-01996ab0-0000-7000-8000-000000000004";
     const names = {
         ...ORIGINS,
+        locate: async (space: string) =>
+            space === ROUTED ? "https://us.destack.cloud" : "https://eu.destack.cloud",
         route: async (host: string, path: string) =>
             host === "notes.acme.com" && path.startsWith("/blog")
                 ? { scope: ROUTED, id: schema.identifier("route").parse(ROUTE) }
@@ -199,8 +201,10 @@ test("route a name to its installation, S3 origin or route, redirecting former n
             "https://notes.acme.com/shop",
             "https://notes--jobs--ada.destack.space/board?view=week",
             "https://notes--work--lovelace.destack.space/",
+            `https://eu.destack.cloud/spaces/${SPACE}/notes?view=week`,
+            `https://eu.destack.cloud/spaces/${ROUTED}/notes?view=week`,
         ].map(async (url) => {
-            const found = await SpaceRequest.named(new Request(url), names);
+            const found = await SpaceRequest.host(new Request(url), names);
 
             return found === undefined
                 ? undefined
@@ -213,7 +217,7 @@ test("route a name to its installation, S3 origin or route, redirecting former n
         }),
     );
 
-    // move the former name and handle to the current origin, keeping the path and query
+    // move a former name and handle to the current origin, and a space served elsewhere to its machine
     expect(named).toEqual([
         [SPACE, null, null, null],
         [SPACE, null, null, null],
@@ -221,15 +225,33 @@ test("route a name to its installation, S3 origin or route, redirecting former n
         undefined,
         undefined,
         undefined,
-        [SPACE, null, null, "https://notes--work--ada.destack.space/board?view=week"],
-        [SPACE, null, null, "https://notes--work--ada.destack.space/"],
+        [
+            SPACE,
+            null,
+            null,
+            { kind: "renamed", url: "https://notes--work--ada.destack.space/board?view=week" },
+        ],
+        [SPACE, null, null, { kind: "renamed", url: "https://notes--work--ada.destack.space/" }],
+        [SPACE, null, null, null],
+        [
+            ROUTED,
+            null,
+            null,
+            {
+                kind: "placed",
+                url: `https://us.destack.cloud/spaces/${ROUTED}/notes?view=week`,
+            },
+        ],
     ]);
 
-    // answer a moved request with a permanent redirect that keeps its method and body
-    const moved = SpaceRequest.move("https://notes--work--ada.destack.space/board?view=week");
-    expect([moved.status, moved.headers.get("location")]).toEqual([
-        308,
-        "https://notes--work--ada.destack.space/board?view=week",
+    // redirect a renamed request for good and a placed one for now, both keeping method and body
+    const moved = [
+        SpaceRequest.move({ kind: "renamed", url: "https://notes--work--ada.destack.space/" }),
+        SpaceRequest.move({ kind: "placed", url: `https://us.destack.cloud/spaces/${ROUTED}/` }),
+    ];
+    expect(moved.map((response) => [response.status, response.headers.get("location")])).toEqual([
+        [308, "https://notes--work--ada.destack.space/"],
+        [307, `https://us.destack.cloud/spaces/${ROUTED}/`],
     ]);
 });
 

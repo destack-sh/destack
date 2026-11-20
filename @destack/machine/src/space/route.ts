@@ -8,7 +8,9 @@ import {
 import * as accountObject from "@destack/account/object";
 import { type Identifier, present, schema } from "@destack/schema";
 import { InstallationMount, RequestBody, SpaceMount } from "@destack/object";
-import { copyRequest } from "@destack/environment";
+import { type Clock, copyRequest } from "@destack/environment";
+import { MachineError } from "../error/index.ts";
+import { SPACE_RETRY_MILLISECONDS } from "./space.ts";
 import { CALLER_HEADER } from "@destack/access";
 import {
     CLIENT_HEAD_HEADER,
@@ -42,8 +44,11 @@ const PARTITION = /^(?:space|device|machine)-[0-9a-f-]+$/u;
 /** The identifier schema of spaces. */
 const SPACE_IDENTIFIER = schema.identifier("space");
 
-/** The status moving a request to another URL for good with its method and body kept, RFC 9110. */
-const MOVED_STATUS = 308;
+/** The status moving a request at a former name for good, method and body kept, RFC 9110. */
+const RENAMED_STATUS = 308;
+
+/** The status moving a request to its space's machine for now, method and body kept, RFC 9110. */
+const PLACED_STATUS = 307;
 
 /** A request to a space a machine serves, with the request below an explicit space prefix. */
 export interface SpaceRequest {
@@ -51,23 +56,31 @@ export interface SpaceRequest {
     readonly space: Identifier<"space">;
     /** The request the space's machine serves. */
     readonly request: Request;
-    /** The URL at the space's current origin, for a request to a former one. */
-    readonly moved?: string;
+    /** Where the request moves: to the space's current name, or to the machine serving it. */
+    readonly moved?: SpaceMove;
+}
+
+/** Where a request to a space moves, and why. */
+export interface SpaceMove {
+    /** Whether the request named a former address, or a space another machine serves. */
+    readonly kind: "renamed" | "placed";
+    /** The URL the request moves to. */
+    readonly url: string;
 }
 
 /** The partition a request addresses: the innermost scoped route's, else its scoped body's. */
 export const PartitionRequest = {
-    /** Read the partition of a request: the one it names, its path's or its body's. */
+    /** Read the partition of a request: its header's, its path's or its body's. */
     async of(request: Request, pathname: string): Promise<string | undefined> {
         return (
-            PartitionRequest.named(request) ??
-            PartitionRequest.scoped(pathname) ??
+            PartitionRequest.header(request) ??
+            PartitionRequest.path(pathname) ??
             (await PartitionRequest.body(request, pathname))
         );
     },
 
-    /** Read the partition a request names: in its header, else a socket's in its query. */
-    named(request: Request): string | undefined {
+    /** Read the partition in a request's header, else a socket's in its query. */
+    header(request: Request): string | undefined {
         return (
             request.headers.get(PARTITION_HEADER) ??
             new URL(request.url).searchParams.get(PARTITION_PARAMETER) ??
@@ -76,7 +89,7 @@ export const PartitionRequest = {
     },
 
     /** Read the innermost partition of a scoped route's path. */
-    scoped(pathname: string): string | undefined {
+    path(pathname: string): string | undefined {
         return [...pathname.matchAll(SCOPED)].at(-1)?.[1];
     },
 
@@ -102,7 +115,11 @@ export const PartitionRequest = {
 /** Find the space a request is for, as a machine routes it to the space's object. */
 export const SpaceRequest = {
     /** Find the spaces a machine serves by address or identifier in its directory replica. */
-    served(directory: Directory, machine: Identifier<"machine">): SpaceLookup {
+    served(
+        directory: Directory,
+        machine: Identifier<"machine">,
+        clock: Pick<Clock, "now">,
+    ): SpaceLookup {
         // require a space's placement on the machine
         const serves = async (space: Identifier<"space">) => {
             const [placed] = await accountObject.Placement.find(directory.snapshot, [space]);
@@ -118,12 +135,28 @@ export const SpaceRequest = {
 
                 return found !== undefined && (await serves(found.space)) ? found : undefined;
             },
+            locate: async (space) => {
+                // read where the space's machine answers, unavailable until the space is placed
+                const placed = await accountObject.Placement.find(directory.snapshot, [space]);
+                if (placed.length === 0) {
+                    throw MachineError.of(
+                        "SPACE_UNAVAILABLE",
+                        `'${space}' is unavailable: it is not placed yet`,
+                        { data: { retryAfter: SPACE_RETRY_MILLISECONDS } },
+                    );
+                }
+
+                return (await directory.locate(space, clock.now())).url;
+            },
         };
     },
 
-    /** Redirect a request at a former name to its URL at the current one for good. */
-    move(url: string): Response {
-        return Response.redirect(url, MOVED_STATUS);
+    /** Redirect a request to where it moves: a former name's for good, a placed space's for now. */
+    move(moved: SpaceMove): Response {
+        return Response.redirect(
+            moved.url,
+            moved.kind === "renamed" ? RENAMED_STATUS : PLACED_STATUS,
+        );
     },
 
     /** Find the space at an address, with its current origin when the address is a former one. */
@@ -177,7 +210,7 @@ export const SpaceRequest = {
         const s3 = S3Origin.of(request, origins.domain);
         const installed = InstallationMount.of(request);
         const explicit = SpaceMount.parse(url.pathname);
-        const scoped = PartitionRequest.scoped(url.pathname);
+        const scoped = PartitionRequest.path(url.pathname);
 
         // take the space of an installation origin
         if (origin !== undefined) {
@@ -220,8 +253,8 @@ export const SpaceRequest = {
         }
     },
 
-    /** Read the space of a request to a name. */
-    async named(
+    /** Read the space of a request at a name: its origin, its space prefix, else its route. */
+    async host(
         given: Request,
         names: SpaceLookup & {
             /** The domain the installation origins and S3 origins sit below. */
@@ -244,8 +277,26 @@ export const SpaceRequest = {
             return addressed(request, s3);
         }
 
-        // take the route the host and path take, with the route and the client's head
+        // take the space below an explicit prefix
         const url = new URL(request.url);
+        const explicit = SpaceMount.parse(url.pathname);
+        if (explicit !== undefined && isSpace(explicit.spaceId)) {
+            const space = explicit.spaceId;
+            // serve a space placed here below its prefix
+            if (await names.serves(space)) {
+                url.pathname = explicit.path;
+
+                return addressed(copyRequest(request, {}, url.href), space);
+            }
+            // move a request for a space placed elsewhere to its machine
+            else {
+                const at = new URL(`${url.pathname}${url.search}`, await names.locate(space));
+
+                return { space, request, moved: { kind: "placed", url: at.href } };
+            }
+        }
+
+        // take the route the host and path take, with the route and the client's head
         const route = await names.route(url.hostname, url.pathname);
         if (route === undefined) {
             return undefined;
@@ -272,6 +323,8 @@ export interface SpaceLookup {
     readonly find: (address: SpaceAddress) => Promise<SpaceMatch | undefined>;
     /** Report whether the machine serves a space. */
     readonly serves: (space: Identifier<"space">) => Promise<boolean>;
+    /** Read the URL of the machine serving a space, refusing a space not placed yet. */
+    readonly locate: (space: Identifier<"space">) => Promise<string>;
 }
 
 /** Read the space of a request body. */
@@ -329,7 +382,7 @@ function located(
         domain,
     );
 
-    return { ...addressedHere, moved: url.href };
+    return { ...addressedHere, moved: { kind: "renamed", url: url.href } };
 }
 
 /** Decide whether a value is a space's identifier. */
