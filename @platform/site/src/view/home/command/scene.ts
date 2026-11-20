@@ -1,4 +1,3 @@
-import type { Change } from "../verb/apps";
 import { present } from "@destack/schema";
 
 /** The milliseconds a beat of the task takes. */
@@ -61,8 +60,8 @@ export type Grant = "once" | "chat";
 /** A row of the agent's board: who asked, what they asked, and where it stands. */
 export type Lead = readonly [name: string, asked: string, state: string];
 
-/** One step of the task: what the chat adds, the page it touches, and how far your apps got. */
-export type Step = { item: Item; row: number; change: Change };
+/** One step of the task: what the chat adds, and the page it touches. */
+export type Step = { item: Item; row: number };
 
 /** One step placed on the task's clock: the beat it starts at and the beats it takes. */
 type Cue = { step: Step; start: number; beats: number };
@@ -98,7 +97,7 @@ export class Scene {
 
     /** Return a conversation of items, each its own step on the first row. */
     static of(items: readonly Item[]): Scene {
-        return new Scene(items.map((item) => ({ item, row: 0, change: "start" })));
+        return new Scene(items.map((item) => ({ item, row: 0 })));
     }
 
     /** Place each step after the one before it. */
@@ -112,6 +111,16 @@ export class Scene {
             return cue;
         });
         this.length = start + HOLD_BEATS;
+    }
+
+    /** Return where to go on after a switch from another scene: past the steps both share. */
+    resume(from: Scene, beat: number): number {
+        // find the first step the two scenes do not share, and where it starts
+        const parted = this.cues.find(
+            (cue, index) => cue.step.item !== from.cues[index]?.step.item,
+        );
+
+        return Math.min(beat % from.length, parted?.start ?? this.length);
     }
 
     /** Return what the chat shows some beats into a run, or the finished task without a beat. */

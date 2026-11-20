@@ -18,6 +18,7 @@ import {
     type Grant,
     type Item,
     type Moment,
+    type Scene,
     WORDS_PER_BEAT,
 } from "./scene";
 import { Cast } from "../figure/cast";
@@ -46,8 +47,8 @@ export const assistantOptions: readonly Option[] = [
 /** One assistant the chat can look like. */
 export type Assistant = (typeof assistants)[number];
 
-/** Count a chat's beats while it runs, from zero again whenever its scene starts over. */
-export function createBeat(isRunning: () => boolean, restart: () => unknown) {
+/** Count a chat's beats while it runs, carried through the steps two scenes share on a switch. */
+export function createBeat(isRunning: () => boolean, scene: () => Scene) {
     // count a beat at a time while the chat runs
     const [beat, setBeat] = createSignal(0);
     createTimer(
@@ -56,9 +57,14 @@ export function createBeat(isRunning: () => boolean, restart: () => unknown) {
         "interval",
     );
 
-    // start over when the scene does
-    createEffect(restart, () => {
-        setBeat(0);
+    // go on from the steps the scenes share when the scene switches, instead of starting over
+    let shown: Scene | undefined;
+    createEffect(scene, (next) => {
+        const previous = shown;
+        shown = next;
+        if (previous !== undefined && previous !== next) {
+            setBeat((current) => next.resume(previous, current));
+        }
     });
 
     return beat;
