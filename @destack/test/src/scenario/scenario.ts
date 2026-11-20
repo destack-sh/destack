@@ -160,26 +160,26 @@ export const Runner = {
     play(scenario: Scenario, types: readonly DriverType[]): void {
         const type = Runner.driverOf(scenario.interaction, scenario.name, types);
         test(scenario.name, async () => {
-            // expect every check to pass
+            // play it and save a bench's results
             const first = await Runner.playthrough(scenario, type);
+            const { variables } = testHost().process;
+            if (inject("tier") === "bench") {
+                const configuration = await Runner.configuration(scenario, type);
+                const baseline = variables[BASELINE_VARIABLE] ?? String(configuration["commit"]);
+                const named = first.measurements.filter((each) => each.operation !== undefined);
+                await Runner.save(scenario, named, first.telemetry, configuration, baseline);
+            }
+
+            // expect every check to pass
             expect({ failures: first.failures, errors: first.errors }).toEqual({
                 failures: [],
                 errors: [],
             });
 
             // replay the seed when asked
-            const { variables } = testHost().process;
             if (variables[REPLAY_VARIABLE] === "1") {
                 const second = await Runner.playthrough(scenario, type);
                 expect(Runner.checkDeterminism(scenario, first, second)).toBeUndefined();
-            }
-
-            // save the results when benched
-            if (inject("tier") === "bench") {
-                const configuration = await Runner.configuration(scenario, type);
-                const baseline = variables[BASELINE_VARIABLE] ?? String(configuration["commit"]);
-                const named = first.measurements.filter((each) => each.operation !== undefined);
-                await Runner.save(scenario, named, first.telemetry, configuration, baseline);
             }
         });
     },

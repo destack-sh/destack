@@ -226,7 +226,13 @@ export class Recording {
                         ),
                     ),
             )
-            .map((record) => String(record.body));
+            .map((record) =>
+                record.body === undefined
+                    ? `${record.eventName ?? "record"} ${JSON.stringify(record.attributes)}`
+                    : typeof record.body === "string"
+                      ? record.body
+                      : JSON.stringify(record.body),
+            );
     }
 
     /** Total the growth of the metric points a selector matches, such as statements. */
