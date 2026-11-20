@@ -14,10 +14,10 @@ import { Toolchain } from "../toolchain/index.ts";
 import { listChangedModules, Workspace } from "../workspace/index.ts";
 import { Digest, schema } from "@destack/schema";
 
-/** The directory below a package with the digests of the test runs that passed. */
+/** The directory of a package's passed test runs, by digest. */
 const TEST_CACHE = "node_modules/.cache/destack/test";
 
-/** The files of a program and their versions, as tsc records them in its build info. */
+/** A program's files and versions in tsc's build info. */
 const BuildInfo = schema.looseObject({
     fileNames: schema.array(schema.string()),
     fileInfos: schema.array(schema.json()),
@@ -26,13 +26,13 @@ const BuildInfo = schema.looseObject({
 /** The test tiers a run selects, every tier but bench by default. */
 export type TestTier = "unit" | "scenario" | "bench";
 
-/** The tiers a test run includes unless asked: what CI and `destack test` check. */
+/** The tiers a test run includes by default. */
 const DEFAULT_TIERS: readonly TestTier[] = ["unit", "scenario"];
 
-/** The most test workers a run starts, two cores each, as scenarios run workloads beside them. */
+/** The most test workers a run starts, at two cores each. */
 const MOST_WORKERS = 4;
 
-/** What a test run selects: its tiers, files and database, and whether it only lists the tests. */
+/** What a test run selects. */
 export interface TestOptions {
     /** The tiers, unit and scenario by default. */
     readonly tiers?: readonly TestTier[];
@@ -44,14 +44,14 @@ export interface TestOptions {
     readonly isListing?: boolean;
     /** Whether to write the snapshots the tests compare against anew. */
     readonly isUpdating?: boolean;
-    /** The pattern the full names of the tests to run match, as Playwright's grep. */
+    /** The pattern the tests' full names match, as Playwright's grep. */
     readonly grep?: string;
 }
 
-/** A plain TypeScript diagnostic line: file, line, column, severity, code and message. */
+/** A plain TypeScript diagnostic line. */
 const TYPESCRIPT_DIAGNOSTIC = /^(.+?)\((\d+),(\d+)\): (error|warning) (TS\d+): (.*)$/u;
 
-/** A package the toolchain checks and fixes, as `destack check` and `destack fix` do. */
+/** A package the toolchain checks, fixes and tests. */
 export class Project {
     /** The package's directory. */
     readonly directory: string;
@@ -69,20 +69,20 @@ export class Project {
         toolchain: Toolchain,
         environment: Environment<"files" | "process" | "host">,
     ) {
-        // set the package, its manifest, its tools and its environment
+        // keep the package, its manifest, tools and environment
         this.directory = directory;
         this.manifest = manifest;
         this.toolchain = toolchain;
         this.environment = environment;
     }
 
-    /** Open the package in a directory, refusing a directory without a package manifest. */
+    /** Open the package in a directory, refusing one without a manifest. */
     static async open(
         directory: string,
         environment: Environment<"files" | "process" | "host">,
         toolchain: Toolchain = Toolchain.workspace(),
     ): Promise<Project> {
-        // read the manifest of the package's real directory, which the tools report paths in
+        // read the manifest of the package's real directory
         const absolute = await environment.files.realPath(resolve(directory));
         const manifest = await readManifest(absolute, environment.files);
         if (manifest === undefined) {
@@ -97,7 +97,7 @@ export class Project {
 
     /** Check formatting, types, README listings and lints, then run the package's own check. */
     async check(options: { readonly since?: string } = {}): Promise<CheckResult> {
-        // check formatting, then types and the README's listings
+        // check formatting, types and the README
         const formatted = Project.#formatDiagnostics(await formatPackage(this.#options(), false));
         const typed = Project.#typescriptDiagnostics(await this.#typecheck(), this.directory);
         const listed = Project.#typescriptDiagnostics(
@@ -105,7 +105,7 @@ export class Project {
             this.directory,
         );
 
-        // lint every module, or the modules changed since a base, reusing a result over the same program
+        // lint every module or the changed ones, reusing the result of the same program
         const files =
             options.since === undefined
                 ? undefined
@@ -139,11 +139,14 @@ export class Project {
         ]);
     }
 
-    /** Run the package's tests through the plan its files derive, returning the run's exit code. */
+    /** Run the package's tests through its plan, returning the exit code. */
     async test(options: TestOptions = {}): Promise<number> {
-        // reuse a pass over the same inputs, never a listing or a snapshot update
+        // reuse a pass over the same inputs, never for listings, updates or benches
         const cache = TransformCache.directory(join(this.directory, TEST_CACHE), this.environment);
-        const isKept = options.isListing !== true && options.isUpdating !== true;
+        const isKept =
+            options.isListing !== true &&
+            options.isUpdating !== true &&
+            options.tiers?.includes("bench") !== true;
         const key = isKept ? await this.#testKey(options) : undefined;
         if (key !== undefined && (await cache.read(key)) !== undefined) {
             this.environment.process.stderr.writeSync(
@@ -155,7 +158,7 @@ export class Project {
             return 0;
         }
 
-        // plan the tests with the toolchain's test kit and Vitest, loaded only when tests run
+        // plan the tests with the test kit and Vitest
         const { TestPlan } = await import("@destack/test/plan");
         const require = createRequire(import.meta.url);
         const vitest = join(dirname(require.resolve("vitest/package.json")), "vitest.mjs");
@@ -163,7 +166,7 @@ export class Project {
         const planned = await TestPlan.of(this.directory, this.environment.files);
         const hasNode = planned.targets.some((target) => target.kind === "node");
 
-        // run the Bun targets, then the Node targets apart, as Vitest runs one runtime per process
+        // run the Bun targets, then the Node targets
         const bun = await this.#vitest(
             this.environment.process.executable,
             ["--bun"],
@@ -176,7 +179,7 @@ export class Project {
             ? await this.#vitest("node", [], vitest, configuration, options, "node")
             : 0;
 
-        // keep a pass under its inputs' digest
+        // keep a pass
         const code = bun !== 0 ? bun : node;
         if (code === 0 && key !== undefined) {
             await cache.write(key, new Uint8Array());
@@ -187,7 +190,7 @@ export class Project {
 
     /** Digest what a test run reads: its packages' files, the lockfile and the options. */
     async #testKey(options: TestOptions): Promise<Digest> {
-        // list the files of the package and every workspace member it depends on
+        // list the files of the package and its dependencies
         const { files, process, crypto } = this.environment;
         const workspace = await Workspace.read(this.directory, files);
         if (workspace === undefined) {
@@ -207,7 +210,7 @@ export class Project {
             left.localeCompare(right),
         );
 
-        // digest each file, then the run's inputs together
+        // digest the files and the run's inputs
         const digests = await Promise.all(
             paths.map(async (path) => [
                 relative(workspace.root, path),
@@ -224,7 +227,7 @@ export class Project {
         );
     }
 
-    /** Run Vitest over the plan's targets of a runtime, as the options select them. */
+    /** Run Vitest over a runtime's selected targets. */
     async #vitest(
         executable: string,
         flags: readonly string[],
@@ -233,7 +236,7 @@ export class Project {
         options: TestOptions,
         runtime: "bun" | "node",
     ): Promise<number> {
-        // run the targets of the asked tiers and database, on half the cores up to four workers
+        // run the selected targets on up to four workers
         const { process } = this.environment;
         const halved = Math.floor(navigator.hardwareConcurrency / 2);
         const workers = Math.max(1, Math.min(MOST_WORKERS, halved));
@@ -245,7 +248,7 @@ export class Project {
                 executable,
                 ...flags,
                 vitest,
-                // collect a listing by importing each file, as tests register through helpers
+                // list the tests by importing each file
                 ...(options.isListing === true ? ["list", "--staticParse=false"] : ["run"]),
                 "--config",
                 configuration,
@@ -278,7 +281,7 @@ export class Project {
         await configurePackage(this.directory, this.toolchain, this.environment.files);
     }
 
-    /** Report diagnostics with their files relative to the package, as every tool names them. */
+    /** Report diagnostics with paths relative to the package. */
     #relative(diagnostics: readonly Diagnostic[]): CheckResult {
         return {
             diagnostics: diagnostics.map((each) => ({
@@ -300,7 +303,7 @@ export class Project {
         };
     }
 
-    /** Digest the program's files at the versions the last typecheck recorded in its build info. */
+    /** Digest the program's files at the last typecheck's versions. */
     async #program(): Promise<Digest> {
         const text = await this.environment.files.readTextFile(join(this.directory, BUILD_INFO));
         const { fileNames, fileInfos } = BuildInfo.parse(JSON.parse(text));
@@ -324,14 +327,14 @@ export class Project {
         );
     }
 
-    /** Run the package's own script of a name, none when it has none, failing as one diagnostic. */
+    /** Run the package's own script, failing as one diagnostic. */
     async #script(name: string): Promise<Diagnostic[]> {
-        // run nothing for a package without the script
+        // skip a missing script
         if (this.manifest.scripts?.[name] === undefined) {
             return [];
         }
 
-        // run it with the package's runtime, reporting a failure with its output
+        // run it, reporting a failure with its output
         const { code, stdout, stderr } = await runTool(name, [], this.directory, this.environment);
 
         return code === 0
@@ -347,14 +350,14 @@ export class Project {
               ];
     }
 
-    /** Read the formatter's output as one diagnostic per file it would change. */
+    /** Read the formatter's output as one diagnostic per changed file. */
     static #formatDiagnostics(result: ToolResult): Diagnostic[] {
-        // report nothing once every file is formatted
+        // report nothing for formatted files
         if (result.code === 0) {
             return [];
         }
 
-        // read the unformatted files, one per line
+        // read the unformatted files
         const listed = result.stdout
             .split("\n")
             .map((line) => line.trim())
@@ -373,14 +376,14 @@ export class Project {
         }));
     }
 
-    /** Read TypeScript's output as diagnostics, else its failure as one diagnostic. */
+    /** Read TypeScript's output as diagnostics. */
     static #typescriptDiagnostics(result: ToolResult, directory: string): Diagnostic[] {
-        // report nothing once the program typechecks
+        // report nothing for a clean program
         if (result.code === 0) {
             return [];
         }
 
-        // read each diagnostic line, else the compiler's failure
+        // read each diagnostic line
         const read = result.stdout.split("\n").flatMap((line): Diagnostic[] => {
             const [, filename, lineNumber, column, severity, code, message] =
                 TYPESCRIPT_DIAGNOSTIC.exec(line.trim()) ?? [];
