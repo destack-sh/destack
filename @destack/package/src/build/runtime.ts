@@ -124,10 +124,8 @@ export const TOOLCHAIN_PACKAGES: ReadonlySet<string> = new Set([
     "@solidjs/compiler",
     // the image renderer
     "sharp",
-    // the linter and the formatter
-    "oxlint",
+    // the formatter
     "oxfmt",
-    "oxlint-tsgolint",
 ]);
 
 /** Identify modules a host supplies rather than a package: built-ins and Bun's own. */
