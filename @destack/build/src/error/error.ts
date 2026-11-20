@@ -40,7 +40,6 @@ export const BuildError = defineErrorFamily({
         MANIFEST_INVALID: {},
         OBJECT_INVALID: {},
         OUTPUT_INVALID: {},
-        RUNTIME_API_INVALID: {},
         RUNTIME_MODULE_INVALID: {},
         TIMEOUT_INVALID: {},
 

@@ -53,7 +53,7 @@ Each unit compiles only on a key miss, once per workspace, and the host's packag
 | `build(request)`         | builds the root with given outputs                          |
 | `imageUnits(options)`    | builds and makes an image of every unit, by name            |
 | `image(root, options)`   | makes an image of a root build with every build it requires |
-| `inspect(…)`, `index(…)` | inspects or indexes the root's code                         |
+| `declarations(…)`, `index(…)` | evaluates the root's declarations or indexes its code |
 
 `isPrerelease` stamps each build as a dev version, `<release>-dev.<time>.<key>`.
 

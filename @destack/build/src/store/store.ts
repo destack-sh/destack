@@ -392,11 +392,13 @@ export class BuildStore<
         const list = await source.distributed();
         requireDistinctPaths(list);
         const files = distinctFiles(list);
-        await this.blobs.lease([digest, ...files.map((file) => file.digest)], this.#leasedUntil);
+        const leased = await this.blobs.lease(
+            [digest, ...files.map((file) => file.digest)],
+            this.#leasedUntil,
+        );
 
         // store the missing files at once, then the manifest
-        const missing = new Set(await this.blobs.missing(files.map((file) => file.digest)));
-        await write(files.filter((file) => missing.has(file.digest)));
+        await write(files.filter((file) => !leased.has(file.digest)));
         await this.#write(digest, bytes);
 
         // record the build with its files
@@ -799,14 +801,22 @@ export class BuildStore<
         });
     }
 
-    /** List the stored manifests and images referencing a blob or build. */
-    async referencing(digest: Digest): Promise<Digest[]> {
+    /** List the manifests and images referencing a blob or build, in the layer and sources too. */
+    async referrers(digest: Digest): Promise<Digest[]> {
+        // read the recorded references, the layer's images and each source's
         const rows = await this.database
             .select({ manifest: buildReference.manifest })
             .from(buildReference)
             .where(eq(buildReference.digest, digest));
+        const sourced = await Promise.all(this.sources.map((source) => source.referrers(digest)));
 
-        return rows.map((row) => row.manifest);
+        return [
+            ...new Set([
+                ...rows.map((row) => row.manifest),
+                ...this.layer.referrers(digest),
+                ...sourced.flat(),
+            ]),
+        ];
     }
 
     /** Read a stored image's blob once, as images never change, recorded or not. */
@@ -1599,9 +1609,12 @@ export class BuildStore<
         }
     }
 
-    /** Describe a stored build's manifest file, leaving its bytes unread. */
+    /** Describe a manifest's or image's file here or in a source, leaving its bytes unread. */
     async head(digest: Digest): Promise<PackageFile> {
-        const head = await this.#head(digest);
+        // find the head here, else in the source storing it
+        const local = await this.#head(digest);
+        const source = local === undefined ? await this.#sourceOf(digest) : undefined;
+        const head = local ?? (source === undefined ? undefined : await source.#head(digest));
         if (head === undefined) {
             throw BuildError.of("MANIFEST_NOT_FOUND", `package manifest '${digest}' not found`);
         }

@@ -4,6 +4,7 @@ import { type FileSystem, FileSystemError } from "@destack/environment";
 import type { BunLockfile } from "@destack/check/bun";
 import { DomainError } from "@destack/error";
 import {
+    type DeclarationDescription,
     type DependencyRelease,
     type PackageVersion,
     PackageJson,
@@ -19,10 +20,13 @@ import { NpmInstallation, type NpmUnit } from "./npm.ts";
 import { outputsOf, type PackageBuildOptions } from "../build/build.ts";
 import type { Compiler } from "../build/compiler.ts";
 import type { CompilerPool } from "../build/pool.ts";
-import type { InspectOptions } from "../inspection/inspection.ts";
-import type { PackageInspection } from "@destack/package/code";
 import { BuildError } from "../error/index.ts";
-import { readLockedReleases, readLockfile, readPackageJson } from "../source/index.ts";
+import {
+    readLockedReleases,
+    readLockfile,
+    readPackageJson,
+    type SourceOptions,
+} from "../source/index.ts";
 import { BuildStore, type CacheOutcome } from "../store/index.ts";
 import type { LocalBuildStore } from "../store/local.ts";
 import type { DependencyBuild } from "./tree.ts";
@@ -710,21 +714,27 @@ export class WorkspacePackage {
         return manifest;
     }
 
-    /** Inspect the root from source, members through the workspace, releases through builds. */
-    async inspect(request: Omit<InspectOptions, "directory">): Promise<PackageInspection> {
+    /** Evaluate the root's declarations from source, on its members' and releases' builds. */
+    async declarations(
+        request: Omit<SourceOptions, "directory">,
+    ): Promise<readonly DeclarationDescription[]> {
         // resolve members through the workspace, and releases through their builds
-        // NOTE #Performance: ui inspects in about 6 s warm, where a warm incremental check of its modules takes about 1 s
         const dependencies = await this.#releaseRoots(this.root);
         const links = await this.#releaseLinks();
 
         return await this.workspace.compilers.use(this.root.directory, (compiler) =>
-            compiler.inspect({ ...request, directory: this.root.directory, dependencies, links }),
+            compiler.declarations({
+                ...request,
+                directory: this.root.directory,
+                dependencies,
+                links,
+            }),
         );
     }
 
     /** Index the root's modules and tests from source, outside releases through their builds. */
     async index(
-        request: Omit<InspectOptions, "directory">,
+        request: Omit<SourceOptions, "directory">,
         declared: IndexedDeclarations,
     ): Promise<graph.Module[]> {
         // resolve members through the workspace, as its tests import their test layers, and outside releases through their builds

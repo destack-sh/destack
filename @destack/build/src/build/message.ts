@@ -1,5 +1,4 @@
-import { graph } from "@destack/package";
-import { PackageInspection } from "@destack/package/code";
+import { DeclarationDescription, graph } from "@destack/package";
 import { deserialize, serialize } from "node:v8";
 import { DependencyName, DependencyRelease, PackageName } from "@destack/package";
 import { Runtime } from "@destack/package/runtime";
@@ -14,9 +13,9 @@ export const BuildResult = schema.discriminatedUnion("kind", [
         kind: schema.literal("build"),
     }),
     schema.object({
-        kind: schema.literal("inspect"),
-        /** The inspected package. */
-        inspection: PackageInspection,
+        kind: schema.literal("declarations"),
+        /** The declarations the package's export entries evaluate to. */
+        declarations: schema.array(DeclarationDescription),
     }),
     schema.object({
         kind: schema.literal("index"),
@@ -31,7 +30,7 @@ export type BuildResult = schema.Infer<typeof BuildResult>;
 export const BuildResponse = schema.union([
     schema.object({
         kind: schema.literal("result"),
-        /** The requested compilation or inspection. */
+        /** The requested compilation, declarations or index. */
         result: BuildResult,
         /** The OTLP/JSON traces export of the spans the compiler ended while it worked. */
         traces: schema.unknown(),
@@ -80,8 +79,8 @@ export const RequestedBuild = schema.object({
 /** The options of a build of one source package. */
 export type RequestedBuild = schema.Infer<typeof RequestedBuild>;
 
-/** The source an inspection or index reads: its directory, runtime, tree and versions. */
-const InspectedSource = schema.object({
+/** The source a declarations or index request reads: its directory, runtime, tree and versions. */
+const RequestedSource = schema.object({
     directory: RequestedBuild.shape.directory,
     runtime: Runtime,
     configuration: schema.string().exactOptional(),
@@ -109,14 +108,14 @@ export const BuildRequest = schema.discriminatedUnion("kind", [
         options: RequestedBuild,
     }),
     schema.object({
-        kind: schema.literal("inspect"),
-        /** The inspection's options. */
-        options: InspectedSource,
+        kind: schema.literal("declarations"),
+        /** The evaluated source. */
+        options: RequestedSource,
     }),
     schema.object({
         kind: schema.literal("index"),
-        /** The inspection's options. */
-        options: InspectedSource,
+        /** The indexed source. */
+        options: RequestedSource,
         /** The declarations, members and relationships the indexed build recorded. */
         declared: IndexedDeclarations,
     }),

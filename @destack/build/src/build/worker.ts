@@ -16,14 +16,17 @@ import type { BuildExtension, TransformCache } from "@destack/package/build";
 import { type SourceMapReference } from "@destack/package/source";
 import { PackageLocator } from "@destack/package/locator";
 import type { Toolchain } from "@destack/check/toolchain";
-import { type TypeScriptInspection, TypeScriptCompiler } from "../typescript/index.ts";
-import { inspectModules, type InspectOptions } from "../inspection/inspection.ts";
 import { ConstructorCatalog, Evaluation, type EvaluatedDeclaration } from "../declaration/index.ts";
 import { DeclarationGraph } from "../graph/declaration.ts";
-import { exportedDeclarations, PackageSource, readPackageJson } from "../source/index.ts";
+import {
+    exportedDeclarations,
+    PackageSource,
+    readPackageJson,
+    type SourceOptions,
+} from "../source/index.ts";
 import { OutputCompilation, type OutputBuild } from "../compile/compilation.ts";
 import { loadExtensions } from "../compile/extension.ts";
-import { checkInputs, RuntimeCompiler } from "../compile/runtime.ts";
+import { checkInputs } from "../compile/runtime.ts";
 import { Template } from "../template/index.ts";
 import { DomainError } from "@destack/error";
 import { BuildError, extensionFailureOf } from "../error/index.ts";
@@ -46,7 +49,7 @@ import {
 } from "./message.ts";
 import { Console } from "node:console";
 import { Writable } from "node:stream";
-import { PRIMARY_RUNTIMES, type Runtime } from "@destack/package/runtime";
+import { PRIMARY_RUNTIMES } from "@destack/package/runtime";
 import { TelemetryScope } from "@destack/telemetry";
 import {
     InMemorySpanExporter,
@@ -83,17 +86,13 @@ interface CompileContext {
 }
 
 /** The compiler inside the sandbox, retaining the last package's state across requests. */
-export class CompilerWorker implements AsyncDisposable {
+export class CompilerWorker {
     /** The files, process and platform the compiler runs on. */
     readonly environment: Environment<"files" | "process" | "host">;
-    /** The tools the compiler runs: TypeScript, runtime declarations and named packages. */
+    /** The tools the compiler resolves named packages from. */
     readonly toolchain: Toolchain;
     /** The last build's module transformer, with the inputs every stamp depends on. */
     #transformed: { readonly inputs: string; readonly transformer: ModuleTransformer } | undefined;
-    /** The native TypeScript compiler of the last requested package. */
-    #typescript: TypeScriptCompiler | undefined;
-    /** Runtime type environments reused across output checks. */
-    readonly runtimes: RuntimeCompiler;
     /** The Destack packages the build tool's dependencies resolve to. */
     readonly #packages: PackageLocator;
     /** The modules the compiler shares with the code it loads. */
@@ -109,34 +108,12 @@ export class CompilerWorker implements AsyncDisposable {
         toolchain: Toolchain,
         environment: Environment<"files" | "process" | "host">,
     ) {
-        // keep the environment, the program and the toolchain, then open the runtimes' types and the package locator
+        // keep the environment, the program and the toolchain, then open the package locator
         this.environment = environment;
         this.#program = program;
         this.toolchain = toolchain;
-        this.runtimes = new RuntimeCompiler(toolchain, environment);
         this.#packages = new PackageLocator(environment.files);
         this.#scope = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
-    }
-
-    /** Switch to a package's native compiler, closing the last package's. */
-    async #switch(directory: string): Promise<TypeScriptCompiler> {
-        // reuse the compiler of the package the last request listed
-        const current = this.#typescript;
-        if (current?.directory === directory) {
-            return current;
-        }
-
-        // close the last package's compiler
-        await current?.[Symbol.asyncDispose]();
-
-        // start the package's compiler
-        this.#typescript = await TypeScriptCompiler.start(
-            directory,
-            this.toolchain,
-            this.environment,
-        );
-
-        return this.#typescript;
     }
 
     /** Answer the host's requests on stdin with one retained compiler of a toolchain. */
@@ -170,7 +147,13 @@ export class CompilerWorker implements AsyncDisposable {
         });
         const telemetry = { ...environment.telemetry, tracers };
         const recording = Environment.instrument(environment, telemetry);
-        await using compiler = new CompilerWorker(program, toolchain, recording);
+        const compiler = new CompilerWorker(program, toolchain, recording);
+        const traces = () => {
+            const spans = ended.getFinishedSpans();
+            ended.reset();
+
+            return OtlpExport.traces(spans).body;
+        };
 
         // read the host's messages while requests run
         let responding = Promise.resolve();
@@ -186,12 +169,6 @@ export class CompilerWorker implements AsyncDisposable {
                 responding = responding.then(async () => {
                     // answer it below the host's span, with the spans it ended
                     const parent = Telemetry.extract(new Headers(message.trace), telemetry);
-                    const traces = () => {
-                        const spans = ended.getFinishedSpans();
-                        ended.reset();
-
-                        return OtlpExport.traces(spans).body;
-                    };
                     const answer = await telemetry.context.with(parent, () =>
                         CompilerWorker.#respond(compiler, message.request, cache, traces),
                     );
@@ -205,37 +182,9 @@ export class CompilerWorker implements AsyncDisposable {
         await responding;
     }
 
-    /** Inspect source using retained compiler state and source configurations. */
-    async inspect(options: InspectOptions & Pick<RequestedBuild, "tree">) {
-        // inspect the package's program, and outline each of its modules from their syntax
-        const { project, inspection, declarations, transformer } =
-            await this.#inspectPackage(options);
-        const outliner = new Outliner(this.environment, this.#modules);
-        const outlines = [];
-        for (const file of await outliner.files(project.directory)) {
-            outlines.push(await outliner.outline(file));
-        }
-
-        // read its tests, and its examples with the properties their modules evaluate
-        const tests = outlines.flatMap((outline) => outline.tests);
-        const read = await Promise.all(
-            outlines
-                .flatMap((outline) => outline.definitions)
-                .filter((definition) => definition.kind === "example")
-                .map((definition) => ExampleDeclaration.read(definition)),
-        );
-        const examples = await Evaluation.examples(project, read, transformer);
-
-        return inspectModules(project.packageJson.package, inspection.modules, {
-            tests,
-            examples,
-            declarations,
-        });
-    }
-
     /** Index a package from its syntax and its build's declarations: each module's graph file. */
     async index(
-        options: InspectOptions & Pick<RequestedBuild, "tree">,
+        options: SourceOptions & Pick<RequestedBuild, "tree">,
         declared: IndexedDeclarations,
     ): Promise<graph.Module[]> {
         // open the package, its declarations and relationships read from its build
@@ -279,27 +228,17 @@ export class CompilerWorker implements AsyncDisposable {
         });
     }
 
-    /** Read the whole package with its dependencies' builds and evaluate its declarations. */
-    async #inspectPackage(options: InspectOptions & Pick<RequestedBuild, "tree">): Promise<{
-        project: PackageSource;
-        inspection: TypeScriptInspection;
-        declarations: DeclarationDescription[];
-        transformer: ModuleTransformer;
-    }> {
-        // inspect source with the selected compiler configuration and the dependencies' builds
+    /** Evaluate a package's declarations from source, on its dependencies' builds. */
+    async declarations(
+        options: SourceOptions & Pick<RequestedBuild, "tree">,
+    ): Promise<DeclarationDescription[]> {
+        // open the package's source and evaluate its export entries
         const project = await PackageSource.open(options, this.environment, this.#program);
-        const typescript = await this.#switch(options.directory);
-        const inspection = await typescript.inspect(project);
-
-        // evaluate the package's declarations
         const catalog = new ConstructorCatalog(options.versions ?? {}, this.environment.files);
         const transformer = this.#transformer(options, project.packageJson);
-        const evaluation = await Evaluation.evaluate([project], catalog, {
-            transformer,
-        });
-        const declarations = evaluation.declarations.map((declaration) => declaration.description);
+        const evaluation = await Evaluation.evaluate([project], catalog, { transformer });
 
-        return { project, inspection, declarations, transformer };
+        return evaluation.declarations.map((declaration) => declaration.description);
     }
 
     /** Evaluate a package's declarations, each export entry once, in the first project with it. */
@@ -307,7 +246,7 @@ export class CompilerWorker implements AsyncDisposable {
         return this.#scope.span("destack.compiler.evaluate", {}, () => this.#evaluate(options));
     }
 
-    /** Open the outputs' projects, check their globals, then evaluate each export entry once. */
+    /** Open the outputs' projects, then evaluate each export entry once. */
     async #evaluate(options: RequestedBuild): Promise<EvaluatedDeclaration[]> {
         // open the outputs' projects with the exports' on the runtime declarations evaluate on
         const packageJson = await readPackageJson(options.directory, this.environment.files);
@@ -323,9 +262,6 @@ export class CompilerWorker implements AsyncDisposable {
             },
         });
 
-        // refuse globals an output's runtime lacks before running any module
-        await this.#checkGlobals(options);
-
         // evaluate each export entry in the first project with it
         const catalog = new ConstructorCatalog(options.versions ?? {}, this.environment.files);
         const evaluated = new Set([opened.primary, ...opened.projects.values()]);
@@ -334,44 +270,6 @@ export class CompilerWorker implements AsyncDisposable {
         });
 
         return [...declarations];
-    }
-
-    /** Refuse the runtime globals the built outputs' modules read that their runtimes lack. */
-    async #checkGlobals(options: RequestedBuild): Promise<void> {
-        // open the built outputs and the package's others, as a module's functions run wherever it ships
-        const packageJson = await readPackageJson(options.directory, this.environment.files);
-        const others = Object.entries(outputsOf(packageJson)).filter(
-            ([name]) => !Object.hasOwn(options.outputs, name),
-        );
-        const opened = await this.#open({
-            ...options,
-            outputs: { ...options.outputs, ...Object.fromEntries(others) },
-        });
-
-        // check the globals module evaluation reads against each output's runtime
-        const outliner = new Outliner(this.environment, this.#modules);
-        const shipped = new Map<string, Set<Runtime>>();
-        for (const project of new Set(opened.projects.values())) {
-            const files = await outliner.modules(project.directory, project.entries);
-            const evaluated = [];
-            for (const file of files) {
-                const globals = await outliner.globals(file);
-                evaluated.push(...globals.filter((global) => global.evaluation === "module"));
-            }
-            await this.runtimes.check(evaluated, [project.runtime]);
-
-            // note the runtimes each module ships to
-            for (const file of files) {
-                shipped.set(file, (shipped.get(file) ?? new Set()).add(project.runtime));
-            }
-        }
-
-        // check the globals functions read against any runtime their module ships to
-        for (const [file, runtimes] of shipped) {
-            const globals = await outliner.globals(file);
-            const deferred = globals.filter((global) => global.evaluation !== "module");
-            await this.runtimes.check(deferred, [...runtimes]);
-        }
     }
 
     /** Compile a package into a directory. */
@@ -498,23 +396,6 @@ export class CompilerWorker implements AsyncDisposable {
         }
 
         return this.#transformed.transformer;
-    }
-
-    /** Close both native compilers. */
-    async [Symbol.asyncDispose](): Promise<void> {
-        // await both compiler shutdowns
-        const results = await Promise.allSettled([
-            this.#typescript?.[Symbol.asyncDispose](),
-            this.runtimes[Symbol.asyncDispose](),
-        ]);
-
-        // report every compiler shutdown failure
-        const failures = results
-            .filter((result) => result.status === "rejected")
-            .map((result): unknown => result.reason);
-        if (failures.length) {
-            throw new AggregateError(failures, "compiler shutdown failed");
-        }
     }
 
     /** Open the package with an output's entries. */
@@ -728,13 +609,13 @@ export class CompilerWorker implements AsyncDisposable {
                     traces: traces(),
                 };
             }
-            // inspect the package
+            // evaluate the package's declarations from source
             else {
-                const inspection = await compiler.inspect(request.options);
+                const declarations = await compiler.declarations(request.options);
 
                 return {
                     kind: "result",
-                    result: { kind: "inspect", inspection },
+                    result: { kind: "declarations", declarations },
                     traces: traces(),
                 };
             }

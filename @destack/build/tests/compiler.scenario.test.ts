@@ -16,7 +16,7 @@ import { Toolchain } from "@destack/check/toolchain";
 /** How long a cancelled build runs before it aborts: well inside the library's build. */
 const CANCEL_MILLISECONDS = 100;
 
-test("rebuild edited source, reject incompatible APIs, restore distributed output", async () => {
+test("rebuild edited source and restore distributed output", async () => {
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
     const { files } = environment;
@@ -60,96 +60,6 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
         const restoredSource = await builder.build(library);
         expect(restoredSource.manifest).toEqual(build.manifest);
         await expectFiles(restoredSource, build);
-
-        // refuse a browser API in the built workerd output, though the package also ships the module to the browser
-        const workerdRequest = {
-            directory: source,
-            dependencies: {},
-            links: {},
-            outputs: { library: { ...request.outputs.library, runtime: "workerd" } },
-        } as const;
-        await files.writeTextFile(
-            notePath,
-            note + "\n/** The page title. */\nexport const page = document.title;\n",
-        );
-        expect(await refusal(builder.build(workerdRequest))).toEqual([
-            "BAD_REQUEST",
-            "RUNTIME_API_INVALID",
-            `API 'document.title' at 'src/note.ts:${note.length + 44}' is invalid: it is not supported on 'workerd'`,
-        ]);
-
-        // accept the browser API inside a function, which only the browser calls
-        const deferredSource =
-            note + "\n/** Read the page title. */\nexport const page = () => document.title;\n";
-        await files.writeTextFile(notePath, deferredSource);
-        const deferred = await builder.build(workerdRequest);
-        expect(new TextDecoder().decode(await deferred.load("src/note.ts"))).toBe(deferredSource);
-
-        // refuse the Function constructor on workerd, and accept reads of its prototype
-        const constructed =
-            note +
-            "\n/** The constructor. */\nexport const create: FunctionConstructor = Function;\n";
-        await files.writeTextFile(notePath, constructed);
-        expect(
-            await refusal(
-                builder.build({
-                    directory: source,
-                    dependencies: {},
-                    links: {},
-                    outputs: { library: { ...request.outputs.library, runtime: "workerd" } },
-                }),
-            ),
-        ).toEqual([
-            "BAD_REQUEST",
-            "RUNTIME_API_INVALID",
-            `API 'Function' at 'src/note.ts:${note.length + 68}' is invalid: it is not supported on 'workerd'`,
-        ]);
-        const prototypeSource =
-            note +
-            "\n/** The function prototype's names. */\nexport const names = Object.getOwnPropertyNames(Function.prototype);\n";
-        await files.writeTextFile(notePath, prototypeSource);
-        const workerd = await builder.build({
-            directory: source,
-            dependencies: {},
-            links: {},
-            outputs: { library: { ...request.outputs.library, runtime: "workerd" } },
-        });
-        expect(new TextDecoder().decode(await workerd.load("src/note.ts"))).toBe(prototypeSource);
-
-        // accept a global read by a well-known symbol, and refuse one read by a computed key
-        const symbolSource =
-            note + "\n/** The tag of Math. */\nexport const tag = Math[Symbol.toStringTag];\n";
-        await files.writeTextFile(notePath, symbolSource);
-        const symbolKeyed = await builder.build(workerdRequest);
-        expect(new TextDecoder().decode(await symbolKeyed.load("src/note.ts"))).toBe(symbolSource);
-        await files.writeTextFile(
-            notePath,
-            note +
-                '\n/** A Math member. */\nexport const member = (key: string) => Math[key as "PI"];\n',
-        );
-        expect(await refusal(builder.build(workerdRequest))).toEqual([
-            "BAD_REQUEST",
-            "RUNTIME_API_INVALID",
-            `global access to 'Math' at 'src/note.ts:${note.length + 62}' is invalid: it is dynamic`,
-        ]);
-
-        // accept browser index signatures through the runtime's actual type declarations
-        const browserSource =
-            note +
-            '\n/** Read the page theme. */\nexport const page = () => document.documentElement.dataset["theme"];\n';
-        await files.writeTextFile(notePath, browserSource);
-        const browser = await builder.build({
-            directory: source,
-            dependencies: {},
-            links: {},
-            outputs: {
-                library: {
-                    ...request.outputs.library,
-                    runtime: "browser",
-                },
-            },
-        });
-        expect(new TextDecoder().decode(await browser.load("src/note.ts"))).toBe(browserSource);
 
         // remove source access before loading the distributed package
         await build.writeDirectory(destination, files);
@@ -496,61 +406,6 @@ test("bundle a dependency's file imported with a query through the extension tha
     } finally {
         await files.remove(directory, { recursive: true });
     }
-});
-
-test("check every output's entries with the package's ambient declarations", async () => {
-    // write a package for Bun and browsers whose entry uses a type its ambient declarations declare
-    await using simulation = testSimulation();
-    const environment = simulation.environment("test");
-    const { files } = environment;
-    const directory = await files.realPath(
-        await files.makeTemporaryDirectory("destack-build-ambient-"),
-    );
-    const contents: Record<string, string> = {
-        "bun.lock": JSON.stringify({ lockfileVersion: 1, workspaces: {}, packages: {} }),
-        "destack.json": JSON.stringify({
-            $schema: "https://destack.app/schemas/2026.9.0/destack.json",
-            id: "package-01996ab0-0000-7000-8000-000000000010",
-            role: "library",
-            language: "typescript",
-            runtimes: ["bun", "browser"],
-        }),
-        "package.json": JSON.stringify({
-            name: "@example/greeting",
-            version: "2026.9.0",
-            type: "module",
-            exports: { ".": "./src/index.ts" },
-        }),
-        "tsconfig.json": JSON.stringify({
-            compilerOptions: { strict: true, module: "Preserve", moduleResolution: "Bundler" },
-            include: ["src"],
-        }),
-        "src/greeting.d.ts":
-            "/** A greeting a page shows. */\ninterface Greeting {\n    readonly text: string;\n}\n",
-        "src/index.ts":
-            "/** Read a greeting's text. */\nexport const read = (greeting: Greeting): string => greeting.text;\n",
-    };
-    for (const [path, text] of Object.entries(contents)) {
-        await files.mkdir(join(directory, path, ".."), { recursive: true });
-        await files.writeTextFile(join(directory, path), text);
-    }
-
-    // build both outputs, the browser's program rooted at its entries
-    await using store = await LocalBuildStore.temporary(environment);
-    await using builder = await Compiler.start(directory, {
-        store,
-        toolchain: async () => Toolchain.workspace(),
-    });
-    const built = await builder.build({
-        directory,
-        dependencies: {},
-        links: {},
-        outputs: {
-            server: { kind: "module", runtime: "bun" },
-            browser: { kind: "module", runtime: "browser" },
-        },
-    });
-    expect(Object.keys(built.manifest.outputs).toSorted()).toEqual(["browser", "server"]);
 });
 
 test("compile each command the package installs into its Bun output, keeping its hashbang", async () => {

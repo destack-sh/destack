@@ -7,8 +7,6 @@ import type { SourceRange } from "@destack/package/source";
 import { Digest, schema } from "@destack/schema";
 import { BuildError } from "../error/index.ts";
 import { collectDefinitions, type Definition } from "./definition.ts";
-import type { GlobalReference } from "@destack/package/code";
-import { collectGlobals } from "./global.ts";
 import { children, qualifiedName } from "./node.ts";
 import { collectTests, type TestDeclaration } from "./test.ts";
 
@@ -299,13 +297,6 @@ export class Outliner {
         }
 
         return [...imported];
-    }
-
-    /** Collect the runtime globals a module's expressions read. */
-    async globals(file: string): Promise<GlobalReference[]> {
-        const source = await this.#source(file);
-
-        return collectGlobals(source.program, graph.Moniker.module(source.module.moniker));
     }
 
     /** Outline one module: its symbols, imports, exports and the names it uses. */

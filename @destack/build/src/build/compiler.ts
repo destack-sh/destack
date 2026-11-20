@@ -1,5 +1,4 @@
-import type { graph } from "@destack/package";
-import { type PackageInspection } from "@destack/package/code";
+import type { DeclarationDescription, graph } from "@destack/package";
 import { dirname, join, resolve } from "node:path";
 import { type Environment, Telemetry } from "@destack/environment";
 import { fileURLToPath } from "node:url";
@@ -27,8 +26,8 @@ import {
     writeMessage,
     type IndexedDeclarations,
 } from "./message.ts";
-import type { InspectOptions } from "../inspection/inspection.ts";
 import type { BuildReader } from "@destack/package/manifest";
+import type { SourceOptions } from "../source/index.ts";
 import type {} from "@destack/package/import-meta";
 import { TelemetryScope } from "@destack/telemetry";
 import { OtlpExport } from "@destack/telemetry/otlp";
@@ -461,31 +460,31 @@ export class Compiler implements AsyncDisposable {
         }
     }
 
-    /** Inspect source inside the isolated compiler process after the requests before it. */
-    inspect(
-        options: InspectOptions & Pick<PackageBuildOptions, "dependencies" | "links">,
+    /** Evaluate a package's declarations from source in the isolated compiler. */
+    declarations(
+        options: SourceOptions & Pick<PackageBuildOptions, "dependencies" | "links">,
         signal?: AbortSignal,
-    ): Promise<PackageInspection> {
-        return this.#scope.span("destack.compiler.inspect", {}, () =>
+    ): Promise<readonly DeclarationDescription[]> {
+        return this.#scope.span("destack.compiler.declarations", {}, () =>
             this.#serially(async () => {
-                // send the inspection at the real directory, the dependencies materialized
+                // send the request at the real directory, the dependencies materialized
                 const request = {
-                    kind: "inspect",
-                    options: await this.#inspected(options),
+                    kind: "declarations",
+                    options: await this.#sourced(options),
                 } as const;
                 const response = await this.#request(request, signal);
-                if (response.kind !== "inspect") {
+                if (response.kind !== "declarations") {
                     throw Compiler.mismatched(request.kind, response.kind);
                 }
 
-                return response.inspection;
+                return response.declarations;
             }),
         );
     }
 
     /** Index source with its build's declarations in the isolated compiler. */
     index(
-        options: InspectOptions & Pick<PackageBuildOptions, "dependencies" | "links">,
+        options: SourceOptions & Pick<PackageBuildOptions, "dependencies" | "links">,
         declared: IndexedDeclarations,
         signal?: AbortSignal,
     ): Promise<graph.Module[]> {
@@ -494,7 +493,7 @@ export class Compiler implements AsyncDisposable {
                 // send the index request at the real directory, the dependencies materialized
                 const request = {
                     kind: "index",
-                    options: await this.#inspected(options),
+                    options: await this.#sourced(options),
                     declared,
                 } as const;
                 const response = await this.#request(request, signal);
@@ -507,10 +506,10 @@ export class Compiler implements AsyncDisposable {
         );
     }
 
-    /** Read inspection options at the real directory, the Destack dependencies materialized. */
-    async #inspected(
-        options: InspectOptions & Pick<PackageBuildOptions, "dependencies" | "links">,
-    ): Promise<InspectOptions & Pick<RequestedBuild, "tree">> {
+    /** Read source options at the real directory, the Destack dependencies materialized. */
+    async #sourced(
+        options: SourceOptions & Pick<PackageBuildOptions, "dependencies" | "links">,
+    ): Promise<SourceOptions & Pick<RequestedBuild, "tree">> {
         // resolve the directory and materialize the dependencies' builds
         const { dependencies: _dependencies, links: _links, ...inspected } = options;
         const { files } = this.store.environment;

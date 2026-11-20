@@ -35,30 +35,6 @@ import legacy = require("legacy");
 export const run = () => legacy.start();
 `;
 
-/** A module reading globals through hoisted, switch, namespace and type names. */
-const RUNTIME = `interface Response {
-    ok: boolean;
-}
-namespace Local {
-    export const value = 1;
-    const inner = value;
-}
-export function run() {
-    if (Local) {
-        var hoisted = 1;
-    }
-    switch (hoisted) {
-        case 1:
-            const scoped = 2;
-            console.log(scoped);
-    }
-    return new Response();
-}
-export class Store {
-    accessor cache = fetch;
-}
-`;
-
 /** A module registering tests through a namespace, an extended runner and a tagged table. */
 const SUITE = `import * as vitest from "vitest";
 import { test } from "@destack/test";
@@ -89,7 +65,6 @@ const FILES: Readonly<Record<string, string>> = {
     "destack.json": JSON.stringify({ id: PACKAGE }),
     "src/note.ts": NOTE,
     "src/index.ts": INDEX,
-    "src/runtime.ts": RUNTIME,
     "src/broken.ts": `export { missing } from "./note.ts";\n`,
     "src/tokens.json": JSON.stringify({ color: "violet" }),
     "src/stray.ts": STRAY,
@@ -205,20 +180,6 @@ test("resolve star and JSON re-exports and a CommonJS `export =` member, refusin
             "export 'missing' of 'src/broken.ts' is invalid: it reaches no declaration",
         ],
     });
-});
-
-test("collect the globals a module reads, past hoisted, switch, namespace and type names", async () => {
-    await using simulation = testSimulation();
-    const environment = simulation.environment("test");
-    const { directory, outliner } = await outlined(environment.files, environment);
-    const globals = await outliner.globals(join(directory, "src/runtime.ts"));
-
-    // read console, the runtime's Response past the module's interface, and fetch at construction
-    expect(globals.map((global) => [global.name, global.members, global.evaluation])).toEqual([
-        ["console", ["log"], "function"],
-        ["Response", [], "function"],
-        ["fetch", [], "function"],
-    ]);
 });
 
 test("read tests through a namespace import, an extended runner and a tagged table", async () => {

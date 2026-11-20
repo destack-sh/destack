@@ -22,7 +22,7 @@ import type { PackageSource } from "../source/index.ts";
 import { modulePlugin } from "@destack/package/vite";
 import type { ModuleTransformer } from "@destack/package/transform";
 import { BuildError } from "../error/index.ts";
-import { stringifyInspection } from "../build/serialization.ts";
+import { stringifyDescription } from "../build/serialization.ts";
 import { isHostModule, type PluginOption, runtimeConditions } from "@destack/package/build";
 import { HOST_RUNTIME, WORKERD_SCHEME } from "@destack/package/runtime";
 import { selectExport } from "../source/source.ts";
@@ -568,7 +568,7 @@ async function describeDeclaration(
     }
 
     // serialize the domain description under the declaration's described name
-    const description: unknown = JSON.parse(stringifyInspection(described));
+    const description: unknown = JSON.parse(stringifyDescription(described));
     const parsed = DeclarationDescription.parse({
         name: nameOf(description, name),
         kind: kind.kind,

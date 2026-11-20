@@ -1,7 +1,6 @@
 import { dirname, join, resolve, isAbsolute, sep } from "node:path";
 import type { Program } from "@destack/package/bun";
 import { type Environment, type FileSystem, FileSystemError } from "@destack/environment";
-import { type InspectOptions } from "../inspection/inspection.ts";
 import { runtimeConditions } from "@destack/package/build";
 import { ReleasedPackage } from "./dependency.ts";
 import { PackageError } from "@destack/package/error";
@@ -40,11 +39,23 @@ export interface PackageSource {
     program: Program;
 }
 
-/** A package's inputs opened for inspection and compilation. */
+/** The source a compiler reads: its directory, runtime, configuration and versions. */
+export interface SourceOptions {
+    /** The source package directory. */
+    directory: string;
+    /** The runtime the source is read for. */
+    runtime: Runtime;
+    /** The TypeScript configuration, absent for the package defaults. */
+    configuration?: string;
+    /** The versions the build releases its source packages at, by package name. */
+    versions?: Readonly<Record<string, Version>>;
+}
+
+/** A package's inputs opened for evaluation, indexing and compilation. */
 export const PackageSource = {
     /** Open package inputs and prepare one compiler configuration. */
     async open(
-        options: InspectOptions & {
+        options: SourceOptions & {
             /** Public modules selected for this output. */
             entries?: Readonly<Record<string, string>>;
             /** The versions the build releases its source packages at, by package name. */

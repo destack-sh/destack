@@ -1,5 +1,4 @@
 import { fileURLToPath } from "node:url";
-import { version } from "typescript";
 import { type Environment, FileSystemError } from "@destack/environment";
 import { Digest } from "@destack/schema";
 import { Distribution } from "@destack/update";
@@ -140,7 +139,6 @@ export class CompilerFingerprint {
             {
                 layout: KEY_LAYOUT,
                 bun: this.environment.process.runtime.revision,
-                typescript: version,
                 compiler: await compiler.digest(this.environment.crypto),
             },
             this.environment.crypto,

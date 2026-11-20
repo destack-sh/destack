@@ -1,8 +1,8 @@
 import { Text } from "@destack/schema";
 import { BuildError } from "../error/index.ts";
 
-/** Serialize an inspection value without implicit conversions or discarded values. */
-export function stringifyInspection(value: unknown, indent = 0): string {
+/** Serialize a description without implicit conversions or discarded values. */
+export function stringifyDescription(value: unknown, indent = 0): string {
     // refuse each non-JSON value as the serializer reaches it, by its path from the root
     const paths = new Map<object, string>();
     const replacer = function (this: object, key: string, raw: unknown): unknown {

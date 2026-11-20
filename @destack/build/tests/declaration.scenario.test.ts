@@ -1,10 +1,9 @@
 import { testSimulation } from "../src/test/world.ts";
-import { DeclarationDescription } from "@destack/package";
 import { expect, refusal, test } from "@destack/test";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { present, schema } from "@destack/schema";
-import { Workspace, CompilerPool, InspectionContents } from "../src/index.ts";
+import { present } from "@destack/schema";
+import { Workspace, CompilerPool } from "../src/index.ts";
 import { LocalBuildStore } from "../src/store/local.ts";
 import { THING_FILES, writeThing } from "./fixture.ts";
 import { Toolchain } from "@destack/check/toolchain";
@@ -15,9 +14,9 @@ const THING_APP = present(THING_FILES["src/app.ts"], "the thing app");
 /** The installed vitest, whose test function the inspected tests import. */
 const VITEST = dirname(fileURLToPath(import.meta.resolve("vitest/package.json")));
 
-/** Retain test discovery without collecting test bodies' declarations or fixture extensions. */
-test("inspect test bodies and fixture extensions without declaring what they construct", async () => {
-    // inspect an app declaring one thing, with vitest installed beside its kind package
+/** Evaluate export entries without declaring what test bodies or fixture extensions construct. */
+test("evaluate declarations without what test bodies and fixture extensions construct", async () => {
+    // evaluate an app declaring one thing, with vitest installed beside its kind package
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
     const { files } = environment;
@@ -28,14 +27,13 @@ test("inspect test bodies and fixture extensions without declaring what they con
     await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
     const workspacePackage = await (await Workspace.open(directory, compilers)).package();
     const dependencies = await workspacePackage.storeDependencies({});
-    const inspect = async () =>
+    const evaluate = async () =>
         await compilers.use(directory, (compiler) =>
-            compiler.inspect({ directory, runtime: "bun", dependencies, links: {} }),
+            compiler.declarations({ directory, runtime: "bun", dependencies, links: {} }),
         );
-    const before = await inspect();
-    const original = InspectionContents.parse(before.descriptions);
+    const before = await evaluate();
 
-    // construct a thing in a registered test beside a fixture extension, then inspect again
+    // construct a thing in a registered test beside a fixture extension, then evaluate again
     const source = `import { test } from "vitest";
 import { defineThing } from "@example/owner";
 export const extended = test.extend<{ name: string }>({ name: "test-only" });
@@ -45,30 +43,15 @@ test("construct a thing", () => {
 });
 `;
     await files.writeTextFile(join(directory, "src/app.test.ts"), source);
-    const after = await inspect();
+    const after = await evaluate();
 
-    // list the one declaration and add only the statically collected test
-    expect(InspectionContents.parse(after.descriptions)).toEqual({
-        examples: [],
-        declarations: original.declarations,
-        tests: [
-            ...original.tests,
-            {
-                kind: "test",
-                name: "construct a thing",
-                suites: [],
-                file: "src/app.test.ts",
-                start: source.indexOf('test("'),
-                end: source.lastIndexOf(";"),
-                modifiers: [],
-            },
-        ],
-    });
-    expect(original.declarations.map((declaration) => declaration.name)).toEqual(["greeting"]);
+    // list the one declaration both times
+    expect(after).toEqual(before);
+    expect(before.map((declaration) => declaration.name)).toEqual(["greeting"]);
 });
 
-/** Inspect an app module beside the thing kind's package, answering its declarations. */
-async function inspectApp(app: string): Promise<readonly string[]> {
+/** Evaluate an app module beside the thing kind's package, answering its declarations' names. */
+async function evaluateApp(app: string): Promise<readonly string[]> {
     // write the app beside its kind's package in one workspace
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -77,18 +60,15 @@ async function inspectApp(app: string): Promise<readonly string[]> {
     );
     const directory = await writeThing(root, app, environment);
 
-    // inspect it on its dependencies' builds
+    // evaluate it on its dependencies' builds
     await using store = await LocalBuildStore.temporary(environment);
     await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
     const dependencies = await (
         await (await Workspace.open(directory, compilers)).package()
     ).storeDependencies({});
-    const inspected = await compilers.use(directory, (compiler) =>
-        compiler.inspect({ directory, runtime: "bun", dependencies, links: {} }),
+    const declarations = await compilers.use(directory, (compiler) =>
+        compiler.declarations({ directory, runtime: "bun", dependencies, links: {} }),
     );
-    const { declarations } = schema
-        .looseObject({ declarations: schema.array(DeclarationDescription) })
-        .parse(inspected.descriptions);
 
     return declarations.map((declaration) => declaration.name);
 }
@@ -111,7 +91,7 @@ export const members = family("member");
 `;
 
     // describe the constructor's and the factory's exported constants
-    expect(await inspectApp(app)).toEqual(["greeting", "made"]);
+    expect(await evaluateApp(app)).toEqual(["greeting", "made"]);
 });
 
 test("refuse a declaration its module does not export, leaving one a factory makes", async () => {
@@ -131,7 +111,7 @@ const made = thing("made");
 export const greeting = defineThing({ name: "greeting" });
 void made;
 `;
-    expect([await refusal(inspectApp(app)), await inspectApp(factory)]).toEqual([
+    expect([await refusal(evaluateApp(app)), await evaluateApp(factory)]).toEqual([
         [
             "BAD_REQUEST",
             "DECLARATION_INVALID",
