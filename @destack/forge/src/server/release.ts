@@ -180,13 +180,6 @@ export const ReleaseMethod = {
             taken.image !== image &&
             (await store.image(taken.image)).root === read.root;
 
-        // copy up the image and every build it lists that the host's distribution ships
-        const builds = Object.values(entries).map((entry) => ({
-            kind: "manifest" as const,
-            digest: entry.manifest,
-        }));
-        await store.copyUp([{ kind: "image", digest: image }, ...builds]);
-
         // pack the tarball npm clients download once, and store it for the release to refer to
         const { bytes, listed } = await NpmTarball.pack(store, image, context.environment);
         const tarball = await store.blobs.write(
