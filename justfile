@@ -6,8 +6,8 @@ set dotenv-filename := ".env.local"
 # run every database test on SQLite and the test PostgreSQL
 export DESTACK_TEST_POSTGRES := "postgres://postgres@127.0.0.1:55432/postgres"
 
-# the CI check runners
-runners := "8"
+# the milliseconds of work each CI runner takes: 2 to 3 minutes of wall time minus about a minute of setup
+runner_milliseconds := "120000"
 
 _default:
     @just --list --unsorted
@@ -159,16 +159,15 @@ bench *packages:
 test-files directory:
     #!/usr/bin/env bash
     set -euo pipefail
-    cd "{{justfile_directory()}}/{{directory}}"
-    test="$(jq -r '.scripts.test // ""' package.json)"
-    # list the files with the test script's options
-    if [[ "$test" == *"vitest run"* && "$test" != *"&&"* && "$test" != *";"* ]]; then
-        listed="$(mktemp)"
-        PATH="$PWD/node_modules/.bin:{{justfile_directory()}}/node_modules/.bin:$PATH" \
-            bash -c "${test/vitest run/vitest list --filesOnly --json=$listed}" >&2
-        jq -r --arg root "$PWD/" '[.[].file | ltrimstr($root)] | unique[]' "$listed"
-        rm "$listed"
-    fi
+    # list the files the test plan runs in the unit and scenario tiers, each once
+    cd "{{justfile_directory()}}/@destack/test"
+    bun --eval '
+        import { TestPlan } from "@destack/test/plan";
+        import { BunEnvironment } from "@destack/environment/bun";
+        const plan = await TestPlan.of(process.argv[1], BunEnvironment.system.files);
+        const files = plan.targets.filter((target) => target.tier !== "bench").flatMap((target) => target.files);
+        console.log([...new Set(files)].sort().join("\n"));
+    ' "{{justfile_directory()}}/{{directory}}"
 
 # print each test file's share of a run's milliseconds as JSON
 test-durations directory milliseconds:
@@ -200,7 +199,7 @@ check-runners durations +directories:
     for directory in {{directories}}; do
         just test-files "$directory" | jq --raw-input --slurp --compact-output --arg package "$directory" \
             '{ package: $package, files: (split("\n") | map(select(. != ""))) }'
-    done | jq --slurp --compact-output --argjson runners "{{runners}}" --slurpfile table "$durations" '
+    done | jq --slurp --compact-output --argjson target "{{runner_milliseconds}}" --slurpfile table "$durations" '
         def median: sort | if length == 0 then null else .[length / 2 | floor] end;
         # pack items onto the lightest bin
         def pack($count): sort_by(-.weight, .key)
@@ -219,18 +218,18 @@ check-runners durations +directories:
             | ([.files[] | $known[$package + "/" + .] | numbers] | median) as $local
             | .files |= map({ key: ., weight: ($known[$package + "/" + .] // $local // $fallback) })
             | .check = ($table.checks[$package] // 0)
-            | .isMeasured = ($local != null)
             | .test = (if .files == [] then ($table.scripts[$package] // $fallback) else (.files | map(.weight) | add) end)
             | .weight = .check + .test
         )
         | (map({ key: .package, value: .check }) | from_entries) as $checks
+        | ([((map(.weight) | add) / $target | ceil), 1] | max) as $runners
         | ((map(.weight) | add) / $runners) as $average
 
-        # split packages heavier than the average runner
+        # split each package heavier than the average runner by its files
         | [
             .[]
             | .package as $package
-            | if .isMeasured and .weight > $average then
+            | if .files != [] and .weight > $average then
                 .files
                 | pack(map(.weight) | add / $average | ceil)
                 | .[]
