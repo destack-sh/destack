@@ -1,10 +1,11 @@
 import { TelemetryScope } from "@destack/telemetry";
 import { join } from "node:path";
-import type { StackRelease } from "@destack/account/object";
+import { account, type StackRelease } from "@destack/account/object";
+import type { Session } from "@destack/account/client";
 import type { PlatformDefinition } from "@destack/account/server";
 import * as stacks from "@platform/stack";
 import { RESIDENCIES } from "@platform/stack";
-import { SERVER_EXPORT } from "@destack/object";
+import { Claim, PackageMount, SERVER_EXPORT, SpaceMount } from "@destack/object";
 import { InstallationDefinition } from "@destack/stack/declare";
 import {
     CompilerPool,
@@ -14,7 +15,7 @@ import {
 } from "@destack/build";
 import { COMPUTER_RUNTIMES } from "@destack/machine/computer";
 import { CLOUD_RUNTIMES } from "@destack/machine/cloudflare";
-import type { Environment } from "@destack/environment";
+import type { Clock, Environment } from "@destack/environment";
 import {
     DISTRIBUTION_LAYER,
     DISTRIBUTION_MANIFEST,
@@ -23,10 +24,10 @@ import {
     PackageName,
 } from "@destack/package";
 import { type BuildReader, LAYER_INDEX, PackageManifest } from "@destack/package/manifest";
-import { Digest, found, type Identifier, type JsonValue, present, schema } from "@destack/schema";
+import { Digest, found, present, schema } from "@destack/schema";
 import { RemoteBuildStore } from "@destack/build/store";
 import { createClient } from "@destack/object/client";
-import type { Fetch, MethodInput } from "@destack/object";
+import type { MethodInput } from "@destack/object";
 import type { packageObject } from "@destack/registry/object";
 import registryPackage from "@destack/registry/package";
 import { RequestId } from "@destack/sync";
@@ -56,29 +57,27 @@ const INSTALLATIONS = schema.record(schema.string(), InstallationDefinition);
 /** The desktop package, whose workspace builds the release of the program computers run. */
 const DESKTOP = "@destack/desktop";
 
+/**
+ * How long a home may take to serve its forge, in milliseconds.
+ *
+ * A minute for the machine's directory to sync, and half a minute for the home to start.
+ */
+const SERVE_MILLISECONDS = 90_000;
+
+/** The status a machine answers to move a request to the machine serving its space, RFC 9110. */
+const PLACED_STATUS = 307;
+
+/** The status a starting machine answers with its Retry-After, RFC 9110. */
+const UNAVAILABLE_STATUS = 503;
+
 /** The checkout's store of first-party releases, which every universe and target shares. */
 export const RELEASES_DIRECTORY = "target/releases";
 
-/** A forge a platform build releases into: its account and the registry calling it. */
-export interface ReleaseForge {
-    /** The publishing account. */
-    readonly accountId: Identifier<"account">;
-    /** The account's residency home, where its forge runs. */
-    readonly home: Identifier<"space">;
-    /** The URL of the registry package below the forge's installation. */
-    readonly url: string;
-    /** Fetch from the forge as the publisher. */
-    readonly fetch: Fetch;
-}
-
-/** How a release publishes its packages: its commit, visibility and further distribution tags. */
-export type ReleaseOptions = Pick<
+/** How a build publishes its packages: their commit, visibility and further distribution tags. */
+export type PublishOptions = Pick<
     MethodInput<typeof packageObject, "publish">,
     "commit" | "visibility" | "tags"
 >;
-
-/** Open the forge of a handle's account, as a machine publishing in its residency's home. */
-export type ForgeOpen = (handle: string) => Promise<ReleaseForge>;
 
 /** The first-party releases a universe's homes run and its forge publishes. */
 export class PlatformBuild implements AsyncDisposable {
@@ -155,18 +154,44 @@ export class PlatformBuild implements AsyncDisposable {
         return new PlatformBuild(store, releases, images, version);
     }
 
-    /** Release each image under a tag into its account's forge, after the handles it requires. */
-    async release(tag: string, open: ForgeOpen, options: ReleaseOptions = {}): Promise<void> {
-        // release in a span, which records the releases once they succeed
-        const { telemetry } = this.store.environment;
+    /** Publish each image under a tag into its account's forge, after the handles it requires. */
+    async publish(
+        session: Session,
+        universe: string,
+        tag: string,
+        options: PublishOptions = {},
+    ): Promise<void> {
+        // publish in a span, which records the releases once they succeed
+        const { telemetry, clock, network } = this.store.environment;
+        const accounts = session.accounts();
         await TelemetryScope.of(import.meta.destack.package, telemetry).span(
             "platform.release.publish",
             { "platform.release.tag": tag },
             async () => {
-                // release each handle's images into its account's forge, after the handles they require
+                // publish each handle's images into its account's forge, after the handles they require
                 for (const { handle, names } of PlatformBuild.#runs(this.releases)) {
+                    // find the handle's account and its residency's home, which serves its forge
+                    const claimed = await accounts.claim.owner(
+                        Claim.key(account, "handle", [handle]),
+                    );
+                    if (claimed === null) {
+                        throw new Error(`no account claims '@${handle}'`);
+                    }
+                    const accountId = account.identifier(claimed.objectId);
+                    const home = schema
+                        .identifier("space")
+                        .parse(await accounts.residency.locate({ account: accountId }));
+
+                    // call the forge at the machine serving the home, as the session bound to the home
+                    const send = PlatformBuild.#retry((request) => network.fetch(request), clock);
+                    const mount = await PlatformBuild.#locate(SpaceMount.url(universe, home), send);
+                    const url = `${mount}${PackageMount.path(registryPackage.id)}`;
+                    const fetch = PlatformBuild.#retry(
+                        session.fetch(registryPackage.id, { partition: home }),
+                        clock,
+                    );
+
                     // find the handle's images its forge has yet to release
-                    const { accountId, home, url, fetch } = await open(handle);
                     const registry = createClient(
                         registryPackage,
                         { url, fetch },
@@ -206,6 +231,60 @@ export class PlatformBuild implements AsyncDisposable {
             },
             { level: "info" },
         );
+    }
+
+    /** Locate a space's mount at the machine serving it, following its address's move once. */
+    static async #locate(
+        address: string,
+        send: (request: Request) => Promise<Response>,
+    ): Promise<string> {
+        // ask at the address, keeping a move to the machine serving the space
+        const response = await send(new Request(address, { redirect: "manual" }));
+        await response.body?.cancel();
+        const location = response.headers.get("location");
+
+        // take the moved address
+        if (response.status === PLACED_STATUS && location !== null) {
+            return new URL(location, address).href;
+        }
+        // refuse a failing space
+        else if (response.status >= 500) {
+            throw new Error(`space '${address}' answered '${response.status}'`);
+        }
+        // take the address, which serves the space here
+        else {
+            return address;
+        }
+    }
+
+    /** Wrap a fetch to send again as a 503's Retry-After says, until a deadline. */
+    static #retry(
+        fetch: (request: Request) => Promise<Response>,
+        clock: Clock,
+    ): (request: Request) => Promise<Response> {
+        return async (request) => {
+            // read the body once, to send it again after each pause
+            const { url, method, headers, redirect } = request;
+            const body = request.body === null ? null : await request.arrayBuffer();
+            const send = () => fetch(new Request(url, { method, headers, body, redirect }));
+
+            // send again after the pause each 503 asks for, until the deadline
+            const deadline = clock.now() + SERVE_MILLISECONDS;
+            let response = await send();
+            let pause = response.headers.get("retry-after");
+            while (
+                response.status === UNAVAILABLE_STATUS &&
+                pause !== null &&
+                clock.now() < deadline
+            ) {
+                await response.body?.cancel();
+                await clock.sleep(Number(pause) * 1000);
+                response = await send();
+                pause = response.headers.get("retry-after");
+            }
+
+            return response;
+        };
     }
 
     /** Group releases by handle, each handle after the handles its releases require. */
@@ -422,13 +501,14 @@ export class PlatformBuild implements AsyncDisposable {
             selection: { kind: "tag", tag },
             export: exported,
             settings: {},
+            routes: {},
         };
     }
 
-    /** Select an export of the stack package's built release with its settings, as a home does. */
+    /** Select an export of the stack package's built release with what a home places in it. */
     released(
         exported: keyof typeof stacks,
-        settings: Readonly<Record<string, JsonValue>>,
+        placed: Pick<StackRelease, "settings" | "routes">,
     ): StackRelease {
         // select the stack package's built release by its version
         const stack = present(this.releases.get(STACK), `the release of ${STACK}`);
@@ -438,7 +518,8 @@ export class PlatformBuild implements AsyncDisposable {
             packageId: id,
             selection: { kind: "release", version },
             export: exported,
-            settings: { ...settings },
+            settings: { ...placed.settings },
+            routes: { ...placed.routes },
         };
     }
 }
