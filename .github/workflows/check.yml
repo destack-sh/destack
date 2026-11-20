@@ -120,6 +120,13 @@ jobs:
                       ~/.cache/destack/templates
                   key: destack-test-records-2-${{ runner.os }}-${{ github.sha }}
                   restore-keys: destack-test-records-2-${{ runner.os }}-
+            - name: Restore the type checks' build info
+              uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+              with:
+                  # tsc rechecks only the files whose content changed since, as build info records hashes
+                  path: "@*/*/node_modules/.cache/destack/*.tsbuildinfo"
+                  key: destack-tsc-1-${{ runner.os }}-${{ github.sha }}
+                  restore-keys: destack-tsc-1-${{ runner.os }}-
             - name: Run the checks
               env:
                   WORK: ${{ toJSON(matrix.work) }}
@@ -175,6 +182,24 @@ jobs:
                   name: durations-${{ matrix.runner }}
                   retention-days: 1
                   path: ${{ runner.temp }}/durations/durations-${{ matrix.runner }}.json
+                  if-no-files-found: ignore
+            - name: Pack the type checks' build info
+              if: always()
+              run: |
+                  # pack the build info at its repository paths, which an artifact would cut to their common directory
+                  shopt -s nullglob
+                  infos=(@*/*/node_modules/.cache/destack/*.tsbuildinfo)
+                  mkdir -p "$RUNNER_TEMP/tsc"
+                  if [ "${#infos[@]}" -gt 0 ]; then
+                      tar -cf "$RUNNER_TEMP/tsc/tsc-${{ matrix.runner }}.tar" "${infos[@]}"
+                  fi
+            - name: Upload the type checks' build info
+              if: always()
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+              with:
+                  name: tsc-${{ matrix.runner }}
+                  retention-days: 1
+                  path: ${{ runner.temp }}/tsc/tsc-${{ matrix.runner }}.tar
                   if-no-files-found: ignore
             - name: Save the test builds and templates
               # save once per commit from the runner with the heaviest part
@@ -236,6 +261,31 @@ jobs:
               with:
                   path: ~/.cache/destack/durations.json
                   key: destack-test-durations-${{ runner.os }}-${{ github.sha }}-${{ github.run_attempt }}
+            - name: Restore the type checks' build info
+              uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+              with:
+                  path: "@*/*/node_modules/.cache/destack/*.tsbuildinfo"
+                  key: destack-tsc-1-${{ runner.os }}-${{ github.sha }}
+                  restore-keys: destack-tsc-1-${{ runner.os }}-
+            - name: Download the runners' build info
+              # overlay this run's build info on the previous one, keeping the packages it left unchecked
+              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+              with:
+                  pattern: tsc-*
+                  path: ${{ runner.temp }}/tsc
+                  merge-multiple: true
+            - name: Unpack the runners' build info
+              run: |
+                  # unpack each runner's build info at its repository paths
+                  shopt -s nullglob
+                  for archive in "$RUNNER_TEMP"/tsc/*.tar; do
+                      tar -xf "$archive"
+                  done
+            - name: Save the type checks' build info
+              uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+              with:
+                  path: "@*/*/node_modules/.cache/destack/*.tsbuildinfo"
+                  key: destack-tsc-1-${{ runner.os }}-${{ github.sha }}
 
     macos:
         name: Test updates on macOS
