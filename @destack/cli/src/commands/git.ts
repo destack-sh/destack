@@ -40,11 +40,11 @@ export const gitCommand: Command = {
                 );
                 const origins = new Set([
                     ...served.flat().map((machine) => new URL(machine.url).origin),
-                    GitCredentialRequest.origin(context.environment),
+                    machineOrigin(context.environment),
                 ]);
 
                 // replace any other helper of each origin with this program, reading the path
-                const helper = `!${GitCredentialRequest.helper(context.environment)} git credential`;
+                const helper = `!${credentialCommand(context.environment)} git credential`;
                 for (const origin of origins) {
                     const key = `credential.${origin}`;
                     await configure(["--replace-all", `${key}.helper`, ""], context.environment);
@@ -108,32 +108,6 @@ export class GitCredentialRequest {
         return new GitCredentialRequest(new Map(fields));
     }
 
-    /** Read the origin this computer's machine answers at. */
-    static origin(environment: CommandEnvironment): string {
-        const port = environment.process.variables[PORT_VARIABLE] ?? String(MACHINE_PORT);
-
-        return `http://127.0.0.1:${port}`;
-    }
-
-    /** Write the command running this program on its universe, as gh names its own path. */
-    static helper(environment: CommandEnvironment): string {
-        // run the standalone program, or the runtime with its script from where its configuration lies
-        const { process } = environment;
-        const program = process.runtime.isStandalone
-            ? [process.executable]
-            : [process.executable, "--cwd", process.workingDirectory, process.script];
-
-        // pass the variables selecting the universe and the device, as git runs helpers without them
-        const selecting = SELECTING_VARIABLES.flatMap((name) => {
-            const value = process.variables[name];
-
-            return value === undefined ? [] : [`${name}=${quote(value)}`];
-        });
-        const prefix = selecting.length === 0 ? "" : `env ${selecting.join(" ")} `;
-
-        return `${prefix}${program.map(quote).join(" ")}`;
-    }
-
     /** Read the space and the package the request's path names below its machine. */
     mount(): { readonly spaceId: Identifier<"space">; readonly packageId: PackageId } {
         // read the package below the space, as git sends the path without its leading slash
@@ -170,6 +144,32 @@ export class GitCredentialRequest {
             "ephemeral=true",
         ].join("\n");
     }
+}
+
+/** Read the origin this computer's machine answers at. */
+function machineOrigin(environment: CommandEnvironment): string {
+    const port = environment.process.variables[PORT_VARIABLE] ?? String(MACHINE_PORT);
+
+    return `http://127.0.0.1:${port}`;
+}
+
+/** Write the command running this program on its universe, as gh names its own path. */
+function credentialCommand(environment: CommandEnvironment): string {
+    // run the standalone program, or the runtime with its script from where its configuration lies
+    const { process } = environment;
+    const program = process.runtime.isStandalone
+        ? [process.executable]
+        : [process.executable, "--cwd", process.workingDirectory, process.script];
+
+    // pass the variables selecting the universe and the device, as git runs helpers without them
+    const selecting = SELECTING_VARIABLES.flatMap((name) => {
+        const value = process.variables[name];
+
+        return value === undefined ? [] : [`${name}=${quote(value)}`];
+    });
+    const prefix = selecting.length === 0 ? "" : `env ${selecting.join(" ")} `;
+
+    return `${prefix}${program.map(quote).join(" ")}`;
 }
 
 /** Quote a word for the shell git runs a helper in. */

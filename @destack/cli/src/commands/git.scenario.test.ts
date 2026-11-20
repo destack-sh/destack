@@ -1,11 +1,12 @@
 import { join } from "node:path";
+import { present } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { testHost } from "@destack/test/host";
 import { TerminalFixture } from "../test/terminal.ts";
 
 test("register this program as git's credential helper at every machine repositories answer at", async () => {
     // set git up in a terminal whose global git configuration is a file of its own
-    const { files } = testHost();
+    const { files, process: host } = testHost();
     const directory = await files.makeTemporaryDirectory("destack-git-");
     onTestFinished(() => files.remove(directory, { recursive: true }));
     const configuration = join(directory, "gitconfig");
@@ -13,12 +14,12 @@ test("register this program as git's credential helper at every machine reposito
     const terminal = await TerminalFixture.open({
         NO_COLOR: "1",
         GIT_CONFIG_GLOBAL: configuration,
+        PATH: present(host.variables["PATH"], "the host's PATH"),
     });
     const set = await terminal.printed(["git", "setup"]);
 
     // read each origin's helpers and whether git sends it the path
-    const { process } = testHost();
-    const listed = await process.run(["git", "config", "--file", configuration, "--list"]);
+    const listed = await host.run(["git", "config", "--file", configuration, "--list"]);
     const entries = new TextDecoder()
         .decode(listed.stdout)
         .trim()
