@@ -57,6 +57,14 @@ const UNIVERSE_LOCATION = "weur";
 /** The class of the universe's one object. */
 const UNIVERSE_CLASS = "DurableObjectUniverse";
 
+/** The universe Worker's Durable Object migrations, which each deploy applies up to the last. */
+const UNIVERSE_MIGRATIONS = [
+    { tag: "v1", new_sqlite_classes: [UNIVERSE_CLASS] },
+    // reset 2026-11-20: drop every object's storage, then serve the class again empty
+    { tag: "v2", deleted_classes: [UNIVERSE_CLASS] },
+    { tag: "v3", new_sqlite_classes: [UNIVERSE_CLASS] },
+];
+
 /** The binding of the releases a Worker ships as its static assets. */
 const RELEASES_BINDING = "RELEASES";
 
@@ -73,6 +81,14 @@ const MACHINE_CLASSES = {
     database: "DurableObjectDatabase",
     graph: "GraphIndexObject",
 } as const;
+
+/** The machine Workers' Durable Object migrations, which each deploy applies up to the last. */
+const MACHINE_MIGRATIONS = [
+    { tag: "v1", new_sqlite_classes: Object.values(MACHINE_CLASSES) },
+    // reset 2026-11-20: drop every space's storage, then serve the classes again empty
+    { tag: "v2", deleted_classes: Object.values(MACHINE_CLASSES) },
+    { tag: "v3", new_sqlite_classes: Object.values(MACHINE_CLASSES) },
+];
 
 /** A Worker's wrangler configuration, as `wrangler.json` takes it. */
 export type WranglerConfiguration = Readonly<Record<string, unknown>>;
@@ -214,7 +230,7 @@ export class WorkerScript {
             ...this.#shared(),
             assets: WorkerScript.#releases(releases),
             durable_objects: { bindings: [{ name: "INSTANCE", class_name: UNIVERSE_CLASS }] },
-            migrations: [{ tag: "v1", new_sqlite_classes: [UNIVERSE_CLASS] }],
+            migrations: UNIVERSE_MIGRATIONS,
             hyperdrive: [{ binding: "DATABASE", id: outputs.hyperdrive }],
             vars: {
                 DESTACK_LOG_FORMAT: this.deployment.logFormat,
@@ -258,7 +274,7 @@ export class WorkerScript {
                 ],
             },
             tail_consumers: [{ service: tail.name }],
-            migrations: [{ tag: "v1", new_sqlite_classes: Object.values(MACHINE_CLASSES) }],
+            migrations: MACHINE_MIGRATIONS,
             worker_loaders: [{ binding: "LOADER" }],
             r2_buckets: [{ binding: "BUCKET", bucket_name: outputs.bucket, ...jurisdiction }],
             artifacts: [
