@@ -34,7 +34,7 @@ export const CONTEXT_ELEMENT = "destack-view";
 export const FOCUS_PARAMETER = "focus";
 
 /** The query parameter of the command palette's path with the command to run right away. */
-export const COMMAND_PARAMETER = "command";
+export const ACTION_PARAMETER = "action";
 
 /** The query parameter of the open path with the object to open, as JSON. */
 export const OBJECT_PARAMETER = "object";

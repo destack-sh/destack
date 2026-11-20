@@ -18,14 +18,14 @@ export const PaletteMessage = schema.discriminatedUnion("action", [
         action: schema.literal("actions.listed"),
         /** The actions, as the palette offers them. */
         actions: schema.array(ActionEntry),
-        /** The objects the person selected in the page, which commands on their types act on. */
+        /** The objects the person selected in the page, which actions on their types act on. */
         selection: schema.array(ObjectReference),
     }),
     schema.object({
         /** Run an action the page handles, from the frame. */
         action: schema.literal("action.run"),
         /** The action. */
-        command: DeclarationReference,
+        reference: DeclarationReference,
     }),
 ]);
 /** A message between a page and the palette framed over it. */

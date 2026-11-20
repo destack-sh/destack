@@ -2,7 +2,7 @@ import { DeclarationReference } from "@destack/package/declare";
 import { type Accessor, onCleanup, useContext } from "solid-js";
 import type { ObjectReference } from "@destack/sync";
 import { t } from "@destack/locale";
-import { type Action, defineAction } from "../declare/action.ts";
+import { type Action, defineAction } from "@destack/object";
 import { ViewMountContext } from "./context.ts";
 
 /** Undo the person's newest change across the page's scopes. */

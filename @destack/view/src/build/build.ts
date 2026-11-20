@@ -16,7 +16,7 @@ import {
 } from "@destack/package";
 import { BASELINE_MODULE } from "@destack/package/vite";
 import { type OutputContent, ViewDescription, ViewRender } from "@destack/package/manifest";
-import { COMMAND_KIND, CommandDescription } from "@destack/object";
+import { ACTION_KIND, ActionDescription } from "@destack/object";
 import { present } from "@destack/schema";
 import { THEME_KIND } from "@destack/theme/declare";
 import { fontPlugin } from "./font.ts";
@@ -27,7 +27,6 @@ import { pagesPlugin } from "./pages.ts";
 import { VIEW_PACKAGE, viewPlugins } from "./plugin.ts";
 import { ViewError } from "../error/error.ts";
 import { VIEW_KIND } from "../declare/view.ts";
-import { ACTION_KIND } from "../declare/action.ts";
 
 /** The prefix of the modules the view build generates. */
 const GENERATED = "virtual:@destack/view/";
@@ -100,7 +99,6 @@ export const viewExtension: BuildExtension = {
         const views: Record<string, ViewDescription> = {};
         const located = locate(compilation);
         requireOneTheme(compilation, located.length);
-        requireDistinctActionNames(compilation);
         for (const view of located) {
             const entrypoint = `./view/${view.name}`;
             const emitted = compiled.exports[entrypoint];
@@ -260,28 +258,6 @@ function requireOneTheme(compilation: Compilation, views: number): void {
     }
 }
 
-/** Refuse an action named as one of the package's commands, whose key combinations share a name. */
-function requireDistinctActionNames(compilation: Compilation): void {
-    // read the names of the package's actions and commands
-    const packaged = compilation.declarations.filter(
-        (declaration) => declaration.symbol.package.id === compilation.package.id,
-    );
-    const named = (kind: typeof ACTION_KIND | typeof COMMAND_KIND) =>
-        packaged
-            .filter((declaration) => kind.is(declaration.kind, declaration.package.id))
-            .map((declaration) => declaration.name);
-    const commands = new Set(named(COMMAND_KIND));
-
-    // refuse the first action a command names
-    const taken = named(ACTION_KIND).find((name) => commands.has(name));
-    if (taken !== undefined) {
-        throw ViewError.of(
-            "ACTION_INVALID",
-            `action '${taken}' is invalid: a command of the package has its name, and both bind keys by name`,
-        );
-    }
-}
-
 /** A view the package declares, with the module exporting it. */
 export interface LocatedView extends DeclarationModule {
     /** The view's name. */
@@ -377,27 +353,31 @@ function describedView(
     );
 }
 
-/** Load each view's generated entry with the package's theme and commands. */
+/** Load each view's generated entry with the package's theme and its declared method actions. */
 export function entryPlugin(views: readonly LocatedView[], compilation: ViewPackage): Plugin {
-    // read the theme and the commands with their key combinations the package declares
+    // read the theme and the actions calling methods, with their key combinations, the package declares
     const own = compilation.declarations.filter(
         (declaration) => declaration.symbol.package.id === compilation.package.id,
     );
     const theme = own.find((declaration) =>
         THEME_KIND.is(declaration.kind, declaration.package.id),
     )?.description;
-    const commands = own
-        .filter((declaration) => COMMAND_KIND.is(declaration.kind, declaration.package.id))
-        .map((declaration) => {
-            const { keybinding } = CommandDescription.parse(declaration.description);
+    const actions = own
+        .filter((declaration) => ACTION_KIND.is(declaration.kind, declaration.package.id))
+        .flatMap((declaration) => {
+            const { keybinding, call } = ActionDescription.parse(declaration.description);
 
-            return {
-                packageId: compilation.package.id,
-                name: declaration.name,
-                ...(keybinding === undefined ? {} : { keybinding }),
-            };
+            return call === undefined
+                ? []
+                : [
+                      {
+                          packageId: compilation.package.id,
+                          name: declaration.name,
+                          ...(keybinding === undefined ? {} : { keybinding }),
+                      },
+                  ];
         });
-    const declared = JSON.stringify({ commands, ...(theme === undefined ? {} : { theme }) });
+    const declared = JSON.stringify({ actions, ...(theme === undefined ? {} : { theme }) });
     const generated = new RegExp(`^\\0${RegExp.escape(GENERATED)}`, "u");
 
     return {

@@ -2,7 +2,7 @@ import { Localization, SOURCE_LOCALE, t } from "@destack/locale";
 import { PackageId } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
 import { expect, onTestFinished, test } from "@destack/test";
-import { defineAction } from "../declare/action.ts";
+import { defineAction } from "@destack/object";
 import { ActionRegistry, undo } from "../page/action.ts";
 import { isCommandPlatform } from "./keybinding.ts";
 import type { PaletteMessage } from "./message.ts";
@@ -42,7 +42,7 @@ const send = defineAction({
     focus: "any",
 });
 
-/** Open a palette over a page with a selected note, three actions and an archive command. */
+/** Open a palette over a page with a selected note, three handled actions and an archive. */
 function palette(overrides: Readonly<Record<string, string | null>> = {}) {
     // handle the actions and listen on the page
     const ran: string[] = [];
@@ -53,7 +53,7 @@ function palette(overrides: Readonly<Record<string, string | null>> = {}) {
     actions.select(() => [NOTE]);
     const overlay = new PaletteOverlay({
         actions,
-        commands: [{ packageId: NOTES, name: "archive", keybinding: "mod+shift+a" }],
+        declared: [{ packageId: NOTES, name: "archive", keybinding: "mod+shift+a" }],
         navigation: {
             currentEntry: {
                 url: "http://notes--personal--florian.localhost:7470/home",
@@ -85,7 +85,7 @@ function opened(): { readonly dialog: HTMLDialogElement; readonly frame: HTMLIFr
 
 /** Ask the page to run an action, as the palette's frame does. */
 function run(action: typeof copyLink): PaletteMessage {
-    return { action: "action.run", command: action.reference };
+    return { action: "action.run", reference: action.reference };
 }
 
 /** Choose undo in the desktop's Edit menu, which dispatches it to the focused page. */
@@ -131,6 +131,7 @@ test("list the page's actions and its selection to the palette's frame, run the 
         title,
         category: null,
         keybinding,
+        call: null,
     });
     expect({ sent, before, ran, isOpen: [dialog.isConnected, again.dialog.isConnected] }).toEqual({
         sent: [
@@ -150,7 +151,7 @@ test("list the page's actions and its selection to the palette's frame, run the 
     });
 });
 
-test("run an action on its keys, on the person's keys once rebound, from a field or editable text only when bound anywhere, and open the palette at a command", () => {
+test("run an action on its keys, on the person's keys once rebound, from a field or editable text only when bound anywhere, and open the palette at a declared action", () => {
     // press keys on a target as the platform's mod key
     const isCommand = isCommandPlatform();
     const press = (key: string, target: EventTarget = window) =>
@@ -183,15 +184,15 @@ test("run an action on its keys, on the person's keys once rebound, from a field
     press("l");
     const ranBefore = [...first.ran];
 
-    // open the palette at the archive command
+    // open the palette at the archive action
     press("a");
     const { frame } = opened();
-    const command = new URL(frame.src).searchParams.get("command");
+    const action = new URL(frame.src).searchParams.get("action");
 
-    expect({ first: ranBefore, rebound: rebound.ran, command }).toEqual({
+    expect({ first: ranBefore, rebound: rebound.ran, action }).toEqual({
         first: ["copy", "send"],
         rebound: ["copy"],
-        command: `${NOTES}/archive`,
+        action: `${NOTES}/archive`,
     });
 });
 
@@ -202,7 +203,7 @@ test("run the Edit menu's undo as the page's action, and leave it to a focused f
     actions.handle(undo, { run: () => void ran.push("undo") });
     const overlay = new PaletteOverlay({
         actions,
-        commands: [],
+        declared: [],
         navigation: {
             currentEntry: { url: "http://notes.localhost:7470/home", index: 0, state: null },
         },

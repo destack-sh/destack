@@ -15,9 +15,9 @@ export interface Presentation {
     readonly locale: LocaleTag;
     /** The theme's custom properties and color scheme for the person's display settings. */
     readonly style: Readonly<Record<string, string>>;
-    /** The person's key combinations by command key, null for one turned off. */
+    /** The person's key combinations by action key, null for one turned off. */
     readonly keybindings: Readonly<Record<string, Shortcut | null>>;
-    /** Whether the person offers the package's commands. */
+    /** Whether the person offers the package's actions. */
     readonly isOffered: boolean;
 }
 
@@ -52,7 +52,7 @@ export const Presentation = {
             installation: schema.identifier("installation").parse(context.installation),
         };
 
-        // resolve the display, the person's key combinations, and whether they offer the package's commands
+        // resolve the display, the person's key combinations, and whether they offer the package's actions
         const { chain } = person;
         const display = resolveDisplay(selection, values, chain, device);
         const offered = sources.resolve(selection, values, chain, device).value;

@@ -22,9 +22,25 @@ export const PaletteSource = schema.union([
 /** A source of the palette's entries. */
 export type PaletteSource = schema.Infer<typeof PaletteSource>;
 
-/** An action the page under the palette handles, as the palette offers it. */
+/** The method an action entry calls through an installation, as the palette offers it. */
+export const ActionCallEntry = schema.object({
+    /** The space of the installation declaring the action. */
+    space: SpaceId,
+    /** The installation declaring the action, by name. */
+    installation: DeclarationName,
+    /** The package declaring the object type it calls. */
+    typePackageId: PackageId,
+    /** The object type it calls. */
+    type: schema.string().min(1),
+    /** The method it calls. */
+    method: schema.string().min(1),
+});
+/** The method an action entry calls through an installation. */
+export type ActionCallEntry = schema.Infer<typeof ActionCallEntry>;
+
+/** An action as the palette offers it: a call through an installation, or the page's own. */
 export const ActionEntry = schema.object({
-    /** An action the page under the palette handles, running in it. */
+    /** An action. */
     kind: schema.literal("action"),
     /** The package declaring it. */
     packageId: PackageId,
@@ -36,36 +52,14 @@ export const ActionEntry = schema.object({
     category: schema.string().min(1).nullable(),
     /** The key combination that runs it. */
     keybinding: Shortcut.nullable(),
+    /** The method it calls, null for an action the page under the palette handles. */
+    call: ActionCallEntry.nullable(),
 });
-/** An action the page under the palette handles, as the palette offers it. */
+/** An action as the palette offers it. */
 export type ActionEntry = schema.Infer<typeof ActionEntry>;
 
 /** An entry the command palette offers. */
 export const PaletteEntry = schema.discriminatedUnion("kind", [
-    schema.object({
-        /** A command calling an object type's method. */
-        kind: schema.literal("command"),
-        /** The space of the installation declaring it. */
-        space: SpaceId,
-        /** The installation declaring it, by name. */
-        installation: DeclarationName,
-        /** The declaring package. */
-        packageId: PackageId,
-        /** The command's name in its package. */
-        name: DeclarationName,
-        /** The title the palette shows, in the person's language. */
-        title: schema.string().min(1),
-        /** The group the palette shows the title under, in the person's language. */
-        category: schema.string().min(1).nullable(),
-        /** The package declaring the object type it calls. */
-        typePackageId: PackageId,
-        /** The object type it calls. */
-        type: schema.string().min(1),
-        /** The method it calls. */
-        method: schema.string().min(1),
-        /** The key combination that runs it. */
-        keybinding: Shortcut.nullable(),
-    }),
     ActionEntry,
     schema.object({
         /** A view opening in a window. */
@@ -151,12 +145,11 @@ export const PaletteFocus = Object.assign(paletteFocus, {
         };
     },
 
-    /** List the identifiers of the focused objects a command acts on, those of its type. */
-    ids(focus: schema.Infer<typeof paletteFocus>, command: CommandEntry): string[] {
+    /** List the identifiers of the focused objects an action's call acts on, those of its type. */
+    ids(focus: schema.Infer<typeof paletteFocus>, call: ActionCallEntry): string[] {
         return focus.objects
             .filter(
-                (object) =>
-                    object.packageId === command.typePackageId && object.type === command.type,
+                (object) => object.packageId === call.typePackageId && object.type === call.type,
             )
             .map((object) => object.id);
     },
@@ -207,12 +200,18 @@ export const Palette = {
     boost(entry: PaletteEntry, focus: PaletteFocus): number {
         // read the entry's space and installation against the focus
         const space = Palette.space(entry);
+        const installation =
+            entry.kind === "view"
+                ? entry.installation
+                : entry.kind === "action"
+                  ? entry.call?.installation
+                  : undefined;
         const isSpace = space !== undefined && space === focus.space;
-        const isInstallation =
-            isSpace && "installation" in entry && entry.installation === focus.installation;
+        const isInstallation = isSpace && installation === focus.installation;
 
-        // read whether a command acts on the focused objects' type
-        const isObject = entry.kind === "command" && PaletteFocus.ids(focus, entry).length > 0;
+        // read whether an action's call acts on the focused objects' type
+        const call = entry.kind === "action" ? entry.call : null;
+        const isObject = call !== null && PaletteFocus.ids(focus, call).length > 0;
 
         return (
             (isSpace ? BOOSTS.space : 0) +
@@ -223,8 +222,10 @@ export const Palette = {
 
     /** Read the space an entry belongs to, absent for a window or an action of the page. */
     space(entry: PaletteEntry): Identifier<"space"> | undefined {
-        if (entry.kind === "window" || entry.kind === "action") {
+        if (entry.kind === "window") {
             return undefined;
+        } else if (entry.kind === "action") {
+            return entry.call?.space;
         } else if (entry.kind === "space") {
             return entry.id;
         }
@@ -236,7 +237,7 @@ export const Palette = {
     source(entry: PaletteEntry): PaletteSource {
         const sources = { window: "windows", space: "spaces", object: "recent" } as const;
 
-        return entry.kind === "command" || entry.kind === "view" || entry.kind === "action"
+        return entry.kind === "view" || entry.kind === "action"
             ? entry.packageId
             : sources[entry.kind];
     },
@@ -249,9 +250,6 @@ export const Palette = {
         return sources[Palette.source(entry)] !== false;
     },
 };
-
-/** A command the palette offers. */
-export type CommandEntry = Extract<PaletteEntry, { readonly kind: "command" }>;
 
 /** A view the palette offers. */
 export type ViewEntry = Extract<PaletteEntry, { readonly kind: "view" }>;

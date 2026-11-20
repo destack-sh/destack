@@ -1,7 +1,7 @@
 import { t } from "@destack/locale";
 import { expect, onTestFinished, test } from "@destack/test";
 import { createSignal, flush } from "solid-js";
-import { defineAction } from "../declare/action.ts";
+import { defineAction } from "@destack/object";
 import { ActionRegistry } from "./action.ts";
 
 /** Bold the selected text of an editor. */

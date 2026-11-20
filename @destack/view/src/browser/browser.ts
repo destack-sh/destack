@@ -13,7 +13,7 @@ import { type ClientOptions, ObjectConnection } from "@destack/object/client";
 import { reportToDevtools, startTelemetry } from "@destack/telemetry/browser";
 import { OtlpExporter } from "@destack/telemetry/otlp";
 import { CONTEXT_ELEMENT, ScopePath, ViewContext } from "../declare/context.ts";
-import type { CommandDeclaration } from "../palette/keybinding.ts";
+import type { ActionDeclaration } from "../palette/keybinding.ts";
 import { PageUndo } from "../page/undo.ts";
 import { account, space, user } from "@destack/account/object";
 import { deviceSetting, setting, SettingValue } from "@destack/setting/object";
@@ -33,11 +33,11 @@ import { PaletteOverlay } from "../palette/overlay.ts";
 import { ActionRegistry, palette, redo, undo } from "../page/action.ts";
 import { ViewError } from "../error/error.ts";
 
-/** Mount a view with its package's theme and commands once its scopes' objects are open. */
+/** Mount a view with its package's theme and actions once its scopes' objects are open. */
 export async function mount(
     view: View,
     declared: {
-        readonly commands: readonly CommandDeclaration[];
+        readonly actions: readonly ActionDeclaration[];
         readonly theme?: ThemeDescription;
     },
     environment: Environment<"workers" | BrowserCapability>,
@@ -167,7 +167,7 @@ export async function mount(
     let presented = first;
     const overlay = new PaletteOverlay({
         actions,
-        commands: declared.commands,
+        declared: declared.actions,
         navigation,
         localization: () => rendering.localization,
         presentation: () => presented,

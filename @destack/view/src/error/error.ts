@@ -5,7 +5,6 @@ import type {} from "@destack/package/import-meta";
 export const ViewError = defineErrorFamily({
     reasons: {
         // invalid
-        ACTION_INVALID: {},
         DATE_INVALID: {},
         DIAGNOSTICS_INVALID: {},
         FONT_FORMAT_INVALID: {},

@@ -2,12 +2,12 @@ import { OriginPath } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
 import { present } from "@destack/schema";
 import { Shortcut } from "@destack/object";
-import { type CommandDeclaration, isCommandPlatform, Keybinding } from "./keybinding.ts";
+import { type ActionDeclaration, isCommandPlatform, Keybinding } from "./keybinding.ts";
 import type { ActionEntry } from "./entry.ts";
 import { PaletteMessage } from "./message.ts";
 import { type ActionRegistry, redo, undo } from "../page/action.ts";
 import type { Presentation } from "../browser/presentation.ts";
-import { COMMAND_PARAMETER, FOCUS_PARAMETER } from "../declare/context.ts";
+import { ACTION_PARAMETER, FOCUS_PARAMETER } from "../declare/context.ts";
 import { type Localization, t } from "@destack/locale";
 import * as style from "@destack/style";
 import { color, radius, shadow } from "@destack/theme/tokens.stylex";
@@ -50,32 +50,32 @@ const styles = style.create({
 export class PaletteOverlay {
     /** The actions the page's components handle. */
     readonly #actions: ActionRegistry;
-    /** The commands the page's package declares, with their declared key combinations. */
-    readonly #commands: readonly CommandDeclaration[];
+    /** The method actions the page's package declares, with their declared key combinations. */
+    readonly #declared: readonly ActionDeclaration[];
     /** The page's navigation, whose location the palette opens over. */
     readonly #navigation: Pick<Navigation, "currentEntry">;
     /** Read the page's localization now. */
     readonly #localization: () => Localization;
-    /** Read the person's key combinations now, and whether they offer the package's commands. */
+    /** Read the person's key combinations now, and whether they offer the package's actions. */
     readonly #presentation: () => Pick<Presentation, "keybindings" | "isOffered">;
 
-    /** Serve the palette over a page with its actions and its package's commands. */
+    /** Serve the palette over a page with its handled actions and its package's declared ones. */
     constructor(options: {
         readonly actions: ActionRegistry;
-        readonly commands: readonly CommandDeclaration[];
+        readonly declared: readonly ActionDeclaration[];
         readonly navigation: Pick<Navigation, "currentEntry">;
         readonly localization: () => Localization;
         readonly presentation: () => Pick<Presentation, "keybindings" | "isOffered">;
     }) {
-        // set the actions, the commands, the navigation and what the page reads now
+        // set the handled and declared actions, the navigation and what the page reads now
         this.#actions = options.actions;
-        this.#commands = options.commands;
+        this.#declared = options.declared;
         this.#navigation = options.navigation;
         this.#localization = options.localization;
         this.#presentation = options.presentation;
     }
 
-    /** Run what the person's keys bind until aborted: an action, else the palette at a command. */
+    /** Run what the person's keys bind until aborted: a handled action, else the palette at it. */
     listen(signal: AbortSignal): void {
         // run each press the person's key combinations bind
         const isCommand = isCommandPlatform();
@@ -87,13 +87,13 @@ export class PaletteOverlay {
             }
             event.preventDefault();
 
-            // run a handled action in the page, else open the palette at the command
-            if (this.#actions.has(binding.command)) {
+            // run a handled action in the page, else open the palette at the action
+            if (this.#actions.has(binding.action)) {
                 void this.#actions
-                    .run(binding.command)
+                    .run(binding.action)
                     .catch((error: unknown) => globalThis.reportError(error));
             } else {
-                this.open(binding.command);
+                this.open(binding.action);
             }
         };
         window.addEventListener("keydown", listener, { signal });
@@ -121,9 +121,9 @@ export class PaletteOverlay {
         window.addEventListener(ACTION_EVENT, perform, { signal });
     }
 
-    /** List the page's key combinations: its actions', then its package's offered commands'. */
+    /** List the page's key combinations: its handled actions', then its package's offered ones'. */
     keybindings(): Keybinding[] {
-        // bind each handled action, and each command while the person offers them
+        // bind each handled action, and each declared one while the person offers them
         const { keybindings: overrides, isOffered } = this.#presentation();
         const actions = this.#actions
             .actions()
@@ -134,21 +134,21 @@ export class PaletteOverlay {
                     overrides,
                 ),
             );
-        const commands = isOffered
-            ? this.#commands.map((command) =>
-                  Keybinding.of(command, { key: command.keybinding, focus: "page" }, overrides),
+        const declared = isOffered
+            ? this.#declared.map((action) =>
+                  Keybinding.of(action, { key: action.keybinding, focus: "page" }, overrides),
               )
             : [];
 
-        return [...actions, ...commands].filter((binding) => binding !== undefined);
+        return [...actions, ...declared].filter((binding) => binding !== undefined);
     }
 
     /** Open the palette over the page in a modal dialog framing its space's origin. */
-    open(command?: DeclarationReference): void {
-        // open the palette over this page through the open path, at a command when one is asked for
+    open(action?: DeclarationReference): void {
+        // open the palette over this page through the open path, at an action when one is asked for
         const query = new URLSearchParams({ [FOCUS_PARAMETER]: this.#navigation.currentEntry.url });
-        if (command !== undefined) {
-            query.set(COMMAND_PARAMETER, DeclarationReference.key(command));
+        if (action !== undefined) {
+            query.set(ACTION_PARAMETER, DeclarationReference.key(action));
         }
         const url = `${OriginPath.open}?${query.toString()}`;
 
@@ -216,7 +216,7 @@ export class PaletteOverlay {
         // run an action once the palette closes, in the page the person acted on
         else if (message.action === "action.run") {
             dialog.close();
-            await this.#actions.run(message.command);
+            await this.#actions.run(message.reference);
         }
         // refuse a message only the page sends
         else {
@@ -260,7 +260,7 @@ export class PaletteOverlay {
         const localization = this.#localization();
         const bound = new Map(
             this.keybindings().map((binding) => [
-                DeclarationReference.key(binding.command),
+                DeclarationReference.key(binding.action),
                 binding.key,
             ]),
         );
@@ -272,6 +272,7 @@ export class PaletteOverlay {
             title: localization.render(action.title),
             category: action.category === undefined ? null : localization.render(action.category),
             keybinding: bound.get(DeclarationReference.key(action.reference)) ?? null,
+            call: null,
         }));
     }
 }

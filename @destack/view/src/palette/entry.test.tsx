@@ -3,7 +3,7 @@ import { schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { Palette, type PaletteEntry, PaletteFocus } from "./entry.ts";
 
-/** The package declaring the tasks and their commands. */
+/** The package declaring the tasks and their actions. */
 const TASKS = PackageId.parse("package-019f5530-8000-7000-8000-0000000000a1");
 
 /** The package declaring the notes. */
@@ -18,8 +18,8 @@ const HOME = schema.identifier("space").parse("space-019f5530-8000-7000-8000-000
 /** The domain the local machine serves origins under. */
 const DOMAIN = "localhost";
 
-/** A command of an installation calling a method of one of its types. */
-function command(
+/** An action of an installation calling a method of one of its types. */
+function action(
     space: typeof WORK,
     installation: string,
     packageId: PackageId,
@@ -28,26 +28,22 @@ function command(
     type: string,
 ): PaletteEntry {
     return {
-        kind: "command",
-        space,
-        installation,
+        kind: "action",
         packageId,
         name,
         title,
         category: null,
-        typePackageId: packageId,
-        type,
-        method: name,
         keybinding: null,
+        call: { space, installation, typePackageId: packageId, type, method: name },
     };
 }
 
 /** The entries of a work space with tasks and notes, and of a home with notes. */
 const ENTRIES: readonly PaletteEntry[] = [
-    command(WORK, "work", TASKS, "complete", "Complete task", "task"),
-    command(WORK, "work", TASKS, "archive", "Archive project", "project"),
-    command(WORK, "notes", NOTES, "archive", "Archive note", "note"),
-    command(HOME, "notes", NOTES, "archive", "Archive journal note", "note"),
+    action(WORK, "work", TASKS, "complete", "Complete task", "task"),
+    action(WORK, "work", TASKS, "archive", "Archive project", "project"),
+    action(WORK, "notes", NOTES, "archive", "Archive note", "note"),
+    action(HOME, "notes", NOTES, "archive", "Archive journal note", "note"),
     {
         kind: "view",
         space: WORK,

@@ -9,7 +9,7 @@ Build a package's views with Solid, reading and changing its space's objects liv
 Packages declare views:
 
 - `defineView`: a page of a package, with the object types it opens and presents.
-- `defineAction`: an operation of an open view, run from its keys, the palette and menus.
+- `handleAction`: runs an action `@destack/object` declares while a component is mounted, from its keys, the palette and menus.
 
 Components read and change objects live:
 
@@ -90,15 +90,8 @@ A static view has an `origin`, `pages` with its paths, an optional `document`, a
 
 ### Actions
 
-`defineAction(definition)` declares an operation of an open view, and `handleAction(action, handler)` runs it while a component is mounted.
+`handleAction(action, handler)` runs an action that `defineAction` from `@destack/object` declares without a call, while a component is mounted.
 Its keys run it outside form fields, unless its `focus` is `"any"`.
-
-| Option          | What it is                                                |
-| --------------- | --------------------------------------------------------- |
-| `name`, `title` | the name, unique among the package's actions and commands |
-| `category`      | the group menus and the palette show it under             |
-| `keybinding`    | the key combination, such as `"mod+shift+g"`              |
-| `focus`         | `"page"` by default, outside form fields, or `"any"`      |
 
 ### Handlers
 
@@ -132,7 +125,7 @@ Each primitive is `@destack/view/primitives/<name>`, after Solid Primitives: `ac
 ```tsx
 import { t } from "@destack/locale";
 import { createSignal, handleAction } from "@destack/view";
-import { defineAction } from "@destack/view/declare";
+import { defineAction } from "@destack/object";
 
 // declare bolding the selected text
 export const bold = defineAction({

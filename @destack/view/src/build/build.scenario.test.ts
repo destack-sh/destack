@@ -3,9 +3,8 @@ import { expect, refusal, test } from "@destack/test";
 import { fileURLToPath } from "node:url";
 import { Workspace, CompilerPool } from "@destack/build";
 import { testStore, testSimulation } from "@destack/build/test";
-import { COMMAND_KIND } from "@destack/object";
+import { ACTION_KIND } from "@destack/object";
 import { VIEW_KIND } from "../declare/view.ts";
-import { ACTION_KIND } from "../declare/action.ts";
 import { PackageVersion, type DeclarationDescription } from "@destack/package";
 import type { Compilation, Plugin, PluginOption } from "@destack/package/build";
 import { destackTheme } from "@destack/theme/declare";
@@ -79,8 +78,8 @@ test("mount each declared view from a separate browser chunk and describe it in 
     ]).toEqual([["notebooks"], true, true]);
 });
 
-test("generate the module mounting a view with its package's theme and commands, and describe it with its package's browser capabilities", () => {
-    // compile a browser output of a package declaring one view, a theme and two commands, using the network and the camera
+test("generate the module mounting a view with its package's theme and the actions it declares calling methods, and describe it with its package's browser capabilities", () => {
+    // compile a browser output of a package declaring one view, a theme, two actions calling methods and one its view handles, using the network and the camera
     const owner = PackageVersion.parse({
         id: "package-01996ab0-0000-7000-8000-00000000000c",
         name: "@example/app",
@@ -92,7 +91,7 @@ test("generate the module mounting a view with its package's theme and commands,
         version: "2026.9.0",
     });
     const objects = PackageVersion.parse({
-        id: COMMAND_KIND.packageId,
+        id: ACTION_KIND.packageId,
         name: "@destack/object",
         version: "2026.9.0",
     });
@@ -111,7 +110,7 @@ test("generate the module mounting a view with its package's theme and commands,
         },
     };
     const declared = (
-        declaration: "theme" | "command",
+        declaration: "theme" | "action",
         declaring: PackageVersion,
         name: string,
         description: DeclarationDescription["description"],
@@ -123,15 +122,18 @@ test("generate the module mounting a view with its package's theme and commands,
         symbol: { package: declaring, symbol: { module: "src/view.ts", name } },
         description,
     });
-    const command = (name: string, declaring: PackageVersion, keybinding?: string) => ({
+    const action = (
+        name: string,
+        declaring: PackageVersion,
+        keybinding?: string,
+        isCall = true,
+    ) => ({
         name,
         package: declaring,
         title: { package: declaring.id, id: name, source: name, values: {} },
-        packageId: owner.id,
-        type: "note",
-        method: name,
-        input: {},
         ...(keybinding === undefined ? {} : { keybinding }),
+        focus: "page",
+        ...(isCall ? { call: { packageId: owner.id, type: "note", method: name, input: {} } } : {}),
     });
     const ocean = { name: "ocean", package: owner };
     const entries = new Map<string, string>();
@@ -144,9 +146,10 @@ test("generate the module mounting a view with its package's theme and commands,
         declarations: [
             view,
             declared("theme", owner, "ocean", ocean),
-            declared("command", owner, "complete", command("complete", owner, "mod+enter")),
-            declared("command", owner, "archive", command("archive", owner)),
-            declared("command", kind, "pin", command("pin", kind)),
+            declared("action", owner, "complete", action("complete", owner, "mod+enter")),
+            declared("action", owner, "archive", action("archive", owner)),
+            declared("action", owner, "zoom", action("zoom", owner, "mod+=", false)),
+            declared("action", kind, "pin", action("pin", kind)),
         ],
         locate: () => ({ file: "/package/src/view.ts", export: "main" }),
         entry: (entrypoint, module) => entries.set(entrypoint, module),
@@ -172,8 +175,8 @@ test("generate the module mounting a view with its package's theme and commands,
         stylesheets: () => ["output/browser/view-main.css"],
     });
 
-    // import the declaring module and mount its view with the package's own theme, commands and one device worker
-    const commands = [
+    // import the declaring module and mount its view with the package's own theme, method actions and one device worker
+    const actions = [
         { packageId: owner.id, name: "complete", keybinding: "mod+enter" },
         { packageId: owner.id, name: "archive" },
     ];
@@ -187,7 +190,7 @@ test("generate the module mounting a view with its package's theme and commands,
             'import { main as view } from "/package/src/view.ts";',
             'import device from "virtual:@destack/view/device?worker&url";',
             ``,
-            `await mount(view, ${JSON.stringify({ commands, theme: ocean })}, BrowserEnvironment.system, new URL(device, import.meta.url));`,
+            `await mount(view, ${JSON.stringify({ actions, theme: ocean })}, BrowserEnvironment.system, new URL(device, import.meta.url));`,
             ``,
         ],
         [
@@ -211,54 +214,6 @@ test("generate the module mounting a view with its package's theme and commands,
                 },
             },
         },
-    ]);
-});
-
-test("refuse an action named as one of its package's commands, whose key combinations share the name", async () => {
-    // declare a command and an action both named archive in the notes package
-    const owner = PackageVersion.parse({
-        id: "package-01996ab0-0000-7000-8000-0000000000c1",
-        name: "@example/notes",
-        version: "2026.9.0",
-    });
-    const declaration = (kind: "command" | "action", kindPackageId: string) => ({
-        name: "archive",
-        kind,
-        package: PackageVersion.parse({
-            id: kindPackageId,
-            name: "@destack/kind",
-            version: "2026.9.0",
-        }),
-        symbol: { package: owner, symbol: { module: "src/action.ts", name: "archive" } },
-        source: { file: "src/action.ts", line: 0, column: 0 },
-        description: {},
-    });
-    const compilation: Compilation = {
-        package: owner,
-        directory: "/package",
-        exports: {},
-        runtime: "browser",
-        sandbox: {},
-        declarations: [
-            declaration("command", COMMAND_KIND.packageId),
-            declaration("action", ACTION_KIND.packageId),
-        ],
-        locate: () => ({ file: "/package/src/action.ts", export: "archive" }),
-        entry: () => {},
-    };
-    if (viewExtension.describe === undefined) {
-        throw new TypeError("expected the view build to describe");
-    }
-    const describe = viewExtension.describe;
-
-    expect(
-        await refusal(() =>
-            describe(compilation, { exports: {}, declarations: () => [], stylesheets: () => [] }),
-        ),
-    ).toEqual([
-        "BAD_REQUEST",
-        "ACTION_INVALID",
-        "action 'archive' is invalid: a command of the package has its name, and both bind keys by name",
     ]);
 });
 
