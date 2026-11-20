@@ -15,39 +15,47 @@ export interface ToolResult {
     stderr: string;
 }
 
-/** Run an installed tool on the current Bun runtime, reading its output. */
+/** Run an installed tool's script on the current Bun runtime, reading its output. */
 export async function runTool(
     executable: string,
     toolArguments: string[],
     directory: string,
     environment: Environment<"process">,
-    options: {
-        /** Cancel the tool. */
-        readonly signal?: AbortSignal;
-        /** The variables beside the process's own. */
-        readonly variables?: Readonly<Record<string, string>>;
-    } = {},
+    options: ToolOptions = {},
 ): Promise<ToolResult> {
-    // start the tool under the caller's cancellation, its output plain for reading
+    return await runBun(
+        ["run", "--no-env-file", executable, ...toolArguments],
+        basename(executable),
+        directory,
+        environment,
+        options,
+    );
+}
+
+/** Run a command of the current Bun runtime, such as `lint`, reading its output. */
+export async function runBun(
+    command: readonly string[],
+    tool: string,
+    directory: string,
+    environment: Environment<"process">,
+    options: ToolOptions = {},
+): Promise<ToolResult> {
+    // start Bun under the caller's cancellation, its output plain for reading
     const { process } = environment;
-    const tool = basename(executable);
     const child = (() => {
         try {
-            return process.spawn(
-                [process.executable, "run", "--no-env-file", executable, ...toolArguments],
-                {
-                    workingDirectory: directory,
-                    variables: {
-                        ...process.variables,
-                        ...options.variables,
-                        ...PLAIN_OUTPUT,
-                        BUN_BE_BUN: "1",
-                    },
-                    stdout: "pipe",
-                    stderr: "pipe",
-                    ...(options.signal === undefined ? {} : { signal: options.signal }),
+            return process.spawn([process.executable, ...command], {
+                workingDirectory: directory,
+                variables: {
+                    ...process.variables,
+                    ...options.variables,
+                    ...PLAIN_OUTPUT,
+                    BUN_BE_BUN: "1",
                 },
-            );
+                stdout: "pipe",
+                stderr: "pipe",
+                ...(options.signal === undefined ? {} : { signal: options.signal }),
+            });
         } catch (error) {
             throw CheckError.of("TOOL_BROKEN", `cannot run '${tool}'`, { cause: error });
         }
@@ -61,4 +69,12 @@ export async function runTool(
     const decoder = new TextDecoder();
 
     return { code, stdout: decoder.decode(stdout), stderr: decoder.decode(stderr) };
+}
+
+/** How a tool runs: its cancellation and its variables beside the process's own. */
+export interface ToolOptions {
+    /** Cancel the tool. */
+    readonly signal?: AbortSignal;
+    /** The variables beside the process's own. */
+    readonly variables?: Readonly<Record<string, string>>;
 }

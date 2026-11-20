@@ -9,7 +9,7 @@ import {
     lintSettings,
     settingsRoot,
 } from "./configuration.ts";
-import { runTool } from "./tool.ts";
+import { runBun } from "./tool.ts";
 import { Toolchain } from "../toolchain/index.ts";
 import { CheckResult, type Diagnostic } from "../diagnostic/diagnostic.ts";
 import { checkMarkdown, fixMarkdown } from "../markdown/index.ts";
@@ -222,20 +222,9 @@ async function readRules(
 
 /** Lint TypeScript and JavaScript sources with Oxc and the Destack rules. */
 async function lintSources(options: CheckOptions, fix: boolean): Promise<CheckResult> {
-    // find the linter and the type checker of this platform among the tools
+    // lint with the running Bun's linter
     const { toolchain } = options;
-    const { files, host } = options.environment;
-    const executable = join(
-        toolchain.locate(["oxlint"], Toolchain.packageDirectory()),
-        "bin",
-        "oxlint",
-    );
-    const checker = `@oxlint-tsgolint/${host.os}-${host.architecture}`;
-    const binary = host.os === "win32" ? "tsgolint.exe" : "tsgolint";
-    const typeChecker = join(
-        toolchain.locate(["oxlint-tsgolint", checker], Toolchain.packageDirectory()),
-        binary,
-    );
+    const { files, process } = options.environment;
 
     // isolate the generated lint configuration
     const temporary = await files.makeTemporaryDirectory("destack-check-");
@@ -270,7 +259,7 @@ async function lintSources(options: CheckOptions, fix: boolean): Promise<CheckRe
             lint,
             selected,
             rules: await Promise.all(plugins.map((plugin) => readRules(plugin, toolchain, files))),
-            tools: [executable, typeChecker],
+            runtime: process.runtime.revision,
         };
         const key =
             cache === undefined ? undefined : await Digest.json(inputs, options.environment.crypto);
@@ -279,34 +268,34 @@ async function lintSources(options: CheckOptions, fix: boolean): Promise<CheckRe
             return CheckResult.parse(JSON.parse(new TextDecoder().decode(stored)));
         }
 
-        // run the checker against the selected source
-        const output = await runTool(
-            executable,
+        // run the linter against the selected source, its type-aware rules included
+        const output = await runBun(
             [
+                "lint",
+                "--no-script",
                 "--config",
                 configuration,
-                "--disable-nested-config",
+                "--no-config-lookup",
                 "--ignore-path",
                 ignore,
                 "--format",
                 "json",
+                "--type-aware",
                 ...(fix ? ["--fix"] : []),
                 "--",
                 ...selected,
             ],
+            "bun lint",
             options.directory,
             options.environment,
-            {
-                ...(options.signal === undefined ? {} : { signal: options.signal }),
-                variables: { OXLINT_TSGOLINT_PATH: typeChecker },
-            },
+            options.signal === undefined ? {} : { signal: options.signal },
         );
 
         // distinguish tool failure from ordinary rule diagnostics
         if (!output.stdout.trim()) {
             throw CheckError.of(
                 "TOOL_BROKEN",
-                output.stderr.trim() || "oxlint returned no diagnostics",
+                output.stderr.trim() || "bun lint returned no diagnostics",
             );
         }
 
@@ -324,7 +313,7 @@ async function lintSources(options: CheckOptions, fix: boolean): Promise<CheckRe
         if (output.code !== 0 && result.diagnostics.length === 0) {
             throw CheckError.of(
                 "TOOL_BROKEN",
-                output.stderr.trim() || "oxlint failed without diagnostics",
+                output.stderr.trim() || "bun lint failed without diagnostics",
             );
         }
 

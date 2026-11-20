@@ -115,6 +115,9 @@ export function lintConfiguration(
             "typescript/consistent-type-assertions": ["error", { assertionStyle: "never" }],
             "typescript/no-non-null-assertion": "error",
             "typescript/no-explicit-any": "error",
+            // allow Record<never, never> and type parameters named Object
+            "typescript/no-generated-empty-object-type": "off",
+            "typescript/no-wrapper-object-types": "off",
             "typescript/ban-ts-comment": [
                 "error",
                 { "ts-expect-error": true, "ts-ignore": true, "ts-nocheck": true },

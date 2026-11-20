@@ -12,25 +12,25 @@ const PackageName = schema.object({ name: schema.string() }).strip();
 const DIGEST = "c0ffee".padEnd(64, "0");
 
 test("resolve each package of a chain from the one before in a workspace", async () => {
-    // locate the type-aware linter and its native package through the linter that installed it
+    // locate the formatter and its native binding through the formatter that installed it
     const { files, host } = testHost();
     const toolchain = Toolchain.workspace();
-    const native = `@oxlint-tsgolint/${host.os}-${host.architecture}`;
-    const linter = toolchain.locate(["oxlint-tsgolint"], Toolchain.packageDirectory());
-    const checker = toolchain.locate(["oxlint-tsgolint", native], Toolchain.packageDirectory());
+    const native = `@oxfmt/binding-${host.os}-${host.architecture}`;
+    const formatter = toolchain.locate(["oxfmt"], Toolchain.packageDirectory());
+    const binding = toolchain.locate(["oxfmt", native], Toolchain.packageDirectory());
     const name = async (directory: string) =>
         PackageName.parse(JSON.parse(await files.readTextFile(join(directory, "package.json"))))
             .name;
 
     expect({
         directory: toolchain.directory,
-        linter: await name(linter),
-        checker: await name(checker),
+        formatter: await name(formatter),
+        binding: await name(binding),
         lint: toolchain.lint(),
     }).toEqual({
         directory: undefined,
-        linter: "oxlint-tsgolint",
-        checker: native,
+        formatter: "oxfmt",
+        binding: native,
         lint: fileURLToPath(new URL("../lint/index.ts", import.meta.url)),
     });
 });
@@ -40,7 +40,7 @@ test("resolve the last package of a chain among a toolchain directory's flat pac
     const { files } = testHost();
     const root = await files.realPath(await files.makeTemporaryDirectory("toolchain-"));
     const directory = join(root, DIGEST);
-    const native = join(directory, "node_modules", "@oxlint-tsgolint", "darwin-arm64");
+    const native = join(directory, "node_modules", "@oxfmt", "binding-darwin-arm64");
     await files.mkdir(native, { recursive: true });
     await files.writeTextFile(join(native, "package.json"), "{}");
 
@@ -49,14 +49,14 @@ test("resolve the last package of a chain among a toolchain directory's flat pac
     try {
         expect({
             directory: toolchain.directory,
-            checker: toolchain.locate(
-                ["oxlint-tsgolint", "@oxlint-tsgolint/darwin-arm64"],
+            binding: toolchain.locate(
+                ["oxfmt", "@oxfmt/binding-darwin-arm64"],
                 Toolchain.packageDirectory(),
             ),
             lint: toolchain.lint(),
         }).toEqual({
             directory,
-            checker: native,
+            binding: native,
             lint: join(directory, "lint.js"),
         });
     } finally {
