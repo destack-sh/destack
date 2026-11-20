@@ -1,8 +1,6 @@
 name: Release
 
 on:
-    schedule:
-        - cron: "17 2 * * *"
     workflow_dispatch:
 
 permissions: {}
@@ -336,7 +334,8 @@ jobs:
 
     publish:
         name: Publish release
-        needs: [prepare, sign]
+        # publish the clients only once production runs their servers
+        needs: [prepare, sign, deploy]
         if: needs.prepare.outputs.publish == 'true'
         runs-on: ubuntu-24.04
         timeout-minutes: 20
