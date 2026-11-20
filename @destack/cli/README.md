@@ -42,7 +42,7 @@ Each type the space installs adds a plural and a singular, such as `notebooks` a
 | spaces   | `switch`                                                             |
 | apps     | `install`, `uninstall`, `open`, `apply`, `plan`, `approve`, `reject` |
 | share    | `share`, `invited`, `accept`                                         |
-| build    | `new`, `dev`, `check`, `fix`, `test`, `build`, `publish`, `tag`      |
+| build    | `new`, `dev`, `check`, `fix`, `test`, `build`, `publish`, `tag`, `git` |
 | settings | `setting`, `settings`                                                |
 
 ### Flags
@@ -99,6 +99,17 @@ destack dev ./notebooks
 destack check ./notebooks
 destack test ./notebooks --tier unit
 destack publish ./notebooks --tag latest
+```
+
+### Push a repository with git
+
+`destack git setup` registers `destack` as git's credential helper, as `gh auth setup-git` does.
+
+```sh
+destack git setup
+destack repository new --account account-01996ab0-0000-7000-8000-000000000001 --name site --hosting platform
+git remote add origin https://destack.app/@ada/site.git
+git push origin main
 ```
 
 ## Conventions

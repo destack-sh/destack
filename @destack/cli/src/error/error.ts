@@ -26,6 +26,8 @@ export const CliError = defineErrorFamily({
 
         CHECK_INVALID: {},
 
+        GIT_VERSION_INVALID: {},
+
         METHOD_INVALID: {},
 
         PACKAGE_INVALID: {},
@@ -67,6 +69,8 @@ export const CliError = defineErrorFamily({
         RESTART_UNREACHABLE: {},
 
         // broken
+
+        GIT_SETUP_BROKEN: {},
 
         MACHINE_START_BROKEN: {},
 

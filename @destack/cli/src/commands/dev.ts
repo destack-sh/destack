@@ -2,17 +2,16 @@ import { outputsOf } from "@destack/build";
 import { readPackageJson } from "@destack/build/local";
 import { type PackageJson, PackageName } from "@destack/package";
 import { type Identifier, present, type Version } from "@destack/schema";
-import { openForge } from "./forge.ts";
 import { RequestId } from "@destack/sync";
 import * as stackObject from "@destack/stack/object";
-import { type Verb, OptionValue, type Options } from "../command/command.ts";
-import type { Context } from "../context/context.ts";
+import { type Command, CommandOption, type CommandCall } from "../command/command.ts";
+import type { CommandContext } from "../command/context.ts";
 
 import { preview } from "@destack/machine/checkout";
 import stackPackage from "@destack/stack/package";
 import type {} from "@destack/package/import-meta";
 import { CliError } from "../error/index.ts";
-import { Interrupt } from "../command/error.ts";
+import { Interrupt } from "../command/failure.ts";
 
 /** What a build shows while it waits or runs, by state and phase. */
 const PROGRESS = {
@@ -33,67 +32,61 @@ const OUTPUTS_OPTION = {
 } as const;
 
 /** Preview a checkout's package live against the space. */
-export function devCommand(context: Context): Verb {
-    return {
-        description: "Preview a checkout's package live against the space",
-        arguments: [{ name: "package", default: ".", isDirectory: true }],
-        json: true,
-        async run({ arguments: { package: directory }, json }) {
-            await previewCheckout(context, present(directory, "the package argument"), json);
-        },
-    };
-}
+export const devCommand: Command = {
+    description: "Preview a checkout's package live against the space",
+    arguments: [{ name: "package", default: ".", isDirectory: true }],
+    isJson: true,
+    async run({ arguments: { package: directory }, isJson: json }, context) {
+        await previewCheckout(context, present(directory, "the package argument"), json);
+    },
+};
 
 /** Build a checkout's package in the space, following its phases. */
-export function buildCommand(context: Context): Verb {
-    return {
-        description: "Build a checkout's package in the space, following its phases",
-        arguments: [{ name: "package", default: ".", isDirectory: true }],
-        json: true,
-        options: OUTPUTS_OPTION,
-        async run({ arguments: { package: directory }, options, json }) {
-            const built = await build(
-                context,
-                present(directory, "the package argument"),
-                json,
-                options,
-            );
-            await context.terminal.print(
-                json
-                    ? JSON.stringify(built)
-                    : context.terminal.event("Built", "done", `build '${built.image}'`),
-            );
-        },
-    };
-}
+export const buildCommand: Command = {
+    description: "Build a checkout's package in the space, following its phases",
+    arguments: [{ name: "package", default: ".", isDirectory: true }],
+    isJson: true,
+    options: OUTPUTS_OPTION,
+    async run({ arguments: { package: directory }, options, isJson: json }, context) {
+        const built = await build(
+            context,
+            present(directory, "the package argument"),
+            json,
+            options,
+        );
+        await context.terminal.print(
+            json
+                ? JSON.stringify(built)
+                : context.terminal.event("Built", "done", `build '${built.image}'`),
+        );
+    },
+};
 
 /** Build a checkout's package in the space and publish the build to the registry. */
-export function publishCommand(context: Context): Verb {
-    return {
-        description: "Build a checkout's package in the space and publish it to the registry",
-        arguments: [{ name: "package", default: ".", isDirectory: true }],
-        json: true,
-        options: {
-            ...OUTPUTS_OPTION,
-            tag: {
-                type: "string",
-                description: "The distribution tag pointing at the release, latest by default",
-                argument: "name",
-            },
-            yes: { type: "boolean", description: "Allow the space's stack to publish as you" },
+export const publishCommand: Command = {
+    description: "Build a checkout's package in the space and publish it to the registry",
+    arguments: [{ name: "package", default: ".", isDirectory: true }],
+    isJson: true,
+    options: {
+        ...OUTPUTS_OPTION,
+        tag: {
+            type: "string",
+            description: "The distribution tag pointing at the release, latest by default",
+            argument: "name",
         },
-        async run({ arguments: { package: directory }, options, json }) {
-            await publish(context, present(directory, "the package argument"), json, options);
-        },
-    };
-}
+        yes: { type: "boolean", description: "Allow the space's stack to publish as you" },
+    },
+    async run({ arguments: { package: directory }, options, isJson: json }, context) {
+        await publish(context, present(directory, "the package argument"), json, options);
+    },
+};
 
 /** Build a checkout's package in a space and publish it with its unpublished dependencies. */
 async function publish(
-    context: Context,
+    context: CommandContext,
     directory: string,
     json: boolean,
-    values: Options,
+    values: CommandCall["options"],
 ): Promise<void> {
     // build the package, and read the account of its name's handle
     const native = await context.native();
@@ -103,7 +96,7 @@ async function publish(
     // publish the build and the account's builds it pins that the forge lacks, as the person
     const consent = values["yes"] === true ? "approve" : "ask";
     const stack = await context.package(stackPackage, await context.locate(), consent);
-    const tag = OptionValue.string(values["tag"], "tag");
+    const tag = CommandOption.string(values["tag"], "tag");
     const published = await stack.build.publish({
         spaceId: built.space,
         id: built.id,
@@ -124,8 +117,8 @@ async function publish(
 }
 
 /** Ask the forge of a package name's account for the version its next release takes. */
-async function nextRelease(context: Context, name: string): Promise<Version> {
-    const { client, home } = await openForge(name, context);
+async function nextRelease(context: CommandContext, name: string): Promise<Version> {
+    const { client, home } = await context.registry(name);
     const { version } = await client.package.next({ spaceId: home, name });
 
     return version;
@@ -133,10 +126,10 @@ async function nextRelease(context: Context, name: string): Promise<Version> {
 
 /** Build the checkout containing a directory in a space. */
 async function build(
-    context: Context,
+    context: CommandContext,
     directory: string,
     json: boolean,
-    values: Options,
+    values: CommandCall["options"],
     version: "development" | "release" = "development",
 ): Promise<{
     readonly space: string;
@@ -152,7 +145,7 @@ async function build(
     const registered = await context.registerCheckout(directory);
     const location = await context.locate();
     const stack = await context.package(stackPackage, location);
-    const named = OptionValue.string(values["outputs"], "outputs");
+    const named = CommandOption.string(values["outputs"], "outputs");
     const read = await readPackageJson(
         await context.environment.files.realPath(directory),
         context.environment.files,
@@ -189,7 +182,7 @@ async function build(
 
 /** Show each phase of a space's build until it finishes, cancelling it on an interrupt. */
 async function follow(
-    context: Context,
+    context: CommandContext,
     id: Identifier<"build">,
     json: boolean,
 ): Promise<stackObject.Build> {
@@ -261,7 +254,11 @@ function render(current: stackObject.Build): string {
 }
 
 /** Start previewing a checkout's package live against a space, as the person signed in. */
-async function previewCheckout(context: Context, directory: string, json: boolean): Promise<void> {
+async function previewCheckout(
+    context: CommandContext,
+    directory: string,
+    json: boolean,
+): Promise<void> {
     // find the checkout, the package directory in it, and the space
     const registered = await context.registerCheckout(directory);
     const space = await context.requireSpace();

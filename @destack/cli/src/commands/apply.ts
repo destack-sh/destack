@@ -2,10 +2,10 @@ import { canonicalize, type Identifier, present } from "@destack/schema";
 import objectPackage from "@destack/object/package";
 import stackPackage, { STACK_INSTALLATION } from "@destack/stack/package";
 import { ObjectReference, RequestId } from "@destack/sync";
-import { type Verb, OptionValue, type Options } from "../command/command.ts";
-import type { Context } from "../context/context.ts";
+import { type Command, CommandOption, type CommandCall } from "../command/command.ts";
+import type { CommandContext } from "../command/context.ts";
 import { CliError } from "../error/index.ts";
-import { driveInstallation, followInstallation } from "./status.ts";
+import { InstallationStatus } from "../installation/status.ts";
 
 /** The installation argument of plan and approve, the space's stack by default. */
 const INSTALLATION_ARGUMENT = {
@@ -29,72 +29,64 @@ const EXPORT_OPTIONS = {
 } as const;
 
 /** Apply a checkout's stack to the space and follow it until applied. */
-export function applyCommand(context: Context): Verb {
-    return {
-        description: "Apply a checkout's stack to the space, following it until applied",
-        arguments: [{ name: "directory", default: ".", isDirectory: true }],
-        json: true,
-        options: {
-            ...EXPORT_OPTIONS,
-            yes: { type: "boolean", description: "Approve each plan the stack waits on" },
-        },
-        async run({ arguments: { directory }, options, json }) {
-            // submit the checkout's stack, then follow it until applied, approving each waiting plan once
-            const id = await submitStack(
-                present(directory, "the directory argument"),
-                options,
-                context,
-            );
-            await driveInstallation(id, options["yes"] === true, json, context);
-        },
-    };
-}
+export const applyCommand: Command = {
+    description: "Apply a checkout's stack to the space, following it until applied",
+    arguments: [{ name: "directory", default: ".", isDirectory: true }],
+    isJson: true,
+    options: {
+        ...EXPORT_OPTIONS,
+        yes: { type: "boolean", description: "Approve each plan the stack waits on" },
+    },
+    async run({ arguments: { directory }, options, isJson: json }, context) {
+        // submit the checkout's stack, then follow it until applied, approving each waiting plan once
+        const id = await submitStack(
+            present(directory, "the directory argument"),
+            options,
+            context,
+        );
+        await InstallationStatus.drive(id, options["yes"] === true, json, context);
+    },
+};
 
 /** Show an installation, the space's stack by default, its resources and the plan it waits on. */
-export function planCommand(context: Context): Verb {
-    return {
-        description:
-            "Show an installation, the space's stack by default, its resources and the plan it waits on",
-        arguments: [INSTALLATION_ARGUMENT],
-        json: true,
-        options: { watch: { type: "boolean", description: "Follow it as it changes" } },
-        async run({ arguments: { installation: name }, options, json }) {
-            // show it once, or each change when watched
-            const space = await context.requireSpace();
-            const objects = await context.package(objectPackage, await context.locate());
-            const { id } = await objects.installation.get({
-                scope: space,
-                id: present(name, "the installation argument"),
-            });
-            const live = context.terminal.live(json);
-            for await (const status of followInstallation(id, context)) {
-                await live.show(status.show(json, context));
-                if (options["watch"] !== true) {
-                    break;
-                }
+export const planCommand: Command = {
+    description:
+        "Show an installation, the space's stack by default, its resources and the plan it waits on",
+    arguments: [INSTALLATION_ARGUMENT],
+    isJson: true,
+    options: { watch: { type: "boolean", description: "Follow it as it changes" } },
+    async run({ arguments: { installation: name }, options, isJson: json }, context) {
+        // show it once, or each change when watched
+        const space = await context.requireSpace();
+        const objects = await context.package(objectPackage, await context.locate());
+        const { id } = await objects.installation.get({
+            scope: space,
+            id: present(name, "the installation argument"),
+        });
+        const live = context.terminal.live(json);
+        for await (const status of InstallationStatus.follow(id, context)) {
+            await live.show(status.show(json, context));
+            if (options["watch"] !== true) {
+                break;
             }
-        },
-    };
-}
+        }
+    },
+};
 
 /** Approve the plan an installation, the space's stack by default, waits on. */
-export function approveCommand(context: Context): Verb {
-    return decideCommand("approve", context);
-}
+export const approveCommand: Command = decideCommand("approve");
 
 /** Reject the plan an installation, the space's stack by default, waits on. */
-export function rejectCommand(context: Context): Verb {
-    return decideCommand("reject", context);
-}
+export const rejectCommand: Command = decideCommand("reject");
 
 /** Decide the plan an installation waits on through its change request, by the reviewed digest. */
-function decideCommand(decision: "approve" | "reject", context: Context): Verb {
+function decideCommand(decision: "approve" | "reject"): Command {
     const verb = decision === "approve" ? "Approve" : "Reject";
 
     return {
         description: `${verb} the plan an installation, the space's stack by default, waits on`,
         arguments: [INSTALLATION_ARGUMENT],
-        json: true,
+        isJson: true,
         options: {
             plan: {
                 type: "string",
@@ -102,9 +94,9 @@ function decideCommand(decision: "approve" | "reject", context: Context): Verb {
                 argument: "digest",
             },
         },
-        async run({ arguments: { installation: name }, options, json }) {
+        async run({ arguments: { installation: name }, options, isJson: json }, context) {
             // decide the reviewed plan's digest
-            const plan = OptionValue.string(options["plan"], "plan");
+            const plan = CommandOption.string(options["plan"], "plan");
             if (plan === undefined) {
                 throw CliError.of(
                     "USAGE_INVALID",
@@ -144,19 +136,19 @@ function decideCommand(decision: "approve" | "reject", context: Context): Verb {
 /** Evaluate a checkout's stack and submit it to the space, creating its stack installation once. */
 async function submitStack(
     directory: string,
-    values: Options,
-    context: Context,
+    values: CommandCall["options"],
+    context: CommandContext,
 ): Promise<Identifier<"installation">> {
     // require the export and read the parameters
     const { environment } = await context.native();
-    const exported = OptionValue.string(values["export"], "export");
+    const exported = CommandOption.string(values["export"], "export");
     if (exported === undefined) {
         throw CliError.of(
             "USAGE_INVALID",
             "usage is invalid: select the exported definition with --export",
         );
     }
-    const parameters = await OptionValue.json(
+    const parameters = await CommandOption.json(
         values["parameters"],
         "parameters",
         context.environment,

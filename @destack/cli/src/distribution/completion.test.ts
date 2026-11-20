@@ -1,16 +1,17 @@
 import { join } from "node:path";
 import { testSimulation } from "@destack/object/test";
 import { expect, onTestFinished, test } from "@destack/test";
-import { CommandTree, type Node } from "../command/command.ts";
+import { CommandTree, type Command } from "../command/command.ts";
+import { CommandContext } from "../command/context.ts";
 import { Completion } from "./completion.ts";
 
 /** A note type's commands, as a kind's singular noun loads them. */
-const NOTE: Node = {
+const NOTE: Command = {
     description: "Get, create and change notes",
     commands: {
         create: {
             description: "Call note.create",
-            json: true,
+            isJson: true,
             options: {
                 title: { type: "string", description: "The title", argument: "string" },
                 pinned: { type: "boolean", description: "Set pinned" },
@@ -20,20 +21,20 @@ const NOTE: Node = {
         archive: {
             description: "Call note.archive",
             arguments: [{ name: "id" }],
-            json: true,
+            isJson: true,
             options: { input: { type: "string", description: "The input", argument: "json" } },
             run: async () => {},
         },
     },
-    argument: {
+    target: {
         name: "id",
-        command: () => ({ description: "Get a note", json: true, run: async () => {} }),
+        command: () => ({ description: "Get a note", isJson: true, run: async () => {} }),
         complete: async () => ["note-1", "note-2"],
     },
 };
 
-/** A command tree with a group, an executable command, and a group loading kinds. */
-const TREE: Node = {
+/** A command tree with subcommands, a command that runs, and subcommands loading nouns. */
+const TREE: Command = {
     description: "Tool",
     commands: {
         app: {
@@ -42,7 +43,6 @@ const TREE: Node = {
                 open: {
                     description: "Open an app's view",
                     arguments: [{ name: "name", complete: async () => ["board", "notes"] }],
-                    json: false,
                     options: {
                         browser: { type: "boolean", description: "Open it in the browser" },
                     },
@@ -52,7 +52,7 @@ const TREE: Node = {
         },
         notes: {
             description: "List notes",
-            json: true,
+            isJson: true,
             options: {
                 where: { type: "string", description: "The filter rows meet", argument: "filter" },
                 order: { type: "string", description: "The order", choices: ["asc", "desc"] },
@@ -60,11 +60,10 @@ const TREE: Node = {
             },
             run: async () => {},
         },
-        version: { description: "Print the version", json: true, run: async () => {} },
+        version: { description: "Print the version", isJson: true, run: async () => {} },
         build: {
             description: "Build a package",
             arguments: [{ name: "directory", default: ".", isDirectory: true }],
-            json: false,
             run: async () => {},
         },
     },
@@ -135,7 +134,15 @@ test("pass the typed words and the partial one to the program, and offer its ans
     });
 });
 
-test("complete names, the nouns a group loads and their methods, arguments, option values and flags", async () => {
+test("complete names, the nouns the root loads and their methods, arguments, option values and flags", async () => {
+    // run the tree in a context whose device nothing opens, as completing these words opens none
+    const environment = testSimulation().environment("cli");
+    await using context = new CommandContext(
+        () => Promise.reject(new Error("completion opens no device")),
+        undefined,
+        environment,
+    );
+    const tree = new CommandTree(TREE, context);
     const cases = [
         [""],
         ["n"],
@@ -152,9 +159,7 @@ test("complete names, the nouns a group loads and their methods, arguments, opti
     ];
 
     // describe each candidate by its help line
-    const candidates = await Promise.all(
-        cases.map((words) => Completion.candidates(new CommandTree(TREE), words)),
-    );
+    const candidates = await Promise.all(cases.map((words) => Completion.candidates(tree, words)));
     expect(candidates.map((found) => found.map((candidate) => Completion.line(candidate)))).toEqual(
         [
             [

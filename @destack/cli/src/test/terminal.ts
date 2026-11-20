@@ -17,8 +17,8 @@ import { onTestFinished } from "@destack/test";
 import { testSimulation } from "@destack/test/world";
 import type { Scheduler, TerminalSize } from "@destack/environment";
 import { type Simulation, SimulatedProcess } from "@destack/environment/simulation";
-import { CommandLine } from "../command/run.ts";
-import { Context } from "../context/context.ts";
+import { CommandLine } from "../command/line.ts";
+import { CommandContext } from "../command/context.ts";
 import { DESKTOP_OBJECTS } from "@destack/desktop/object";
 
 /** The node this computer's command lines and their device run as. */
@@ -237,13 +237,13 @@ export class TerminalFixture {
     }
 
     /** Open a command line's context acting in a space, as a command line opens it. */
-    context(space: string | undefined): Context {
+    context(space: string | undefined): CommandContext {
         // run on the terminal's node with a process of the terminal's variables
         const { simulation } = this.computer.world;
         const node = simulation.environment(TERMINAL_NODE);
         const process = TerminalFixture.process(this.#variables, node.scheduler);
 
-        return new Context(async () => this.native, space, { ...node, process });
+        return new CommandContext(async () => this.native, space, { ...node, process });
     }
 
     /** Wait for work the test started outside a command line, running the world meanwhile. */

@@ -13,17 +13,17 @@ import {
 import { principal } from "@destack/access";
 import { Scope } from "@destack/sync";
 import { type JsonObject, type JsonValue, present, schema } from "@destack/schema";
-import { type Verb, type Group, OptionValue, type Options } from "../command/command.ts";
-import { Interrupt } from "../command/error.ts";
-import type { Context } from "../context/context.ts";
+import { type Command, CommandOption, type CommandCall } from "../command/command.ts";
+import { Interrupt } from "../command/failure.ts";
+import type { CommandContext } from "../command/context.ts";
 import type { Live } from "../output/index.ts";
 
-import { FlagSet, INPUT_OPTION, LIST_OPTIONS } from "./flag.ts";
-import { Noun, Catalog } from "./catalog.ts";
+import { FlagSet, INPUT_OPTION, LIST_OPTIONS } from "../object/flag.ts";
+import { Noun, Catalog } from "../object/catalog.ts";
 import { Localization, SOURCE_LOCALE } from "@destack/locale";
-import { Command } from "@destack/object";
-import { Frame } from "./frame.ts";
-import { Pager } from "./pager.ts";
+import { type Action, ActionCall } from "@destack/object";
+import { Frame } from "../object/frame.ts";
+import { Pager } from "../object/pager.ts";
 import { CliError } from "../error/index.ts";
 
 /** The lines a terminal is taken to have when it reports none: 24, the VT100's. */
@@ -63,11 +63,7 @@ const SOURCE = Localization.of(SOURCE_LOCALE, []);
 const ID_PAGE = 50;
 
 /** Build the command of a word that names a noun. */
-export function nounCommand(
-    context: Context,
-    catalog: Catalog,
-    word: string,
-): Verb | Group | undefined {
+export function nounCommand(catalog: Catalog, word: string): Command | undefined {
     // find the noun, refusing a word several nouns claim
     const noun = catalog.find(word);
 
@@ -77,27 +73,25 @@ export function nounCommand(
     }
     // list a noun's objects by its plural, taking the singular's subcommands too, as kubectl's plurals do
     else if (noun.lists(word)) {
-        const list = listCommand(context, noun);
-
-        return { ...objectCommand(context, noun), description: list.description, default: list };
+        return { ...objectCommand(noun), ...listCommand(noun) };
     }
     // get, create and call a noun's objects by its singular
     else {
-        return objectCommand(context, noun);
+        return objectCommand(noun);
     }
 }
 
 /** Build the command that lists a noun's rows, once or live. */
-export function listCommand(context: Context, noun: Noun): Verb {
+export function listCommand(noun: Noun): Command {
     return {
         description: `List ${noun.plural} (${noun.qualifier})`,
-        json: true,
+        isJson: true,
         get options() {
             return { ...FlagSet.rows(noun.type).options(), ...LIST_OPTIONS };
         },
-        async run(call) {
+        async run(call, context) {
             // read the keys the flags give as identifiers
-            const { json } = call;
+            const { isJson: json } = call;
             const flags = FlagSet.rows(noun.type);
             const options = await identifyFlags(context, flags, call.options);
 
@@ -109,7 +103,7 @@ export function listCommand(context: Context, noun: Noun): Verb {
             );
             const where = flags.condition(options, filter);
             const orderBy = flags.order(options);
-            const limit = OptionValue.count(options["limit"], "limit");
+            const limit = CommandOption.count(options["limit"], "limit");
             const query = {
                 ...(where === undefined ? {} : { where: Condition.schema.parse(where) }),
                 ...(orderBy === undefined ? {} : { orderBy }),
@@ -137,7 +131,7 @@ export function listCommand(context: Context, noun: Noun): Verb {
 
                 return { view, layout, window, query: laidOut };
             };
-            const shaped = shape(chosenView(noun, OptionValue.string(options["view"], "view")));
+            const shaped = shape(chosenView(noun, CommandOption.string(options["view"], "view")));
             const draw = async (rows: readonly JsonObject[]) =>
                 json
                     ? JSON.stringify(rows)
@@ -200,14 +194,14 @@ interface Shaped {
     readonly query: Pick<ObjectQuery, "where" | "orderBy" | "limit">;
 }
 
-/** Page followed rows under a terminal's keys: move, filter, switch views and run commands. */
+/** Page followed rows under a terminal's keys: move, filter, switch views and run actions. */
 async function page(paging: {
     readonly shaped: Shaped;
     readonly shape: (view: ObjectView) => Shaped;
     readonly noun: Noun;
     readonly remote: ObjectConnection;
     readonly live: Live;
-    readonly context: Context;
+    readonly context: CommandContext;
     readonly signal: AbortSignal;
 }): Promise<void> {
     // follow the view's rows and read the keys at once
@@ -219,7 +213,7 @@ async function page(paging: {
     let followed = watch(noun, remote, shaped.query, signal, context);
     let rows: readonly JsonObject[] = [];
     let frame = await Frame.of(context, noun, rows);
-    let pager = Pager.start(type, noun.commands);
+    let pager = Pager.start(type, noun.actions);
     let nextRows = followed.next();
     let nextKey = keys.next();
     try {
@@ -265,7 +259,7 @@ async function page(paging: {
                     nextRows = followed.next();
                 } else if (step.kind === "run") {
                     pager = pager.told(
-                        await ran(step.command, step.targets, step.input, remote, frame),
+                        await ran(step.action, step.targets, step.input, remote, frame),
                     );
                 }
             }
@@ -292,29 +286,30 @@ function titled(rows: readonly JsonObject[], type: ObjectType, filter: string): 
     );
 }
 
-/** Run a command on each target, telling what it did or why it failed. */
+/** Run an action's call on each target, telling what it did or why it failed. */
 async function ran(
-    command: Command,
+    action: Action,
     targets: readonly JsonObject[],
     input: JsonObject,
     remote: ObjectConnection,
     frame: Frame,
 ): Promise<string> {
     // call the method once per target, stopping at the first refusal
-    const title = frame.terminal.localization.render(command.title);
+    const title = frame.terminal.localization.render(action.title);
+    const call = present(action.call, `the call of action '${action.name}'`);
     try {
         for (const target of targets) {
             await remote.run(
-                command.object,
-                command.method,
-                command.input({ ...input, id: target["id"] ?? null }),
+                call.object,
+                call.method,
+                call.input({ ...input, id: target["id"] ?? null }),
             );
         }
     } catch (error) {
         return `${title} failed: ${error instanceof Error ? error.message : String(error)}`;
     }
 
-    return `${title}: ${targets.length} ${targets.length === 1 ? command.object.name : command.object.plural}`;
+    return `${title}: ${targets.length} ${targets.length === 1 ? call.object.name : call.object.plural}`;
 }
 
 /** Pick the view a list asks for by name, else the type's default. */
@@ -335,80 +330,77 @@ function chosenView(noun: Noun, name: string | undefined): ObjectView {
     return chosen;
 }
 
-/** Build the commands of one noun's objects: create, and per object its get and its methods. */
-function objectCommand(context: Context, noun: Noun): Group {
+/** Build the commands of a noun's objects: create, and per object get, methods and actions. */
+function objectCommand(noun: Noun): Command {
     // call the methods of the scope without an object, such as the noun's create
     const methods = Object.entries(noun.type.describeMethods()).filter(
         ([, method]) => !NOUN_KINDS.has(method.kind),
     );
     const creates = methods.filter(([, method]) => method.target === "scope");
 
-    // call the type's create method by the word new too, unless a method or command has the word
+    // call the type's create method by the word new too, unless a method or an action has the word
     const created = creates.find(([, method]) => method.kind === "create");
     const isTaken =
         creates.some(([name]) => name === NEW) ||
-        noun.commands.some((command) => command.target === "scope" && command.name === NEW);
-    const added: [string, Verb][] =
-        created === undefined || isTaken
-            ? []
-            : [[NEW, methodCommand(context, noun, created[0], undefined)]];
+        noun.actions.some((action) => action.call?.target === "scope" && action.name === NEW);
+    const added: [string, Command][] =
+        created === undefined || isTaken ? [] : [[NEW, methodCommand(noun, created[0], undefined)]];
     const called = methods.filter(([, method]) => method.target === "object");
 
     return {
         description: `Get, create and change ${noun.plural} (${noun.qualifier})`,
         commands: Object.fromEntries([
             // list a method named create under the word new alone, taking both words
-            ...creates.map(([name]): [string, Verb] => [
+            ...creates.map(([name]): [string, Command] => [
                 name,
                 {
-                    ...methodCommand(context, noun, name, undefined),
+                    ...methodCommand(noun, name, undefined),
                     ...(name === CREATE && added.length > 0 ? { isHidden: true } : {}),
                 },
             ]),
             ...added,
-            ...noun.commands
-                .filter((command) => command.target === "scope")
-                .map((command): [string, Verb] => [
-                    command.name,
-                    declaredCommand(context, noun, command, undefined),
+            ...noun.actions
+                .filter((action) => action.call?.target === "scope")
+                .map((action): [string, Command] => [
+                    action.name,
+                    actionCommand(noun, action, undefined),
                 ]),
         ]),
-        // call the methods of one object, getting it without a method
-        argument: {
+        // call the methods and actions of one object, getting it without either
+        target: {
             name: "id",
             // offer the identifiers of the first page of objects
-            complete: async () => {
+            complete: async (context) => {
                 const rows = await (await noun.client(context)).list(noun.type, { limit: ID_PAGE });
 
                 return rows.map((row) => schema.string().parse(row["id"]));
             },
             command: (id) => ({
-                description: `Get ${id}, or call one of its methods or commands`,
+                ...getCommand(noun, id),
                 commands: Object.fromEntries([
-                    ...called.map(([name]): [string, Verb] => [
+                    ...called.map(([name]): [string, Command] => [
                         name,
-                        methodCommand(context, noun, name, id),
+                        methodCommand(noun, name, id),
                     ]),
-                    ...noun.commands
-                        .filter((command) => command.target === "object")
-                        .map((command): [string, Verb] => [
-                            command.name,
-                            declaredCommand(context, noun, command, id),
+                    ...noun.actions
+                        .filter((action) => action.call?.target === "object")
+                        .map((action): [string, Command] => [
+                            action.name,
+                            actionCommand(noun, action, id),
                         ]),
                 ]),
-                default: getCommand(context, noun, id),
             }),
         },
     };
 }
 
 /** Build the command getting one object, once or live. */
-function getCommand(context: Context, noun: Noun, id: string): Verb {
+function getCommand(noun: Noun, id: string): Command {
     return {
         description: `Show one of the ${noun.plural}`,
-        json: true,
+        isJson: true,
         options: { watch: LIST_OPTIONS.watch },
-        async run({ options, json }) {
+        async run({ options, isJson: json }, context) {
             // open the object's noun, showing it as fields or JSON
             const remote = await noun.client(context);
             const show = async (row: JsonObject) =>
@@ -437,21 +429,21 @@ function getCommand(context: Context, noun: Noun, id: string): Verb {
 }
 
 /** Build the command that calls one method, on an object or on the collection. */
-function methodCommand(context: Context, noun: Noun, method: string, id: string | undefined): Verb {
+function methodCommand(noun: Noun, method: string, id: string | undefined): Command {
     return {
         description: `Call ${noun.name}.${method}`,
-        json: true,
+        isJson: true,
         get options() {
             return {
                 ...FlagSet.input(noun.type, method).options(),
                 ...INPUT_OPTION,
-                ...(Command.isDestructive(noun.type, method) ? YES_OPTION : {}),
+                ...(ActionCall.isDestructive(noun.type, method) ? YES_OPTION : {}),
             };
         },
-        async run(call) {
+        async run(call, context) {
             // ask before a method that removes its target for good
-            const { json, options } = call;
-            if (Command.isDestructive(noun.type, method)) {
+            const { isJson: json, options } = call;
+            if (ActionCall.isDestructive(noun.type, method)) {
                 await requireConfirmation(method, noun, id, options, context);
             }
 
@@ -478,7 +470,7 @@ async function requireConfirmation(
     noun: Noun,
     id: string | undefined,
     options: Readonly<Record<string, unknown>>,
-    context: Context,
+    context: CommandContext,
 ): Promise<void> {
     // take --yes, else the person's answer on a terminal
     const target = id ?? noun.plural;
@@ -496,68 +488,68 @@ async function requireConfirmation(
     }
 }
 
-/** Build the command running a declared command on a matching object, or on its scope. */
-function declaredCommand(
-    context: Context,
-    noun: Noun,
-    command: Command,
-    id: string | undefined,
-): Verb {
-    const fields = Object.keys(command.preset);
+/** Build the command running a declared action's call on a matching object, or on its scope. */
+function actionCommand(noun: Noun, action: Action, id: string | undefined): Command {
+    const call = present(action.call, `the call of action '${action.name}'`);
+    const fields = Object.keys(call.preset);
 
     return {
-        description: SOURCE.render(command.title),
-        json: true,
+        description: SOURCE.render(action.title),
+        isJson: true,
         get options() {
             return {
-                ...FlagSet.input(noun.type, command.method).without(fields).options(),
+                ...FlagSet.input(noun.type, call.method).without(fields).options(),
                 ...INPUT_OPTION,
-                ...(command.isDestructive ? YES_OPTION : {}),
+                ...(call.isDestructive ? YES_OPTION : {}),
             };
         },
-        async run(call) {
-            // refuse an object the command does not apply to, or which the person may not call it on
+        async run(given, context) {
+            // refuse an object the action does not apply to, or which the person may not call it on
             const remote = await noun.client(context);
             const target = id === undefined ? undefined : await noun.identify(id, context);
             if (target !== undefined) {
                 const [applies] = await remote.list(noun.type, {
-                    ...command.query([target]),
+                    ...call.query([target]),
                     limit: 1,
                 });
                 if (applies === undefined) {
                     throw CliError.of(
                         "COMMAND_BLOCKED",
-                        `cannot run '${command.name}' on ${noun.name} '${id}': it does not apply`,
+                        `cannot run '${action.name}' on ${noun.name} '${id}': it does not apply`,
                     );
                 }
             }
 
-            // ask before a command that removes its target for good
-            if (command.isDestructive) {
-                await requireConfirmation(command.name, noun, id, call.options, context);
+            // ask before an action that removes its target for good
+            if (call.isDestructive) {
+                await requireConfirmation(action.name, noun, id, given.options, context);
             }
 
             // build the input from the JSON option, the flags and the object, beside the preset fields
-            const flags = FlagSet.input(noun.type, command.method).without(fields);
-            const input = await methodInput(flags, call.options, context);
+            const flags = FlagSet.input(noun.type, call.method).without(fields);
+            const input = await methodInput(flags, given.options, context);
 
             // call the method and show its result
             const result = await remote.run(
                 noun.type,
-                command.method,
-                command.input(target === undefined ? input : { ...input, id: target }),
+                call.method,
+                call.input(target === undefined ? input : { ...input, id: target }),
             );
             await context.terminal.print(
-                call.json
+                given.isJson
                     ? JSON.stringify(result)
-                    : await renderResult(context, noun, command.method, result),
+                    : await renderResult(context, noun, call.method, result),
             );
         },
     };
 }
 
 /** Read the keys given to flags of identifiers as the identifiers of their objects. */
-async function identifyFlags(context: Context, flags: FlagSet, options: Options): Promise<Options> {
+async function identifyFlags(
+    context: CommandContext,
+    flags: FlagSet,
+    options: CommandCall["options"],
+): Promise<CommandCall["options"]> {
     return flags.identify(options, async (identity, value) => {
         // find the noun listing objects of the identity
         const noun = (await context.catalog()).identity(identity);
@@ -575,15 +567,15 @@ async function identifyFlags(context: Context, flags: FlagSet, options: Options)
 /** Read a method's input: the JSON of --input, with the flags written over it. */
 async function methodInput(
     flags: FlagSet,
-    options: Options,
-    context: Context,
+    options: CommandCall["options"],
+    context: CommandContext,
 ): Promise<JsonObject> {
     const filter = flags.filter(
         await context.me(),
         context.environment.clock.now(),
         context.environment.timeZone,
     );
-    const given = await OptionValue.json(
+    const given = await CommandOption.json(
         options["input"],
         "input",
         context.environment,
@@ -595,7 +587,7 @@ async function methodInput(
 
 /** Render a method's result: a changed object as one event, any other result as it is. */
 async function renderResult(
-    context: Context,
+    context: CommandContext,
     noun: Noun,
     method: string,
     result: JsonValue,
@@ -626,7 +618,7 @@ async function* watch(
     remote: ObjectConnection,
     query: Pick<ObjectQuery, "where" | "orderBy" | "limit">,
     signal: AbortSignal,
-    context: Context,
+    context: CommandContext,
 ): AsyncGenerator<readonly JsonObject[]> {
     // replicate the type's rows in memory as the person signed in
     const { environment } = await context.native();

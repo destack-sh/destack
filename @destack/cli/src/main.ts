@@ -1,6 +1,6 @@
 import { BunEnvironment } from "@destack/environment/bun";
-import { CommandLine } from "./command/run.ts";
-import { NativeDevice } from "./context/native.ts";
+import { CommandLine } from "./command/line.ts";
+import { NativeDevice } from "./command/native.ts";
 
 /** The environment the command line runs on: the system's environment. */
 const environment = BunEnvironment.system;

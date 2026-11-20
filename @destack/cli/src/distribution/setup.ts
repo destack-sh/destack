@@ -16,7 +16,7 @@ import { verifyApplication } from "@destack/update/apple";
 import type { DistributionRow } from "@destack/update/object";
 import updatePackage from "@destack/update/package";
 import { Terminal } from "../output/index.ts";
-import type { CliEnvironment } from "../context/context.ts";
+import type { CommandEnvironment } from "../command/context.ts";
 import type {} from "@destack/package/import-meta";
 import { CliError } from "../error/index.ts";
 
@@ -42,7 +42,7 @@ export class Setup {
     /** The desktop of the home. */
     readonly desktop: Application;
     /** The environment the setup installs on. */
-    readonly environment: CliEnvironment;
+    readonly environment: CommandEnvironment;
     /** The terminal the setup reports to. */
     readonly terminal: Terminal;
 
@@ -51,7 +51,7 @@ export class Setup {
         readonly home: UniverseHome;
         readonly autostart: Autostart;
         readonly desktop: Application;
-        readonly environment: CliEnvironment;
+        readonly environment: CommandEnvironment;
     }) {
         // set the universe's home, the supervision, the desktop, the environment and its terminal
         this.home = fields.home;
@@ -63,7 +63,7 @@ export class Setup {
     }
 
     /** Read the setup of this universe in an environment. */
-    static async current(environment: CliEnvironment): Promise<Setup> {
+    static async current(environment: CommandEnvironment): Promise<Setup> {
         const home = UniverseHome.current(environment);
         const autostart = await Autostart.of(home.directory, environment);
 
@@ -76,7 +76,7 @@ export class Setup {
     }
 
     /** Install the signed distribution and register a stable command in the user's directory. */
-    static async install(environment: CliEnvironment, source?: string): Promise<void> {
+    static async install(environment: CommandEnvironment, source?: string): Promise<void> {
         // require the compiled executable, and a regular user on Linux
         if (!environment.process.runtime.isStandalone) {
             throw CliError.of(

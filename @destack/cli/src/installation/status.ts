@@ -8,11 +8,10 @@ import {
     type Progress,
     type Resource,
 } from "@destack/object";
-import { type Action, Plan, type Risk } from "@destack/resource";
+import { Plan, type Risk, type StepKind } from "@destack/resource";
 import type { Identifier } from "@destack/schema";
 import objectPackage from "@destack/object/package";
 import registryPackage from "@destack/registry/package";
-import { FORGE_INSTALLATION } from "@destack/forge/package";
 import { createClient } from "@destack/object/client";
 import { reference, release, tag } from "@destack/registry/object";
 import { schema } from "@destack/schema";
@@ -20,7 +19,7 @@ import { ObjectReference, RequestId } from "@destack/sync";
 import { bucket, database, type Rollout, rollout } from "@destack/stack/object";
 import { vault } from "@destack/vault/object";
 import type { EventState, Standing, Terminal, Tone } from "../output/index.ts";
-import type { Context } from "../context/context.ts";
+import type { CommandContext } from "../command/context.ts";
 import stackPackage from "@destack/stack/package";
 import type {} from "@destack/package/import-meta";
 import { CliError } from "../error/index.ts";
@@ -58,182 +57,9 @@ const ACTIONS = {
     restore: { sign: "+", tone: "accent", phrase: "to restore" },
     grant: { sign: "!", tone: "accent", phrase: "to grant" },
 } as const satisfies Record<
-    Action,
+    StepKind,
     { readonly sign: string; readonly tone: Tone; readonly phrase: string }
 >;
-
-/** Follow an installation of the space with its resources, and the plan it waits on. */
-export async function* followInstallation(
-    id: Identifier<"installation">,
-    context: Context,
-): AsyncGenerator<InstallationStatus> {
-    // open the space's installations, rollouts and resources as the person until the follow ends
-    const space = await context.requireSpace();
-    const launcher = await context.launcher();
-    const stack = await context.package(stackPackage, await context.locate());
-    await using opened = new AsyncDisposableStack();
-    const native = await context.native();
-    const { query } = await native.open(
-        launcher,
-        { space },
-        { installation, rollout, database, bucket, vault, approval },
-        opened,
-    );
-    const watching = new AbortController();
-    opened.defer(() => watching.abort());
-
-    // follow the installation with the resources it manages or owns
-    const owned = {
-        where: {
-            OR: [
-                { managerInstallationId: id },
-                ObjectReference.columns("owner", principal.installation.reference(space, id)),
-            ],
-        },
-        orderBy: { name: "asc" },
-        limit: STATUS_RESOURCES + 1,
-    } as const;
-    const status = RelationalQuery.latest(
-        {
-            installed: query.installation.findFirst({ where: { id } }),
-            rolled: query.rollout.findFirst({ where: { installationId: id } }),
-            // wake once a plan's change request asks its approval
-            asked: query.approval.findMany({ where: { state: "requested" } }),
-            databases: query.database.findMany(owned),
-            buckets: query.bucket.findMany(owned),
-            vaults: query.vault.findMany(owned),
-        },
-        watching.signal,
-    );
-    let described: { readonly id: string | null; readonly follows: string } | undefined;
-    for await (const { installed, rolled, databases, buckets, vaults } of status) {
-        // refuse more resources than the status shows, and an installation gone
-        const resources = [...databases, ...buckets, ...vaults];
-        if (resources.length > STATUS_RESOURCES) {
-            throw CliError.of(
-                "RESOURCE_LIMIT_INVALID",
-                `installation '${id}' is invalid: it has more than ${STATUS_RESOURCES} resources`,
-            );
-        } else if (installed === undefined || rolled === undefined) {
-            throw CliError.of(
-                "INSTALLATION_NOT_FOUND",
-                `installation '${id}' of '${space}' not found`,
-            );
-        }
-
-        // read the plan, its digest and the approval it asks while the installation awaits approval
-        const planned =
-            Observation.progress(installed) === "approval"
-                ? await stack.rollout.plan({ spaceId: space, id })
-                : undefined;
-        const waiting =
-            planned === undefined || planned.approval === null
-                ? undefined
-                : { ...planned, approval: planned.approval };
-        // describe what it follows once per followed row
-        if (described?.id !== installed.followsId) {
-            described = {
-                id: installed.followsId,
-                follows: await describeFollows(installed, context),
-            };
-        }
-        yield new InstallationStatus({
-            installation: installed,
-            follows: described.follows,
-            rollout: rolled,
-            resources,
-            ...(waiting === undefined ? {} : { waiting }),
-        });
-    }
-}
-
-/** Follow an installation being deleted until its controller removed it. */
-export async function followRemoval(
-    id: Identifier<"installation">,
-    context: Context,
-): Promise<void> {
-    // open the space's installations as the person until the follow ends
-    const space = await context.requireSpace();
-    const launcher = await context.launcher();
-    await using opened = new AsyncDisposableStack();
-    const native = await context.native();
-    const { query } = await native.open(launcher, { space }, { installation }, opened);
-    const watching = new AbortController();
-    opened.defer(() => watching.abort());
-
-    // end once the installation is gone
-    const removal = RelationalQuery.latest(
-        { installed: query.installation.findFirst({ where: { id } }) },
-        watching.signal,
-    );
-    for await (const { installed } of removal) {
-        if (installed === undefined) {
-            return;
-        }
-    }
-
-    // stop following once interrupted
-    throw CliError.of(
-        "FOLLOW_UNAVAILABLE",
-        `'${id}' is unavailable: following stopped before it was removed`,
-    );
-}
-
-/** Follow an installation until current, approving each plan it waits on, refusing a failure. */
-export async function driveInstallation(
-    id: Identifier<"installation">,
-    isApproving: boolean,
-    json: boolean,
-    context: Context,
-): Promise<InstallationStatus> {
-    // show each state live until the installation is current
-    const live = context.terminal.live(json);
-    let approved: string | undefined;
-    for await (const status of followInstallation(id, context)) {
-        await live.show(status.show(json, context));
-        const { progress, waiting } = status;
-        const { name } = status.installation;
-        // end once current
-        if (progress === "current") {
-            return status;
-        }
-        // refuse a failure
-        else if (progress === "failed") {
-            throw CliError.of(
-                "INSTALLATION_BLOCKED",
-                `cannot follow '${name}': it failed with ${status.message}`,
-            );
-        }
-        // approve a waiting plan once, when approving or once the person types yes on a terminal
-        else if (waiting !== undefined && waiting.digest !== approved) {
-            live.release();
-            const isApproved =
-                isApproving ||
-                (context.environment.process.stdin.isTerminal &&
-                    (await context.terminal.prompt.confirm("Approve this plan?")));
-            if (!isApproved) {
-                throw CliError.of(
-                    "APPROVAL_BLOCKED",
-                    `cannot install '${name}': it waits on plan '${waiting.digest}', so approve it with --yes or run '${InstallationStatus.approval(status.installation, waiting.digest)}'`,
-                );
-            }
-            const { environment } = await context.native();
-            const objects = await context.package(objectPackage, await context.locate());
-            await objects.approval.approve({
-                scope: await context.requireSpace(),
-                id: waiting.approval,
-                requestId: RequestId.create(environment),
-            });
-            approved = waiting.digest;
-        }
-    }
-
-    // stop following once interrupted
-    throw CliError.of(
-        "FOLLOW_UNAVAILABLE",
-        `'${id}' is unavailable: following stopped before it was current`,
-    );
-}
 
 /** A plan an installation waits on, with its digest and the approval its change request asks. */
 interface Waiting {
@@ -275,6 +101,179 @@ export class InstallationStatus {
         this.rollout = fields.rollout;
         this.resources = fields.resources;
         this.waiting = fields.waiting;
+    }
+
+    /** Follow an installation of the space with its resources, and the plan it waits on. */
+    static async *follow(
+        id: Identifier<"installation">,
+        context: CommandContext,
+    ): AsyncGenerator<InstallationStatus> {
+        // open the space's installations, rollouts and resources as the person until the follow ends
+        const space = await context.requireSpace();
+        const launcher = await context.launcher();
+        const stack = await context.package(stackPackage, await context.locate());
+        await using opened = new AsyncDisposableStack();
+        const native = await context.native();
+        const { query } = await native.open(
+            launcher,
+            { space },
+            { installation, rollout, database, bucket, vault, approval },
+            opened,
+        );
+        const watching = new AbortController();
+        opened.defer(() => watching.abort());
+
+        // follow the installation with the resources it manages or owns
+        const owned = {
+            where: {
+                OR: [
+                    { managerInstallationId: id },
+                    ObjectReference.columns("owner", principal.installation.reference(space, id)),
+                ],
+            },
+            orderBy: { name: "asc" },
+            limit: STATUS_RESOURCES + 1,
+        } as const;
+        const status = RelationalQuery.latest(
+            {
+                installed: query.installation.findFirst({ where: { id } }),
+                rolled: query.rollout.findFirst({ where: { installationId: id } }),
+                // wake once a plan's change request asks its approval
+                asked: query.approval.findMany({ where: { state: "requested" } }),
+                databases: query.database.findMany(owned),
+                buckets: query.bucket.findMany(owned),
+                vaults: query.vault.findMany(owned),
+            },
+            watching.signal,
+        );
+        let described: { readonly id: string | null; readonly follows: string } | undefined;
+        for await (const { installed, rolled, databases, buckets, vaults } of status) {
+            // refuse more resources than the status shows, and an installation gone
+            const resources = [...databases, ...buckets, ...vaults];
+            if (resources.length > STATUS_RESOURCES) {
+                throw CliError.of(
+                    "RESOURCE_LIMIT_INVALID",
+                    `installation '${id}' is invalid: it has more than ${STATUS_RESOURCES} resources`,
+                );
+            } else if (installed === undefined || rolled === undefined) {
+                throw CliError.of(
+                    "INSTALLATION_NOT_FOUND",
+                    `installation '${id}' of '${space}' not found`,
+                );
+            }
+
+            // read the plan, its digest and the approval it asks while the installation awaits approval
+            const planned =
+                Observation.progress(installed) === "approval"
+                    ? await stack.rollout.plan({ spaceId: space, id })
+                    : undefined;
+            const waiting =
+                planned === undefined || planned.approval === null
+                    ? undefined
+                    : { ...planned, approval: planned.approval };
+            // describe what it follows once per followed row
+            if (described?.id !== installed.followsId) {
+                described = {
+                    id: installed.followsId,
+                    follows: await describeFollows(installed, context),
+                };
+            }
+            yield new InstallationStatus({
+                installation: installed,
+                follows: described.follows,
+                rollout: rolled,
+                resources,
+                ...(waiting === undefined ? {} : { waiting }),
+            });
+        }
+    }
+
+    /** Follow an installation being deleted until its controller removed it. */
+    static async followRemoval(
+        id: Identifier<"installation">,
+        context: CommandContext,
+    ): Promise<void> {
+        // open the space's installations as the person until the follow ends
+        const space = await context.requireSpace();
+        const launcher = await context.launcher();
+        await using opened = new AsyncDisposableStack();
+        const native = await context.native();
+        const { query } = await native.open(launcher, { space }, { installation }, opened);
+        const watching = new AbortController();
+        opened.defer(() => watching.abort());
+
+        // end once the installation is gone
+        const removal = RelationalQuery.latest(
+            { installed: query.installation.findFirst({ where: { id } }) },
+            watching.signal,
+        );
+        for await (const { installed } of removal) {
+            if (installed === undefined) {
+                return;
+            }
+        }
+
+        // stop following once interrupted
+        throw CliError.of(
+            "FOLLOW_UNAVAILABLE",
+            `'${id}' is unavailable: following stopped before it was removed`,
+        );
+    }
+
+    /** Follow an installation until current, approving each plan it waits on, refusing failures. */
+    static async drive(
+        id: Identifier<"installation">,
+        isApproving: boolean,
+        json: boolean,
+        context: CommandContext,
+    ): Promise<InstallationStatus> {
+        // show each state live until the installation is current
+        const live = context.terminal.live(json);
+        let approved: string | undefined;
+        for await (const status of InstallationStatus.follow(id, context)) {
+            await live.show(status.show(json, context));
+            const { progress, waiting } = status;
+            const { name } = status.installation;
+            // end once current
+            if (progress === "current") {
+                return status;
+            }
+            // refuse a failure
+            else if (progress === "failed") {
+                throw CliError.of(
+                    "INSTALLATION_BLOCKED",
+                    `cannot follow '${name}': it failed with ${status.message}`,
+                );
+            }
+            // approve a waiting plan once, when approving or once the person types yes on a terminal
+            else if (waiting !== undefined && waiting.digest !== approved) {
+                live.release();
+                const isApproved =
+                    isApproving ||
+                    (context.environment.process.stdin.isTerminal &&
+                        (await context.terminal.prompt.confirm("Approve this plan?")));
+                if (!isApproved) {
+                    throw CliError.of(
+                        "APPROVAL_BLOCKED",
+                        `cannot install '${name}': it waits on plan '${waiting.digest}', so approve it with --yes or run '${InstallationStatus.approval(status.installation, waiting.digest)}'`,
+                    );
+                }
+                const { environment } = await context.native();
+                const objects = await context.package(objectPackage, await context.locate());
+                await objects.approval.approve({
+                    scope: await context.requireSpace(),
+                    id: waiting.approval,
+                    requestId: RequestId.create(environment),
+                });
+                approved = waiting.digest;
+            }
+        }
+
+        // stop following once interrupted
+        throw CliError.of(
+            "FOLLOW_UNAVAILABLE",
+            `'${id}' is unavailable: following stopped before it was current`,
+        );
     }
 
     /** Read how far the installation is with its latest change. */
@@ -371,7 +370,7 @@ export class InstallationStatus {
     }
 
     /** Show the status as JSON or rendered text. */
-    show(json: boolean, context: Context): string {
+    show(json: boolean, context: CommandContext): string {
         return json ? JSON.stringify(this) : this.render(context.terminal);
     }
 
@@ -399,7 +398,7 @@ async function describeFollows(
         Installation,
         "followsPackageId" | "followsType" | "followsScope" | "followsId" | "directory"
     >,
-    context: Context,
+    context: CommandContext,
 ): Promise<string> {
     // describe the directory within a followed repository or checkout
     const at =
@@ -422,7 +421,7 @@ async function describeFollows(
     const followed = ObjectReference.at("follows", installed);
     const home = schema.identifier("space").parse(followed.scope);
     const launcher = await context.launcher();
-    const endpoint = await launcher.installation(home, FORGE_INSTALLATION, registryPackage.id);
+    const endpoint = await launcher.package(home, registryPackage.id);
     const forge = createClient(registryPackage, endpoint, (await context.native()).environment);
     const read = { spaceId: home };
 

@@ -1,5 +1,5 @@
 import { isAbsolute, join, relative, resolve } from "node:path";
-import type { CliEnvironment } from "../context/context.ts";
+import type { CommandEnvironment } from "../command/context.ts";
 import { Setup } from "./setup.ts";
 import { Release } from "@destack/update/release";
 
@@ -8,7 +8,7 @@ export const Launcher = {
     /** Forward the stable CLI launcher to the current installed distribution. */
     async forward(
         words: readonly string[],
-        environment: CliEnvironment,
+        environment: CommandEnvironment,
     ): Promise<number | undefined> {
         // run here on a Mac and from sources, which have no launcher
         const { os } = environment.host;

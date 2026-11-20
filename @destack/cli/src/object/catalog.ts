@@ -6,21 +6,23 @@ import objectPackage from "@destack/object/package";
 import type { ObjectAddress } from "@destack/view/declare";
 import type { SpaceAddress } from "@destack/account/address";
 import {
-    type Command,
+    type Action,
     type PackageImplementationDescription,
     type MethodKind,
     ObjectType,
+    ObjectTypePool,
     type Package,
     PackageMount,
     Casing,
 } from "@destack/object";
+import registryPackage from "@destack/registry/package";
 import { ObjectStoreDescription, ObjectConnection } from "@destack/object/client";
 import { nth, schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import stackPackage from "@destack/stack/package";
 import { Setting, SETTING_KIND } from "@destack/setting";
 
-import type { Context } from "../context/context.ts";
+import type { CommandContext } from "../command/context.ts";
 import type {} from "@destack/package/import-meta";
 import { CliError } from "../error/index.ts";
 
@@ -37,7 +39,7 @@ const BUILT_IN_PACKAGES: readonly Package[] = [
     objectPackage,
 ];
 
-/** The package each store describes itself at: one of its scope's own. */
+/** The package each store read over the network describes itself at: one of its scope's own. */
 const DESCRIBING = {
     device: machinePackage.id,
     machine: machinePackage.id,
@@ -46,17 +48,18 @@ const DESCRIBING = {
 } as const;
 
 /** The stores the command line reads nouns from, outermost first. */
-const STORES = ["device", "machine", "universe", "space"] as const;
+const STORES = ["device", "machine", "universe", "registry", "space"] as const;
 
 /** The levels each store keeps objects at, the one it reads first for a type of any scope. */
 const OWN_LEVELS = {
     device: ["device"],
     machine: ["machine"],
     universe: ["user", "account", Scope.universe.id],
+    registry: ["space"],
     space: ["space"],
 } as const satisfies Readonly<Record<(typeof STORES)[number], readonly string[]>>;
 
-/** A store the command line reads nouns from: the device, machine, universe or space. */
+/** A store the command line reads nouns from: device, machine, universe, registry or space. */
 export type Store = (typeof STORES)[number];
 
 /** A noun of the command line: an object type of a package its store serves. */
@@ -67,21 +70,21 @@ export class Noun {
     readonly store: Store;
     /** The object type. */
     readonly type: ObjectType;
-    /** The commands the installation declares on the type. */
-    readonly commands: readonly Command[];
+    /** The actions the installation declares calling the type's methods. */
+    readonly actions: readonly Action[];
 
-    /** Keep an object type of the package listing it, in a store, with its commands. */
+    /** Keep an object type of the package listing it, in a store, with its actions. */
     constructor(
         implementation: PackageImplementationDescription,
         store: Store,
         type: ObjectType,
-        commands: readonly Command[],
+        actions: readonly Action[],
     ) {
-        // keep the type, where it is listed, and its commands
+        // keep the type, where it is listed, and its actions
         this.package = implementation;
         this.store = store;
         this.type = type;
-        this.commands = commands;
+        this.actions = actions;
     }
 
     /** Read the singular word. */
@@ -135,7 +138,7 @@ export class Noun {
     }
 
     /** Find an object's identifier by its identifier or key, refusing keys of unkeyed types. */
-    async identify(key: string, context: Context): Promise<string> {
+    async identify(key: string, context: CommandContext): Promise<string> {
         // take an identifier as given, and require a declared key for anything else
         if (this.type.identifies(key)) {
             return key;
@@ -154,7 +157,7 @@ export class Noun {
     }
 
     /** Open a client of the type's objects in the scope the terminal uses for them. */
-    async client(context: Context): Promise<ObjectConnection> {
+    async client(context: CommandContext): Promise<ObjectConnection> {
         return Noun.connect(context, this.store, this.package, await this.#locate(context));
     }
 
@@ -173,7 +176,7 @@ export class Noun {
     }
 
     /** Locate the scope the type's objects live in for the person: the store's for several. */
-    async #locate(context: Context): Promise<string> {
+    async #locate(context: CommandContext): Promise<string> {
         // read the store's own level the type lives in, else its one level, any for a type of any scope
         const { levels } = this;
         const own = OWN_LEVELS[this.store];
@@ -188,6 +191,10 @@ export class Noun {
         // refuse a type of several scopes, which the terminal cannot choose among
         else if (others.length > 0) {
             throw CliError.of("USAGE_INVALID", refusal);
+        }
+        // read the residency home serving the account's registry
+        else if (level === "space" && this.store === "registry") {
+            return context.residency();
         }
         // read the space the command line acts in
         else if (level === "space") {
@@ -219,7 +226,7 @@ export class Noun {
 
     /** Connect to a package implementation's store, closed once the command line ran. */
     static async connect(
-        context: Context,
+        context: CommandContext,
         store: Store,
         implementation: Pick<PackageImplementationDescription, "packageId" | "installation">,
         scope?: string,
@@ -233,7 +240,7 @@ export class Noun {
 
     /** Open a connection to a package implementation's store, as the person or the owner. */
     static async #open(
-        context: Context,
+        context: CommandContext,
         store: Store,
         implementation: Pick<PackageImplementationDescription, "packageId" | "installation">,
         scope?: string,
@@ -256,6 +263,10 @@ export class Noun {
         const { elevate } = context.consent();
         if (store === "universe") {
             return launcher.connect({ scope: scope ?? Scope.universe.id }, packageId, { elevate });
+        }
+        // connect to the registry the account's residency home serves, by its protocol
+        else if (store === "registry") {
+            return launcher.connect({ space: await context.residency() }, packageId, { elevate });
         }
 
         // connect to a named installation of the space at its origin, else to the space's own package where it is
@@ -283,29 +294,34 @@ export class Catalog {
     }
 
     /** Describe the stores of this machine, the universe once signed in, and the space in one. */
-    static async of(context: Context): Promise<Catalog> {
+    static async of(context: CommandContext): Promise<Catalog> {
         // describe the command line's stores at once
         const isSignedIn = (await context.me()) !== undefined;
         const isSpace = isSignedIn && (await context.space()) !== undefined;
         const stores = STORES.filter(
             (store) =>
                 store === "device" ||
-                (store === "machine" || store === "universe" ? isSignedIn : isSpace),
+                (store === "machine" || store === "universe" || store === "registry"
+                    ? isSignedIn
+                    : isSpace),
         );
         const descriptions = await Promise.all(
             stores.map(async (store) => ({
                 store,
-                description: await Catalog.describe(context, store),
+                description:
+                    store === "registry"
+                        ? Catalog.#registry(await context.residency())
+                        : await Catalog.describe(context, store),
             })),
         );
 
-        // make a noun of each listed type with its commands, kept at the innermost store keeping its objects
+        // make a noun of each listed type with its actions, kept at the innermost store keeping its objects
         const nouns = descriptions.flatMap(({ store, description }) =>
             description.packages.flatMap((implementation) => {
-                const commands = description.commands(implementation);
+                const actions = description.actions(implementation);
 
                 return description.types(implementation).map((type) => {
-                    const own = commands.filter((command) => command.object === type);
+                    const own = actions.filter((action) => action.call?.object === type);
 
                     return new Noun(implementation, store, type, own);
                 });
@@ -335,8 +351,24 @@ export class Catalog {
         return new Catalog(innermost, settings);
     }
 
+    /** Describe the account's registry by its protocol's types, which every registry serves. */
+    static #registry(home: string): ObjectStoreDescription {
+        const types: ObjectType[] = Object.values(registryPackage.objects);
+        const implementation = {
+            packageId: registryPackage.id,
+            scope: home,
+            types: types.map((type) => type.typeReference),
+            declarations: [],
+        };
+
+        return new ObjectStoreDescription([implementation], ObjectTypePool.of(types));
+    }
+
     /** Describe a store as the person or this machine's owner, knowing the built-in types. */
-    static async describe(context: Context, store: Store): Promise<ObjectStoreDescription> {
+    static async describe(
+        context: CommandContext,
+        store: Exclude<Store, "registry">,
+    ): Promise<ObjectStoreDescription> {
         // describe the store, the machine's partition by its scope beside the device's default one
         const connection = await Noun.connect(context, store, { packageId: DESCRIBING[store] });
         const known = BUILT_IN_PACKAGES.flatMap((handle) => Object.values(handle.objects)).filter(
@@ -351,7 +383,7 @@ export class Catalog {
         id: string,
         space: SpaceAddress,
         view: string | undefined,
-        context: Context,
+        context: CommandContext,
     ): Promise<ObjectAddress> {
         // find the noun by the identifier's prefix
         const noun = this.owner(id);

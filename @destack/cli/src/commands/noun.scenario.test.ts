@@ -266,7 +266,7 @@ test("print help for a command line without words as destack help does, and a no
             "  spaces    switch",
             "  apps      install  uninstall  open  apply  plan  approve  reject",
             "  share     share  invited  accept",
-            "  build     new  dev  check  fix  test  build  publish  tag",
+            "  build     new  dev  check  fix  test  build  publish  tag  git",
             "  settings  setting  settings",
             "  objects   computers  machine:visits  sign-ins  windows  distributions",
             "            checkouts  previews  users  account:sessions  user-logins  passkeys",
@@ -377,7 +377,7 @@ Usage: destack bucket ${BUCKET} open
     });
 });
 
-test("run a declared command on an object, refusing one its condition excludes", async () => {
+test("run a declared action on an object, refusing one its condition excludes", async () => {
     // retitle a card to Ideas, then try again once it is titled Ideas
     const terminal = await open(WORK_BOARD);
     const id = await create(terminal, "Plans");
@@ -406,7 +406,7 @@ test("run a declared command on an object, refusing one its condition excludes",
     });
 });
 
-test("run a declared command without a target as a verb of its noun, setting its input", async () => {
+test("run a declared action without a target as a verb of its noun, setting its input", async () => {
     // create a card through the noun's verb
     const terminal = await open(WORK_BOARD);
     const created = await line(terminal, ["card", "new-ideas", "--json"]);
@@ -418,6 +418,26 @@ test("run a declared command without a target as a verb of its noun, setting its
         output: `${JSON.stringify(await terminal.object(card, "work", id))}\n`,
         error: "",
     });
+});
+
+test("create a platform repository in the account's registry by its noun, and list it", async () => {
+    // create a platform repository of the owner's account, whose registry its residency's home serves
+    const terminal = await open();
+    const { account } = terminal.computer.world.owner;
+    const repository = ["--account", account, "--name", "site", "--hosting", "platform"];
+    // list the registry's repositories after creating one
+    const created = await line(terminal, ["repository", "new", ...repository, "--json"]);
+    const listed = await line(terminal, ["repositories", "--json"]);
+    const Repository = schema.looseObject({ name: schema.string(), hosting: schema.string() });
+
+    // expect the repository created, and listed by its name and hosting
+    expect({
+        created: [created.code, created.error, Repository.parse(JSON.parse(created.output)).name],
+        listed: schema
+            .array(Repository)
+            .parse(JSON.parse(listed.output))
+            .map(({ name, hosting }) => [name, hosting]),
+    }).toEqual({ created: [0, "", "site"], listed: [["site", "platform"]] });
 });
 
 test("watch a noun's objects as JSON lines, printing them again at each change, until interrupted", async () => {

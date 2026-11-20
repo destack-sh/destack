@@ -2,7 +2,7 @@ import { CallError } from "@destack/object";
 import { schema } from "@destack/schema";
 import type { Terminal } from "../output/index.ts";
 import { CliError } from "../error/error.ts";
-import type { CliEnvironment } from "../context/context.ts";
+import type { CommandEnvironment } from "./context.ts";
 
 /** The exit status of a command that failed other than by its usage, as POSIX utilities exit. */
 const FAILURE_STATUS = 1;
@@ -35,7 +35,7 @@ export class Interrupt implements Disposable {
     readonly #listening: Disposable;
 
     /** Listen to a process's interrupts until disposed. */
-    constructor(process: Pick<CliEnvironment["process"], "on">) {
+    constructor(process: Pick<CommandEnvironment["process"], "on">) {
         // abort at the first interrupt, resolve the second
         const controller = new AbortController();
         const { promise, resolve } = Promise.withResolvers<void>();

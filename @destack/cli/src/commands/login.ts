@@ -5,10 +5,10 @@ import type { schema } from "@destack/schema";
 
 import type { SpaceAddress } from "@destack/account/address";
 import { type Device, type SignInMethod } from "@destack/machine/device";
-import { type Verb, OptionValue, type Options } from "../command/command.ts";
+import { type Command, CommandOption, type CommandCall } from "../command/command.ts";
 import type { Environment } from "@destack/environment";
 import { Prompt } from "../output/index.ts";
-import type { Context } from "./context.ts";
+import type { CommandContext } from "../command/context.ts";
 import { CliError } from "../error/index.ts";
 import type { Terminal } from "../output/index.ts";
 
@@ -29,7 +29,7 @@ export type SignInPromptEnvironment = Pick<
 /** The questions a sign-in asks: the email, the mailed code and a new person's sign-up. */
 export class SignInPrompt {
     /** The command line's options. */
-    readonly #options: Options;
+    readonly #options: CommandCall["options"];
     /** The lines a person types or a script pipes. */
     readonly #prompt: Pick<Prompt, "ask">;
     /** The environment whose variables, time zone and locale the answers default to. */
@@ -37,7 +37,7 @@ export class SignInPrompt {
 
     /** Answer from a command line's options, else ask through a prompt, in an environment. */
     constructor(
-        options: Options,
+        options: CommandCall["options"],
         prompt: Pick<Prompt, "ask">,
         environment: SignInPromptEnvironment,
     ) {
@@ -104,103 +104,97 @@ export class SignInPrompt {
     #given(option: keyof typeof ENVIRONMENT): string | undefined {
         const variable = this.#environment.process.variables[ENVIRONMENT[option]];
 
-        return OptionValue.string(this.#options[option], option) ?? variable;
+        return CommandOption.string(this.#options[option], option) ?? variable;
     }
 }
 
 /** Sign a person in with a device code, through the browser, or with a mailed code. */
-export function loginCommand(context: Context): Verb {
-    return {
-        description:
-            "Sign in or up with a device code, enrolling this machine; --browser signs in through the browser, --email with a mailed code, which --handle signs a new person up with",
-        json: true,
-        options: {
-            browser: { type: "boolean", description: "Sign in through this computer's browser" },
-            email: {
-                type: "string",
-                description: "Sign in with a code mailed to this address",
-                argument: "email",
-            },
-            handle: {
-                type: "string",
-                description: "The handle a new person signs up with, such as florian",
-                argument: "handle",
-            },
-            residency: {
-                type: "string",
-                description: "The jurisdiction a new person's account stores data in, such as eu",
-                argument: "code",
-            },
-            name: {
-                type: "string",
-                description: "The name a new person signs up with",
-                argument: "name",
-            },
+export const loginCommand: Command = {
+    description:
+        "Sign in or up with a device code, enrolling this machine; --browser signs in through the browser, --email with a mailed code, which --handle signs a new person up with",
+    isJson: true,
+    options: {
+        browser: { type: "boolean", description: "Sign in through this computer's browser" },
+        email: {
+            type: "string",
+            description: "Sign in with a code mailed to this address",
+            argument: "email",
         },
-        async run({ options, json }) {
-            // read who the terminal acts as, then sign in and enroll this machine
-            const client = await context.native();
-            const acting = await client.login();
-            const login = await signPersonIn(client, options, context);
+        handle: {
+            type: "string",
+            description: "The handle a new person signs up with, such as florian",
+            argument: "handle",
+        },
+        residency: {
+            type: "string",
+            description: "The jurisdiction a new person's account stores data in, such as eu",
+            argument: "code",
+        },
+        name: {
+            type: "string",
+            description: "The name a new person signs up with",
+            argument: "name",
+        },
+    },
+    async run({ options, isJson: json }, context) {
+        // read who the terminal acts as, then sign in and enroll this machine
+        const client = await context.native();
+        const acting = await client.login();
+        const login = await signPersonIn(client, options, context);
 
-            // act as the person signed in, in their home unless they acted in a space before
-            await client.set(currentLogin, login.id);
-            const switched = await switchHome(client, login, acting);
-            const { terminal } = context;
-            const lines = [
-                terminal.event("Signed in", "done", `as '${login.name}'`),
-                ...(switched === undefined
-                    ? []
-                    : [terminal.event("Switched", "done", `to space '${switched}'`)]),
-            ];
-            await context.terminal.print(
-                json ? JSON.stringify({ login, space: switched ?? null }) : lines.join("\n"),
-            );
-        },
-    };
-}
+        // act as the person signed in, in their home unless they acted in a space before
+        await client.set(currentLogin, login.id);
+        const switched = await switchHome(client, login, acting);
+        const { terminal } = context;
+        const lines = [
+            terminal.event("Signed in", "done", `as '${login.name}'`),
+            ...(switched === undefined
+                ? []
+                : [terminal.event("Switched", "done", `to space '${switched}'`)]),
+        ];
+        await context.terminal.print(
+            json ? JSON.stringify({ login, space: switched ?? null }) : lines.join("\n"),
+        );
+    },
+};
 
 /** Sign the person out of this machine. */
-export function logoutCommand(context: Context): Verb {
-    return {
-        description: "Sign out of this machine",
-        json: true,
-        async run({ json }) {
-            // revoke the session at its issuer and remove the login
-            const login = await context.signedIn();
-            await (await context.native()).signOut(login);
-            await context.terminal.print(
-                json
-                    ? JSON.stringify({ id: login.row.id })
-                    : context.terminal.event("Signed out", "done", `'${login.row.name}'`),
-            );
-        },
-    };
-}
+export const logoutCommand: Command = {
+    description: "Sign out of this machine",
+    isJson: true,
+    async run({ isJson: json }, context) {
+        // revoke the session at its issuer and remove the login
+        const login = await context.signedIn();
+        await (await context.native()).signOut(login);
+        await context.terminal.print(
+            json
+                ? JSON.stringify({ id: login.row.id })
+                : context.terminal.event("Signed out", "done", `'${login.row.name}'`),
+        );
+    },
+};
 
 /** Show the person signed in on this machine and the space the terminal acts in. */
-export function whoamiCommand(context: Context): Verb {
-    return {
-        description: "Show the person signed in on this machine and the space the terminal acts in",
-        json: true,
-        async run({ json }) {
-            // read the person and the address of the space
-            const launcher = await context.launcher();
-            const { row } = await context.signedIn();
-            const acting = await context.space();
-            const space = acting === undefined ? null : await launcher.address(acting);
-            await context.terminal.print(
-                json ? JSON.stringify({ ...row, space }) : render(row, space, context.terminal),
-            );
-        },
-    };
-}
+export const whoamiCommand: Command = {
+    description: "Show the person signed in on this machine and the space the terminal acts in",
+    isJson: true,
+    async run({ isJson: json }, context) {
+        // read the person and the address of the space
+        const launcher = await context.launcher();
+        const { row } = await context.signedIn();
+        const acting = await context.space();
+        const space = acting === undefined ? null : await launcher.address(acting);
+        await context.terminal.print(
+            json ? JSON.stringify({ ...row, space }) : render(row, space, context.terminal),
+        );
+    },
+};
 
 /** Sign a person in through the machine: in the browser, with a mailed code, or a device code. */
 async function signPersonIn(
     client: Device,
-    options: Options,
-    context: Context,
+    options: CommandCall["options"],
+    context: CommandContext,
 ): Promise<Login["row"]> {
     // read how the person signs in
     const { environment, terminal } = context;
@@ -232,7 +226,7 @@ async function signPersonIn(
 /** Read how a person signs in: the browser, a mailed code with any sign-up, or a device code. */
 async function signInMethod(
     client: Device,
-    options: Options,
+    options: CommandCall["options"],
     prompt: SignInPrompt,
 ): Promise<SignInMethod> {
     // sign in through the browser

@@ -1,6 +1,6 @@
 import { Version } from "@destack/schema";
 import { expect, test } from "@destack/test";
-import { CommandFailure, Interrupted } from "./error.ts";
+import { CommandFailure, Interrupted } from "./failure.ts";
 import { TerminalFixture } from "../test/terminal.ts";
 import { CliError } from "../error/index.ts";
 import { Terminal } from "../output/index.ts";

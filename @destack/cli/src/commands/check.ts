@@ -4,103 +4,95 @@ import { pathToFileURL } from "node:url";
 import type { CheckResult } from "@destack/check/diagnostic";
 import type { Project, TestTier } from "@destack/check/project";
 import { present } from "@destack/schema";
-import type { Verb } from "../command/command.ts";
-import type { Context } from "../context/context.ts";
+import type { Command } from "../command/command.ts";
+import type { CommandContext } from "../command/context.ts";
 import { CliError } from "../error/index.ts";
 
 /** The tiers a test run can select. */
 const TEST_TIERS = new Set<string>(["unit", "scenario", "bench"]);
 
 /** Check a checkout's package: formatting, types, README listings, lints and its own check. */
-export function checkCommand(context: Context): Verb {
-    return {
-        description: "Check a package's formatting, types and lints with its pinned toolchain",
-        arguments: [{ name: "package", default: ".", isDirectory: true }],
-        options: {
-            since: {
-                type: "string",
-                description: "Lint only the modules changed since a commit",
-                argument: "commit",
-            },
+export const checkCommand: Command = {
+    description: "Check a package's formatting, types and lints with its pinned toolchain",
+    arguments: [{ name: "package", default: ".", isDirectory: true }],
+    options: {
+        since: {
+            type: "string",
+            description: "Lint only the modules changed since a commit",
+            argument: "commit",
         },
-        json: true,
-        async run({ arguments: { package: directory }, options, json }) {
-            // check the package with the toolchain it pins
-            const project = await open(present(directory, "the package argument"), context);
-            const since = typeof options["since"] === "string" ? options["since"] : undefined;
-            const checked = await project.check(since === undefined ? {} : { since });
+    },
+    isJson: true,
+    async run({ arguments: { package: directory }, options, isJson: json }, context) {
+        // check the package with the toolchain it pins
+        const project = await open(present(directory, "the package argument"), context);
+        const since = typeof options["since"] === "string" ? options["since"] : undefined;
+        const checked = await project.check(since === undefined ? {} : { since });
 
-            // print every diagnostic, refusing a package with any
-            await report(checked, json, context);
-        },
-    };
-}
+        // print every diagnostic, refusing a package with any
+        await report(checked, json, context);
+    },
+};
 
 /** Fix a checkout's package: its generated settings, formatting, lints and its own fix. */
-export function fixCommand(context: Context): Verb {
-    return {
-        description: "Write a package's generated settings, format it and fix its lints",
-        arguments: [{ name: "package", default: ".", isDirectory: true }],
-        json: true,
-        async run({ arguments: { package: directory }, json }) {
-            // fix the package with the toolchain it pins
-            const project = await open(present(directory, "the package argument"), context);
+export const fixCommand: Command = {
+    description: "Write a package's generated settings, format it and fix its lints",
+    arguments: [{ name: "package", default: ".", isDirectory: true }],
+    isJson: true,
+    async run({ arguments: { package: directory }, isJson: json }, context) {
+        // fix the package with the toolchain it pins
+        const project = await open(present(directory, "the package argument"), context);
 
-            // print what is left to fix by hand, refusing a package with any
-            await report(await project.fix(), json, context);
-        },
-    };
-}
+        // print what is left to fix by hand, refusing a package with any
+        await report(await project.fix(), json, context);
+    },
+};
 
 /** Run a checkout's package's tests, its files' names deriving their tiers and environments. */
-export function testCommand(context: Context): Verb {
-    return {
-        description:
-            "Run a package's tests with its pinned toolchain, unit and scenario by default",
-        arguments: [{ name: "package", default: ".", isDirectory: true }],
-        rest: { name: "files", usage: "file" },
-        options: {
-            tier: {
-                type: "string",
-                description: "The tiers to run, comma separated: unit, scenario, bench",
-                argument: "tiers",
-            },
-            database: {
-                type: "string",
-                description: "The one database to run against: sqlite or postgresql",
-                argument: "database",
-            },
-            grep: {
-                type: "string",
-                description: "Run the tests whose full name matches the pattern",
-                argument: "pattern",
-            },
-            list: { type: "boolean", description: "List the tests instead of running them" },
-            update: {
-                type: "boolean",
-                description: "Write the snapshots the tests compare against anew",
-            },
+export const testCommand: Command = {
+    description: "Run a package's tests with its pinned toolchain, unit and scenario by default",
+    arguments: [{ name: "package", default: ".", isDirectory: true }],
+    rest: { name: "files", usage: "file" },
+    options: {
+        tier: {
+            type: "string",
+            description: "The tiers to run, comma separated: unit, scenario, bench",
+            argument: "tiers",
         },
-        json: false,
-        async run({ arguments: { package: directory }, rest, options }) {
-            // run the package's tests with the toolchain it pins, as the options select
-            const project = await open(present(directory, "the package argument"), context);
-            const code = await project.test({
-                ...testTiers(options["tier"]),
-                ...testDatabase(options["database"]),
-                files: rest,
-                isListing: options["list"] === true,
-                isUpdating: options["update"] === true,
-                ...(typeof options["grep"] === "string" ? { grep: options["grep"] } : {}),
-            });
+        database: {
+            type: "string",
+            description: "The one database to run against: sqlite or postgresql",
+            argument: "database",
+        },
+        grep: {
+            type: "string",
+            description: "Run the tests whose full name matches the pattern",
+            argument: "pattern",
+        },
+        list: { type: "boolean", description: "List the tests instead of running them" },
+        update: {
+            type: "boolean",
+            description: "Write the snapshots the tests compare against anew",
+        },
+    },
+    async run({ arguments: { package: directory }, rest, options }, context) {
+        // run the package's tests with the toolchain it pins, as the options select
+        const project = await open(present(directory, "the package argument"), context);
+        const code = await project.test({
+            ...testTiers(options["tier"]),
+            ...testDatabase(options["database"]),
+            files: rest,
+            isListing: options["list"] === true,
+            isUpdating: options["update"] === true,
+            ...(typeof options["grep"] === "string" ? { grep: options["grep"] } : {}),
+        });
 
-            // refuse a run with failures
-            if (code !== 0) {
-                throw CliError.of("TEST_INVALID", `test is invalid: the run exited with ${code}`);
-            }
-        },
-    };
-}
+        // refuse a run with failures
+        if (code !== 0) {
+            throw CliError.of("TEST_INVALID", `test is invalid: the run exited with ${code}`);
+        }
+    },
+};
 
 /** Read the tiers a test run selects, refusing an unknown tier. */
 function testTiers(value: unknown): { readonly tiers?: readonly TestTier[] } {
@@ -138,7 +130,7 @@ function testDatabase(value: unknown): { readonly database?: "sqlite" | "postgre
 }
 
 /** Open a package with the toolchain it pins, as eslint and prettier run the local install. */
-async function open(directory: string, context: Context): Promise<Project> {
+async function open(directory: string, context: CommandContext): Promise<Project> {
     // resolve the package's own @destack/check, refusing a package that pins none
     const absolute = resolve(directory);
     const require = createRequire(join(absolute, "package.json"));
@@ -166,7 +158,7 @@ async function open(directory: string, context: Context): Promise<Project> {
 }
 
 /** Print a check's diagnostics, then refuse a package that has any. */
-async function report(checked: CheckResult, json: boolean, context: Context): Promise<void> {
+async function report(checked: CheckResult, json: boolean, context: CommandContext): Promise<void> {
     // print the diagnostics as JSON, or one line each
     const { diagnostics } = checked;
     const lines = diagnostics.map((each) => {

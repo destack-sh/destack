@@ -4,7 +4,9 @@ import type { Environment } from "@destack/environment";
 import { dirname, relative } from "node:path";
 import { DESKTOP_SETTINGS } from "@destack/desktop/setting";
 import { type ObjectType, type Package } from "@destack/object";
-import { type ObjectClient, createClient } from "@destack/object/client";
+import { type ClientOf, type ObjectClient, createClient } from "@destack/object/client";
+import registryPackage from "@destack/registry/package";
+import { PackageName } from "@destack/package";
 import { Setting } from "@destack/setting";
 import type { PlacementEndpoint } from "@destack/account/object";
 import {
@@ -32,14 +34,14 @@ const SOURCE = Localization.of(SOURCE_LOCALE, []);
 const BUILT_IN_SETTINGS: readonly Setting[] = [...NATIVE_SETTINGS, ...DESKTOP_SETTINGS];
 
 /** The environment capabilities a command line runs with. */
-export type CliEnvironment = Environment<"files" | "process" | "host" | "opener" | "server">;
+export type CommandEnvironment = Environment<"files" | "process" | "host" | "opener" | "server">;
 
 /** What a command line acts in: its environment, this computer's device, the person and a space. */
-export class Context implements AsyncDisposable {
+export class CommandContext implements AsyncDisposable {
     /** The space --space names: an address, identifier, alias, home, residency or bare name. */
     readonly spaceOption: string | undefined;
     /** The command line's clock, network, files, processes and platform. */
-    readonly environment: CliEnvironment;
+    readonly environment: CommandEnvironment;
     /** The terminal the command line writes its output and diagnostics to. */
     readonly terminal: Terminal;
     /** Open this computer's native device, which its machine created at its first start. */
@@ -63,7 +65,7 @@ export class Context implements AsyncDisposable {
     constructor(
         open: () => Promise<Device<MachineCredential>>,
         space: string | undefined,
-        environment: CliEnvironment,
+        environment: CommandEnvironment,
     ) {
         // set the opener, the space, the environment and its terminal
         this.#open = open;
@@ -188,6 +190,31 @@ export class Context implements AsyncDisposable {
         const location = await this.locate();
 
         return schema.identifier("account").parse(location.placement.scope);
+    }
+
+    /** Open the registry of a package name's account, in its residency's home, as the person. */
+    async registry(name: string): Promise<{
+        /** The registry's client. */
+        readonly client: ClientOf<typeof registryPackage>;
+        /** The residency's home serving the registry. */
+        readonly home: Identifier<"space">;
+        /** The account of the name's handle. */
+        readonly accountId: Identifier<"account">;
+    }> {
+        // find the account of the name's handle and its residency's home
+        const native = await this.native();
+        const launcher = await this.launcher();
+        const accountId = await native.resolve(PackageName.split(name).handle);
+        const home = await launcher.residency(accountId);
+
+        // call the registry the home serves
+        const endpoint = await launcher.package(home, registryPackage.id);
+
+        return {
+            client: createClient(registryPackage, endpoint, native.environment),
+            home,
+            accountId,
+        };
     }
 
     /** Read the residency home serving finance for the account, else for the person's account. */

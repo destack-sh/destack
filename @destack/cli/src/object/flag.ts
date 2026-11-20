@@ -10,7 +10,7 @@ import {
 } from "@destack/db";
 import { type JsonObject, type JsonValue, present, schema, nth } from "@destack/schema";
 import { Scope, Subject } from "@destack/sync";
-import { GLOBAL_OPTIONS, type Option, OptionValue, type Options } from "../command/command.ts";
+import { GLOBAL_OPTIONS, CommandOption, type CommandCall } from "../command/command.ts";
 
 import { CliError } from "../error/index.ts";
 import { WallTime } from "./time.ts";
@@ -127,7 +127,7 @@ export class Flag {
     }
 
     /** Describe the flag's command-line option: its words, its choices and the value it takes. */
-    option(): Option {
+    option(): CommandOption {
         // describe the flag's words, its choices, and the value it takes
         const words = this.name.replaceAll("-", " ");
         const choices = this.values === undefined ? "" : `: ${this.values.join(", ")}`;
@@ -271,7 +271,7 @@ export class FlagSet {
     }
 
     /** Describe the flags' command-line options, by flag name. */
-    options(): Record<string, Option> {
+    options(): Record<string, CommandOption> {
         return Object.fromEntries(this.flags.map((flag) => [flag.name, flag.option()]));
     }
 
@@ -311,9 +311,9 @@ export class FlagSet {
 
     /** Read the keys given to flags of identifiers as the identifiers of their objects. */
     async identify(
-        options: Options,
+        options: CommandCall["options"],
         find: (identity: string, name: string) => Promise<string>,
-    ): Promise<Options> {
+    ): Promise<CommandCall["options"]> {
         const identified: Record<string, string | boolean | undefined> = { ...options };
         for (const flag of this.flags) {
             // find each key of a given flag of identifiers, passing identifiers and @ values through
@@ -331,9 +331,9 @@ export class FlagSet {
     }
 
     /** Read the columns --fields names, refusing a field the rows lack, absent without it. */
-    columns(options: Options): string[] | undefined {
+    columns(options: CommandCall["options"]): string[] | undefined {
         // take the named columns, refusing a property the rows lack
-        const fields = OptionValue.string(options["fields"], "fields");
+        const fields = CommandOption.string(options["fields"], "fields");
         if (fields === undefined) {
             return undefined;
         }
@@ -352,8 +352,8 @@ export class FlagSet {
     }
 
     /** Read the order --sort gives, fields separated by commas, a minus first for descending. */
-    order(options: Options): OrderBy | undefined {
-        const sort = OptionValue.string(options["sort"], "sort");
+    order(options: CommandCall["options"]): OrderBy | undefined {
+        const sort = CommandOption.string(options["sort"], "sort");
 
         return sort === undefined
             ? undefined
@@ -368,9 +368,9 @@ export class FlagSet {
     }
 
     /** Build the condition the given flags and --where restrict rows by, absent for none. */
-    condition(options: Options, filter: FilterOptions): JsonCondition | undefined {
+    condition(options: CommandCall["options"], filter: FilterOptions): JsonCondition | undefined {
         // read --where through the filter syntax
-        const written = OptionValue.string(options["where"], "where");
+        const written = CommandOption.string(options["where"], "where");
         const conditions: JsonCondition[] =
             written === undefined ? [] : [Filter.parse(written, filter)];
 
@@ -393,7 +393,7 @@ export class FlagSet {
     }
 
     /** Build the input the given flags set, over a JSON input. */
-    input(options: Options, base: JsonObject, filter: FilterOptions): JsonObject {
+    input(options: CommandCall["options"], base: JsonObject, filter: FilterOptions): JsonObject {
         let input: JsonObject = base;
         for (const flag of this.flags) {
             // read each given flag as its path's value

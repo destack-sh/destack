@@ -1,3 +1,3 @@
 export * from "./command.ts";
-export * from "./error.ts";
-export * from "./run.ts";
+export * from "./failure.ts";
+export * from "./line.ts";

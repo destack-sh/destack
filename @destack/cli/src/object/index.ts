@@ -1,1 +1,1 @@
-export * from "./command.ts";
+export * from "../commands/noun.ts";

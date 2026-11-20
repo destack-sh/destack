@@ -1,6 +1,6 @@
 import {
-    Command,
-    type CommandArgument,
+    Action,
+    type ActionArgument,
     type KeyPress,
     type MethodKind,
     type ObjectType,
@@ -17,10 +17,10 @@ const MARGIN = "  ";
 /** A key's name rather than a character, such as ArrowUp or Backspace. */
 const NAMED_KEY = /^[A-Z][a-zA-Z]+$/u;
 
-/** The most commands the palette lists at once. */
+/** The most actions the palette lists at once. */
 const PALETTE_ROWS = 8;
 
-/** The word a person types to confirm a command that removes its targets for good. */
+/** The word a person types to confirm an action that removes its targets for good. */
 const CONFIRMATION = "yes";
 
 /** The pager's own keys in browsing, by key: moves on the page and the modes they open. */
@@ -47,7 +47,7 @@ const BROWSE_KEYS = new Map<
     ["/", "filter"],
 ]);
 
-/** What the pager does with a key: browse, filter, pick a command, or fill its input. */
+/** What the pager does with a key: browse, filter, pick an action, or fill its input. */
 export type PagerMode =
     | { readonly kind: "browse" }
     | { readonly kind: "filter"; readonly text: string }
@@ -55,20 +55,20 @@ export type PagerMode =
           readonly kind: "palette";
           readonly text: string;
           readonly cursor: number;
-          readonly commands: readonly Command[];
+          readonly actions: readonly Action[];
           readonly targets: readonly JsonObject[];
       }
     | {
           readonly kind: "input";
-          readonly command: Command;
+          readonly action: Action;
           readonly targets: readonly JsonObject[];
           readonly questions: readonly Question[];
           readonly values: JsonObject;
           readonly text: string;
       };
 
-/** A question the pager asks before running a command: one of its arguments, or a confirmation. */
-type Question = CommandArgument | { readonly kind: "confirmation" };
+/** A question the pager asks before running an action: one of its arguments, or a confirmation. */
+type Question = ActionArgument | { readonly kind: "confirmation" };
 
 /** An answer read by its question: its value, none for a skipped argument, or invalid. */
 type Typed = { readonly value: JsonValue | undefined } | "invalid";
@@ -80,7 +80,7 @@ export type PagerStep =
     | { readonly kind: "view"; readonly view: ObjectView }
     | {
           readonly kind: "run";
-          readonly command: Command;
+          readonly action: Action;
           readonly targets: readonly JsonObject[];
           readonly input: JsonObject;
       };
@@ -99,22 +99,22 @@ const NARROWED: Readonly<Record<"transitions" | "edit", MethodKind>> = {
     edit: "update",
 };
 
-/** A page under a person's keys: where they stand, what they type, and the commands they run. */
+/** A page under a person's keys: where they stand, what they type, and the actions they run. */
 export class Pager {
     /** The type whose objects the page lists. */
     readonly type: ObjectType;
-    /** The commands the type's packages declare, beside those its actions derive. */
-    readonly declared: readonly Command[];
+    /** The actions the type's packages declare, beside those its methods derive. */
+    readonly declared: readonly Action[];
     /** Where the person stands on the page. */
     readonly state: PageState;
     /** What the next key does. */
     readonly mode: PagerMode;
     /** The text the rows' titles are filtered by, empty for every row. */
     readonly filter: string;
-    /** The line telling what the last command did, empty for none. */
+    /** The line telling what the last action did, empty for none. */
     readonly status: string;
 
-    /** Create a pager of a type and its commands, a state, a mode, a filter and a status. */
+    /** Create a pager of a type and its actions, a state, a mode, a filter and a status. */
     constructor(
         paged: Pick<Pager, "type" | "declared">,
         state: PageState,
@@ -122,7 +122,7 @@ export class Pager {
         filter: string,
         status: string,
     ) {
-        // set the type and its commands, the state, the mode, the filter and the status
+        // set the type and its actions, the state, the mode, the filter and the status
         this.type = paged.type;
         this.declared = paged.declared;
         this.state = state;
@@ -132,16 +132,16 @@ export class Pager {
     }
 
     /** Start paging a type's objects on the first line, browsing every row. */
-    static start(type: ObjectType, declared: readonly Command[]): Pager {
+    static start(type: ObjectType, declared: readonly Action[]): Pager {
         return new Pager({ type, declared }, PageState.start(), { kind: "browse" }, "", "");
     }
 
-    /** Report what a command did, browsing again. */
+    /** Report what an action did, browsing again. */
     told(status: string): Pager {
         return new Pager(this, this.state, { kind: "browse" }, this.filter, status);
     }
 
-    /** Answer a key on a page of a type's objects, among its views and its declared commands. */
+    /** Answer a key on a page of a type's objects, among its views and its declared actions. */
     press(
         event: KeyPress,
         page: Page,
@@ -159,47 +159,49 @@ export class Pager {
             return this.#filling(event, this.mode);
         }
 
-        // run a command whose key combination the key presses, on the targets
+        // run an action whose key combination the key presses, on the targets
         const targets = this.#targets(page);
         const { type } = this;
-        const commands = Command.available(type, targets, this.declared, moment);
-        const bound = commands.find(
-            (command) =>
-                command.keybinding !== undefined &&
-                Shortcut.matches(command.keybinding, event, false),
+        const actions = Action.available(type, targets, this.declared, moment);
+        const bound = actions.find(
+            (action) =>
+                action.keybinding !== undefined &&
+                Shortcut.matches(action.keybinding, event, false),
         );
         if (bound !== undefined) {
             return this.#chosen(bound, targets);
         }
 
         // quit on ctrl-c, then answer the pager's own keys
-        const action = event.ctrlKey
+        const intent = event.ctrlKey
             ? event.key === "c"
                 ? "quit"
                 : undefined
             : BROWSE_KEYS.get(event.key);
-        if (action === undefined) {
+        if (intent === undefined) {
             return { pager: this, step: { kind: "draw" } };
-        } else if (action === "quit") {
+        } else if (intent === "quit") {
             return { pager: this, step: { kind: "quit" } };
         }
-        // open the palette on the commands for the targets, narrowed to transitions or edits
-        else if (action === "palette" || action === "transitions" || action === "edit") {
+        // open the palette on the actions for the targets, narrowed to transitions or edits
+        else if (intent === "palette" || intent === "transitions" || intent === "edit") {
             const listed =
-                action === "palette"
-                    ? commands
-                    : commands.filter(
-                          (command) => type.method(command.method).kind === NARROWED[action],
+                intent === "palette"
+                    ? actions
+                    : actions.filter(
+                          (action) =>
+                              action.call !== undefined &&
+                              type.method(action.call.method).kind === NARROWED[intent],
                       );
             const [single, ...others] = listed;
 
-            // run the one edit at once, else list the commands
-            return action === "edit" && single !== undefined && others.length === 0
+            // run the one edit at once, else list the actions
+            return intent === "edit" && single !== undefined && others.length === 0
                 ? this.#chosen(single, targets)
-                : this.#with({ kind: "palette", text: "", cursor: 0, commands: listed, targets });
+                : this.#with({ kind: "palette", text: "", cursor: 0, actions: listed, targets });
         }
         // switch to the next view the type offers
-        else if (action === "view") {
+        else if (intent === "view") {
             const { views } = type;
             const index = views.findIndex((each) => each.name === view.name);
             const next = views[(index + 1) % views.length] ?? view;
@@ -208,12 +210,12 @@ export class Pager {
                 pager: new Pager(this, PageState.start(), this.mode, this.filter, ""),
                 step: { kind: "view", view: next },
             };
-        } else if (action === "filter") {
+        } else if (intent === "filter") {
             return this.#with({ kind: "filter", text: this.filter });
         }
 
         // move on the page
-        const state = page.press(this.state, action, height);
+        const state = page.press(this.state, intent, height);
 
         return {
             pager: new Pager(this, state, this.mode, this.filter, ""),
@@ -251,14 +253,14 @@ export class Pager {
         return this.#with({ kind: "filter", text: edited(text, event) });
     }
 
-    /** Pick a command from the palette by typing its title and moving, choosing it on enter. */
+    /** Pick an action from the palette by typing its title and moving, choosing it on enter. */
     #picking(
         event: KeyPress,
         mode: Extract<PagerMode, { readonly kind: "palette" }>,
         frame: Frame,
     ): PagerAnswer {
         // close on escape, choose on enter, move with the arrows, else type
-        const matching = mode.commands.filter((command) => matches(command, mode.text, frame));
+        const matching = mode.actions.filter((action) => matches(action, mode.text, frame));
         if (event.key === "Escape") {
             return this.#with({ kind: "browse" });
         } else if (event.key === "Enter") {
@@ -277,7 +279,7 @@ export class Pager {
         return this.#with({ ...mode, text: edited(mode.text, event), cursor: 0 });
     }
 
-    /** Fill a command's input one field at a time, running it once every field is given. */
+    /** Fill an action's input one field at a time, running it once every field is given. */
     #filling(event: KeyPress, mode: Extract<PagerMode, { readonly kind: "input" }>): PagerAnswer {
         // cancel on escape, else type until enter
         if (event.key === "Escape") {
@@ -308,7 +310,7 @@ export class Pager {
                   pager: this.#browsing(),
                   step: {
                       kind: "run",
-                      command: mode.command,
+                      action: mode.action,
                       targets: mode.targets,
                       input: values,
                   },
@@ -316,22 +318,22 @@ export class Pager {
             : this.#with({ ...mode, questions: rest, values, text: "" });
     }
 
-    /** Take a chosen command: run it, or ask its input and a confirmation first. */
-    #chosen(chosen: Command, targets: readonly JsonObject[]): PagerAnswer {
-        // ask the command's arguments, and a confirmation when it removes for good
+    /** Take a chosen action: run it, or ask its input and a confirmation first. */
+    #chosen(chosen: Action, targets: readonly JsonObject[]): PagerAnswer {
+        // ask the call's arguments, and a confirmation when it removes for good
         const questions: Question[] = [
-            ...chosen.arguments,
+            ...(chosen.call?.arguments ?? []),
             ...(chosen.isDestructive ? [{ kind: "confirmation" as const }] : []),
         ];
 
         return questions.length === 0
             ? {
                   pager: this.#browsing(),
-                  step: { kind: "run", command: chosen, targets, input: {} },
+                  step: { kind: "run", action: chosen, targets, input: {} },
               }
             : this.#with({
                   kind: "input",
-                  command: chosen,
+                  action: chosen,
                   targets,
                   questions,
                   values: {},
@@ -339,7 +341,7 @@ export class Pager {
               });
     }
 
-    /** List the rows the next command acts on: the selected ones, else the one under the cursor. */
+    /** List the rows the next action acts on: the selected ones, else the one under the cursor. */
     #targets(page: Page): JsonObject[] {
         // take the selected rows, else the cursor's, else the first line's
         const rows = page.lines.flatMap((line) =>
@@ -355,7 +357,7 @@ export class Pager {
               : [cursor.row];
     }
 
-    /** Draw the mode's lines: the filter, the palette's commands, or the field asked for. */
+    /** Draw the mode's lines: the filter, the palette's actions, or the field asked for. */
     #lines(frame: Frame): string[] {
         // draw a filter's text, a palette's matches with the cursor's inverted, or the next field
         const { terminal } = frame;
@@ -363,11 +365,11 @@ export class Pager {
         if (mode.kind === "filter") {
             return [`${MARGIN}/ ${mode.text}`];
         } else if (mode.kind === "palette") {
-            const matching = mode.commands
-                .filter((command) => matches(command, mode.text, frame))
+            const matching = mode.actions
+                .filter((action) => matches(action, mode.text, frame))
                 .slice(0, PALETTE_ROWS);
-            const listed = matching.map((command, index) => {
-                const title = `${MARGIN}  ${terminal.localization.render(command.title)}`;
+            const listed = matching.map((action, index) => {
+                const title = `${MARGIN}  ${terminal.localization.render(action.title)}`;
 
                 return index === mode.cursor ? terminal.style("inverse", title) : title;
             });
@@ -375,12 +377,12 @@ export class Pager {
             return [
                 `${MARGIN}: ${mode.text}`,
                 ...(listed.length === 0
-                    ? [`${MARGIN}  ${terminal.style("dim", "no commands")}`]
+                    ? [`${MARGIN}  ${terminal.style("dim", "no actions")}`]
                     : listed),
             ];
         } else if (mode.kind === "input") {
             const [question] = mode.questions;
-            const title = terminal.localization.render(mode.command.title);
+            const title = terminal.localization.render(mode.action.title);
             const asked =
                 question === undefined
                     ? ""
@@ -414,10 +416,10 @@ export class Pager {
     }
 }
 
-/** Report whether a command's title as a person reads it contains typed text, ignoring case. */
-function matches(command: Command, text: string, frame: Frame): boolean {
+/** Report whether an action's title as a person reads it contains typed text, ignoring case. */
+function matches(action: Action, text: string, frame: Frame): boolean {
     return frame.terminal.localization
-        .render(command.title)
+        .render(action.title)
         .toLowerCase()
         .includes(text.toLowerCase());
 }

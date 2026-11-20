@@ -3,6 +3,7 @@ import { parseArgs } from "node:util";
 import { type JsonObject, nth, schema } from "@destack/schema";
 
 import type { Terminal } from "../output/index.ts";
+import type { CommandContext } from "./context.ts";
 import { CliError } from "../error/index.ts";
 import { MachineError } from "@destack/machine/error";
 
@@ -51,69 +52,56 @@ interface GlobalOption {
     readonly description: string;
 }
 
-/** A node of the command tree: a group of words or a verb that runs. */
-export type Node = Group | Verb;
-
-/** A command with subcommands, running its default command when given none. */
-export interface Group {
-    /** One line shown in help. */
-    readonly description: string;
-    /** The named subcommands, in help order. */
-    readonly commands: Readonly<Record<string, Node>>;
-    /** Load the subcommand of a name outside `commands`, such as a noun's or an object's. */
-    readonly resolve?: (name: string) => Promise<Node | undefined>;
-    /** List the names outside `commands` that `resolve` loads, for help and completion. */
-    readonly names?: () => Promise<readonly string[]>;
-    /** Explain why `resolve` loads no subcommand now, such as for a signed-out person. */
-    readonly unavailable?: () => Promise<string | undefined>;
-    /** The positional argument leading to a subcommand of any value, such as an object's id. */
-    readonly argument?: GroupArgument;
-    /** The command the group runs without a subcommand, help when absent. */
-    readonly default?: Verb;
-    /** Whether help and completion leave the group out. */
-    readonly isHidden?: boolean;
-    /** The journeys help lists the subcommands under, a line each, the other names last. */
-    readonly journeys?: readonly Journey[];
-}
-
-/** A journey of a group's help: its word and the subcommands a person takes on it. */
-export interface Journey {
-    /** The journey's one word, such as build. */
-    readonly title: string;
-    /** The names of its subcommands, in the order a person takes them. */
-    readonly commands: readonly string[];
-}
-
-/** A group's positional argument, which leads to the subcommand of its value. */
-export interface GroupArgument {
-    /** The argument's name in help, such as id. */
-    readonly name: string;
-    /** Build the subcommand of a value. */
-    readonly command: (value: string) => Node;
-    /** List the values completion offers. */
-    readonly complete?: () => Promise<readonly string[]>;
-}
-
-/** A command that runs. */
-export interface Verb {
+/** A command of the command line: its subcommands, arguments, options and run, as cobra's. */
+export interface Command {
     /** One line shown in help. */
     readonly description: string;
     /** The positional arguments in order, the optional ones last. */
-    readonly arguments?: readonly Argument[];
+    readonly arguments?: readonly CommandArgument[];
     /** The argument taking every word after the positional ones, such as test files. */
-    readonly rest?: Pick<Argument, "name" | "usage">;
+    readonly rest?: Pick<CommandArgument, "name" | "usage">;
     /** The command's options, by name. */
-    readonly options?: Readonly<Record<string, Option>>;
+    readonly options?: Readonly<Record<string, CommandOption>>;
     /** Whether the command prints JSON with --json. */
-    readonly json: boolean;
+    readonly isJson?: boolean;
+    /** Run with the arguments and options the command line gives, help when absent. */
+    readonly run?: (call: CommandCall, context: CommandContext) => Promise<void>;
+    /** The named subcommands, in help order. */
+    readonly commands?: Readonly<Record<string, Command>>;
+    /** Load the subcommand of a word outside `commands`, such as a noun's. */
+    readonly resolve?: (word: string, context: CommandContext) => Promise<Command | undefined>;
+    /** List the words outside `commands` that `resolve` loads, for help and completion. */
+    readonly names?: (context: CommandContext) => Promise<readonly string[]>;
+    /** Explain why `resolve` loads no subcommand now, such as for a signed-out person. */
+    readonly unavailable?: (context: CommandContext) => Promise<string | undefined>;
+    /** The value leading to a subcommand of any value, such as an object's id. */
+    readonly target?: CommandTarget;
+    /** The journeys help lists the subcommands under, a line each, the other words last. */
+    readonly journeys?: readonly CommandJourney[];
     /** Whether help and completion leave the command out. */
     readonly isHidden?: boolean;
-    /** Run with the arguments and options the command line gives. */
-    readonly run: (call: Call) => Promise<void>;
+}
+
+/** A journey of a command's help: its word and the subcommands a person takes on it. */
+export interface CommandJourney {
+    /** The journey's one word, such as build. */
+    readonly title: string;
+    /** The words of its subcommands, in the order a person takes them. */
+    readonly commands: readonly string[];
+}
+
+/** The value leading to a subcommand of any value, such as an object's id. */
+export interface CommandTarget {
+    /** The value's name in help, such as id. */
+    readonly name: string;
+    /** Build the subcommand of a value. */
+    readonly command: (value: string) => Command;
+    /** List the values completion offers. */
+    readonly complete?: (context: CommandContext) => Promise<readonly string[]>;
 }
 
 /** A positional argument of a command. */
-export interface Argument {
+export interface CommandArgument {
     /** The argument's name in the call, and in help without a usage. */
     readonly name: string;
     /** The argument's placeholder in help, such as link|id. */
@@ -121,13 +109,13 @@ export interface Argument {
     /** The value of an omitted argument, absent for a required one. */
     readonly default?: string;
     /** List the values completion offers. */
-    readonly complete?: () => Promise<readonly string[]>;
+    readonly complete?: (context: CommandContext) => Promise<readonly string[]>;
     /** Whether the argument is a directory the shell completes. */
     readonly isDirectory?: boolean;
 }
 
-/** One named command-line option. */
-export interface Option {
+/** One named option of a command. */
+export interface CommandOption {
     /** The option's value type. */
     readonly type: "boolean" | "string";
     /** The option's line in help. */
@@ -140,94 +128,79 @@ export interface Option {
     readonly choices?: readonly string[];
 }
 
-/** The values of a command's options, by option name. */
-export type Options = Readonly<Record<string, string | boolean | undefined>>;
-
 /** A command's run: its arguments, its options and whether it prints JSON. */
-export interface Call {
+export interface CommandCall {
     /** The positional arguments by name, an omitted optional one absent. */
     readonly arguments: Readonly<Record<string, string | undefined>>;
     /** The words after the positional arguments, for a command with a rest argument. */
     readonly rest: readonly string[];
     /** The options given, by name. */
-    readonly options: Options;
+    readonly options: Readonly<Record<string, string | boolean | undefined>>;
     /** Whether the command prints JSON. */
-    readonly json: boolean;
+    readonly isJson: boolean;
 }
 
-/** The command tree below the program's name: its root, the words leading to its verbs. */
+/** The command tree below the program's name: its root and the words leading to its commands. */
 export class CommandTree {
-    /** The root group. */
-    readonly root: Node;
+    /** The root command. */
+    readonly root: Command;
+    /** The context the commands run in. */
+    readonly context: CommandContext;
 
-    /** Read command lines through a root. */
-    constructor(root: Node) {
+    /** Read command lines through a root, in a context. */
+    constructor(root: Command, context: CommandContext) {
         this.root = root;
+        this.context = context;
     }
 
-    /** Find a group's subcommand of a name: a named one, a loaded one, or its argument's. */
-    async child(group: Group, name: string): Promise<Node | undefined> {
+    /** Find a command's subcommand of a word: a named one, a loaded one, or its target's. */
+    async child(command: Command, word: string): Promise<Command | undefined> {
         // take a named subcommand, then a loaded one
-        const found = Object.hasOwn(group.commands, name)
-            ? group.commands[name]
-            : await group.resolve?.(name);
+        const named = command.commands ?? {};
+        const found = Object.hasOwn(named, word)
+            ? named[word]
+            : await command.resolve?.(word, this.context);
 
-        return found ?? group.argument?.command(name);
+        return found ?? command.target?.command(word);
     }
 
-    /** List a group's shown subcommands in help order, the loaded ones after the named ones. */
-    async children(group: Group): Promise<[string, Node][]> {
-        // describe each loaded name by the command it loads
-        const loaded: [string, Node][] = [];
-        for (const name of (await group.names?.()) ?? []) {
-            const child = await this.child(group, name);
+    /** List a command's shown subcommands in help order, the loaded ones after the named ones. */
+    async children(command: Command): Promise<[string, Command][]> {
+        // describe each loaded word by the command it loads
+        const loaded: [string, Command][] = [];
+        for (const word of (await command.names?.(this.context)) ?? []) {
+            const child = await this.child(command, word);
             if (child !== undefined) {
-                loaded.push([name, child]);
+                loaded.push([word, child]);
             }
         }
 
-        return [...Object.entries(group.commands), ...loaded].filter(
+        return [...Object.entries(command.commands ?? {}), ...loaded].filter(
             ([, child]) => child.isHidden !== true,
         );
     }
 
-    /** List the lines of a group's argument in help: its value alone, then with each subcommand. */
-    lines(group: Group): [string, Node][] {
-        // describe nothing for a group without an argument
-        const { argument } = group;
-        if (argument === undefined) {
+    /** List the lines of a command's target in help: its value alone, then with each subcommand. */
+    lines(command: Command): [string, Command][] {
+        // describe nothing for a command without a target
+        const { target } = command;
+        if (target === undefined) {
             return [];
         }
 
-        // build the subcommand of the argument's placeholder
-        const placeholder = `<${argument.name}>`;
-        const child = argument.command(placeholder);
-        if (!("commands" in child)) {
-            return [[placeholder, child]];
-        }
-
-        // list the placeholder's command and each of its subcommands
-        const own: [string, Node][] =
-            child.default === undefined ? [] : [[placeholder, child.default]];
-        const subcommands = Object.entries(child.commands)
+        // list the placeholder's own command and each of its subcommands
+        const placeholder = `<${target.name}>`;
+        const child = target.command(placeholder);
+        const own: [string, Command][] = child.run === undefined ? [] : [[placeholder, child]];
+        const subcommands = Object.entries(child.commands ?? {})
             .filter(([, subcommand]) => subcommand.isHidden !== true)
-            .map(([name, subcommand]): [string, Node] => [`${placeholder} ${name}`, subcommand]);
+            .map(([word, subcommand]): [string, Command] => [`${placeholder} ${word}`, subcommand]);
 
         return [...own, ...subcommands];
     }
 
-    /** Read the verb a node runs: a verb itself, or a group's default. */
-    verb(node: Node): Verb | undefined {
-        return "commands" in node ? node.default : node;
-    }
-
-    /** Read the options of the verb a node runs, none for a group without one. */
-    options(node: Node): Readonly<Record<string, Option>> {
-        return this.verb(node)?.options ?? {};
-    }
-
     /** Parse a command line below the program's name, then show help or run its command. */
-    async execute(words: readonly string[], json: boolean, terminal: Terminal): Promise<void> {
+    async execute(words: readonly string[], isJson: boolean): Promise<void> {
         // read help from a leading help word or a help flag before the separator
         const { help } = GLOBAL_OPTIONS;
         const isHelpFlag = (word: string) => word === help.flag || word === help.short;
@@ -237,11 +210,11 @@ export class CommandTree {
         const isHelp = words[0] === "help" || flags.some(isHelpFlag);
         const named = [...flags.filter((word) => !isHelpFlag(word)), ...given.slice(flags.length)];
 
-        // walk the names of groups' subcommands to the command they lead to
+        // walk the words of subcommands to the command they lead to
         const path = ["destack"];
         let command = this.root;
         let index = 0;
-        while ("commands" in command && index < named.length) {
+        while (CommandTree.hasSubcommands(command) && index < named.length) {
             const name = nth(named, index);
             if (name.startsWith("-")) {
                 break;
@@ -249,7 +222,7 @@ export class CommandTree {
             const child = await this.child(command, name);
             if (child === undefined) {
                 const unknown = `unknown command ${[...path, name].join(" ")}`;
-                const reason = await command.unavailable?.();
+                const reason = await command.unavailable?.(this.context);
                 throw CliError.of(
                     "USAGE_INVALID",
                     reason === undefined ? unknown : `${unknown}: ${reason}`,
@@ -260,50 +233,63 @@ export class CommandTree {
             index++;
         }
 
-        // find the verb the names lead to, absent for a group without a default
+        // show help for a command that runs nothing
         const rest = named.slice(index);
-        const verb = this.verb(command);
+        const { run } = command;
+        const isShown = isHelp || run === undefined;
 
         // refuse help as JSON
-        const isShown = isHelp || verb === undefined;
-        if (isShown && json) {
+        if (isShown && isJson) {
             throw CliError.of(
                 "USAGE_INVALID",
                 `command '${path.join(" ")}' is invalid: its help does not support '--json'`,
             );
         }
-        // refuse a group's unknown subcommand
-        else if (isShown && "commands" in command && rest.some((word) => !word.startsWith("-"))) {
+        // refuse an unknown subcommand
+        else if (
+            isShown &&
+            CommandTree.hasSubcommands(command) &&
+            rest.some((word) => !word.startsWith("-"))
+        ) {
             throw CliError.of(
                 "USAGE_INVALID",
                 `command '${[...path, rest[0]].join(" ")}' is invalid: it is unknown`,
             );
         }
         // show help without running anything
-        else if (isHelp || verb === undefined) {
-            await terminal.print(await this.help(command, path, terminal));
+        else if (isShown) {
+            await this.context.terminal.print(await this.help(command, path));
         }
-        // refuse JSON from a verb that prints none
-        else if (json && !verb.json) {
+        // refuse JSON from a command that prints none
+        else if (isJson && command.isJson !== true) {
             throw CliError.of(
                 "USAGE_INVALID",
                 `command '${path.join(" ")}' is invalid: it does not support '--json'`,
             );
         }
-        // run the verb with its arguments and options
+        // run the command with its arguments and options
         else {
-            await verb.run({ ...CommandTree.parse(verb, rest, path), json });
+            await run({ ...CommandTree.parse(command, rest, path), isJson }, this.context);
         }
     }
 
-    /** Read a verb's arguments and options, refusing others. */
+    /** Report whether a command has subcommands: named ones, loaded ones or its target's. */
+    static hasSubcommands(command: Command): boolean {
+        return (
+            command.commands !== undefined ||
+            command.resolve !== undefined ||
+            command.target !== undefined
+        );
+    }
+
+    /** Read a command's arguments and options, refusing others. */
     static parse(
-        command: Verb,
+        command: Command,
         words: readonly string[],
         path: readonly string[],
-    ): Omit<Call, "json"> {
+    ): Omit<CommandCall, "isJson"> {
         // parse the options the command declares, passing on positional arguments
-        const declaredOptions: Record<string, { readonly type: Option["type"] }> =
+        const declaredOptions: Record<string, { readonly type: CommandOption["type"] }> =
             Object.fromEntries(
                 Object.entries(command.options ?? {}).map(([name, option]) => [
                     name,
@@ -311,7 +297,10 @@ export class CommandTree {
                 ]),
             );
         CommandTree.requireOptions(declaredOptions, words, path);
-        let parsed: { readonly values: Options; readonly positionals: readonly string[] };
+        let parsed: {
+            readonly values: CommandCall["options"];
+            readonly positionals: readonly string[];
+        };
         try {
             parsed = parseArgs({
                 args: [...words],
@@ -356,7 +345,7 @@ export class CommandTree {
 
     /** Refuse an option the command lacks, and a string option whose value starts with a dash. */
     static requireOptions(
-        declared: Readonly<Record<string, { readonly type: Option["type"] }>>,
+        declared: Readonly<Record<string, { readonly type: CommandOption["type"] }>>,
         words: readonly string[],
         path: readonly string[],
     ): void {
@@ -392,22 +381,18 @@ export class CommandTree {
     }
 
     /** Render a command's help: its description, usage, subcommands and options. */
-    async help(
-        command: Node,
-        path: readonly string[],
-        terminal: Pick<Terminal, "style">,
-    ): Promise<string> {
+    async help(command: Command, path: readonly string[]): Promise<string> {
         // render the description and usage line
-        const executable = this.verb(command);
-        const suffix =
-            "commands" in command
-                ? ` <command>${executable === undefined ? "" : ` | ${path.join(" ")}${CommandTree.usage(executable)}`}`
-                : CommandTree.usage(command);
+        const { terminal } = this.context;
+        const isRun = command.run !== undefined;
+        const suffix = CommandTree.hasSubcommands(command)
+            ? ` <command>${isRun ? ` | ${path.join(" ")}${CommandTree.usage(command)}` : ""}`
+            : CommandTree.usage(command);
         const lines = [command.description, "", `Usage: ${path.join(" ")}${suffix}`, ""];
 
         // list subcommands in help order, reporting why loaded ones are missing, as help must work offline
-        if ("commands" in command) {
-            let children: [string, Node][];
+        if (CommandTree.hasSubcommands(command)) {
+            let children: [string, Command][];
             let missing: string | undefined;
             try {
                 children = await this.children(command);
@@ -420,7 +405,7 @@ export class CommandTree {
                 if (!isOffline) {
                     throw error;
                 }
-                children = Object.entries(command.commands).filter(
+                children = Object.entries(command.commands ?? {}).filter(
                     ([, child]) => child.isHidden !== true,
                 );
                 missing = error instanceof Error ? error.message : String(error);
@@ -458,7 +443,7 @@ export class CommandTree {
         }
 
         // list the options of the command that runs, padded to the widest beside the least width
-        const shown = Object.entries(executable?.options ?? {})
+        const shown = Object.entries(command.options ?? {})
             .filter(([, option]) => option.isHidden !== true)
             .map(([name, option]): [string, string] => {
                 const value = option.type === "string" ? ` <${option.argument ?? "value"}>` : "";
@@ -466,7 +451,7 @@ export class CommandTree {
                 return [`    --${name}${value}`, option.description];
             });
         const { help, json } = GLOBAL_OPTIONS;
-        const globals: GlobalOption[] = [help, ...(executable?.json === true ? [json] : [])];
+        const globals: GlobalOption[] = [help, ...(command.isJson === true ? [json] : [])];
         const options: [string, string][] = [
             ...globals.map((option): [string, string] => [
                 "short" in option ? `${option.short}, ${option.flag}` : `    ${option.flag}`,
@@ -493,7 +478,7 @@ export class CommandTree {
     }
 
     /** Render a command's positional arguments, bracketing optional ones. */
-    static usage(command: Verb): string {
+    static usage(command: Command): string {
         // name each positional argument, then the rest
         const positional = (command.arguments ?? []).map((argument) => {
             const placeholder = argument.usage ?? argument.name;
@@ -523,8 +508,8 @@ function wrap(names: readonly string[], width: number): string[] {
     return rows;
 }
 
-/** The values of command-line options, read by their option. */
-export const OptionValue = {
+/** The values of command options, read by their option. */
+export const CommandOption = {
     /** Read an option's JSON object inline, from stdin or from a file, none when absent. */
     async json(
         value: string | boolean | undefined,
@@ -533,7 +518,7 @@ export const OptionValue = {
         terminal: Terminal,
     ): Promise<JsonObject> {
         // read an absent option as no fields
-        const given = OptionValue.string(value, option);
+        const given = CommandOption.string(value, option);
         if (given === undefined) {
             return {};
         }
@@ -582,7 +567,7 @@ export const OptionValue = {
     /** Read an option's text as a positive whole number, absent when not given. */
     count(value: string | boolean | undefined, option: string): number | undefined {
         // read the number, refusing other text
-        const text = OptionValue.string(value, option);
+        const text = CommandOption.string(value, option);
         if (text === undefined) {
             return undefined;
         }

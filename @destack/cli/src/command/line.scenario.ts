@@ -1,6 +1,6 @@
 import { defineScenario } from "@destack/package/declare";
 import { terminalInteraction } from "../scenario/interaction.ts";
-import { CommandLine } from "./run.ts";
+import { CommandLine } from "./line.ts";
 
 /** Run the common command lines against the owner's home, each warm after its first run. */
 export const runCommonCommands = defineScenario({

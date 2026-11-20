@@ -1,5 +1,10 @@
 import { nth } from "@destack/schema";
-import { type CommandTree, GLOBAL_OPTIONS, type Node, type Option } from "../command/command.ts";
+import {
+    CommandTree,
+    GLOBAL_OPTIONS,
+    type Command,
+    type CommandOption,
+} from "../command/command.ts";
 
 /** The shells a completion script is written for. */
 export const SHELLS = ["bash", "zsh", "fish"] as const;
@@ -56,26 +61,26 @@ export const Completion = {
         const partial = words.at(-1) ?? "";
         let command = tree.root;
         let positionals = 0;
-        let pending: Option | undefined;
+        let pending: CommandOption | undefined;
         for (let index = 0; index < typed.length; index++) {
             // pass over an option, and the value a string option takes as the next word
             const word = nth(typed, index);
-            const options = tree.options(command);
+            const options = command.options ?? {};
             if (word.startsWith("-")) {
                 const option = options[word.slice(2)];
                 const isValued = option?.type === "string" && !word.includes("=");
                 pending = isValued && index === typed.length - 1 ? option : undefined;
                 index += isValued ? 1 : 0;
             }
-            // descend into a group's subcommand, offering nothing after an unknown name
-            else if ("commands" in command) {
+            // descend into a subcommand, offering nothing after an unknown name
+            else if (CommandTree.hasSubcommands(command)) {
                 const child = await tree.child(command, word);
                 if (child === undefined) {
                     return [];
                 }
                 command = child;
             }
-            // count an executable's positional argument
+            // count a command's positional argument
             else {
                 positionals++;
             }
@@ -89,11 +94,11 @@ export const Completion = {
         }
 
         // offer the command's names, its next argument's values and its flags the partial word starts
-        const argument = await argumentValues(command, positionals);
+        const argument = await argumentValues(command, positionals, tree);
         const offered = [
             ...(await names(tree, command)),
             ...argument,
-            ...flags(tree, command, command === tree.root),
+            ...flags(command, command === tree.root),
         ].filter(
             (candidate) => candidate.kind === "directories" || candidate.text.startsWith(partial),
         );
@@ -114,10 +119,14 @@ function values(offered: readonly string[], description: string): Candidate[] {
     return offered.map((value) => ({ kind: "word", text: value, description }));
 }
 
-/** List the values of a group's argument, or of the next positional argument of a verb. */
-async function argumentValues(command: Node, positionals: number): Promise<Candidate[]> {
-    // take a group's argument, or the verb's next positional one
-    const argument = "commands" in command ? command.argument : command.arguments?.[positionals];
+/** List the values of a command's target, or of its next positional argument. */
+async function argumentValues(
+    command: Command,
+    positionals: number,
+    tree: CommandTree,
+): Promise<Candidate[]> {
+    // take the command's target, or its next positional argument
+    const argument = command.target ?? command.arguments?.[positionals];
 
     // offer nothing past the arguments
     if (argument === undefined) {
@@ -131,14 +140,14 @@ async function argumentValues(command: Node, positionals: number): Promise<Candi
     else {
         return argument.complete === undefined
             ? []
-            : values(await argument.complete(), argument.name);
+            : values(await argument.complete(tree.context), argument.name);
     }
 }
 
-/** List a group's subcommands in help order. */
-async function names(tree: CommandTree, command: Node): Promise<Candidate[]> {
-    // offer no names under a verb
-    if (!("commands" in command)) {
+/** List a command's subcommands in help order. */
+async function names(tree: CommandTree, command: Command): Promise<Candidate[]> {
+    // offer no names under a command without subcommands
+    if (!CommandTree.hasSubcommands(command)) {
         return [];
     }
 
@@ -150,9 +159,9 @@ async function names(tree: CommandTree, command: Node): Promise<Candidate[]> {
 }
 
 /** List a command's flags: its options, help, and JSON output or the root's version. */
-function flags(tree: CommandTree, command: Node, isRoot: boolean): Candidate[] {
+function flags(command: Command, isRoot: boolean): Candidate[] {
     // list the shown options of the command that runs
-    const own = Object.entries(tree.options(command))
+    const own = Object.entries(command.options ?? {})
         .filter(([, option]) => option.isHidden !== true)
         .map(([name, option]): Candidate => ({
             kind: "word",
@@ -161,9 +170,8 @@ function flags(tree: CommandTree, command: Node, isRoot: boolean): Candidate[] {
         }));
 
     // add help and JSON output or the root's version
-    const executable = tree.verb(command);
     const { help, json, version } = GLOBAL_OPTIONS;
-    const isJson = executable?.json === true;
+    const isJson = command.isJson === true;
     const globals = [help, ...(isJson ? [json] : []), ...(isRoot ? [version] : [])];
 
     return [

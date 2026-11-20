@@ -1,17 +1,17 @@
 import { type JsonValue, present, schema, toJsonSchema, Identifier } from "@destack/schema";
 import { DeviceValue, type Setting, SettingResolution, type SettingSource } from "@destack/setting";
 import { deviceSetting, setting } from "@destack/setting/object";
-import { type Verb, type Group, type Options, OptionValue } from "../command/command.ts";
+import { type Command, type CommandCall, CommandOption } from "../command/command.ts";
 
-import type { Context } from "../context/context.ts";
+import type { CommandContext } from "../command/context.ts";
 import type { Terminal } from "../output/index.ts";
 
-import { listCommand } from "./command.ts";
-import { LIST_OPTIONS } from "./flag.ts";
+import { listCommand } from "./noun.ts";
+import { LIST_OPTIONS } from "../object/flag.ts";
 import type { ObjectClient, ObjectConnection } from "@destack/object/client";
-import { Noun } from "./catalog.ts";
-import { Cell } from "./cell.ts";
-import { Grid } from "./grid.ts";
+import { Noun } from "../object/catalog.ts";
+import { Cell } from "../object/cell.ts";
+import { Grid } from "../object/grid.ts";
 import { CliError } from "../error/index.ts";
 
 /** The scopes of `--scope`. */
@@ -61,9 +61,9 @@ class SettingScope {
     }
 
     /** Read the scope of --scope, refusing a command line without one. */
-    static read(options: Options): SettingScope {
+    static read(options: CommandCall["options"]): SettingScope {
         // require one of the scopes
-        const named = OptionValue.string(options["scope"], "scope");
+        const named = CommandOption.string(options["scope"], "scope");
         const name = SCOPES.find((candidate) => candidate === named);
         if (name === undefined) {
             throw CliError.of(
@@ -76,7 +76,7 @@ class SettingScope {
     }
 
     /** Find the settings noun storing the scope's values: the universe's or the space's. */
-    async noun(context: Context): Promise<Noun> {
+    async noun(context: CommandContext): Promise<Noun> {
         // refuse the device, whose values are its local objects
         if (this.name === "device") {
             throw CliError.of(
@@ -101,7 +101,7 @@ class SettingScope {
     }
 
     /** Open the scope's values until a stack closes. */
-    async open(context: Context, stack: AsyncDisposableStack): Promise<SettingValues> {
+    async open(context: CommandContext, stack: AsyncDisposableStack): Promise<SettingValues> {
         // open the device's local values
         if (this.name === "device") {
             return DeviceSettingValues.open(context, stack);
@@ -115,71 +115,64 @@ class SettingScope {
 }
 
 /** Build the commands of a setting by name. */
-export function settingCommand(context: Context): Group {
-    return {
-        description: "Get, set or reset a setting at the scope --scope selects",
-        commands: {},
-        argument: {
-            name: "name",
-            complete: async () => (await context.settings()).map((declared) => declared.name),
-            command: (name) => ({
-                description: `Get, set or reset the setting ${name}`,
-                commands: {
-                    get: getCommand(context, name),
-                    set: setCommand(context, name),
-                    reset: resetCommand(context, name),
-                },
-                default: getCommand(context, name),
-            }),
-        },
-    };
-}
+export const settingCommand: Command = {
+    description: "Get, set or reset a setting at the scope --scope selects",
+    commands: {},
+    target: {
+        name: "name",
+        complete: async (context) => (await context.settings()).map((declared) => declared.name),
+        command: (name) => ({
+            ...getCommand(name),
+            commands: {
+                get: getCommand(name),
+                set: setCommand(name),
+                reset: resetCommand(name),
+            },
+        }),
+    },
+};
 
 /** Build the command listing the values at the scope of --scope. */
-export function settingsCommand(context: Context): Verb {
-    return {
-        description: "List the setting values at the scope --scope selects",
-        json: true,
-        options: { ...SCOPE_OPTION, ...LIST_OPTIONS },
-        async run(call) {
-            // read the scope and the list options beside it
-            const scope = SettingScope.read(call.options);
-            const options = Object.fromEntries(
-                Object.entries(call.options).filter(([name]) => name !== "scope"),
-            );
-            const given = Object.keys(options);
+export const settingsCommand: Command = {
+    description: "List the setting values at the scope --scope selects",
+    isJson: true,
+    options: { ...SCOPE_OPTION, ...LIST_OPTIONS },
+    async run(call, context) {
+        // read the scope and the list options beside it
+        const scope = SettingScope.read(call.options);
+        const options = Object.fromEntries(
+            Object.entries(call.options).filter(([name]) => name !== "scope"),
+        );
+        const given = Object.keys(options);
 
-            // refuse list options for the device's values, which take none
-            if (scope.name === "device" && given.length > 0) {
-                throw CliError.of(
-                    "USAGE_INVALID",
-                    `device setting option is invalid: device settings do not accept --'${given.join(", --")}'`,
-                );
-            }
-            // print the device's values
-            else if (scope.name === "device") {
-                await using stack = new AsyncDisposableStack();
-                const values = await DeviceSettingValues.open(context, stack);
-                await values.print(context, call.json);
-            }
-            // list the values of the settings storing the scope's
-            else {
-                await listCommand(context, await scope.noun(context)).run({
-                    ...call,
-                    options,
-                });
-            }
-        },
-    };
-}
+        // refuse list options for the device's values, which take none
+        if (scope.name === "device" && given.length > 0) {
+            throw CliError.of(
+                "USAGE_INVALID",
+                `device setting option is invalid: device settings do not accept --'${given.join(", --")}'`,
+            );
+        }
+        // print the device's values
+        else if (scope.name === "device") {
+            await using stack = new AsyncDisposableStack();
+            const values = await DeviceSettingValues.open(context, stack);
+            await values.print(context, call.isJson);
+        }
+        // list the values of the settings storing the scope's
+        else {
+            const listed = listCommand(await scope.noun(context));
+            await present(listed.run, "the list command's run")({ ...call, options }, context);
+        }
+    },
+};
 
 /** Build the command showing a setting's effective value, or its value at --scope. */
-function getCommand(context: Context, name: string): Verb {
+function getCommand(name: string): Command {
     return {
         description: `Show the value of ${name}, where it comes from, or its value at --scope`,
         options: SCOPE_OPTION,
-        json: true,
-        async run({ options, json }) {
+        isJson: true,
+        async run({ options, isJson: json }, context) {
             // show the effective value and its sources without --scope
             const declared = await context.setting(name);
             if (options["scope"] === undefined) {
@@ -198,7 +191,7 @@ function getCommand(context: Context, name: string): Verb {
 }
 
 /** Resolve a setting's effective value, a device's on the device, a space's in the space. */
-async function resolve(context: Context, declared: Setting): Promise<SettingResolution> {
+async function resolve(context: CommandContext, declared: Setting): Promise<SettingResolution> {
     // read the device's values of the setting, which only the device stores
     await using stack = new AsyncDisposableStack();
     const settings = await context.objects({ deviceSetting }, stack);
@@ -292,19 +285,19 @@ function origin(source: SettingSource): string {
 }
 
 /** Build the command that sets a value at a scope. */
-function setCommand(context: Context, name: string): Verb {
+function setCommand(name: string): Command {
     return {
         description: `Set the value of ${name}`,
         arguments: [
             {
                 name: "value",
                 // offer the values an enumerated or boolean setting accepts
-                complete: async () => offered(await context.setting(name)),
+                complete: async (context) => offered(await context.setting(name)),
             },
         ],
         options: SCOPE_OPTION,
-        json: true,
-        async run({ arguments: { value: text }, options, json }) {
+        isJson: true,
+        async run({ arguments: { value: text }, options, isJson: json }, context) {
             // read the value by the declared schema
             const scope = SettingScope.read(options);
             const declared = await context.setting(name);
@@ -320,12 +313,12 @@ function setCommand(context: Context, name: string): Verb {
 }
 
 /** Build the command removing the value at a scope, which leaves the default. */
-function resetCommand(context: Context, name: string): Verb {
+function resetCommand(name: string): Command {
     return {
         description: `Reset ${name} to its default`,
         options: SCOPE_OPTION,
-        json: true,
-        async run({ options, json }) {
+        isJson: true,
+        async run({ options, isJson: json }, context) {
             // remove the value at the scope
             const scope = SettingScope.read(options);
             const declared = await context.setting(name);
@@ -477,7 +470,10 @@ class DeviceSettingValues implements SettingValues {
     }
 
     /** Open the device's local values until a stack closes. */
-    static async open(context: Context, stack: AsyncDisposableStack): Promise<DeviceSettingValues> {
+    static async open(
+        context: CommandContext,
+        stack: AsyncDisposableStack,
+    ): Promise<DeviceSettingValues> {
         return new DeviceSettingValues(await context.objects({ deviceSetting }, stack));
     }
 
@@ -515,7 +511,7 @@ class DeviceSettingValues implements SettingValues {
     }
 
     /** Print every value the device stores, as JSON or a table. */
-    async print(context: Context, json: boolean): Promise<void> {
+    async print(context: CommandContext, json: boolean): Promise<void> {
         const rows = await this.#settings.query.deviceSetting.findMany();
         const cells = rows.map((row) =>
             [row.packageId, row.name, JSON.stringify(row.value)].map((each) => Cell.plain(each)),

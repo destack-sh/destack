@@ -71,11 +71,11 @@ function pressed(keys: readonly string[]): PagerAnswer {
     return answered;
 }
 
-/** Read a step as the command it runs, its targets and its input, else its kind. */
+/** Read a step as the method its action calls, its targets and its input, else its kind. */
 function ran(step: PagerStep): unknown {
     return step.kind === "run"
         ? {
-              method: step.command.method,
+              method: step.action.call?.method,
               targets: step.targets.map((row) => row["id"]),
               input: step.input,
           }
@@ -98,7 +98,7 @@ test("move a ticket through its next transition, ask an edit's fields, and confi
     });
 });
 
-test("run a command on every selected ticket, filter by title, switch views, and quit", () => {
+test("run an action on every selected ticket, filter by title, switch views, and quit", () => {
     expect({
         both: ran(
             pressed([" ", "ArrowDown", " ", ":", "d", "e", "l", "Enter", "y", "e", "s", "Enter"])

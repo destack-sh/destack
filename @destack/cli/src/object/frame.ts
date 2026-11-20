@@ -11,7 +11,7 @@ import {
 } from "@destack/object";
 import { TABLE } from "@destack/db";
 import { type JsonObject, present, schema } from "@destack/schema";
-import type { Context } from "../context/context.ts";
+import type { CommandContext } from "../command/context.ts";
 import type { Terminal } from "../output/index.ts";
 import type { Noun } from "./catalog.ts";
 import { Cell } from "./cell.ts";
@@ -95,7 +95,11 @@ export class Frame {
     }
 
     /** Open a frame for some rows, with the objects they reference for a person. */
-    static async of(context: Context, noun: Noun, rows: readonly JsonObject[]): Promise<Frame> {
+    static async of(
+        context: CommandContext,
+        noun: Noun,
+        rows: readonly JsonObject[],
+    ): Promise<Frame> {
         // read no references for a program, which reads identifiers
         const { terminal } = context;
         const now = context.environment.clock.now();
