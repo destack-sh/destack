@@ -50,12 +50,12 @@ export const stackedScene = Scene.of([
     },
     {
         kind: "reply",
-        text: "For Ines: 4 notes, the last one says she wants card payments at booking. You last talked Monday at 11:30 and meet again Wednesday at 11. I can't put this inside Gmail itself. The closest is a Google Workspace add-on: I'd write it in Apps Script and it would show in Gmail's side panel as a card once you deploy it, reading Notion with a token you create. Want me to set that up?",
+        text: "4 notes on Ines, the latest says she wants card payments. You last talked Monday, next call is Wednesday at 11. I can't add this inside Gmail, but a Workspace add-on could show it in the side panel. Want me to build it?",
     },
     before,
     {
         kind: "reply",
-        text: "Calendar can't show live mail in an event. I can add an Apps Script trigger that runs every morning and pastes links to open threads into the event descriptions. They'd be up to a day old, and only see Gmail. Should I?",
+        text: "Events can't show live mail. I could paste the open threads into each event every morning with an Apps Script. Should I?",
     },
 ]);
 
@@ -86,7 +86,7 @@ export const destackedScene = Scene.of([
     },
     {
         kind: "reply",
-        text: "Done. Your mail now shows the person card for whoever wrote the email you're reading. It's the same card your People app uses, so a note opens in Notes and a meeting in Calendar.",
+        text: "Done. Mail now shows her card from People, with your notes and meetings.",
     },
     before,
     {
@@ -107,7 +107,7 @@ export const destackedScene = Scene.of([
     },
     {
         kind: "reply",
-        text: "Your events now list the open threads with the people in them, and stay current as mail comes in.",
+        text: "Done. Events now list your open threads with the people in them.",
     },
 ]);
 

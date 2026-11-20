@@ -78,7 +78,7 @@ const items: readonly Item[] = [
     readLog,
     {
         kind: "reply",
-        text: "Last night I made 4 changes to your mail, all in preview: your live inbox hasn't changed. Two need a look:",
+        text: "4 changes from last night, all still in preview. Two need a look:",
     },
     slips,
     keep,
@@ -91,7 +91,7 @@ const items: readonly Item[] = [
     fix,
     {
         kind: "reply",
-        text: "Done. Three changes are live, Kai's sketch is back in your inbox, and the digest is gone. Each one is its own change set, so you can undo any of them later, and they carry over when the mail app updates.",
+        text: "Done. Three changes are live, Kai's mail is back in your inbox, and the digest is gone.",
     },
 ];
 
@@ -125,7 +125,7 @@ export const stackedScene = Scene.of([
     },
     {
         kind: "reply",
-        text: "I couldn't change Gmail itself, so last night I created 3 filters and 2 labels through the API and moved 245 existing mails. Filters have no preview, so all of it is live already. The digest is an Apps Script that runs at 8. Sorting by who's waiting on you isn't something Gmail does. Want me to undo any of it? I'd delete the filters and move the mails back one search at a time.",
+        text: "Last night I added 3 filters and 2 labels and moved 245 mails. Filters have no preview, so it's all live already, and the digest is an Apps Script that runs at 8. Want me to undo any of it?",
     },
 ]);
 

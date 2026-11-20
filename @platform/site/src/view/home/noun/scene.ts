@@ -45,7 +45,7 @@ export const destackedScene = Scene.of([
     },
     {
         kind: "reply",
-        text: "Done. Your Monday page reads your mail, chat, tasks and calendar directly, so it's always current. It's made of the same parts as your other apps, so it works on your phone as they do.",
+        text: "Done. It's live at mydomain.com/monday and reads your mail directly.",
     },
 ]);
 
@@ -125,7 +125,7 @@ function madeOf(maker: Maker): readonly Item[] {
             },
             {
                 kind: "reply",
-                text: `It's running in this orb at ${place.host}, on a sample of your mail for now. Reading your real Gmail and Calendar needs Google sign-in.`,
+                text: `Running at ${place.host} on sample mail for now.`,
             },
             {
                 kind: "app",
@@ -156,15 +156,15 @@ function madeOf(maker: Maker): readonly Item[] {
 
 /** Return what your agent says once it made the app as an artifact, canvas or version. */
 function madeReplyOf(): string {
-    return "Here's your Monday page: what you promised in emails and haven't done, what's due this week, and the free slots in your calendar. It runs on sample data, since an artifact can't read your Gmail.";
+    return "Here's your Monday page: open promises, what's due, and your free slots. It uses sample data for now.";
 }
 
 /** Return what your agent says going live takes, by where it left the app. */
 function shortOf(maker: Maker): string {
     // suggest the usual services from where the app is, and offer to set them up
     return maker.place.kind === "artifact"
-        ? "To use it on your phone with your real mail, it needs to become a small web app: a Google Cloud project for Gmail and Calendar access, which lapses every 7 days until Google verifies the app, Supabase to keep the copies, and Vercel with a sync every few minutes, which needs Pro at $20 a month. I can write the code and walk you through each. Want to start with Google?"
-        : "To run it on your phone with your real mail, it needs Google access for Gmail and Calendar, which lapses every 7 days until Google verifies the app, a database for the copies, and a sync every few minutes. I'd use Supabase and deploy to Vercel Pro at $20 a month for the schedule. You'll create the accounts and add their keys as secrets in this orb. Want me to start with Google?";
+        ? "For your real mail on your phone it needs Google sign-in, a database and a sync job. Unverified Google apps lose access every 7 days, and syncing every few minutes needs Vercel Pro at $20 a month. Start with Google?"
+        : "For your real mail it needs Google sign-in, a database and a sync job. Unverified Google apps lose access every 7 days, and a sync every few minutes needs Vercel Pro at $20 a month. Start with Google?";
 }
 
 /** The connectors the stacked agent has on, one per service the app rents, by mark and colour. */

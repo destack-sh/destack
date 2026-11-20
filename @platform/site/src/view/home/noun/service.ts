@@ -32,7 +32,6 @@ export const vendors: readonly Service[] = [
     { name: "Supabase", category: "database", mark: { logo: "supabase.svg" } },
     { name: "Convex", category: "database", mark: { icon: "convex", tint: "#ee342f" } },
     { name: "Neon", category: "database", mark: { icon: "neon", tint: "#00a87e" } },
-    { name: "Firebase", category: "database", mark: { icon: "firebase", tint: "#dd2c00" } },
 
     // messaging
     { name: "Resend", category: "messaging", mark: { logo: "resend.svg" } },
