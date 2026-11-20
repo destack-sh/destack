@@ -105,7 +105,7 @@ export type UniverseLink =
           readonly installation: InstallationOrigin;
       }
     | {
-          /** A Git repository, at `/@<handle>/<name>.git`, redirecting to its account's forge. */
+          /** A Git repository, at `/@<handle>/<name>.git`, forwarded to its registry. */
           readonly kind: "repository";
           /** The account's handle. */
           readonly handle: string;
