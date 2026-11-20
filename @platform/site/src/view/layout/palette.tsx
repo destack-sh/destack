@@ -25,17 +25,17 @@ import { isCommandPlatform } from "@destack/view/palette";
 import { createShortcut } from "@destack/view/primitives/keyboard";
 
 import {
-    type PaletteCommand,
-    commandEvents,
-    type CommandMatch,
-    commandsFor,
+    type Action,
+    actionEvents,
+    type ActionMatch,
+    actionsFor,
     highlightSegments,
-    matchCommands,
+    matchActions,
     type Menu,
     menuTitles,
     type PageSection,
     type Site,
-} from "./command";
+} from "./action";
 import { loadSearchEntries, type SearchEntry } from "../content/search";
 import { siteSearchEntries } from "../content/site";
 import type { PageFormats } from "../content/source";
@@ -52,10 +52,10 @@ const RECENT_LIMIT = 4;
 /** The browser storage key of the recently opened pages, a per-visitor convenience. */
 const RECENT_KEY = "destack-palette-recent";
 
-/** The milliseconds a copied command shows its check before the palette closes. */
+/** The milliseconds a copied action shows its check before the palette closes. */
 const COPIED_TIME = 700;
 
-/** Search the site's pages, sections and commands from anywhere, on ⌘K, Ctrl+K or a slash. */
+/** Search the site's pages, sections and actions from anywhere, on ⌘K, Ctrl+K or a slash. */
 export function CommandPalette(properties: { appearance: LocalAppearance }) {
     // hold whether the palette is open, its menu, the search and the loaded entries
     const environment = useEnvironment();
@@ -76,35 +76,33 @@ export function CommandPalette(properties: { appearance: LocalAppearance }) {
     const [copied, setCopied] = createSignal<string>();
     const [isMac, setIsMac] = createSignal(false);
 
-    // build the page's commands, and list what the menu and search show
-    const commands = createMemo(() =>
-        commandsFor({
+    // build the page's actions, and list what the menu and search show
+    const actions = createMemo(() =>
+        actionsFor({
             entries: [...siteSearchEntries, ...entries()],
             download: download(),
             ...page(),
         }),
     );
-    const results = createMemo(() => matchCommands(commands(), menu(), query(), RESULT_LIMIT));
+    const results = createMemo(() => matchActions(actions(), menu(), query(), RESULT_LIMIT));
 
     // group the results, the recent pages first on the empty root
     const groups = createMemo(() => {
         // collect the groups in the order they first show
-        const grouped = new Map<string, CommandMatch[]>();
+        const grouped = new Map<string, ActionMatch[]>();
 
         // lead the empty root with the recently opened pages
         if (menu() === "root" && query().trim() === "") {
-            const opened = recent().flatMap((id) =>
-                commands().filter((command) => command.id === id),
-            );
+            const opened = recent().flatMap((id) => actions().filter((action) => action.id === id));
             grouped.set(
                 "Recent",
-                opened.map((command) => ({ command, excerpt: "", terms: [] })),
+                opened.map((action) => ({ action, excerpt: "", terms: [] })),
             );
         }
 
         // add each result to its group
         for (const match of results()) {
-            grouped.set(match.command.group, [...(grouped.get(match.command.group) ?? []), match]);
+            grouped.set(match.action.group, [...(grouped.get(match.action.group) ?? []), match]);
         }
 
         return [...grouped].filter(([, matches]) => matches.length > 0);
@@ -145,7 +143,7 @@ export function CommandPalette(properties: { appearance: LocalAppearance }) {
     createShortcut(Shortcut.keys("/", isCommandPlatform()), () => void open(), shortcut);
     createEventListener(
         () => document,
-        commandEvents.open,
+        actionEvents.open,
         () => void open(),
     );
 
@@ -160,25 +158,25 @@ export function CommandPalette(properties: { appearance: LocalAppearance }) {
         setQuery("");
     };
 
-    // run the chosen command: open its menu, copy, set the theme, dispatch or follow it
-    const choose = async (command: PaletteCommand): Promise<void> => {
-        const { action } = command;
-        if (action.kind === "menu") {
-            enter(action.menu);
-        } else if (action.kind === "copy") {
-            await navigator.clipboard.writeText(action.text);
-            setCopied(command.id);
+    // run the chosen action: open its menu, copy, set the theme, dispatch or follow it
+    const choose = async (action: Action): Promise<void> => {
+        const { effect } = action;
+        if (effect.kind === "menu") {
+            enter(effect.menu);
+        } else if (effect.kind === "copy") {
+            await navigator.clipboard.writeText(effect.text);
+            setCopied(action.id);
             clock.setTimeout(() => setIsOpen(false), COPIED_TIME);
-        } else if (action.kind === "appearance") {
-            properties.appearance.setAppearance(action.appearance);
+        } else if (effect.kind === "appearance") {
+            properties.appearance.setAppearance(effect.appearance);
             setIsOpen(false);
-        } else if (action.kind === "dispatch") {
+        } else if (effect.kind === "dispatch") {
             setIsOpen(false);
-            document.dispatchEvent(new CustomEvent(action.event));
+            document.dispatchEvent(new CustomEvent(effect.event));
         } else {
             setIsOpen(false);
-            setRecent(writeRecent(command, recent(), environment.storage));
-            follow(action.href);
+            setRecent(writeRecent(action, recent(), environment.storage));
+            follow(effect.href);
         }
     };
 
@@ -205,7 +203,7 @@ export function CommandPalette(properties: { appearance: LocalAppearance }) {
                 open={isOpen()}
                 onOpenChange={setIsOpen}
                 title="Search Destack"
-                description="Search pages, sections, and commands"
+                description="Search pages, sections, and actions"
                 search={query()}
                 onSearchChange={setQuery}
                 shouldFilter={false}
@@ -273,13 +271,13 @@ export function CommandPalette(properties: { appearance: LocalAppearance }) {
                                         <Row
                                             match={match}
                                             isMac={isMac()}
-                                            isCopied={copied() === match.command.id}
+                                            isCopied={copied() === match.action.id}
                                             isCurrent={
-                                                match.command.action.kind === "appearance" &&
-                                                match.command.action.appearance ===
+                                                match.action.effect.kind === "appearance" &&
+                                                match.action.effect.appearance ===
                                                     properties.appearance.appearance()
                                             }
-                                            onChoose={(command) => void choose(command)}
+                                            onChoose={(action) => void choose(action)}
                                         />
                                     )}
                                 </For>
@@ -317,30 +315,28 @@ export function CommandPalette(properties: { appearance: LocalAppearance }) {
 
 /** Draw one row: its icon, its label and quiet line, and its key, menu caret or check. */
 function Row(properties: {
-    match: CommandMatch;
+    match: ActionMatch;
     isMac: boolean;
     isCopied: boolean;
     isCurrent: boolean;
-    onChoose: (command: PaletteCommand) => void;
+    onChoose: (action: Action) => void;
 }) {
-    // read the command, and show a content match's excerpt in place of its route
-    const command = () => properties.match.command;
-    const isContent = () => command().kind === "page" || command().kind === "section";
+    // read the action, and show a content match's excerpt in place of its route
+    const action = () => properties.match.action;
+    const isContent = () => action().kind === "page" || action().kind === "section";
     const detail = () =>
-        isContent() && properties.match.excerpt !== ""
-            ? properties.match.excerpt
-            : command().detail;
+        isContent() && properties.match.excerpt !== "" ? properties.match.excerpt : action().detail;
 
     return (
         <CommandItem
-            value={command().id}
-            onSelect={() => properties.onChoose(command())}
+            value={action().id}
+            onSelect={() => properties.onChoose(action())}
             xstyle={styles.row}
         >
-            <Icon icon={command().icon} xstyle={styles.kind} />
+            <Icon icon={action().icon} xstyle={styles.kind} />
             <span {...style.attrs(styles.body)}>
                 <span {...style.attrs(text.sm, styles.label)}>
-                    <Highlight terms={properties.match.terms} text={command().label} />
+                    <Highlight terms={properties.match.terms} text={action().label} />
                 </span>
                 <Show when={detail() !== ""}>
                     <Detail
@@ -358,10 +354,10 @@ function Row(properties: {
                     </span>
                 ) : properties.isCurrent ? (
                     <Icon icon={check} xstyle={styles.endIcon} />
-                ) : command().action.kind === "menu" ? (
+                ) : action().effect.kind === "menu" ? (
                     <Icon icon={caretRight} xstyle={styles.endIcon} />
-                ) : command().keybinding === undefined ? undefined : (
-                    <Kbd>{Shortcut.format(command().keybinding ?? "", properties.isMac)}</Kbd>
+                ) : action().keybinding === undefined ? undefined : (
+                    <Kbd>{Shortcut.format(action().keybinding ?? "", properties.isMac)}</Kbd>
                 )}
             </span>
         </CommandItem>
@@ -424,7 +420,7 @@ function currentSections(): readonly PageSection[] {
     );
 }
 
-/** Read the recently opened commands, none where storage is empty or refused. */
+/** Read the recently opened actions, none where storage is empty or refused. */
 function readRecent(storage: BrowserEnvironment["storage"]): readonly string[] {
     try {
         const stored: unknown = JSON.parse(storage.getItem(RECENT_KEY) ?? "[]");
@@ -437,14 +433,14 @@ function readRecent(storage: BrowserEnvironment["storage"]): readonly string[] {
 
 /** Put a followed page first among the recent ones, and store them where storage allows. */
 function writeRecent(
-    command: PaletteCommand,
+    action: Action,
     recent: readonly string[],
     storage: BrowserEnvironment["storage"],
 ): readonly string[] {
     // keep pages and sections only, sections of this page drop out on others
     const next =
-        command.kind === "page" || command.kind === "section"
-            ? [command.id, ...recent.filter((id) => id !== command.id)].slice(0, RECENT_LIMIT)
+        action.kind === "page" || action.kind === "section"
+            ? [action.id, ...recent.filter((id) => id !== action.id)].slice(0, RECENT_LIMIT)
             : recent;
     try {
         storage.setItem(RECENT_KEY, JSON.stringify(next));

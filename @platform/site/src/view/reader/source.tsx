@@ -11,7 +11,7 @@ import {
 } from "@destack/ui/dropdown-menu";
 import { createSignal, onSettled, useEnvironment, useTelemetry } from "@destack/view";
 
-import { commandEvents } from "../layout/command";
+import { actionEvents } from "../layout/action";
 import { origin } from "../content/site";
 import type { PageSource } from "../content/source";
 import { createEventListener } from "@destack/view/primitives/event-listener";
@@ -66,12 +66,12 @@ export function createPageSourceCommands(source: PageSource): PageSourceCommands
     // bind the palette copy commands while the page shows
     createEventListener(
         () => document,
-        commandEvents.copyMarkdown,
+        actionEvents.copyMarkdown,
         () => copy("md"),
     );
     createEventListener(
         () => document,
-        commandEvents.copyText,
+        actionEvents.copyText,
         () => copy("txt"),
     );
 

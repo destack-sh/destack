@@ -22,8 +22,8 @@ import { agentPrompt, installCommand } from "../content/site";
 import type { Download } from "../install/catalog";
 import { destinations, isExternal } from "./navigation";
 
-/** The global DOM events dispatched by site commands. */
-export const commandEvents = {
+/** The global DOM events dispatched by site actions. */
+export const actionEvents = {
     copyMarkdown: "destack:copy-md",
     copyText: "destack:copy-txt",
     open: "destack:search",
@@ -31,7 +31,7 @@ export const commandEvents = {
     openMenu: "destack:open-menu",
 } as const;
 
-/** A list the palette shows: its root, or a submenu a command opens. */
+/** A list the palette shows: its root, or a submenu an action opens. */
 export type Menu = "root" | "theme" | "documentation" | "sections";
 
 /** The title each menu shows above its search, the root's leading back to it. */
@@ -42,26 +42,26 @@ export const menuTitles: Readonly<Record<Menu, string>> = {
     sections: "Sections",
 };
 
-/** What a command does when chosen. */
-export type CommandAction =
+/** What an action does when chosen. */
+export type ActionEffect =
     | { kind: "dispatch"; event: string }
     | { kind: "navigate"; href: string }
     | { kind: "copy"; text: string }
     | { kind: "appearance"; appearance: Appearance }
     | { kind: "menu"; menu: Menu };
 
-/** One searchable command. */
-export type PaletteCommand = {
-    /** The action performed when chosen. */
-    action: CommandAction;
+/** One searchable action. */
+export type Action = {
+    /** What the action does when chosen. */
+    effect: ActionEffect;
 
-    /** The stable command identifier. */
+    /** The stable action identifier. */
     id: string;
 
-    /** The command class used for search ranking. */
+    /** The action class used for search ranking. */
     kind: "action" | "navigation" | SearchEntryKind;
 
-    /** The menu that lists the command. */
+    /** The menu that lists the action. */
     menu: Menu;
 
     /** The heading of the group it shows under. */
@@ -76,10 +76,10 @@ export type PaletteCommand = {
     /** The icon beside the label. */
     icon: IconBodies;
 
-    /** The key combination that runs the command, for commands that have one. */
+    /** The key combination that runs the action, for actions that have one. */
     keybinding?: Shortcut;
 
-    /** The searchable content or command description. */
+    /** The searchable content or action description. */
     text: string;
 };
 
@@ -93,7 +93,7 @@ export type PageSection = {
     heading: string;
 };
 
-/** What the palette offers commands for: the site's pages, the current page, and the download. */
+/** What the palette offers actions for: the site's pages, the current page, and the download. */
 export type Site = {
     /** The generated pages and sections of the documentation and blog. */
     entries: readonly SearchEntry[];
@@ -107,10 +107,10 @@ export type Site = {
     download: Download | undefined;
 };
 
-/** One ranked command and its query context. */
-export type CommandMatch = {
-    /** The matched command. */
-    command: PaletteCommand;
+/** One ranked action and its query context. */
+export type ActionMatch = {
+    /** The matched action. */
+    action: Action;
 
     /** A compact passage around the first content match. */
     excerpt: string;
@@ -128,24 +128,24 @@ export type HighlightSegment = {
     text: string;
 };
 
-/** Build every command the current page offers, across the root and its submenus. */
-export function commandsFor(site: Site): readonly PaletteCommand[] {
+/** Build every action the current page offers, across the root and its submenus. */
+export function actionsFor(site: Site): readonly Action[] {
     // offer the copies and the download first
-    const commands: PaletteCommand[] = [
-        actionCommand("copy-install", "Copy install command", installCommand, terminalWindow, {
+    const actions: Action[] = [
+        rootAction("copy-install", "Copy install command", installCommand, terminalWindow, {
             kind: "copy",
             text: installCommand,
         }),
-        actionCommand("copy-prompt", "Copy agent prompt", agentPrompt, robot, {
+        rootAction("copy-prompt", "Copy agent prompt", agentPrompt, robot, {
             kind: "copy",
             text: agentPrompt,
         }),
         site.download === undefined
-            ? actionCommand("download", "Download Destack", "/docs/setup/", downloadSimple, {
+            ? rootAction("download", "Download Destack", "/docs/setup/", downloadSimple, {
                   kind: "navigate",
                   href: "/docs/setup/",
               })
-            : actionCommand(
+            : rootAction(
                   "download",
                   `Download for ${site.download.label}`,
                   site.download.version,
@@ -156,53 +156,41 @@ export function commandsFor(site: Site): readonly PaletteCommand[] {
 
     // switch the stack where the page has figures
     if (site.hasStack) {
-        commands.push(
-            actionCommand("switch-stack", "Switch stacked and destacked", "", arrowsLeftRight, {
+        actions.push(
+            rootAction("switch-stack", "Switch stacked and destacked", "", arrowsLeftRight, {
                 kind: "dispatch",
-                event: commandEvents.switchStack,
+                event: actionEvents.switchStack,
             }),
         );
     }
 
     // offer the page source views and copies when the page has sources
     if (site.source !== undefined) {
-        commands.push(
-            actionCommand(
-                "source:md",
-                "View page as Markdown",
-                site.source.markdownRoute,
-                fileCode,
-                {
-                    kind: "navigate",
-                    href: site.source.markdownRoute,
-                },
-            ),
-            actionCommand(
-                "source:txt",
-                "View page as plain text",
-                site.source.textRoute,
-                fileCode,
-                {
-                    kind: "navigate",
-                    href: site.source.textRoute,
-                },
-            ),
-            actionCommand("copy-md", "Copy page as Markdown", "", copy, {
-                kind: "dispatch",
-                event: commandEvents.copyMarkdown,
+        actions.push(
+            rootAction("source:md", "View page as Markdown", site.source.markdownRoute, fileCode, {
+                kind: "navigate",
+                href: site.source.markdownRoute,
             }),
-            actionCommand("copy-txt", "Copy page as plain text", "", copy, {
+            rootAction("source:txt", "View page as plain text", site.source.textRoute, fileCode, {
+                kind: "navigate",
+                href: site.source.textRoute,
+            }),
+            rootAction("copy-md", "Copy page as Markdown", "", copy, {
                 kind: "dispatch",
-                event: commandEvents.copyText,
+                event: actionEvents.copyMarkdown,
+            }),
+            rootAction("copy-txt", "Copy page as plain text", "", copy, {
+                kind: "dispatch",
+                event: actionEvents.copyText,
             }),
         );
     }
 
     // open the theme menu, and list its appearances
-    commands.push(
-        menuCommand("menu:theme", "Change theme…", circleHalf, "theme", "Actions"),
+    actions.push(
+        menuAction("menu:theme", "Change theme…", circleHalf, "theme", "Actions"),
         ...themes.map(([appearance, label, icon]) =>
-            submenuCommand("theme", `theme:${appearance}`, label, "", icon, {
+            submenuAction("theme", `theme:${appearance}`, label, "", icon, {
                 kind: "appearance",
                 appearance,
             }),
@@ -210,12 +198,12 @@ export function commandsFor(site: Site): readonly PaletteCommand[] {
     );
 
     // offer the site destinations, the submenus, and the community off the site
-    commands.push(
-        ...destinations.map((destination): PaletteCommand => {
+    actions.push(
+        ...destinations.map((destination): Action => {
             const isInternal = !isExternal(destination);
 
             return {
-                action: { kind: "navigate", href: destination.href },
+                effect: { kind: "navigate", href: destination.href },
                 id: `navigate:${destination.href}`,
                 kind: "navigation",
                 menu: "root",
@@ -227,15 +215,15 @@ export function commandsFor(site: Site): readonly PaletteCommand[] {
                 text: `${destination.label} ${isInternal ? "site navigation" : "community social"}`,
             };
         }),
-        menuCommand("menu:documentation", "Documentation…", fileText, "documentation", "Go to"),
+        menuAction("menu:documentation", "Documentation…", fileText, "documentation", "Go to"),
     );
 
     // list the current page's sections under their own menu
     if (site.sections.length > 0) {
-        commands.push(
-            menuCommand("menu:sections", "Jump to section…", compass, "sections", "Go to"),
+        actions.push(
+            menuAction("menu:sections", "Jump to section…", compass, "sections", "Go to"),
             ...site.sections.map(({ id, partOfSpeech, heading }) =>
-                submenuCommand("sections", `section:${id}`, heading, partOfSpeech, hash, {
+                submenuAction("sections", `section:${id}`, heading, partOfSpeech, hash, {
                     kind: "navigate",
                     href: `#${id}`,
                 }),
@@ -247,42 +235,42 @@ export function commandsFor(site: Site): readonly PaletteCommand[] {
     const opened = new Set(destinations.map((destination) => destination.href));
 
     return [
-        ...commands,
-        ...site.entries.filter((entry) => !opened.has(entry.route)).map(contentCommand),
+        ...actions,
+        ...site.entries.filter((entry) => !opened.has(entry.route)).map(contentAction),
     ];
 }
 
-/** List what the palette shows: a menu's commands while empty, else the best matches of all. */
-export function matchCommands(
-    commands: readonly PaletteCommand[],
+/** List what the palette shows: a menu's actions while empty, else the best matches of all. */
+export function matchActions(
+    actions: readonly Action[],
     menu: Menu,
     query: string,
     limit: number,
-): readonly CommandMatch[] {
+): readonly ActionMatch[] {
     // read the query's terms
     const terms = termsFor(query);
     const [first] = terms;
 
-    // list the menu's own commands while nothing is typed, its sections and community left to search
+    // list the menu's own actions while nothing is typed, its sections and community left to search
     if (first === undefined) {
-        return commands
+        return actions
             .filter(
-                (command) =>
-                    command.menu === menu &&
+                (action) =>
+                    action.menu === menu &&
                     (menu !== "root" ||
-                        (command.kind !== "section" && command.group !== "Community")),
+                        (action.kind !== "section" && action.group !== "Community")),
             )
-            .map((command) => ({ command, excerpt: "", terms }));
+            .map((action) => ({ action, excerpt: "", terms }));
     }
 
-    // rank every command the root reaches, or the submenu's own
-    return commands
-        .filter((command) => menu === "root" || command.menu === menu)
-        .map((command) => ({ command, score: scoreCommand(command, terms) }))
+    // rank every action the root reaches, or the submenu's own
+    return actions
+        .filter((action) => menu === "root" || action.menu === menu)
+        .map((action) => ({ action, score: scoreAction(action, terms) }))
         .filter((result) => result.score >= 0)
         .toSorted((left, right) => right.score - left.score)
         .slice(0, limit)
-        .map(({ command }) => ({ command, excerpt: excerptFor(command.text, first), terms }));
+        .map(({ action }) => ({ action, excerpt: excerptFor(action.text, first), terms }));
 }
 
 /** Split text into matched and unmatched segments without changing its case. */
@@ -338,15 +326,15 @@ const themes: readonly (readonly [appearance: Appearance, label: string, icon: I
 ];
 
 /** Construct one site action of the root menu. */
-function actionCommand(
+function rootAction(
     id: string,
     label: string,
     detail: string,
     icon: IconBodies,
-    action: CommandAction,
-): PaletteCommand {
+    effect: ActionEffect,
+): Action {
     return {
-        action,
+        effect,
         id,
         kind: "action",
         menu: "root",
@@ -358,16 +346,16 @@ function actionCommand(
     };
 }
 
-/** Construct one command of the root menu that opens a submenu, under a group of the root. */
-function menuCommand(
+/** Construct one action of the root menu that opens a submenu, under a group of the root. */
+function menuAction(
     id: string,
     label: string,
     icon: IconBodies,
     menu: Menu,
     group: string,
-): PaletteCommand {
+): Action {
     return {
-        action: { kind: "menu", menu },
+        effect: { kind: "menu", menu },
         id,
         kind: "navigation",
         menu: "root",
@@ -379,17 +367,17 @@ function menuCommand(
     };
 }
 
-/** Construct one command a submenu lists. */
-function submenuCommand(
+/** Construct one action a submenu lists. */
+function submenuAction(
     menu: Exclude<Menu, "root">,
     id: string,
     label: string,
     detail: string,
     icon: IconBodies,
-    action: CommandAction,
-): PaletteCommand {
+    effect: ActionEffect,
+): Action {
     return {
-        action,
+        effect,
         id,
         kind: "action",
         menu,
@@ -401,12 +389,12 @@ function submenuCommand(
     };
 }
 
-/** Convert one generated content entry into a navigation command, docs pages in their menu. */
-function contentCommand(entry: SearchEntry): PaletteCommand {
+/** Convert one generated content entry into a navigation action, docs pages in their menu. */
+function contentAction(entry: SearchEntry): Action {
     const collection = collectionAt(entry.route)?.title ?? "Pages";
 
     return {
-        action: { kind: "navigate", href: entry.route },
+        effect: { kind: "navigate", href: entry.route },
         id: `navigate:${entry.route}`,
         kind: entry.kind,
         menu: collection === "Documentation" && entry.kind === "page" ? "documentation" : "root",
@@ -428,16 +416,16 @@ function termsFor(query: string) {
     return [...new Set(query.toLowerCase().trim().split(/\s+/u).filter(Boolean))];
 }
 
-/** Score one command against all normalized query terms. */
-function scoreCommand(command: PaletteCommand, terms: readonly string[]) {
+/** Score one action against all normalized query terms. */
+function scoreAction(action: Action, terms: readonly string[]) {
     // lowercase the fields to match against
-    const label = command.label.toLowerCase();
-    const group = command.group.toLowerCase();
-    const text = command.text.toLowerCase();
+    const label = action.label.toLowerCase();
+    const group = action.group.toLowerCase();
+    const text = action.text.toLowerCase();
     // use category order only to break comparable text matches
-    let score = rankFor(command.kind) / 100;
+    let score = rankFor(action.kind) / 100;
 
-    // reject a command missing any term, and score the best field each term matches
+    // reject an action missing any term, and score the best field each term matches
     for (const term of terms) {
         if (!label.includes(term) && !group.includes(term) && !text.includes(term)) {
             return -1;
@@ -463,8 +451,8 @@ function scoreCommand(command: PaletteCommand, terms: readonly string[]) {
     return score;
 }
 
-/** Return the base rank for one command class. */
-function rankFor(kind: PaletteCommand["kind"]) {
+/** Return the base rank for one action class. */
+function rankFor(kind: Action["kind"]) {
     switch (kind) {
         case "action":
         case "navigation":

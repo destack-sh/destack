@@ -25,7 +25,7 @@ import { type Destination, discord, github, home, menu } from "./navigation";
 import { AppearanceToggle } from "./appearance";
 import { createMediaQuery } from "@destack/view/primitives/media";
 import { createEventListener } from "@destack/view/primitives/event-listener";
-import { commandEvents } from "./command";
+import { actionEvents } from "./action";
 import { typeScale, tracking } from "./type.stylex";
 
 /** Render the global site navigation. */
@@ -47,7 +47,7 @@ export function TopBar(properties: { readonly path: string }) {
     // open the phone menu whenever the page's bottom bar asks for it
     createEventListener(
         () => document,
-        commandEvents.openMenu,
+        actionEvents.openMenu,
         () => setIsMenuOpen(true),
     );
 

@@ -8,7 +8,7 @@ import { Entry, type Form } from "../home/entry/entry";
 import { Tally } from "../home/participle/tally";
 import { firstPicks } from "../home/participle/wall";
 import type { Tool } from "../home/tool/tool";
-import { commandEvents } from "../layout/command";
+import { actionEvents } from "../layout/action";
 import { Interval } from "../layout/sheet";
 import { lattice } from "../layout/lattice.stylex";
 import { type Currency, currencyOf } from "../pricing/money";
@@ -73,7 +73,7 @@ export function Pricing() {
     const [isOpen, setIsOpen] = createSignal(false);
     createEventListener(
         () => document,
-        commandEvents.switchStack,
+        actionEvents.switchStack,
         () => setIsOpen((current) => !current),
     );
 
