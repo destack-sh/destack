@@ -1345,7 +1345,7 @@ export class Computer implements AsyncDisposable {
         const local = new LineExporter(write, options);
         const own = TelemetryScope.of(
             MACHINE_PACKAGE,
-            Telemetry.local(environment.clock, write, undefined, options),
+            Telemetry.local(environment.clock, write, environment.telemetry.context, options),
         );
         const exporter = new OtlpExporter(
             async (signal, body, abort) => {
