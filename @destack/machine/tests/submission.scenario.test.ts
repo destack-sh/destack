@@ -154,7 +154,7 @@ test("apply a submitted stack build and open its installations' views", async ()
     });
 
     // apply the notes installation, then open a view its applied revision declares and refuse one it does not
-    const listed = await Rollout.find(fixture.database, ids.space, "notes");
+    const listed = await Rollout.find(fixture.database, ids.space, "notes", "launchable");
     const notes = present(listed, "the notes installation");
     await fixture.simulation.idle();
     const revised = await readInstalled(fixture.database, notes.installationId);
@@ -300,7 +300,7 @@ test("install an application from a checkout by submitting its build, following 
         left.moniker.localeCompare(right.moniker),
     );
     expect(sorted.map(({ kind, name, description }) => [kind, name, description])).toEqual([
-        ["command", "archive", ARCHIVE],
+        ["action", "archive", ARCHIVE],
         ["relation", "editor", {}],
     ]);
 });

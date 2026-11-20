@@ -260,13 +260,13 @@ test("find and list only the enabled installations not being deleted, as a machi
 
     // open only the enabled one by its name, and list it with the space's stack
     const found = async (name: string) =>
-        (await Rollout.find(database, ids.space, name))?.installation.name;
-    const listed = await Rollout.list(database, ids.space);
+        (await Rollout.find(database, ids.space, name, "launchable"))?.installation.name;
+    const listed = await Rollout.list(database, ids.space, "launchable");
     expect([
         await found("notes"),
         await found("tasks"),
         await found("board"),
-        listed.map((entry) => entry.rollout.installation.name),
+        listed.map((entry) => entry.installation.name),
     ]).toEqual(["notes", undefined, undefined, ["stack", "notes"]]);
 });
 

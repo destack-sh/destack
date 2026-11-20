@@ -9,5 +9,5 @@ export default definePackage({
     icon: "kanban",
     color: "iris",
     objects: [cards],
-    commands: [retitle, ideas],
+    actions: [retitle, ideas],
 });

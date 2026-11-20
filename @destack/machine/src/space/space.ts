@@ -2783,7 +2783,7 @@ export class Space {
         ]);
 
         // list the served installations of the package or of a package implementing it
-        const installed = (await Rollout.listServed(this.database, this.id)).filter(
+        const installed = (await Rollout.list(this.database, this.id, "served")).filter(
             (served) =>
                 served.installation.packageId === packageId ||
                 (implemented.get(served.installation.packageId) ?? []).includes(packageId),

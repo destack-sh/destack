@@ -1160,7 +1160,7 @@ export class Gateway {
         // refuse an unknown name or another package and call one of the caller's space
         const name = DeclarationName.safeParse(address);
         const found = name.success
-            ? await Rollout.find(this.#space.database, caller.scope, name.data)
+            ? await Rollout.find(this.#space.database, caller.scope, name.data, "launchable")
             : undefined;
         if (found === undefined || found.installation.packageId !== audience) {
             throw MachineError.of(
@@ -1185,19 +1185,8 @@ export class Gateway {
         path: string,
     ): Promise<Destination> {
         // call an installation this machine serves in the space, by its name there
-        const [named] = await Snapshot.live(this.#space.database)
-            .read(installation.table)
-            .findMany({
-                where: {
-                    scope: spaceId,
-                    name,
-                },
-            });
-        const served =
-            named === undefined
-                ? undefined
-                : await Rollout.findServed(this.#space.database, named.id);
-        if (served?.scope === spaceId) {
+        const served = await Rollout.find(this.#space.database, spaceId, name, "served");
+        if (served !== undefined) {
             const audience = PackageId.parse(served.installation.packageId);
 
             return {

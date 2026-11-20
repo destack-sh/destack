@@ -27,7 +27,7 @@ export const workload = {
     sandbox: {},
 };
 
-/** What each release of the fixture declares beside its archive command, by release. */
+/** What each release of the fixture declares beside its archive action, by release. */
 const DECLARED: Readonly<
     Record<
         string,
@@ -116,14 +116,14 @@ export async function fixtureBuild(
     crypto: Crypto,
     name = "@acme/notes",
 ): Promise<BuildReader> {
-    // build the version declaring its archive command and the release's own declarations, of the package's kinds
+    // build the version declaring its archive action and the release's own declarations, of the package's kinds
     const built = await MemoryBuild.of(
         PackageVersion.parse({ id: packageId, name, version }),
         [
             {
-                kind: "command",
+                kind: "action",
                 kindPackageId: packageId,
-                module: "src/command.ts",
+                module: "src/action.ts",
                 name: "archive",
                 description: ARCHIVE,
             },
@@ -206,7 +206,7 @@ export async function imageOf(
     );
 }
 
-/** The command every fixture build declares. */
+/** The action every fixture build declares. */
 export const ARCHIVE = {
     title: "Archive note",
     packageId: "package-01996ab0-0000-7000-8000-000000000005",

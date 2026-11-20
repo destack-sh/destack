@@ -1,6 +1,6 @@
 import { space } from "@destack/account/object";
 import { principal, relation, union } from "@destack/access";
-import { defineCommand, defineObject, field } from "@destack/object";
+import { defineAction, defineObject, field } from "@destack/object";
 import { argument, plural, t } from "@destack/locale";
 import { schema } from "@destack/schema";
 import { shareable } from "@destack/object";
@@ -42,20 +42,20 @@ export const cards = card.implement({
 });
 
 /** Retitle a card Ideas, for cards of another title. */
-export const retitle = defineCommand({
+export const retitle = defineAction({
     name: "retitle-ideas",
     title: t`Retitle to Ideas`,
-    object: cards,
-    method: "update",
-    input: { title: "Ideas" },
-    when: { title: { ne: "Ideas" } },
+    call: {
+        object: cards,
+        method: "update",
+        input: { title: "Ideas" },
+        when: { title: { ne: "Ideas" } },
+    },
 });
 
 /** Create a card titled Ideas. */
-export const ideas = defineCommand({
+export const ideas = defineAction({
     name: "new-ideas",
     title: t`New Ideas Card`,
-    object: cards,
-    method: "create",
-    input: { title: "Ideas" },
+    call: { object: cards, method: "create", input: { title: "Ideas" } },
 });
