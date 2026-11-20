@@ -4,6 +4,7 @@
     "role": "library",
     "language": "typescript",
     "runtimes": ["bun"],
+    "entrypoints": ["src/main.ts"],
     "check": {
         "expect": [
             {

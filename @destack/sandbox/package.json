@@ -3,10 +3,8 @@
     "license": "Apache-2.0",
     "type": "module",
     "description": "Launch processes with operating system filesystem and network restrictions.",
-    "bin": {
-        "destack-sandbox": "./src/main.ts"
-    },
     "exports": {
+        "./main": "./src/main.ts",
         ".": "./src/index.ts",
         "./error": "./src/error/index.ts",
         "./workload": "./src/workload/index.ts"
@@ -17,7 +15,8 @@
         "@destack/error": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
-        "@destack/telemetry": "workspace:*"
+        "@destack/telemetry": "workspace:*",
+        "@destack/update": "workspace:*"
     },
     "devDependencies": {
         "@destack/test": "workspace:*",

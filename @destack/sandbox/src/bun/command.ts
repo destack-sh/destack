@@ -1,4 +1,4 @@
-import { dirname, join } from "node:path";
+import { Release } from "@destack/update/release";
 import { fileURLToPath } from "node:url";
 import type { Process } from "@destack/environment";
 
@@ -12,9 +12,9 @@ export interface LauncherCommand {
 
 /** Find the launcher command. */
 export function launcherCommand(process: Process): LauncherCommand {
-    // start the release's launcher from a standalone executable
+    // start a standalone executable as its sandbox process
     if (process.runtime.isStandalone) {
-        return { executable: join(dirname(process.executable), "destack-sandbox"), arguments: [] };
+        return { executable: process.executable, arguments: Release.arguments("sandbox") };
     }
 
     // run the entry with Bun otherwise, preloading the module metadata the build would inject
