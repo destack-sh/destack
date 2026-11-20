@@ -2767,9 +2767,9 @@ export class Space {
     }
 
     /** Find the one installation serving a package here: of the package, or implementing it. */
-    async installation(packageId: PackageId): Promise<InstallationRollout> {
-        // read the protocols the packages here implement: the store's own, and the workloads'
-        const implemented = new Map<string, readonly string[]>([
+    installation(packageId: PackageId): Promise<InstallationRollout> {
+        // list the packages here implementing it: the store's own, and the workloads'
+        const implementers = [
             ...this.instance.packages.map(
                 (handle) => [handle.id, handle.protocols.map((protocol) => protocol.id)] as const,
             ),
@@ -2780,31 +2780,15 @@ export class Space {
                         PackageDescription.find(entry.declarations)?.protocols ?? [],
                     ] as const,
             ),
-        ]);
+        ]
+            .filter(([, protocols]) => protocols.includes(packageId))
+            .map(([implementer]) => implementer);
 
-        // list the served installations of the package or of a package implementing it
-        const installed = (await Rollout.list(this.database, this.id, "served")).filter(
-            (served) =>
-                served.installation.packageId === packageId ||
-                (implemented.get(served.installation.packageId) ?? []).includes(packageId),
-        );
-        const [only] = installed;
-
-        // refuse none, and several, which callers reach by their names
-        if (only === undefined) {
-            throw MachineError.of(
-                "INSTALLATION_NOT_FOUND",
-                `installation serving package '${packageId}' in this space not found`,
-            );
-        } else if (installed.length > 1) {
-            const names = installed.map((served) => served.installation.name).join("', '");
-            throw MachineError.of(
-                "INSTALLATION_CONFLICT",
-                `cannot route package '${packageId}': installations '${names}' each serve it`,
-            );
-        }
-
-        return only;
+        return Rollout.requireServing(this.database, {
+            spaceId: this.id,
+            packageId,
+            implementers,
+        });
     }
 
     /** List the mounts an installation the space serves declares. */
