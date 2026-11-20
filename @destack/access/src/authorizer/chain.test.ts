@@ -300,24 +300,14 @@ test("replicate a scope object's row from wherever it lives, and only from a sou
             homeMappings.map((mapping) => mapping.table).filter((table) => table !== policyTable),
         ),
     });
-    const chained = (authorizer: Authorizer, type: ObjectTypeReference) =>
-        authorizer.replicateChain(
-            { name: CHAIN_PUBLICATION, scope: "account-1", target: "personal" },
-            {
-                scopes: ["personal", "account-1", "universe"],
-                local: [],
-                replicated: [{ scope: "account-1", types: [type] }],
-                ...OWN,
-            },
-        );
-    const chain = chained(storing, account.typeReference);
+    const chain = accountChainOf(storing, account.typeReference);
 
     // replicate the account's row everywhere, and policy rows from their source alone
     expect([
         chain.where.get(accountTable),
         chain.everywhere.has(accountTable),
-        chained(storing, policy.typeReference).tables.includes(policyTable),
-        chained(relating, policy.typeReference).tables.includes(policyTable),
+        accountChainOf(storing, policy.typeReference).tables.includes(policyTable),
+        accountChainOf(relating, policy.typeReference).tables.includes(policyTable),
     ]).toEqual([{ id: { in: ["account-1"] } }, true, true, false]);
 });
 
@@ -404,6 +394,19 @@ function chainOf(
             revision: FOLLOWER_REVISION,
         },
     };
+}
+
+/** Build the chain replica of account-1 for the personal space, replicating one type. */
+function accountChainOf(authorizer: Authorizer, type: ObjectTypeReference) {
+    return authorizer.replicateChain(
+        { name: CHAIN_PUBLICATION, scope: "account-1", target: "personal" },
+        {
+            scopes: ["personal", "account-1", "universe"],
+            local: [],
+            replicated: [{ scope: "account-1", types: [type] }],
+            ...OWN,
+        },
+    );
 }
 
 /** Apply a source's pages to the follower until it is at the source's head. */

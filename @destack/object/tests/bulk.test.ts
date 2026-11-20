@@ -113,6 +113,11 @@ function rows(database: DatabaseConnection) {
     return database.select().from(label.table).orderBy(asc(label.table.name));
 }
 
+/** Read every label's identifier and whether it is live. */
+async function labelsIn(database: DatabaseConnection) {
+    return (await rows(database)).map((row) => [row.id, row.deletedAt === null]);
+}
+
 test("create one object per item in one call, returning their identifiers in item order", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
@@ -292,8 +297,6 @@ test("undo a bulk creation by deleting each created object on the device and the
     });
     const { ids } = await created.predicted;
     await created.confirmed;
-    const labelsIn = async (database: DatabaseConnection) =>
-        (await rows(database)).map((row) => [row.id, row.deletedAt === null]);
     const before = [await labelsIn(client.database), await labelsIn(storage.database)];
 
     // undo the creation into the trash on the device and through the server

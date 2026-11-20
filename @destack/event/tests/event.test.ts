@@ -109,6 +109,27 @@ function at(minute: number): number {
     return (TEST_START + minute * MINUTE) * 1000;
 }
 
+/** Build a reading of the bytes meter in a scope. */
+function scopedReading(id: string, minute: number, scope: string) {
+    return { ...measured(id, minute, "db.bytes", minute), scope };
+}
+
+/** Build a line of a severity, or of unknown severity. */
+function severityLine(id: string, severity: number | null) {
+    return { scope: "space-1", id, time: at(1), keys: { severity }, data: { message: id } };
+}
+
+/** Build a person's call carrying a personal address and a secret token. */
+function personalCall(id: string, minute: number, actor: string) {
+    return {
+        scope: "space-1",
+        id,
+        time: at(minute),
+        keys: { actor, method: "update" },
+        data: { address: `${actor}@example.com`, token: "secret" },
+    };
+}
+
 test("page a scope's events a condition selects in time order", async () => {
     const { store } = await open();
 
@@ -295,17 +316,17 @@ test("read the events of several scopes, hot and flushed, in one time order", as
     const { store } = fixture;
 
     // flush three readings of the space, leave one hot, and add two of the organization
-    const within = (id: string, minute: number) => ({
-        ...measured(id, minute, "db.bytes", minute),
-        scope: "space-2",
-    });
-    const organization = (id: string, minute: number) => ({
-        ...measured(id, minute, "db.bytes", minute),
-        scope: "organization-1",
-    });
-    await store.append(reading, [within("w1", 1), within("w2", 3), within("w3", 5)]);
+    await store.append(reading, [
+        scopedReading("w1", 1, "space-2"),
+        scopedReading("w2", 3, "space-2"),
+        scopedReading("w3", 5, "space-2"),
+    ]);
     await fixture.simulation.idle();
-    await store.append(reading, [within("w4", 6), organization("o1", 2), organization("o2", 4)]);
+    await store.append(reading, [
+        scopedReading("w4", 6, "space-2"),
+        scopedReading("o1", 2, "organization-1"),
+        scopedReading("o2", 4, "organization-1"),
+    ]);
 
     // read only the organization, and with the space within it
     const ids = async (scopes: readonly [string, ...string[]]) =>
@@ -595,14 +616,7 @@ test("store a nullable whole-number key as an integer, compared and read back nu
     const { store } = await open([line]);
 
     // append a line of known severity and one of unknown
-    const written = (id: string, severity: number | null) => ({
-        scope: "space-1",
-        id,
-        time: at(1),
-        keys: { severity },
-        data: { message: id },
-    });
-    await store.append(line, [written("known", 9), written("unknown", null)]);
+    await store.append(line, [severityLine("known", 9), severityLine("unknown", null)]);
 
     // read the severe lines, then every line's severity
     const severe = await store.query(line, {
@@ -693,20 +707,17 @@ test("seal a person's personal values at rest, drop secrets, and erase the value
     const { store, database } = fixture;
 
     // record three calls of one person and one of another, flushing them
-    const made = (id: string, minute: number, actor: string) => ({
-        scope: "space-1",
-        id,
-        time: at(minute),
-        keys: { actor, method: "update" },
-        data: { address: `${actor}@example.com`, token: "secret" },
-    });
-    await store.append(call, [made("a", 1, "ada"), made("b", 2, "ada"), made("c", 3, "ada")]);
+    await store.append(call, [
+        personalCall("a", 1, "ada"),
+        personalCall("b", 2, "ada"),
+        personalCall("c", 3, "ada"),
+    ]);
     await database.database.transaction((transaction) =>
-        store.append(call, [made("d", 4, "bo")], transaction),
+        store.append(call, [personalCall("d", 4, "bo")], transaction),
     );
     const rows = await database.database.select({ data: call.table.data }).from(call.table);
     await fixture.simulation.idle();
-    await store.append(call, [made("e", 5, "ada")]);
+    await store.append(call, [personalCall("e", 5, "ada")]);
     const before = await store.query(call, { scopes: ["space-1"] });
 
     // forget the person
@@ -867,24 +878,27 @@ test("read a row of a kind's table as its event with the kind's keys, refusing a
     expect(() => reading.event({ ...row, value: null })).toThrow(schema.Error);
 });
 
-test("refuse an event kind whose subject is not a text key or whose distribution is outside its data", () => {
-    const declare =
-        (keys: Readonly<Record<string, schema.Schema<string | number | null>>>, extra: object) =>
-        () =>
-            testKind({
-                package: meters,
-                name: "reading",
-                keys: schema.object(keys),
-                data: schema.object({ address: schema.string().exactOptional() }),
-                delivery: "exactly-once",
-                policy: { flush: { maxAge: MINUTE, maxRows: 10 }, retention: MINUTE },
-                ...extra,
-            });
+/** Declare a reading kind with some keys and extra options. */
+function declareReading(
+    keys: Readonly<Record<string, schema.Schema<string | number | null>>>,
+    extra: object,
+) {
+    return testKind({
+        package: meters,
+        name: "reading",
+        keys: schema.object(keys),
+        data: schema.object({ address: schema.string().exactOptional() }),
+        delivery: "exactly-once",
+        policy: { flush: { maxAge: MINUTE, maxRows: 10 }, retention: MINUTE },
+        ...extra,
+    });
+}
 
-    expect(declare({ actor: schema.number() }, { subject: ["actor"] })).toThrow(
+test("refuse an event kind whose subject is not a text key or whose distribution is outside its data", () => {
+    expect(() => declareReading({ actor: schema.number() }, { subject: ["actor"] })).toThrow(
         "event kind 'reading' must have text subject keys",
     );
-    expect(declare({}, { distribution: "histogram" })).toThrow(
+    expect(() => declareReading({}, { distribution: "histogram" })).toThrow(
         "event kind 'reading' has no data entry 'histogram' for its distribution",
     );
 });

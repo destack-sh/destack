@@ -923,34 +923,35 @@ test("redeploy once a captured binding targets another resource", async () => {
     });
 });
 
+/** Deploy notes built with a Destack version, answering its deployments and refusal. */
+async function deployBuiltWith(built: string) {
+    // install notes with the given Destack version in a fresh space
+    const fixture = await TestSpace.open();
+    await serveControllers(fixture);
+    const { crypto } = fixture.environment;
+    const build = await fixtureBuild(ids.package, "2026.9.0", crypto);
+    const released = new BuildReader({ ...build.manifest, destack: built }, build.stream, crypto);
+    const notes = await installNotes(fixture, ids.notes, released);
+    await fixture.simulation.idle();
+
+    // read its refusal, its deployments and its sync condition
+    const refused = single(fixture.takeRefusals());
+    const installed = await readInstalled(fixture.database, notes.installationId);
+    const deployed = await fixture.database.select().from(object.deployment.table);
+    const synced = installed.installation.conditions["Synced"];
+
+    return [deployed.length, refused, synced?.message];
+}
+
 test("refuse a release built with an unsupported Destack", async () => {
     // deploy notes built with a Destack older than the machine supports, then with one newer than it runs
-    const deploy = async (built: string) => {
-        const fixture = await TestSpace.open();
-        await serveControllers(fixture);
-        const { crypto } = fixture.environment;
-        const build = await fixtureBuild(ids.package, "2026.9.0", crypto);
-        const released = new BuildReader(
-            { ...build.manifest, destack: built },
-            build.stream,
-            crypto,
-        );
-        const notes = await installNotes(fixture, ids.notes, released);
-        await fixture.simulation.idle();
-        const refused = single(fixture.takeRefusals());
-        const installed = await readInstalled(fixture.database, notes.installationId);
-        const deployed = await fixture.database.select().from(object.deployment.table);
-        const synced = installed.installation.conditions["Synced"];
-
-        return [deployed.length, refused, synced?.message];
-    };
 
     // refuse each, the one too old and the one too new for the machine running this checkout's Destack
     const older = `@acme/notes is built with Destack 2026.9.0, older than this machine supports (${DESTACK})`;
     const newer = `@acme/notes is built with Destack ${NEWER_DESTACK}, newer than this machine's ${DESTACK}`;
     expect({
-        older: await deploy("2026.9.0"),
-        newer: await deploy(NEWER_DESTACK),
+        older: await deployBuiltWith("2026.9.0"),
+        newer: await deployBuiltWith(NEWER_DESTACK),
     }).toEqual({
         older: [
             0,

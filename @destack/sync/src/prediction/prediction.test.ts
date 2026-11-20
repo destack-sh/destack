@@ -54,6 +54,17 @@ function predicting(tables: readonly Table[], prediction = predict): Prediction 
     return new Prediction({ tables, predict: prediction, reads: () => [note[TABLE].sqlName] });
 }
 
+/** Build a call creating a note with a title, its key by default. */
+function noteCall(key: string, title = key): Call {
+    return {
+        type: NOTE_TYPE,
+        method: "create",
+        release: RELEASE,
+        edition: 1,
+        input: { id: key, title },
+    };
+}
+
 /** A complete page of a source's changes. */
 function page(
     sequence: number,
@@ -311,13 +322,6 @@ test("compose predictions into the origin's latest queued mutation until a push 
     const prediction = predicting([note]);
     const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
     await replicate(notes, client, [page(1, [], { reset: true })], prediction);
-    const create = (key: string, title: string): Call => ({
-        type: NOTE_TYPE,
-        method: "create",
-        release: RELEASE,
-        edition: 1,
-        input: { id: key, title },
-    });
     const titles = async () =>
         (await client.select().from(note).orderBy(asc(note.id))).map((row) => [row.id, row.title]);
     const offered: (string | undefined)[] = [];
@@ -331,18 +335,18 @@ test("compose predictions into the origin's latest queued mutation until a push 
             if (latest !== undefined && latest.calls.some((call) => call.input["id"] === key)) {
                 await transaction.update(note).set({ title }).where(eq(note.id, key));
 
-                return { kind: "compose", calls: [create(key, title)], result: undefined };
+                return { kind: "compose", calls: [noteCall(key, title)], result: undefined };
             }
 
             // create the note otherwise
-            await predict(transaction, { id, calls: [create(key, title)] });
+            await predict(transaction, { id, calls: [noteCall(key, title)] });
 
-            return { kind: "add", calls: [create(key, title)], result: undefined };
+            return { kind: "add", calls: [noteCall(key, title)], result: undefined };
         });
     await write(IDS[0], "tab-1", "a", "one");
     await write(IDS[1], "tab-1", "a", "two");
     expect(await prediction.pending(client)).toEqual([
-        { id: IDS[0], origin: "tab-1", calls: [create("a", "two")] },
+        { id: IDS[0], origin: "tab-1", calls: [noteCall("a", "two")] },
     ]);
     expect(await titles()).toEqual([["a", "two"]]);
 
@@ -444,22 +448,15 @@ test("predict a checked-out branch's rows under its edits, and push the edits to
     });
     const notes = new Replica({ name: "notes", scope: "inbox", tables: [note, tag] });
     await replicate(notes, client, [page(1, [], { reset: true })], prediction);
-    const call = (key: string): Call => ({
-        type: NOTE_TYPE,
-        method: "create",
-        release: RELEASE,
-        edition: 1,
-        input: { id: key, title: key },
-    });
     const add = (id: string, key: string, isMainLine?: boolean) =>
         prediction.add(
             client,
             id,
             "tab-1",
             async (transaction) => {
-                await predict(transaction, { id, calls: [call(key)] });
+                await predict(transaction, { id, calls: [noteCall(key)] });
 
-                return { kind: "add", calls: [call(key)], result: undefined };
+                return { kind: "add", calls: [noteCall(key)], result: undefined };
             },
             isMainLine === undefined ? {} : { isMainLine },
         );
@@ -475,7 +472,7 @@ test("predict a checked-out branch's rows under its edits, and push the edits to
     const edited = await titles();
 
     // show the branch's rows under the edit once a page announces them
-    server.push(call("a"), call("x"));
+    server.push(noteCall("a"), noteCall("x"));
     const announced: Page = {
         reset: false,
         complete: true,
@@ -507,9 +504,9 @@ test("predict a checked-out branch's rows under its edits, and push the edits to
         below: ["a", "c", "m", "n", "x"],
         main: ["m", "n"],
         pending: [
-            { id: IDS[0], origin: "tab-1", calls: [call("m")] },
-            { id: IDS[1], origin: "tab-1", calls: [call("c")], branch: "branch-1" },
-            { id: IDS[2], origin: "tab-1", calls: [call("n")] },
+            { id: IDS[0], origin: "tab-1", calls: [noteCall("m")] },
+            { id: IDS[1], origin: "tab-1", calls: [noteCall("c")], branch: "branch-1" },
+            { id: IDS[2], origin: "tab-1", calls: [noteCall("n")] },
         ],
     });
 });

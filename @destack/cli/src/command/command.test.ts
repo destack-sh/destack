@@ -11,6 +11,11 @@ function lines(text: string): string[] {
     return text.split("\n").filter((line) => line !== "");
 }
 
+/** Print a command's help as lines. */
+async function help(words: string[]): Promise<string[]> {
+    return lines((await TerminalFixture.printed(words)).output);
+}
+
 test("print the version, and refuse invalid usage as text or JSON", async () => {
     const cases = [
         {
@@ -114,8 +119,6 @@ test("print the version, and refuse invalid usage as text or JSON", async () => 
 });
 
 test("leave hidden commands and options out of help, showing their own help", async () => {
-    const help = async (words: string[]) => lines((await TerminalFixture.printed(words)).output);
-
     // list the distribution's commands and the uninstall's options
     expect({
         self: await help(["self", "--help"]),

@@ -34,6 +34,11 @@ const rankQuery = new Statement(
         ORDER BY ${item.id}`,
 );
 
+/** Parse listed rows as ranked items. */
+function ranked(rows: readonly Record<string, unknown>[]) {
+    return rows.map((row) => RANKED.parse(row));
+}
+
 test("run a statement rendered once with each run's values", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
@@ -50,8 +55,6 @@ test("run a statement rendered once with each run's values", async () => {
     ]);
 
     // read through one statement with different values
-    const ranked = (rows: readonly Record<string, unknown>[]) =>
-        rows.map((row) => RANKED.parse(row));
     const outside = await rankQuery.all(storage.database, { ids: ids(["a", "c"]), minimum: 1 });
     const inside = await storage.database.transaction((transaction) =>
         rankQuery.all(transaction, { ids: ids(["a", "b", "c"]), minimum: 2 }),

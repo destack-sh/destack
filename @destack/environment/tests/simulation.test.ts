@@ -241,55 +241,50 @@ test("pause one route's bodies across a link until resumed, while other routes c
     });
 });
 
+/** Route requests through latency, a partition and loss in a seeded world, reading its events. */
+async function routeRequests(seed: number) {
+    // request through latency, tracing what happens
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed,
+        start: START,
+        isTracing: true,
+    });
+    simulation.network.server("server").http({
+        hostname: "server.test",
+        port: 443,
+        fetch: (request) => Response.json({ path: new URL(request.url).pathname }),
+    });
+    simulation.network.degrade({ delay: { least: 10, most: 20 } });
+    const client = simulation.environment("client").network;
+    const body: unknown = await simulation.wait(
+        client.fetch(new Request("https://server.test/notes")).then((response) => response.json()),
+    );
+
+    // request through a partition and full loss
+    simulation.network.partition("client", "server");
+    const partitioned = await simulation.wait(
+        client.fetch(new Request("https://server.test/")).catch((error: Error) => error.message),
+    );
+    simulation.network.heal();
+    simulation.network.degrade({ drop: 1 });
+    const dropped = await simulation.wait(
+        client.fetch(new Request("https://server.test/")).catch((error: Error) => error.message),
+    );
+
+    // read the world's events from its telemetry, with their times and fields
+    const events = simulation.telemetry.logs.map((record) => ({
+        name: record.eventName,
+        at: record.hrTime,
+        attributes: record.attributes,
+    }));
+
+    return { body, partitioned, dropped, events };
+}
+
 test("route requests between nodes through latency, partitions and loss, replayed by the seed", async () => {
-    const run = async (seed: number) => {
-        // request through latency, tracing what happens
-        await using simulation = new Simulation({
-            world: testWorldOptions(),
-            seed,
-            start: START,
-            isTracing: true,
-        });
-        simulation.network.server("server").http({
-            hostname: "server.test",
-            port: 443,
-            fetch: (request) => Response.json({ path: new URL(request.url).pathname }),
-        });
-        simulation.network.degrade({ delay: { least: 10, most: 20 } });
-        const client = simulation.environment("client").network;
-        const body: unknown = await simulation.wait(
-            client
-                .fetch(new Request("https://server.test/notes"))
-                .then((response) => response.json()),
-        );
-
-        // request through a partition and full loss
-        simulation.network.partition("client", "server");
-        const partitioned = await simulation.wait(
-            client
-                .fetch(new Request("https://server.test/"))
-                .catch((error: Error) => error.message),
-        );
-        simulation.network.heal();
-        simulation.network.degrade({ drop: 1 });
-        const dropped = await simulation.wait(
-            client
-                .fetch(new Request("https://server.test/"))
-                .catch((error: Error) => error.message),
-        );
-
-        // read the world's events from its telemetry, with their times and fields
-        const events = simulation.telemetry.logs.map((record) => ({
-            name: record.eventName,
-            at: record.hrTime,
-            attributes: record.attributes,
-        }));
-
-        return { body, partitioned, dropped, events };
-    };
-
     // replay the events by seed
-    const [first, again] = [await run(3), await run(3)];
+    const [first, again] = [await routeRequests(3), await routeRequests(3)];
     expect({
         body: first.body,
         partitioned: first.partitioned,
@@ -1368,32 +1363,30 @@ test("publish a node's listener at a world address for nodes and a host address 
     });
 });
 
+/** Read a stall's message for a short or long operation, without milliseconds or call sites. */
+async function stallOf(length: "short" | "long") {
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+        stallTimeout: 50,
+        longStallTimeout: 80,
+    });
+    const never = new Promise<void>(() => {});
+    void (length === "short"
+        ? simulation.scheduler.run(() => never)
+        : simulation.scheduler.waitUntil(never));
+    const message = await simulation.sleep(1000).then(
+        () => "settled",
+        (error: Error) => error.message,
+    );
+    const [heading = "", ...items] = message.split("\n");
+
+    return [heading.replace(/\d+ ms/u, "N ms"), items.map((item) => item.split(" ").slice(0, 2))];
+}
+
 test("refuse a short operation stalled past the stall timeout, and a long one past the long timeout, naming each", async () => {
-    // read a stall's message, its milliseconds and call sites left out
-    const stallOf = async (length: "short" | "long") => {
-        await using simulation = new Simulation({
-            world: testWorldOptions(),
-            seed: 1,
-            start: START,
-            stallTimeout: 50,
-            longStallTimeout: 80,
-        });
-        const never = new Promise<void>(() => {});
-        void (length === "short"
-            ? simulation.scheduler.run(() => never)
-            : simulation.scheduler.waitUntil(never));
-        const message = await simulation.sleep(1000).then(
-            () => "settled",
-            (error: Error) => error.message,
-        );
-        const [heading = "", ...items] = message.split("\n");
-
-        return [
-            heading.replace(/\d+ ms/u, "N ms"),
-            items.map((item) => item.split(" ").slice(0, 2)),
-        ];
-    };
-
+    // refuse a short and a long stall
     expect([await stallOf("short"), await stallOf("long")]).toEqual([
         [
             "work stayed in flight for N ms without settling, 1 of 1 real work running (1 short):",
@@ -1768,26 +1761,28 @@ test("replay a seed's racing host work in one order with one fingerprint", async
     expect(second.fingerprint).toBe(first.fingerprint);
 });
 
+/** Play a timer in a world, its host skipping a read when cached, reading its fingerprint. */
+async function playTimer(isCached: boolean, wait: number) {
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 3,
+        start: START,
+    });
+    const { clock, scheduler } = simulation.environment("node");
+    if (!isCached) {
+        await scheduler.run(async () => "read");
+    }
+    await simulation.wait(clock.sleep(wait));
+
+    return simulation.fingerprint;
+}
+
 test("keep one fingerprint across plays whose host work differs, as a warm cache skips work, and tell apart a world event", async () => {
     // play a timer twice, the second play's host skipping the read the first one made
-    const play = async (isCached: boolean, wait: number) => {
-        await using simulation = new Simulation({
-            world: testWorldOptions(),
-            seed: 3,
-            start: START,
-        });
-        const { clock, scheduler } = simulation.environment("node");
-        if (!isCached) {
-            await scheduler.run(async () => "read");
-        }
-        await simulation.wait(clock.sleep(wait));
-
-        return simulation.fingerprint;
-    };
     const [cold, warm, later] = [
-        await play(false, 1000),
-        await play(true, 1000),
-        await play(true, 2000),
+        await playTimer(false, 1000),
+        await playTimer(true, 1000),
+        await playTimer(true, 2000),
     ];
 
     // equal across the host's work, different for another timer
@@ -1797,24 +1792,26 @@ test("keep one fingerprint across plays whose host work differs, as a warm cache
     });
 });
 
+/** Connect to a socket the host names at random, reading the world's root and fingerprint. */
+async function playSocket() {
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 3,
+        start: START,
+    });
+    const name = crypto.getRandomValues(new Uint8Array(SOCKET_NAME_BYTES)).toHex();
+    const unix = join(simulation.root, `${name}.sock`);
+    await simulation.network.server("database").socket({ unix, accept: () => undefined });
+    const socket = simulation.environment("app").network.connect({ unix });
+    await simulation.wait(socket.opened);
+    await socket.close();
+
+    return { root: simulation.root, fingerprint: simulation.fingerprint };
+}
+
 test("keep one fingerprint across plays connecting to sockets the host names", async () => {
     // connect to a socket the host names at random under each play's random root
-    const play = async () => {
-        await using simulation = new Simulation({
-            world: testWorldOptions(),
-            seed: 3,
-            start: START,
-        });
-        const name = crypto.getRandomValues(new Uint8Array(SOCKET_NAME_BYTES)).toHex();
-        const unix = join(simulation.root, `${name}.sock`);
-        await simulation.network.server("database").socket({ unix, accept: () => undefined });
-        const socket = simulation.environment("app").network.connect({ unix });
-        await simulation.wait(socket.opened);
-        await socket.close();
-
-        return { root: simulation.root, fingerprint: simulation.fingerprint };
-    };
-    const [first, second] = [await play(), await play()];
+    const [first, second] = [await playSocket(), await playSocket()];
 
     // expect two roots and one fingerprint
     expect({
@@ -1900,40 +1897,41 @@ test("run real work an operation begins as part of it, unordered, and complete t
     });
 });
 
+/** Record when the world sees each operation and timer settle, with or without jitter. */
+async function timeline(isJittered: boolean) {
+    // run operations settling in reverse, a waited one and timers
+    const variables = isJittered ? { DESTACK_SIMULATION_JITTER: "1" } : {};
+    const host = testHost();
+    await using simulation = new Simulation({
+        world: WorldOptions.of({ variables, stderr: host.process.stderr }, undefined),
+        seed: 3,
+        start: START,
+    });
+    const { clock, scheduler } = simulation;
+    const seen: string[] = [];
+    const note = (name: string) => seen.push(`${name}@${clock.now() - START}`);
+    const real = (name: string, after: number) =>
+        scheduler
+            .run(
+                () =>
+                    new Promise<void>((resolve) => {
+                        setTimeout(resolve, after);
+                    }),
+            )
+            .then(() => note(name));
+    await simulation.wait(
+        Promise.all([
+            real("slow", 6),
+            real("quick", 0),
+            scheduler.waitUntil(Promise.resolve()).then(() => note("waited")),
+            clock.sleep(5).then(() => note("timer")),
+        ]),
+    );
+
+    return seen;
+}
+
 test("observe the same timeline with and without jitter, as the world schedules all its real work", async () => {
-    // run operations settling in reverse, a waited one and timers, recording what the world sees when
-    const timeline = async (jitter: boolean) => {
-        const variables = jitter ? { DESTACK_SIMULATION_JITTER: "1" } : {};
-        const host = testHost();
-        await using simulation = new Simulation({
-            world: WorldOptions.of({ variables, stderr: host.process.stderr }, undefined),
-            seed: 3,
-            start: START,
-        });
-        const { clock, scheduler } = simulation;
-        const seen: string[] = [];
-        const note = (name: string) => seen.push(`${name}@${clock.now() - START}`);
-        const real = (name: string, after: number) =>
-            scheduler
-                .run(
-                    () =>
-                        new Promise<void>((resolve) => {
-                            setTimeout(resolve, after);
-                        }),
-                )
-                .then(() => note(name));
-        await simulation.wait(
-            Promise.all([
-                real("slow", 6),
-                real("quick", 0),
-                scheduler.waitUntil(Promise.resolve()).then(() => note("waited")),
-                clock.sleep(5).then(() => note("timer")),
-            ]),
-        );
-
-        return seen;
-    };
-
     // see each in the same order at the same simulated times either way
     expect(await timeline(true)).toEqual(await timeline(false));
 });

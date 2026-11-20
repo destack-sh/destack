@@ -277,14 +277,15 @@ test("leave the configuration set out when none is set, and ask the credentials 
 });
 
 test("refuse a malformed region", async () => {
-    const create = () =>
-        new SesClient({
-            region: "eu central",
-            endpoint: SesClient.endpoint("eu central"),
-            credentials: async () => CREDENTIALS,
-            environment: environment(async () => new Response(null, { status: 500 })),
-        });
-    expect(create).toThrow(new TypeError('region "eu central" is not an AWS region name'));
+    expect(
+        () =>
+            new SesClient({
+                region: "eu central",
+                endpoint: SesClient.endpoint("eu central"),
+                credentials: async () => CREDENTIALS,
+                environment: environment(async () => new Response(null, { status: 500 })),
+            }),
+    ).toThrow(new TypeError('region "eu central" is not an AWS region name'));
 });
 
 test.each(REFUSALS)("map %s to its failure with the AWS code", async (_, answer, code, awsCode) => {

@@ -22,24 +22,26 @@ const operation = defineMeter(
     { package: storage },
 );
 
+/** Key the operation meter's attributes, or read its refusal. */
+function keyOrRefusal(attributes: Readonly<Record<string, string>>) {
+    try {
+        return operation.key(attributes);
+    } catch (error) {
+        if (!(error instanceof TypeError)) {
+            throw error;
+        }
+
+        return error.message;
+    }
+}
+
 test("key a meter's events by their attribute values, refusing values the meter does not declare", () => {
     // key a declared value, and refuse a missing, an unknown and an undeclared attribute
-    const refusal = (attributes: Readonly<Record<string, string>>) => {
-        try {
-            return operation.key(attributes);
-        } catch (error) {
-            if (!(error instanceof TypeError)) {
-                throw error;
-            }
-
-            return error.message;
-        }
-    };
     expect([
-        refusal({ direction: "write" }),
-        refusal({}),
-        refusal({ direction: "delete" }),
-        refusal({ direction: "read", region: "eu" }),
+        keyOrRefusal({ direction: "write" }),
+        keyOrRefusal({}),
+        keyOrRefusal({ direction: "delete" }),
+        keyOrRefusal({ direction: "read", region: "eu" }),
     ]).toEqual([
         "package-01996ab0-0000-7000-8000-0000000000d2/storage.operation direction=write",
         'meter \'storage.operation\' takes attributes {"direction":["read","write"]}, not {}',

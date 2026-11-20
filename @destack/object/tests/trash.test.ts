@@ -137,28 +137,30 @@ test("record a folder's deletion alone, its pages' deletions running within it",
 
 test("refuse a child trashed with its parent without a trash, or with a shorter window than its parent's", () => {
     // validate a note type under the folder with a given trash, as serving it does
-    const declare = (trash: { within: { days: number }; by: "manage" } | undefined) => () =>
-        defineObject({
-            name: "note",
-            plural: "notes",
-            title: t`${plural(argument("count"), { one: "Note", other: "Notes" })}`,
-            scope: space,
-            fields: {},
-            traits: [
-                nested({ in: folder, delete: "trash", add: "manage" }),
-                shareable({}),
-                ...(trash === undefined ? [] : [recoverable(trash)]),
-            ],
-        }).requireValid();
-
     expect([
-        refusalOf(declare(undefined)),
-        refusalOf(declare({ within: { days: 7 }, by: "manage" })),
+        refusalOf(() => declareNote(undefined)),
+        refusalOf(() => declareNote({ within: { days: 7 }, by: "manage" })),
     ]).toEqual([
         "object note moves to the trash with its parent, so both must have a trash",
         "object note moves to the trash with its parent, so it must stay recoverable as long as its parent",
     ]);
 });
+
+/** Declare notes trashed with their folder, with a trash of their own or none. */
+function declareNote(trash: { within: { days: number }; by: "manage" } | undefined) {
+    return defineObject({
+        name: "note",
+        plural: "notes",
+        title: t`${plural(argument("count"), { one: "Note", other: "Notes" })}`,
+        scope: space,
+        fields: {},
+        traits: [
+            nested({ in: folder, delete: "trash", add: "manage" }),
+            shareable({}),
+            ...(trash === undefined ? [] : [recoverable(trash)]),
+        ],
+    }).requireValid();
+}
 
 /** Read the message a declaration throws. */
 function refusalOf(declare: () => unknown): string {

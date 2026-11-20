@@ -29,10 +29,16 @@ test("write the contacts, the expiry a lifetime after now, languages and policy,
     );
 });
 
+/** Write a security.txt with a lifetime. */
+function writeLifetime(lifetime: { days: number }) {
+    return writeSecurity("https://destack.sh", { contact: ["mailto:a@b.c"], lifetime }, NOW);
+}
+
 test("refuse a lifetime of nothing or a year", async () => {
-    const write = (lifetime: { days: number }) => () =>
-        writeSecurity("https://destack.sh", { contact: ["mailto:a@b.c"], lifetime }, NOW);
-    expect([await refusal(write({ days: 0 })), await refusal(write({ days: 365 }))]).toEqual([
+    expect([
+        await refusal(() => writeLifetime({ days: 0 })),
+        await refusal(() => writeLifetime({ days: 365 })),
+    ]).toEqual([
         [
             "BAD_REQUEST",
             "SECURITY_LIFETIME_INVALID",

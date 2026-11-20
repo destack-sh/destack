@@ -525,12 +525,16 @@ test("pass another origin's unreadable 421 to the caller, sending once", async (
     });
 });
 
+/** List an installation's mounts: notes' webhook mount, none for any other. */
+function notesMounts(installationId: string) {
+    return installationId === ids.notes ? [PUSHES] : [];
+}
+
 test("forward a mount's request to its newest deployment, refusing none deployed", async () => {
     // deliver to notes' webhook mount over its two deployments, and over none
-    const mounts = (installationId: string) => (installationId === ids.notes ? [PUSHES] : []);
-    const deployed = await openNotes(undefined, { mounts });
+    const deployed = await openNotes(undefined, { mounts: notesMounts });
     const accepted = await deployed.gateway.serve(delivery());
-    const undeployed = await openNotes([], { mounts });
+    const undeployed = await openNotes([], { mounts: notesMounts });
     const refused = await undeployed.gateway.serve(delivery());
 
     // forward it below the installation, anonymously, to the newest deployment

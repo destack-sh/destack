@@ -78,6 +78,11 @@ async function current(browser: TestBrowser) {
     return CurrentSession.parse(await (await browser.fetch("/get-session")).json());
 }
 
+/** Verify a wrong authenticator code in a browser's sign-in. */
+async function verifyWrongCode(browser: TestBrowser) {
+    return answered(await browser.fetch("/two-factor/verify-totp", { code: "000000" }));
+}
+
 /** Sign a browser in by the person's mailed code, answering whether the second factor is due. */
 async function signInByCode(fixture: TestAccountStore, browser: TestBrowser): Promise<unknown> {
     await browser.fetch("/email-otp/send-verification-otp", { email: EMAIL, type: "sign-in" });
@@ -538,17 +543,19 @@ test("lock a factor after five wrong codes across sign-ins, and accept its codes
     // try three wrong codes in one sign-in and two in another
     await using fixture = await TestAccountStore.open();
     const { totpURI } = await enroll(fixture, fixture.browser());
-    const wrong = async (browser: TestBrowser) =>
-        answered(await browser.fetch("/two-factor/verify-totp", { code: "000000" }));
     const first = fixture.browser();
     await signInByCode(fixture, first);
-    const tried = [await wrong(first), await wrong(first), await wrong(first)];
+    const tried = [
+        await verifyWrongCode(first),
+        await verifyWrongCode(first),
+        await verifyWrongCode(first),
+    ];
     const second = fixture.browser();
     await signInByCode(fixture, second);
-    tried.push(await wrong(second), await wrong(second));
+    tried.push(await verifyWrongCode(second), await verifyWrongCode(second));
 
     // refuse the sixth code and then a right one while locked
-    const locked = await wrong(second);
+    const locked = await verifyWrongCode(second);
     const right = async (browser: TestBrowser) =>
         answered(
             await browser.fetch("/two-factor/verify-totp", {

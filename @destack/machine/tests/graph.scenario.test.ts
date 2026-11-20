@@ -36,6 +36,11 @@ const UNKNOWN_BUILD = schema
     .identifier("build")
     .parse("build-01996ab0-0000-7000-8000-000000000003");
 
+/** Name a notebook module by its path, as the graph monikers it. */
+function notebookModule(path: string): string {
+    return `${NOTEBOOK_ID}/${path}`;
+}
+
 test("serve a build's modules, declarations and symbols to its readers", async () => {
     // record the notebook's build with its graph twice as the space's builds of one manifest
     const fixture = await TestSpace.open();
@@ -55,8 +60,7 @@ test("serve a build's modules, declarations and symbols to its readers", async (
     // read the build's graph through the space's store as its owner and refuse a stranger
     const reader = (user: Subject) => AccessContext.of(Caller.of(user), clock.now());
     const owner = reader(fixture.owner.subject);
-    const moniker = (path: string) => `${NOTEBOOK_ID}/${path}`;
-    const at = moniker("src/object.ts");
+    const at = notebookModule("src/object.ts");
     const store = await fixture.store();
     const declared = async (id: string) => {
         const row = await store.query(owner, declaration.call("get", { buildId, id }));
@@ -109,9 +113,9 @@ test("serve a build's modules, declarations and symbols to its readers", async (
         refused,
     ]).toEqual([
         [
-            [moniker("src/index.ts"), "src/index.ts", ["depends src/object.ts"]],
+            [notebookModule("src/index.ts"), "src/index.ts", ["depends src/object.ts"]],
             [at, "src/object.ts", [`depends ${packages.object}`]],
-            [moniker("src/service.ts"), "src/service.ts", ["depends src/object.ts"]],
+            [notebookModule("src/service.ts"), "src/service.ts", ["depends src/object.ts"]],
         ],
         [`${at}#notebook:object:notebook`, moduleId, "object", "notebook", `${at}#notebook`, []],
         [
@@ -147,7 +151,7 @@ test("serve a build's modules, declarations and symbols to its readers", async (
         await running;
         await client.close();
     });
-    const service = `${moniker("src/service.ts")}#notebooksService`;
+    const service = `${notebookModule("src/service.ts")}#notebooksService`;
     const procedures = client.query.declaration
         .findMany({ where: { kind: "procedure" }, orderBy: { moniker: "asc" } })
         .subscribe();

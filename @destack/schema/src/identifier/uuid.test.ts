@@ -18,6 +18,11 @@ function zeros() {
     };
 }
 
+/** Create a UUIDv7 at a time from all-zero randomness. */
+function createAt(now: number) {
+    return Uuid.v7({ clock: { now: () => now }, random: zeros() });
+}
+
 test("lay out a UUIDv7 as the millisecond big-endian, then the version, counter, variant and random bits", () => {
     expect([
         Uuid.v7({ clock: { now: () => TEST_START }, random: ones() }),
@@ -79,20 +84,22 @@ test("lay out a UUIDv4 as random bits under the version and variant, leaving the
 
 test("refuse a time outside the 48-bit timestamp, and a draw of the wrong length", () => {
     // create at a time, or from a short draw, reading the range error
-    const at = (now: number) => () => Uuid.v7({ clock: { now: () => now }, random: zeros() });
     const short = {
         bytes: (length: number) => new Uint8Array(length - 1),
         sequence: Uuid.sequence(),
     };
-    const refused = [at(-1), at(2 ** 48), at(TEST_START + 0.5), () => Uuid.v4(short)].map(
-        (create) => {
-            try {
-                return create();
-            } catch (error) {
-                return error instanceof RangeError ? error.message : "other";
-            }
-        },
-    );
+    const refused = [
+        () => createAt(-1),
+        () => createAt(2 ** 48),
+        () => createAt(TEST_START + 0.5),
+        () => Uuid.v4(short),
+    ].map((create) => {
+        try {
+            return create();
+        } catch (error) {
+            return error instanceof RangeError ? error.message : "other";
+        }
+    });
 
     expect(refused).toEqual([
         "uuid time '-1' is outside 0 to 2^48 milliseconds",

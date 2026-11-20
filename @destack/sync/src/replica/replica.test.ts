@@ -250,13 +250,7 @@ test("follow two databases each replicating the other's table, receiving each wr
     expect(await rows()).toEqual(written);
     controller.abort();
     await simulation.wait(following);
-    const split = (pages: readonly Page[]) => ({
-        written: changedIds(pages.filter((page) => page.changes.length > 0)),
-        isRestBare: pages.every(
-            (page) => page.complete && (page.changes.length > 0 || !page.reset),
-        ),
-    });
-    expect([split(received.notes), split(received.projects)]).toEqual([
+    expect([splitPages(received.notes), splitPages(received.projects)]).toEqual([
         { written: [["b"]], isRestBare: true },
         { written: [["q"]], isRestBare: true },
     ]);
@@ -512,11 +506,11 @@ test("replicate a whole database: follow its logged rows, then capture every col
     await simulation.wait(following);
 
     // capture every column once the source stops writing
-    const seal = async (table: Table, row: Row) => rewrapped(table, row, "source:", "moving:");
-    const unseal = async (table: Table, row: Row) => rewrapped(table, row, "moving:", "target:");
-    const applied = replica.apply(target, feed.capture(replica.captured, signal, { seal }), {
-        open: unseal,
-    });
+    const applied = replica.apply(
+        target,
+        feed.capture(replica.captured, signal, { seal: sealMoving }),
+        { open: unsealMoving },
+    );
     while ((await applied.next()).done !== true) {
         // apply each captured page
     }
@@ -1879,6 +1873,16 @@ function rewrapped(table: Table, row: Row, from: string, to: string): Row {
     return { ...row, wrapped: wrapped.replace(from, to) };
 }
 
+/** Seal a captured row for the move, rewrapping its key from the source. */
+async function sealMoving(table: Table, row: Row): Promise<Row> {
+    return rewrapped(table, row, "source:", "moving:");
+}
+
+/** Open a moving row at the target, rewrapping its key for the target. */
+async function unsealMoving(table: Table, row: Row): Promise<Row> {
+    return rewrapped(table, row, "moving:", "target:");
+}
+
 /** Build the change inserting a note. */
 function noteInsert(id: string) {
     return {
@@ -2025,52 +2029,54 @@ test("keep a replica live while its pages arrive within the lag, and end a strea
         warned: [["destack.replica.silent", "notes", true]],
     });
 });
-test("stop a follow's silence timer when its stream fails, as when it stops", async () => {
+
+/** Follow one page, then stop or fail, reading the outcome and the timers left. */
+async function waitsLeftAfter(end: "stop" | "failure") {
     // follow one page, then stop or fail, and count the timers still keeping the process alive
-    const waitsLeftAfter = async (end: "stop" | "failure") => {
-        await using simulation = new Simulation({
-            world: testWorldOptions(),
-            seed: 1,
-            start: 1000,
-        });
-        const local = await openReplica({ simulation });
-        const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
-        const controller = new AbortController();
-        const following = notes
-            .follow(
-                local,
-                async function* (_from, signal) {
-                    yield {
-                        reset: true,
-                        complete: true,
-                        changes: [],
-                        position: {
-                            log: LOG,
-                            epoch: "01996ab0-0000-7000-8000-000000000001",
-                            sequence: 4,
-                        },
-                    };
-                    if (end === "failure") {
-                        throw new Error("the source closed");
-                    }
-                    await waitAborted(signal);
-                },
-                controller.signal,
-                { synced: () => {}, lag: 30_000 },
-            )
-            .then(
-                () => "stopped",
-                (error: unknown) => String(error),
-            );
-        await simulation.waitUntil(() => Replica.marked(local, "notes", "inbox") !== undefined);
-        if (end === "stop") {
-            controller.abort();
-        }
-        const outcome = await simulation.wait(following);
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: 1000,
+    });
+    const local = await openReplica({ simulation });
+    const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
+    const controller = new AbortController();
+    const following = notes
+        .follow(
+            local,
+            async function* (_from, signal) {
+                yield {
+                    reset: true,
+                    complete: true,
+                    changes: [],
+                    position: {
+                        log: LOG,
+                        epoch: "01996ab0-0000-7000-8000-000000000001",
+                        sequence: 4,
+                    },
+                };
+                if (end === "failure") {
+                    throw new Error("the source closed");
+                }
+                await waitAborted(signal);
+            },
+            controller.signal,
+            { synced: () => {}, lag: 30_000 },
+        )
+        .then(
+            () => "stopped",
+            (error: unknown) => String(error),
+        );
+    await simulation.waitUntil(() => Replica.marked(local, "notes", "inbox") !== undefined);
+    if (end === "stop") {
+        controller.abort();
+    }
+    const outcome = await simulation.wait(following);
 
-        return { outcome, waits: simulation.clock.fail(new Error("the test ended")) };
-    };
+    return { outcome, waits: simulation.clock.fail(new Error("the test ended")) };
+}
 
+test("stop a follow's silence timer when its stream fails, as when it stops", async () => {
     // leave as many timers after a failure as after a stop
     const stopped = await waitsLeftAfter("stop");
     const failed = await waitsLeftAfter("failure");
@@ -2382,6 +2388,16 @@ function followFrom(feed: Feed, replica: Replica) {
 /** List the identifiers each page changes. */
 function changedIds(pages: readonly Page[]): unknown[][] {
     return pages.map((page) => page.changes.map((change) => change.row["id"]));
+}
+
+/** Split pages into the identifiers the changing ones write and whether the rest are bare. */
+function splitPages(pages: readonly Page[]) {
+    return {
+        written: changedIds(pages.filter((page) => page.changes.length > 0)),
+        isRestBare: pages.every(
+            (page) => page.complete && (page.changes.length > 0 || !page.reset),
+        ),
+    };
 }
 
 /** Follow a replica's queries from a feed as its database does, recording each page it receives. */

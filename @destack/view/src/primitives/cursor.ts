@@ -120,6 +120,14 @@ export function createDragCursor(
     createBodyCursor(() => isDragging() && grabbing);
     createElementCursor(() => (isDragging() ? false : access(target)), grab);
 
+    // start dragging on a press, and stop on a lift
+    const press = (): void => {
+        setIsDragging(true);
+    };
+    const lift = (): void => {
+        setIsDragging(false);
+    };
+
     // drag from a press on the element until the pointer lifts or is cancelled anywhere
     createEffect(
         () => access(target),
@@ -130,12 +138,6 @@ export function createDragCursor(
 
                 return undefined;
             }
-            const press = (): void => {
-                setIsDragging(true);
-            };
-            const lift = (): void => {
-                setIsDragging(false);
-            };
             element.addEventListener("pointerdown", press);
             document.addEventListener("pointerup", lift);
             document.addEventListener("pointercancel", lift);

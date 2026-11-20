@@ -38,30 +38,31 @@ function counting(aggregation: "sum" | "max", unit: string) {
     );
 }
 
-test("plan a meter's change between releases: keep its aggregation and unit", () => {
-    const outcome = (aggregation: "sum" | "max", unit: string) => {
-        try {
-            return compareMeter(
-                {
-                    description: counting("sum", "request"),
-                    symbol: { package: storage },
-                    capabilities: [],
-                },
-                {
-                    description: counting(aggregation, unit),
-                    symbol: { package: { ...storage, version: "2026.10.0" } },
-                    capabilities: [],
-                },
-            ).steps;
-        } catch (error) {
-            if (!(error instanceof Error)) {
-                throw error;
-            }
-
-            return error.message;
+/** Plan a counting meter's change to an aggregation and unit, or read its refusal. */
+function outcome(aggregation: "sum" | "max", unit: string) {
+    try {
+        return compareMeter(
+            {
+                description: counting("sum", "request"),
+                symbol: { package: storage },
+                capabilities: [],
+            },
+            {
+                description: counting(aggregation, unit),
+                symbol: { package: { ...storage, version: "2026.10.0" } },
+                capabilities: [],
+            },
+        ).steps;
+    } catch (error) {
+        if (!(error instanceof Error)) {
+            throw error;
         }
-    };
 
+        return error.message;
+    }
+}
+
+test("plan a meter's change between releases: keep its aggregation and unit", () => {
     // keep an unchanged meter, and refuse counting another way or in another unit
     expect([outcome("sum", "request"), outcome("max", "call")]).toEqual([
         [],

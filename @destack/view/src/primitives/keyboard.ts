@@ -289,6 +289,13 @@ export function createKeyDown(
         return;
     }
 
+    // call back on the key
+    const listener = (event: KeyboardEvent): void => {
+        if (event.key === key) {
+            callback(event);
+        }
+    };
+
     // listen on the document while enabled, again whenever either changes
     createEffect(
         () => ({
@@ -299,11 +306,6 @@ export function createKeyDown(
             if (isDisabled) {
                 return undefined;
             }
-            const listener = (event: KeyboardEvent): void => {
-                if (event.key === key) {
-                    callback(event);
-                }
-            };
             target.addEventListener("keydown", listener);
 
             return () => target.removeEventListener("keydown", listener);

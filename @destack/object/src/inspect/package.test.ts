@@ -45,20 +45,23 @@ const query = (procedures: ProcedureRouter): ObjectDeclaration => ({
     requireValid: () => {},
 });
 
+/** Define a release of the package with some mounts. */
+function releaseMounts(mounts: Readonly<Record<string, `/${string}`>>) {
+    return definePackage(
+        {
+            ...testIdentity,
+            mounts: Object.entries(mounts).map(([name, path]) =>
+                defineMount({ name, path }, MODULE),
+            ),
+        },
+        MODULE,
+    );
+}
+
 test("plan a package's mount changes: adding is safe, removing or moving breaks callers", () => {
-    // define a release of the package's mounts
-    const release = (mounts: Readonly<Record<string, `/${string}`>>) =>
-        definePackage(
-            {
-                ...testIdentity,
-                mounts: Object.entries(mounts).map(([name, path]) =>
-                    defineMount({ name, path }, MODULE),
-                ),
-            },
-            MODULE,
-        );
-    const before = release({ feed: "/feed", npm: "/npm", retired: "/retired" });
-    const after = release({ feed: "/feed", npm: "/registry", archive: "/archive" });
+    // define two releases of the package's mounts
+    const before = releaseMounts({ feed: "/feed", npm: "/npm", retired: "/retired" });
+    const after = releaseMounts({ feed: "/feed", npm: "/registry", archive: "/archive" });
 
     // plan the added, moved and removed mounts
     expect(comparePackage(entry(before, "2026.8.0"), entry(after, RELEASE)).steps).toEqual([

@@ -228,6 +228,19 @@ async function entitled(finance: Finance, feature: typeof calls) {
     return resolved(await finance.resolutions(ids.buyer), feature.reference);
 }
 
+/** Build a use of one gigabyte of disk in the notes space at a time. */
+function diskUse(name: string, time: number) {
+    return {
+        name,
+        space: spaces.notes,
+        meter: { packageId: storage.id, name: disk.name },
+        quantity: GB,
+        level: GB,
+        sku: diskSku.reference,
+        time,
+    };
+}
+
 test("sum a feature's meters per space and announce its states once", async () => {
     // subscribe the buyer to a free plan storing 1000 bytes, reading two days into the period
     const { finance, offer } = await open({ start: AFTER_STORING });
@@ -663,16 +676,7 @@ test("capture usage before the current billed period as refused", async () => {
     });
 
     // use storage before the period and in it
-    const use = (name: string, time: number) => ({
-        name,
-        space: spaces.notes,
-        meter: { packageId: storage.id, name: disk.name },
-        quantity: GB,
-        level: GB,
-        sku: diskSku.reference,
-        time,
-    });
-    await finance.fixture.use(ids.buyer, [use("1", now - 2 * DAY), use("2", now)]);
+    await finance.fixture.use(ids.buyer, [diskUse("1", now - 2 * DAY), diskUse("2", now)]);
 
     // capture the earlier use as refused, and rate the later one into the period
     expect({

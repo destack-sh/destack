@@ -259,10 +259,6 @@ export const Roles = {
     ): Readonly<Record<string, AccessExpression>> {
         // grant each permission through the roles at or above its role, highest first
         const names = ROLE_PERMISSIONS;
-        const holders = (name: RolePermission) =>
-            ROLES.slice(ROLES.indexOf(PERMISSIONS[name]))
-                .toReversed()
-                .map((role) => relation(role));
 
         // widen each by what the definition adds
         const added = (name: RolePermission) =>
@@ -277,7 +273,7 @@ export const Roles = {
         if (parent === "self") {
             return Object.fromEntries(
                 names.flatMap((name) => [
-                    [`${name}-direct`, union(...holders(name), ...added(name))],
+                    [`${name}-direct`, union(...Roles.holders(name), ...added(name))],
                     [
                         name,
                         union(
@@ -297,9 +293,16 @@ export const Roles = {
         return Object.fromEntries(
             names.map((name) => [
                 name,
-                union(...holders(name), ...inherited(name), ...added(name)),
+                union(...Roles.holders(name), ...inherited(name), ...added(name)),
             ]),
         );
+    },
+
+    /** List the relations of the roles granting a permission, highest first. */
+    holders(name: RolePermission): readonly AccessExpression[] {
+        return ROLES.slice(ROLES.indexOf(PERMISSIONS[name]))
+            .toReversed()
+            .map((role) => relation(role));
     },
 
     /** List the scope types enclosing a definition's objects that share through the roles. */

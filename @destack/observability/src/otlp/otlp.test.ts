@@ -82,6 +82,18 @@ function decode(signal: "logs" | "metrics", body: unknown) {
     return refusal(OtlpResource.decode(new OtlpExport(signal, body), ids.space, testHost().crypto));
 }
 
+/** Emit as a page of the notes installation, under a person or none. */
+function pageEmitter(person?: string) {
+    return new TestEmitter(
+        {
+            [EMITTER_ATTRIBUTES.installation]: NOTES_INSTALLATION,
+            [EMITTER_ATTRIBUTES.build]: NOTES_MANIFEST,
+            ...(person === undefined ? {} : { [EMITTER_ATTRIBUTES.person]: person }),
+        },
+        { name: NOTES.name, version: NOTES.version },
+    );
+}
+
 test("decode spans and records under the forwarder's emitter, keeping personal attributes only under a person", async () => {
     // read a span for dana in her session and two records, one of them for nobody, in the notes instance's resource
     const [traced] = await OtlpResource.decode(
@@ -290,15 +302,6 @@ test("refuse log records and metric points missing what their kind requires, and
 test("take a page's person from its machine alone, refusing a page record naming another, and a workload's from its records", async () => {
     // export as a page, whose machine stamps no instance, verified as a person or anonymous
     const verifiedPerson = "user-01996ab0-0000-7000-8000-0000000000aa";
-    const page = (person?: string) =>
-        new TestEmitter(
-            {
-                [EMITTER_ATTRIBUTES.installation]: NOTES_INSTALLATION,
-                [EMITTER_ATTRIBUTES.build]: NOTES_MANIFEST,
-                ...(person === undefined ? {} : { [EMITTER_ATTRIBUTES.person]: person }),
-            },
-            { name: NOTES.name, version: NOTES.version },
-        );
     const claimed = [{ time: START, name: "note.saved", attributes: { "enduser.id": "dana" } }];
 
     // keep the verified person and the person a workload's record names, and refuse a page's claim of dana
@@ -308,10 +311,12 @@ test("take a page's person from its machine alone, refusing a page record naming
         "person 'dana' is forbidden: a page record names it, and its machine did not verify it",
     ];
     expect({
-        verified: await personsOf(page(verifiedPerson).logs([{ time: START, name: "note.saved" }])),
+        verified: await personsOf(
+            pageEmitter(verifiedPerson).logs([{ time: START, name: "note.saved" }]),
+        ),
         workload: await personsOf(emitter.logs(claimed)),
-        forged: await decode("logs", page(verifiedPerson).logs(claimed)),
-        anonymous: await decode("logs", page().logs(claimed)),
+        forged: await decode("logs", pageEmitter(verifiedPerson).logs(claimed)),
+        anonymous: await decode("logs", pageEmitter().logs(claimed)),
     }).toEqual({
         verified: [verifiedPerson],
         workload: ["dana"],

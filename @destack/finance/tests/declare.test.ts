@@ -75,19 +75,25 @@ function declare(options: FeatureOptions): Feature {
     return defineFeature(options, { package: storage });
 }
 
-test("plan a feature's change between two releases", async () => {
-    // plan from the released seats to a later declaration
-    const plan = (after: Feature) => () =>
-        compareFeature(entry(seats, "2026.9.0"), entry(after, "2026.10.0")).steps;
-    const values = (value: schema.Schema) =>
-        declare({ ...seats.definition, kind: "static", value });
+/** Plan the steps from the released seats to a later declaration. */
+function planSeats(after: Feature) {
+    return compareFeature(entry(seats, "2026.9.0"), entry(after, "2026.10.0")).steps;
+}
 
+/** Declare the seats as a static feature of some values. */
+function staticSeats(value: schema.Schema): Feature {
+    return declare({ ...seats.definition, kind: "static", value });
+}
+
+test("plan a feature's change between two releases", async () => {
     // accept an unchanged feature, widen its values safely, and refuse a narrowing or a change of kind
     expect([
-        plan(seats)(),
-        plan(values(schema.number().int().min(0)))(),
-        await refusal(plan(values(schema.number().int().min(2)))),
-        await refusal(plan(declare({ name: seats.name, description: t`Seats.`, kind: "boolean" }))),
+        planSeats(seats),
+        planSeats(staticSeats(schema.number().int().min(0))),
+        await refusal(() => planSeats(staticSeats(schema.number().int().min(2)))),
+        await refusal(() =>
+            planSeats(declare({ name: seats.name, description: t`Seats.`, kind: "boolean" })),
+        ),
     ]).toEqual([
         [],
         [{ action: "update", target: "feature/seats", risk: "safe", detail: "wider values" }],

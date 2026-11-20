@@ -158,6 +158,13 @@ async function tasks(database: Awaited<ReturnType<typeof open>>["database"]) {
     return database.select().from(task).orderBy(asc(task.id));
 }
 
+/** Build a record that inserts a task into the records scope. */
+function insertRecord(id: string) {
+    return async (recording: DatabaseConnection) => {
+        await recording.insert(task).values({ id, scope: "records", priority: 0 });
+    };
+}
+
 test("commit a transaction's changes, seeing its writes through its overlay, recording each row's first and last image and leaving rows it put back unchanged", async () => {
     const { database, base } = await open();
 
@@ -488,18 +495,15 @@ test("drop a failed step's writes and records as a savepoint does, leaving the w
 
 test("commit the last record of a key alone, and the earlier one once a savepoint drops the later", async () => {
     const { database } = await open();
-    const write = (id: string) => async (recording: DatabaseConnection) => {
-        await recording.insert(task).values({ id, scope: "records", priority: 0 });
-    };
 
     // record a key twice, then a third time in a failed step
     const transaction = await Transaction.open(database);
-    transaction.record(write("first"), "key");
-    transaction.record(write("second"), "key");
-    transaction.record(write("other"));
+    transaction.record(insertRecord("first"), "key");
+    transaction.record(insertRecord("second"), "key");
+    transaction.record(insertRecord("other"));
     await transaction
         .savepoint(async () => {
-            transaction.record(write("dropped"), "key");
+            transaction.record(insertRecord("dropped"), "key");
             throw new Error("refused");
         })
         .catch(() => undefined);

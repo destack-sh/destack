@@ -93,18 +93,20 @@ export function ToggleInput(properties: ToggleInputProperties): JSX.Element {
     // restore the first state when the input's form resets, a task later on the page's clock
     let element: HTMLInputElement | undefined;
     const restoring = new Timeout();
+    const reset = (event: Event) => {
+        // reset the control, then write its state over the one the form restores after the event
+        const input = element;
+        if (input === undefined || event.target !== input.form) {
+            return;
+        }
+        properties.onReset();
+        restoring.set(() => {
+            input.checked = properties.checked;
+        }, 0);
+    };
+
+    // listen for form resets once mounted
     onSettled(() => {
-        const reset = (event: Event) => {
-            // reset the control, then write its state over the one the form restores after the event
-            const input = element;
-            if (input === undefined || event.target !== input.form) {
-                return;
-            }
-            properties.onReset();
-            restoring.set(() => {
-                input.checked = properties.checked;
-            }, 0);
-        };
         document.addEventListener("reset", reset);
 
         return () => document.removeEventListener("reset", reset);

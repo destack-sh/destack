@@ -43,11 +43,6 @@ test("forward a caller with its credential to a runner and read them back, refus
 
 test("require a credential current for its audience and scope until it lapses", async () => {
     // check alice's session at times, audiences and scopes
-    const current = (now: number, scope = "space-a", audience = ACCESS_PACKAGE_ID) =>
-        refusal(
-            Promise.resolve().then(() => Credential.requireCurrent(session, audience, now, scope)),
-        );
-
     expect({
         live: await current(NOW + 59_999),
         lapsed: await current(NOW + 60_000),
@@ -72,6 +67,13 @@ test("require a credential current for its audience and scope until it lapses", 
         ],
     });
 });
+
+/** Require alice's session current at a time, audience and scope, reading its refusal. */
+function current(now: number, scope = "space-a", audience = ACCESS_PACKAGE_ID) {
+    return refusal(
+        Promise.resolve().then(() => Credential.requireCurrent(session, audience, now, scope)),
+    );
+}
 
 test("read the key of a credential and the last moment it stays current", () => {
     expect([

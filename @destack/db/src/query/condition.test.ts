@@ -207,23 +207,13 @@ test("decide random conditions alike in SQL and in memory", async () => {
 
 test("escape a pattern's wildcards with a backslash, refusing an escape ending it", async () => {
     // match literal wildcards and backslashes only where escaped
-    const matching = (pattern: string) =>
-        ["a%", "ab", "a_", "a\\b"].filter((name) =>
-            Predicate.matches(
-                Predicate.compile(
-                    Condition.resolve({ name: { like: pattern } }, Namespace.fields(sample)),
-                    sample,
-                ),
-                { name },
-            ),
-        );
-    expect([matching("a\\%"), matching("a%"), matching("a\\_"), matching("a\\\\b")]).toEqual([
+    expect([namesLike("a\\%"), namesLike("a%"), namesLike("a\\_"), namesLike("a\\\\b")]).toEqual([
         ["a%"],
         ["a%", "ab", "a_", "a\\b"],
         ["a_"],
         ["a\\b"],
     ]);
-    expect(await refusal(() => matching("a\\"))).toEqual([
+    expect(await refusal(() => namesLike("a\\"))).toEqual([
         "BAD_REQUEST",
         "QUERY_INVALID",
         "like pattern is invalid: it cannot end with its escape character",
@@ -256,14 +246,12 @@ test("refuse a descending character range, reading a mixed one as its characters
 
 test("refuse comparing fields that order as different values, and a field the table lacks", async () => {
     // compare text with a number, and a number with a missing field
-    const require = (condition: Condition) => () =>
-        Predicate.require(Condition.resolve(condition, Namespace.fields(sample)), sample);
-    expect(await refusal(require({ name: { gt: { field: "count" } } }))).toEqual([
+    expect(await refusal(() => requireCondition({ name: { gt: { field: "count" } } }))).toEqual([
         "BAD_REQUEST",
         "QUERY_INVALID",
         "comparison is invalid: 'condition_sample.name' ('text' ordering) cannot compare with 'count' ('number' ordering)",
     ]);
-    expect(await refusal(require({ count: { gt: { field: "missing" } } }))).toEqual([
+    expect(await refusal(() => requireCondition({ count: { gt: { field: "missing" } } }))).toEqual([
         "BAD_REQUEST",
         "QUERY_INVALID",
         "column 'missing' is invalid: 'condition_sample' has no such column",
@@ -453,6 +441,24 @@ test("resolve conditions by their row's fields in key order, and read their fiel
     const resolved = Condition.resolve(parsed, new Set(["status", "due", "priority"]));
     expect(JSON.parse(JSON.stringify(resolved))).toEqual(JSON.parse(JSON.stringify(predicate)));
 });
+
+/** Filter sample names to those a like pattern matches. */
+function namesLike(pattern: string): string[] {
+    return ["a%", "ab", "a_", "a\\b"].filter((name) =>
+        Predicate.matches(
+            Predicate.compile(
+                Condition.resolve({ name: { like: pattern } }, Namespace.fields(sample)),
+                sample,
+            ),
+            { name },
+        ),
+    );
+}
+
+/** Require a condition to compare fields of the sample table. */
+function requireCondition(condition: Condition) {
+    return Predicate.require(Condition.resolve(condition, Namespace.fields(sample)), sample);
+}
 
 /** Read the refusal of a field's comparisons that are neither a value nor known comparisons. */
 function invalidField(name: string): readonly string[] {

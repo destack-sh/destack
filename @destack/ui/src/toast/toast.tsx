@@ -367,13 +367,16 @@ export function Toaster(properties: ToasterProperties): JSX.Element {
 
 /** Move the focus to an element on Alt+T once mounted. */
 function focusOnShortcut(target: () => HTMLElement | undefined): void {
+    // focus the target on Alt+T
+    const focus = (event: KeyboardEvent) => {
+        if (event.altKey && event.code === "KeyT") {
+            event.preventDefault();
+            target()?.focus();
+        }
+    };
+
+    // listen for the shortcut once mounted
     onSettled(() => {
-        const focus = (event: KeyboardEvent) => {
-            if (event.altKey && event.code === "KeyT") {
-                event.preventDefault();
-                target()?.focus();
-            }
-        };
         document.addEventListener("keydown", focus);
 
         return () => document.removeEventListener("keydown", focus);

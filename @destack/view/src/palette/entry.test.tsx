@@ -54,9 +54,12 @@ const ENTRIES: readonly PaletteEntry[] = [
     },
 ];
 
+/** Rank the entries for a query and focus, reading their titles. */
+function titles(query: string, focus: Parameters<typeof Palette.rank>[2]): string[] {
+    return Palette.rank(ENTRIES, query, focus).map((entry) => entry.title);
+}
+
 test("rank entries by how their title matches, the focused window's space, installation and objects first", () => {
-    const titles = (query: string, focus: Parameters<typeof Palette.rank>[2]) =>
-        Palette.rank(ENTRIES, query, focus).map((entry) => entry.title);
     const note = { packageId: NOTES, type: "note", scope: HOME, id: "note-1" };
 
     expect([

@@ -78,18 +78,16 @@ test("declare a package's reasons, convert their failures to call errors, tell i
 
 test("refuse data that breaks a reason's schema", () => {
     // fail with a holder shorter than the schema allows
-    const failed = () =>
+    let issues: unknown;
+    try {
         NoteError.of("NOTE_BLOCKED", "cannot edit note 'note-1': it is locked", {
             data: { holder: "a" },
         });
-
-    // refuse it with the schema's one issue on the holder
-    let issues: unknown;
-    try {
-        failed();
     } catch (error) {
         issues = error instanceof schema.Error ? error.issues : error;
     }
+
+    // refuse it with the schema's one issue on the holder
     expect(issues).toEqual([
         {
             origin: "string",

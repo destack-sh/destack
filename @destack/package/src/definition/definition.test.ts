@@ -28,21 +28,11 @@ test("read the packages whose build extensions compile a package, refusing an em
 
 test("read the modules a host starts, refusing an empty list and a path outside the package", () => {
     // read a definition listing a Worker script, then one listing none and one escaping the package
-    const read = (entrypoints: readonly string[]) => {
-        try {
-            return PackageDefinition.read(
-                JSON.stringify({ ...JSON.parse(definition(["@destack/style"])), entrypoints }),
-            ).entrypoints;
-        } catch (error) {
-            return error instanceof Error ? error.name : error;
-        }
-    };
-
-    expect([read(["src/worker.ts"]), read([]), read(["../outside.ts"])]).toEqual([
-        ["src/worker.ts"],
-        "ZodError",
-        "ZodError",
-    ]);
+    expect([
+        readEntrypoints(["src/worker.ts"]),
+        readEntrypoints([]),
+        readEntrypoints(["../outside.ts"]),
+    ]).toEqual([["src/worker.ts"], "ZodError", "ZodError"]);
 });
 
 /** Write a destack.json listing extensions. */
@@ -55,6 +45,17 @@ function definition(extensions: readonly string[]): string {
         runtimes: ["browser"],
         extensions,
     });
+}
+
+/** Read the entrypoints of a definition listing some, or the name of its refusal. */
+function readEntrypoints(entrypoints: readonly string[]) {
+    try {
+        return PackageDefinition.read(
+            JSON.stringify({ ...JSON.parse(definition(["@destack/style"])), entrypoints }),
+        ).entrypoints;
+    } catch (error) {
+        return error instanceof Error ? error.name : error;
+    }
 }
 
 test("refuse an app's server and providers, test kits and any app in a builtin, outside the importing package and its tests", () => {

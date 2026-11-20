@@ -222,6 +222,12 @@ export function createDropzone<Target extends HTMLElement = HTMLElement>(
     const [isDragging, setIsDragging] = createSignal(false, { ownedWrite: true });
     const [zone, setZone] = createSignal<Target | undefined>(undefined, { ownedWrite: true });
 
+    // allow drops over the zone
+    const over = (event: DragEvent): void => {
+        event.preventDefault();
+        void options.onDragOver?.(event);
+    };
+
     // follow drags over the zone, counting nested enters, and take the files on drop
     createEffect(
         zone,
@@ -243,10 +249,6 @@ export function createDropzone<Target extends HTMLElement = HTMLElement>(
                     setIsDragging(false);
                     void options.onDragLeave?.(event);
                 }
-            };
-            const over = (event: DragEvent): void => {
-                event.preventDefault();
-                void options.onDragOver?.(event);
             };
             const drop = (event: DragEvent): void => {
                 // stop the drag

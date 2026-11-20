@@ -38,6 +38,13 @@ const Calls = schema.array(
     schema.looseObject({ data: schema.looseObject({ method: schema.string() }) }),
 );
 
+/** Read the identifier and name of the last installation a command printed. */
+function identify(printed: { readonly output: string }) {
+    const { id, name } = Installed.parse(jsonLines(printed.output).at(-1));
+
+    return [id, name];
+}
+
 test("install a published app, returning once the space serves its revision", async () => {
     // open the owner's home, the notebooks published by their acme organization
     const terminal = await TerminalFixture.open({ NO_COLOR: "1" }, [], ACME);
@@ -121,11 +128,6 @@ test("keep a package's one installation on a second install, and refuse another 
     // install them again, under no name and under another
     const again = await run(["install", "@acme/notebooks", "--json"]);
     const renamed = await run(["install", "@acme/notebooks", "--name", "journal"]);
-    const identify = (printed: { readonly output: string }) => {
-        const { id, name } = Installed.parse(jsonLines(printed.output).at(-1));
-
-        return [id, name];
-    };
     expect({
         installed: [first.code, again.code, identify(again)],
         renamed: [renamed.code, renamed.error],

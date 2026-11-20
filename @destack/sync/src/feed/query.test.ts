@@ -38,6 +38,11 @@ const TASK = {
     isSecret: false,
 };
 
+/** Build some tasks numbered from an index. */
+function numberedTasks(from: number, count: number) {
+    return Array.from({ length: count }, (_, index) => ({ ...TASK, id: `t${from + index}` }));
+}
+
 /** Decide whether the test audience lets its subscriber edit a task: one ranked below five. */
 function isEditable(row: Row): boolean {
     return typeof row["rank"] === "number" && row["rank"] < 5;
@@ -361,8 +366,6 @@ test("page catch-up changes between transactions", async () => {
     );
     const start = await database.log.position();
     const signal = AbortSignal.timeout(5000);
-    const tasks = (from: number, count: number) =>
-        Array.from({ length: count }, (_, index) => ({ ...TASK, id: `t${from + index}` }));
 
     // commit one transaction of more tasks than a page and two of fewer
     for (const [from, count] of [
@@ -371,7 +374,7 @@ test("page catch-up changes between transactions", async () => {
         [9, 3],
     ] as const) {
         await database.transaction(async (transaction) => {
-            await transaction.insert(task).values(tasks(from, count));
+            await transaction.insert(task).values(numberedTasks(from, count));
         });
     }
 

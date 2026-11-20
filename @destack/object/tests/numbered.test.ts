@@ -383,42 +383,44 @@ test("leave an order created on a device unnumbered until its store numbers it, 
 
 test("refuse numbering within a column some objects lack, and moving many numbered objects at once", () => {
     // declare issues numbered within an optional team, and issues moved between teams in bulk
-    const declare = (within: { optional: boolean }, methods: "update" | "updateMany") => () =>
-        defineObject(
-            {
-                name: "ticket",
-                plural: "tickets",
-                title: t`${plural(argument("count"), { one: "Ticket", other: "Tickets" })}`,
-                scope: space,
-                fields: {
-                    team: within.optional
-                        ? field.reference(team, { delete: "restrict" }).optional()
-                        : field.reference(team, { delete: "restrict" }),
-                    title: field.string(),
-                },
-                traits: [numbered({ within: "teamId" }), shareable({})],
-            },
-            (method) =>
-                methods === "update"
-                    ? { update: method.update("manage", { fields: ["teamId"] }) }
-                    : {
-                          move: method.updateMany("manage", {
-                              fields: ["teamId"],
-                              match: ["title"],
-                          }),
-                      },
-        ).requireValid();
-
     expect([
-        refusalOf(declare({ optional: true }, "update")),
-        refusalOf(declare({ optional: false }, "updateMany")),
-        refusalOf(declare({ optional: false }, "update")),
+        refusalOf(() => declareTicket({ optional: true }, "update")),
+        refusalOf(() => declareTicket({ optional: false }, "updateMany")),
+        refusalOf(() => declareTicket({ optional: false }, "update")),
     ]).toEqual([
         "object 'ticket' numbers within 'teamId', which every object must have",
         "object ticket numbers within 'teamId', so it cannot apply many updates to it at once",
         "declared",
     ]);
 });
+
+/** Declare tickets numbered within a team, moved one at a time or in bulk. */
+function declareTicket(within: { optional: boolean }, methods: "update" | "updateMany") {
+    return defineObject(
+        {
+            name: "ticket",
+            plural: "tickets",
+            title: t`${plural(argument("count"), { one: "Ticket", other: "Tickets" })}`,
+            scope: space,
+            fields: {
+                team: within.optional
+                    ? field.reference(team, { delete: "restrict" }).optional()
+                    : field.reference(team, { delete: "restrict" }),
+                title: field.string(),
+            },
+            traits: [numbered({ within: "teamId" }), shareable({})],
+        },
+        (method) =>
+            methods === "update"
+                ? { update: method.update("manage", { fields: ["teamId"] }) }
+                : {
+                      move: method.updateMany("manage", {
+                          fields: ["teamId"],
+                          match: ["title"],
+                      }),
+                  },
+    ).requireValid();
+}
 
 /** Read the message a declaration throws. */
 function refusalOf(declare: () => unknown): string {
