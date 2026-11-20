@@ -1,11 +1,13 @@
 {
-    "name": "@destack/control",
+    "name": "@destack/universe",
     "type": "module",
     "license": "Apache-2.0",
     "sideEffects": false,
-    "description": "Run a universe: the account, object, setting and control packages over one store at one origin.",
+    "description": "Run a universe: the account, object, setting and universe packages over one store at one origin.",
     "exports": {
         ".": "./src/index.ts",
+        "./bun": "./src/bun/index.ts",
+        "./cloudflare/worker": "./src/cloudflare/worker.ts",
         "./error": "./src/error/index.ts",
         "./package": "./src/package.ts",
         "./test": "./src/test/index.ts",
@@ -15,6 +17,7 @@
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
         "@destack/bucket": "workspace:*",
+        "@destack/build": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
@@ -29,9 +32,12 @@
         "@destack/schema": "workspace:*",
         "@destack/setting": "workspace:*",
         "@destack/sync": "workspace:*",
-        "@destack/workflow": "workspace:*"
+        "@destack/telemetry": "workspace:*",
+        "@destack/workflow": "workspace:*",
+        "reflect-metadata": "0.2.2"
     },
     "devDependencies": {
+        "@cloudflare/workers-types": "5.20260917.1",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.4"
     }

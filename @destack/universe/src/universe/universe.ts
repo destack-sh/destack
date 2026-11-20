@@ -1,5 +1,4 @@
 import {
-    DOMAINS,
     Directory,
     InstallationOrigin,
     type UniverseLink,
@@ -19,8 +18,12 @@ import { OAuthError } from "@destack/account/authentication";
 import { Bookmark } from "@destack/object/client";
 import { Account, claim, Residency } from "@destack/account/object";
 import registryPackage from "@destack/registry/package";
+import { packageObject } from "@destack/registry/object";
+import { RegistryError } from "@destack/registry/error";
+import { RemoteBuildStore } from "@destack/build/store";
+import type { BuildLayer } from "@destack/package/manifest";
 import accountPackage from "@destack/account/package";
-import { ACCESS_TOKEN_TYPE, TokenLifetime } from "@destack/account/oauth";
+import { ACCESS_TOKEN_TYPE } from "@destack/account/oauth";
 import {
     accountServer,
     DnsOverHttps,
@@ -34,19 +37,18 @@ import { call, type CallKey, type Fetch, PackageMount, tablesOf } from "@destack
 import { ObjectConnectionHost, Health, Server } from "@destack/object/server";
 import objectServer, { implementPackage, ObjectStore } from "@destack/object/server";
 import { PackageVersion, PackageId, PackageRelease } from "@destack/package";
-import { type Policy } from "@destack/access";
 import { ResourceContext } from "@destack/resource/context";
-import { Digest, schema } from "@destack/schema";
+import { Digest, present, schema } from "@destack/schema";
 import type { Publisher } from "@destack/sync";
 import { RequestId, Scope } from "@destack/sync";
 import { settingServer } from "@destack/setting/server";
 import settingPackage from "@destack/setting/package";
 import objectPackage from "@destack/object/package";
-import controlPackage from "../package.ts";
+import universePackage from "../package.ts";
 import { Run } from "@destack/workflow";
 import { apply } from "./apply.ts";
 import { UniverseDefinition } from "./definition.ts";
-import { ControlError } from "../error/error.ts";
+import { UniverseError } from "../error/error.ts";
 import type { Environment } from "@destack/environment";
 
 /** The schema the universe's tables live in, PostgreSQL's default. */
@@ -56,11 +58,11 @@ export const UNIVERSE_SCHEMA = "public";
 const DRAIN_MILLISECONDS = 5000;
 
 /** What a host runs a universe with. */
-export interface ControlOptions {
+export interface UniverseOptions {
     /** The universe's definition. */
     readonly definition: UniverseDefinition;
-    /** The universe's origin, below which each package answers at its mount. */
-    readonly origin: string;
+    /** The universe's address, below whose origin each package answers at its mount. */
+    readonly origin: UniverseOrigin;
     /** The migrated account database. */
     readonly database: DatabaseConnection;
     /** The universe's root keys, which store its identity keys and derive its secrets. */
@@ -83,27 +85,17 @@ export interface ControlOptions {
     readonly alarm?: Alarm;
     /** Report a failure the universe answers to no one. */
     readonly report: (error: unknown) => void;
-    /** Open the registry of packages' releases over the universe's directory and signed fetch. */
-    readonly releases: (universe: ControlLink) => ReleaseRegistry;
-    /** The policies of other packages the universe decides access for, such as the forge's. */
-    readonly policies: readonly Policy[];
-    /** The access token lifetimes longer than the default minute, by audience. */
-    readonly lifetimes: ReadonlyMap<PackageId, number>;
-}
-
-/** What a universe lends a registry of releases: its directory and its fetch signed as itself. */
-export interface ControlLink {
-    /** The universe's directory, its own rows read live. */
-    readonly directory: Directory;
-    /** Create a fetch calling a package as the universe. */
-    readonly connect: (audience: PackageId) => Fetch;
+    /** The releases the universe's distribution has, which it opens before any forge's. */
+    readonly distribution: readonly PackageRelease[];
+    /** The builds of the distribution's releases. */
+    readonly layer: BuildLayer;
 }
 
 /** The packages of the universe itself, which its store serves acting as the universe. */
-export const UNIVERSE_PACKAGES = [objectPackage, accountPackage, settingPackage, controlPackage];
+export const UNIVERSE_PACKAGES = [objectPackage, accountPackage, settingPackage, universePackage];
 
-/** The control running a universe: its packages over one store, each below its mount. */
-export class Control implements AsyncDisposable {
+/** A running universe: its packages over one store, each below its mount. */
+export class Universe implements AsyncDisposable {
     /** The universe's database: the packages its store serves. */
     static readonly database = defineDatabase({
         name: "account",
@@ -114,6 +106,8 @@ export class Control implements AsyncDisposable {
         }),
     });
 
+    /** The universe's address: its origin and its domains. */
+    readonly origin: UniverseOrigin;
     /** What the universe declares. */
     readonly definition: UniverseDefinition;
     /** The server of each package, by its identifier. */
@@ -135,8 +129,9 @@ export class Control implements AsyncDisposable {
     /** Sends to other origins, and to the universe's own in process. */
     readonly #send: Fetch;
 
-    /** Create a started control. */
+    /** Create a started universe. */
     private constructor(
+        origin: UniverseOrigin,
         definition: UniverseDefinition,
         servers: ReadonlyMap<string, Server>,
         store: ObjectStore,
@@ -151,6 +146,7 @@ export class Control implements AsyncDisposable {
         send: Fetch,
     ) {
         // keep the definition, the servers, the store, the issuer, the connections and the store's loop
+        this.origin = origin;
         this.definition = definition;
         this.servers = servers;
         this.store = store;
@@ -164,14 +160,15 @@ export class Control implements AsyncDisposable {
     }
 
     /** Migrate the universe's database to this release, then start its packages over it. */
-    static async start(options: ControlOptions): Promise<Control> {
+    static async start(options: UniverseOptions): Promise<Universe> {
         // read the universe's options at the start time
-        const { origin, database, keyring, callKey, definition } = options;
+        const { database, keyring, callKey, definition } = options;
+        const { origin } = options.origin;
         const { clock, network } = options.environment;
         const now = clock.now();
 
         // migrate the universe's tables
-        await database.migrate(Control.database.tables);
+        await database.migrate(Universe.database.tables);
 
         // record the universe's calls as call events, their segments in the bucket
         const events = new EventStore({
@@ -182,11 +179,10 @@ export class Control implements AsyncDisposable {
             environment: options.environment,
         });
 
-        // bind the parts that need the store once it exists: the account server's sign-in stores
-        //  through the store, and the universe's signed fetch registers its identity there
+        // resolve the sign-in, the session and the universe once the store exists
         const signIn = Promise.withResolvers<BetterAuthAuthenticator>();
         const connected = Promise.withResolvers<Session>();
-        const serving = Promise.withResolvers<Control>();
+        const serving = Promise.withResolvers<Universe>();
 
         // call residency homes as the universe once its identity exists
         const connect =
@@ -198,7 +194,54 @@ export class Control implements AsyncDisposable {
         // follow each residency home over one publisher, closed with the universe
         const publishers = new Map<string, Publisher>();
         const following = new DisposableStack();
-        const releases = options.releases({ directory, connect });
+        const releases: ReleaseRegistry = {
+            open: async (packageId, named) => {
+                // open a release of the distribution from its layer
+                const distributed = PackageRelease.select(options.distribution, packageId, named);
+                if (distributed !== undefined) {
+                    const image = present(
+                        options.layer.image(distributed.image),
+                        `image ${distributed.image}`,
+                    );
+
+                    return await present(options.layer.build(image.root), `build ${image.root}`);
+                }
+
+                // find the forge in the home of the package's publisher, refusing a package none claims
+                const owner = await directory.owner(packageObject, packageId);
+                if (owner === undefined) {
+                    throw RegistryError.of(
+                        "PUBLISHER_NOT_FOUND",
+                        `owning account for '${packageId}' not found`,
+                    );
+                }
+                const home = await Account.locate(directory.snapshot, owner);
+                const fetch = connect(registryPackage.id);
+
+                // resolve the release there as the universe, then open its root build
+                const registry = directory.client(
+                    registryPackage,
+                    home,
+                    fetch,
+                    options.environment,
+                );
+                const found = await registry.release.resolve({
+                    spaceId: home,
+                    parentId: packageId,
+                    release: named,
+                });
+                const mount = await directory.package(home, registryPackage.id, clock.now());
+                const builds = `${mount}${registryPackage.mounts.builds.path}`;
+
+                return await RemoteBuildStore.open(
+                    builds,
+                    fetch,
+                    found.image,
+                    options.environment.crypto,
+                );
+            },
+            distribution: options.distribution,
+        };
 
         // apply the residencies, then each step of the platform's definition, once per run
         const applied = apply.implement({
@@ -220,17 +263,18 @@ export class Control implements AsyncDisposable {
             },
         });
 
-        // serve the object, account, setting and control packages over one store, acting as the universe
+        // serve the object, account, setting and universe packages over one store, acting as the universe
         const implementations = [
             objectServer,
             accountServer({
+                universe: options.origin,
                 resolver: new DnsOverHttps((request) => network.fetch(request)),
                 stacks: definition.platform.stacks,
                 signIn: signIn.promise,
                 releases,
             }),
             settingServer({ after: [] }),
-            implementPackage(controlPackage, { objects: applied.objects }),
+            implementPackage(universePackage, { objects: applied.objects }),
         ];
         const store: ObjectStore = new ObjectStore({
             // open the version a value names, else the release the universe runs: the distribution's
@@ -245,7 +289,6 @@ export class Control implements AsyncDisposable {
             chain: async () => undefined,
             principal: Scope.universe,
             partitions: [Scope.universe.id],
-            policies: options.policies,
             database,
             blobs: options.blobs,
             claims: { object: claim },
@@ -308,19 +351,17 @@ export class Control implements AsyncDisposable {
 
         // key the universe's sensitive columns with its identity's column key
         await keystore.key(database, Scope.universe.id);
-        const issuer = UniverseOrigin.issuer(origin);
+        const { issuer } = options.origin;
         signIn.resolve(
             await BetterAuthAuthenticator.create({
                 keystore,
                 callKey,
-                issuer,
-                trustedOrigins: [origin],
+                universe: options.origin,
                 ipAddress: options.ipAddress,
                 database,
                 providers: options.providers,
                 objects: store,
                 events,
-                lifetime: new TokenLifetime(options.lifetimes),
                 mail: options.mail,
             }),
         );
@@ -346,7 +387,7 @@ export class Control implements AsyncDisposable {
         const ready = async (signal: AbortSignal) => {
             const run = await applying.ended(database, signal);
             if (run.row.state !== "completed") {
-                throw ControlError.of(
+                throw UniverseError.of(
                     "DEFINITION_UNAVAILABLE",
                     `definition '${digest}' is unavailable: its run is '${run.row.state}'`,
                     { cause: run.row.failure },
@@ -385,7 +426,7 @@ export class Control implements AsyncDisposable {
         // serve the issuer through the account package's server, which every universe serves
         const accounts = servers.get(accountPackage.id);
         if (accounts === undefined) {
-            throw ControlError.of("ISSUER_BROKEN", "the universe serves no account package");
+            throw UniverseError.of("ISSUER_BROKEN", "the universe serves no account package");
         }
         // run the store's jobs in its loop
         const stopping = new AbortController();
@@ -397,7 +438,8 @@ export class Control implements AsyncDisposable {
             connections.serve(PackageId.parse(packageId), server);
         }
         const exchanger = new Issuer(issuer, identity.send, options.environment, new Bookmark());
-        const control = new Control(
+        const universe = new Universe(
+            options.origin,
             definition,
             servers,
             store,
@@ -407,9 +449,9 @@ export class Control implements AsyncDisposable {
             exchanger,
             identity.send,
         );
-        serving.resolve(control);
+        serving.resolve(universe);
 
-        return control;
+        return universe;
     }
 
     /** Serve a request at the universe's origin: the issuer, a link, else a package's path. */
@@ -436,11 +478,12 @@ export class Control implements AsyncDisposable {
     async #open(link: UniverseLink, request: Request): Promise<Response> {
         // redirect an app by rewriting its path into its installation's hostname
         if (link.kind === "app") {
-            const hostname = InstallationOrigin.format(link.installation, DOMAINS.space);
+            const { domains } = this.origin;
+            const hostname = InstallationOrigin.format(link.installation, domains.space);
 
             return new Response(null, {
                 status: 303,
-                headers: { location: `https://${hostname}/` },
+                headers: { location: `${this.origin.url(hostname)}/` },
             });
         }
 

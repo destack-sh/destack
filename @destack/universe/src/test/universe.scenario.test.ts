@@ -4,31 +4,30 @@ import { present, schema } from "@destack/schema";
 import registryPackage from "@destack/registry/package";
 import { Account, group, Placement } from "@destack/account/object";
 import accountPackage from "@destack/account/package";
-import { DOMAINS, MachineAddress } from "@destack/account/address";
 import { expect, onTestFinished, test } from "@destack/test";
 import { TestMachine } from "./machine.ts";
-import { TestControl } from "./control.ts";
+import { TEST_UNIVERSE, TestUniverse } from "./universe.ts";
 
 test("sign a person up through the mailed code a native client redeems, make an example's calls in their account, and refuse an example it cannot make", async () => {
     // start the universe and sign ada up, as a native client signs a new person in
-    await using universe = await TestControl.open();
-    const ada = await universe.signIn("ada@example.test");
+    await using started = await TestUniverse.open();
+    const ada = await started.signIn("ada@example.test");
 
     // make a group in her personal account through the example's calls, then settle
-    await universe.given(
+    await started.given(
         { objects: { account: [{ object: group, method: "create", input: { name: "Friends" } }] } },
         ada,
     );
-    await universe.simulation.idle();
+    await started.simulation.idle();
 
     // read the group as ada, and refuse a scope or a type the universe does not serve
     const listed = await ada.client(accountPackage).group.list({ scope: ada.account });
     expect(listed.items.map((item) => item.name)).toEqual(["Friends"]);
-    await expect(universe.given({ objects: { space: [] } }, ada)).rejects.toThrow(
+    await expect(started.given({ objects: { space: [] } }, ada)).rejects.toThrow(
         new TypeError("the test universe serves accounts alone, not the example's 'space'"),
     );
     await expect(
-        universe.given(
+        started.given(
             { objects: { account: [{ object: { name: "ledger" }, method: "create", input: {} }] } },
             ada,
         ),
@@ -37,10 +36,10 @@ test("sign a person up through the mailed code a native client redeems, make an 
 
 test("place a person's home on their residency's cloud machine, as the machine's directory replica reads it", async () => {
     // sign ada up and follow the directory as the residency's machine
-    await using universe = await TestControl.open();
-    const ada = await universe.signIn("ada@example.test");
-    const machine = await universe.machine();
-    await universe.simulation.idle();
+    await using started = await TestUniverse.open();
+    const ada = await started.signIn("ada@example.test");
+    const machine = await started.machine();
+    await started.simulation.idle();
 
     // read the placement of her home in the replica
     const home = Account.home(ada.account);
@@ -50,14 +49,14 @@ test("place a person's home on their residency's cloud machine, as the machine's
 
 test("forward Git for a repository link to its account's registry as the caller, refusing a token the issuer refuses and an unknown handle", async () => {
     // sign ada up, place the residency's home, and answer as its machine, recording what arrives
-    await using universe = await TestControl.open();
-    const ada = await universe.signIn("ada@example.test");
-    const machine = await universe.machine();
-    await universe.simulation.idle();
-    const home = await Account.locate(Snapshot.live(universe.control.store.database), ada.account);
-    const url = new URL(await machine.directory.answering(machine.id, universe.clock.now()));
+    await using started = await TestUniverse.open();
+    const ada = await started.signIn("ada@example.test");
+    const machine = await started.machine();
+    await started.simulation.idle();
+    const home = await Account.locate(Snapshot.live(started.universe.store.database), ada.account);
+    const url = new URL(await machine.directory.answering(machine.id, started.clock.now()));
     const received: { readonly url: string; readonly authorization: string | null }[] = [];
-    const listener = universe.simulation.network.server("registry-machine").http({
+    const listener = started.simulation.network.server("registry-machine").http({
         hostname: url.hostname,
         port: Number(url.port || "443"),
         fetch: (request) => {
@@ -73,8 +72,8 @@ test("forward Git for a repository link to its account's registry as the caller,
 
     // ask as git does: anonymously, with ada's account token, with a token the issuer refuses, and for an unknown handle
     const ask = async (path: string, token?: string) => {
-        const response = await universe.control.fetch(
-            new Request(`https://${DOMAINS.universe}${path}`, {
+        const response = await started.universe.fetch(
+            new Request(`${TEST_UNIVERSE.origin}${path}`, {
                 headers: token === undefined ? {} : { authorization: `Bearer ${token}` },
             }),
         );
@@ -128,25 +127,25 @@ test("forward Git for a repository link to its account's registry as the caller,
 
 test("enroll a person's machine of their account, published at its name through its residency's relay, as the directory reads it", async () => {
     // enroll ada's machine in her personal account behind a relay, and follow the directory as it
-    await using universe = await TestControl.open();
-    const ada = await universe.signIn("ada@example.test");
-    const machine = await universe.enroll(ada, ada.account, "https://eu.relay.test");
-    await universe.simulation.idle();
+    await using started = await TestUniverse.open();
+    const ada = await started.signIn("ada@example.test");
+    const machine = await started.enroll(ada, ada.account, "https://eu.relay.test");
+    await started.simulation.idle();
 
     // locate the machine at its name below her handle
     const name = { machine: TestMachine.nameOf(machine.id), handle: ada.handle };
-    expect(await machine.directory.answering(machine.id, universe.clock.now())).toBe(
-        `https://${MachineAddress.format(name, DOMAINS.machine)}`,
+    expect(await machine.directory.answering(machine.id, started.clock.now())).toBe(
+        TEST_UNIVERSE.machine(name),
     );
 });
 
 test("redirect an app link to its installation, and refuse a bare handle", async () => {
     // sign ada up
-    await using universe = await TestControl.open();
-    const ada = await universe.signIn("ada@example.test");
+    await using started = await TestUniverse.open();
+    const ada = await started.signIn("ada@example.test");
     const open = async (path: string) => {
-        const response = await universe.control.fetch(
-            new Request(`https://${DOMAINS.universe}${path}`),
+        const response = await started.universe.fetch(
+            new Request(`${TEST_UNIVERSE.origin}${path}`),
         );
 
         return [response.status, response.headers.get("location"), await response.text()];
@@ -154,7 +153,7 @@ test("redirect an app link to its installation, and refuse a bare handle", async
 
     // open her app, and her bare handle, which names no link
     expect([await open(`/@${ada.handle}/home/notes`), await open(`/@${ada.handle}`)]).toEqual([
-        [303, `https://notes--home--${ada.handle}.${DOMAINS.space}/`, ""],
+        [303, `https://notes--home--${ada.handle}.${TEST_UNIVERSE.domains.space}/`, ""],
         [404, null, ""],
     ]);
 });

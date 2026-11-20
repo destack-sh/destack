@@ -20,7 +20,7 @@ import { TestObjectStore } from "@destack/object/test";
 import { PackageVersion, type PackageId } from "@destack/package";
 import { Identifier, schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
-import controlPackage from "../package.ts";
+import universePackage from "../package.ts";
 
 /** A test machine's state beside its database: the keyring secrets of the spaces' keys. */
 export const MachineWorld = schema.object({
@@ -42,8 +42,8 @@ export class TestMachine implements AsyncDisposable {
     readonly directory: Directory;
     /** The universe's registry of identities, called as the machine. */
     readonly identities: IdentityRegistry;
-    /** The account package's URL at the universe, and the universe's issuer. */
-    readonly universe: { readonly accounts: string; readonly issuer: string };
+    /** The universe the machine enrolled at. */
+    readonly universe: UniverseOrigin;
     /** The machine's proven identity, signing its calls to the universe. */
     readonly identity: MachineKey;
     /** Send a request to the universe in process. */
@@ -72,7 +72,7 @@ export class TestMachine implements AsyncDisposable {
         readonly identity: MachineKey;
         readonly keyring: LocalKeyring;
         readonly environment: Environment;
-        readonly origin: string;
+        readonly origin: UniverseOrigin;
         readonly send: Fetch;
         readonly replica: TestObjectStore;
         readonly storage: TestDatabase;
@@ -80,11 +80,10 @@ export class TestMachine implements AsyncDisposable {
         readonly isOwned: boolean;
     }) {
         // keep the machine's identity and its replica
-        const accounts = PackageMount.url(fields.origin, accountPackage.id);
         this.id = fields.identity.machineId;
         this.environment = fields.environment;
         this.keyring = fields.keyring;
-        this.universe = { accounts, issuer: UniverseOrigin.issuer(fields.origin) };
+        this.universe = fields.origin;
         this.identity = fields.identity;
         this.#send = fields.send;
         this.#replica = fields.replica;
@@ -97,7 +96,10 @@ export class TestMachine implements AsyncDisposable {
         this.identities = IdentityRegistry.client(
             createClient(
                 accountPackage,
-                { url: accounts, fetch: this.fetch(accountPackage.id) },
+                {
+                    url: PackageMount.url(fields.origin.origin, accountPackage.id),
+                    fetch: this.fetch(accountPackage.id),
+                },
                 fields.environment,
             ),
             fields.environment,
@@ -125,8 +127,8 @@ export class TestMachine implements AsyncDisposable {
         readonly id: Identifier<"machine">;
         /** The keychain keeping the machine's declared key. */
         readonly keychain: MemoryKeychain;
-        /** The universe's origin. */
-        readonly origin: string;
+        /** The universe's address. */
+        readonly origin: UniverseOrigin;
         /** Send a request to the universe in process. */
         readonly send: Fetch;
         /** The clock, network and randomness the machine runs in. */
@@ -141,15 +143,18 @@ export class TestMachine implements AsyncDisposable {
         const identity = new MachineKey(id, keychain, environment);
         const kept = new MemoryKeychain(options.world?.secrets);
         const keyring = await LocalKeyring.open(kept, id, environment);
-        const issuer = UniverseOrigin.issuer(origin);
-        const store = TestMachine.#session(identity, issuer, origin, send, environment).connect(
-            accountPackage,
-            origin,
-        );
+        const { issuer } = origin;
+        const store = TestMachine.#session(
+            identity,
+            issuer,
+            origin.origin,
+            send,
+            environment,
+        ).connect(accountPackage, origin.origin);
 
         // follow the directory, the identities and the machine's assignments as the machine, into the given database or a new one
         const follows = TestMachine.#follows(id);
-        const handle = Package.of(PackageVersion.of(controlPackage), { objects: [] });
+        const handle = Package.of(PackageVersion.of(universePackage), { objects: [] });
         const storage =
             options.storage ??
             (await TestDatabase.create(TestMachine.database, {
@@ -171,7 +176,7 @@ export class TestMachine implements AsyncDisposable {
             }),
             database: storage.database,
             environment,
-            origin: { package: PackageVersion.of(controlPackage), machineId: id },
+            origin: { package: PackageVersion.of(universePackage), machineId: id },
             machine: id,
         });
 
@@ -207,9 +212,11 @@ export class TestMachine implements AsyncDisposable {
             this.identity.at(this.universe.issuer, this.#send).authorize(request, audience, {});
     }
 
-    /** Read the machine's access token for a package, as the universe grants it. */
-    token(audience: PackageId): Promise<string> {
-        return this.identity.at(this.universe.issuer, this.#send).token(audience, {});
+    /** Read the machine's access token for a package, lasting as asked. */
+    token(audience: PackageId, lifetime?: number): Promise<string> {
+        const binding = lifetime === undefined ? {} : { lifetime };
+
+        return this.identity.at(this.universe.issuer, this.#send).token(audience, binding);
     }
 
     /** Call packages as a machine, with the tokens the universe's issuer grants its key. */

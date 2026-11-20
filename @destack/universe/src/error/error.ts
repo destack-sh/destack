@@ -1,8 +1,8 @@
 import { defineErrorFamily, type ReasonOf } from "@destack/error";
 import type {} from "@destack/package/import-meta";
 
-/** The control package's failures, each reason with the call error code it answers. */
-export const ControlError = defineErrorFamily({
+/** The universe package's failures, each reason with the call error code it answers. */
+export const UniverseError = defineErrorFamily({
     reasons: {
         // unavailable
         DEFINITION_UNAVAILABLE: {},
@@ -12,5 +12,5 @@ export const ControlError = defineErrorFamily({
     },
 });
 
-/** A stable cause of control failures. */
-export type ControlReason = ReasonOf<typeof ControlError>;
+/** A stable cause of universe failures. */
+export type UniverseReason = ReasonOf<typeof UniverseError>;
