@@ -1,5 +1,3 @@
-import { DOMAINS } from "@destack/account/address";
-import { Universe } from "@destack/update/release";
 import { PackageMount, SpaceMount } from "@destack/object";
 import { PackageId } from "@destack/package";
 import { type Identifier, schema } from "@destack/schema";
@@ -17,6 +15,14 @@ const CAPABILITY_PREFIX = "capability[]=";
 /** The variable moving the local machine off its fixed port. */
 const PORT_VARIABLE = "DESTACK_PORT";
 
+/** The variables selecting a universe and its device, which git's helper runs with. */
+const SELECTING_VARIABLES = [
+    "DESTACK_UNIVERSE",
+    "DESTACK_UNIVERSE_ORIGIN",
+    "DESTACK_DIRECTORY",
+    "DESTACK_DISTRIBUTION",
+] as const;
+
 /** Push and pull Destack repositories with git as the person signed in. */
 export const gitCommand: Command = {
     description: "Push and pull Destack repositories with git as you",
@@ -24,9 +30,22 @@ export const gitCommand: Command = {
         setup: {
             description: "Register destack as git's credential helper, as gh auth setup-git does",
             async run(_call, context) {
-                // replace any other helper of each machine origin with this one, reading the path
-                const helper = `!${Universe.current(context.environment).command} git credential`;
-                for (const origin of GitCredentialRequest.origins(context.environment)) {
+                // list the machines repositories answer at: each residency's shared ones, and this computer's
+                const accounts = (await context.launcher()).session.accounts();
+                const { items: residencies } = await accounts.residency.list({});
+                const served = await Promise.all(
+                    residencies.map((residency) =>
+                        accounts.residency.machines({ id: residency.id }),
+                    ),
+                );
+                const origins = new Set([
+                    ...served.flat().map((machine) => new URL(machine.url).origin),
+                    GitCredentialRequest.origin(context.environment),
+                ]);
+
+                // replace any other helper of each origin with this program, reading the path
+                const helper = `!${GitCredentialRequest.helper(context.environment)} git credential`;
+                for (const origin of origins) {
                     const key = `credential.${origin}`;
                     await configure(["--replace-all", `${key}.helper`, ""], context.environment);
                     await configure(["--add", `${key}.helper`, helper], context.environment);
@@ -89,11 +108,30 @@ export class GitCredentialRequest {
         return new GitCredentialRequest(new Map(fields));
     }
 
-    /** List the origins Destack machines answer at: the cloud's, and this computer's machine. */
-    static origins(environment: CommandEnvironment): readonly string[] {
+    /** Read the origin this computer's machine answers at. */
+    static origin(environment: CommandEnvironment): string {
         const port = environment.process.variables[PORT_VARIABLE] ?? String(MACHINE_PORT);
 
-        return [`https://*.${DOMAINS.machine}`, `http://127.0.0.1:${port}`];
+        return `http://127.0.0.1:${port}`;
+    }
+
+    /** Write the command running this program on its universe, as gh names its own path. */
+    static helper(environment: CommandEnvironment): string {
+        // run the standalone program, or the runtime with its script from where its configuration lies
+        const { process } = environment;
+        const program = process.runtime.isStandalone
+            ? [process.executable]
+            : [process.executable, "--cwd", process.workingDirectory, process.script];
+
+        // pass the variables selecting the universe and the device, as git runs helpers without them
+        const selecting = SELECTING_VARIABLES.flatMap((name) => {
+            const value = process.variables[name];
+
+            return value === undefined ? [] : [`${name}=${quote(value)}`];
+        });
+        const prefix = selecting.length === 0 ? "" : `env ${selecting.join(" ")} `;
+
+        return `${prefix}${program.map(quote).join(" ")}`;
     }
 
     /** Read the space and the package the request's path names below its machine. */
@@ -132,6 +170,11 @@ export class GitCredentialRequest {
             "ephemeral=true",
         ].join("\n");
     }
+}
+
+/** Quote a word for the shell git runs a helper in. */
+function quote(word: string): string {
+    return `'${word.replaceAll("'", "'\\''")}'`;
 }
 
 /** Set a key of git's global configuration, failing with git's message. */
