@@ -283,8 +283,9 @@ export class Launcher {
         const isSpace = "space" in location && location.installation === undefined;
         const serving = isSpace ? PackageVersion.of(stackPackage) : first.package;
         const remote = await this.connect(location, serving.id);
+        stack.defer(() => remote.close());
 
-        // follow them as the person until the stack closes
+        // follow them as the person until the stack closes, the connection with it
         return ObjectClient.start(
             {
                 environment: this.machine.environment,
