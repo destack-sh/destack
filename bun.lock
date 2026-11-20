@@ -284,7 +284,6 @@
         "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
         "@destack/event": "workspace:*",
-        "@destack/forge": "workspace:*",
         "@destack/identity": "workspace:*",
         "@destack/locale": "workspace:*",
         "@destack/mail": "workspace:*",
