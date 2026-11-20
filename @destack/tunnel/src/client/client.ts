@@ -14,6 +14,9 @@ import { type Identifier, schema } from "@destack/schema";
 import { PackageId } from "@destack/package";
 import { TunnelError } from "../error/index.ts";
 
+/** The lifetime a machine asks for its tunnel token: ten minutes, the longest an issuer grants. */
+export const TUNNEL_TOKEN_LIFETIME_MILLISECONDS = 10 * 60_000;
+
 /** The path below a relay's origin machines open and renew their tunnels at. */
 export const TUNNEL_PATH = "/tunnel";
 
@@ -306,8 +309,12 @@ export class TunnelClient {
         else if (event.data === PONG_MESSAGE) {
             dial.isAlive = true;
         }
-        // refuse other text
+        // warn of the refusal a relay states as text, and close
         else {
+            this.#instruments.captureMessage(
+                `relay refused the tunnel to ${this.#options.url}: '${String(event.data)}'`,
+                { level: "warn" },
+            );
             dial.socket.close(UNSUPPORTED_DATA, "the relay sends binary frames only");
         }
     }
