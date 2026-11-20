@@ -14,7 +14,7 @@ async function output(terminal: TerminalFixture, words: readonly string[]): Prom
 }
 
 test("open a link as a window of the running desktop", async () => {
-    const terminal = await TerminalFixture.open({ DESTACK_UNIVERSE: "local" });
+    const terminal = await TerminalFixture.open({ DESTACK_PROFILE: "local" });
     const { native } = terminal;
     const link = "destack-local://home--home--acme/home/inbox";
 
@@ -41,7 +41,7 @@ test("open a link as a window of the running desktop", async () => {
 
 test("open an object by its identifier as a window of the running desktop", async () => {
     // create a card in the board installed in the owner's home
-    const terminal = await TerminalFixture.open({ DESTACK_UNIVERSE: "local" });
+    const terminal = await TerminalFixture.open({ DESTACK_PROFILE: "local" });
     await terminal.publish("board");
     await terminal.install("board", "work");
     const created = await terminal.printed([
@@ -82,7 +82,7 @@ test("open an object by its identifier as a window of the running desktop", asyn
 
 test("open a view's page in the browser on its installation's origin", async () => {
     // install the start page in a work space of the owner's, reaching their home's settings
-    const terminal = await TerminalFixture.open({ DESTACK_UNIVERSE: "local" });
+    const terminal = await TerminalFixture.open({ DESTACK_PROFILE: "local" });
     const work = await terminal.space("work");
     await terminal.install("start", "start", work);
     const link = `destack-local://start--${terminal.address("work")}/start`;

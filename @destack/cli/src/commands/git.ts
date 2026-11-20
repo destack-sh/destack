@@ -8,9 +8,9 @@ const AUTHTYPE_CAPABILITY = "capability[]=authtype";
 /** The prefix of the capabilities git lists in a request, each its own line. */
 const CAPABILITY_PREFIX = "capability[]=";
 
-/** The variables selecting a universe and its device, which git's helper runs with. */
+/** The variables selecting a profile, its universe and its device, which git's helper runs with. */
 const SELECTING_VARIABLES = [
-    "DESTACK_UNIVERSE",
+    "DESTACK_PROFILE",
     "DESTACK_UNIVERSE_ORIGIN",
     "DESTACK_DIRECTORY",
     "DESTACK_DISTRIBUTION",

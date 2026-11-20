@@ -65,8 +65,8 @@ test("make a package from a published template in a new checkout, its registries
             'preload = ["@destack/package/bun/preload"]',
             "",
             "[install.scopes]",
-            `"@acme" = { url = "${universe}/npm/" }`,
-            `"@destack" = { url = "${universe}/npm/" }`,
+            `"@acme" = { url = "${universe.origin}/npm/" }`,
+            `"@destack" = { url = "${universe.origin}/npm/" }`,
             "",
         ].join("\n"),
     });

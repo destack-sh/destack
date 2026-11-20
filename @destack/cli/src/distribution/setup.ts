@@ -155,7 +155,7 @@ export class Setup {
         return computer?.version;
     }
 
-    /** Stage the universe's latest release through this computer's distribution. */
+    /** Stage the profile's latest release through this computer's distribution. */
     async update(options: { readonly isStaging: boolean; readonly json: boolean }): Promise<void> {
         // find this computer's distribution, which development builds have none of
         const { scope: deviceId } = await this.machine.loopback.computer();
@@ -330,7 +330,7 @@ export class Setup {
         if (application !== undefined) {
             await verifyApplication(
                 application,
-                this.home.universe.applicationIdentifier,
+                this.home.profile.applicationIdentifier,
                 this.environment,
             );
         }
@@ -543,13 +543,13 @@ export class Setup {
         }
     }
 
-    /** Remove the universe's launcher, the distribution files and the application. */
+    /** Remove the profile's launcher, the distribution files and the application. */
     async #remove(paths: readonly string[], isNative: boolean): Promise<void> {
         // unregister the launcher from the shell and the Linux desktop
         const { home, environment } = this;
-        const { universe } = home;
+        const { profile } = home;
         const bin = join(home.directory, "bin");
-        const launcher = join(bin, isNative ? `${universe.command}.cmd` : universe.command);
+        const launcher = join(bin, isNative ? `${profile.command}.cmd` : profile.command);
         await this.distribution().unlink({ isShell: !home.isCustom });
 
         // remove the closed files and the registration

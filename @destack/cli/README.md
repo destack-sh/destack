@@ -36,14 +36,14 @@ Each type the space installs adds a plural and a singular, such as `notebooks` a
 
 `destack` without words lists the verbs by journey, as this table does.
 
-| Journey  | Verbs                                                                |
-| -------- | -------------------------------------------------------------------- |
-| you      | `login`, `logout`, `whoami`, `self`, `completion`                    |
-| spaces   | `switch`                                                             |
-| apps     | `install`, `uninstall`, `open`, `apply`, `plan`, `approve`, `reject` |
-| share    | `share`, `invited`, `accept`                                         |
+| Journey  | Verbs                                                                  |
+| -------- | ---------------------------------------------------------------------- |
+| you      | `login`, `logout`, `whoami`, `self`, `completion`                      |
+| spaces   | `switch`                                                               |
+| apps     | `install`, `uninstall`, `open`, `apply`, `plan`, `approve`, `reject`   |
+| share    | `share`, `invited`, `accept`                                           |
 | build    | `new`, `dev`, `check`, `fix`, `test`, `build`, `publish`, `tag`, `git` |
-| settings | `setting`, `settings`                                                |
+| settings | `setting`, `settings`                                                  |
 
 ### Flags
 

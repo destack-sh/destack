@@ -1,4 +1,4 @@
-import { Universe } from "@destack/update/release";
+import { Profile } from "@destack/update/release";
 import type { CommandBody } from "../command/command.ts";
 import { Completion, SHELLS } from "../distribution/completion.ts";
 import { CliError } from "../error/index.ts";
@@ -16,8 +16,8 @@ export const completionCommand: CommandBody = {
             );
         }
 
-        // print the script for this universe's command
-        const { command } = Universe.current(context.environment);
+        // print the script for this profile's command
+        const { command } = Profile.current(context.environment);
         await context.terminal.print(Completion.write(found, command));
     },
 };

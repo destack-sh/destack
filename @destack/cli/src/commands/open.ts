@@ -1,4 +1,4 @@
-import { Universe } from "@destack/update/release";
+import { Profile } from "@destack/update/release";
 import { Link } from "@destack/desktop/link";
 import { window } from "@destack/desktop/object";
 import { present } from "@destack/schema";
@@ -22,9 +22,9 @@ export const openCommand: CommandBody = {
         browser: { type: "boolean", description: "Open in the browser" },
     },
     async run({ arguments: { target: given }, options, isJson: json }, context) {
-        // read the link of this universe's desktop, or the object of an identifier in the space
+        // read the link of this profile's desktop, or the object of an identifier in the space
         const target = present(given, "the target argument");
-        const links = Link.of(Universe.current(context.environment));
+        const links = Link.of(Profile.current(context.environment));
         const view = CommandOption.string(options["view"], "view");
         const address = URL.canParse(target)
             ? links.parse(target)

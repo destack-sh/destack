@@ -315,7 +315,7 @@ test("pass a flag with an object's identifier or key, refusing an unknown key", 
     // create spaces on the computer's cloud machine by its identifier and by its declared name
     const terminal = await TerminalFixture.open();
     const machine = terminal.computer.machine.id;
-    const { machines } = terminal.computer.world.universe.control.definition.platform;
+    const { machines } = terminal.computer.world.universe.universe.definition.platform;
     const { name } = single(machines.filter((declared) => declared.id === machine));
     const createOn = (space: string, on: string) =>
         terminal.printed(["space", "create", "--name", space, "--machine", on, "--json"]);

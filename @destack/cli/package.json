@@ -36,7 +36,7 @@
         "@destack/identity": "workspace:*",
         "@destack/machine-board-fixture": "workspace:*",
         "@destack/test": "workspace:*",
-        "@destack/control": "workspace:*",
+        "@destack/universe": "workspace:*",
         "@types/bun": "1.4.4"
     },
     "scripts": {

@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { Simulation } from "@destack/environment/simulation";
 import { Autostart, UniverseHome } from "@destack/machine/computer";
-import { Universe } from "@destack/update/release";
+import { Profile } from "@destack/update/release";
 import { expect, test, refusal } from "@destack/test";
 import { type InstalledRelease, Release, type StagedRelease, UpdateError } from "@destack/update";
 import { Application } from "@destack/desktop/workload";
@@ -112,7 +112,12 @@ class RunningSetup extends Setup {
     constructor(running: string, started: string) {
         const done: string[] = [];
         super({
-            home: new UniverseHome(new Universe("production"), "/home/ada", HOME),
+            home: new UniverseHome(
+                new Profile("release"),
+                "https://destack.app",
+                "/home/ada",
+                HOME,
+            ),
             autostart: new RunningAutostart(done),
             desktop: new RunningDesktop(done),
             environment,
