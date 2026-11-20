@@ -111,11 +111,6 @@ export class WasmClient extends WasmQuery implements SqliteConnectionClient {
         return new WasmClient(database, environment);
     }
 
-    /** Read through this connection alone, which serves every read already. */
-    reader(): undefined {
-        return undefined;
-    }
-
     /** Close the database after its work. */
     async close(): Promise<void> {
         await this.#queue.run(async () => this.database.close(), this.#environment);

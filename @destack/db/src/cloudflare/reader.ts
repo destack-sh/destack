@@ -214,11 +214,6 @@ export class DurableObjectReader implements SqliteConnectionClient {
         return { deferred: refuse, immediate: refuse, exclusive: refuse };
     }
 
-    /** Read through this connection alone, which serves every read already. */
-    reader(): undefined {
-        return undefined;
-    }
-
     /** Release nothing: the object stores the database. */
     async close(): Promise<void> {}
 

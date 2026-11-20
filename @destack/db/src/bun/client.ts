@@ -11,6 +11,7 @@ import {
     type SqliteQueryClient,
 } from "../sqlite/client.ts";
 import { SqliteScript } from "../sqlite/script.ts";
+import { DriverStatement } from "../sql/render.ts";
 import { present } from "@destack/schema";
 import { TelemetryScope } from "@destack/telemetry";
 import { Cache } from "../cache/cache.ts";
@@ -127,8 +128,24 @@ export class BunClient extends BunQuery implements SqliteConnectionClient {
         this.#file = BunClient.file(database);
     }
 
-    /** Read the query-only connection, opened on first use, none in memory. */
-    reader(): BunQuery | undefined {
+    /** Read every row as an array of values, a read beside the writer. */
+    override values(sql: string, parameters: readonly DriverValue[]): Promise<unknown[][]> {
+        const reader = DriverStatement.isRead(sql) ? this.#readerMaybe() : undefined;
+
+        return reader === undefined
+            ? super.values(sql, parameters)
+            : reader.values(sql, parameters);
+    }
+
+    /** Read every row by column name, a read beside the writer. */
+    override all(sql: string, parameters: readonly DriverValue[]): Promise<unknown[]> {
+        const reader = DriverStatement.isRead(sql) ? this.#readerMaybe() : undefined;
+
+        return reader === undefined ? super.all(sql, parameters) : reader.all(sql, parameters);
+    }
+
+    /** Open the query-only connection on first use, none in memory. */
+    #readerMaybe(): BunQuery | undefined {
         // open the reader on the first read of a file
         if (this.#reader === undefined && this.#file !== "") {
             // open it writable for the WAL index, refusing writes

@@ -80,7 +80,7 @@ export function render(
         tables: named,
     });
     const tables = [...named];
-    const isRead = isReading(text);
+    const isRead = DriverStatement.isRead(text);
     const operation = nth(text.trimStart().split(/\s/u, 1), 0).toUpperCase();
     if (commons.size === 0) {
         return { text, parameters, tables, isRead, operation };
@@ -318,15 +318,18 @@ function define(table: CommonTable, target: Target): string {
     return table.name;
 }
 
-/** Report whether a statement only reads: it selects, with no writing verb outside its quotes. */
-function isReading(text: string): boolean {
-    // refuse another verb, and take a read naming no writing verb, quoted or not
-    if (!READ.test(text)) {
-        return false;
-    } else if (!WRITING.test(text)) {
-        return true;
-    }
+/** The statements a driver runs, read from their text. */
+export const DriverStatement = {
+    /** Report whether a statement only reads: a select naming no writing verb outside quotes. */
+    isRead(text: string): boolean {
+        // refuse another verb, and take a read naming no writing verb, quoted or not
+        if (!READ.test(text)) {
+            return false;
+        } else if (!WRITING.test(text)) {
+            return true;
+        }
 
-    // look for the writing verb outside the quotes
-    return !WRITING.test(text.replace(QUOTED, "''"));
-}
+        // look for the writing verb outside the quotes
+        return !WRITING.test(text.replace(QUOTED, "''"));
+    },
+};

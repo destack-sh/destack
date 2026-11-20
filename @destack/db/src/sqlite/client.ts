@@ -35,8 +35,6 @@ export interface SqliteQueryClient {
 export interface SqliteConnectionClient extends SqliteQueryClient {
     /** Close the physical connection. */
     readonly close: () => Promise<void>;
-    /** Read the connection reading the last commit beside the writer, if the engine has one. */
-    readonly reader: () => SqliteQueryClient | undefined;
     /** Run a callback with exclusive transaction access. */
     readonly transactionAsync: <Value>(
         operation: (client: SqliteQueryClient) => Promise<Value>,
