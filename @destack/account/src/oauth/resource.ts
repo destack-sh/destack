@@ -1,23 +1,6 @@
 import { PackageId } from "@destack/package";
 import accountPackage from "../package.ts";
 import { OAuthError } from "../authentication/token.ts";
-import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
-
-/** How long each package's access tokens live, a minute unless the universe sets the package's. */
-export class TokenLifetime {
-    /** The lifetimes the universe sets, in milliseconds, by package. */
-    readonly #byPackage: ReadonlyMap<PackageId, number>;
-
-    /** Store the lifetimes the universe sets. */
-    constructor(byPackage: ReadonlyMap<PackageId, number>) {
-        this.#byPackage = byPackage;
-    }
-
-    /** Read how long a package's tokens live, in milliseconds. */
-    of(audience: PackageId): number {
-        return this.#byPackage.get(audience) ?? TOKEN_LIFETIME_MILLISECONDS;
-    }
-}
 
 /** The packages as the resources the token endpoint issues tokens for (RFC 8707). */
 export const PackageResource = {

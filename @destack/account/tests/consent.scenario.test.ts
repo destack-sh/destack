@@ -7,7 +7,6 @@ import { expect, refusal, single, test } from "@destack/test";
 import { client, session } from "../src/object/index.ts";
 import accountPackage from "../src/package.ts";
 import { TestAccountStore, TestJwt, OWNER_EMAIL, STRANGER_EMAIL } from "../src/test/index.ts";
-import { TokenLifetime } from "../src/oauth/index.ts";
 
 /** The browser's public key of RFC 8291's example subscription. */
 const RFC_8291_KEY =
@@ -165,9 +164,6 @@ test("stamp a token acting for a person under their grant with the universe's po
     expect(sequence).toBeLessThanOrEqual(exchanged.sequence);
 });
 
-/** The object package's token lifetime in a test: ten minutes, past the one-minute default. */
-const OBJECT_TOKEN_MILLISECONDS = 10 * 60_000;
-
 /** Grant an installation of the owner's space reading their clients, with the owner. */
 async function grantInbox(fixture: TestAccountStore) {
     const owner = await fixture.signIn(OWNER_EMAIL);
@@ -196,21 +192,6 @@ async function clientOf(fixture: TestAccountStore, userId: Identifier<"user">) {
 
     return present(found, `the client of ${userId}`).id;
 }
-
-test("time an installation's granted token by its package's lifetime, past the one-minute default", async () => {
-    // grant the installation a token of the object package under its ten-minute lifetime
-    await using fixture = await TestAccountStore.open({
-        signIn: {
-            lifetime: new TokenLifetime(new Map([[objectPackage.id, OBJECT_TOKEN_MILLISECONDS]])),
-        },
-    });
-    const { inbox } = await grantInbox(fixture);
-    const granted = await fixture.identityOf(inbox).granted.token(objectPackage.id, {});
-
-    // live the package's lifetime, in seconds
-    const { iat, exp } = TestJwt.claims(granted);
-    expect(exp - iat).toBe(OBJECT_TOKEN_MILLISECONDS / 1000);
-});
 
 test("live an exchanged token within the person's client, refusing a revoked client and another person's", async () => {
     // exchange the installation's token for the owner's within the owner's client, then within a stranger's
