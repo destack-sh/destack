@@ -44,7 +44,7 @@ const subscriptionSchema = schema.object({
     /** The parameters the replica reflects at its position, if other than the subscribed. */
     previous: PARAMETERS.exactOptional(),
     /** How often merged pages arrive, absent for one page per change. */
-    refresh: schema.object({ every: Duration.schema }).exactOptional(),
+    refresh: schema.object({ every: Duration }).exactOptional(),
     /** The follower's log as a replication origin, which the source never publishes back to. */
     origin: schema.string().min(1).exactOptional(),
     /** The position of the source's log the follower waits for. */
