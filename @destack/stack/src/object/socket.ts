@@ -1,9 +1,9 @@
+import { installation } from "./installation.ts";
 import { relation, through, union } from "@destack/access";
 import { client, space } from "@destack/account/object";
 import type { Select } from "@destack/db";
 import { type ObjectOf, defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
-import { installation } from "@destack/object";
 import { argument, plural, t } from "@destack/locale";
 
 /** The kinds of live links to a space: a browser tab, a desktop view, a machine or a workload. */

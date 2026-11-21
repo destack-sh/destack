@@ -1,15 +1,15 @@
 import { t } from "@destack/locale";
 import { principal } from "@destack/access";
 import { BUILD_STORE_TABLES } from "@destack/build/table";
-import { defineMount, definePackage, installation } from "@destack/object";
+import { defineMount, definePackage } from "@destack/object";
 import { catalog, declaration, module, symbol } from "./object/graph.ts";
 import {
     build,
     deployment,
+    installation,
     installationRevision,
     instance,
     restore,
-    rollout,
     route,
     snapshot,
     socket,
@@ -20,7 +20,7 @@ import {
 import { StackError } from "./error/error.ts";
 import { account } from "@destack/account/object";
 
-export { STACK_INSTALLATION } from "./object/rollout.ts";
+export { STACK_INSTALLATION } from "./object/installation.ts";
 
 /** The path of the space-move data plane below the stack package's mount. */
 export const HANDOFF_PATH = "/handoff";
@@ -38,7 +38,7 @@ export default definePackage({
     icon: "stack",
     color: "green",
     objects: [
-        rollout,
+        installation,
         installationRevision,
         deployment,
         instance,
@@ -64,7 +64,7 @@ export default definePackage({
     ],
     access: {
         permissions: {
-            // install, change and uninstall the space's declared and installed packages, as their rollouts do
+            // install, change and uninstall the space's declared and installed packages, as reconciling them does
             space: {
                 space: [
                     installation.permission("install"),

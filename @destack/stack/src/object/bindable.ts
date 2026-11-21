@@ -8,7 +8,7 @@ import type { Provider } from "@destack/resource";
 import type { JsonObject, schema } from "@destack/schema";
 import { StackError } from "../error/index.ts";
 import type { Binding } from "./binding.ts";
-import type { InstallationRollout, ResourceNeed } from "./rollout.ts";
+import type { Installation, ResourceNeed } from "./installation.ts";
 
 /** A provider of a space's resources. */
 export type SpaceProvider = Provider<
@@ -25,7 +25,7 @@ export type StoreProvider<Client = unknown> = Pick<SpaceProvider, "kind" | "code
     /** Connect an in-process installation to a binding's resource. */
     readonly connect: (
         store: Promise<ObjectStore>,
-        row: InstallationRollout,
+        row: Installation,
         bound: Binding,
     ) => Promise<Client>;
 };
@@ -69,7 +69,7 @@ export interface ObjectBindingKind<
     /** Connect an in-process installation to a binding's target at its bound version. */
     readonly connect: (
         store: Promise<ObjectStore>,
-        row: InstallationRollout,
+        row: Installation,
         bound: Binding,
     ) => Promise<Client>;
 }

@@ -1,3 +1,4 @@
+import { installation } from "./installation.ts";
 import { principal } from "@destack/access";
 import { type Select, type Condition, type RowImage } from "@destack/db";
 import { SERVER_RUNTIMES } from "@destack/package/runtime";
@@ -5,8 +6,7 @@ import { type ObjectOf, ConditionMap, defineObject, field } from "@destack/objec
 import { DirectoryGrant, PackageId } from "@destack/package";
 import { WorkloadDescription } from "@destack/package/manifest";
 import { schema, Version } from "@destack/schema";
-import { installation } from "@destack/object";
-import { installationRevision } from "./rollout.ts";
+import { installationRevision } from "./revision.ts";
 import { space } from "@destack/account/object";
 import { argument, plural, t } from "@destack/locale";
 
@@ -19,7 +19,7 @@ export const DEPLOYMENT_RUNTIMES = [...SERVER_RUNTIMES, PROCESS_RUNTIME] as cons
 /** A runtime a deployment runs on. */
 export type DeploymentRuntime = (typeof DEPLOYMENT_RUNTIMES)[number];
 
-/** One rollout of a workload of an installation revision from one build output. */
+/** One workload of an installation revision deployed from one build output. */
 export const deployment = defineObject(
     {
         name: "deployment",

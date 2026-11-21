@@ -1,9 +1,9 @@
+import { installation } from "./installation.ts";
 import { type Snapshot } from "@destack/db";
-import { installation } from "@destack/object";
 import { PackageId } from "@destack/package";
 import { type Identifier, present, schema } from "@destack/schema";
 import { Deployment, deployment } from "./deployment.ts";
-import { type InstallationRevision, installationRevision, rollout } from "./rollout.ts";
+import { type InstallationRevision, installationRevision } from "./revision.ts";
 import type {} from "@destack/package/import-meta";
 import { StackError } from "../error/index.ts";
 
@@ -29,8 +29,8 @@ export const Binding = Object.assign(
             installationId: Identifier<"installation">,
         ): Promise<Binding[]> {
             const row = await reader
-                .read(rollout.table)
-                .findFirst({ where: { scope, installationId } });
+                .read(installation.table)
+                .findFirst({ where: { scope, id: installationId } });
             const revision =
                 row?.targetRevisionId === null || row === undefined
                     ? undefined
@@ -165,13 +165,12 @@ async function targetedRevisions(
     reader: Pick<Snapshot, "read">,
     scope: Identifier<"space">,
 ): Promise<Identifier<"installation-revision">[]> {
-    // read the live installations, then the revisions their rollouts target
+    // read the revisions the live installations target
     const installed = await reader
         .read(installation.table)
         .findMany({ where: { scope, deletedAt: { isNull: true } } });
-    const rolled = await reader
-        .read(rollout.table)
-        .findMany({ where: { installationId: { in: installed.map((row) => row.id) } } });
 
-    return rolled.flatMap((row) => (row.targetRevisionId === null ? [] : [row.targetRevisionId]));
+    return installed.flatMap((row) =>
+        row.targetRevisionId === null ? [] : [row.targetRevisionId],
+    );
 }

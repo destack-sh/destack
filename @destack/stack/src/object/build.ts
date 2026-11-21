@@ -17,7 +17,7 @@ import { Commit, Digest, type Identifier, present, schema, Version } from "@dest
 import { machine, space } from "@destack/account/object";
 import { ObjectReference, Subject } from "@destack/sync";
 import { Failure } from "@destack/error";
-import { installationRevision } from "./rollout.ts";
+import { installationRevision } from "./revision.ts";
 import type {} from "@destack/package/import-meta";
 import { StackError } from "../error/index.ts";
 import { argument, plural, t } from "@destack/locale";

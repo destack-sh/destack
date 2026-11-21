@@ -3,12 +3,7 @@ import { DeclarationReference } from "@destack/package/declare";
 import { type DependencyRelease, graph, type PackageBuild, type PackageId } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import { type Digest, type JsonObject, JsonValue, schema } from "@destack/schema";
-import {
-    Installation,
-    ObjectDescription,
-    PackageDescription,
-    SERVER_EXPORT,
-} from "@destack/object";
+import { ObjectDescription, PackageDescription, SERVER_EXPORT } from "@destack/object";
 import type {} from "@destack/package/import-meta";
 import { StackError } from "../error/index.ts";
 import { InstallationDefinition } from "./installation.ts";
@@ -108,7 +103,7 @@ export const StackDefinition = Object.assign(schema.jsonObject(), {
             // read the installation's build and the installable builds it requires
             const build = await read(installed.packageId, manifest);
             const description = await PackageDescription.of(build);
-            const optional = new Set(Installation.optionalPackages(description));
+            const optional = new Set(PackageDescription.optionalPackages(description));
             const required = Object.fromEntries(
                 Object.keys(build.manifest.requires).flatMap((each) => {
                     const entry = entries[each];

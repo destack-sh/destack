@@ -1,6 +1,7 @@
+import { installation } from "./installation.ts";
 import { through, union } from "@destack/access";
 import { account, machine, space } from "@destack/account/object";
-import { defineObject, field, installation } from "@destack/object";
+import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 import { argument, plural, t } from "@destack/locale";
 

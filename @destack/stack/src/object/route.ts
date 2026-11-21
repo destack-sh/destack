@@ -1,9 +1,9 @@
+import { installation } from "./installation.ts";
 import { universe } from "@destack/access";
 import { and, type DatabaseConnection, eq, type Select } from "@destack/db";
 import { defineObject, field, Claim, type ClaimLookup } from "@destack/object";
 import { DeclarationName } from "@destack/package";
 import { type Identifier, schema } from "@destack/schema";
-import { installation } from "@destack/object";
 import { HostnamePattern, space } from "@destack/account/object";
 import { ObjectReference } from "@destack/sync";
 import { controlled } from "@destack/object";

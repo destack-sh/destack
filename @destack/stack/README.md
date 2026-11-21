@@ -14,7 +14,6 @@ Packages declare stacks:
 Spaces apply them:
 
 - `installation`: a package installed in a space.
-- `rollout`: how an installation follows a release or a tag, through plans that may wait for approval.
 - `installation-revision`: one applied release of an installation.
 - `deployment`: the revisions a space serves, switched together.
 - `build`: a package compiled from a checkout, stored by its image.
@@ -90,11 +89,11 @@ import type stackPackage from "@destack/stack/package";
 export async function deployBuild(
     client: ClientOf<typeof stackPackage>,
     spaceId: Identifier<"space">,
-    id: Identifier<"rollout">,
+    id: Identifier<"installation">,
     build: Identifier<"build">,
     requestId: string,
 ): Promise<void> {
-    await client.rollout.deploy({ spaceId, id, requestId, build });
+    await client.installation.reconcile({ scope: spaceId, id, requestId, build });
 }
 ```
 
@@ -107,15 +106,15 @@ import type { ClientOf } from "@destack/object/client";
 import type { Digest, Identifier } from "@destack/schema";
 import type stackPackage from "@destack/stack/package";
 
-/** Approve a rollout's waiting plan. */
+/** Approve an installation's waiting plan. */
 export async function approvePlan(
     client: ClientOf<typeof stackPackage>,
     spaceId: Identifier<"space">,
-    id: Identifier<"rollout">,
+    id: Identifier<"installation">,
     plan: Digest,
     requestId: string,
 ): Promise<void> {
-    await client.rollout.approve({ spaceId, id, requestId, plan });
+    await client.installation.approve({ scope: spaceId, id, requestId, plan });
 }
 ```
 
@@ -156,9 +155,9 @@ export async function buildCheckout(
 
 Stacks declared in code and applied as plans basically follow Pulumi.
 
-| Pulumi                 | `@destack/stack`  | Difference                                                 |
-| ---------------------- | ----------------- | ---------------------------------------------------------- |
-| a stack                | `defineStack`     | Collections come from the declared types.                  |
-| `pulumi preview`, `up` | rollout plans     | Each step has a risk, and risky plans wait for approval.   |
-| package versions       | releases and tags | Tags resolve to versions, as npm's dist-tags do.           |
-| none                   | the deployment    | Switches every installation's revision in one transaction. |
+| Pulumi                 | `@destack/stack`   | Difference                                                 |
+| ---------------------- | ------------------ | ---------------------------------------------------------- |
+| a stack                | `defineStack`      | Collections come from the declared types.                  |
+| `pulumi preview`, `up` | installation plans | Each step has a risk, and risky plans wait for approval.   |
+| package versions       | releases and tags  | Tags resolve to versions, as npm's dist-tags do.           |
+| none                   | the deployment     | Switches every installation's revision in one transaction. |
