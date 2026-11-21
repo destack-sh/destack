@@ -144,6 +144,7 @@ An image is `{ root, builds }`: a root build, and one build per package it runs 
 ### Declare an example
 
 `defineExample` shows a declaration with given properties.
+Its `layout` places it on a host's stage, after Storybook's `layout` parameter: `"centered"` by default, `"padded"` or `"fullscreen"`.
 
 ```ts
 import { defineExample } from "@destack/package/declare";

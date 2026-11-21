@@ -13,6 +13,9 @@ export type PropertiesOf<Of> = Of extends (properties: infer Properties) => unkn
     ? Partial<Properties>
     : Readonly<Record<string, JsonValue>>;
 
+/** Where a host puts an example on its stage, after Storybook's layouts. */
+export type ExampleLayout = "centered" | "padded" | "fullscreen";
+
 /** An example of a declaration as its module defines it. */
 export interface ExampleDefinition<Of, Instance> {
     /** The declaration the example shows, such as a component, a view or an object type. */
@@ -21,6 +24,8 @@ export interface ExampleDefinition<Of, Instance> {
     readonly name: string;
     /** One sentence saying what the example shows. */
     readonly description: string;
+    /** Where a host puts the example, centred by default. */
+    readonly layout?: ExampleLayout;
     /** The property values the example sets, each a JSON value a control can change. */
     readonly properties?: PropertiesOf<Of>;
     /** The calls bringing the declaration's objects into the example's state, by scope. */
@@ -53,6 +58,8 @@ export interface Example<
     readonly of: unknown;
     /** One sentence saying what the example shows. */
     readonly description: string;
+    /** Where a host puts the example. */
+    readonly layout: ExampleLayout;
     /** The property values the example sets. */
     readonly properties: Properties;
     /** The calls bringing the declaration's objects into the example's state, by scope. */
@@ -89,6 +96,7 @@ export function defineExample<Of, Instance = never>(
         name,
         of,
         description,
+        layout: definition.layout ?? "centered",
         properties,
         objects: definition.objects ?? {},
         ...(render === undefined
