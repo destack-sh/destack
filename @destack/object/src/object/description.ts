@@ -1,7 +1,7 @@
 import { Message } from "@destack/locale";
 import * as accessExports from "@destack/access";
 import { Policy, PolicySubject } from "@destack/access";
-import { DatabaseState, TABLE, type Table } from "@destack/db";
+import { DatabaseState, TABLE, type Table, TableState } from "@destack/db";
 import {
     defineKind,
     graph,
@@ -10,9 +10,10 @@ import {
     type PackageId,
     PackageVersion,
 } from "@destack/package";
-import type { BuildReader } from "@destack/package/manifest";
+import { type BuildReader, PackageManifest } from "@destack/package/manifest";
 import { ResourceDeclaration } from "@destack/resource";
 import {
+    canonicalize,
     fromJsonSchema,
     present,
     schema,
@@ -21,6 +22,8 @@ import {
     JsonValue,
 } from "@destack/schema";
 import { ObjectTypeReference } from "@destack/sync";
+import { ObjectError } from "../error/error.ts";
+import { PackageDescription } from "../declare/description.ts";
 import { field, Field, FIELD_MODIFIERS } from "../field/field.ts";
 import { Method } from "../method/method.ts";
 import { method } from "../method/builder.ts";
@@ -51,6 +54,12 @@ import * as healthExports from "../health/index.ts";
 import * as bodyExports from "../server/body.ts";
 import * as hmacExports from "../webhook/hmac.ts";
 import * as webhookExports from "../webhook/standard.ts";
+
+/** The key with a described object's keys in written order, which sorted keys alone would lose. */
+const ORDER_KEY = "$order";
+
+/** The keys of a described object in written order. */
+const KeyOrder = schema.array(schema.string());
 
 /** The definition keys that may have lazy references, `*` for any and `[]` for list entries. */
 const LAZY_PATHS: readonly (readonly string[])[] = [
@@ -288,7 +297,8 @@ export const ObjectDescription = Object.assign(objectDescription, {
     describe(description: ObjectDescription, permission: string): Message {
         // take the type's own description of the permission
         const raw = description.definition["descriptions"];
-        const declared = raw === undefined ? undefined : DeclaredDescriptions.parse(raw);
+        const declared =
+            raw === undefined ? undefined : DeclaredDescriptions.parse(readOrdered(raw));
         const own = declared?.[permission];
         if (own !== undefined) {
             return own;
@@ -346,6 +356,56 @@ export const ObjectDescription = Object.assign(objectDescription, {
         }
 
         return DatabaseState.of([...tables], { packages });
+    },
+
+    /** Refuse a build listing tables its types do not describe among its image's builds. */
+    async check(
+        reader: BuildReader,
+        image: readonly BuildReader[],
+        known: Iterable<KnownDeclaration> = [],
+    ): Promise<void> {
+        // leave an npm unit's build, which declares no object types
+        if (!PackageManifest.isPackage(reader.manifest)) {
+            return;
+        }
+        const listed = ListedTables.parse(await reader.tables());
+
+        // describe its types' tables and its protocols' against the types its image's builds declare
+        const owner = reader.manifest.package;
+        const declarations = await reader.declarations();
+        const own = ObjectDescription.installed(declarations);
+        const others = await Promise.all(
+            image
+                .filter((each) => each !== reader)
+                .map(async (each) => ObjectDescription.installed(await each.declarations())),
+        );
+        const packages = [owner.id, ...(PackageDescription.find(declarations)?.protocols ?? [])];
+        const described =
+            own.length === 0
+                ? ListedTables.parse({})
+                : ObjectDescription.tables([...others.flat(), ...own], packages, known).tables;
+
+        // refuse a table it lacks, adds or lists otherwise, compared without the rows other packages cascade
+        for (const dialect of ["sqlite", "postgresql"] as const) {
+            const expected = new Map(described[dialect].map((state) => TableListing.of(state)));
+            const found = new Map(listed[dialect].map((state) => TableListing.of(state)));
+            const differing = [...new Set([...expected.keys(), ...found.keys()])].find(
+                (name) => expected.get(name) !== found.get(name),
+            );
+            if (differing !== undefined) {
+                // say whether it lacks the table, adds it or lists it otherwise
+                const table = `the '${dialect}' table '${differing}'`;
+                const build = `build of '${owner.name}' is invalid`;
+                throw ObjectError.of(
+                    "DECLARATION_INVALID",
+                    !found.has(differing)
+                        ? `${build}: it does not list ${table}`
+                        : expected.has(differing)
+                          ? `${build}: it lists ${table} otherwise than its types describe it`
+                          : `${build}: it lists ${table}, which its types do not describe`,
+                );
+            }
+        }
     },
 
     /** Read the object descriptions among an installation's declarations. */
@@ -477,14 +537,14 @@ export class ObjectTypePool {
             return value.map((entry) => this.decode(entry));
         }
 
-        // resolve a tag, or rebuild a plain object's entries
-        const tag = Object.keys(value).find((key) => key.startsWith("$"));
+        // resolve a tag, or rebuild a plain object's entries in the order it was written with
+        const { [ORDER_KEY]: order, ...entries } = value;
+        const tag = Object.keys(entries).find((key) => key.startsWith("$"));
+        const keys = order === undefined ? Object.keys(entries) : KeyOrder.parse(order);
 
         return tag === undefined
-            ? Object.fromEntries(
-                  JsonValue.entries(value).map(([key, entry]) => [key, this.decode(entry)]),
-              )
-            : this.#decodeTag(tag, value[tag]);
+            ? Object.fromEntries(keys.map((key) => [key, this.decode(entries[key] ?? null)]))
+            : this.#decodeTag(tag, entries[tag]);
     }
 
     /** Resolve one tagged value. */
@@ -666,12 +726,18 @@ class Position {
         }
 
         // tag each present entry
-        return Object.fromEntries(
+        const tagged = Object.fromEntries(
             entries.map(([key, entry]) => [
                 key,
                 this.entry(key, `${this.path}.${key}`).encode(entry),
             ]),
         );
+
+        // write the keys' order beside them unless sorted keys already have it, as canonical JSON sorts keys
+        const keys = entries.map(([key]) => key);
+        const isSorted = keys.every((key, index) => index === 0 || (keys[index - 1] ?? "") < key);
+
+        return isSorted ? tagged : { ...tagged, [ORDER_KEY]: keys };
     }
 
     /** Tag a value's types, exported code, fields, methods, schemas, kinds and buckets. */
@@ -782,6 +848,24 @@ const BuilderCalls = schema
     )
     .min(1);
 
+/** The tables a build lists its package's types keep, by dialect, none for one without types. */
+const ListedTables = schema.object({
+    /** The SQLite table states. */
+    sqlite: schema.array(TableState).default([]),
+    /** The PostgreSQL table states. */
+    postgresql: schema.array(TableState).default([]),
+});
+
+/** A listed table as its package decides it, without what other packages cascade or aggregate. */
+const TableListing = {
+    /** Key a table state by its SQL name beside its canonical form. */
+    of(state: TableState): readonly [string, string] {
+        const { dependents: _dependents, aggregates: _aggregates, ...decided } = state;
+
+        return [state.table.name, canonicalize(decided)];
+    },
+};
+
 /** The fields of a described definition that stack documents read: plural, storage and kind. */
 const DescribedDefinition = schema.looseObject({
     /** The type's plural, the document key of its declarations. */
@@ -807,6 +891,22 @@ function readDefinition(decoded: unknown): unknown {
     schema.looseObject({ name: schema.string(), plural: schema.string() }).parse(decoded);
 
     return decoded;
+}
+
+/** Read described JSON as plain JSON, each object's keys in written order without the order key. */
+function readOrdered(value: JsonValue): JsonValue {
+    // take plain values as they are, and each entry of a list
+    if (value === null || typeof value !== "object") {
+        return value;
+    } else if (isList(value)) {
+        return value.map((entry) => readOrdered(entry));
+    }
+
+    // order an object's entries as written
+    const { [ORDER_KEY]: order, ...entries } = value;
+    const keys = order === undefined ? Object.keys(entries) : KeyOrder.parse(order);
+
+    return Object.fromEntries(keys.map((key) => [key, readOrdered(entries[key] ?? null)]));
 }
 
 /** Decide whether a JSON value is a list. */
