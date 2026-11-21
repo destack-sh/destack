@@ -6,6 +6,15 @@ import type { Check, Selector } from "@destack/package/declare";
 /** The span attribute counting the statements run inside a span, nested ones included. */
 const STATEMENTS = "db.client.operation.count";
 
+/** The attribute marking a span that started with no other span running. */
+const OUTERMOST = "destack.span.outermost";
+
+/** The span total counting the statements that change rows. */
+const WRITES = "db.client.operation.write.count";
+
+/** The attribute of a controller pass with the key it ran over. */
+const PASS_KEY = "destack.key";
+
 /** The histogram every statement records its duration in, by database, operation and table. */
 const STATEMENT_DURATION = "db.client.operation.duration";
 
@@ -328,10 +337,28 @@ export class Recording {
         return listings;
     }
 
-    /** Count each controller pass and object call and total its statements, by the span's label. */
+    /** Total the statements under each outermost span, by its name or a pass's label. */
+    outermost(): Record<string, number> {
+        // total the statements of the spans that started with no other span running
+        const statements: Record<string, number> = {};
+        for (const span of this.spans.filter((each) => each.attributes[OUTERMOST] === true)) {
+            const counted = span.attributes[STATEMENTS];
+            const count = typeof counted === "number" ? counted : 0;
+            const label = MEASURED_SPANS.has(span.name)
+                ? SpanPath.label(span.name, span.attributes)
+                : span.name;
+            const key = `statements{outermost[${label.replaceAll(/\s/gu, "_")}]}`;
+            statements[key] = (statements[key] ?? 0) + count;
+        }
+
+        return statements;
+    }
+
+    /** Count each controller pass and object call with its statements and keys, by label. */
     work(): Record<string, number> {
         // take the spans that are a job's pass or a call
         const statements: Record<string, number> = {};
+        const keys = new Map<string, Set<string>>();
         const measured = this.spans.filter((span) => MEASURED_SPANS.has(span.name));
         for (const span of measured) {
             // count the span and the statements run under it, none for a span that ran none
@@ -341,6 +368,22 @@ export class Recording {
             const key = `statements{${label}}`;
             statements[key] = (statements[key] ?? 0) + count;
             statements[`spans{${label}}`] = (statements[`spans{${label}}`] ?? 0) + 1;
+
+            // count a pass or a call that changed no row
+            if ((span.attributes[WRITES] ?? 0) === 0) {
+                statements[`idle{${label}}`] = (statements[`idle{${label}}`] ?? 0) + 1;
+            }
+
+            // collect the key a pass ran over
+            const over = span.attributes[PASS_KEY];
+            if (typeof over === "string") {
+                keys.set(label, (keys.get(label) ?? new Set()).add(over));
+            }
+        }
+
+        // count the distinct keys of each label that ran over keys
+        for (const [label, passed] of keys) {
+            statements[`keys{${label}}`] = passed.size;
         }
 
         return statements;

@@ -400,6 +400,7 @@ async function measure(
         counters: {
             ...emitted.counters(),
             ...emitted.work(),
+            ...emitted.outermost(),
             ...emitted.queries(),
             ...emitted.rows(),
             ...emitted.reads(),
