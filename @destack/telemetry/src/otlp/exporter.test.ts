@@ -101,6 +101,12 @@ test("export a log record inside its span as OTLP/JSON, correlated by trace", as
                               "intValue": 12,
                             },
                           },
+                          {
+                            "key": "destack.span.outermost",
+                            "value": {
+                              "boolValue": true,
+                            },
+                          },
                         ],
                         "droppedAttributesCount": 0,
                         "droppedEventsCount": 0,
