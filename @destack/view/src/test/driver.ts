@@ -4,18 +4,11 @@ import type { Driver } from "@destack/test";
 import type { Clock } from "@destack/environment";
 import type { Given, SetStep } from "@destack/package/declare";
 import type { Globals } from "../scenario/interaction.ts";
-import type { JsonObject, JsonValue } from "@destack/schema";
+import { type JsonValue, present } from "@destack/schema";
 import type { JSX } from "@solidjs/web";
-import { computeAccessibleName, getRole, isDisabled, isInaccessible } from "dom-accessibility-api";
-import { createSignal, flush } from "solid-js";
-import { renderExample } from "../example/frame.ts";
-import {
-    type Locator,
-    OBSERVED_STATES,
-    type Observation,
-    type Step,
-    viewInteraction,
-} from "../scenario/index.ts";
+import { flush } from "solid-js";
+import { Stage } from "../example/stage.ts";
+import { type Locator, type Observation, type Step, viewInteraction } from "../scenario/index.ts";
 import { stubPopovers } from "./dom.ts";
 
 /** The modifiers a key step lists before its key, with the keyboard event flag each sets. */
@@ -26,15 +19,21 @@ const MODIFIERS = new Map([
     ["Shift", "shiftKey"],
 ]);
 
-/** A popover the test DOM shows closed, which browsers hide with its contents. */
-const CLOSED_POPOVER = "[popover]:not([data-popover-open])";
+/** The id of the one pointer a driver points with. */
+const POINTER_ID = 1;
 
-/** An example a driver rendered, with the properties a set step changes. */
-interface Rendered {
-    /** The properties the example declares, which a set step may change. */
-    readonly declared: readonly string[];
-    /** Replace some of the properties. */
-    readonly set: (properties: JsonObject) => void;
+/** The pointer of a driver. */
+interface Pointer {
+    /** What points: a mouse or a finger. */
+    readonly kind: "mouse" | "touch";
+    /** The element under it, absent before its first move. */
+    element: HTMLElement | undefined;
+    /** Its horizontal viewport position. */
+    x: number;
+    /** Its vertical viewport position. */
+    y: number;
+    /** The pressed element and its button. */
+    pressed: { readonly element: HTMLElement; readonly button: number } | undefined;
 }
 
 /** A driver that plays UI scenarios in the test DOM in process. */
@@ -48,22 +47,26 @@ export class ViewDriver implements Driver<Step, Observation> {
     readonly container: HTMLElement;
     /** The clock the test browser runs on. */
     readonly clock: Clock;
-    /** The rendered examples, by name. */
-    readonly #examples: ReadonlyMap<string, Rendered>;
+    /** The stage the scenario plays on. */
+    readonly #stage: Stage;
+    /** The pointer the steps point with. */
+    readonly #pointer: Pointer;
     /** The unmounting of the examples and the container, last mounted first. */
     readonly #mounted: DisposableStack;
 
     /** Create a driver over the examples rendered into a container. */
     constructor(
         container: HTMLElement,
-        examples: ReadonlyMap<string, Rendered>,
+        stage: Stage,
         mounted: DisposableStack,
+        kind: Pointer["kind"],
     ) {
-        // set the container, the browser clock, the examples and their unmounting
+        // set the driver's fields
         this.container = container;
         this.clock = testBrowser().clock;
-        this.#examples = examples;
+        this.#stage = stage;
         this.#mounted = mounted;
+        this.#pointer = { kind, element: undefined, x: 0, y: 0, pressed: undefined };
     }
 
     /** Render a scenario's examples into the document until the driver is disposed. */
@@ -75,32 +78,11 @@ export class ViewDriver implements Driver<Step, Observation> {
         document.body.append(container);
         mounted.defer(() => container.remove());
 
-        // render each example over properties a set step changes
-        const examples = new Map<string, Rendered>();
-        for (const example of given.examples) {
-            const declared = Object.keys(example.properties);
-            const [values, setValues] = createSignal<Record<string, unknown>>({
-                ...example.properties,
-            });
-            const properties = Object.defineProperties(
-                {},
-                Object.fromEntries(
-                    declared.map((key) => [key, { enumerable: true, get: () => values()[key] }]),
-                ),
-            );
-            const element = document.createElement("div");
-            container.append(element);
-            const globals = given.globals === undefined ? {} : { globals: given.globals };
-            mounted.defer(
-                renderExample(element, { example, properties, ...globals }, testBrowser()),
-            );
-            examples.set(example.name, {
-                declared,
-                set: (changed) => setValues((current) => ({ ...current, ...changed })),
-            });
-        }
+        // render the examples over properties a set step changes
+        const stage = Stage.render(container, given, testBrowser());
+        mounted.defer(() => stage.dispose());
 
-        return new ViewDriver(container, examples, mounted);
+        return new ViewDriver(container, stage, mounted, given.globals?.pointer ?? "mouse");
     }
 
     /** Unmount the examples and remove their container. */
@@ -109,16 +91,27 @@ export class ViewDriver implements Driver<Step, Observation> {
     }
 
     /** Take one step, letting the rendered examples follow. */
-    act(step: SetStep | Step): void {
+    async act(step: SetStep | Step): Promise<void> {
         switch (step.action) {
             case "focus":
                 this.locate(step.target).focus();
                 break;
             case "click":
-                click(this.locate(step.target));
+                this.#pointerMove(this.locate(step.target), step.position);
+                this.#pointerDown(step.button);
+                this.#pointerUp();
                 break;
-            case "rightClick":
-                rightClick(this.locate(step.target), step.position);
+            case "pointerMove":
+                this.#pointerMove(this.locate(step.target), step.position);
+                break;
+            case "pointerDown":
+                this.#pointerDown(step.button);
+                break;
+            case "pointerUp":
+                this.#pointerUp();
+                break;
+            case "pause":
+                await testWorld().simulation.sleep(step.milliseconds);
                 break;
             case "press":
                 if (step.target !== undefined) {
@@ -130,7 +123,7 @@ export class ViewDriver implements Driver<Step, Observation> {
                 fill(this.locate(step.target), step.value);
                 break;
             case "set":
-                this.#set(step.properties, step.example);
+                this.#stage.set(step.properties, step.example);
                 break;
         }
         flush();
@@ -148,128 +141,135 @@ export class ViewDriver implements Driver<Step, Observation> {
 
     /** Read one observation. */
     observe(observation: Observation): JsonValue {
-        switch (observation.kind) {
-            case "focused":
-                return focusedName();
-            case "name":
-                return computeAccessibleName(this.locate(observation.target));
-            case "text":
-                return readText(this.locate(observation.target));
-            case "texts":
-                return this.locateAll(observation.target).map(readText);
-            case "value":
-                return readValue(this.locate(observation.target));
-            case "attribute":
-                return this.locate(observation.target).getAttribute(observation.name);
-            case "state":
-                return isInState(this.locate(observation.target), observation.state);
-            case "visible":
-                return this.locateAll(observation.target).some(isExposed);
-            case "count":
-                return this.locateAll(observation.target).length;
-        }
+        return this.#stage.observe(observation);
     }
 
-    /** Find the one element a locator matches, refusing none or several. */
+    /** Find the one element a locator matches. */
     locate(locator: Locator): HTMLElement {
-        const [element, ...others] = this.locateAll(locator);
-        if (element === undefined || others.length > 0) {
-            throw new TypeError(
-                `${JSON.stringify(locator)} matches '${others.length + (element === undefined ? 0 : 1)}' elements`,
-            );
-        }
-
-        return element;
+        return this.#stage.locate(locator);
     }
 
-    /** Find every element a locator matches, in document order. */
-    locateAll(locator: Locator): HTMLElement[] {
-        // search inside the located scope
-        const scope = locator.within === undefined ? this.container : this.locate(locator.within);
-        const elements = [...scope.querySelectorAll<HTMLElement>("*")];
+    /** Move the pointer onto an element. */
+    #pointerMove(
+        element: HTMLElement,
+        position: { readonly x: number; readonly y: number } | undefined,
+    ): void {
+        // place the pointer on the element
+        const pointer = this.#pointer;
+        const box = element.getBoundingClientRect();
+        const from = pointer.element;
+        pointer.x = box.left + (position?.x ?? box.width / 2);
+        pointer.y = box.top + (position?.y ?? box.height / 2);
+        pointer.element = element;
 
-        // match by role, label, text, test id or CSS
-        let matched: HTMLElement[];
-        if ("role" in locator) {
-            matched = elements.filter((element) => isRole(element, locator) && isExposed(element));
-        } else if ("label" in locator) {
-            matched = elements.filter(
-                (element) =>
-                    isLabelled(element) &&
-                    computeAccessibleName(element) === locator.label &&
-                    isExposed(element),
-            );
-        } else if ("text" in locator) {
-            matched = elements.filter((element) => isInnermostText(element, locator.text));
-        } else if ("testId" in locator) {
-            matched = elements.filter((element) => element.dataset["testid"] === locator.testId);
-        } else {
-            matched = elements.filter((element) => element.matches(locator.css));
+        // leave and enter elements with a free mouse
+        if (pointer.pressed === undefined && pointer.kind !== "touch" && from !== element) {
+            const left = from === undefined ? [] : ancestry(from);
+            const entered = ancestry(element);
+            for (const each of left.filter((node) => !entered.includes(node))) {
+                each.dispatchEvent(this.#event("pointerleave", 0, false));
+            }
+            for (const each of entered.filter((node) => !left.includes(node)).toReversed()) {
+                each.dispatchEvent(this.#event("pointerenter", 0, false));
+            }
         }
 
-        // take the nth match when asked
-        if (locator.nth === undefined) {
-            return matched;
+        // send the move to the pointer's target
+        if (pointer.pressed !== undefined || pointer.kind !== "touch") {
+            this.#target().dispatchEvent(this.#event("pointermove", -1, true));
         }
-        const nth = matched[locator.nth];
-
-        return nth === undefined ? [] : [nth];
     }
 
-    /** Change properties an example declares. */
-    #set(properties: JsonObject, name: string | undefined): void {
-        // find the named example, or the only one
-        const examples = [...this.#examples];
-        const found = name === undefined ? examples[0] : examples.find(([key]) => key === name);
-        if (found === undefined || (name === undefined && examples.length !== 1)) {
-            throw new TypeError(`no single example '${name ?? ""}' to set properties of`);
+    /** Press a button of the pointer and focus the element. */
+    #pointerDown(button: "primary" | "secondary" = "primary"): void {
+        // press the element under the pointer
+        const pointer = this.#pointer;
+        const element = pointer.element;
+        if (element === undefined || pointer.pressed !== undefined) {
+            throw new TypeError("a pointer presses once, after a step moved it onto an element");
         }
+        const pressed = { element, button: button === "primary" ? 0 : 2 };
+        pointer.pressed = pressed;
+        element.dispatchEvent(this.#event("pointerdown", pressed.button, true));
 
-        // refuse properties the example does not declare
-        const [example, rendered] = found;
-        const undeclared = Object.keys(properties).filter(
-            (key) => !rendered.declared.includes(key),
+        // focus the element unless a handler prevents it
+        const isFocusing = element.dispatchEvent(
+            new MouseEvent("mousedown", {
+                button: pressed.button,
+                bubbles: true,
+                cancelable: true,
+            }),
         );
-        if (undeclared.length > 0) {
-            throw new TypeError(`example '${example}' does not declare '${undeclared.join(", ")}'`);
+        if (isFocusing) {
+            element.focus();
         }
-        rendered.set(properties);
-    }
-}
-
-/** Press and release the main pointer button on an element, focusing it first as a pointer does. */
-function click(element: HTMLElement): void {
-    // press the button, focusing the element unless a handler prevents it
-    element.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true }));
-    const isFocusing = element.dispatchEvent(
-        new MouseEvent("mousedown", { bubbles: true, cancelable: true }),
-    );
-    if (isFocusing) {
-        element.focus();
     }
 
-    // release the button and click
-    element.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, cancelable: true }));
-    element.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, cancelable: true }));
-    element.click();
-}
+    /** Release the button and click. */
+    #pointerUp(): void {
+        // release on the pointer's target
+        const pointer = this.#pointer;
+        const pressed = pointer.pressed;
+        if (pressed === undefined) {
+            throw new TypeError("a pointer releases only a button it holds");
+        }
+        const target = this.#target();
+        pointer.pressed = undefined;
+        target.dispatchEvent(this.#event("pointerup", pressed.button, true));
+        target.dispatchEvent(
+            new MouseEvent("mouseup", { button: pressed.button, bubbles: true, cancelable: true }),
+        );
 
-/** Open an element's context menu at a point relative to its top left corner. */
-function rightClick(
-    element: HTMLElement,
-    position: { readonly x: number; readonly y: number } | undefined,
-): void {
-    const box = element.getBoundingClientRect();
-    const point = position ?? { x: box.width / 2, y: box.height / 2 };
-    element.dispatchEvent(
-        new MouseEvent("contextmenu", {
-            button: 2,
-            clientX: box.left + point.x,
-            clientY: box.top + point.y,
-            bubbles: true,
+        // open the context menu or click
+        if (pressed.button === 2) {
+            target.dispatchEvent(
+                new MouseEvent("contextmenu", {
+                    button: 2,
+                    clientX: pointer.x,
+                    clientY: pointer.y,
+                    bubbles: true,
+                    cancelable: true,
+                }),
+            );
+        } else if (pointer.element === pressed.element) {
+            pressed.element.click();
+        }
+    }
+
+    /** Read the element a pointer event goes to. */
+    #target(): HTMLElement {
+        const { pressed, element } = this.#pointer;
+        const under = present(element, "the element under the pointer");
+
+        return pressed?.element.hasPointerCapture(POINTER_ID) === true ? pressed.element : under;
+    }
+
+    /** Create a pointer event at the pointer. */
+    #event(type: string, button: number, bubbles: boolean): PointerEvent {
+        const pointer = this.#pointer;
+
+        return new PointerEvent(type, {
+            pointerId: POINTER_ID,
+            pointerType: pointer.kind,
+            button,
+            clientX: pointer.x,
+            clientY: pointer.y,
+            width: 1,
+            height: 1,
+            bubbles,
             cancelable: true,
-        }),
-    );
+        });
+    }
+}
+
+/** List an element and its ancestors. */
+function ancestry(element: HTMLElement): HTMLElement[] {
+    const listed: HTMLElement[] = [];
+    for (let each: HTMLElement | null = element; each !== null; each = each.parentElement) {
+        listed.push(each);
+    }
+
+    return listed;
 }
 
 /** Press a key with its modifiers joined by plus signs, such as `Control+r`. */
@@ -322,71 +322,4 @@ function fill(element: HTMLElement, value: string): void {
     element.focus();
     element.value = value;
     element.dispatchEvent(new InputEvent("input", { bubbles: true, data: value }));
-}
-
-/** Read the accessible name of the focused element, none when nothing has the focus. */
-function focusedName(): string | null {
-    const element = document.activeElement;
-
-    return element === null || element === document.body ? null : computeAccessibleName(element);
-}
-
-/** Read an element's text with its whitespace collapsed. */
-function readText(element: Element): string {
-    return (element.textContent ?? "").replaceAll(/\s+/gu, " ").trim();
-}
-
-/** Read a field's value, refusing an element that is not a field. */
-function readValue(element: HTMLElement): string {
-    if (!(element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement)) {
-        throw new TypeError("only a field has a value");
-    }
-
-    return element.value;
-}
-
-/** Report whether an element is in the accessibility tree. */
-function isExposed(element: HTMLElement): boolean {
-    return !isInaccessible(element) && element.closest(CLOSED_POPOVER) === null;
-}
-
-/** Report whether an element has a role, its accessible name and the states a locator asks for. */
-function isRole(element: HTMLElement, locator: Extract<Locator, { role: string }>): boolean {
-    return (
-        getRole(element) === locator.role &&
-        (locator.name === undefined || computeAccessibleName(element) === locator.name) &&
-        OBSERVED_STATES.every(
-            (state) => locator[state] === undefined || isInState(element, state) === locator[state],
-        )
-    );
-}
-
-/** Report whether an element is in an ARIA state. */
-function isInState(element: HTMLElement, state: (typeof OBSERVED_STATES)[number]): boolean {
-    if (state === "disabled") {
-        return isDisabled(element);
-    } else if (state === "checked" && element instanceof HTMLInputElement) {
-        return element.checked;
-    }
-
-    return element.getAttribute(`aria-${state}`) === "true";
-}
-
-/** Report whether a control takes its name from a label, aria-label or aria-labelledby. */
-function isLabelled(element: HTMLElement): boolean {
-    const labels = "labels" in element && element.labels instanceof NodeList ? element.labels : [];
-
-    return (
-        element.hasAttribute("aria-label") ||
-        element.hasAttribute("aria-labelledby") ||
-        labels.length > 0
-    );
-}
-
-/** Report whether an element contains exactly a text and none of its children does. */
-function isInnermostText(element: HTMLElement, text: string): boolean {
-    return (
-        readText(element) === text &&
-        [...element.children].every((child) => readText(child) !== text)
-    );
 }

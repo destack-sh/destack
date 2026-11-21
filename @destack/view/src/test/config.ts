@@ -8,6 +8,8 @@ import { fileURLToPath } from "node:url";
 export interface ViewTestOptions {
     /** Compile components to hydrate pages a server rendered. */
     readonly isHydrated?: boolean;
+    /** Play scenarios in Chromium. */
+    readonly isBrowser?: boolean;
 }
 
 /** Define a test configuration that compiles modules as builds do and renders them into a DOM. */
@@ -18,7 +20,10 @@ export function defineConfiguration(
 ): ReturnType<typeof test.defineConfiguration> {
     // transform modules as builds do, for the server outside the DOM and to hydrate when asked
     const root = configuration.root ?? environment.process.workingDirectory;
-    const isDom = configuration.test?.environment === undefined;
+    const isBrowser = options.isBrowser === true;
+    const isDom = configuration.test?.environment === undefined && !isBrowser;
+    const drivers = fileURLToPath(new URL(isBrowser ? "page.ts" : "index.ts", import.meta.url));
+    const setup = fileURLToPath(new URL("chromium.ts", import.meta.url));
     const transforms = loadTransforms({
         directory: root,
         runtime: isDom ? "browser" : "bun",
@@ -40,12 +45,17 @@ export function defineConfiguration(
                             : undefined,
                 },
                 transforms,
-                ...(isDom ? [test.scenarioPlugin(["@destack/view/test"])] : []),
+                ...(isDom || isBrowser ? [test.scenarioPlugin([drivers])] : []),
                 ...(configuration.plugins ?? []),
             ],
             test: {
-                environment: fileURLToPath(new URL("environment.ts", import.meta.url)),
+                environment: isBrowser
+                    ? "node"
+                    : fileURLToPath(new URL("environment.ts", import.meta.url)),
                 ...configuration.test,
+                ...(isBrowser
+                    ? { globalSetup: [configuration.test?.globalSetup ?? [], setup].flat() }
+                    : {}),
             },
         },
         environment,

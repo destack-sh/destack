@@ -3,7 +3,7 @@ import { schema } from "@destack/schema";
 import { Observation } from "./observation.ts";
 import { Step } from "./step.ts";
 
-/** The theme settings, locale, direction and width a host renders UI examples with. */
+/** The globals a host renders UI examples with. */
 export const Globals = schema.object({
     /** The theme settings by name, such as `appearance: "dark"`. */
     theme: schema.record(schema.string().min(1), schema.json()).exactOptional(),
@@ -13,11 +13,13 @@ export const Globals = schema.object({
     direction: schema.enum(["ltr", "rtl"]).exactOptional(),
     /** The container width in CSS pixels, the host's own when absent. */
     width: schema.number().int().positive().exactOptional(),
+    /** What points at the examples, a mouse when absent. */
+    pointer: schema.enum(["mouse", "touch"]).exactOptional(),
 });
-/** The theme settings, locale, direction and width a host renders UI examples with. */
+/** The globals a host renders UI examples with. */
 export type Globals = schema.Infer<typeof Globals>;
 
-/** The UI interaction: actions, locators and assertions, played in process by `ViewDriver`. */
+/** The UI interaction. */
 export const viewInteraction: Interaction<Step, Observation, Globals> = Object.freeze({
     name: "ui",
     step: Step,

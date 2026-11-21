@@ -9,8 +9,9 @@ import {
     type ViteDevServer,
 } from "vite";
 import type { WorkspacePackage } from "@destack/build";
+import type { ExampleLocation } from "../example/host.tsx";
 import { loadTransforms } from "@destack/build/local";
-import { OriginPath } from "@destack/package";
+import { graph, OriginPath } from "@destack/package";
 import { type Plugin, runtimeConditions, runtimeCss, runtimeTarget } from "@destack/package/build";
 import { PackageLocator } from "@destack/package/locator";
 import { baselinePlugin, modulePlugin } from "@destack/package/vite";
@@ -42,14 +43,17 @@ export class DevelopmentServer implements AsyncDisposable {
     /** The running Vite server, replaced on each restart. */
     #vite: ViteDevServer;
     /** The options the server starts from, applied again on each restart. */
-    readonly #options: DevelopmentServerOptions;
+    readonly #options: DevelopmentServerOptions | ExamplesServerOptions;
     /** The restarts in order, settled once the last one has. */
     #restarting: Promise<void> = Promise.resolve();
     /** Whether network listeners and watchers have closed. */
     #isClosed = false;
 
     /** Retain the server until shutdown. */
-    private constructor(vite: ViteDevServer, options: DevelopmentServerOptions) {
+    private constructor(
+        vite: ViteDevServer,
+        options: DevelopmentServerOptions | ExamplesServerOptions,
+    ) {
         this.#vite = vite;
         this.#options = options;
     }
@@ -61,6 +65,18 @@ export class DevelopmentServer implements AsyncDisposable {
 
     /** Start serving the view with the build's transforms and entries. */
     static async start(options: DevelopmentServerOptions): Promise<DevelopmentServer> {
+        return DevelopmentServer.#listen(options);
+    }
+
+    /** Start serving the package's examples. */
+    static async examples(options: ExamplesServerOptions): Promise<DevelopmentServer> {
+        return DevelopmentServer.#listen(options);
+    }
+
+    /** Listen for a view or the examples. */
+    static async #listen(
+        options: DevelopmentServerOptions | ExamplesServerOptions,
+    ): Promise<DevelopmentServer> {
         // follow definition changes once the server exists
         let server: DevelopmentServer | undefined;
         const follow = (): void => {
@@ -141,24 +157,23 @@ export interface DevelopmentServerOptions {
     readonly environment: Environment<"files" | "process">;
 }
 
-/** Create a Vite server of fresh plugins for the view and listen with it. */
+/** The options of an examples server. */
+export type ExamplesServerOptions = Omit<DevelopmentServerOptions, "view">;
+
+/** Create a Vite server for the view or the examples. */
 async function serve(
-    options: DevelopmentServerOptions,
+    options: DevelopmentServerOptions | ExamplesServerOptions,
     server: ServerOptions | undefined,
     onDefinitionChange: () => void,
 ): Promise<ViteDevServer> {
-    // find the view among the workspace root's declarations
+    // answer a view's pages, or the examples page listing the root's examples
     const { workspace, environment } = options;
     const directory = workspace.root.directory;
     const views = await readViews(workspace);
-    const view = views.located.find((each) => each.name === options.view);
-    if (view?.render.mode !== "static") {
-        throw ViewError.of(
-            "VIEW_INVALID",
-            `static view '${options.view}' is invalid: the package declares no such static view`,
-        );
-    }
-    const { render } = view;
+    const page =
+        "view" in options
+            ? viewPlugin(views.located, options.view)
+            : examplesPlugin(await readExamples(workspace));
 
     // compile the view with the build's transforms and entries, resolving packages as installed
     const vite = await createServer({
@@ -173,7 +188,7 @@ async function serve(
             ...(await loadTransforms({ directory, runtime: "browser", server: true, environment })),
             entryPlugin(views.located, views.package),
             originPlugin(environment),
-            pagePlugin(view, render),
+            page,
         ],
         resolve: { conditions: runtimeConditions("browser", "development") },
         // serve the syntax and stylesheets of the baseline browsers, as builds emit them
@@ -218,6 +233,87 @@ async function readViews(
     };
 
     return { package: owned, located: locate(owned) };
+}
+
+/** Read the examples of a workspace root. */
+async function readExamples(workspace: WorkspacePackage): Promise<ExampleLocation[]> {
+    // index the root's browser modules for their examples
+    const declared = { declarations: [], relationships: [] };
+    const modules = await workspace.index({ runtime: "browser" }, declared);
+
+    return modules.flatMap((module) =>
+        module.declarations
+            .filter((declaration) => declaration.kind === "example")
+            .map((declaration) => ({
+                module: `/${graph.Moniker.module(declaration.symbol)}`,
+                export: present(graph.Moniker.name(declaration.symbol), "an example's symbol"),
+            })),
+    );
+}
+
+/** Answer the pages of a static view. */
+function viewPlugin(located: readonly LocatedView[], name: string): Plugin {
+    const view = located.find((each) => each.name === name);
+    if (view?.render.mode !== "static") {
+        throw ViewError.of(
+            "VIEW_INVALID",
+            `static view '${name}' is invalid: the package declares no such static view`,
+        );
+    }
+
+    return pagePlugin(view, view.render);
+}
+
+/** Answer page requests with the examples page. */
+function examplesPlugin(examples: readonly ExampleLocation[]): Plugin {
+    // write the page once
+    const list = JSON.stringify(examples).replaceAll("<", "\\u003c");
+    const page = `<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Examples</title></head>
+<body>
+<script type="module">
+import { BrowserEnvironment } from "@destack/environment/browser";
+import { hostExamples, hostScenario } from "@destack/view/example";
+const query = new URLSearchParams(location.search);
+const scenario = query.get("scenario");
+const name = query.get("name");
+if (scenario === null) {
+    hostExamples(document.body, ${list}, BrowserEnvironment.system);
+} else if (name === null) {
+    await import(/* @vite-ignore */ scenario);
+} else {
+    await hostScenario(document.body, scenario, name, BrowserEnvironment.system);
+}
+</script>
+</body>
+</html>`;
+
+    return {
+        name: "@destack/view/examples",
+        configureServer(vite) {
+            // answer document requests after Vite's files
+            return () => {
+                vite.middlewares.use((request, response, next) => {
+                    const url = new URL(present(request.url, "the request's path"), ORIGIN);
+                    if (/\.[^/]+$/u.test(url.pathname)) {
+                        next();
+
+                        return;
+                    }
+                    vite.transformIndexHtml(url.pathname, page).then(
+                        (html) => {
+                            response.setHeader("content-type", "text/html; charset=utf-8");
+                            response.end(html);
+                        },
+                        (error: unknown) => {
+                            next(error);
+                        },
+                    );
+                });
+            };
+        },
+    };
 }
 
 /** Answer the view's endpoints and its pages for document requests, as its prerender does. */
@@ -367,8 +463,8 @@ async function respond(
 /** List the stylesheets a server entry imports, as the build links them. */
 async function renderedStylesheets(vite: ViteDevServer, entry: string): Promise<string[]> {
     // start from the entry the server loaded
-    const graph = vite.environments.ssr.moduleGraph;
-    const root = await graph.getModuleByUrl(entry);
+    const modules = vite.environments.ssr.moduleGraph;
+    const root = await modules.getModuleByUrl(entry);
     if (root === undefined) {
         throw new TypeError(`the server loaded no module for its entry: '${entry}'`);
     }

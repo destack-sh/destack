@@ -1,6 +1,17 @@
 import { schema } from "@destack/schema";
 import { Locator } from "./locator.ts";
 
+/** A point relative to an element's top left corner, in CSS pixels. */
+const Position = schema.object({
+    /** The distance from the left edge. */
+    x: schema.number(),
+    /** The distance from the top edge. */
+    y: schema.number(),
+});
+
+/** A button of the pointer. */
+const Button = schema.enum(["primary", "secondary"]);
+
 /** One step a UI scenario takes, as data a driver interprets. */
 export const Step = schema.discriminatedUnion("action", [
     schema.object({
@@ -10,25 +21,32 @@ export const Step = schema.discriminatedUnion("action", [
         target: Locator,
     }),
     schema.object({
-        /** Press and release the main pointer button on the element. */
+        /** Click the element. */
         action: schema.literal("click"),
         /** The element. */
         target: Locator,
+        /** The button, the primary one when absent. */
+        button: Button.exactOptional(),
+        /** The point on the element, its center by default. */
+        position: Position.exactOptional(),
     }),
     schema.object({
-        /** Press the secondary pointer button on the element, opening its context menu. */
-        action: schema.literal("rightClick"),
+        /** Move the pointer onto the element. */
+        action: schema.literal("pointerMove"),
         /** The element. */
         target: Locator,
-        /** The point relative to the element's top left corner, its center when absent. */
-        position: schema
-            .object({
-                /** The distance from the left edge in CSS pixels. */
-                x: schema.number(),
-                /** The distance from the top edge in CSS pixels. */
-                y: schema.number(),
-            })
-            .exactOptional(),
+        /** The point on the element, its center by default. */
+        position: Position.exactOptional(),
+    }),
+    schema.object({
+        /** Press a button of the pointer. */
+        action: schema.literal("pointerDown"),
+        /** The button, the primary one when absent. */
+        button: Button.exactOptional(),
+    }),
+    schema.object({
+        /** Release the button of the pointer. */
+        action: schema.literal("pointerUp"),
     }),
     schema.object({
         /** Press a key, such as `ArrowDown`, `Escape` or `Control+r`. */
@@ -45,6 +63,12 @@ export const Step = schema.discriminatedUnion("action", [
         target: Locator,
         /** The new value. */
         value: schema.string(),
+    }),
+    schema.object({
+        /** Let time pass. */
+        action: schema.literal("pause"),
+        /** The time, in milliseconds. */
+        milliseconds: schema.number().int().positive(),
     }),
 ]);
 /** One step a UI scenario takes, as data a driver interprets. */

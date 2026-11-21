@@ -112,7 +112,7 @@ export const SecurityOptions = schema.object({
     /** Where to report vulnerabilities, as `mailto:` or `https:` addresses, preferred first. */
     contact: schema.array(schema.string().min(1)).min(1).readonly(),
     /** How long the file stays valid after each build, under a year as RFC 9116 recommends. */
-    lifetime: Duration.schema,
+    lifetime: Duration,
     /** The languages reports may use, such as `en`. */
     preferredLanguages: schema.array(schema.string().min(1)).readonly().exactOptional(),
     /** The address of the disclosure policy. */

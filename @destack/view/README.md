@@ -25,6 +25,12 @@ Pages render and route:
 - `@destack/view/document`: fonts, images, metadata and appearance, as in Next.js.
 - `@destack/view/primitives/*`: browser primitives, such as `clipboard` or `resize-observer`.
 
+Scenarios play a package's examples:
+
+- `viewInteraction`: the steps and observations of a UI scenario.
+- `ViewDriver`: plays scenarios in a test DOM.
+- `BrowserDriver`: plays scenarios in Chromium.
+
 Declare a notes view that lists and renames notes live:
 
 ```tsx
@@ -111,6 +117,22 @@ Every page handles the standard actions, which the `keybindings` setting rebinds
 | -------------- | ------- | ---------------------------------------------------------------- |
 | `undo`, `redo` | ⌘Z, ⇧⌘Z | undo or redo the person's newest change across the page's scopes |
 | `palette`      | ⌘K      | open the command palette, from fields too                        |
+
+### Scenarios
+
+A UI scenario takes these steps.
+
+| Step                                      | Does                                |
+| ----------------------------------------- | ----------------------------------- |
+| `focus`                                   | moves the focus to an element       |
+| `click`                                   | clicks an element                   |
+| `pointerMove`, `pointerDown`, `pointerUp` | move, press and release the pointer |
+| `press`                                   | presses a key, such as `Control+r`  |
+| `fill`                                    | replaces a field's value            |
+| `pause`                                   | lets time pass                      |
+
+A `*.scenario.tsx` module plays in a test DOM.
+A `*.browser.scenario.tsx` module plays in Chromium.
 
 ### Primitives
 
@@ -292,6 +314,43 @@ export const site = defineView({
         document: async () => ({ default: () => "<!doctype html>" }),
         pages: async () => ({ paths: ["/", "/about/"] }),
     },
+});
+```
+
+### Hold with a finger in a browser
+
+Set the `pointer` global to `touch` to play a scenario with a finger.
+
+```tsx
+import { defineExample, defineScenario } from "@destack/package/declare";
+import { viewInteraction } from "@destack/view/scenario";
+
+// a note's title as a button, and an example of it
+const Note = (properties: { readonly title: string }) => <button>{properties.title}</button>;
+export const noteGroceries = defineExample({
+    of: Note,
+    name: "groceries",
+    description: "a note titled Groceries",
+    render: () => <Note title="Groceries" />,
+});
+
+// hold the note under a finger for half a second, then let go
+export const noteHold = defineScenario({
+    of: Note,
+    interaction: viewInteraction,
+    name: "hold",
+    description: "hold a note under a finger for half a second and let go on it",
+    given: { examples: [noteGroceries], globals: { pointer: "touch" } },
+    parameters: {},
+    when: [
+        { step: { action: "pointerMove", target: { role: "button", name: "Groceries" } } },
+        { step: { action: "pointerDown" } },
+        { step: { action: "pause", milliseconds: 500 } },
+        {
+            step: { action: "pointerUp" },
+            then: [{ observe: { kind: "focused" }, is: "Groceries" }],
+        },
+    ],
 });
 ```
 
