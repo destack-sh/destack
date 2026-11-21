@@ -1,4 +1,5 @@
 import { testSimulation } from "@destack/test/world";
+import { SPAN_ELAPSED_ATTRIBUTE } from "@destack/environment";
 import { TelemetryScope } from "../scope/index.ts";
 import { expect, test } from "@destack/test";
 import { PackageId } from "@destack/package";
@@ -61,8 +62,13 @@ test("export a log record inside its span as OTLP/JSON, correlated by trace", as
         await telemetry.shutdown();
     }
 
-    // export the span and the record correlated by trace, each whole, apart from the span's duration
-    const correlated = delivered.filter(({ signal }) => signal !== "metrics");
+    // export the span and the record correlated by trace, each whole, apart from the span's real elapsed time
+    const exported = delivered.filter(({ signal }) => signal !== "metrics");
+    const correlated: unknown = JSON.parse(JSON.stringify(exported), (_key, value: unknown) =>
+        Array.isArray(value)
+            ? value.filter((each: { key?: unknown } | null) => each?.key !== SPAN_ELAPSED_ATTRIBUTE)
+            : value,
+    );
     expect(correlated).toMatchInlineSnapshot(`
       [
         {
