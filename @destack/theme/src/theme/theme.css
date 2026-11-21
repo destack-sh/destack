@@ -42,9 +42,46 @@
         background-color: color-mix(in oklab, var(--destack-color-primary) 30%, transparent);
     }
 
-    /* ring the focused element in the theme's ring color */
+    /* ring the focused element in the theme's ring color, off its edge by a border's width */
     :focus-visible {
         outline: var(--destack-stroke-ring) solid var(--destack-color-ring);
-        outline-offset: 2px;
+        outline-offset: var(--destack-stroke-border);
+    }
+
+    /* draw a select with the browser's customizable select, so its arrow and picker take the theme */
+    select,
+    ::picker(select) {
+        appearance: base-select;
+    }
+
+    /* lay a select's value and arrow out on one line, the arrow at its end */
+    select {
+        display: inline-flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--destack-space-2);
+    }
+
+    /* draw the select's arrow as a chevron in the muted text color */
+    select::picker-icon {
+        content: "";
+        width: 0.45em;
+        height: 0.45em;
+        margin-inline-end: 0.15em;
+        border-inline-end: calc(1.5 * var(--destack-stroke-border)) solid;
+        border-block-end: calc(1.5 * var(--destack-stroke-border)) solid;
+        color: var(--destack-color-muted-foreground);
+        transform: translateY(-25%) rotate(45deg);
+    }
+
+    /* draw the select's picker as a popover of the theme */
+    ::picker(select) {
+        margin-block: var(--destack-space-1);
+        padding: var(--destack-space-1);
+        border: var(--destack-stroke-border) solid var(--destack-color-border);
+        border-radius: var(--destack-radius-3);
+        background-color: var(--destack-color-popover);
+        color: var(--destack-color-popover-foreground);
+        box-shadow: var(--destack-shadow-overlay);
     }
 }
