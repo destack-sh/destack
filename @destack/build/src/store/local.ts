@@ -112,6 +112,8 @@ export class LocalBuildStore
     readonly directory: string;
     /** The directory of the dependency trees its builds are materialized in, one per manifest. */
     readonly trees: string;
+    /** The roots being placed now, by path, which the trees placing one at once share. */
+    readonly #placing = new Map<string, Promise<void>>();
     /** What disposal releases: the database the store opened, and a temporary store's directory. */
     readonly #disposables: AsyncDisposableStack;
     /** The store that renews the builds' retention, absent when this one does. */
@@ -699,6 +701,16 @@ export class LocalBuildStore
             runtime,
             closure,
         });
+    }
+
+    /** Place a tree's root once among the trees placing it at the same time. */
+    placeRoot(root: string, place: () => Promise<void>): Promise<void> {
+        // share the placement under way, forgetting it once it ends
+        const placing =
+            this.#placing.get(root) ?? place().finally(() => this.#placing.delete(root));
+        this.#placing.set(root, placing);
+
+        return placing;
     }
 
     /** Write files to paths, cloning stored blobs and the layer's files. */

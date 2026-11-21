@@ -251,10 +251,12 @@ export class BuildTree {
             }
             done.add(manifest);
 
-            // place a root the trees lack
-            if (!(await files.exists(visit.root))) {
-                await BuildTree.#place(store, visit, visits, scope);
-            }
+            // place a root the trees lack, once among the trees placing it now
+            await store.placeRoot(visit.root, async () => {
+                if (!(await files.exists(visit.root))) {
+                    await BuildTree.#place(store, visit, visits, scope);
+                }
+            });
         };
         for (const manifest of visits.keys()) {
             await place(manifest, new Set());
