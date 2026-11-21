@@ -353,7 +353,7 @@ export class Stream {
         // take a separate evaluation, rebuilt at the position when it was shared
         if (this.#feed.isJoined(this.#evaluation)) {
             this.#alone();
-            const rebuilt = this.#evaluation.walk(this.#view(position), "rebuild");
+            const rebuilt = await this.#evaluation.walk(this.#view(position), "rebuild");
             while ((await rebuilt.next()).done !== true && !signal.aborted) {
                 // rebuild without sending
             }
@@ -375,7 +375,7 @@ export class Stream {
         // walk the queries before catching up
         const start = await this.#feed.database.log.position();
         this.#evaluation.forget(start);
-        const last = yield* this.#evaluation.walk(
+        const last = yield* await this.#evaluation.walk(
             new View(this.#feed.database, start, this.#feed),
             "snapshot",
         );
@@ -400,7 +400,10 @@ export class Stream {
     ): AsyncGenerator<Page, number> {
         // rebuild the previous queries' state
         previous.forget(after);
-        const pages = previous.walk(new View(this.#feed.database, after, this.#feed), "rebuild");
+        const pages = await previous.walk(
+            new View(this.#feed.database, after, this.#feed),
+            "rebuild",
+        );
         while ((await pages.next()).done !== true) {
             // rebuild without sending
         }
@@ -409,7 +412,7 @@ export class Stream {
         const start = (await this.#feed.database.log.position()).sequence;
         let sequence = after.sequence;
         while (sequence < start && !signal.aborted) {
-            const advanced = yield* previous.advance({ ...after, sequence }, false, signal);
+            const advanced = yield* await previous.advance({ ...after, sequence }, false, signal);
             if (advanced === sequence) {
                 await this.#feed.next(sequence, signal);
             }
@@ -434,7 +437,7 @@ export class Stream {
         let sequence = position.sequence;
         let last = pending;
         while (sequence < target && !signal.aborted) {
-            const pages = this.#evaluation.advance({ ...position, sequence }, false, signal);
+            const pages = await this.#evaluation.advance({ ...position, sequence }, false, signal);
             let next = await pages.next();
             while (next.done !== true) {
                 // send the pending page unless empty

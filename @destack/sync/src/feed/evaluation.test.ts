@@ -181,7 +181,11 @@ test("send a row a transaction changes beside a change of access, deciding every
         await transaction.update(note).set({ title: "Done" }).where(eq(note.id, "a"));
     });
     const pages = [];
-    for await (const page of evaluation.advance(position, true, new AbortController().signal)) {
+    for await (const page of await evaluation.advance(
+        position,
+        true,
+        new AbortController().signal,
+    )) {
         pages.push(page);
     }
 
@@ -271,7 +275,7 @@ test("send only the rows whose image changes when deciding again, their concealm
         new SwitchingAudience(hiding("b"), hiding("c")),
     );
     const position = await database.log.position();
-    const walked = evaluation.walk(new View(database, position, feed), "snapshot");
+    const walked = await evaluation.walk(new View(database, position, feed), "snapshot");
     const sent: Page[] = [];
     for (let step = await walked.next(); ; step = await walked.next()) {
         sent.push(step.value);

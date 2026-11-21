@@ -1,3 +1,6 @@
+import { Telemetry } from "@destack/environment";
+import { TelemetryScope } from "@destack/telemetry";
+import type {} from "@destack/package/import-meta";
 import {
     TABLE,
     DatabaseError,
@@ -38,6 +41,8 @@ interface Expiry {
 export class Evaluation {
     /** The feed the evaluation reads. */
     readonly #feed: Feed;
+    /** The evaluation's spans, on the feed's telemetry. */
+    readonly #scope: TelemetryScope;
     /** Who the evaluation serves. */
     readonly #audience: Audience;
     /** The images of the rows the subscriber holds, by which pages leave out unchanged rows. */
@@ -66,6 +71,10 @@ export class Evaluation {
 
         // compile each query
         this.#feed = feed;
+        this.#scope = TelemetryScope.of(
+            import.meta.destack.package,
+            feed.database.state.environment.telemetry,
+        );
         this.#audience = audience;
         this.#dataflows = new Map(
             Object.entries(queries).map(([name, query]) => [name, this.#compile(name, query)]),
@@ -316,8 +325,19 @@ export class Evaluation {
         });
     }
 
+    /** Send the pages of the changes after a position, in a span of its own. */
+    advance(
+        after: LogPosition,
+        isComplete: boolean,
+        signal: AbortSignal,
+    ): Promise<AsyncGenerator<Page, number>> {
+        return this.#turn("destack.evaluation.advance", () =>
+            this.#advance(after, isComplete, signal),
+        );
+    }
+
     /** Send the pages of the changes after a position, returning the sequence read up to. */
-    async *advance(
+    async *#advance(
         after: LogPosition,
         isComplete: boolean,
         signal: AbortSignal,
@@ -390,8 +410,25 @@ export class Evaluation {
         return advanced;
     }
 
+    /** Walk the queries as of a view in its own span, returning the last page. */
+    walk(view: View, walk: Walk): Promise<AsyncGenerator<Page, Page>> {
+        return this.#turn("destack.evaluation.walk", () => this.#walk(view, walk));
+    }
+
+    /** Run one turn of the evaluation in a span of its own, linked to the span asking for it. */
+    #turn<Pages extends AsyncGenerator<Page, unknown>>(
+        name: string,
+        pages: () => Pages,
+    ): Promise<Pages> {
+        const { telemetry } = this.#feed.database.state.environment;
+
+        return Telemetry.detach(telemetry, (links) =>
+            this.#scope.span(name, {}, async () => pages(), { links }),
+        );
+    }
+
     /** Walk the queries as of a view, returning the last page. */
-    async *walk(view: View, walk: Walk): AsyncGenerator<Page, Page> {
+    async *#walk(view: View, walk: Walk): AsyncGenerator<Page, Page> {
         // walk each query in turn, sending a snapshot's full pages as they fill
         let isFirst = walk === "snapshot";
         const pending: Patch[] = [];
@@ -602,7 +639,7 @@ export class Evaluation {
 
         // walk them, dropping every page
         this.#isDeferred = false;
-        const pages = this.walk(this.#view(position), "rebuild");
+        const pages = await this.walk(this.#view(position), "rebuild");
         while ((await pages.next()).done !== true) {
             // drop each page
         }
@@ -675,7 +712,7 @@ export class Evaluation {
     async #pagesAfter(position: LogPosition): Promise<Advance> {
         // decide what follows
         const pages: Page[] = [];
-        const advancing = this.advance(position, true, new AbortController().signal);
+        const advancing = await this.advance(position, true, new AbortController().signal);
         let next = await advancing.next();
         while (next.done !== true) {
             pages.push(next.value);
