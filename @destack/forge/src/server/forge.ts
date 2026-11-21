@@ -18,7 +18,7 @@ import {
 } from "@destack/object";
 import type { ObjectStore, ImplementationInput, RequestContext } from "@destack/object/server";
 import { PackageName } from "@destack/package";
-import { type Digest, type Identifier, present, schema } from "@destack/schema";
+import { type Digest, type Identifier, present, schema, Version } from "@destack/schema";
 import { RequestId, type ObjectReference, Scope, type Subject } from "@destack/sync";
 import type { ServerContext, PackageContext } from "@destack/object/workload";
 import type { WebhookDelivery } from "@destack/workflow";
@@ -130,7 +130,7 @@ export class Forge {
         this.handled = [
             implementRepository(this.#repositories),
             reference,
-            implementPackageObject({ store: this.store }),
+            implementPackageObject(this.store),
             implementRelease(),
             implementTag(),
             implementIssuer(options.github),
@@ -320,6 +320,20 @@ export class Forge {
         }
 
         return found;
+    }
+
+    /** Find the version of a package's newest release, leaving its dev builds. */
+    static async newest(
+        packageId: Identifier<"package">,
+        context: Pick<MethodContext, "read">,
+    ): Promise<string | undefined> {
+        const published = await context.read(release).findMany({ where: { parentId: packageId } });
+        const [newest] = published
+            .map((each) => each.version)
+            .filter((version) => !Version.isPrerelease(version))
+            .toSorted((left, right) => Version.compare(right, left));
+
+        return newest;
     }
 
     /** Refuse a builtin outside the platform's organization, the one owning the forge's home. */

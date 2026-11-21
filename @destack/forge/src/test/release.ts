@@ -4,15 +4,9 @@ import type { Environment } from "@destack/environment";
 import { Digest, Identifier } from "@destack/schema";
 import { NpmTarball } from "@destack/registry/npm";
 import { LATEST_TAG, packageObject, release, tag } from "@destack/registry/object";
-import { ReleaseMethod } from "../server/release.ts";
 
 /** The commit a test release records, the all-zero SHA-1. */
 export const TEST_COMMIT = "0".repeat(40);
-
-/** Forge's release type resolving releases by version or tag, as other packages read them. */
-export const resolvedRelease = release.implement({
-    methods: { resolve: (call) => ReleaseMethod.resolve(call) },
-});
 
 /** Record a build in an image alone as a package's published release in a space, tagged. */
 export async function publishBuild(

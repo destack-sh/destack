@@ -8,6 +8,7 @@ import { TestRun } from "@destack/db/test/run";
 import { nth } from "@destack/schema";
 import {
     ANSWER_VERSIONS,
+    EARLIER_PRERELEASE_VERSION,
     FIXTURE_VERSION,
     type FixturePackage,
     FixtureSource,
@@ -61,8 +62,9 @@ async function build(builds: string): Promise<void> {
         const greeting = await FixtureSource.open("greeting", sources, compilers);
         const greetings = await greeting.build([nth(answers, 0)], [FIXTURE_VERSION]);
 
-        // keep a dev prerelease of answer's next version
+        // keep two dev prereleases of answer's next version, a day apart
         const prerelease = await answer.prerelease(PRERELEASE_VERSION);
+        const earlier = await answer.prerelease(EARLIER_PRERELEASE_VERSION);
 
         // keep each build by package and version
         const kept: readonly (readonly [FixturePackage, string, BuildReader])[] = [
@@ -71,6 +73,7 @@ async function build(builds: string): Promise<void> {
                 (built) => ["greeting", built.manifest.package.version, built] as const,
             ),
             ["answer", PRERELEASE_VERSION, prerelease],
+            ["answer", EARLIER_PRERELEASE_VERSION, earlier],
         ];
         for (const [name, version, built] of kept) {
             await host.files.mkdir(join(builds, name), { recursive: true });

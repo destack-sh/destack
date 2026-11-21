@@ -17,6 +17,9 @@ export const ANSWER_VERSIONS = [FIXTURE_VERSION, "2026.9.1", "2026.10.0"];
 /** The dev prerelease of the answer package after its releases. */
 export const PRERELEASE_VERSION = "2026.9.2-dev.20260912100000.0123456789ab";
 
+/** A dev prerelease of the answer package built the day before the other. */
+export const EARLIER_PRERELEASE_VERSION = "2026.9.2-dev.20260911100000.0123456789aa";
+
 /** The workspace's lockfile, which fixture copies link to beside them. */
 const WORKSPACE_LOCKFILE = fileURLToPath(new URL("../../../../bun.lock", import.meta.url));
 

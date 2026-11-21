@@ -12,7 +12,7 @@ import { RemoteBuildStore } from "@destack/build/store";
 import registryPackage from "@destack/registry/package";
 import { LATEST_TAG, packageObject } from "@destack/registry/object";
 import { fixtureBuild, prereleaseBuild } from "./fixture/build.ts";
-import { PRERELEASE_VERSION } from "./fixture/package.ts";
+import { EARLIER_PRERELEASE_VERSION, PRERELEASE_VERSION } from "./fixture/package.ts";
 import { Claim } from "@destack/object";
 import { Account, account } from "@destack/account/object";
 import { OPERATOR_EMAIL } from "@destack/account/test";
@@ -458,6 +458,27 @@ test("refuse an image pinning an unreleased version of another account's hosted 
         "PRECONDITION_FAILED",
         "DEPENDENCY_BLOCKED",
         "cannot release with dependency '@tenant-1/library@2026.9.0': it is not published",
+    ]);
+});
+
+test("publish a dev build after a later dev build, and refuse one before the newest release", async () => {
+    // publish the later dev build, then the earlier one, as a reverted source builds
+    const forge = await TestForge.open();
+    const later = await forge.publish((await prereleaseBuild()).reader);
+    const earlier = await forge.publish((await prereleaseBuild(EARLIER_PRERELEASE_VERSION)).reader);
+    expect([later.release.version, earlier.release.version]).toEqual([
+        PRERELEASE_VERSION,
+        EARLIER_PRERELEASE_VERSION,
+    ]);
+
+    // refuse a dev build of a version before the newest release
+    const other = await TestForge.open();
+    await other.publish((await fixtureBuild("answer", "2026.10.0")).reader);
+    const refused = await refusal(other.publish((await prereleaseBuild()).reader));
+    expect(refused).toEqual([
+        "PRECONDITION_FAILED",
+        "VERSION_BLOCKED",
+        `cannot publish release '${PRERELEASE_VERSION}': it precedes '2026.10.0', and releases publish in version order`,
     ]);
 });
 

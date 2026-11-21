@@ -15,7 +15,7 @@ export function fixtureBuild(
     return PackageBuild.read(join(inject("builds"), name, version), environment);
 }
 
-/** Read the global setup's dev prerelease of the answer package. */
-export function prereleaseBuild(): Promise<PackageBuild> {
-    return PackageBuild.read(join(inject("builds"), "answer", PRERELEASE_VERSION), environment);
+/** Read one of the global setup's dev prereleases of the answer package, the later by default. */
+export function prereleaseBuild(version = PRERELEASE_VERSION): Promise<PackageBuild> {
+    return PackageBuild.read(join(inject("builds"), "answer", version), environment);
 }
