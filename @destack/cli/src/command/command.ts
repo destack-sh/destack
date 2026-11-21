@@ -79,8 +79,8 @@ export interface Command {
     readonly journeys?: readonly CommandJourney[];
     /** Whether help and completion leave the command out. */
     readonly isHidden?: boolean;
-    /** Load the command when it runs. */
-    readonly load?: () => Promise<CommandBody>;
+    /** Load the command when it runs, importing its module through the context. */
+    readonly load?: (context: CommandContext) => Promise<CommandBody>;
 }
 
 /** A command without its description, which its parent declares. */
@@ -175,7 +175,7 @@ export class CommandTree {
         }
 
         // load a lazy subcommand, keeping its parent's description
-        const loaded = await found.load();
+        const loaded = await found.load(this.context);
 
         return {
             ...loaded,
@@ -418,7 +418,9 @@ export class CommandTree {
                 children = await this.children(command);
             } catch (error) {
                 // list the named ones alone while the machine is stopped, nobody signed in or no space set
-                const { MachineError } = await import("@destack/machine/error");
+                const { MachineError } = await this.context.module(
+                    () => import("@destack/machine/error"),
+                );
                 const isOffline =
                     MachineError.is(error, "MACHINE_UNAVAILABLE") ||
                     CliError.is(error, "SIGN_IN_UNAUTHENTICATED") ||

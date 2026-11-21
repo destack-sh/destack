@@ -24,124 +24,129 @@ const COMMANDS = {
     login: {
         description:
             "Sign in or up with a device code, enrolling this machine; --browser signs in through the browser, --email with a mailed code, which --handle signs a new person up with",
-        load: async () => (await import("./login.ts")).loginCommand,
+        load: async (context) => (await context.module(() => import("./login.ts"))).loginCommand,
     },
     logout: {
         description: "Sign out of this machine",
-        load: async () => (await import("./login.ts")).logoutCommand,
+        load: async (context) => (await context.module(() => import("./login.ts"))).logoutCommand,
     },
     whoami: {
         description: "Show the person signed in on this machine and the space the terminal acts in",
-        load: async () => (await import("./login.ts")).whoamiCommand,
+        load: async (context) => (await context.module(() => import("./login.ts"))).whoamiCommand,
     },
     switch: {
         description:
             "Switch the space command lines act in, stored as this computer's space setting",
-        load: async () => (await import("./switch.ts")).switchCommand,
+        load: async (context) => (await context.module(() => import("./switch.ts"))).switchCommand,
     },
 
     // the nouns taking more than their type's methods
     setting: {
         description: "Get, set or reset a setting at the scope --scope selects",
-        load: async () => (await import("./setting.ts")).settingCommand,
+        load: async (context) =>
+            (await context.module(() => import("./setting.ts"))).settingCommand,
     },
     settings: {
         description: "List the setting values at the scope --scope selects",
-        load: async () => (await import("./setting.ts")).settingsCommand,
+        load: async (context) =>
+            (await context.module(() => import("./setting.ts"))).settingsCommand,
     },
 
     // the space's packages, and its stack
     install: {
         description:
             "Install a package, following its latest release or a tag, or staying on a version",
-        load: async () => (await import("./install.ts")).installCommand,
+        load: async (context) =>
+            (await context.module(() => import("./install.ts"))).installCommand,
     },
     uninstall: {
         description: "Uninstall a package, or the installation of a name, deleting its resources",
-        load: async () => (await import("./install.ts")).uninstallCommand,
+        load: async (context) =>
+            (await context.module(() => import("./install.ts"))).uninstallCommand,
     },
     share: {
         description: "Invite a person to the space, by @handle or email, as a role",
-        load: async () => (await import("./share.ts")).shareCommand,
+        load: async (context) => (await context.module(() => import("./share.ts"))).shareCommand,
     },
     invited: {
         description: "List the invitations to you",
-        load: async () => (await import("./share.ts")).invitedCommand,
+        load: async (context) => (await context.module(() => import("./share.ts"))).invitedCommand,
     },
     accept: {
         description: "Accept an invitation to you, which destack invited lists",
-        load: async () => (await import("./share.ts")).acceptCommand,
+        load: async (context) => (await context.module(() => import("./share.ts"))).acceptCommand,
     },
     apply: {
         description: "Apply a checkout's stack to the space, following it until applied",
-        load: async () => (await import("./apply.ts")).applyCommand,
+        load: async (context) => (await context.module(() => import("./apply.ts"))).applyCommand,
     },
     plan: {
         description:
             "Show an installation, the space's stack by default, its resources and the plan it waits on",
-        load: async () => (await import("./apply.ts")).planCommand,
+        load: async (context) => (await context.module(() => import("./apply.ts"))).planCommand,
     },
     approve: {
         description: "Approve the plan an installation, the space's stack by default, waits on",
-        load: async () => (await import("./apply.ts")).approveCommand,
+        load: async (context) => (await context.module(() => import("./apply.ts"))).approveCommand,
     },
     reject: {
         description: "Reject the plan an installation, the space's stack by default, waits on",
-        load: async () => (await import("./apply.ts")).rejectCommand,
+        load: async (context) => (await context.module(() => import("./apply.ts"))).rejectCommand,
     },
 
     // this computer's checkouts and their repositories
     new: {
         description: "Make a package from a template in a new directory, as a checkout",
-        load: async () => (await import("./new.ts")).newCommand,
+        load: async (context) => (await context.module(() => import("./new.ts"))).newCommand,
     },
     dev: {
         description: "Preview a checkout's package live against the space",
-        load: async () => (await import("./dev.ts")).devCommand,
+        load: async (context) => (await context.module(() => import("./dev.ts"))).devCommand,
     },
     build: {
         description: "Build a checkout's package in the space, following its phases",
-        load: async () => (await import("./dev.ts")).buildCommand,
+        load: async (context) => (await context.module(() => import("./dev.ts"))).buildCommand,
     },
     check: {
         description: "Check a package's formatting, types and lints with its pinned toolchain",
-        load: async () => (await import("./check.ts")).checkCommand,
+        load: async (context) => (await context.module(() => import("./check.ts"))).checkCommand,
     },
     fix: {
         description: "Write a package's generated settings, format it and fix its lints",
-        load: async () => (await import("./check.ts")).fixCommand,
+        load: async (context) => (await context.module(() => import("./check.ts"))).fixCommand,
     },
     test: {
         description:
             "Run a package's tests with its pinned toolchain, unit and scenario by default",
-        load: async () => (await import("./check.ts")).testCommand,
+        load: async (context) => (await context.module(() => import("./check.ts"))).testCommand,
     },
     publish: {
         description: "Build a checkout's package in the space and publish it to the registry",
-        load: async () => (await import("./dev.ts")).publishCommand,
+        load: async (context) => (await context.module(() => import("./dev.ts"))).publishCommand,
     },
     tag: {
         description: "Point a package's distribution tag at one of its releases",
-        load: async () => (await import("./tag.ts")).tagCommand,
+        load: async (context) => (await context.module(() => import("./tag.ts"))).tagCommand,
     },
     git: {
         description: "Push and pull Destack repositories with git as you",
-        load: async () => (await import("./git.ts")).gitCommand,
+        load: async (context) => (await context.module(() => import("./git.ts"))).gitCommand,
     },
 
     // the desktop, this distribution and its completion
     open: {
         description:
             "Open a link, or an object by its identifier, in a desktop window or the browser",
-        load: async () => (await import("./open.ts")).openCommand,
+        load: async (context) => (await context.module(() => import("./open.ts"))).openCommand,
     },
     self: {
         description: "Install, start, stop, update and uninstall this Destack distribution",
-        load: async () => (await import("./self.ts")).selfCommand,
+        load: async (context) => (await context.module(() => import("./self.ts"))).selfCommand,
     },
     completion: {
         description: "Print the completion script of a shell: bash, zsh or fish",
-        load: async () => (await import("./completion.ts")).completionCommand,
+        load: async (context) =>
+            (await context.module(() => import("./completion.ts"))).completionCommand,
     },
 } as const satisfies Readonly<Record<string, Command>>;
 
@@ -152,7 +157,10 @@ export const root: Command = {
     journeys: JOURNEYS,
     // find a noun the stores describe, listed qualified where a root command takes its word
     resolve: async (word, context) =>
-        (await import("./noun.ts")).nounCommand(await context.catalog(), word),
+        (await context.module(() => import("./noun.ts"))).nounCommand(
+            await context.catalog(),
+            word,
+        ),
     names: async (context) => (await context.catalog()).plurals(Object.keys(COMMANDS)),
     unavailable: (context) => unavailable(context),
 };

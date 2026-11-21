@@ -74,6 +74,11 @@ export class CommandContext implements AsyncDisposable {
         await this.#closing.disposeAsync();
     }
 
+    /** Import a module as one operation of real work, which the environment's scheduler orders. */
+    module<Module>(load: () => Promise<Module>): Promise<Module> {
+        return this.environment.scheduler.run(load);
+    }
+
     /** Open this computer's native device once. */
     native(): Promise<Device<MachineCredential>> {
         this.#native ??= this.#open();
@@ -96,8 +101,8 @@ export class CommandContext implements AsyncDisposable {
     /** List the settings Destack's packages and the space's installations declare. */
     async settings(): Promise<Setting[]> {
         // take the native and desktop settings Destack declares, then the space's installations'
-        const { NATIVE_SETTINGS } = await import("@destack/account/native");
-        const { DESKTOP_SETTINGS } = await import("@destack/desktop/setting");
+        const { NATIVE_SETTINGS } = await this.module(() => import("@destack/account/native"));
+        const { DESKTOP_SETTINGS } = await this.module(() => import("@destack/desktop/setting"));
 
         return [...NATIVE_SETTINGS, ...DESKTOP_SETTINGS, ...(await this.catalog()).settings];
     }
@@ -137,7 +142,7 @@ export class CommandContext implements AsyncDisposable {
             }
 
             // take this computer's space setting, absent without one
-            const { currentSpace } = await import("@destack/account/native");
+            const { currentSpace } = await this.module(() => import("@destack/account/native"));
             const set = await (await this.native()).setting(currentSpace);
 
             return set ?? undefined;
@@ -148,7 +153,7 @@ export class CommandContext implements AsyncDisposable {
 
     /** Resolve a space's name, as the signed-in person names it. */
     async resolve(name: string): Promise<Identifier<"space">> {
-        const { spaceAliases } = await import("@destack/account/declare");
+        const { spaceAliases } = await this.module(() => import("@destack/account/declare"));
         const aliases = await (await this.native()).setting(spaceAliases);
 
         return (await this.launcher()).resolve(name, aliases);
@@ -204,8 +209,10 @@ export class CommandContext implements AsyncDisposable {
         const home = await launcher.residency(accountId);
 
         // call the registry the home serves
-        const { createClient } = await import("@destack/object/client");
-        const { default: registryPackage } = await import("@destack/registry/package");
+        const { createClient } = await this.module(() => import("@destack/object/client"));
+        const { default: registryPackage } = await this.module(
+            () => import("@destack/registry/package"),
+        );
         const endpoint = await launcher.package(home, registryPackage.id);
 
         return {
@@ -242,7 +249,7 @@ export class CommandContext implements AsyncDisposable {
         consent: "ask" | "approve" = "ask",
     ) {
         // send as the person, answering at the terminal what a call asks of them
-        const { createClient } = await import("@destack/object/client");
+        const { createClient } = await this.module(() => import("@destack/object/client"));
         const client = await this.native();
         const session = await this.launcher();
 
@@ -285,7 +292,7 @@ export class CommandContext implements AsyncDisposable {
     /** Ask the person at the terminal whether to grant what an installation asks. */
     async #decide(request: GrantRequest): Promise<Decision> {
         // name the package, its address if any, its space and each permission as its package describes it
-        const { Localization, SOURCE_LOCALE } = await import("@destack/locale");
+        const { Localization, SOURCE_LOCALE } = await this.module(() => import("@destack/locale"));
         const source = Localization.of(SOURCE_LOCALE, []);
         const named = request.installation === undefined ? "" : ` (${request.installation})`;
         const permissions = request.permissions.map(
@@ -314,8 +321,8 @@ export class CommandContext implements AsyncDisposable {
         }
 
         // query the checkouts registered at any of them
-        const { checkout } = await import("@destack/machine/checkout");
-        const { RequestId } = await import("@destack/sync");
+        const { checkout } = await this.module(() => import("@destack/machine/checkout"));
+        const { RequestId } = await this.module(() => import("@destack/sync"));
         const client = await this.native();
         await using opened = new AsyncDisposableStack();
         const checkouts = await client.follow({ checkout }, opened);
@@ -380,7 +387,9 @@ export class CommandContext implements AsyncDisposable {
 
     /** Read the nouns and settings the stores describe, once. */
     catalog(): Promise<Catalog> {
-        this.#catalog ??= import("../object/catalog.ts").then(({ Catalog }) => Catalog.of(this));
+        this.#catalog ??= this.module(() => import("../object/catalog.ts")).then(({ Catalog }) =>
+            Catalog.of(this),
+        );
 
         return this.#catalog;
     }
