@@ -122,6 +122,17 @@ onSqlite(
 );
 
 onSqlite(
+    "drop a namespace whose tables reference each other, in any order, leaving none of its relations",
+    async () => {
+        const worker = await start();
+
+        // drop a folder before the document, page and memo referencing it, twice over their rows
+        const response = await worker.dispatchFetch("https://notes.test/drop");
+        expect([response.status, await response.json()]).toEqual([200, { first: [], second: [] }]);
+    },
+);
+
+onSqlite(
     "write and read rows in statements binding more values than a Durable Object's storage takes at once, or integers it cannot bind",
     async () => {
         const worker = await start();
@@ -130,7 +141,11 @@ onSqlite(
         const response = await worker.dispatchFetch("https://notes.test/parameters");
         expect([response.status, await response.json()]).toEqual([
             200,
-            { isEqual: true, stored: { size: "4611686018427387904" } },
+            {
+                isEqual: true,
+                stored: { size: "4611686018427387904" },
+                bound: { boolean: "real" },
+            },
         ]);
     },
 );

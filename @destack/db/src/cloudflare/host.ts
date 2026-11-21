@@ -1,3 +1,4 @@
+import { quote } from "../dialect/quote.ts";
 import type { DatabaseEnvironment } from "../database/connection.ts";
 import { Digest, schema, Uuid } from "@destack/schema";
 import { Plan, ResourceId, ResourceRecord } from "@destack/resource";
@@ -298,11 +299,26 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
 
     /** Drop a namespace's relations, such as a database living only while an instance runs. */
     async drop(namespace: string): Promise<void> {
-        // read and drop each relation behind the storage's queue
+        // read and drop the relations behind the storage's queue, in one transaction
         await this.queue.run(async () => {
-            for (const name of await this.relations(namespace)) {
-                this.storage.sql.exec(`DROP TABLE IF EXISTS "${name.replaceAll('"', '""')}"`);
-            }
+            await this.storage.transaction(async () => {
+                // drop the tables' triggers first, which read tables dropped before theirs
+                const tables = await this.relations(namespace);
+                const triggers = this.storage.sql
+                    .exec("SELECT name, tbl_name FROM sqlite_schema WHERE type = 'trigger'")
+                    .toArray()
+                    .filter((row) => tables.includes(schema.string().parse(row["tbl_name"])))
+                    .map((row) => schema.string().parse(row["name"]));
+                for (const name of triggers) {
+                    this.storage.sql.exec(`DROP TRIGGER IF EXISTS ${quote(name)}`);
+                }
+
+                // check the references between the tables once every one is dropped, whatever their order
+                this.storage.sql.exec("PRAGMA defer_foreign_keys = ON");
+                for (const name of tables) {
+                    this.storage.sql.exec(`DROP TABLE IF EXISTS ${quote(name)}`);
+                }
+            });
         }, this.environment);
     }
 

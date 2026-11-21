@@ -2,7 +2,7 @@ import type { Environment } from "@destack/environment";
 import { present } from "@destack/schema";
 import { WorkerdEnvironment } from "@destack/environment/workerd";
 import { ModuleMetadata } from "@destack/package";
-import { and, count, eq, inArray, or } from "../../sql/index.ts";
+import { and, count, eq, inArray, or, sql } from "../../sql/index.ts";
 import { DATABASE_MANAGER, readEmpty, readTables } from "../../migration/state.ts";
 import { Change } from "../../log/log.ts";
 import { defineDatabase } from "../../declare/database.ts";
@@ -37,6 +37,19 @@ const note = defineTable(
 const folderOne = defineTable(
     "folder",
     { id: text("id").primaryKey(), extra: text("extra") },
+    {},
+    MODULE,
+);
+
+/** Memos kept while their folder exists, which refuse its deletion. */
+const memo = defineTable(
+    "memo",
+    {
+        id: text("id").primaryKey(),
+        folderId: text("folder_id")
+            .notNull()
+            .references(() => folderTwo.id),
+    },
     {},
     MODULE,
 );
@@ -168,6 +181,8 @@ export class NoteStore {
             return await this.limits();
         } else if (pathname === "/rebuild") {
             return await this.rebuild();
+        } else if (pathname === "/drop") {
+            return await this.drop();
         } else if (pathname === "/rows") {
             return await this.rows();
         } else if (pathname === "/reader") {
@@ -263,6 +278,45 @@ export class NoteStore {
         const [left] = await database.select({ count: count() }).from(page);
 
         return Response.json({ folders, documents, pages, left: left?.count });
+    }
+
+    /** Drop a namespace whose tables reference each other, twice over rows. */
+    async drop(): Promise<Response> {
+        // store a folder with what references it in a namespace, then drop the namespace
+        await this.fillDropped();
+        await this.databases.drop("dropped");
+        const first = await this.databases.relations("dropped");
+
+        // fill and drop it again, as an instance starting over its earlier database does
+        await this.fillDropped();
+        await this.databases.drop("dropped");
+
+        return Response.json({ first, second: await this.databases.relations("dropped") });
+    }
+
+    /** Store a folder, its document, page and memo in a namespace, the page deleting its folder. */
+    async fillDropped(): Promise<void> {
+        // migrate the tables
+        const tables = [folderTwo, document, page, memo];
+        const database = this.databases.connect(tables, { namespace: "dropped" });
+        await database.migrate(tables);
+
+        // write one row of each
+        await database.transaction(async (transaction) => {
+            // write the folder first, then the rows referencing it
+            await transaction.insert(folderTwo).values({ id: "f" });
+            await transaction.insert(document).values({ id: "d", folderId: "f" });
+            await transaction.insert(page).values({ id: "p", documentId: "d" });
+            await transaction.insert(memo).values({ id: "m", folderId: "f" });
+        });
+
+        // delete a page's folder with it through a trigger, as tables with dependents do
+        const [pages, folders] = [page, folderTwo].map(
+            (table) => `"dropped.${table[TABLE].sqlName}"`,
+        );
+        this.databases.storage.sql.exec(
+            `CREATE TRIGGER "dropped.page_folder" AFTER DELETE ON ${pages} BEGIN DELETE FROM ${folders} WHERE id = OLD.id; END`,
+        );
     }
 
     /** Check emptiness past 100 tables, filter by 150 predicates, and log a 70-column row. */
@@ -379,7 +433,14 @@ export class NoteStore {
             .exec(`SELECT CAST(size AS TEXT) AS size FROM "${file[TABLE].sqlName}"`)
             .toArray();
 
-        return Response.json({ isEqual: JSON.stringify(rows) === JSON.stringify(notes), stored });
+        // bind a boolean in a statement of its own, which the storage takes as a number
+        const [bound] = await database.all(sql`SELECT typeof(${true}) AS boolean`);
+
+        return Response.json({
+            isEqual: JSON.stringify(rows) === JSON.stringify(notes),
+            stored,
+            bound,
+        });
     }
 
     /** Provision, plan, apply, open, write, measure and destroy a workload database. */
