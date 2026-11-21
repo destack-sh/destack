@@ -14,7 +14,7 @@ export const Globals = schema.object({
     /** The container width in CSS pixels, the host's own when absent. */
     width: schema.number().int().positive().exactOptional(),
     /** What points at the examples, a mouse when absent. */
-    pointer: schema.enum(["mouse", "touch"]).exactOptional(),
+    pointer: schema.enum(["mouse", "pen", "touch"]).exactOptional(),
 });
 /** The globals a host renders UI examples with. */
 export type Globals = schema.Infer<typeof Globals>;

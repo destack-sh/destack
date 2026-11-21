@@ -24,8 +24,8 @@ const POINTER_ID = 1;
 
 /** The pointer of a driver. */
 interface Pointer {
-    /** What points: a mouse or a finger. */
-    readonly kind: "mouse" | "touch";
+    /** What points: a mouse, a pen or a finger. */
+    readonly kind: "mouse" | "pen" | "touch";
     /** The element under it, absent before its first move. */
     element: HTMLElement | undefined;
     /** Its horizontal viewport position. */
@@ -110,6 +110,9 @@ export class ViewDriver implements Driver<Step, Observation> {
             case "pointerUp":
                 this.#pointerUp();
                 break;
+            case "wheel":
+                this.#wheel(step.deltaX ?? 0, step.deltaY ?? 0);
+                break;
             case "pause":
                 await testWorld().simulation.sleep(step.milliseconds);
                 break;
@@ -177,6 +180,36 @@ export class ViewDriver implements Driver<Step, Observation> {
         // send the move to the pointer's target
         if (pointer.pressed !== undefined || pointer.kind !== "touch") {
             this.#target().dispatchEvent(this.#event("pointermove", -1, true));
+        }
+    }
+
+    /** Turn the wheel over the pointer's element, scrolling its nearest scrolling ancestor. */
+    #wheel(deltaX: number, deltaY: number): void {
+        // send the wheel to the element under the pointer
+        const element = this.#pointer.element;
+        if (element === undefined) {
+            throw new TypeError("a wheel turns after a step moved the pointer onto an element");
+        }
+        const wheel = new WheelEvent("wheel", {
+            deltaX,
+            deltaY,
+            clientX: this.#pointer.x,
+            clientY: this.#pointer.y,
+            bubbles: true,
+            cancelable: true,
+        });
+
+        // scroll the nearest ancestor that scrolls unless a handler took the wheel
+        const scroller = ancestry(element).find((each) => {
+            const { overflow, overflowX, overflowY } = getComputedStyle(each);
+            const flows = [...overflow.split(" "), overflowX, overflowY];
+
+            return flows.some((flow) => flow === "auto" || flow === "scroll");
+        });
+        if (element.dispatchEvent(wheel) && scroller !== undefined) {
+            scroller.scrollLeft += deltaX;
+            scroller.scrollTop += deltaY;
+            scroller.dispatchEvent(new Event("scroll"));
         }
     }
 

@@ -127,6 +127,7 @@ A UI scenario takes these steps.
 | `focus`                                   | moves the focus to an element       |
 | `click`                                   | clicks an element                   |
 | `pointerMove`, `pointerDown`, `pointerUp` | move, press and release the pointer |
+| `wheel`                                   | turn the wheel where the pointer is |
 | `press`                                   | presses a key, such as `Control+r`  |
 | `fill`                                    | replaces a field's value            |
 | `pause`                                   | lets time pass                      |

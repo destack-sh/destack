@@ -49,6 +49,14 @@ export const Step = schema.discriminatedUnion("action", [
         action: schema.literal("pointerUp"),
     }),
     schema.object({
+        /** Turn the wheel where the pointer is. */
+        action: schema.literal("wheel"),
+        /** The horizontal distance, in CSS pixels. */
+        deltaX: schema.number().exactOptional(),
+        /** The vertical distance, in CSS pixels. */
+        deltaY: schema.number().exactOptional(),
+    }),
+    schema.object({
         /** Press a key, such as `ArrowDown`, `Escape` or `Control+r`. */
         action: schema.literal("press"),
         /** The key with its modifiers. */
