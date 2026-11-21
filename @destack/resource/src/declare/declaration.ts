@@ -39,7 +39,7 @@ export const ResourceRetention = schema.union([
     schema.literal("forever"),
     schema.object({
         /** How long the deleted resource stays restorable before its content is destroyed. */
-        within: Duration.schema,
+        within: Duration,
     }),
 ]);
 /** What deleting a resource does to its content. */
