@@ -1,7 +1,7 @@
 import { expect, test } from "@destack/test";
 import { render } from "@destack/view/test";
 import { createSignal } from "@destack/view";
-import acorn from "@destack/icon/phosphor/acorn";
+import alarm from "@destack/icon/phosphor/alarm";
 import alien from "@destack/icon/phosphor/alien";
 import { IconBodies, type IconName } from "@destack/icon";
 import { LazyIcon } from "@destack/ui/icon";
@@ -12,16 +12,16 @@ function svg(attributes: string, body: string): string {
 }
 
 test("draw an icon chosen at run time empty at its final size until its module arrives", async () => {
-    // load the module first, so the icon's body arrives on the next turn, then draw its sized frame at once
-    await IconBodies.load("acorn");
-    const { container } = render(() => <LazyIcon name="acorn" size={32} label="Acorn" />);
+    // load a module no other test draws first, so the body arrives on the next turn, then draw its frame at once
+    await IconBodies.load("alarm");
+    const { container } = render(() => <LazyIcon name="alarm" size={32} label="Alarm" />);
     const loading = container.innerHTML;
     await expect.poll(() => container.innerHTML).not.toBe(loading);
     expect([loading, container.innerHTML]).toEqual([
-        svg('width="32" height="32" role="img" aria-label="Acorn"', ""),
+        svg('width="32" height="32" role="img" aria-label="Alarm"', ""),
         svg(
-            'width="32" height="32" role="img" aria-label="Acorn"',
-            acorn.regular.replace("/>", "></path>"),
+            'width="32" height="32" role="img" aria-label="Alarm"',
+            alarm.regular.replaceAll("/>", "></path>"),
         ),
     ]);
 });
