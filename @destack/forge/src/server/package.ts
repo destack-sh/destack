@@ -1,7 +1,7 @@
 import { type BuildStore } from "@destack/build/store";
 import { BuildImage, PackageManifest } from "@destack/package/manifest";
 import { type DependencyRelease, type PackageId, PackageName } from "@destack/package";
-import type { MethodContextOf, ResultOf } from "@destack/object";
+import { type MethodContextOf, ObjectDescription, type ResultOf } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import { Snapshot } from "@destack/db";
 import { type Digest, type Identifier, present, schema, Version } from "@destack/schema";
@@ -17,6 +17,7 @@ import {
 } from "@destack/registry/object";
 import { setting, SettingValue } from "@destack/setting/object";
 import { buildRetention } from "@destack/stack/setting";
+import { KNOWN_TYPES } from "@destack/stack/stack";
 import { ForgeError } from "../error/index.ts";
 import { Forge } from "./forge.ts";
 
@@ -180,6 +181,12 @@ async function check(
     // refuse a locked package hosted here, the versions this publish releases counting as released
     const entries = await store.entriesOf(read);
     await requirePublished(context, id, entries, publishing);
+
+    // refuse tables the root lists that its types do not describe among the image's builds and the known types
+    const imaged = await Promise.all(
+        Object.values(entries).map((entry) => store.contents(entry.manifest)),
+    );
+    await ObjectDescription.check(contents, imaged, KNOWN_TYPES);
 
     // answer the release of this version again when another image of the same build published it
     const [taken] = await context
