@@ -62,12 +62,7 @@ export function refusal(error: unknown, telemetry: Environment["telemetry"]): Re
     // answer the reported error with its status
     const reported = reportError(error, telemetry);
     const response = Response.json(reported.toJSON(), { status: reported.status });
-
-    // set the refusal's Retry-After in whole seconds
-    const wait = RetryAfter.safeParse(reported.data);
-    if (wait.success) {
-        response.headers.set("retry-after", String(Math.ceil(wait.data.retryAfter / 1000)));
-    }
+    RetryAfter.write(response.headers, reported.data);
 
     return response;
 }

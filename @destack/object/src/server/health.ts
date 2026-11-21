@@ -3,6 +3,7 @@ import { health, HealthDescription, HealthStatus } from "../health/index.ts";
 import type { schema } from "@destack/schema";
 import { Observable } from "../client/observable.ts";
 import { ObjectError } from "../error/index.ts";
+import { RetryAfter } from "../error/detail.ts";
 
 /** The milliseconds a starting server asks its callers to wait before they retry. */
 export const STARTING_RETRY_MILLISECONDS = 1000;
@@ -121,7 +122,7 @@ export class Health {
             "cache-control": "no-store",
         });
         if (!ready && this.status === "starting") {
-            headers.set("retry-after", String(Math.ceil(STARTING_RETRY_MILLISECONDS / 1000)));
+            RetryAfter.write(headers, { retryAfter: STARTING_RETRY_MILLISECONDS });
         }
 
         return new Response(request.method === "HEAD" ? null : body, {

@@ -46,4 +46,22 @@ export class Bookmark {
     format(): string {
         return JSON.stringify(this.#watermarks);
     }
+
+    /** Attach the watermarks to a response, leaving one of a request without writes. */
+    attach(response: Response): Response {
+        // leave a response without watermarks
+        if (this.#watermarks.length === 0) {
+            return response;
+        }
+
+        // add the bookmark header
+        const headers = new Headers(response.headers);
+        headers.set(BOOKMARK_HEADER, this.format());
+
+        return new Response(response.body, {
+            status: response.status,
+            statusText: response.statusText,
+            headers,
+        });
+    }
 }

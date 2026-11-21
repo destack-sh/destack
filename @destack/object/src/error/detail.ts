@@ -22,11 +22,78 @@ export const PartitionRoute = schema.object({
 /** Where a scope is served within its installation. */
 export type PartitionRoute = schema.Infer<typeof PartitionRoute>;
 
+/** The header saying when a refused request may be sent again (RFC 9110 10.2.3). */
+const RETRY_AFTER_HEADER = "retry-after";
+
+/** The statuses of refusals that state a wait: too many requests and unavailable. */
+const RETRIED_STATUSES: ReadonlySet<number> = new Set([429, 503]);
+
+/** A wait in whole seconds, the first form Retry-After takes (RFC 9110 10.2.3). */
+const SECONDS = /^\d+$/u;
+
+/** An HTTP date in the IMF-fixdate form senders generate (RFC 9110 5.6.7). */
+const HTTP_DATE = /^[A-Z][a-z]{2}, \d{2} [A-Z][a-z]{2} \d{4} \d{2}:\d{2}:\d{2} GMT$/u;
+
+/** The milliseconds in a second, as Retry-After counts seconds. */
+const MILLISECONDS_PER_SECOND = 1000;
+
+/** A refusal's body as far as its data, which states the wait. */
+const RefusalBody = schema.looseObject({ data: schema.unknown() });
+
 /** How long until a refused call may be retried, as Retry-After states it. */
-export const RetryAfter = schema.object({
-    /** The wait, in milliseconds. */
-    retryAfter: schema.number().nonnegative(),
-});
+export const RetryAfter = Object.assign(
+    schema.object({
+        /** The wait, in milliseconds. */
+        retryAfter: schema.number().nonnegative(),
+    }),
+    {
+        /** Write a failure's wait on headers in whole seconds, nothing for data without one. */
+        write(headers: Headers, data: unknown): void {
+            const wait = RetryAfter.safeParse(data);
+            if (wait.success) {
+                const seconds = Math.ceil(wait.data.retryAfter / MILLISECONDS_PER_SECOND);
+                headers.set(RETRY_AFTER_HEADER, String(seconds));
+            }
+        },
+
+        /** Read the wait headers state from now, in milliseconds: whole seconds, or a date. */
+        read(headers: Headers, now: number): number | undefined {
+            // read whole seconds, else a valid date as the wait until it
+            const header = headers.get(RETRY_AFTER_HEADER) ?? "";
+            const date = HTTP_DATE.test(header) ? Date.parse(header) : Number.NaN;
+            if (SECONDS.test(header)) {
+                return Number(header) * MILLISECONDS_PER_SECOND;
+            } else if (Number.isFinite(date)) {
+                return Math.max(0, date - now);
+            } else {
+                return undefined;
+            }
+        },
+
+        /** Attach the wait a refusal states in its body to its headers. */
+        async attach(response: Response): Promise<Response> {
+            // leave an answer of another status, or one that states its wait
+            const isStated = response.headers.has(RETRY_AFTER_HEADER);
+            if (!RETRIED_STATUSES.has(response.status) || isStated) {
+                return response;
+            }
+
+            // read the refusal's data from its body, leaving a body that is no JSON
+            const body: unknown = await response
+                .clone()
+                .json()
+                .catch(() => undefined);
+            const headers = new Headers(response.headers);
+            RetryAfter.write(headers, RefusalBody.safeParse(body).data?.data);
+
+            return new Response(response.body, {
+                status: response.status,
+                statusText: response.statusText,
+                headers,
+            });
+        },
+    },
+);
 /** How long until a refused call may be retried. */
 export type RetryAfter = schema.Infer<typeof RetryAfter>;
 

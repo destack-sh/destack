@@ -1,6 +1,7 @@
 import { type ClientContext, createORPCClient, ErrorEvent, mapEventIterator } from "@orpc/client";
 import { isAsyncIteratorObject } from "@orpc/shared";
 import { CallError } from "../error/call.ts";
+import { RetryAfter } from "../error/detail.ts";
 import { markCaptured } from "@destack/telemetry";
 import { OpenAPILink, type OpenAPILinkOptions } from "@orpc/openapi-client/fetch";
 import { ClientRetryPlugin } from "@orpc/client/plugins";
@@ -96,9 +97,9 @@ export function createClient<
                     });
                 let response = await send();
                 for (
-                    let pause = startingPause(response);
+                    let pause = startingPause(response, clock.now());
                     pause !== undefined && clock.now() + pause <= deadline;
-                    pause = startingPause(response)
+                    pause = startingPause(response, clock.now())
                 ) {
                     await clock.sleep(pause, call.signal);
                     response = await send();
@@ -150,15 +151,13 @@ export function procedureHeaders(
 }
 
 /** Read the pause a starting server asks for before a retry (RFC 9110 10.2.3). */
-function startingPause(response: {
-    readonly status: number;
-    readonly headers: Headers;
-}): number | undefined {
-    const seconds = Number(response.headers.get("retry-after"));
+function startingPause(
+    response: { readonly status: number; readonly headers: Headers },
+    now: number,
+): number | undefined {
+    const pause = response.status === 503 ? RetryAfter.read(response.headers, now) : undefined;
 
-    return response.status === 503 && Number.isInteger(seconds) && seconds > 0
-        ? seconds * 1000
-        : undefined;
+    return pause !== undefined && pause > 0 ? pause : undefined;
 }
 
 /** Read a stream's failure event as its call error. */

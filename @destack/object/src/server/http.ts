@@ -10,7 +10,7 @@ import type { ResourceContext } from "@destack/resource/context";
 import type { ProcedureRouter } from "../procedure/index.ts";
 
 import { refusal, reportError } from "../error/report.ts";
-import { BOOKMARK_HEADER, type Bookmark } from "../procedure/bookmark.ts";
+import { RetryAfter } from "../error/detail.ts";
 import {
     LINK_SECRET_HEADER,
     RequestContext,
@@ -339,7 +339,7 @@ export class Server implements AsyncDisposable {
             );
         }
 
-        return attachBookmark(result.response, context.observed);
+        return context.observed.attach(await RetryAfter.attach(result.response));
     }
 
     /** Refuse new work, drain requests and dispose resources, once. */
@@ -718,24 +718,6 @@ export interface PackageHandler extends Omit<
     readonly protocols?: ReadonlyMap<string, ReadonlySet<string>>;
     /** Wait until the package can answer before it serves. */
     readonly ready?: (signal: AbortSignal, health?: Health) => Promise<void>;
-}
-
-/** Attach the request's watermarks to its response. */
-function attachBookmark(response: Response, observed: Bookmark): Response {
-    // leave a response without writes
-    if (observed.watermarks.length === 0) {
-        return response;
-    }
-
-    // add the bookmark header
-    const headers = new Headers(response.headers);
-    headers.set(BOOKMARK_HEADER, observed.format());
-
-    return new Response(response.body, {
-        status: response.status,
-        statusText: response.statusText,
-        headers,
-    });
 }
 
 /** Relay a response body chunk by chunk. */
