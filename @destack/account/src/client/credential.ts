@@ -103,7 +103,7 @@ export class IssuerCredential implements Credential {
 
         // refuse as the endpoint refused, a key it no longer authenticates ending the follower
         if (!response.ok) {
-            const refusal = await TokenResponse.refusal(response);
+            const refusal = await TokenResponse.refusal(response, this.#environment.clock.now());
             if (OAuthError.is(refusal, "CLIENT_UNAUTHENTICATED")) {
                 throw SyncError.of("FOLLOWER_UNAUTHENTICATED", refusal.message, { cause: refusal });
             }

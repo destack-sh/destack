@@ -296,7 +296,7 @@ export class Issuer {
             code_verifier: verifier,
         });
         if (!response.ok) {
-            throw await TokenResponse.refusal(response);
+            throw await TokenResponse.refusal(response, this.#environment.clock.now());
         }
 
         return Issuer.#read(response, TokenResponse);
@@ -348,7 +348,7 @@ export class Issuer {
                   }),
         });
         if (!response.ok) {
-            throw await TokenResponse.refusal(response);
+            throw await TokenResponse.refusal(response, this.#environment.clock.now());
         }
 
         return this.#signedIn(await Issuer.#read(response, TokenResponse));
@@ -412,7 +412,10 @@ export class Issuer {
         }
         // fail as the issuer refused on any other error
         else {
-            throw await TokenResponse.refusal(new Response(body, response));
+            throw await TokenResponse.refusal(
+                new Response(body, response),
+                this.#environment.clock.now(),
+            );
         }
     }
 
@@ -450,7 +453,7 @@ export class Issuer {
                   }),
         });
         if (!response.ok) {
-            throw await TokenResponse.refusal(response);
+            throw await TokenResponse.refusal(response, this.#environment.clock.now());
         }
 
         return TokenResponse.granted(
@@ -504,7 +507,7 @@ export class Issuer {
     async #tokens(form: Readonly<Record<string, string>>): Promise<TokenSet> {
         const response = await this.#post(TOKEN_PATH, form);
         if (!response.ok) {
-            throw await TokenResponse.refusal(response);
+            throw await TokenResponse.refusal(response, this.#environment.clock.now());
         }
 
         return this.#granted(await Issuer.#read(response, TokenResponse));

@@ -1,4 +1,5 @@
 import { defineErrorFamily, type FamilyError, type ReasonOf } from "@destack/error";
+import { RetryAfter } from "@destack/object";
 import { schema } from "@destack/schema";
 import type {} from "@destack/package/import-meta";
 import { AccountError, type AccountReason } from "../error/error.ts";
@@ -9,6 +10,12 @@ export const SECOND_MILLISECONDS = 1000;
 
 /** The media type of a JSON answer (RFC 8259 11). */
 const JSON_TYPE = "application/json";
+
+/** The status of an endpoint asked too often, which a later call may not meet (RFC 6585 4). */
+const TOO_MANY_REQUESTS_STATUS = 429;
+
+/** The first status of a server's own failure, which a later call may not meet (RFC 9110 15.6). */
+const SERVER_ERROR_STATUS = 500;
 
 /** The JWT type of a request object (RFC 9101 10.8). */
 export const REQUEST_OBJECT_TYPE = "oauth-authz-req+jwt";
@@ -126,8 +133,11 @@ export const TokenResponse = Object.assign(
             };
         },
 
-        /** Read an OAuth endpoint's refusal as its OAuth error, else as a bad gateway. */
-        async refusal(response: Response): Promise<FamilyError<AccountReason | OAuthReason>> {
+        /** Read an OAuth endpoint's refusal: its OAuth error, else unavailable or a bad gateway. */
+        async refusal(
+            response: Response,
+            now: number,
+        ): Promise<FamilyError<AccountReason | OAuthReason>> {
             // read the body, and the OAuth error of a JSON one
             const text = await response.text();
             const isJson = response.headers.get("content-type")?.startsWith(JSON_TYPE) === true;
@@ -135,7 +145,22 @@ export const TokenResponse = Object.assign(
             const reason =
                 oauth?.success === true ? OAuthErrorCode.reason(oauth.data.error) : undefined;
 
-            // fail as a bad gateway on an answer without a known OAuth error
+            // fail as unavailable on a limit or a failure of the endpoint's own, with the wait it states
+            const isKnown = oauth?.success === true && reason !== undefined;
+            const isFailing =
+                response.status === TOO_MANY_REQUESTS_STATUS ||
+                response.status >= SERVER_ERROR_STATUS;
+            if (!isKnown && isFailing) {
+                const retryAfter = RetryAfter.read(response.headers, now);
+
+                return AccountError.of(
+                    "TOKEN_ENDPOINT_UNAVAILABLE",
+                    `token endpoint is unavailable: it answered '${response.status}'`,
+                    { data: retryAfter === undefined ? {} : { retryAfter } },
+                );
+            }
+
+            // fail as a bad gateway on any other answer without a known OAuth error
             if (oauth?.success !== true || reason === undefined) {
                 return AccountError.of(
                     "TOKEN_ENDPOINT_UNREACHABLE",

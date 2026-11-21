@@ -1,4 +1,5 @@
 import { defineErrorFamily, type ReasonOf } from "@destack/error";
+import { RetryAfter } from "@destack/object";
 import type {} from "@destack/package/import-meta";
 
 /** The account package's failures, each reason with the call error code it answers. */
@@ -117,6 +118,7 @@ export const AccountError = defineErrorFamily({
         DNS_RESOLVER_UNAVAILABLE: {},
         ENTITLEMENTS_UNAVAILABLE: {},
         MAIL_UNAVAILABLE: {},
+        TOKEN_ENDPOINT_UNAVAILABLE: { data: RetryAfter.partial() },
 
         // unreachable
         ANSWER_UNREACHABLE: {},
