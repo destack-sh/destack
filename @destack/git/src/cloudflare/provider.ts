@@ -16,6 +16,7 @@ export function artifactsProvider<Object>(
         code: ARTIFACTS_PROVIDER,
         object,
         provision: {
+            isPure: true,
             // name the resource's repositories below its identifier
             provision: async (resource) => ({ reference: resource.id }),
             // delete the resource's repositories

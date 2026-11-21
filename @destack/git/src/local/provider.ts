@@ -17,6 +17,7 @@ export function localGitProvider<Object>(
         code: LOCAL_PROVIDER,
         object,
         provision: {
+            isPure: false,
             provision: async (resource) => {
                 // create the directory once, referenced below the provider's directory
                 await environment.files.mkdir(path(resource), { recursive: true });
