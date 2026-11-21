@@ -1,15 +1,13 @@
-import { CalendarDay, CalendarLayout, type ObjectType, type TimeWindow } from "@destack/object";
+import { CalendarDay, CalendarLayout, type ObjectType } from "@destack/object";
+
 import { Locale } from "@destack/locale";
-import type { JsonObject } from "@destack/schema";
+import { type JsonObject, WEEK_DAYS, type TimeScale } from "@destack/schema";
 import { Cell } from "../cell.ts";
 import { Frame } from "../frame.ts";
 import type { Page } from "../page.ts";
 
 /** The margin a drawing starts at, beside the gutter's words. */
 const MARGIN = "  ";
-
-/** The days of a week. */
-const WEEK_DAYS = 7;
 
 /** The cells a day takes in a calendar's month: two digits and a gap. */
 const DAY_CELL = 3;
@@ -22,7 +20,7 @@ export const CalendarPage = {
         rows: readonly JsonObject[],
         layout: CalendarLayout,
         type: ObjectType,
-        window?: TimeWindow,
+        window?: TimeScale,
     ): Page {
         // group the rows under their days, below the month
         const days = CalendarLayout.days(layout, rows, frame.terminal.timeZone, window)
@@ -62,7 +60,7 @@ export const CalendarPage = {
         rows: readonly JsonObject[],
         layout: CalendarLayout,
         type: ObjectType,
-        window: TimeWindow | undefined,
+        window: TimeScale | undefined,
     ): string[] {
         // read the days, and the day the frame draws at
         const { terminal } = frame;
@@ -79,7 +77,7 @@ export const CalendarPage = {
         );
 
         // head the month by its name and the weekdays from the locale's first one
-        const firstDay = Locale.firstDay(terminal.locale);
+        const firstDay = Locale.week(terminal.locale).firstDay;
         const span = new Intl.DateTimeFormat(terminal.locale, {
             month: "long",
             year: "numeric",
@@ -142,7 +140,7 @@ export const CalendarPage = {
         rows: readonly JsonObject[],
         layout: CalendarLayout,
         type: ObjectType,
-        window?: TimeWindow,
+        window?: TimeScale,
     ): string[][] {
         return CalendarLayout.days(layout, rows, frame.terminal.timeZone, window).flatMap((day) =>
             day.rows.map((row) => [day.date, Frame.titleText(type, row)]),

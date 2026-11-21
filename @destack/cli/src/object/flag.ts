@@ -8,7 +8,7 @@ import {
     type OrderBy,
     TABLE,
 } from "@destack/db";
-import { type JsonObject, type JsonValue, present, schema, nth } from "@destack/schema";
+import { type JsonObject, type JsonValue, present, schema, nth, WEEK_DAYS } from "@destack/schema";
 import { Scope, Subject } from "@destack/sync";
 import { GLOBAL_OPTIONS, CommandOption, type CommandCall } from "../command/command.ts";
 
@@ -62,9 +62,6 @@ const RELATIVE_DAYS: Readonly<Record<string, number>> = { yesterday: -1, today: 
 
 /** The weekdays of `@name`, by their index in a JavaScript date. */
 const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
-
-/** The days of a week. */
-const WEEK_DAYS = 7;
 
 /** A calendar date, read as local midnight. */
 const DATE = /^(\d{4})-(\d{2})-(\d{2})$/u;

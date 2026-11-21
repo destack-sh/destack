@@ -7,10 +7,9 @@ import {
     ObjectValue,
     Presentation,
     TableLayout,
-    type TimeWindow,
 } from "@destack/object";
 import { TABLE } from "@destack/db";
-import { type JsonObject, present, schema } from "@destack/schema";
+import { type JsonObject, present, schema, type TimeScale } from "@destack/schema";
 import type { CommandContext } from "../command/context.ts";
 import type { Terminal } from "../output/index.ts";
 import type { CatalogType } from "./catalog.ts";
@@ -285,7 +284,7 @@ export class Frame {
         rows: readonly JsonObject[],
         layout: Layout,
         type: ObjectType,
-        window?: TimeWindow,
+        window?: TimeScale,
     ): string {
         // write records for a program, and tell a person when there are none
         const { terminal } = this;
@@ -316,7 +315,7 @@ export class Frame {
         rows: readonly JsonObject[],
         layout: Layout,
         type: ObjectType,
-        window?: TimeWindow,
+        window?: TimeScale,
     ): string {
         // write a table by its columns, any other layout as its kind's records
         if (layout.kind === "table") {
@@ -337,7 +336,7 @@ export class Frame {
     }
 
     /** Draw a layout as a page: a header, its lines of objects and groups, and a footer. */
-    page(rows: readonly JsonObject[], layout: Layout, type: ObjectType, window?: TimeWindow): Page {
+    page(rows: readonly JsonObject[], layout: Layout, type: ObjectType, window?: TimeScale): Page {
         // draw the layout's kind
         switch (layout.kind) {
             case "table":

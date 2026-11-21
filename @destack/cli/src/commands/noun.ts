@@ -8,11 +8,10 @@ import {
     Presentation,
     ObjectView,
     type ObjectQuery,
-    type TimeWindow,
 } from "@destack/object";
 import { principal } from "@destack/access";
 import { Scope } from "@destack/sync";
-import { type JsonObject, type JsonValue, present, schema } from "@destack/schema";
+import { type JsonObject, type JsonValue, present, schema, type TimeScale } from "@destack/schema";
 import {
     type Command,
     type CommandBody,
@@ -203,7 +202,7 @@ interface Shaped {
     /** The layout drawn, a table's columns as --fields names them. */
     readonly layout: Layout;
     /** The month a calendar shows, absent for other layouts. */
-    readonly window: TimeWindow | undefined;
+    readonly window: TimeScale | undefined;
     /** The query reading the view's rows. */
     readonly query: Pick<ObjectQuery, "where" | "orderBy" | "limit">;
 }

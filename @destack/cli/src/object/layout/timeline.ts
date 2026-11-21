@@ -1,5 +1,5 @@
 import { type ObjectType, TimelineLayout, TreeLayout } from "@destack/object";
-import { type JsonObject, present } from "@destack/schema";
+import { type JsonObject, present, TimeScale } from "@destack/schema";
 import { Axis } from "../axis.ts";
 import { Cell } from "../cell.ts";
 import { Frame } from "../frame.ts";
@@ -89,7 +89,11 @@ export const TimelinePage = {
         // draw each bar in eighths of a cell, the critical path bright, a failure red
         const lines = drawn.map((each, index): PageLine => {
             // paint by the bar's standing
-            const bar = Axis.bar(each.from, each.to, barWidth);
+            const bar = Axis.bar(
+                TimeScale.at(axis.window, each.start),
+                TimeScale.at(axis.window, each.end),
+                barWidth,
+            );
             const isCritical = critical.has(each.row);
             const paint = (written: string) =>
                 each.isFailed
