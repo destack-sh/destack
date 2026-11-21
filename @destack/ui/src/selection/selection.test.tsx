@@ -1,5 +1,6 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { createEffect, createRoot, createSignal, flush } from "@destack/view";
+import { Collection } from "../collection/index.ts";
 import { Selection, type SelectionProperties, valuesOf } from "./selection.ts";
 
 /** Create a selection disposed after the test. */
@@ -71,7 +72,7 @@ test("hold a controlled selection at its owner's value, an undefined value selec
     });
 });
 
-test("toggle a value alone in a single selection and beside the others in a multiple one, and select without dropping", () => {
+test("toggle a value alone in a single selection and beside the others in a multiple one, and add without dropping", () => {
     // toggle and select in turn, reading the values after each
     const single = createSelection({ defaultValue: "title" });
     const multiple = createSelection({ multiple: true, defaultValue: ["bold"] });
@@ -79,11 +80,11 @@ test("toggle a value alone in a single selection and beside the others in a mult
     for (const step of [
         () => single.toggle("date"),
         () => single.toggle("date"),
-        () => single.select("title"),
-        () => single.select("title"),
+        () => single.add("title"),
+        () => single.add("title"),
         () => multiple.toggle("italic"),
         () => multiple.toggle("bold"),
-        () => multiple.select("italic"),
+        () => multiple.add("italic"),
     ]) {
         step();
         flush();
@@ -124,6 +125,50 @@ test("rerun only the readers of the values a change selects or drops", () => {
         runs,
         selected: [selection.isSelected("bold"), selection.isSelected("code")],
     }).toEqual({ runs: { bold: 1, italic: 2, code: 1 }, selected: [true, false] });
+});
+
+test("select by press as Finder does: replace on a plain press, toggle with command, extend a range with shift", () => {
+    // lay out six files, the fourth unavailable, and press through them
+    const files = ["a", "b", "c", "d", "e", "f"];
+    const collection = createRoot((dispose) => {
+        onTestFinished(dispose);
+
+        return new Collection<string>({
+            sections: () => [{ key: "files", items: files }],
+            key: (file) => file,
+            text: (file) => file,
+            isDisabled: (file) => file === "d",
+        });
+    });
+    const selection = createSelection({ multiple: true, behavior: "replace" });
+    const plain = { shiftKey: false, metaKey: false, ctrlKey: false };
+    const shift = { ...plain, shiftKey: true };
+    const command = { ...plain, metaKey: true };
+    const steps: (readonly string[])[] = [];
+    for (const step of [
+        () => selection.select("b", plain, collection),
+        () => selection.select("e", shift, collection),
+        () => selection.select("c", shift, collection),
+        () => selection.select("f", command, collection),
+        () => selection.select("a", plain, collection),
+        () => selection.selectAll(collection),
+        () => selection.clear(),
+    ]) {
+        step();
+        flush();
+        steps.push(selection.values());
+    }
+
+    // shift ranges skip the unavailable file and replace the last range from the same anchor
+    expect(steps).toEqual([
+        ["b"],
+        ["b", "c", "e"],
+        ["b", "c"],
+        ["b", "c", "f"],
+        ["a"],
+        ["a", "b", "c", "e", "f"],
+        [],
+    ]);
 });
 
 test("read one value, several or none as a list", () => {

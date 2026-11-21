@@ -183,7 +183,7 @@ export class TreeControl {
 
     /** Select an item and tell the change handler. */
     select(value: string): void {
-        this.selection.select(value);
+        this.selection.add(value);
     }
 
     /** Read the parent of an item, undefined for a top-level one. */

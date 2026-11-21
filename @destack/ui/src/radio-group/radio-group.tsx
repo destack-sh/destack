@@ -159,7 +159,7 @@ class RadioGroupControl {
 
     /** Check a radio's value. */
     choose(value: string): void {
-        this.selection.select(value);
+        this.selection.add(value);
     }
 
     /** Return the group to the value it started with, as a form reset does. */

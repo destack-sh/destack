@@ -196,7 +196,7 @@ export class ComboboxControl {
         }
 
         // keep a single combobox's value and close the list on its text
-        this.selection.select(value);
+        this.selection.add(value);
         this.autocomplete.type(label);
         this.open(false);
     }

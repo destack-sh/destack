@@ -199,7 +199,7 @@ export class ListBoxControl {
                 if (option !== undefined) {
                     options.onActiveChange?.(option.value());
                     if (options.selectionBehavior === "replace") {
-                        this.selection?.select(option.value());
+                        this.selection?.add(option.value());
                     }
                 }
             },
@@ -254,7 +254,7 @@ export class ListBoxControl {
         if (this.selection?.isMultiple() === true) {
             this.selection.toggle(option.value());
         } else {
-            this.selection?.select(option.value());
+            this.selection?.add(option.value());
         }
     }
 
