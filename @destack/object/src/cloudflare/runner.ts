@@ -119,6 +119,8 @@ export class DurableObjectRunner {
         );
         this.#runner = { ...runner, log };
         this.#databases = new DurableObjectDatabaseHost(state.storage, runner.environment);
+
+        // resume the stored start
         this.#running = state.blockConcurrencyWhile(() => this.#resume());
     }
 
@@ -171,11 +173,26 @@ export class DurableObjectRunner {
         }
     }
 
-    /** Start the stored start, absent before a start. */
+    /** Run the stored start, forgetting one that no longer runs, such as one its host replaced. */
     async #resume(): Promise<WorkloadRunner | undefined> {
+        // run nothing without a stored start
         const stored = await this.#storage.get(START_KEY);
+        if (stored === undefined) {
+            return undefined;
+        }
 
-        return stored === undefined ? undefined : this.#start(DurableObjectStart.parse(stored));
+        // run it, else forget it and report why, as its host hands each start a new secret
+        try {
+            return await this.#start(DurableObjectStart.parse(stored));
+        } catch (error) {
+            await this.#storage.delete(START_KEY);
+            const { telemetry } = this.#runner.environment;
+            TelemetryScope.of(import.meta.destack.package, telemetry).captureException(error, {
+                isEscaped: true,
+            });
+
+            return undefined;
+        }
     }
 
     /** Start the workload over the object's databases. */
