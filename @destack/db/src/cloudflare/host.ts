@@ -196,6 +196,8 @@ export class StorageTransaction {
 export class DurableObjectDatabaseHost implements DatabaseHost {
     /** The provider code of databases in Durable Objects. */
     readonly provider = DURABLE_OBJECT_PROVIDER;
+    /** Provisioning starts the log in the object's storage, so it is not pure. */
+    readonly isPure = false;
     /** The object's SQLite storage. */
     readonly storage: DurableObjectStorage;
     /** The work queue of the storage's one connection, one transaction at a time. */

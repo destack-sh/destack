@@ -14,6 +14,8 @@ import type { DatabaseState } from "../migration/state.ts";
 export class BunSqliteDatabaseHost implements DatabaseHost {
     /** The provider code of SQLite files. */
     readonly provider: string = "sqlite";
+    /** Provisioning creates the database's file, so it is not pure. */
+    readonly isPure = false;
     /** The directory URL with a folder per space. */
     readonly root: URL;
     /** The machine's environment the databases run in, with its files and servers. */

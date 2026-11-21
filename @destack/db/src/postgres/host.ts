@@ -17,6 +17,8 @@ import type { DatabaseState } from "../migration/state.ts";
 export class PostgresDatabaseHost implements DatabaseHost {
     /** The provider code of PostgreSQL databases. */
     readonly provider = "postgresql";
+    /** Provisioning creates the database's schema, so it is not pure. */
+    readonly isPure = false;
     /** The connector to the cluster database, as a role able to create and drop schemas. */
     readonly connector: PostgresConnector;
 
