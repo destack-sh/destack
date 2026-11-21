@@ -131,22 +131,22 @@ test("find a published release by version, tag, digest and id, and refuse its na
     expect([
         await resolve("2026.9.0"),
         await resolve(LATEST_TAG),
-        await reader.distributed(),
+        await reader.references(),
         await refusal(owner.release.resolve({ spaceId, parentId: packageId, release: "next" })),
     ]).toEqual([
         answer.image,
         answer.image,
-        await answer.reader.distributed(),
+        await answer.reader.references(),
         ["NOT_FOUND", "RELEASE_NOT_FOUND", `release 'next' of '${packageId}' not found`],
     ]);
 
     // store the image of the build alone, and the build by its digest
     const store = await forge.store();
     const pushed = await store.contents(answer.manifest);
-    expect([await store.image(answer.image), pushed.manifest, await pushed.distributed()]).toEqual([
+    expect([await store.image(answer.image), pushed.manifest, await pushed.references()]).toEqual([
         BuildImage.of(answer.manifest),
         answer.reader.manifest,
-        await answer.reader.distributed(),
+        await answer.reader.references(),
     ]);
 
     // find the package's account through the directory by the package id alone

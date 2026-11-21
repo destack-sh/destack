@@ -230,7 +230,7 @@ test("collect an unreleased build a grace after its lease ends", async () => {
     });
 
     // read and verify every file of the released build after the collection
-    const files = await (await store.contents(published.manifest)).distributed();
+    const files = await (await store.contents(published.manifest)).references();
     const sizes = await Promise.all(files.map(async (file) => (await store.file(file)).length));
     expect(sizes).toEqual(files.map((file) => file.size));
 });
@@ -253,7 +253,7 @@ test("retain a pushed build a release images past its lease", async () => {
 
     // keep the build the release images, and every file of it
     const store = await forge.store();
-    const files = await (await store.contents(manifest)).distributed();
+    const files = await (await store.contents(manifest)).references();
     const sizes = await Promise.all(files.map(async (file) => (await store.file(file)).length));
     expect({
         root: (await store.image(released.release.image)).root,
