@@ -107,7 +107,7 @@ export async function deployOnRegression(
         requestId,
         title: "Deploy on regression",
         condition: { kind: "issue", on: "regress" },
-        actions: [{ kind: "notify" }, { kind: "call", method: "deploy" }],
+        actions: [{ kind: "notify" }, { kind: "call", method: "reconcile" }],
     });
 }
 ```

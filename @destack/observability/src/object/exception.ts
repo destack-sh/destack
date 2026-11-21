@@ -1,6 +1,7 @@
+import { installation } from "@destack/stack/object";
 import { through } from "@destack/access";
 import { space } from "@destack/account/object";
-import { defineObject, field, installation } from "@destack/object";
+import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 import { EVENT_FLUSH } from "../event/policy.ts";
 import { telemetryRetention } from "../setting/index.ts";

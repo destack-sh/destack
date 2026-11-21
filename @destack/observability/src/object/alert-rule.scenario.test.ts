@@ -1,8 +1,8 @@
+import { installation } from "@destack/stack/object";
 import { eq, asc } from "@destack/db";
 import { announcement } from "@destack/notification/object";
-import { installation } from "@destack/object";
 import { present } from "@destack/schema";
-import objectPackage from "@destack/object/package";
+import stackPackage from "@destack/stack/package";
 import { ids } from "@destack/machine/test";
 import { ObjectReference, RequestId } from "@destack/sync";
 import { expect, refusal, test } from "@destack/test";
@@ -210,7 +210,7 @@ test("refuse a rule calling an installation's method from an editor who does not
             comparison: "above",
             threshold: 1,
         },
-        [{ kind: "call", method: "deploy" }],
+        [{ kind: "call", method: "reconcile" }],
     );
     expect(await refusal(calling)).toEqual([
         "FORBIDDEN",
@@ -223,7 +223,7 @@ test("refuse a rule calling an installation once the space's owner withdraws obs
     await using fixture = await TestObservability.open();
 
     // let the owner detach observability's installation from the space's stack and withdraw the capability, then let the machine apply it
-    const owner = fixture.space.person(fixture.space.owner).client(objectPackage);
+    const owner = fixture.space.person(fixture.space.owner).client(stackPackage);
     const [installed] = await fixture.space.database
         .select()
         .from(installation.table)
@@ -242,7 +242,9 @@ test("refuse a rule calling an installation once the space's owner withdraws obs
 
     // refuse the member's rule rolling the installation back
     expect(
-        await refusal(rule(fixture, "Redeploy", ERROR_COUNT, [{ kind: "call", method: "deploy" }])),
+        await refusal(
+            rule(fixture, "Redeploy", ERROR_COUNT, [{ kind: "call", method: "reconcile" }]),
+        ),
     ).toEqual([
         "PRECONDITION_FAILED",
         "RESPOND_CAPABILITY_BLOCKED",
@@ -272,7 +274,7 @@ test("make the last manager to set a rule's condition or actions its author, and
         requestId: RequestId.create(fixture.environment),
         ...fields,
     });
-    await owner.alertRule.update(update({ actions: [{ kind: "call", method: "deploy" }] }));
+    await owner.alertRule.update(update({ actions: [{ kind: "call", method: "reconcile" }] }));
     const acted = await author();
     await fixture.post("logs", fixture.emitter.logs(errors(now)));
     await fixture.simulation.waitUntil(async () => (await outcome(fixture)).responses.length === 1);
@@ -372,7 +374,7 @@ test("refuse an events rule calling an installation its group names none of, and
 
     // call an installation from a rule grouping by nothing, and watch a type no package serves here
     const calling = await refusal(
-        rule(fixture, "Calling", condition, [{ kind: "call", method: "deploy" }]),
+        rule(fixture, "Calling", condition, [{ kind: "call", method: "reconcile" }]),
     );
     const unserved = await refusal(
         rule(fixture, "Unserved", {
@@ -407,7 +409,7 @@ test("keep an alert pending for its rule's pending period, then fire, announce a
         ...alertRule.in(ids.space),
         title: "Errors",
         condition: ERROR_COUNT,
-        actions: [{ kind: "notify" }, { kind: "call", method: "deploy" }],
+        actions: [{ kind: "notify" }, { kind: "call", method: "reconcile" }],
         pending: { minutes: 2 },
         requestId: RequestId.create(fixture.environment),
     });
@@ -503,7 +505,7 @@ test("fire a silenced subject's alert without announcing it or responding, and a
     });
     await rule(fixture, "Errors", ERROR_COUNT, [
         { kind: "notify" },
-        { kind: "call", method: "deploy" },
+        { kind: "call", method: "reconcile" },
     ]);
     await fixture.simulation.waitUntil(
         async () => (await outcome(fixture)).statuses.join() === "firing",

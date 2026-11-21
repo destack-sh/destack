@@ -1,21 +1,15 @@
+import { installation, installationRevision } from "@destack/stack/object";
 import { space } from "@destack/account/object";
 import { Expression, type Select } from "@destack/db";
 import { argument, plural, t } from "@destack/locale";
 import { activity, announcement, subscription } from "@destack/notification/object";
 import { defineNotification } from "@destack/notification/declare";
 import { none, through } from "@destack/access";
-import {
-    type MethodContext,
-    type ObjectOf,
-    defineObject,
-    field,
-    installation,
-} from "@destack/object";
+import { type MethodContext, type ObjectOf, defineObject, field } from "@destack/object";
 import { ObservabilityError } from "../error/error.ts";
 import { graph } from "@destack/package";
 import { Digest, Instant, schema, type Uuid } from "@destack/schema";
 import { comment } from "@destack/social/object";
-import { installationRevision } from "@destack/stack/object";
 
 /** The longest issue title: 500 characters, an exception's type and its message's first line. */
 export const ISSUE_TITLE_LENGTH = 500;

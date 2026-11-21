@@ -36,7 +36,7 @@ import {
     present,
     schema,
 } from "@destack/schema";
-import { rollout } from "@destack/stack/object";
+import { installation } from "@destack/stack/object";
 import { ObjectReference, ObjectTypeReference, RequestId } from "@destack/sync";
 import type { Step, WaitOf } from "@destack/workflow";
 import { ObservabilityError } from "../error/error.ts";
@@ -133,9 +133,9 @@ export const AlertCondition = schema.discriminatedUnion("kind", [
 /** What fires an alert. */
 export type AlertCondition = schema.Infer<typeof AlertCondition>;
 
-/** The rollout methods an alert calls on its installation, which the respond capability grants. */
-const RolloutMethod = schema.enum(
-    Object.entries(rollout.methods)
+/** The methods an alert calls on its installation, which the respond capability grants. */
+const InstallationMethod = schema.enum(
+    Object.entries(installation.methods)
         .filter(
             ([, method]) =>
                 method.mutates &&
@@ -144,8 +144,8 @@ const RolloutMethod = schema.enum(
                 method.permission === "apply",
         )
         .map(([name]) => name)
-        .filter((name): name is keyof typeof rollout.methods =>
-            Object.hasOwn(rollout.methods, name),
+        .filter((name): name is keyof typeof installation.methods =>
+            Object.hasOwn(installation.methods, name),
         ),
 );
 
@@ -158,8 +158,8 @@ export const AlertAction = schema.discriminatedUnion("kind", [
     schema.object({
         /** Call a method of the alert's installation. */
         kind: schema.literal("call"),
-        /** The installation method, such as `deploy`. */
-        method: RolloutMethod,
+        /** The installation method, such as `reconcile`. */
+        method: InstallationMethod,
     }),
 ]);
 /** What a firing alert does. */
@@ -577,10 +577,10 @@ export class AlertRule {
               ).installationId;
 
         // make each call action's call on the installation
-        const target = rollout.target({ scope: this.row.scope, id: installationId });
+        const target = installation.target({ scope: this.row.scope, id: installationId });
         for (const [index, action] of this.row.actions.entries()) {
             if (action.kind === "call") {
-                await step.call(`call.${index}`, rollout.call(action.method, target));
+                await step.call(`call.${index}`, installation.call(action.method, target));
             }
         }
     }

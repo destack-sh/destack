@@ -1,6 +1,7 @@
+import { installation } from "@destack/stack/object";
 import { through, union } from "@destack/access";
 import { space } from "@destack/account/object";
-import { defineObject, field, installation } from "@destack/object";
+import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 import { PersonalAttributes } from "../event/attribute.ts";
 import { EVENT_FLUSH } from "../event/policy.ts";

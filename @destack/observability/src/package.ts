@@ -1,5 +1,5 @@
 import { defineMount, definePackage } from "@destack/object";
-import { rollout } from "@destack/stack/object";
+import { installation } from "@destack/stack/object";
 import { ObservabilityError } from "./error/error.ts";
 import {
     action,
@@ -63,8 +63,8 @@ export default definePackage({
             reason: t`Deploy installations when an alert rule you write fires`,
             optional: true,
             permissions: {
-                space: { space: [rollout.permission("apply")] },
-                user: { space: [rollout.permission("apply")] },
+                space: { space: [installation.permission("apply")] },
+                user: { space: [installation.permission("apply")] },
             },
         },
     ],

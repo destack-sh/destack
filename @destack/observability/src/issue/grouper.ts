@@ -1,9 +1,8 @@
+import { installation, build, installationRevision } from "@destack/stack/object";
 import { and, asc, eq, inArray } from "@destack/db";
 import { EventTime } from "@destack/event";
-import { installation } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import { Digest, Identifier, present } from "@destack/schema";
-import { build, installationRevision } from "@destack/stack/object";
 import {
     exception,
     type ExceptionData,

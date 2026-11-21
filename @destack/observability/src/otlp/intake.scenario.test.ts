@@ -272,7 +272,7 @@ test("group logged and span-annotated failures into one issue by declaration, sk
     const notes = await fixture
         .person(fixture.space.owner)
         .client(stackPackage)
-        .rollout.get({ spaceId: ids.space, id: fixture.notes });
+        .installation.get({ scope: ids.space, id: fixture.notes });
     expect({
         opened: {
             title: opened.title,
