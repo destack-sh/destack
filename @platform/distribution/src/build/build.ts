@@ -437,12 +437,7 @@ export class PlatformBuild implements AsyncDisposable {
         // write the layer beside the earlier ones, which a running Worker may watch
         const { files, crypto, process } = this.store.environment;
         const staging = join(directory, `${ASSETS_STAGING}.${process.id}`);
-        await this.store.writeLayer(
-            [...this.images.values()],
-            CLOUD_RUNTIMES,
-            staging,
-            "addressed",
-        );
+        await this.store.writeLayer([...this.images.values()], CLOUD_RUNTIMES, staging, "packed");
 
         // keep it under its index's digest, so a written layer never changes under a watcher
         const index = await files.readTextFile(join(staging, LAYER_INDEX));
