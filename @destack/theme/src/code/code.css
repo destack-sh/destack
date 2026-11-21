@@ -1,0 +1,33 @@
+/* colour highlighted code by its token classes from the theme's roles, below every component style */
+@layer base {
+    /* set keywords in the accent */
+    [data-code] :where(.hljs-keyword, .hljs-selector-tag, .hljs-meta) {
+        color: var(--destack-color-primary-text);
+    }
+
+    /* set strings and their kin as success */
+    [data-code] :where(.hljs-string, .hljs-regexp, .hljs-addition) {
+        color: var(--destack-color-success-text);
+    }
+
+    /* set numbers and literals as warning */
+    [data-code] :where(.hljs-number, .hljs-literal, .hljs-symbol) {
+        color: var(--destack-color-warning-text);
+    }
+
+    /* set names of functions, types and classes as info */
+    [data-code] :where(.hljs-title, .hljs-type, .hljs-attr, .hljs-variable, .hljs-name) {
+        color: var(--destack-color-info-text);
+    }
+
+    /* set built-ins and deletions as destructive */
+    [data-code] :where(.hljs-built_in, .hljs-deletion) {
+        color: var(--destack-color-destructive-text);
+    }
+
+    /* mute comments */
+    [data-code] :where(.hljs-comment, .hljs-quote) {
+        color: var(--destack-color-muted-foreground);
+        font-style: italic;
+    }
+}

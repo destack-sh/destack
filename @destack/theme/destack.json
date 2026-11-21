@@ -23,5 +23,14 @@
         "defineTheme": {
             "module": 1
         }
+    },
+    "check": {
+        "expect": [
+            {
+                "files": ["src/state/state.ts"],
+                "rules": ["destack/style-focus"],
+                "reason": "state.focus is the shared focus ring the rule asks every other module to use"
+            }
+        ]
     }
 }

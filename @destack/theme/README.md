@@ -4,14 +4,16 @@ Theme views with an accent, a base and roles solved for contrast, in light and d
 
 ## Overview
 
-`@destack/theme` is Radix Themes' settings over shadcn's color roles: themes, roles solved for APCA contrast, display settings and StyleX tokens.
+`@destack/theme` is Radix Themes' settings over shadcn's color roles: themes, roles solved for contrast, display settings and StyleX tokens.
 
 Packages declare a theme:
 
 - `Theme`: an accent, a base gray, a radius, a scaling and a density, declared with `defineTheme`.
 - `Seed`: a palette's source color: a preset such as `"orange"`, or a hex color.
 - `RoleName`: a color the views use, such as `background`, `primary` or `mutedForeground`.
-- `RoleOverride`: your theme's own color for a role.
+- `RoleOverride`: a theme's color for a role.
+- `groundRoles(day, night)`: the roles of a theme that sets its page, text and muted colors by day and by night.
+- `THEMES`: Destack's themes, the brand and one per planet.
 
 People see it under their display settings:
 
@@ -23,6 +25,7 @@ Components use tokens:
 - `@destack/theme/tokens.stylex`: the roles, surfaces, swatches, spacing, sizes, radii, shadows and motion as StyleX constants.
 - `@destack/theme/mark`: Destack's mark as SVG markup, `MARK`.
 - `text` and `transition`: text styles and enter and exit transitions.
+- `@destack/theme/state`: `state`, the styles of focus, hover, pressed, disabled, selected, checked and other states, the same in every component.
 
 Declare a theme, then compute a view's custom properties in dark mode at more contrast:
 
@@ -41,7 +44,7 @@ const variables = theme.variables({ ...DEFAULT_DISPLAY, appearance: "dark", cont
 
 ### Theme
 
-`defineTheme(definition)` declares a theme, refusing text roles below their contrast.
+`defineTheme(definition)` declares a theme, refusing text below its APCA contrast and labels on fills below WCAG's 4.5 to 1.
 `destackTheme` is the theme of packages that declare none.
 
 | Field     | What it sets                                                                                       |
@@ -56,7 +59,7 @@ const variables = theme.variables({ ...DEFAULT_DISPLAY, appearance: "dark", cont
 | `density` | `"compact"`, `"regular"`, the default, or `"spacious"`                                             |
 | `fonts`   | the `text` and `code` font stacks, as CSS `font-family` values                                     |
 | `text`    | the `size`, `weight`, `tracking` and `font` of text styles, sizes fixed or fluid                   |
-| `roles`   | your own colors for roles, by `RoleName`                                                           |
+| `roles`   | the theme's colors for roles, by `RoleName`                                                        |
 
 A theme answers its colors and custom properties:
 
@@ -70,17 +73,17 @@ A theme answers its colors and custom properties:
 
 The roles follow shadcn's, each solved for its contrast.
 
-| Roles                                                                     | What they color                                              |
-| ------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| `background`, `foreground`                                                | the page, and body text on it                                |
-| `card`, `cardForeground`, `popover`, `popoverForeground`                  | raised and floating surfaces, and text on them               |
-| `primary`, `primaryForeground`                                            | primary actions in the accent, and their labels              |
-| `secondary`, `secondaryForeground`, `muted`, `mutedForeground`            | quiet fills, and quieter text                                |
-| `accent`, `accentForeground`                                              | a tint of the accent, such as a hovered item, and text on it |
-| `destructive`, `success`, `warning`, `info`, and each one's `…Foreground` | statuses, and their labels                                   |
-| `border`, `input`, `ring`                                                 | lines, field borders and focus rings                         |
-| `scrim`                                                                   | the shade behind a dialog                                    |
-| `chart1` to `chart5`                                                      | chart series, the accent first                               |
+| Roles                                                                    | What they color                                              |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------ |
+| `background`, `foreground`                                               | the page, and body text on it                                |
+| `card`, `cardForeground`, `popover`, `popoverForeground`                 | raised and floating surfaces, and text on them               |
+| `primary`, `primaryForeground`, `primaryText`                            | primary actions in the accent, their labels, accent text     |
+| `secondary`, `secondaryForeground`, `muted`, `mutedForeground`           | quiet fills, and quieter text                                |
+| `accent`, `accentForeground`                                             | a tint of the accent, such as a hovered item, and text on it |
+| `destructive`, `success`, `warning`, `info`, each `…Foreground`, `…Text` | statuses, their labels, and status text on the background    |
+| `border`, `input`, `ring`                                                | lines, field borders and focus rings                         |
+| `scrim`                                                                  | the shade behind a dialog                                    |
+| `chart1` to `chart5`                                                     | chart series, the accent first                               |
 
 A `RoleOverride` takes one of four forms, each with an optional `alpha` but the second.
 A palette is `base`, `accent`, `destructive`, `success`, `warning`, `info` or `chart2` to `chart5`.
@@ -92,10 +95,32 @@ A palette is `base`, `accent`, `destructive`, `success`, `warning`, `info` or `c
 | `{ from, lightness: { light, dark } }`          | another role's color, its lightness offset in each appearance                               |
 | `{ light, dark }`                               | a hex color in each appearance                                                              |
 
+### Contrast
+
+Text must reach its APCA lightness contrast Lc, and a label on a fill must also reach WCAG's 4.5 to 1.
+APCA judges light text on dark backgrounds correctly, and accessibility audits measure WCAG's ratio.
+
+| Verb                                 | What it does                                                   |
+| ------------------------------------ | -------------------------------------------------------------- |
+| `Srgb.contrast(background, measure)` | measures a color as text on a background, `"apca"` or `"wcag"` |
+| `Resolution.contrast(name, measure)` | measures a resolved role on the role it reads on               |
+
+`Srgb` is a color in sRGB, the screen's color space, and `Oklch` a color in OKLCH, the space palettes grow in.
+
+```ts
+import { Srgb } from "@destack/theme";
+import { destackTheme } from "@destack/theme/declare";
+
+// measure white on the brand's primary, and the muted text of dark mode
+Srgb.parse("#ffffff").contrast(Srgb.parse("#c75300"), "wcag");
+destackTheme.resolve("dark", 0).contrast("mutedForeground", "apca");
+```
+
 ### Display
 
 `DEFAULT_DISPLAY` has each display setting's default.
 `@destack/theme/theme.css` sets element defaults and follows the device's contrast and motion.
+`@destack/theme/code.css` colors highlighted code under `[data-code]`.
 
 | Field        | What it is                                                                    |
 | ------------ | ----------------------------------------------------------------------------- |
@@ -110,7 +135,7 @@ A palette is `base`, `accent`, `destructive`, `success`, `warning`, `info` or `c
 
 `@destack/theme/tokens.stylex` has every token as a StyleX constant over its CSS custom property.
 `@destack/theme/tokens.json` has the same tokens in the Design Tokens format, with the default theme's values.
-`text` and `transition` are styles of their own, from `@destack/theme/text` and `@destack/theme/motion`.
+`text` and `transition` are StyleX styles, from `@destack/theme/text` and `@destack/theme/motion`.
 
 | Constant     | Tokens                                                                                                                           |
 | ------------ | -------------------------------------------------------------------------------------------------------------------------------- |
@@ -124,7 +149,7 @@ A palette is `base`, `accent`, `destructive`, `success`, `warning`, `info` or `c
 | `width`      | `popover`, `hoverCard`, `sidebar`, `sidebarIcon`, `toast`, `prose`, `tile` and `row`                                             |
 | `radius`     | steps `1` to `6`, scaled by the theme's radius, and `full`                                                                       |
 | `stroke`     | `border` and `ring`                                                                                                              |
-| `shadow`     | `edge`, `cast`, `inset`, `raised` and `overlay`                                                                                  |
+| `shadow`     | `edge`, `cast`, `raised` and `overlay`                                                                                           |
 | `motion`     | `durationShort`, `durationMedium`, `durationLong`, `easingStandard`, `easingEmphasised` and `easingSpring`                       |
 | `text`       | the text styles after Tailwind's type scale: `xs`, `sm`, `base`, `lg`, `xl` and `2xl` to `9xl`, each a size with its line height |
 | `transition` | `enter` and `exit`, which scale with the person's motion                                                                         |
@@ -200,8 +225,9 @@ const variables = selected.variables(DEFAULT_DISPLAY);
 
 ### Radix Themes
 
-`accent`, `base`, `radius` and `scaling` basically follow Radix Themes' `accentColor`, `grayColor`, `radius` and `scaling`, with its color names as presets.
-Roles are solved for APCA contrast instead of twelve fixed steps, and a theme is CSS custom properties instead of a `<Theme>` component.
+`accent`, `base`, `radius` and `scaling` follow Radix Themes' `accentColor`, `grayColor`, `radius` and `scaling`, with its color names as presets.
+Roles are solved for contrast instead of twelve fixed steps, and a theme is CSS custom properties instead of a `<Theme>` component.
+`Srgb.contrast` follows Color.js's `contrast(color, algorithm)`.
 
 | Radix Themes               | `@destack/theme`     | Difference                                                          |
 | -------------------------- | -------------------- | ------------------------------------------------------------------- |
