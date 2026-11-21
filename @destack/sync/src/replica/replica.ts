@@ -66,7 +66,7 @@ import { Run } from "../dataflow/run.ts";
 import { Trace, type Group, type Upstream } from "../dataflow/upstream.ts";
 import { View } from "../dataflow/view.ts";
 import { scopeTable } from "../scope/table.ts";
-import { RetryPolicy, untilAborted } from "@destack/environment";
+import { RetryPolicy, Telemetry, untilAborted } from "@destack/environment";
 
 /** The staged pages a run's completion reads at once. */
 const STAGED_BATCH = 16;
@@ -299,6 +299,22 @@ export const replicaTables: readonly Table[] = [
     replicaResult,
     replicaKey,
 ];
+
+/** How far an apply got in its stream: its staged pages, its record and the position it reached. */
+interface ApplyProgress {
+    /** The pages staged of the run so far. */
+    readonly staged: number;
+    /** Whether the staged run is a snapshot. */
+    readonly isSnapshot: boolean;
+    /** The parameters the stream reflects from its last reshaped page on. */
+    readonly parameters: Page["parameters"];
+    /** The replica's record, absent before its first applied run. */
+    readonly record: ReplicaRecord | undefined;
+    /** The position the stream reached in memory, absent before its first applied run. */
+    readonly reached: ReplicaPosition | undefined;
+    /** The marks of the last applied page. */
+    readonly marks: string | undefined;
+}
 
 /** A local replica of one scope's rows in a remote database's tables. */
 export class Replica {
@@ -1653,6 +1669,78 @@ export class Replica {
         return rows.map((row) => Replica.subscriptionOf(row));
     }
 
+    /** Receive one page of a stream: stage it, or apply the run it completes. */
+    async #receive(
+        database: DatabaseConnection,
+        page: Page,
+        options: ApplyOptions,
+        progress: ApplyProgress,
+    ): Promise<ApplyProgress> {
+        // take the apply's progress so far
+        let { staged, isSnapshot, parameters, record, reached, marks } = progress;
+        const attributed = {
+            "destack.replica.name": this.name,
+            "destack.replica.scope": this.scope,
+        };
+
+        // register the parameters a reshaped stream reflects from this page on
+        parameters = page.parameters ?? parameters;
+        const reflected: ApplyOptions =
+            options.subscription === undefined || parameters === undefined
+                ? options
+                : { ...options, subscription: { ...options.subscription, parameters } };
+
+        // drop staged pages a snapshot replaces
+        if (page.reset && staged > 0) {
+            await database.transaction(
+                async (transaction) =>
+                    await transaction.delete(replicaPage).where(this.#match(replicaPage)),
+            );
+            staged = 0;
+        }
+        if (staged === 0) {
+            isSnapshot = page.reset;
+        }
+
+        // apply the run a page completes in its span, timed by whether it is a snapshot
+        if (page.complete) {
+            const run = { staged, isSnapshot };
+            const kind = { "destack.replica.snapshot": isSnapshot };
+            const recorded = record;
+            ({ position: reached, record } = await this.#scope(database).span(
+                "destack.replica.apply",
+                { ...attributed, ...kind },
+                () => this.#complete(database, page, run, recorded, reflected),
+                { duration: { attributes: kind } },
+            ));
+
+            // announce the run's home position at once
+            const home = this.#home(reached);
+            if (home !== undefined) {
+                Replica.mark(database, this, home);
+            }
+            marks = Replica.#marks(page);
+            staged = 0;
+        }
+        // stage a page within a run, its first page dropping an earlier stream's
+        else {
+            const order = staged;
+            await this.#scope(database).span("destack.replica.stage", attributed, () =>
+                database.transaction(async (transaction) => {
+                    if (order === 0) {
+                        await transaction.delete(replicaPage).where(this.#match(replicaPage));
+                    }
+                    await transaction
+                        .insert(replicaPage)
+                        .values({ name: this.name, scope: this.scope, index: order, page });
+                }),
+            );
+            staged += 1;
+        }
+
+        return { staged, isSnapshot, parameters, record, reached, marks };
+    }
+
     /** Apply one stream of pages, staging each run until it completes. */
     async *apply(
         database: DatabaseConnection,
@@ -1660,45 +1748,32 @@ export class Replica {
         options: ApplyOptions = {},
     ): AsyncGenerator<Page> {
         // start at the record, staging nothing yet
-        let staged = 0;
-        let isSnapshot = false;
-        let parameters = options.subscription?.parameters;
-        let record = await this.#record(database);
-        let reached: ReplicaPosition | undefined;
-        let marks: string | undefined;
+        const { telemetry } = database.state.environment;
+        let progress: ApplyProgress = {
+            staged: 0,
+            isSnapshot: false,
+            parameters: options.subscription?.parameters,
+            record: await this.#record(database),
+            reached: undefined,
+            marks: undefined,
+        };
         const attributed = {
             "destack.replica.name": this.name,
             "destack.replica.scope": this.scope,
         };
         for await (const page of pages) {
-            // register the parameters a reshaped stream reflects from this page on
-            parameters = page.parameters ?? parameters;
-            const reflected: ApplyOptions =
-                options.subscription === undefined || parameters === undefined
-                    ? options
-                    : { ...options, subscription: { ...options.subscription, parameters } };
-
-            // drop staged pages a snapshot replaces
-            if (page.reset && staged > 0) {
-                await database.transaction(
-                    async (transaction) =>
-                        await transaction.delete(replicaPage).where(this.#match(replicaPage)),
-                );
-                staged = 0;
-            }
-            if (staged === 0) {
-                isSnapshot = page.reset;
-            }
-
             // move past a bare page continuing this stream's run in memory
+            const received = progress;
+            const { staged, reached, marks } = received;
             if (
                 page.complete &&
                 reached !== undefined &&
-                Replica.#isBeat(page, staged, reached, marks, reflected)
+                Replica.#isBeat(page, staged, reached, marks, options)
             ) {
                 const before = this.#home(reached);
-                reached = Replica.#beat(page, reached);
-                const home = this.#home(reached);
+                const beaten = Replica.#beat(page, reached);
+                const home = this.#home(beaten);
+                progress = { ...received, reached: beaten };
 
                 // refresh an unmoved home position with the next heartbeat
                 if (home !== undefined && before !== undefined && LogPosition.same(home, before)) {
@@ -1709,40 +1784,16 @@ export class Replica {
                     Replica.mark(database, this, home);
                 }
             }
-            // apply the run a page completes in its span, timed by whether it is a snapshot
-            else if (page.complete) {
-                const run = { staged, isSnapshot };
-                const kind = { "destack.replica.snapshot": isSnapshot };
-                const recorded = record;
-                ({ position: reached, record } = await this.#scope(database).span(
-                    "destack.replica.apply",
-                    { ...attributed, ...kind },
-                    () => this.#complete(database, page, run, recorded, reflected),
-                    { duration: { attributes: kind } },
-                ));
-
-                // announce the run's home position at once
-                const home = this.#home(reached);
-                if (home !== undefined) {
-                    Replica.mark(database, this, home);
-                }
-                marks = Replica.#marks(page);
-                staged = 0;
-            }
-            // stage a page within a run, its first page dropping an earlier stream's
+            // receive any other page in a span of its own, linked to the span following the source
             else {
-                const order = staged;
-                await this.#scope(database).span("destack.replica.stage", attributed, () =>
-                    database.transaction(async (transaction) => {
-                        if (order === 0) {
-                            await transaction.delete(replicaPage).where(this.#match(replicaPage));
-                        }
-                        await transaction
-                            .insert(replicaPage)
-                            .values({ name: this.name, scope: this.scope, index: order, page });
-                    }),
+                progress = await Telemetry.detach(telemetry, (links) =>
+                    this.#scope(database).span(
+                        "destack.replica.receive",
+                        attributed,
+                        () => this.#receive(database, page, options, received),
+                        { links },
+                    ),
                 );
-                staged += 1;
             }
             yield page;
         }
@@ -1791,7 +1842,15 @@ export class Replica {
 
                 // take the subscription once, so the stream opens and records the same parameters
                 const { subscription } = options;
-                const from = await this.resume(database, subscription);
+                const { telemetry } = database.state.environment;
+                const from = await Telemetry.detach(telemetry, (links) =>
+                    this.#scope(database).span(
+                        "destack.replica.resume",
+                        { "destack.replica.name": this.name, "destack.replica.scope": this.scope },
+                        () => this.resume(database, subscription),
+                        { links },
+                    ),
+                );
                 const pages = source(from, streaming, subscription);
                 const opened = subscription === undefined ? options : { ...options, subscription };
                 silence();
