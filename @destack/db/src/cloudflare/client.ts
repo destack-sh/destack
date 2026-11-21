@@ -123,12 +123,16 @@ export class DurableObjectQuery implements SqliteQueryClient {
 
     /** Execute a statement, inlining its values when the storage cannot bind them all. */
     #exec(sql: string, parameters: readonly DriverValue[]): DurableObjectCursor {
-        // bind exact integers as numbers, since the storage binds no bigints
-        const values = parameters.map((value) =>
-            typeof value === "bigint" && value >= -MAX_EXACT && value <= MAX_EXACT
+        // bind exact integers and booleans as numbers, since the storage binds no bigints and booleans as text
+        const values = parameters.map((value) => {
+            if (typeof value === "boolean") {
+                return value ? 1 : 0;
+            }
+
+            return typeof value === "bigint" && value >= -MAX_EXACT && value <= MAX_EXACT
                 ? Number(value)
-                : value,
-        );
+                : value;
+        });
 
         // inline more values than the storage binds, or an integer past a number's exact range
         const isBound =
