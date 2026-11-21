@@ -11,7 +11,6 @@ import { Commit, present, schema } from "@destack/schema";
 import { ObjectReference, RequestId } from "@destack/sync";
 import { build } from "@destack/stack/object";
 import stackPackage from "@destack/stack/package";
-import objectPackage from "@destack/object/package";
 import { ids, reconcile, TestSpace } from "@destack/machine/test";
 import { expect, refusal, test } from "@destack/test";
 import { Shape } from "@destack/object";
@@ -52,13 +51,10 @@ async function serveCommits() {
     const universe = fixture.universe.storage.database;
     await fixture.serve();
     const owner = fixture.as(fixture.owner.subject).client(stackPackage);
-    const installer = fixture.as(fixture.owner.subject).client(objectPackage);
     const store = await fixture.store();
     const follow = () => fixture.simulation.idle();
     const reconcileTwice = (id: string) =>
-        Promise.all(
-            [0, 1].map(() => reconcile(store, "destack.rollout.resume", { installationId: id })),
-        );
+        Promise.all([0, 1].map(() => reconcile(store, "destack.installation.reconcile", { id })));
 
     // create a platform repository of the space's account at the forge, as the account's owner
     const forge = (await residency.serve())
@@ -88,7 +84,7 @@ async function serveCommits() {
 
     // install a package following a reference of the repository
     const install = async (name: string, packageId: PackageId = ids.package, followed = MAIN) =>
-        installer.installation.create({
+        owner.installation.create({
             scope: ids.space,
             requestId: RequestId.create(environment),
             packageId,
@@ -141,7 +137,6 @@ async function serveCommits() {
         database,
         universe,
         owner,
-        installer,
         store,
         follow,
         reconcileTwice,
@@ -188,7 +183,7 @@ test("request one replica of the references a space's installations follow", asy
 
 test("refuse an installation following another account's reference", async () => {
     // push the main branch of another account's repository
-    const { fixture, home, forge, installer, follows, install, move, environment } =
+    const { fixture, home, forge, owner, follows, install, move, environment } =
         await serveCommits();
     await move();
     const other = schema
@@ -214,7 +209,7 @@ test("refuse an installation following another account's reference", async () =>
 
     // refuse it, and create one following the account's own repository
     const create = (followed: ObjectReference) =>
-        installer.installation.create({
+        owner.installation.create({
             scope: ids.space,
             requestId: RequestId.create(environment),
             packageId: ids.package,
@@ -226,7 +221,7 @@ test("refuse an installation following another account's reference", async () =>
     const installed = await install("site");
 
     // refuse moving it to another account's repository
-    const update = installer.installation.update({
+    const update = owner.installation.update({
         scope: ids.space,
         id: installed.id,
         requestId: RequestId.create(environment),
