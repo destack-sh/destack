@@ -1,7 +1,7 @@
 import { eq, Snapshot, type DatabaseConnection } from "@destack/db";
 import { call, CallEvent, Numbered } from "@destack/object";
 import { Duration, type Identifier, schema } from "@destack/schema";
-import { Binding, Rollout, rollout } from "@destack/stack/object";
+import { Binding, installation } from "@destack/stack/object";
 import { ids, TestSpace } from "@destack/machine/test";
 import { ObjectReference, RequestId, Scope } from "@destack/sync";
 import { principal } from "@destack/access";
@@ -671,9 +671,9 @@ test("read a bound secret in process as its installation, and refuse another ins
     const store = Promise.resolve(await fixture.space.store());
     const snapshot = Snapshot.live(database);
     const rows = await snapshot
-        .read(rollout.table)
-        .findMany({ where: { installationId: fixture.installation } });
-    const row = single(await Rollout.read(snapshot, rows));
+        .read(installation.table)
+        .findMany({ where: { id: fixture.installation } });
+    const row = single(rows);
     const keyOf = async (installationId: Identifier<"installation">) =>
         single(
             (await Binding.targeted(Snapshot.live(database), ids.space, installationId)).filter(
@@ -806,14 +806,16 @@ test("keep a declared secret's current version across a stack apply", async () =
 /** Read the bindings of the space's targeted revisions, with their installations. */
 async function targetedBindings(database: DatabaseConnection) {
     const snapshot = Snapshot.live(database);
-    const rollouts = await snapshot.read(rollout.table).findMany({ where: { scope: ids.space } });
+    const rollouts = await snapshot
+        .read(installation.table)
+        .findMany({ where: { scope: ids.space } });
 
     return (
         await Promise.all(
             rollouts.map(async (row) =>
-                (await Binding.targeted(snapshot, ids.space, row.installationId)).map((entry) => ({
+                (await Binding.targeted(snapshot, ids.space, row.id)).map((entry) => ({
                     ...entry,
-                    installationId: row.installationId,
+                    installationId: row.id,
                 })),
             ),
         )

@@ -249,7 +249,7 @@ export const secretBindingKind: ObjectBindingKind<typeof secret, Secret> = {
             // read as the installation, once the store serves
             const store = await serving;
             const id = secret.identifier(bound.target);
-            const reader = principal.installation.reference(row.scope, row.installationId);
+            const reader = principal.installation.reference(row.scope, row.id);
 
             return store.query(
                 AccessContext.of(Caller.of(reader), store.clock.now()),

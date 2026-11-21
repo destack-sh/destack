@@ -1,5 +1,5 @@
 import { Snapshot } from "@destack/db";
-import { Binding, Rollout, rollout } from "@destack/stack/object";
+import { Binding, installation } from "@destack/stack/object";
 import { ids } from "@destack/machine/test";
 import { expect, refusal, single, test } from "@destack/test";
 import { vault } from "../object/index.ts";
@@ -48,9 +48,9 @@ test("read a bound vault's secret in process as its installation, and refuse ano
     const store = fixture.space.store();
     const snapshot = Snapshot.live(database);
     const rows = await snapshot
-        .read(rollout.table)
-        .findMany({ where: { installationId: fixture.installation } });
-    const row = single(await Rollout.read(snapshot, rows));
+        .read(installation.table)
+        .findMany({ where: { id: fixture.installation } });
+    const row = single(rows);
     const own = await vaultProvider.connect(store, row, await bindingOf(fixture.installation));
     const stray = await vaultProvider.connect(store, row, strayBinding);
 
