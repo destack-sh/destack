@@ -1,9 +1,9 @@
+import { installation } from "@destack/stack/object";
 import type { Device, Launcher } from "@destack/machine/device";
 import { type ObjectClient, RelationalQuery } from "@destack/object/client";
 import { type Message, message } from "@destack/message/client";
 import { activity, type Activity, Inbox, notification } from "@destack/notification/client";
 import { type Identifier, present } from "@destack/schema";
-import { installation } from "@destack/object";
 import type { BannerAction, Command } from "../shell/index.ts";
 import { DesktopError } from "../error/index.ts";
 
