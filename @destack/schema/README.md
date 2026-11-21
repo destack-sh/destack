@@ -17,6 +17,7 @@ Packages share these values:
 - `Version`: a calendar version such as `2026.11.0`, with dev builds before their release.
 - `Instant`, `Duration`, `Period`, `TimeZone`, `PlainDate` and `PlainTime`: time values after Temporal, as JSON.
 - `Week`: the first day, the weekend and the week numbers of a locale.
+- `MonthGrid`, `Segment` and `TimeScale`: the date arithmetic of calendars and timelines.
 - `Digest`: a SHA-256 of bytes, or of canonical JSON.
 
 Declare a schema, create an identifier, and send the schema as JSON Schema:
@@ -109,6 +110,9 @@ Time values follow Temporal and are plain JSON.
 | `Period`    | `{ years, months, weeks, days }`, each optional                  |
 | `PlainTime` | `HH:MM` on a 24-hour clock                                       |
 | `Weekday`   | Monday `1` through Sunday `7`, as in ISO 8601                    |
+| `MonthGrid` | a month in whole weeks                                           |
+| `Segment`   | an event cut to a week or a day                                  |
+| `TimeScale` | a window of time, `{ start, end }`                               |
 
 ### Digest
 
@@ -211,6 +215,22 @@ import { Version } from "@destack/schema";
 // stamp a dev build, and order it before its release
 export const dev = Version.dev("2026.11.0");
 export const order = Version.compare(dev, "2026.11.0");
+```
+
+### Lay a month out
+
+`Segment.stack` puts the events of a week on levels.
+
+```ts
+import { type DateSpan, MonthGrid, Segment, type Week } from "@destack/schema";
+
+// stack the events of the first week of November 2026
+export function firstWeek(week: Week, events: readonly DateSpan[]) {
+    const grid = MonthGrid.of("2026-11-21", week, "fit");
+    const [days = []] = grid.weeks;
+
+    return Segment.stack(events, days);
+}
 ```
 
 ## Comparison
