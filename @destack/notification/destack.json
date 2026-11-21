@@ -14,9 +14,6 @@
         "./package": {
             "runtimes": ["bun", "workerd"]
         },
-        "./view": {
-            "runtimes": ["browser"]
-        },
         "./inspect": {
             "runtimes": ["bun"]
         }

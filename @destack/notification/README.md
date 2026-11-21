@@ -116,7 +116,6 @@ An `audience` is one of three, and `Subscription.subscribe(source, owner, reason
 
 `new Inbox(rows, now)` orders notifications latest first.
 `active()` lists unarchived, unsnoozed entries, and `unread({ space, packageId })` counts unread ones.
-`NotificationInbox` and `NotificationBadge`, from `@destack/notification/view`, show them in a view.
 
 ## Examples
 
@@ -193,7 +192,11 @@ const document = defineObject(
 );
 
 // reply to a document
-export const reply = defineAction({ name: "reply", title: t`Reply`, call: { object: document, method: "reply" } });
+export const reply = defineAction({
+    name: "reply",
+    title: t`Reply`,
+    call: { object: document, method: "reply" },
+});
 
 // ask for a review that breaks through focus, answered with a reply
 export const review = defineNotification({
@@ -207,27 +210,6 @@ export const review = defineNotification({
     summary: t`${plural(argument("count"), { one: "# review", other: "# reviews" })}`,
     actions: [{ action: reply, text: { placeholder: "Reply", button: "Send" } }],
 });
-```
-
-### Show the inbox
-
-`NotificationBadge` counts unread notifications, and `NotificationInbox` lists them.
-
-```tsx
-import { NotificationBadge, NotificationInbox } from "@destack/notification/view";
-
-/** Show the badge of one space's unread notifications above the person's inbox. */
-export function InboxPanel(properties: { readonly space: string }) {
-    return (
-        <section>
-            {/* Badge */}
-            <NotificationBadge space={properties.space} />
-
-            {/* Inbox */}
-            <NotificationInbox onOpen={(entry) => console.log(entry.activity.content.title)} />
-        </section>
-    );
-}
 ```
 
 ### Test notifications
