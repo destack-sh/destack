@@ -13,6 +13,7 @@ import {
     type Tracer,
 } from "@opentelemetry/api";
 import { Failure } from "@destack/error";
+import { Clock } from "../clock/clock.ts";
 import { recordSpanException } from "./exception.ts";
 import type { ReadableSpan } from "@opentelemetry/sdk-trace";
 import { SpanPath } from "./span.ts";
@@ -37,6 +38,9 @@ export const SPAN_TOTALS_ATTRIBUTE = "destack.span.totals";
 
 /** The attribute marking a span that started with no other span running. */
 export const SPAN_OUTERMOST_ATTRIBUTE = "destack.span.outermost";
+
+/** The attribute with a span's real seconds, on a span timed by another clock than the host's. */
+export const SPAN_ELAPSED_ATTRIBUTE = "destack.span.elapsed";
 
 /** The attribute marking a span's level, which local logs print at info and above. */
 export const SPAN_LEVEL_ATTRIBUTE = "destack.span.level";
@@ -158,10 +162,11 @@ export const SpanRunner = {
                 SpanPath.end(entered);
                 const listed =
                     how.level === undefined ? {} : { [SPAN_TOTALS_ATTRIBUTE]: Object.keys(totals) };
-                span.setAttributes({ ...failed, ...totals, ...listed, ...outermost });
+                const seconds = (monotonic.now() - started) / MILLISECONDS_PER_SECOND;
+                const elapsed = clock === Clock.system ? {} : { [SPAN_ELAPSED_ATTRIBUTE]: seconds };
+                span.setAttributes({ ...failed, ...totals, ...listed, ...outermost, ...elapsed });
                 span.end(clock.now());
                 if (how.duration !== false) {
-                    const seconds = (monotonic.now() - started) / MILLISECONDS_PER_SECOND;
                     const bounded = how.duration?.attributes ?? {};
                     const recorded = typeof bounded === "function" ? bounded() : bounded;
                     durations(how.duration?.name ?? `${name}.duration`).record(seconds, {

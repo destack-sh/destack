@@ -1,6 +1,11 @@
 import { type Attributes, SeverityNumber, SpanStatusCode } from "@opentelemetry/api";
 import type { ReadableSpan, SpanProcessor } from "@opentelemetry/sdk-trace";
-import { SPAN_LEVEL_ATTRIBUTE, SPAN_OUTERMOST_ATTRIBUTE, SPAN_TOTALS_ATTRIBUTE } from "./runner.ts";
+import {
+    SPAN_ELAPSED_ATTRIBUTE,
+    SPAN_LEVEL_ATTRIBUTE,
+    SPAN_OUTERMOST_ATTRIBUTE,
+    SPAN_TOTALS_ATTRIBUTE,
+} from "./runner.ts";
 import { Level } from "./level.ts";
 import { type ExportResult, ExportResultCode } from "@opentelemetry/core";
 import {
@@ -79,6 +84,7 @@ export class LineExporter {
             [SPAN_LEVEL_ATTRIBUTE]: marked,
             [SPAN_TOTALS_ATTRIBUTE]: totals,
             [SPAN_OUTERMOST_ATTRIBUTE]: _outermost,
+            [SPAN_ELAPSED_ATTRIBUTE]: _elapsed,
             ...attributed
         } = span.attributes;
         const counted = new Set(Array.isArray(totals) ? totals : []);
