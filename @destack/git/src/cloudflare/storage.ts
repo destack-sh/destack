@@ -50,8 +50,8 @@ export interface ArtifactsNamespace {
 
 /** A handle of one Artifacts repository. */
 export interface ArtifactsRepositoryHandle extends Disposable {
-    /** The credential-free Git remote. */
-    readonly remote: string;
+    /** Read the repository's description, with its credential-free Git remote. */
+    readonly info: () => Promise<{ readonly name: string; readonly remote: string }>;
     /** Issue a Git token with a scope that lives for some seconds. */
     readonly createToken: (
         scope: "read" | "write",
@@ -125,7 +125,7 @@ export class ArtifactsStorage implements GitStorage {
                 ) {
                     using existing = await this.#namespace.get(name);
 
-                    return { name, remote: existing.remote };
+                    return await existing.info();
                 }
                 throw error;
             });
@@ -188,7 +188,7 @@ export class ArtifactsStorage implements GitStorage {
         return this.#span("destack.git.open", async () => {
             // issue a token for the repository and mode at its remote
             using repository = await this.#namespace.get(ArtifactsStorage.name(this.#prefix, id));
-            const remote = schema.url().parse(repository.remote);
+            const { remote } = ArtifactsRepository.parse(await repository.info());
             const issued = ArtifactsToken.parse(
                 await repository.createToken(mode, TOKEN_TTL_SECONDS),
             );

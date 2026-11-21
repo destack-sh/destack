@@ -173,11 +173,14 @@ test("create, list, lease and delete an Artifacts repository through its namespa
             ["create", "git-site.repository-site"],
             ["create", "git-site.repository-site"],
             ["get", "git-site.repository-site"],
+            ["info"],
             ["dispose"],
             ["get", "git-site.repository-site"],
+            ["info"],
             ["createToken", "read", 3600],
             ["dispose"],
             ["get", "git-site.repository-site"],
+            ["info"],
             ["createToken", "write", 3600],
             ["dispose"],
             ["delete", "git-site.repository-site", true],
@@ -332,7 +335,11 @@ class TestArtifactsNamespace implements ArtifactsNamespace {
         };
 
         return {
-            remote: TestArtifactsNamespace.remote(name),
+            info: async () => {
+                calls.push(["info"]);
+
+                return { name, remote: TestArtifactsNamespace.remote(name) };
+            },
             createToken: async (scope, ttl) => {
                 calls.push(["createToken", scope, ttl]);
 
