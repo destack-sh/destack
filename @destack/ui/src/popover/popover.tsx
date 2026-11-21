@@ -23,6 +23,7 @@ import {
     onCleanup,
     type Setter,
     Show,
+    untrack,
     useContext,
 } from "@destack/view";
 import { Button, type ButtonProperties } from "../button/index.ts";
@@ -118,7 +119,7 @@ export class PopoverControl {
         const [isOpen, setOpen] = createControllableSignal({
             isControlled: () => properties.open !== undefined,
             value: () => properties.open === true,
-            defaultValue: properties.defaultOpen === true,
+            defaultValue: untrack(() => properties.defaultOpen === true),
             onChange: (isNext) => properties.onOpenChange?.(isNext),
         });
         const [isTitled, setTitled] = createSignal(false, { ownedWrite: true });

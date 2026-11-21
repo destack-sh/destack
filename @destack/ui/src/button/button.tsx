@@ -2,7 +2,7 @@ import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
 import { color, motion, radius, size, space, stroke, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import { type JSX, merge, omit, Show } from "@destack/view";
+import { type JSX, merge, omit, Show, untrack } from "@destack/view";
 import { type PartAttributes, type Render, useRender } from "../part/index.ts";
 import { useJoin } from "../join/index.ts";
 import { Spinner } from "../spinner/index.ts";
@@ -222,7 +222,7 @@ export function Button(properties: ButtonProperties): JSX.Element {
     );
 
     return useRender({
-        render: button.render,
+        render: untrack(() => button.render),
         defaultTagName: "button",
         part: part,
         properties: rest,

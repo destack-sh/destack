@@ -1,5 +1,5 @@
 import * as style from "@destack/style";
-import { Dynamic, type JSX, merge, omit } from "@destack/view";
+import { Dynamic, type JSX, merge, omit, untrack } from "@destack/view";
 import { access, type MaybeAccessor } from "@destack/view/primitives/utils";
 
 /** The attributes a part gives the element it renders, and the reference that takes the element. */
@@ -95,7 +95,10 @@ export function mergeProperties<Part extends object, Caller extends object>(
 ) {
     // chain the handlers and references both sides hold
     const chained = {};
-    for (const key of Object.keys(part).filter((name) => isChained(name) && name in caller)) {
+    const keys = untrack(() =>
+        Object.keys(part).filter((name) => isChained(name) && name in caller),
+    );
+    for (const key of keys) {
         Object.defineProperty(chained, key, {
             enumerable: true,
             get: () => chain(Reflect.get(caller, key), Reflect.get(part, key)),
@@ -162,7 +165,10 @@ export function renderPart<Tag extends keyof JSX.IntrinsicElements>(
         style.attributes([access(styles), properties.xstyle], properties.style),
     );
 
-    return useRender({ render: properties.render, defaultTagName: tag, part, properties: rest });
+    // read the caller's element once
+    const render = untrack(() => properties.render);
+
+    return useRender({ render, defaultTagName: tag, part, properties: rest });
 }
 
 /** Run two handlers in sequence, or keep the one that is a function. */
