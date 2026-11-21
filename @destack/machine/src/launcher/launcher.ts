@@ -861,16 +861,16 @@ export class Launcher {
 
     /** Read the views a space's named installations serve, as its store describes them. */
     async #views(place: PlacementEndpoint): Promise<SpaceView[]> {
-        // describe the store over a connection closed once it answered
+        // list the store's packages with the views they declare, over a connection closed once it answered
         const connection = this.#connect(
             stackPackage.id,
             place.placement.space,
             async () => Launcher.#spacePlace(place, stackPackage.id),
             {},
         );
-        const description = await ObjectStoreDescription.read(connection.store).finally(() =>
-            connection.close(),
-        );
+        const description = await ObjectStoreDescription.read(connection.store, {
+            kinds: [VIEW_KIND],
+        }).finally(() => connection.close());
 
         return description.packages.flatMap((served) => {
             const name = served.installation?.name;
