@@ -87,6 +87,19 @@ export class Worktree {
         return new Worktree(directory);
     }
 
+    /** Clone a remote into a new working tree. */
+    static async clone(remote: string): Promise<Worktree> {
+        const directory = await temporary("destack-worktree-");
+        await git(directory, "clone", "--quiet", remote, ".");
+
+        return new Worktree(directory);
+    }
+
+    /** Read the commit HEAD is at. */
+    head(): Promise<string> {
+        return git(this.directory, "rev-parse", "HEAD");
+    }
+
     /** Commit one file's text, returning the commit. */
     async commit(file: string, text: string): Promise<string> {
         // write the file, stage it and commit it
@@ -102,6 +115,11 @@ export class Worktree {
         await git(this.directory, "tag", "--annotate", name, "--message", `release ${name}`);
 
         return git(this.directory, "rev-parse", name);
+    }
+
+    /** Pull a remote's branch, fast-forward only. */
+    async pull(remote: string, branch: string): Promise<void> {
+        await git(this.directory, "pull", "--quiet", "--ff-only", remote, branch);
     }
 
     /** Push refspecs to a remote. */
