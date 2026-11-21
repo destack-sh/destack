@@ -806,7 +806,9 @@ export class ObjectSource {
         // reshape the stream once the replicas the reader holds change, or the scope's chain grows or moves
         let stream: sync.Stream | undefined;
         const names = new Set(
-            [sync.replica, sync.replicaSubscription].map((table) => table[TABLE].sqlName),
+            [sync.replica, sync.replicaScope, sync.replicaSubscription].map(
+                (table) => table[TABLE].sqlName,
+            ),
         );
         const scopes = Scope.table[TABLE].sqlName;
         const watching = new AbortController();

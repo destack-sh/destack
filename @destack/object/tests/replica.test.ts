@@ -20,6 +20,7 @@ import {
     Replica,
     replicaKey,
     replicaSubscription,
+    replicaScope,
     replicaTables,
     Scope,
     Subject,
@@ -230,7 +231,10 @@ test("list and follow the mentions a home has as replicas of another space, from
     await database.transaction(async (replicating) => {
         await replicating
             .insert(replica)
-            .values({ name: "mentions", scope: other, tables: [table], living: {} });
+            .values({ name: "mentions", scope: other, tables: [table] });
+        await replicating
+            .insert(replicaScope)
+            .values({ name: "mentions", scope: other, table, living: other });
         await replicating.insert(replicaSubscription).values({
             name: "mentions",
             scope: other,

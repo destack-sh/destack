@@ -1599,15 +1599,13 @@ test("request no via chain for the rows a subject's follow brought, which their 
                 .values({ id: spaceId, scope: accountId, createdAt: 1, updatedAt: 1 }),
     );
     const name = `activity:${spaceId}`;
-    await database.transaction(
-        async (transaction) =>
-            await transaction.insert(sync.replica).values({
-                name,
-                scope: spaceId,
-                tables: [space.table[TABLE].sqlName],
-                living: {},
-            }),
-    );
+    await database.transaction(async (transaction) => {
+        const table = space.table[TABLE].sqlName;
+        await transaction.insert(sync.replica).values({ name, scope: spaceId, tables: [table] });
+        await transaction
+            .insert(sync.replicaScope)
+            .values({ name, scope: spaceId, table, living: spaceId });
+    });
     await database.transaction(
         async (transaction) =>
             await transaction.insert(sync.replicaSubscription).values({
