@@ -1,4 +1,4 @@
-import type { Environment } from "@destack/environment";
+import { type Environment, WebSocketClosure } from "@destack/environment";
 import type { Alarm, AlarmClock } from "@destack/db";
 import { WORKERD_COMPATIBILITY_DATE } from "@destack/package/runtime";
 import {
@@ -297,9 +297,13 @@ export class InstallationFacet {
         await this.#event(socket, SocketMessage.request(bytes));
     }
 
-    /** Hand the workload an accepted WebSocket's close. */
-    async webSocketClose(socket: HibernatingSocket): Promise<void> {
+    /** Hand the workload an accepted WebSocket's close, and answer the close. */
+    async webSocketClose(socket: HibernatingSocket, code: number, reason: string): Promise<void> {
+        // tell the workload
         await this.#event(socket, { method: "DELETE" });
+
+        // answer the peer's close, which waits for it to finish closing (RFC 6455 7.1.2)
+        socket.close(WebSocketClosure.sendable(code), reason);
     }
 
     /** Hibernate a WebSocket the workload accepted under a new identifier. */

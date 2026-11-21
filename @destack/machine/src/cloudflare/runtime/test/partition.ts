@@ -86,8 +86,8 @@ export class Partition {
     }
 
     /** Hand an accepted WebSocket's close to its installation's workload. */
-    webSocketClose(socket: HibernatingSocket): Promise<void> {
-        return this.#facets.socket(socket).webSocketClose(socket);
+    webSocketClose(socket: HibernatingSocket, code: number, reason: string): Promise<void> {
+        return this.#facets.socket(socket).webSocketClose(socket, code, reason);
     }
 
     /** Fire the due facets' alarms through the object's schedule. */

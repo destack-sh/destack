@@ -243,14 +243,14 @@ export class PartitionObject {
     }
 
     /** Hand an accepted WebSocket's close to the space's store, else to its installation. */
-    async webSocketClose(socket: HibernatingSocket): Promise<void> {
+    async webSocketClose(socket: HibernatingSocket, code: number, reason: string): Promise<void> {
         // hand the store's close to its machine's host
         if (this.#storeHibernation.has(socket)) {
-            this.#storeHibernation.close(await this.#storeHost(), socket);
+            this.#storeHibernation.close(await this.#storeHost(), socket, code, reason);
         }
         // hand an installation's to its facet
         else {
-            await this.#facets.socket(socket).webSocketClose(socket);
+            await this.#facets.socket(socket).webSocketClose(socket, code, reason);
         }
     }
 
