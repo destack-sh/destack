@@ -1,3 +1,4 @@
+import { KNOWN_TYPES } from "@destack/stack/stack";
 import {
     Installation,
     installation,
@@ -1924,7 +1925,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
     ): Promise<Pick<object.InstallationRevision, "dependencies" | "states">> {
         // read the options a submission describes with
         const space = await this.space;
-        const options = { space, blobs: space.blobs };
+        const options = { space, blobs: space.blobs, known: KNOWN_TYPES };
 
         // make an image of the build alone in the space's store
         const { image } = await this.#image(reader, []);

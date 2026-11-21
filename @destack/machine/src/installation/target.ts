@@ -28,6 +28,7 @@ import {
     type InstallationBindingState,
     InstallationKind,
     ObjectType,
+    PackageDescription,
 } from "@destack/object";
 import { type DependencyRelease, PackageId, PackageRelease } from "@destack/package";
 import { type BuildReader, BuildImage, PackageManifest } from "@destack/package/manifest";
@@ -596,7 +597,7 @@ export const InstallationTarget = {
     /** Describe a build's revision of an installation: its dependencies and required states. */
     async describe(
         image: BuildImage,
-        options: Pick<RevisionOptions, "space" | "blobs">,
+        options: Pick<RevisionOptions, "space" | "blobs" | "known">,
     ): Promise<Pick<InstallationRevision, "dependencies" | "states">> {
         // read the image's root and the builds of the installable packages the image has
         const { blobs } = options;
@@ -821,28 +822,47 @@ const ListedTables = schema.object({
 /** Read the tables a build's types keep in the space's main database, none without types. */
 async function mainState(
     reader: BuildReader,
-    options: Pick<RevisionOptions, "space">,
+    options: Pick<RevisionOptions, "space" | "known">,
 ): Promise<DatabaseState | undefined> {
-    // read the tables its build lists, none for a package declaring no object types
+    // read the tables its build lists of its own package, none for a package declaring no object types
     const packageId = PackageManifest.package(reader.manifest).id;
     const listed = ListedTables.parse(await reader.tables());
-    if (listed.sqlite.length === 0 && listed.postgresql.length === 0) {
+    const isOwn = (state: TableState) => state.package.id === packageId;
+    const own = {
+        sqlite: listed.sqlite.filter(isOwn),
+        postgresql: listed.postgresql.filter(isOwn),
+    };
+    if (own.sqlite.length === 0 && own.postgresql.length === 0) {
         return undefined;
     }
 
-    // own the package's tables, and those of the protocols it implements that a space replicates otherwise
+    // take the tables of the protocols it implements as this machine knows their types
+    const protocols = (await PackageDescription.of(reader))?.protocols ?? [];
+    const implemented = new Set(
+        options.known
+            .filter((type) => protocols.includes(type.package.id))
+            .filter((type) => type.storage === "durable" || type.storage === "events")
+            .flatMap((type) => type.tables),
+    );
+    for (const table of implemented) {
+        for (const dependent of table[TABLE].dependents) {
+            implemented.add(dependent.from());
+        }
+    }
+    const described = DatabaseState.of([...implemented], { packages: protocols }).tables;
+
+    // own those a space replicates otherwise, beside its own
     const { volumes } = options.space.machine;
     const replicated = new Set([
         ...volumes.replicated.map((table) => table[TABLE].sqlName),
         ...volumes.main.replicated,
     ]);
-    const isOwned = (state: TableState) =>
-        state.package.id === packageId || replicated.has(state.table.name);
+    const isReplicated = (state: TableState) => replicated.has(state.table.name);
 
     return {
         tables: {
-            sqlite: listed.sqlite.filter(isOwned),
-            postgresql: listed.postgresql.filter(isOwned),
+            sqlite: [...own.sqlite, ...described.sqlite.filter(isReplicated)],
+            postgresql: [...own.postgresql, ...described.postgresql.filter(isReplicated)],
         },
     };
 }
