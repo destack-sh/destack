@@ -37,8 +37,8 @@ const PackageManifest = schema.looseObject({
 /** The databases a package's tests run against when its definition names none. */
 const DEFAULT_DATABASES = ["sqlite"] as const;
 
-/** Where a test runs: in Bun, in Node, in a DOM, as a server render, a hydration, or as types. */
-export type TestKind = "bun" | "node" | "dom" | "server" | "hydration" | "typecheck";
+/** Where a test runs. */
+export type TestKind = "bun" | "node" | "dom" | "browser" | "server" | "hydration" | "typecheck";
 
 /** The runtime a test run starts: Node for the Node targets, Bun for every other. */
 export type TestRuntime = "bun" | "node";
@@ -67,42 +67,48 @@ interface TestSuffix {
     readonly tier: TestTier;
     /** Where it runs. */
     readonly kind: TestKind;
-    /** Whether it is a scenario module, which the bench tier measures too. */
-    readonly isScenarioModule: boolean;
+    /** Whether the bench tier measures it too. */
+    readonly isBenched: boolean;
 }
 
 /** The test files' suffixes, most specific first. */
 const SUFFIXES: readonly TestSuffix[] = [
-    { suffix: /\.test-d\.ts$/u, tier: "unit", kind: "typecheck", isScenarioModule: false },
+    { suffix: /\.test-d\.ts$/u, tier: "unit", kind: "typecheck", isBenched: false },
     {
         suffix: /\.scenario\.test\.tsx$/u,
         tier: "scenario",
         kind: "dom",
-        isScenarioModule: false,
+        isBenched: false,
     },
     {
         suffix: /\.scenario\.test\.ts$/u,
         tier: "scenario",
         kind: "bun",
-        isScenarioModule: false,
+        isBenched: false,
     },
-    { suffix: /\.scenario\.tsx$/u, tier: "scenario", kind: "dom", isScenarioModule: true },
-    { suffix: /\.scenario\.ts$/u, tier: "scenario", kind: "bun", isScenarioModule: true },
-    { suffix: /\.node\.test\.ts$/u, tier: "unit", kind: "node", isScenarioModule: false },
+    {
+        suffix: /\.browser\.scenario\.tsx$/u,
+        tier: "scenario",
+        kind: "browser",
+        isBenched: false,
+    },
+    { suffix: /\.scenario\.tsx$/u, tier: "scenario", kind: "dom", isBenched: true },
+    { suffix: /\.scenario\.ts$/u, tier: "scenario", kind: "bun", isBenched: true },
+    { suffix: /\.node\.test\.ts$/u, tier: "unit", kind: "node", isBenched: false },
     {
         suffix: /\.server\.test\.tsx?$/u,
         tier: "unit",
         kind: "server",
-        isScenarioModule: false,
+        isBenched: false,
     },
     {
         suffix: /\.hydration\.test\.tsx$/u,
         tier: "unit",
         kind: "hydration",
-        isScenarioModule: false,
+        isBenched: false,
     },
-    { suffix: /\.test\.tsx$/u, tier: "unit", kind: "dom", isScenarioModule: false },
-    { suffix: /\.test\.ts$/u, tier: "unit", kind: "bun", isScenarioModule: false },
+    { suffix: /\.test\.tsx$/u, tier: "unit", kind: "dom", isBenched: false },
+    { suffix: /\.test\.ts$/u, tier: "unit", kind: "bun", isBenched: false },
 ];
 
 /** Every target of a package's tests, derived from its files and its definition. */
@@ -155,9 +161,7 @@ export class TestPlan {
             }
             const placed = { tier: suffix.tier, kind: suffix.kind, file };
 
-            return suffix.isScenarioModule
-                ? [placed, { ...placed, tier: "bench" as const }]
-                : [placed];
+            return suffix.isBenched ? [placed, { ...placed, tier: "bench" as const }] : [placed];
         });
         const groups = Map.groupBy(sorted, (each) => `${each.tier}:${each.kind}`);
 
@@ -275,7 +279,7 @@ export class TestPlan {
                 },
             },
             environment,
-            { isHydrated: runs === "hydration" },
+            { isHydrated: runs === "hydration", isBrowser: runs === "browser" },
         );
 
         return { extends: false, ...base, ...rendered };
@@ -333,7 +337,7 @@ interface ViewTestKit {
     readonly defineConfiguration: (
         configuration: Parameters<typeof defineConfiguration>[0] & { readonly tier: TestTier },
         environment: Environment<"files" | "process">,
-        options: { readonly isHydrated: boolean },
+        options: { readonly isHydrated: boolean; readonly isBrowser: boolean },
     ) => ViteUserConfig;
 }
 

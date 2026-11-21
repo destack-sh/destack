@@ -82,16 +82,17 @@ A `DriverType` has an `interaction`, and `start(given)` starts a driver on a sce
 
 `TestPlan.of(directory, files)` derives a package's `TestTarget`s from its file names, and `destack test` runs them with no configuration file.
 
-| File                    | Tier       | Runs in                                      |
-| ----------------------- | ---------- | -------------------------------------------- |
-| `*.test.ts`             | `unit`     | Bun                                          |
-| `*.test.tsx`            | `unit`     | a DOM, through `@destack/view/test`          |
-| `*.server.test.ts(x)`   | `unit`     | a server render                              |
-| `*.hydration.test.tsx`  | `unit`     | a hydration                                  |
-| `*.node.test.ts`        | `unit`     | Node, for tools that refuse Bun              |
-| `*.test-d.ts`           | `unit`     | the type checker                             |
-| `*.scenario.test.ts(x)` | `scenario` | Bun, or a DOM for `.tsx`                     |
-| `*.scenario.ts(x)`      | `scenario` | a scenario module, measured again in `bench` |
+| File                     | Tier       | Runs in                                      |
+| ------------------------ | ---------- | -------------------------------------------- |
+| `*.test.ts`              | `unit`     | Bun                                          |
+| `*.test.tsx`             | `unit`     | a DOM, through `@destack/view/test`          |
+| `*.server.test.ts(x)`    | `unit`     | a server render                              |
+| `*.hydration.test.tsx`   | `unit`     | a hydration                                  |
+| `*.node.test.ts`         | `unit`     | Node, for tools that refuse Bun              |
+| `*.test-d.ts`            | `unit`     | the type checker                             |
+| `*.browser.scenario.tsx` | `scenario` | Chromium, through `@destack/view/test`       |
+| `*.scenario.test.ts(x)`  | `scenario` | Bun, or a DOM for `.tsx`                     |
+| `*.scenario.ts(x)`       | `scenario` | a scenario module, measured again in `bench` |
 
 Every target runs once per database in `destack.json`'s `test.databases`, SQLite alone by default.
 A package's global setup is `src/test/setup.ts`, its scenario drivers are the drivers `src/test/index.ts` exports, and a package declaring `@destack/build` as a development dependency transforms its tests as a build does.
