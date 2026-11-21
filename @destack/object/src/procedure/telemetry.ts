@@ -44,7 +44,7 @@ export function traceCalls(
 
                 return result;
             },
-            { kind, duration },
+            { kind, duration, isDetached: true },
         );
     };
 }
