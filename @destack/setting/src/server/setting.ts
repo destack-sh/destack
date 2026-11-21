@@ -58,8 +58,9 @@ export function implementSetting(options: SettingOptions) {
                 // stamp the declared value with the release its scope runs, waiting for its package to install
                 const reader = await plan.release(desired.packageId);
                 if (reader === undefined) {
-                    return plan.wait(
+                    return plan.waitInstalled(
                         `setting ${desired.name} waits for ${desired.packageId} to install`,
+                        desired.packageId,
                     );
                 }
                 const found = Setting.find(await Setting.list(reader), desired);
