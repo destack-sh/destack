@@ -63,7 +63,7 @@ export const TestEntitlement = {
         await database.transaction(async (transaction) => {
             await transaction
                 .insert(replica)
-                .values({ name, scope, tables: [], living: {} })
+                .values({ name, scope, tables: [] })
                 .onConflictDoNothing();
             await transaction
                 .insert(replicaSubscription)
