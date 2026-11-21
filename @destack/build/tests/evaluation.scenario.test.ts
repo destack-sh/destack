@@ -190,6 +190,27 @@ test("refuse a declared kind function its module does not export, by its package
     ]);
 });
 
+test("report a syntax error with its location", async () => {
+    // declare a thing in a module with a syntax error
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const directory = await thingPackage(
+        'import { defineThing } from "@example/owner";\n\nexport const = defineThing({ name: "greeting" });\n',
+        environment,
+    );
+
+    // refuse the build while it evaluates the declaration
+    await using store = await LocalBuildStore.temporary(environment);
+    const compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
+    const workspacePackage = await (await Workspace.open(directory, compilers)).package();
+
+    expect(await refusal(workspacePackage.build({ outputs: OUTPUTS }))).toEqual([
+        "BAD_REQUEST",
+        "INSPECTION_INVALID",
+        "declaration evaluation is invalid: it failed with 'src/app.ts:3:14: Unexpected token'",
+    ]);
+});
+
 /** Write a part kind's package beside the thing kind's, which reads a thing's part as its value. */
 async function partPackage(app: string, environment: Environment<"files" | "process">) {
     // declare the part kind by its own package's constructor, linked into the thing kind's

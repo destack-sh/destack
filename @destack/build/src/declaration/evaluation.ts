@@ -1,8 +1,9 @@
 import { Digest, present, schema } from "@destack/schema";
 import type { Program } from "@destack/package/bun";
 import { FileSystemError } from "@destack/environment";
-import { dirname, join, sep } from "node:path";
+import { dirname, join, relative, sep } from "node:path";
 import { pathToFileURL } from "node:url";
+import { stripVTControlCharacters } from "node:util";
 import { SourceTextModule, SyntheticModule } from "node:vm";
 import { type Plugin, rolldown } from "rolldown";
 import { transform } from "rolldown/utils";
@@ -46,6 +47,19 @@ const RECORDER_SOURCE = [
     "export const declare = (value, site) => (declared.push([value, site]), value);",
     "",
 ].join("\n");
+
+/** The place a bundle error points at, among the error's other fields. */
+const BundleLocation = schema.looseObject({
+    /** The place in its module. */
+    loc: schema.object({
+        /** The module's absolute path. */
+        file: schema.string(),
+        /** The line, counted from one. */
+        line: schema.number(),
+        /** The column, counted from zero. */
+        column: schema.number(),
+    }),
+});
 
 /** The exports of the generated entry. */
 const EvaluatedEntry = schema.object({
@@ -431,10 +445,8 @@ async function evaluateEntry(
     transformer: ModuleTransformer,
 ): Promise<unknown> {
     return await bundleAndEvaluate(source, project, transformer).catch((cause: unknown) => {
-        // tell the person why, as the record of a failed build keeps the message alone
-        const [reason = "no message"] = (
-            cause instanceof Error ? cause.message : String(cause)
-        ).split("\n");
+        // tell the person why, since the record of a failed build has only its message
+        const reason = reasonsOf(cause, project.directory).join("; ");
         throw BuildError.of(
             "INSPECTION_INVALID",
             `declaration evaluation is invalid: it failed with '${reason}'`,
@@ -506,6 +518,33 @@ async function bundleAndEvaluate(
     } finally {
         await bundle?.close();
     }
+}
+
+/** List each failure of an evaluation by its first telling line, after its place in the package. */
+function reasonsOf(cause: unknown, directory: string): string[] {
+    // read each error of a bundle failure, whose own message only counts them
+    const errors: unknown = cause instanceof Error && "errors" in cause ? cause.errors : [cause];
+    const causes: readonly unknown[] = Array.isArray(errors) ? errors : [cause];
+
+    return causes.map((each) => {
+        // skip a heading line that only counts the errors under it
+        const message = each instanceof Error ? each.message : String(each);
+        const lines = stripVTControlCharacters(message)
+            .split("\n")
+            .map((line) => line.trim())
+            .filter((line) => line !== "");
+        const [first = "no message"] = lines;
+        const reason = lines.find((line) => !line.endsWith(":")) ?? first;
+
+        // put the file, line and column a bundle error points at before its reason
+        const located = BundleLocation.safeParse(each);
+        if (!located.success) {
+            return reason;
+        }
+        const { file, line, column } = located.data.loc;
+
+        return `${relative(directory, file)}:${String(line)}:${String(column + 1)}: ${reason}`;
+    });
 }
 
 /** Link an external of the entry as the host loads it: shared, builtin, build module or file. */
