@@ -96,6 +96,8 @@ export const TestNotes = {
                     { generated: "output/bun/workload.js", map: "output/bun/workload.js.map" },
                 ],
                 declarations: (await notesModule()).declarations,
+                tables: ObjectDescription.tables([ObjectDescription.of(note)], [NOTES.id], [space])
+                    .tables,
             },
             testHost().crypto,
         );
