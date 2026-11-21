@@ -73,7 +73,7 @@ export class BuildReader {
     /** Read a distributed file's listing by its path, refusing an unlisted path. */
     async file(path: string): Promise<PackageFile> {
         // find the manifest's own references first, as the file list is one of them
-        const reference = this.references().find((file) => file.path === path);
+        const reference = this.lists().find((file) => file.path === path);
         if (reference !== undefined) {
             return reference;
         }
@@ -123,7 +123,7 @@ export class BuildReader {
         const outputs = await Promise.all(
             names.map(async (name) => [...(await this.loaded(name)), ...(await this.maps(name))]),
         );
-        const files = [...this.references(), ...outputs.flat()];
+        const files = [...this.lists(), ...outputs.flat()];
 
         return [...new Map(files.map((file) => [file.path, file])).values()];
     }
@@ -135,17 +135,17 @@ export class BuildReader {
         );
     }
 
-    /** List the files the manifest lists directly: its lists and each output's. */
-    references(): PackageFile[] {
+    /** List the manifest's own list files: its lists and each output's. */
+    lists(): PackageFile[] {
         const { files, sourceMaps, declarations, relationships } = this.manifest.lists;
         const outputs = Object.values(this.manifest.outputs).map((output) => output.files);
 
         return [files, sourceMaps, declarations, relationships, ...outputs];
     }
 
-    /** Collect all distributed file records for complete downloads and verification. */
-    async distributed(): Promise<PackageFile[]> {
-        return [...this.references(), ...(await this.files())];
+    /** List every file the build references: its lists and the files they list. */
+    async references(): Promise<PackageFile[]> {
+        return [...this.lists(), ...(await this.files())];
     }
 
     /** Read the package's declarations, without the members they derive. */
@@ -208,7 +208,7 @@ export class BuildReader {
     ): Promise<void> {
         // require a new directory so a failed write cannot damage an existing build
         await files.mkdir(directory);
-        for (const file of selected ?? (await this.distributed())) {
+        for (const file of selected ?? (await this.references())) {
             const destination = `${directory}/${PackagePath.parse(file.path)}`;
             await files.mkdir(destination.slice(0, destination.lastIndexOf("/")), {
                 recursive: true,

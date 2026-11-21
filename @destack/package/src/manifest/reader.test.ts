@@ -71,7 +71,7 @@ test("open a remote build by its manifest digest, and refuse other bytes and uns
         await new Response(await build.stream("manifest.json")).arrayBuffer(),
     );
     const files = await Promise.all(
-        (await build.distributed()).map(
+        (await build.references()).map(
             async (file) =>
                 [
                     `https://registry.example/build/files/${file.path}`,
