@@ -325,13 +325,25 @@ export const ObjectDescription = Object.assign(objectDescription, {
         packages: readonly PackageId[],
         known: Iterable<KnownDeclaration> = [],
     ): DatabaseState {
-        // declare the types against each other and the known ones, then describe the packages' durable and events tables
-        const declared = ObjectTypePool.of(known).declare(descriptions);
+        // declare the types against each other and the known ones, and take the packages' known types beside them
+        const familiar = [...known];
+        const declared = ObjectTypePool.of(familiar).declare(descriptions);
+        const owned = familiar.filter(
+            (each): each is ObjectType =>
+                each instanceof ObjectType && packages.includes(each.package.id),
+        );
         const tables = new Set(
-            declared
+            [...declared, ...owned]
                 .filter((type) => type.storage === "durable" || type.storage === "events")
                 .flatMap((type) => type.tables),
         );
+
+        // describe them beside the known types' tables that cascade from theirs
+        for (const table of tables) {
+            for (const dependent of table[TABLE].dependents) {
+                tables.add(dependent.from());
+            }
+        }
 
         return DatabaseState.of([...tables], { packages });
     },
@@ -774,8 +786,10 @@ const BuilderCalls = schema
 const DescribedDefinition = schema.looseObject({
     /** The type's plural, the document key of its declarations. */
     plural: schema.string(),
-    /** Where the type's objects live, durable when absent. */
-    storage: schema.string().exactOptional(),
+    /** Where the type's objects live: a name, or settings with their kind, durable when absent. */
+    storage: schema
+        .union([schema.string(), schema.looseObject({ kind: schema.string() })])
+        .exactOptional(),
     /** The resource kind the type provisions, absent on a type provisioning none. */
     provisioned: schema
         .looseObject({ kind: schema.looseObject({ $kind: KIND_JSON }) })
