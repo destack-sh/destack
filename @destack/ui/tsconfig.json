@@ -31,7 +31,7 @@
             "DOM",
             "DOM.Iterable"
         ],
-        "types": ["@destack/view/client", "vite/client"],
+        "types": ["@destack/view/client", "@destack/build/browser", "vite/client"],
         "jsx": "preserve",
         "jsxImportSource": "@destack/view"
     },
