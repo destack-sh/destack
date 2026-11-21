@@ -8,6 +8,7 @@ export {
     storeProcedures,
     PushResult,
     PackageImplementationDescription,
+    ObjectTypeEntry,
     type StoreProcedures,
 } from "./replica.ts";
 

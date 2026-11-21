@@ -20,44 +20,64 @@ export type PackageDeclaration<Description> = Omit<
 export class ObjectStoreDescription {
     /** The packages the store serves, with their listed types and their declarations. */
     readonly packages: readonly PackageImplementationDescription[];
-    /** The object types the store describes, beside the ones its reader knew. */
+    /** The object types declared so far: the ones its reader knew and the ones used since. */
     readonly pool: ObjectTypePool;
 
-    /** Keep a store's served packages and the types they list. */
-    constructor(packages: readonly PackageImplementationDescription[], pool: ObjectTypePool) {
+    /** The store describing a type on its first use, absent among known types alone. */
+    readonly #store: Client<StoreProcedures> | undefined;
+
+    /** Keep a store's served packages, the known types and the store describing others. */
+    constructor(
+        packages: readonly PackageImplementationDescription[],
+        pool: ObjectTypePool,
+        store?: Client<StoreProcedures>,
+    ) {
+        // keep the packages, the types and where the others come from
         this.packages = packages;
         this.pool = pool;
+        this.#store = store;
     }
 
-    /** Describe a store in one call, declaring the types it serves beside some the reader knows. */
+    /** List what a store serves: its packages with their types' entries and declarations. */
     static async read(
         store: Client<StoreProcedures>,
-        known: readonly ObjectType[] = [],
+        options: {
+            /** The types the reader has as code, which the store need not describe. */
+            readonly known?: readonly ObjectType[];
+            /** The declaration kinds to list of each package, none by default. */
+            readonly kinds?: readonly Pick<Kind, "identity">[];
+        } = {},
     ): Promise<ObjectStoreDescription> {
-        // describe the store's packages and types
-        const { objects, packages } = await store.describe({});
+        const { known = [], kinds = [] } = options;
 
-        // declare the types the reader does not know
-        const pool = ObjectTypePool.of(known);
+        // list the store's packages with their types' entries and their declarations of the kinds
+        const { packages } = await store.describe({
+            types: [],
+            kinds: kinds.map((kind) => kind.identity),
+        });
+
+        return new ObjectStoreDescription(packages, ObjectTypePool.of(known), store);
+    }
+
+    /** Declare a listed type on its first use: a known one, else as the store describes it. */
+    async type(reference: ObjectTypeReference): Promise<ObjectType> {
+        // take a type the reader knows or declared before
+        const { packageId, type } = reference;
+        const key = ObjectTypeReference.key({ packageId, type });
+        const known = this.pool.objects.get(key);
+        if (known !== undefined) {
+            return known;
+        }
+
+        // describe it with the types it refers to, and declare the ones the reader lacks
+        const store = present(this.#store, `the store describing ${type}`);
+        const { objects } = await store.describe({ types: [{ packageId, type }] });
         const unknown = objects
             .map((object) => ObjectDescription.parse(object))
-            .filter((description) => !pool.objects.has(ObjectDescription.key(description)));
-        pool.declare(unknown);
+            .filter((each) => !this.pool.objects.has(ObjectDescription.key(each)));
+        this.pool.declare(unknown);
 
-        return new ObjectStoreDescription(packages, pool);
-    }
-
-    /** Find a described type by its reference, refusing one the store does not describe. */
-    type(reference: ObjectTypeReference): ObjectType {
-        return present(
-            this.pool.objects.get(ObjectTypeReference.key(reference)),
-            `the type ${reference.type} of ${reference.packageId}`,
-        );
-    }
-
-    /** List the types a package lists. */
-    types(implementation: PackageImplementationDescription): ObjectType[] {
-        return implementation.types.map((reference) => this.type(reference));
+        return present(this.pool.objects.get(key), `the type ${type} of ${packageId}`);
     }
 
     /** Select a package's declarations of a kind, read by the kind's schema. */
@@ -68,16 +88,15 @@ export class ObjectStoreDescription {
         return kind.select(implementation.declarations);
     }
 
-    /** List the actions a package declares, each call on the type it calls. */
-    actions(implementation: PackageImplementationDescription): Action[] {
-        return this.declarations(implementation, ACTION_KIND).map(({ name, description }) => {
-            const { call } = description;
-            const type =
-                call === undefined
-                    ? undefined
-                    : this.type({ packageId: call.packageId, type: call.type });
+    /** List the actions a package declares that call a type's methods, on that type. */
+    actions(implementation: PackageImplementationDescription, type: ObjectType): Action[] {
+        const { packageId, type: name } = type.typeReference;
 
-            return Action.of(name, description, type);
-        });
+        return this.declarations(implementation, ACTION_KIND)
+            .filter(
+                ({ description }) =>
+                    description.call?.packageId === packageId && description.call.type === name,
+            )
+            .map((declared) => Action.of(declared.name, declared.description, type));
     }
 }

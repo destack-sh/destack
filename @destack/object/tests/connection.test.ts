@@ -2,9 +2,15 @@ import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
 import { type ClientSocket, WebSocketUpgrade } from "@destack/environment";
 import { FOLLOWER_REVISION } from "@destack/sync/test";
 import { type Page, RequestId, type Subscription } from "@destack/sync";
-import { schema } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 import { expect, refusal, test } from "@destack/test";
-import { CONNECTION_SCOPE_PARAMETER, ObjectConnection } from "../src/client/index.ts";
+import {
+    CONNECTION_SCOPE_PARAMETER,
+    ObjectConnection,
+    ObjectStoreDescription,
+} from "../src/client/index.ts";
+import { ObjectDescription } from "../src/object/description.ts";
+import { ObjectTypeEntry } from "../src/replica/replica.ts";
 import { CallError } from "../src/error/call.ts";
 import { HibernationHost } from "../src/workload/socket.ts";
 import { TEST_CONNECTION_URL } from "../src/test/caller.ts";
@@ -279,4 +285,39 @@ test("refuse a push outside the scope a socket's address confines it to", async 
         "SCOPE_OUTSIDE_REQUEST_NOT_FOUND",
         `scope '${OTHER_SPACE_ID}' in the request's scope not found`,
     ]);
+});
+
+test("list a store's types as entries, and describe a listed type once, on its first use", async () => {
+    // list the served notes without knowing their types, counting the types each describe asks for
+    const { connection } = await connect();
+    const asked: number[] = [];
+    const store: typeof connection.store = {
+        ...connection.store,
+        describe: (input, ...rest) => {
+            asked.push(input.types?.length ?? -1);
+
+            return connection.store.describe(input, ...rest);
+        },
+    };
+    const listed = await ObjectStoreDescription.read(store);
+    const entry = present(
+        listed.packages.flatMap((each) => each.types).find((each) => each.type === notebook.name),
+        "the notebook's entry",
+    );
+
+    // declare the notebook twice from one description
+    const first = await listed.type(entry);
+    const again = await listed.type(entry);
+    expect({
+        entry,
+        asked,
+        isSame: first === again,
+        described: ObjectDescription.of(first),
+    }).toEqual({
+        entry: ObjectTypeEntry.of(notebook),
+        // list without types, then describe the one type once
+        asked: [0, 1],
+        isSame: true,
+        described: ObjectDescription.of(notebook),
+    });
 });

@@ -112,7 +112,9 @@ import {
     storeProcedures,
     type PushResult,
     type StoreProcedures,
+    type AskedKind,
     type PackageImplementationDescription,
+    ObjectTypeEntry,
 } from "../replica/replica.ts";
 import { Branch, type BranchEntry, type BranchType } from "../branch/index.ts";
 import { MethodContext, type ResultsOf, type Run } from "../method/context.ts";
@@ -975,12 +977,19 @@ export class ObjectStore {
     }
 
     /** Describe the packages the store serves, with their listed types and declarations. */
-    async describePackages(): Promise<PackageImplementationDescription[]> {
-        // describe each served package by its installation or as its scope's own, with its listed types
+    async describePackages(
+        kinds: readonly schema.Infer<typeof AskedKind>[] = [],
+    ): Promise<PackageImplementationDescription[]> {
+        // describe each served package by its installation or as its scope's own, with its listed types' entries
+        const isAsked = (declared: { readonly kind: string; readonly kindPackageId: string }) =>
+            kinds.some(
+                (asked) =>
+                    asked.kind === declared.kind && asked.kindPackageId === declared.kindPackageId,
+            );
         const served = await Promise.all(
             this.#catalog.served.map(async ({ package: packaged, objects, server }) => {
-                // read an installed build's listed declarations, else an own package's actions
-                const declarations =
+                // read an installed build's declarations of the asked kinds, else an own package's actions
+                const declared =
                     server !== undefined
                         ? await ObjectStore.#declarations(server)
                         : Object.values(packaged.actions).map((action) => ({
@@ -997,8 +1006,8 @@ export class ObjectStore {
                         : {}),
                     types: objects
                         .filter((type) => type.listing !== undefined)
-                        .map((type) => type.typeReference),
-                    declarations,
+                        .map((type) => ObjectTypeEntry.of(type)),
+                    declarations: declared.filter((each) => isAsked(each)),
                 };
             }),
         );
@@ -1013,7 +1022,9 @@ export class ObjectStore {
                     scope: server.scope,
                     installation: { id: server.installation, name: server.name },
                     types: [],
-                    declarations: await ObjectStore.#declarations(server),
+                    declarations: (await ObjectStore.#declarations(server)).filter((each) =>
+                        isAsked(each),
+                    ),
                 })),
         );
 
@@ -1751,7 +1762,7 @@ export class ObjectStore {
             describe: store.describe.handler(async ({ input, context }) => {
                 // describe every type, or a protocol's alone to a caller connected through it
                 const protocol = this.#protocol(context);
-                const packages = await this.describePackages();
+                const packages = await this.describePackages(input.kinds);
                 if (protocol === undefined) {
                     return { objects: this.describe(input.types), packages };
                 }

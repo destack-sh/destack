@@ -15,6 +15,7 @@ import {
     MutationOutcome,
 } from "@destack/sync";
 import { Procedure } from "../procedure/index.ts";
+import type { ObjectType } from "../object/object.ts";
 
 /** The package defining the store procedures. */
 const DEFINING_PACKAGE = PackageVersion.of(import.meta.destack.package);
@@ -85,6 +86,54 @@ export const PUSH_MUTATIONS = 100;
 /** The most object types one description request lists: every type of a large platform. */
 export const DESCRIBED_TYPES = 1000;
 
+/** The most declaration kinds one describe call lists: a client asks a handful. */
+export const DESCRIBED_KINDS = 32;
+
+/** A type's entry in a store's catalog: how a client routes to it, without its definition. */
+export const ObjectTypeEntry = Object.assign(
+    schema.object({
+        /** The package defining the type. */
+        packageId: PackageId,
+        /** The type's name, its singular. */
+        type: schema.string().min(1),
+        /** The name of the package defining the type, such as @acme/notes. */
+        packageName: schema.string().min(1),
+        /** The type's plural, which lists its objects. */
+        plural: schema.string().min(1),
+        /** The prefix of its objects' identifiers. */
+        identity: schema.string().min(1),
+        /** The names of the scope types its objects live in, none for objects in any scope. */
+        levels: schema.array(schema.string().min(1)),
+        /** Whether a key of its own addresses an object, beside its identifier. */
+        isKeyed: schema.boolean(),
+    }),
+    {
+        /** Describe a type's entry. */
+        of(type: ObjectType): ObjectTypeEntry {
+            const scopes = [type.scope].flat();
+
+            return {
+                ...type.typeReference,
+                packageName: type.package.name,
+                plural: type.plural,
+                identity: type.identity,
+                levels: scopes.map((scope) => (typeof scope === "string" ? scope : scope.name)),
+                isKeyed: type.keyed !== undefined,
+            };
+        },
+    },
+);
+/** A type's entry in a store's catalog. */
+export type ObjectTypeEntry = schema.Infer<typeof ObjectTypeEntry>;
+
+/** A declaration kind a caller asks a store's packages' declarations of. */
+export const AskedKind = schema.object({
+    /** The declaration kind, such as `setting` or `view`. */
+    kind: DeclarationName,
+    /** The package defining the kind. */
+    kindPackageId: PackageId,
+});
+
 /** A package a store runs: at an installation of it, or as its host's own code. */
 export const PackageImplementationDescription = schema.object({
     /** The package. */
@@ -101,8 +150,8 @@ export const PackageImplementationDescription = schema.object({
         })
         .exactOptional(),
     /** The object types it lists, its own and those of other packages it serves. */
-    types: schema.array(ObjectTypeReference),
-    /** Its declarations: an installed build's listed ones, an own package's actions. */
+    types: schema.array(ObjectTypeEntry),
+    /** Its declarations of the asked kinds: an installed build's, an own package's actions. */
     declarations: schema.array(
         schema.object({
             /** The declaration kind, such as `setting` or `command`. */
@@ -287,6 +336,8 @@ export const storeProcedures = {
             schema.object({
                 /** The object types to describe, every served one when absent. */
                 types: schema.array(ObjectTypeReference).max(DESCRIBED_TYPES).exactOptional(),
+                /** The declaration kinds to list of each package, none when absent. */
+                kinds: schema.array(AskedKind).max(DESCRIBED_KINDS).exactOptional(),
             }),
         )
         .output(

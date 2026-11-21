@@ -1039,8 +1039,12 @@ test("describe a isolated installation that serves no objects, such as one shipp
         isolates: [isolate],
     });
 
-    // describe it with no types and the view it declares
-    const described = await store.describePackages();
+    // describe it with no types and the view it declares, asking for views
+    const asked = {
+        kind: view.kind,
+        kindPackageId: schema.identifier("package").parse(view.kindPackageId),
+    };
+    const described = await store.describePackages([asked]);
     expect(described.find((each) => each.packageId === pages.id)).toEqual({
         packageId: pages.id,
         scope: spaceId,
