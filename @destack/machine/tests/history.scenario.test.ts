@@ -1,6 +1,5 @@
+import { installation } from "@destack/stack/object";
 import { type DatabaseConnection, Snapshot } from "@destack/db";
-import { installation } from "@destack/object";
-import { rollout } from "@destack/stack/object";
 import { OWNER_EMAIL, TestComputer, TestDistribution } from "@destack/machine/computer/test";
 import { expect, test } from "@destack/test";
 import { type Identifier, present } from "@destack/schema";
@@ -98,8 +97,8 @@ test("refuse serving a type reading through a type without history", async () =>
 /** Read the revision an installation's rollout targets. */
 async function targeted(database: DatabaseConnection, id: Identifier<"installation">) {
     const row = await Snapshot.live(database)
-        .read(rollout.table)
-        .findFirst({ where: { installationId: id } });
+        .read(installation.table)
+        .findFirst({ where: { id: id } });
 
     return present(row, `the rollout of ${id}`).targetRevisionId;
 }

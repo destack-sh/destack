@@ -1,5 +1,11 @@
+import {
+    Installation,
+    installation,
+    PROCESS_RUNTIME,
+    build,
+    installationRevision,
+} from "@destack/stack/object";
 import { Plan } from "@destack/resource";
-import type { Installation } from "@destack/object";
 import { ObjectReference } from "@destack/sync";
 import { testBuild, testIdentity } from "@destack/object/test";
 import { expect, refusal, test } from "@destack/test";
@@ -14,28 +20,24 @@ import {
     defineObject,
     definePackage,
     field,
-    installation,
     PACKAGE_KIND,
     PACKAGE_EXPORT,
     Package,
 } from "@destack/object";
 import { describePackage } from "@destack/object/inspect";
-import objectPackage from "@destack/object/package";
 import { implementPackage } from "@destack/object/server";
 import { MemoryBuild } from "@destack/package/test";
 import { PackageVersion } from "@destack/package";
 import { defineBucket } from "@destack/bucket";
 import { describeBucket } from "@destack/bucket/inspect";
 import { testHost } from "@destack/test/host";
-import { PROCESS_RUNTIME } from "@destack/stack/object";
 import { PackageManifest } from "@destack/package/manifest";
 import * as object from "@destack/stack/object";
-import { build, installationRevision, Rollout, rollout } from "@destack/stack/object";
 import {
     fixtureBuild,
     ids,
     insertRelease,
-    insertRollout,
+    insertInstallation,
     readInstalled,
     TestSpace,
 } from "../test/index.ts";
@@ -126,9 +128,10 @@ async function readRolled(fixture: TestSpace, id: Identifier<"installation">) {
     // read the installation with its rollout
     const rolled = await readInstalled(fixture.database, id);
     const conditions = Object.fromEntries(
-        Object.entries(rolled.installation.conditions).map(
-            ([name, { status, reason, message }]) => [name, [status, reason, message]],
-        ),
+        Object.entries(rolled.conditions).map(([name, { status, reason, message }]) => [
+            name,
+            [status, reason, message],
+        ]),
     );
 
     return {
@@ -149,7 +152,7 @@ test("install an application into a space as its owner, and refuse a stranger wh
     const create = (user: string | Subject, name = "notes") =>
         fixture
             .as(user)
-            .client(objectPackage)
+            .client(stackPackage)
             .installation.create({
                 scope: ids.space,
                 requestId: RequestId.create(fixture.machine.environment),
@@ -165,9 +168,9 @@ test("install an application into a space as its owner, and refuse a stranger wh
         .from(installation.table)
         .where(eq(installation.table.id, created.id));
     const [rolled] = await fixture.database
-        .select({ id: rollout.table.installationId })
-        .from(rollout.table)
-        .where(eq(rollout.table.installationId, created.id));
+        .select({ id: installation.table.id })
+        .from(installation.table)
+        .where(eq(installation.table.id, created.id));
     expect([
         installed?.managerInstallationId,
         installed?.name,
@@ -196,7 +199,7 @@ test("find and list only the enabled installations not being deleted, as a machi
     ) => {
         const id = Identifier.create("installation", fixture.environment);
         const revisionId = Identifier.create("installation-revision", fixture.environment);
-        await insertRollout(
+        await insertInstallation(
             database,
             {
                 id,
@@ -239,9 +242,9 @@ test("find and list only the enabled installations not being deleted, as a machi
         const { status, deletedAt } = state;
         await database.transaction(async (transaction) => {
             await transaction
-                .update(rollout.table)
+                .update(installation.table)
                 .set({ targetRevisionId: revisionId })
-                .where(eq(rollout.table.installationId, id));
+                .where(eq(installation.table.id, id));
             const changed = {
                 ...(status === undefined ? {} : { status }),
                 ...(deletedAt === undefined ? {} : { deletedAt }),
@@ -260,13 +263,13 @@ test("find and list only the enabled installations not being deleted, as a machi
 
     // open only the enabled one by its name, and list it with the space's stack
     const found = async (name: string) =>
-        (await Rollout.find(database, ids.space, name, "launchable"))?.installation.name;
-    const listed = await Rollout.list(database, ids.space, "launchable");
+        (await Installation.find(database, ids.space, name, "launchable"))?.name;
+    const listed = await Installation.list(database, ids.space, "launchable");
     expect([
         await found("notes"),
         await found("tasks"),
         await found("board"),
-        listed.map((entry) => entry.installation.name),
+        listed.map((entry) => entry.name),
     ]).toEqual(["notes", undefined, undefined, ["stack", "notes"]]);
 });
 
@@ -275,7 +278,7 @@ test("roll an installation back by following an earlier revision's build, each t
     const fixture = await TestSpace.open();
     await fixture.serve();
     const owner = fixture.as(fixture.owner.subject).client(stackPackage);
-    const installer = fixture.as(fixture.owner.subject).client(objectPackage);
+    const installer = fixture.as(fixture.owner.subject).client(stackPackage);
     let installed: Installation | undefined;
     const install = async (version: string) => {
         // release the version and follow it
@@ -307,10 +310,10 @@ test("roll an installation back by following an earlier revision's build, each t
         const { id } = installed;
 
         // approve the plan its release waits on
-        const { installation: waiting } = await readInstalled(fixture.database, id);
+        const waiting = await readInstalled(fixture.database, id);
         if (waiting.plan !== null) {
-            await owner.rollout.approve({
-                spaceId: ids.space,
+            await owner.installation.approve({
+                scope: ids.space,
                 id,
                 requestId: RequestId.create(fixture.machine.environment),
                 plan: await Plan.digest(waiting.plan, fixture.environment.crypto),
@@ -556,7 +559,7 @@ test("deploy an installation waiting for a granted type once the space serves it
     // install the board beside them as an application, touching nothing of the pins
     await fixture
         .as(fixture.owner.subject)
-        .client(objectPackage)
+        .client(stackPackage)
         .installation.create({
             scope: ids.space,
             requestId: RequestId.create(fixture.machine.environment),

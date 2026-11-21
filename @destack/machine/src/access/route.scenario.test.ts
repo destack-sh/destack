@@ -4,11 +4,11 @@ import { found, present } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import { Route, route } from "@destack/stack/object";
-import type { StackInput } from "@destack/stack/declare";
+import type { StackDocument } from "@destack/stack/declare";
 import { TestRoute } from "../test/index.ts";
 
 /** A route as a stack declares it. */
-type RouteInput = NonNullable<StackInput["routes"]>[string];
+type RouteInput = NonNullable<StackDocument["routes"]>[string];
 
 /** Serve each path of an account's hostnames once across the universe. */
 test("reconcile a space's routes on its account's hostnames, one per hostname path across the universe", async () => {

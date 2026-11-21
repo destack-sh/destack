@@ -1,5 +1,13 @@
+import {
+    installation,
+    Binding,
+    type Installation,
+    type StackEvaluation,
+    type Submission,
+} from "@destack/stack/object";
 import { checkout } from "../computer/checkout/object/index.ts";
-import { testIdentity } from "@destack/object/test";
+import { describedTables, testIdentity } from "@destack/object/test";
+import { KNOWN_TYPES } from "@destack/stack/stack";
 import type { Environment } from "@destack/environment";
 import { InstallationDefinition } from "@destack/stack/declare";
 import { install, StackDefinition } from "@destack/stack/declare";
@@ -31,14 +39,7 @@ import { defineBucket } from "@destack/bucket";
 import { defineStack } from "@destack/stack/declare";
 import stackPackage from "@destack/stack/package";
 import * as object from "@destack/stack/object";
-import { installation, Observation } from "@destack/object";
-import {
-    Binding,
-    rollout,
-    type InstallationRollout,
-    type StackEvaluation,
-    type Submission,
-} from "@destack/stack/object";
+import { Observation } from "@destack/object";
 import {
     evaluateStack,
     fixtureOutputs,
@@ -70,12 +71,12 @@ const personal = defineStack({
 async function submit(
     fixture: TestSpace,
     store: ObjectStore,
-    stack: InstallationRollout,
+    stack: Installation,
     submission: Omit<Submission, "build" | "stack"> & {
         /** The export, its arguments and the definition the stack's build declares there. */
         readonly stack: Omit<StackEvaluation, "settings" | "routes">;
     },
-): Promise<InstallationRollout> {
+): Promise<Installation> {
     // record a build of the stack declaring the definition, and submit it for the space to evaluate
     const { export: exported, parameters, definition } = submission.stack;
     const recorded = await fixture.recordStack(exported, definition);
@@ -83,7 +84,7 @@ async function submit(
         id: RequestId.create(fixture.machine.environment),
         calls: [
             installation.call("update", {
-                ...installation.target(stack.installation),
+                ...installation.target(stack),
                 ...ObjectReference.columns(
                     "follows",
                     object.build.reference(stack.scope, recorded.build),
@@ -149,7 +150,7 @@ test("apply a stack submission, reapply it unchanged, and retire removed records
     const now = fixture.machine.clock.now();
     const store = await serve(fixture);
     const first = await submit(fixture, store, stack, submission);
-    expect([first.appliedRevisionId, first.installation.conditions["Ready"]?.reason]).toEqual([
+    expect([first.appliedRevisionId, first.conditions["Ready"]?.reason]).toEqual([
         first.targetRevisionId,
         "Applied",
     ]);
@@ -176,7 +177,7 @@ test("apply a stack submission, reapply it unchanged, and retire removed records
         },
     };
     const waiting = await submit(fixture, store, stack, removal);
-    expect([waiting.installation.conditions["Ready"]?.reason, waiting.installation.plan]).toEqual([
+    expect([waiting.conditions["Ready"]?.reason, waiting.plan]).toEqual([
         "AwaitingApproval",
         {
             steps: [
@@ -192,14 +193,14 @@ test("apply a stack submission, reapply it unchanged, and retire removed records
 
     // approve the destructive plan and retire the resource
     const digest = await Plan.digest(
-        present(waiting.installation.plan, "the waiting plan"),
+        present(waiting.plan, "the waiting plan"),
         fixture.environment.crypto,
     );
-    await store.mutate(store.as(rollout), {
+    await store.mutate(store.as(installation), {
         id: RequestId.create(fixture.machine.environment),
         calls: [
-            rollout.call("approve", {
-                ...rollout.target({ scope: waiting.scope, id: waiting.installationId }),
+            installation.call("approve", {
+                ...installation.target({ scope: waiting.scope, id: waiting.id }),
                 plan: digest,
             }),
         ],
@@ -214,18 +215,22 @@ test("apply a stack submission, reapply it unchanged, and retire removed records
 
 test("apply a waiting stack again once its resources turn ready, without waking itself while it waits", async () => {
     // link a release of notes declaring gauges, which the space serves once its stack installs it on the host
+    const described = [
+        {
+            kind: "object",
+            kindPackageId: objectPackage.id,
+            name: "gauge",
+            description: describeObject(gauge),
+        },
+    ];
     const release = await MemoryBuild.of(
         PackageVersion.parse({ id: ids.package, name: "@acme/notes", version: "2026.9.0" }),
-        [
-            {
-                kind: "object",
-                kindPackageId: objectPackage.id,
-                name: "gauge",
-                description: describeObject(gauge),
-            },
-        ],
+        described,
         testHost().crypto,
-        { outputs: fixtureOutputs({}) },
+        {
+            outputs: fixtureOutputs({}),
+            tables: describedTables(described, ids.package, KNOWN_TYPES),
+        },
     );
 
     // hold the provisioning of the stack's archive database, as a provider out of disk does
@@ -239,6 +244,7 @@ test("apply a waiting stack again once its resources turn ready, without waking 
             const held: typeof base = {
                 ...base,
                 provision: {
+                    isPure: false,
                     provision: async (record) => {
                         if (isHeld) {
                             throw new Error("the disk is full");
@@ -273,7 +279,7 @@ test("apply a waiting stack again once its resources turn ready, without waking 
     const stack = await submit(fixture, store, await readStack(database), submissionOf(installing));
     const declaring = submissionOf({ ...installing, gauges: { main: {} } });
     const applied = await submit(fixture, store, stack, declaring);
-    expect(applied.installation.conditions["Ready"]?.reason).toBe("WaitingForResources");
+    expect(applied.conditions["Ready"]?.reason).toBe("WaitingForResources");
 
     // apply it again while it waits without writing
     const position = await database.log.position();
@@ -283,8 +289,7 @@ test("apply a waiting stack again once its resources turn ready, without waking 
     // apply the waiting stack once its provider provisions the database
     isHeld = false;
     await fixture.simulation.waitUntil(
-        async () =>
-            (await readStack(database)).installation.conditions["Ready"]?.reason === "Applied",
+        async () => (await readStack(database)).conditions["Ready"]?.reason === "Applied",
     );
     const installed = await database
         .select({
@@ -296,10 +301,10 @@ test("apply a waiting stack again once its resources turn ready, without waking 
         .orderBy(installation.table.name);
     const managed = await database.select({ name: gauge.table.managerName }).from(gauge.table);
     const stacked = await readStack(database);
-    expect([stacked.installation.conditions["Ready"]?.reason, installed, managed]).toEqual([
+    expect([stacked.conditions["Ready"]?.reason, installed, managed]).toEqual([
         "Applied",
         [
-            { name: "notes", manager: stacked.installationId },
+            { name: "notes", manager: stacked.id },
             { name: "stack", manager: null },
         ],
         [{ name: "main" }],
@@ -343,9 +348,9 @@ test("leave an unchanged declared installation unwritten when its stack applies 
             .where(eq(installation.table.name, "notes"));
         const found = present(installed, "the notes installation");
         const [followed] = await database
-            .select({ revision: rollout.table.revision })
-            .from(rollout.table)
-            .where(eq(rollout.table.installationId, found.id));
+            .select({ revision: installation.table.revision })
+            .from(installation.table)
+            .where(eq(installation.table.id, found.id));
 
         return [found.revision, present(followed, "the notes rollout").revision];
     };
@@ -355,17 +360,17 @@ test("leave an unchanged declared installation unwritten when its stack applies 
     await database.transaction(
         async (transaction) =>
             await transaction
-                .update(rollout.table)
+                .update(installation.table)
                 .set({ appliedRevisionId: null })
-                .where(eq(rollout.table.installationId, stack.installationId)),
+                .where(eq(installation.table.id, stack.id)),
     );
     await fixture.simulation.idle();
 
     // read the installation's fields joined in, so the declaration compares equal and writes nothing
-    expect([
-        (await readStack(database)).installation.conditions["Ready"]?.reason,
-        await revisions(),
-    ]).toEqual(["Applied", before]);
+    expect([(await readStack(database)).conditions["Ready"]?.reason, await revisions()]).toEqual([
+        "Applied",
+        before,
+    ]);
 });
 
 test("run a stack's host installation at the release the machine links, as it follows the host's", async () => {
@@ -402,10 +407,9 @@ test("run a stack's host installation at the release the machine links, as it fo
     const [revised] = await database
         .select({ image: object.build.table.image, source: object.build.table.source })
         .from(installation.table)
-        .innerJoin(rollout.table, eq(rollout.table.installationId, installation.table.id))
         .innerJoin(
             object.installationRevision.table,
-            eq(object.installationRevision.table.id, rollout.table.targetRevisionId),
+            eq(object.installationRevision.table.id, installation.table.targetRevisionId),
         )
         .innerJoin(
             object.build.table,
@@ -463,10 +467,9 @@ test("run a host installation at a restarted machine's linked release, then revi
             await database
                 .select({ image: object.build.table.image })
                 .from(installation.table)
-                .innerJoin(rollout.table, eq(rollout.table.installationId, installation.table.id))
                 .innerJoin(
                     object.installationRevision.table,
-                    eq(object.installationRevision.table.id, rollout.table.targetRevisionId),
+                    eq(object.installationRevision.table.id, installation.table.targetRevisionId),
                 )
                 .innerJoin(
                     object.build.table,
@@ -476,7 +479,7 @@ test("run a host installation at a restarted machine's linked release, then revi
         )[0]?.image;
     const recorded = await revised();
     const opened = (await fixture.installed()).find(
-        (entry) => entry.rollout.installation.name === "notes",
+        (entry) => entry.installation.name === "notes",
     )?.image;
 
     // restart the machine to revise onto the linked release
@@ -768,18 +771,22 @@ test("install a package and declare records of its type in one approved plan, ap
     const { database } = fixture;
 
     // release notes declaring meters, and require approval of every plan in the space
+    const described = [
+        {
+            kind: "object",
+            kindPackageId: objectPackage.id,
+            name: "meter",
+            description: describeObject(meter),
+        },
+    ];
     const release = await MemoryBuild.of(
         PackageVersion.parse({ id: ids.package, name: "@acme/notes", version: "2027.1.0" }),
-        [
-            {
-                kind: "object",
-                kindPackageId: objectPackage.id,
-                name: "meter",
-                description: describeObject(meter),
-            },
-        ],
+        described,
         fixture.environment.crypto,
-        { outputs: fixtureOutputs({}) },
+        {
+            outputs: fixtureOutputs({}),
+            tables: describedTables(described, ids.package, KNOWN_TYPES),
+        },
     );
     await fixture.publish(release);
     await database.transaction(
@@ -811,7 +818,7 @@ test("install a package and declare records of its type in one approved plan, ap
         id: RequestId.create(fixture.machine.environment),
         calls: [
             installation.call("update", {
-                ...installation.target(stack.installation),
+                ...installation.target(stack),
                 ...ObjectReference.columns(
                     "follows",
                     object.build.reference(stack.scope, recorded.build),
@@ -826,7 +833,7 @@ test("install a package and declare records of its type in one approved plan, ap
     // plan installing notes and declaring the meter as one plan waiting for approval
     await fixture.simulation.idle();
     const waiting = await readStack(database);
-    expect([waiting.installation.conditions["Ready"]?.reason, waiting.installation.plan]).toEqual([
+    expect([waiting.conditions["Ready"]?.reason, waiting.plan]).toEqual([
         "AwaitingApproval",
         {
             steps: [
@@ -839,29 +846,29 @@ test("install a package and declare records of its type in one approved plan, ap
 
     // approve it, and install notes while the meter waits for the store to serve meters
     const digest = await Plan.digest(
-        present(waiting.installation.plan, "the waiting plan"),
+        present(waiting.plan, "the waiting plan"),
         fixture.environment.crypto,
     );
-    await store.mutate(store.as(rollout), {
+    await store.mutate(store.as(installation), {
         id: RequestId.create(fixture.machine.environment),
         calls: [
-            rollout.call("approve", {
-                ...rollout.target({ scope: waiting.scope, id: waiting.installationId }),
+            installation.call("approve", {
+                ...installation.target({ scope: waiting.scope, id: waiting.id }),
                 plan: digest,
             }),
         ],
     });
     await fixture.simulation.idle();
     const installed = await readStack(database);
-    expect(installed.installation.conditions["Ready"]?.message).toBe(
+    expect(installed.conditions["Ready"]?.message).toBe(
         "meters wait for the store to serve their types",
     );
 
     // approve the plan creating the meters' table, which notes waits on
     const owner = fixture.as(fixture.owner.subject).client(stackPackage);
-    const target = { spaceId: ids.space, id: installed.installationId };
-    const migrating = await owner.rollout.plan(target);
-    await owner.rollout.approve({
+    const target = { scope: ids.space, id: installed.id };
+    const migrating = await owner.installation.plan(target);
+    await owner.installation.approve({
         ...target,
         requestId: RequestId.create(fixture.machine.environment),
         plan: migrating.digest,
@@ -879,11 +886,11 @@ test("install a package and declare records of its type in one approved plan, ap
     await fixture.simulation.idle();
     const applied = await readStack(database);
     const declared = await database.select({ name: meter.table.managerName }).from(meter.table);
-    expect([
-        applied.installation.conditions["Ready"]?.reason,
-        applied.appliedRevisionId,
-        declared,
-    ]).toEqual(["Applied", applied.targetRevisionId, [{ name: "main" }]]);
+    expect([applied.conditions["Ready"]?.reason, applied.appliedRevisionId, declared]).toEqual([
+        "Applied",
+        applied.targetRevisionId,
+        [{ name: "main" }],
+    ]);
 });
 
 test("install the packages a stack declares without its libraries, refusing a missing installable dependency and a package outside the stack's image", async () => {
@@ -1103,9 +1110,6 @@ test("refuse a declaration in the enclosing account from a space that is not the
 });
 
 /** Read how far a stack is, with what it reports. */
-function progressOf(submitted: InstallationRollout) {
-    return [
-        Observation.progress(submitted.installation),
-        Observation.message(submitted.installation),
-    ];
+function progressOf(submitted: Installation) {
+    return [Observation.progress(submitted), Observation.message(submitted)];
 }

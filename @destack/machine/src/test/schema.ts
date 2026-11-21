@@ -37,14 +37,15 @@ export const gauge = defineObject(
         after: [object.database],
         resolve: async (_name, declared, plan) => {
             // wait until the archive database is provisioned
-            const [archive] = await plan.transaction.read(object.database.table).findMany({
-                where: {
-                    scope: schema.identifier("space").parse(plan.stack.scope),
-                    name: "archive",
-                },
-            });
+            const where = {
+                scope: schema.identifier("space").parse(plan.stack.scope),
+                name: "archive",
+            };
+            const [archive] = await plan.transaction
+                .read(object.database.table)
+                .findMany({ where });
             if (archive === undefined || !Provisioned.isProvisioned(archive)) {
-                plan.wait("archive is not provisioned");
+                plan.wait("archive is not provisioned", object.database, where);
             }
 
             return declared;

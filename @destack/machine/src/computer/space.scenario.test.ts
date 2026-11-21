@@ -1,9 +1,10 @@
+import { installation, bucket } from "@destack/stack/object";
 import { TEST_UNIVERSE } from "@destack/universe/test";
-import { RolloutTarget } from "../installation/target.ts";
+import { InstallationTarget } from "../installation/target.ts";
 import { testIdentity } from "@destack/object/test";
 import type { ResourceDeclaration } from "@destack/resource";
 import { log, LogData } from "@destack/observability/object";
-import { BunWorkload } from "@destack/stack/bun";
+import { BunWorkload } from "@destack/object/bun";
 import { MemoryBuild } from "@destack/package/test";
 import { eq, Snapshot } from "@destack/db";
 import settingPackage from "@destack/setting/package";
@@ -25,7 +26,6 @@ import {
     SpaceMount,
     CallError,
     defineInstallationBinding,
-    installation,
 } from "@destack/object";
 import { UniverseOrigin } from "@destack/account/address";
 import accountPackage from "@destack/account/package";
@@ -33,10 +33,8 @@ import { createClient } from "@destack/object/client";
 import { RequestId, Scope, ObjectReference } from "@destack/sync";
 import { defineWorkload, type WorkloadRunnerOptions } from "@destack/object/workload";
 import { BucketError } from "@destack/bucket";
-import { bucket } from "@destack/stack/object";
 import * as stackObject from "@destack/stack/object";
 import stackPackage from "@destack/stack/package";
-import objectPackage from "@destack/object/package";
 import { StepUp, principal } from "@destack/access";
 import { expect, refusal, test } from "@destack/test";
 import boardPackage from "../../tests/fixture/board/src/package.ts";
@@ -247,9 +245,9 @@ async function objectsOf(served: Served) {
     const { device } = served.computer;
 
     return createClient(
-        objectPackage,
+        stackPackage,
         (await device.launcher(served.login.id)).endpoint(
-            objectPackage.id,
+            stackPackage.id,
             await device.locate(served.space),
         ),
         device.environment,
@@ -313,7 +311,7 @@ async function install(served: Echoing, release: BuildReader, name: string, peer
         packageId: released.id,
         ...ObjectReference.columns(
             "follows",
-            await RolloutTarget.resolveFollowed(computer.computer.machine, released.id, {
+            await InstallationTarget.resolveFollowed(computer.computer.machine, released.id, {
                 kind: "release",
                 version: released.version,
             }),
@@ -663,23 +661,19 @@ test("stamp a sandboxed instance's telemetry with its installation", async () =>
     const [running] = await stackObject.Instance.endpoints(sourced, boardId);
     const [built] = await sourced
         .select({ image: stackObject.build.table.image })
-        .from(stackObject.rollout.table)
-        .innerJoin(
-            installation.table,
-            eq(installation.table.id, stackObject.rollout.table.installationId),
-        )
+        .from(stackObject.installation.table)
         .innerJoin(
             stackObject.installationRevision.table,
             eq(
                 stackObject.installationRevision.table.id,
-                stackObject.rollout.table.targetRevisionId,
+                stackObject.installation.table.targetRevisionId,
             ),
         )
         .innerJoin(
             stackObject.build.table,
             eq(stackObject.build.table.id, stackObject.installationRevision.table.buildId),
         )
-        .where(eq(stackObject.rollout.table.installationId, boardId));
+        .where(eq(stackObject.installation.table.id, boardId));
     const instance = present(running, "the board's instance").instanceId;
     const image = present(built?.image, "the board's build image");
 
@@ -987,10 +981,7 @@ test("serve a space whose installation fails to start", async () => {
         serving: ["false", "StartFailed"],
         reported: "installation 'regional' serves nothing: its server did not start",
         answered: [503, "1"],
-        // capture the failed start once at the machine, and its cause once by the installation's own pass
-        captured: [
-            "installation 'regional' serves nothing: its server did not start",
-            condition.message,
-        ],
+        // capture the failed start once, at the machine
+        captured: ["installation 'regional' serves nothing: its server did not start"],
     });
 });

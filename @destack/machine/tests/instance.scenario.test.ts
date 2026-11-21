@@ -1,3 +1,4 @@
+import { installation } from "@destack/stack/object";
 import { SERVER_EXPORT } from "@destack/object";
 import { checkout } from "../src/computer/checkout/object/index.ts";
 import type { ObjectStore } from "@destack/object/server";
@@ -20,7 +21,6 @@ import {
     type ObjectDefinition,
     ObjectDescription,
     InstallationBindingSpec,
-    installation,
     Observation,
 } from "@destack/object";
 import { MemoryBuild } from "@destack/package/test";
@@ -68,16 +68,17 @@ import { space } from "@destack/account/object";
 import type { ServerRuntime } from "@destack/package/runtime";
 import { BuildReader } from "@destack/package/manifest";
 import * as object from "@destack/stack/object";
+import { KNOWN_TYPES } from "@destack/stack/stack";
+import { describedTables } from "@destack/object/test";
 import * as accountObject from "@destack/account/object";
 import { Approval } from "../src/index.ts";
-import { Rollout } from "@destack/stack/object";
 import {
     readInstalled,
     refusedCondition,
     fixtureBuild,
     fixtureOutputs,
     ids,
-    insertRollout,
+    insertInstallation,
     TestRuntime,
     TestSpace,
     workload,
@@ -199,36 +200,34 @@ async function dependencyBuild(owner: PackageVersion, crypto: Crypto): Promise<B
         errors: [],
     };
 
-    // write it with a server output
-    return await MemoryBuild.of(
-        owner,
-        [
-            {
-                kind: "package",
-                kindPackageId: objectPackage.id,
-                name: "default",
-                description: described,
-            },
-            {
-                kind: "object",
-                kindPackageId: objectPackage.id,
-                name: entryDescription.name,
-                description: entryDescription,
-            },
-        ],
-        crypto,
+    // write it with a server output and its type's table
+    const declared = [
         {
-            outputs: fixtureOutputs({
-                server: {
-                    runtime: "bun",
-                    emit: true,
-                    workloads: {},
-                    views: {},
-                    exports: { [SERVER_EXPORT]: { path: "server/index.js", imports: [] } },
-                },
-            }),
+            kind: "package",
+            kindPackageId: objectPackage.id,
+            name: "default",
+            description: described,
         },
-    );
+        {
+            kind: "object",
+            kindPackageId: objectPackage.id,
+            name: entryDescription.name,
+            description: entryDescription,
+        },
+    ];
+
+    return await MemoryBuild.of(owner, declared, crypto, {
+        tables: describedTables(declared, owner.id, KNOWN_TYPES),
+        outputs: fixtureOutputs({
+            server: {
+                runtime: "bun",
+                emit: true,
+                workloads: {},
+                views: {},
+                exports: { [SERVER_EXPORT]: { path: "server/index.js", imports: [] } },
+            },
+        }),
+    });
 }
 
 /** The notes package's declaration, requesting permissions by scope. */
@@ -296,19 +295,19 @@ async function notesBuild(
     });
 
     // declare each resource as its provisioned kind's, and each other declaration as its definer's
-    const built = await MemoryBuild.of(
-        { ...notesPackage, version },
-        declared.map((entry) => ({
-            ...("resource" in entry
-                ? { ...entry.resource.identity, provisioned: true as const }
-                : { kind: entry.kind, kindPackageId: entry.definer.id }),
-            module: "src/resource.ts",
-            name: entry.name,
-            description: entry.description,
-        })),
-        crypto,
-        { outputs: fixtureOutputs({ server: output("bun"), worker: output("workerd") }), requires },
-    );
+    const listed = declared.map((entry) => ({
+        ...("resource" in entry
+            ? { ...entry.resource.identity, provisioned: true as const }
+            : { kind: entry.kind, kindPackageId: entry.definer.id }),
+        module: "src/resource.ts",
+        name: entry.name,
+        description: entry.description,
+    }));
+    const built = await MemoryBuild.of({ ...notesPackage, version }, listed, crypto, {
+        outputs: fixtureOutputs({ server: output("bun"), worker: output("workerd") }),
+        requires,
+        tables: describedTables(listed, notesPackage.id, KNOWN_TYPES),
+    });
 
     return built;
 }
@@ -342,7 +341,7 @@ async function installNotes(
 ) {
     const { database } = fixture;
     const now = fixture.machine.clock.now();
-    const notes = await insertRollout(
+    const notes = await insertInstallation(
         database,
         {
             id,
@@ -448,7 +447,7 @@ async function serveControllers(
         authorizer: store.authorizer,
         approve: (id: Identifier<"installation">) => approvePlan(fixture.database, store, id),
         uninstall: (id: Identifier<"installation">) =>
-            store.mutate(store.as(object.rollout), {
+            store.mutate(store.as(object.installation), {
                 id: RequestId.create(fixture.machine.environment),
                 calls: [installation.call("delete", installation.target({ scope: ids.space, id }))],
             }),
@@ -517,13 +516,10 @@ async function approvePlan(
     id: Identifier<"installation">,
 ) {
     // read the plan the installation waits on
-    const [target] = await Rollout.read(
-        Snapshot.live(database),
-        await database
-            .select()
-            .from(object.rollout.table)
-            .where(eq(object.rollout.table.installationId, id)),
-    );
+    const [target] = await database
+        .select()
+        .from(object.installation.table)
+        .where(eq(object.installation.table.id, id));
     const resources = [object.database, object.dependency];
     const pending = await Approval.of(
         Snapshot.live(database),
@@ -534,13 +530,13 @@ async function approvePlan(
     const digest = await Plan.digest(plan, database.state.environment.crypto);
 
     // approve it as the system, answering the approved plan
-    await store.mutate(store.as(object.rollout), {
+    await store.mutate(store.as(object.installation), {
         id: RequestId.create(store.environment),
         calls: [
-            object.rollout.call("approve", {
-                ...object.rollout.target({
+            object.installation.call("approve", {
+                ...object.installation.target({
                     scope: present(target, "the installation's rollout").scope,
-                    id: present(target, "the installation's rollout").installationId,
+                    id: present(target, "the installation's rollout").id,
                 }),
                 plan: digest,
             }),
@@ -562,7 +558,7 @@ test("retire a suspended application's deployment and instance", async () => {
     const deployed = await database.select().from(object.deployment.table);
     await fixture.simulation.idle();
     const running = nth(await database.select().from(object.instance.table), 0);
-    const installed = await readInstalled(database, notes.installationId);
+    const installed = await readInstalled(database, notes.id);
     const revision = await revisionOf(database, nth(deployed, 0).revisionId);
     const run = nth(runtime.started, 0);
 
@@ -590,7 +586,7 @@ test("retire a suspended application's deployment and instance", async () => {
     });
 
     // suspend the application
-    await changeInstallation(database, notes.installationId, { status: "suspended" });
+    await changeInstallation(database, notes.id, { status: "suspended" });
     await fixture.simulation.idle();
     const retired = nth(await database.select().from(object.deployment.table), 0);
     const stopped = nth(await database.select().from(object.instance.table), 0);
@@ -633,7 +629,7 @@ test("retain an uninstalled application's tables for approval", async () => {
     });
 
     // uninstall notes: drain its deployment, remove it, and wait for approval to drop its tables
-    await changeInstallation(database, notes.installationId, {
+    await changeInstallation(database, notes.id, {
         deletedAt: fixture.machine.clock.now(),
     });
     await fixture.simulation.idle();
@@ -648,7 +644,7 @@ test("retain an uninstalled application's tables for approval", async () => {
         revisions: await database
             .select({ id: object.installationRevision.table.id })
             .from(object.installationRevision.table)
-            .where(eq(object.installationRevision.table.installationId, notes.installationId)),
+            .where(eq(object.installationRevision.table.installationId, notes.id)),
         main: [
             retained.conditions["Ready"]?.reason,
             retained.plan?.steps.map((step) => [step.action, step.risk, step.target]) ?? null,
@@ -735,22 +731,22 @@ test("serve an applied application again after its machine restarts", async () =
     await serveControllers(fixture, { runtime: before });
     const notes = await installNotes(fixture);
     await fixture.simulation.idle();
-    const applied = await readInstalled(database, notes.installationId);
+    const applied = await readInstalled(database, notes.id);
 
     // restart the machine with an idle runtime and reconcile again
     const after = new TestRuntime({ scheduler: fixture.environment.scheduler, builds });
     await serveControllers(fixture, { runtime: after });
     await fixture.simulation.idle();
-    const restarted = await readInstalled(database, notes.installationId);
+    const restarted = await readInstalled(database, notes.id);
     const recorded = await database.select().from(object.instance.table);
 
     // keep the applied revision and its one deployment, and start its instance again
     expect({
-        applied: [applied.appliedRevisionId, applied.installation.conditions["Ready"]?.status],
+        applied: [applied.appliedRevisionId, applied.conditions["Ready"]?.status],
         restarted: [
             restarted.appliedRevisionId,
             restarted.servedRevisionId,
-            restarted.installation.conditions["Ready"]?.status,
+            restarted.conditions["Ready"]?.status,
         ],
         deployments: (await database.select().from(object.deployment.table)).length,
         before: before.started.map((run) => run.instanceId),
@@ -781,7 +777,7 @@ test("replace a deployment only once the next revision runs", async () => {
     const titled = noteType({ body: field.string().optional(), title: field.string().optional() });
     const second = await submitRevision(
         fixture,
-        notes.installationId,
+        notes.id,
         await notesBuild([titled], fixture.environment.crypto),
     );
     await fixture.simulation.idle();
@@ -803,7 +799,7 @@ test("replace a deployment only once the next revision runs", async () => {
         .select()
         .from(object.instance.table)
         .orderBy(object.instance.table.createdAt, object.instance.table.id);
-    const installed = await readInstalled(database, notes.installationId);
+    const installed = await readInstalled(database, notes.id);
     const [stopped, started] = recorded;
 
     // stop the first instance no earlier than the replacement starts
@@ -895,7 +891,7 @@ test("redeploy once a captured binding targets another resource", async () => {
         ),
         0,
     );
-    await selectBinding(database, notes.installationId, "files", { type: "bucket", id: second.id });
+    await selectBinding(database, notes.id, "files", { type: "bucket", id: second.id });
 
     // redeploy with the new target and retire the old deployment
     await fixture.simulation.idle();
@@ -936,9 +932,9 @@ async function deployBuiltWith(built: string) {
 
     // read its refusal, its deployments and its sync condition
     const refused = single(fixture.takeRefusals());
-    const installed = await readInstalled(fixture.database, notes.installationId);
+    const installed = await readInstalled(fixture.database, notes.id);
     const deployed = await fixture.database.select().from(object.deployment.table);
-    const synced = installed.installation.conditions["Synced"];
+    const synced = installed.conditions["Synced"];
 
     return [deployed.length, refused, synced?.message];
 }
@@ -983,11 +979,11 @@ test("refuse a build with no output for the machine's runtimes", async () => {
     const message = "workloads main have no output on workerd";
     await fixture.simulation.idle();
     const refused = single(fixture.takeRefusals());
-    const installed = await readInstalled(database, notes.installationId);
+    const installed = await readInstalled(database, notes.id);
     expect({
         deployments: await database.select().from(object.deployment.table),
         refused,
-        synced: installed.installation.conditions["Synced"],
+        synced: installed.conditions["Synced"],
         applied: installed.appliedRevisionId,
     }).toEqual({
         deployments: [],
@@ -1004,18 +1000,18 @@ test("observe Ready at each generation of an unchanged revision", async () => {
     await serveControllers(fixture);
     const notes = await installNotes(fixture);
     await fixture.simulation.idle();
-    const first = await readInstalled(database, notes.installationId);
+    const first = await readInstalled(database, notes.id);
     await database.transaction(
         async (transaction) =>
             await transaction
                 .update(installation.table)
-                .set({ generation: first.installation.generation + 1 })
-                .where(eq(installation.table.id, notes.installationId)),
+                .set({ generation: first.generation + 1 })
+                .where(eq(installation.table.id, notes.id)),
     );
 
     // deploy it again
     await fixture.simulation.idle();
-    const next = await readInstalled(database, notes.installationId);
+    const next = await readInstalled(database, notes.id);
     expect({
         revisions: [first.appliedRevisionId, next.appliedRevisionId],
         ready: [readyOf(first), readyOf(next)],
@@ -1026,13 +1022,13 @@ test("observe Ready at each generation of an unchanged revision", async () => {
                 status: "true",
                 reason: "Deployed",
                 message: "1 workloads deployed",
-                observedGeneration: first.installation.generation,
+                observedGeneration: first.generation,
             },
             {
                 status: "true",
                 reason: "Deployed",
                 message: "1 workloads deployed",
-                observedGeneration: first.installation.generation + 1,
+                observedGeneration: first.generation + 1,
             },
         ],
     });
@@ -1061,11 +1057,11 @@ test("refuse a build needing a newer builtin than linked", async () => {
         "cannot deploy '@acme/notes@2026.9.0': it needs @acme/boxes 2026.10.0 or newer, and this machine runs 2026.9.0";
     await fixture.simulation.idle();
     const refused = single(fixture.takeRefusals());
-    const installed = await readInstalled(database, notes.installationId);
+    const installed = await readInstalled(database, notes.id);
     expect({
         deployments: await database.select().from(object.deployment.table),
         refused,
-        synced: installed.installation.conditions["Synced"],
+        synced: installed.conditions["Synced"],
     }).toEqual({
         deployments: [],
         refused: ["PRECONDITION_FAILED", "RELEASE_BLOCKED", message],
@@ -1093,11 +1089,11 @@ test("refuse a build declaring its own database", async () => {
     const message = `${ids.package} declares the databases archive: the space's main database keeps every installation's tables`;
     await fixture.simulation.idle();
     const refused = single(fixture.takeRefusals());
-    const installed = await readInstalled(database, notes.installationId);
+    const installed = await readInstalled(database, notes.id);
     expect({
         deployments: await database.select().from(object.deployment.table),
         refused,
-        synced: installed.installation.conditions["Synced"],
+        synced: installed.conditions["Synced"],
         applied: installed.appliedRevisionId,
     }).toEqual({
         deployments: [],
@@ -1140,11 +1136,11 @@ test("refuse a build routing hooks nothing serves", async () => {
     const message = `${notesPackage.name} routes hooks, but nothing serves them: declare @destack/stack`;
     await fixture.simulation.idle();
     const refused = single(fixture.takeRefusals());
-    const installed = await readInstalled(database, notes.installationId);
+    const installed = await readInstalled(database, notes.id);
     expect({
         deployments: await database.select().from(object.deployment.table),
         refused,
-        synced: installed.installation.conditions["Synced"],
+        synced: installed.conditions["Synced"],
     }).toEqual({
         deployments: [],
         refused: ["PRECONDITION_FAILED", "HOOK_BLOCKED", message],
@@ -1180,11 +1176,11 @@ test("refuse a build declaring mounts no workload answers", async () => {
     const message = `${notesPackage.name} declares mounts, but no workload of its build answers them`;
     await fixture.simulation.idle();
     const refused = single(fixture.takeRefusals());
-    const installed = await readInstalled(database, notes.installationId);
+    const installed = await readInstalled(database, notes.id);
     expect({
         deployments: await database.select().from(object.deployment.table),
         refused,
-        synced: installed.installation.conditions["Synced"],
+        synced: installed.conditions["Synced"],
     }).toEqual({
         deployments: [],
         refused: ["PRECONDITION_FAILED", "MOUNT_BLOCKED", message],
@@ -1228,7 +1224,7 @@ test("run each workload with its allowed capabilities and directories", async ()
         capabilities: readonly string[],
         directories: readonly DirectoryGrant[] = [],
     ) => {
-        await changeInstallation(database, notes.installationId, {
+        await changeInstallation(database, notes.id, {
             capabilities: [...capabilities],
             directories: [...directories],
         });
@@ -1253,7 +1249,7 @@ test("run each workload with its allowed capabilities and directories", async ()
         await grant(capabilities, directories);
         fixture.expectRefusals([["PRECONDITION_FAILED", "CAPABILITY_BLOCKED", message]]);
 
-        return await readiness(database, notes.installationId);
+        return await readiness(database, notes.id);
     };
     const undeclared = await refuse("notes 2026.9.0 declares no capabilities microphone to allow", [
         "microphone",
@@ -1385,7 +1381,7 @@ test("bind an installation binding once its target has an address", async () => 
             `cannot apply installations '${ids.package} tasks': bind them to their addresses first`,
         ],
     ]);
-    const refused = await readiness(database, notes.installationId);
+    const refused = await readiness(database, notes.id);
 
     // declare the tasks dependency at the address of the notes installation itself and bind it
     const now = fixture.machine.clock.now();
@@ -1410,7 +1406,7 @@ test("bind an installation binding once its target has an address", async () => 
     await database.transaction(
         async (transaction) => await transaction.insert(object.dependency.table).values(declared),
     );
-    await selectBinding(database, notes.installationId, "tasks", {
+    await selectBinding(database, notes.id, "tasks", {
         type: "dependency",
         id: declared.id,
     });
@@ -1431,7 +1427,7 @@ test("bind an installation binding once its target has an address", async () => 
     // bind the tasks to the board installation of another space, by its name there
     const acme = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000031");
     const board = "board";
-    await selectBinding(database, notes.installationId, "tasks", {
+    await selectBinding(database, notes.id, "tasks", {
         type: "installation",
         name: board,
         spaceId: acme,
@@ -1567,7 +1563,7 @@ test("convert narrowed values after stopping the draining release", async () => 
     const waiting = await read();
 
     // approve the recreation
-    const approved = await approve(notes.installationId);
+    const approved = await approve(notes.id);
     await fixture.simulation.idle();
     const converted = await read();
     const [retired] = await database
@@ -1631,7 +1627,7 @@ test("grant an application its requested permissions until uninstalled", async (
     await fixture.simulation.idle();
 
     // read the installation's role in its space with its permissions, and the space's grants
-    const installed = principal.installation.reference(ids.space, notes.installationId);
+    const installed = principal.installation.reference(ids.space, notes.id);
     const roles = async () =>
         (
             await database
@@ -1643,7 +1639,7 @@ test("grant an application its requested permissions until uninstalled", async (
                 })
                 .from(accessRole)
                 .innerJoin(accessRolePermission, eq(accessRolePermission.roleId, accessRole.id))
-                .where(eq(accessRole.name, `installation/${notes.installationId}`))
+                .where(eq(accessRole.name, `installation/${notes.id}`))
         ).map((row) => Object.values(row));
     const grants = async () =>
         (await database.select().from(accessGrant)).map((row) => ({
@@ -1654,7 +1650,7 @@ test("grant an application its requested permissions until uninstalled", async (
     const granted = { roles: await roles(), grants: await grants() };
 
     // uninstall it
-    await changeInstallation(database, notes.installationId, {
+    await changeInstallation(database, notes.id, {
         deletedAt: fixture.machine.clock.now(),
     });
     await fixture.simulation.idle();
@@ -1663,7 +1659,7 @@ test("grant an application its requested permissions until uninstalled", async (
         dropped: { roles: await roles(), grants: await grants() },
     }).toEqual({
         granted: {
-            roles: [[ids.space, `installation/${notes.installationId}`, "space", "read"]],
+            roles: [[ids.space, `installation/${notes.id}`, "space", "read"]],
             // lend the universe-scoped request on the space's authority, in every scope
             grants: [
                 {
@@ -1700,8 +1696,8 @@ async function holdForAccess() {
     // read the change request its rollout opened and the one approval it asks
     const [rolled] = await database
         .select()
-        .from(object.rollout.table)
-        .where(eq(object.rollout.table.installationId, notes.installationId));
+        .from(object.installation.table)
+        .where(eq(object.installation.table.id, notes.id));
     const opened = single(
         await database
             .select()
@@ -1728,8 +1724,8 @@ async function holdForAccess() {
 test("grant held access once a manager approves its change request", async () => {
     // hold a revision asking to read the space, and read the plan it waits on
     const { fixture, database, notes, opened, asked, decide } = await holdForAccess();
-    const held = await readInstalled(database, notes.installationId);
-    const plan = present(held.installation.plan, "the waiting plan");
+    const held = await readInstalled(database, notes.id);
+    const plan = present(held.plan, "the waiting plan");
 
     // read the installation's role permissions before the approval
     const roles = async () =>
@@ -1738,7 +1734,7 @@ test("grant held access once a manager approves its change request", async () =>
                 .select({ permission: accessRolePermission.name })
                 .from(accessRole)
                 .innerJoin(accessRolePermission, eq(accessRolePermission.roleId, accessRole.id))
-                .where(eq(accessRole.name, `installation/${notes.installationId}`))
+                .where(eq(accessRole.name, `installation/${notes.id}`))
         ).map((row) => row.permission);
     const before = await roles();
 
@@ -1749,11 +1745,11 @@ test("grant held access once a manager approves its change request", async () =>
         .select()
         .from(changeRequest.table)
         .where(eq(changeRequest.table.id, opened.id));
-    const applied = await readInstalled(database, notes.installationId);
+    const applied = await readInstalled(database, notes.id);
 
     // wait on the grant as a privileged step, ask the managers as one set to approve exactly it, and grant it once approved
     expect({
-        held: [held.installation.conditions["Ready"]?.reason, plan],
+        held: [held.conditions["Ready"]?.reason, plan],
         before,
         asked: { ...ObjectReference.at("approver", asked), relation: asked.approverRelation },
         call: [opened.call.method, opened.call.input["plan"], ChangeRequest.as(opened)],
@@ -1791,13 +1787,13 @@ test("fail a held plan once a manager rejects it", async () => {
     await decide("reject");
     await fixture.simulation.idle();
     const refused = single(fixture.takeRefusals());
-    const held = await readInstalled(database, notes.installationId);
+    const held = await readInstalled(database, notes.id);
     const digest = Digest.parse(opened.call.input["plan"]);
 
     // fail the installation with the rejection, still running the revision applied before
     expect({
         refused,
-        progress: [Observation.progress(held.installation), Observation.message(held.installation)],
+        progress: [Observation.progress(held), Observation.message(held)],
         upgraded: held.appliedRevisionId === held.targetRevisionId,
     }).toEqual({
         refused: [
@@ -1838,14 +1834,14 @@ test("lend an optional capability's permissions once allowed", async () => {
         ids.notes,
         await notesBuild([main, request], fixture.environment.crypto),
     );
-    const installed = principal.installation.reference(ids.space, notes.installationId);
+    const installed = principal.installation.reference(ids.space, notes.id);
     const grants = async () =>
         (await database.select().from(accessGrant)).map((row) => row.permissions);
 
     // deploy it, then allow push as its space would once it approves the request
     await fixture.simulation.idle();
     const asking = await grants();
-    await changeInstallation(database, notes.installationId, { allowed: ["push"] });
+    await changeInstallation(database, notes.id, { allowed: ["push"] });
     await fixture.simulation.idle();
     const enabled = (
         await database
@@ -1860,11 +1856,11 @@ test("lend an optional capability's permissions once allowed", async () => {
     const allow = {
         ...installation.permission("allow"),
         scope: ids.space,
-        objectId: notes.installationId,
+        objectId: notes.id,
         mode: "approval",
     };
     expect({ installed: installed.id, asking, allowed: await grants(), enabled }).toEqual({
-        installed: notes.installationId,
+        installed: notes.id,
         asking: [[allow]],
         // lend push's universe-scoped permission once allowed
         allowed: [[unsubscribe, allow]],
@@ -1923,7 +1919,7 @@ test("deploy a capability only once the account is entitled", async () => {
         ],
     ]);
     const refused = {
-        ready: await readiness(database, notes.installationId),
+        ready: await readiness(database, notes.id),
         deployed: await deployed(),
     };
     await TestEntitlement.set(
@@ -1963,13 +1959,13 @@ test("deploy an application whose dependency its space installs", async () => {
     // depend on the setting package, then on the uninstalled vault
     await depend(PackageVersion.of(settingPackage));
     await fixture.simulation.idle();
-    const deployed = await readiness(database, notes.installationId);
+    const deployed = await readiness(database, notes.id);
     await depend(VAULT);
     await fixture.simulation.idle();
     fixture.expectRefusals([
         ["PRECONDITION_FAILED", "DEPENDENCY_BLOCKED", "notes needs @acme/vault installed"],
     ]);
-    const refused = await readiness(database, notes.installationId);
+    const refused = await readiness(database, notes.id);
 
     // satisfy the space's own dependency, and refuse the one installed nowhere
     expect({ deployed, refused }).toEqual({
@@ -1994,9 +1990,9 @@ test("refuse uninstalling a package an application needs", async () => {
     fixture.expectRefusals([
         ["PRECONDITION_FAILED", "DEPENDENCY_BLOCKED", "notes needs @acme/vault installed"],
     ]);
-    const refused = await readiness(database, notes.installationId);
+    const refused = await readiness(database, notes.id);
     const now = fixture.machine.clock.now();
-    const installed = await insertRollout(
+    const installed = await insertInstallation(
         database,
         {
             id: Identifier.create("installation", fixture.environment),
@@ -2009,10 +2005,10 @@ test("refuse uninstalling a package an application needs", async () => {
         now,
     );
     await fixture.simulation.idle();
-    const deployed = await readiness(database, notes.installationId);
+    const deployed = await readiness(database, notes.id);
 
     // uninstall the vault while notes needs it
-    const uninstalled = await refusal(uninstall(installed.installationId));
+    const uninstalled = await refusal(uninstall(installed.id));
 
     // refuse with the missing package's name, deploy once installed, and leave the vault installed
     expect({ refused, deployed, uninstalled }).toEqual({
@@ -2056,13 +2052,13 @@ test("refuse an allowed capability until its package is installed", async () => 
             await transaction
                 .update(object.installationRevision.table)
                 .set({ dependencies: [{ package: VAULT, manifest: Digest.parse(vault) }] })
-                .where(eq(object.installationRevision.table.installationId, notes.installationId)),
+                .where(eq(object.installationRevision.table.installationId, notes.id)),
     );
 
     // deploy without the capability, then with it allowed
     await fixture.simulation.idle();
-    const without = await readiness(database, notes.installationId);
-    await changeInstallation(database, notes.installationId, { allowed: ["vault-sync"] });
+    const without = await readiness(database, notes.id);
+    await changeInstallation(database, notes.id, { allowed: ["vault-sync"] });
     await fixture.simulation.idle();
     fixture.expectRefusals([
         [
@@ -2071,7 +2067,7 @@ test("refuse an allowed capability until its package is installed", async () => 
             "capability vault-sync needs @acme/vault installed",
         ],
     ]);
-    const allowed = await readiness(database, notes.installationId);
+    const allowed = await readiness(database, notes.id);
 
     // deploy without the vault until the capability needs it
     expect({ without, allowed }).toEqual({
@@ -2100,7 +2096,7 @@ test("wait for a provider of an unserved resource kind", async () => {
 
     // wait rather than fail, naming the kind
     await fixture.simulation.idle();
-    expect(await readiness(fixture.database, notes.installationId)).toEqual([
+    expect(await readiness(fixture.database, notes.id)).toEqual([
         "waiting",
         "waiting for a provider of vault resources",
     ]);
@@ -2121,14 +2117,14 @@ test("wait for a provider of a selected object's kind", async () => {
         ids.notes,
         await notesBuild([main, github], fixture.environment.crypto),
     );
-    await selectBinding(database, notes.installationId, "github", {
+    await selectBinding(database, notes.id, "github", {
         type: "connection",
         id: Identifier.create("connection", fixture.environment),
     });
 
     // wait rather than fail the revision, naming the kind
     await fixture.simulation.idle();
-    expect(await readiness(database, notes.installationId)).toEqual([
+    expect(await readiness(database, notes.id)).toEqual([
         "waiting",
         "waiting for a provider of connection resources",
     ]);
@@ -2137,7 +2133,7 @@ test("wait for a provider of a selected object's kind", async () => {
 /** Read an installation's Ready condition, apart from when it last changed. */
 function readyOf(installed: Awaited<ReturnType<typeof readInstalled>>) {
     const { lastTransitionAt: _changed, ...condition } = present(
-        installed.installation.conditions["Ready"],
+        installed.conditions["Ready"],
         "a Ready",
     );
 

@@ -1,22 +1,21 @@
+import {
+    installation,
+    build,
+    deployment,
+    installationRevision,
+    instance,
+    Installation,
+} from "@destack/stack/object";
 import type { Environment } from "@destack/environment";
-import { type DatabaseConnection, eq, isNotNull, Snapshot, Table } from "@destack/db";
+import { type DatabaseConnection, eq, isNotNull, Table } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { testSimulation } from "@destack/object/test";
 import { Digest, Identifier, present, schema } from "@destack/schema";
 import { ObjectReference, Scope, type Subject } from "@destack/sync";
 import { release } from "@destack/registry/object";
 import type { PackageId } from "@destack/package";
-import {
-    build,
-    deployment,
-    installationRevision,
-    instance,
-    type InstallationRollout,
-    Rollout,
-    rollout,
-} from "@destack/stack/object";
 import stackPackage from "@destack/stack/package";
-import { installation, SYNCED } from "@destack/object";
+import { SYNCED } from "@destack/object";
 import { space } from "@destack/account/object";
 import { ids, spaceDatabase } from "./space.ts";
 import { onTestFinished } from "@destack/test";
@@ -69,8 +68,8 @@ export async function openSpaceDatabase(): Promise<{
     return { database, crypto: world.crypto, now };
 }
 
-/** Record an installed package following a row and its rollout, as installing one does. */
-export async function insertRollout(
+/** Record an installed package following a row, as installing one does. */
+export async function insertInstallation(
     database: DatabaseConnection,
     installed: {
         readonly id: Identifier<"installation">;
@@ -83,8 +82,8 @@ export async function insertRollout(
         readonly capabilities?: readonly string[];
     },
     now: number,
-): Promise<Rollout> {
-    // write the installation, then the rollout following its selection under the same identifier, both by the installer
+): Promise<Installation> {
+    // write the installation following its selection, by the installer
     const {
         id,
         scope,
@@ -105,43 +104,38 @@ export async function insertRollout(
     };
 
     return await database.transaction(async (transaction) => {
-        await transaction.insert(installation.table).values({
-            ...record,
-            packageId,
-            name,
-            ...ObjectReference.columns("follows", follows),
-            directory: directory ?? null,
-            capabilities: [...capabilities],
-        });
         const [inserted] = await transaction
-            .insert(rollout.table)
+            .insert(installation.table)
             .values({
                 ...record,
-                id: Identifier.derive("rollout", Identifier.uuid(id)),
-                installationId: id,
+                packageId,
+                name,
+                ...ObjectReference.columns("follows", follows),
+                directory: directory ?? null,
+                capabilities: [...capabilities],
             })
             .returning();
 
-        return present(inserted, `the rollout ${id}`);
+        return present(inserted, `the installation ${id}`);
     });
 }
 
-/** Read an installation with its rollout. */
+/** Read an installation. */
 export async function readInstalled(
     database: DatabaseConnection,
     id: Identifier<"installation">,
-): Promise<InstallationRollout> {
-    const [row] = await Rollout.installed(
-        Snapshot.live(database),
-        await database.select().from(installation.table).where(eq(installation.table.id, id)),
-    );
+): Promise<Installation> {
+    const [row] = await database
+        .select()
+        .from(installation.table)
+        .where(eq(installation.table.id, id));
 
     return present(row, `the installation ${id}`);
 }
 
 /** The Synced condition a stack refusal records on an installation at its generation. */
-export function refusedCondition(installed: InstallationRollout, reason: string, message: string) {
-    const { generation, conditions } = installed.installation;
+export function refusedCondition(installed: Installation, reason: string, message: string) {
+    const { generation, conditions } = installed;
 
     return {
         status: "false",
@@ -152,18 +146,13 @@ export function refusedCondition(installed: InstallationRollout, reason: string,
     };
 }
 
-/** Read the space's one stack installation with its rollout, the one its birth gives it. */
-export async function readStack(database: DatabaseConnection): Promise<InstallationRollout> {
-    // read the installation exporting the space's stack, with its rollout
-    const [stacked] = await database
-        .select({ id: installation.table.id })
+/** Read the space's one stack installation, the one its birth gives it. */
+export async function readStack(database: DatabaseConnection): Promise<Installation> {
+    // read the installation exporting the space's stack
+    const [stack] = await database
+        .select()
         .from(installation.table)
         .where(isNotNull(installation.table.export));
-    const rows = await database
-        .select()
-        .from(rollout.table)
-        .where(eq(rollout.table.installationId, present(stacked, "the space's stack").id));
-    const [stack] = await Rollout.read(Snapshot.live(database), rows);
 
     return present(stack, "the space's stack");
 }
@@ -261,7 +250,7 @@ async function installNotes(
     // record the notes installation in the space, at the world's time
     const now = environment.clock.now();
     const notes = { id: ids.notes, scope: ids.space, packageId: ids.package, name: "notes" };
-    await insertRollout(database, { ...notes, follows, installer }, now);
+    await insertInstallation(database, { ...notes, follows, installer }, now);
 
     // follow the installation's release
     const revisionId = Identifier.create("installation-revision", environment);
@@ -283,9 +272,9 @@ async function installNotes(
     );
     await database.transaction(async (transaction) => {
         await transaction
-            .update(rollout.table)
+            .update(installation.table)
             .set({ targetRevisionId: revisionId, appliedRevisionId: revisionId })
-            .where(eq(rollout.table.installationId, ids.notes));
+            .where(eq(installation.table.id, ids.notes));
     });
 
     return revisionId;

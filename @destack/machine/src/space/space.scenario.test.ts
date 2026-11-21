@@ -1,9 +1,10 @@
+import { installation, database, installationRevision } from "@destack/stack/object";
 import { testIdentity } from "@destack/object/test";
 import { eq } from "@destack/db";
 import { testBuild } from "@destack/object/test";
 import { expect, refusal, test } from "@destack/test";
 import { Digest, Identifier, nth, present, schema } from "@destack/schema";
-import { type Capability, installation, Package } from "@destack/object";
+import { type Capability, Package } from "@destack/object";
 import { implementPackage } from "@destack/object/server";
 import type { ServerContext } from "@destack/object/workload";
 import { defineKind, PackageId, PackageVersion } from "@destack/package";
@@ -13,9 +14,8 @@ import { testHost } from "@destack/test/host";
 import { STACKS } from "@destack/account/test";
 import objectDefinition from "@destack/object/destack.json" with { type: "json" };
 import { describeObject } from "@destack/object/inspect";
-import { ids, insertRelease, insertRollout, readStack, TestSpace } from "../test/index.ts";
+import { ids, insertRelease, insertInstallation, readStack, TestSpace } from "../test/index.ts";
 import { note } from "../test/schema.ts";
-import { database, installationRevision, rollout } from "@destack/stack/object";
 import { t } from "@destack/locale";
 
 /** The one host the test package lists by name. */
@@ -157,7 +157,7 @@ test("serve an installation only once it is bound and main applied its tables", 
     const record = { scope: ids.space, createdAt: now, updatedAt: now };
     const main = nth(await connection.select().from(database.table), 0);
     const stack = await readStack(connection);
-    await insertRollout(
+    await insertInstallation(
         connection,
         {
             id: ids.notes,
@@ -200,9 +200,9 @@ test("serve an installation only once it is bound and main applied its tables", 
     await connection.transaction(
         async (transaction) =>
             await transaction
-                .update(rollout.table)
+                .update(installation.table)
                 .set({ targetRevisionId: revision })
-                .where(eq(rollout.table.installationId, ids.notes)),
+                .where(eq(installation.table.id, ids.notes)),
     );
     const notes = await MemoryBuild.of(
         PackageVersion.parse({ id: ids.package, name: "@acme/notes", version: "2026.9.0" }),
@@ -222,17 +222,14 @@ test("serve an installation only once it is bound and main applied its tables", 
         opening: (packageId: PackageId, image: Digest) => Promise<BuildReader> = open,
     ) =>
         (await space.installations(opening))
-            .map((entry) => [
-                entry.rollout.installationId,
-                entry.declarations.map((each) => each.name),
-            ])
+            .map((entry) => [entry.installation.id, entry.declarations.map((each) => each.name)])
             .toSorted(([left], [right]) => String(left).localeCompare(String(right)));
 
     // open the stack's build with a vault it declares for its document, which nothing binds to it
     const vaulted = async (packageId: PackageId, image: Digest) => {
         const built = await open(packageId, image);
 
-        return packageId === stack.installation.packageId
+        return packageId === stack.packageId
             ? new VaultedReader(built.manifest, built.stream, fixture.environment.crypto)
             : built;
     };
@@ -310,7 +307,7 @@ test("serve an installation only once it is bound and main applied its tables", 
     const unborn = await served();
 
     // serve the space's stack throughout, its document's vault unbound, and notes once bound and applied
-    const stacked = [stack.installationId, [STACKS.space.export]];
+    const stacked = [stack.id, [STACKS.space.export]];
     expect({ unbound, unapplied, applied, waiting, withVault, unborn }).toEqual({
         unbound: [stacked],
         unapplied: [stacked],
@@ -318,7 +315,7 @@ test("serve an installation only once it is bound and main applied its tables", 
         waiting: [[ids.notes, ["note"]], stacked],
         withVault: [
             [ids.notes, ["note"]],
-            [stack.installationId, [STACKS.space.export, "credentials"]],
+            [stack.id, [STACKS.space.export, "credentials"]],
         ],
         unborn: [],
     });

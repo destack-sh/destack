@@ -1,8 +1,13 @@
+import {
+    Installation,
+    installation,
+    type StoreProvider,
+    type SpaceProvider,
+} from "@destack/stack/object";
 import { SpaceStorage } from "../space/storage.ts";
 import * as accountObject from "@destack/account/object";
 import { FORGE_INSTALLATION } from "@destack/forge/package";
 import { pathToFileURL } from "node:url";
-import { KNOWN_TYPES } from "@destack/stack/stack";
 import { Crypto, WebSocketUpgrade } from "@destack/environment";
 import { TestTelemetry } from "@destack/telemetry/test";
 import { Refusal } from "./refusal.ts";
@@ -39,8 +44,6 @@ import {
     type Follow,
     ObjectType,
     type Package,
-    Installation,
-    installation,
     Observation,
     PackageMount,
     SpaceMount,
@@ -62,7 +65,6 @@ import {
     present,
     schema,
 } from "@destack/schema";
-import objectPackage from "@destack/object/package";
 import objectDefinition from "@destack/object/destack.json" with { type: "json" };
 import { Simulation } from "@destack/environment/simulation";
 import { StackDocument, type StackRecordType } from "@destack/stack/declare";
@@ -71,7 +73,6 @@ import * as object from "@destack/stack/object";
 import { SocketRegistry, type InstallationBuild } from "../index.ts";
 import { Machine } from "../machine/machine.ts";
 import { Space } from "../space/space.ts";
-import { type StoreProvider, type SpaceProvider } from "@destack/stack/object";
 import { Universe } from "@destack/universe";
 import {
     MachineWorld,
@@ -84,6 +85,7 @@ import {
 } from "@destack/universe/test";
 import type { TestPerson } from "@destack/account/test";
 import type { ClientOf } from "@destack/object/client";
+import objectPackage from "@destack/object/package";
 import stackPackage, { PUSH_PATH } from "@destack/stack/package";
 import {
     fixtureBuild,
@@ -110,7 +112,7 @@ import type { StackRelease } from "@destack/account/object";
 import { RemoteBuildStore, BuildStore } from "@destack/build/store";
 import { fixtureGraph, TestBuildStore, testStore } from "@destack/build/test";
 import { TestDistribution } from "../computer/test/distribution.ts";
-import { RolloutTarget } from "../installation/target.ts";
+import { InstallationTarget } from "../installation/target.ts";
 import { testWorldOptions } from "@destack/test/world";
 
 /** The Destack version the fixture machine runs: this checkout's. */
@@ -1699,7 +1701,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
     async followed(packageId: PackageId, version: string): Promise<ObjectReference> {
         await this.#openedHome();
 
-        return await RolloutTarget.resolveFollowed(this.machine, packageId, {
+        return await InstallationTarget.resolveFollowed(this.machine, packageId, {
             kind: "release",
             version,
         });
@@ -1920,20 +1922,14 @@ export class TestSpace implements AsyncDisposable, TestScope {
         target: Pick<Installation, "name" | "capabilities" | "allowed">,
         reader: BuildReader,
     ): Promise<Pick<object.InstallationRevision, "dependencies" | "states">> {
-        // read the store's types and the options a submission describes with
+        // read the options a submission describes with
         const space = await this.space;
-        const store = await space.store();
-        const options = { space, blobs: space.blobs, known: KNOWN_TYPES };
+        const options = { space, blobs: space.blobs };
 
         // make an image of the build alone in the space's store
         const { image } = await this.#image(reader, []);
 
-        return RolloutTarget.describe(
-            target,
-            await space.builds.image(image),
-            store.objects,
-            options,
-        );
+        return InstallationTarget.describe(await space.builds.image(image), options);
     }
 
     /** Store a build in an image with the builds it runs with, answering its image and root. */
@@ -2225,7 +2221,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
         // replace the collections given, once the space has its stack
         this.#stack = { ...this.#stack, ...StackDocument.of(types, collections) };
         await this.simulation.idle();
-        const installed = this.as(this.owner.subject).client(objectPackage);
+        const installed = this.as(this.owner.subject).client(stackPackage);
         const listed = await installed.installation.list({ scope: this.id });
         const stack = single(listed.items.filter((entry) => entry.export !== null));
 
@@ -2256,9 +2252,9 @@ export class TestSpace implements AsyncDisposable, TestScope {
         const submitted = await installed.installation.get({ scope: this.id, id: stack.id });
         const owner = this.as(this.owner.subject).client(stackPackage);
         if (submitted.conditions["Ready"]?.reason === AWAITING_APPROVAL) {
-            const { digest } = await owner.rollout.plan({ spaceId: this.id, id: stack.id });
-            await owner.rollout.approve({
-                spaceId: this.id,
+            const { digest } = await owner.installation.plan({ scope: this.id, id: stack.id });
+            await owner.installation.approve({
+                scope: this.id,
                 id: stack.id,
                 requestId: RequestId.create(this.machine.environment),
                 plan: digest,
@@ -2323,7 +2319,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
 
         // read the installation the stack applied, refusing one its rollout refuses to deploy
         const listed = await this.as(this.owner.subject)
-            .client(objectPackage)
+            .client(stackPackage)
             .installation.list({ scope: this.id, where: { name } });
         const { id } = single(listed.items);
         const [deployed] = await this.database

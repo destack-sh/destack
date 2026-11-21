@@ -1,4 +1,4 @@
-import { installation } from "@destack/object";
+import { installation } from "@destack/stack/object";
 import { defineScenario } from "@destack/package/declare";
 import { machineInteraction } from "./interaction.ts";
 

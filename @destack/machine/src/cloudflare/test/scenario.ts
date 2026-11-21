@@ -1,3 +1,4 @@
+import { installation, database } from "@destack/stack/object";
 import { Random } from "@destack/environment";
 import { WorkerdEnvironment } from "@destack/environment/workerd";
 import { principal } from "@destack/access";
@@ -13,8 +14,7 @@ import { ModuleMetadata, PackageId } from "@destack/package";
 import { Plan, ResourceId } from "@destack/resource";
 import { MemoryContentStore } from "@destack/resource";
 import { schema } from "@destack/schema";
-import { installation, refusal } from "@destack/object";
-import { database } from "@destack/stack/object";
+import { refusal } from "@destack/object";
 import { ObjectReference, Scope } from "@destack/sync";
 import { release } from "@destack/registry/object";
 import { SpaceStorage } from "../../space/storage.ts";

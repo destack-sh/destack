@@ -1,5 +1,6 @@
 import { TEST_UNIVERSE } from "@destack/universe/test";
-import { testIdentity } from "@destack/object/test";
+import { describedTables, testIdentity } from "@destack/object/test";
+import { KNOWN_TYPES } from "@destack/stack/stack";
 import { type Crypto, WebSocketUpgrade } from "@destack/environment";
 import { eq } from "@destack/db";
 import { testHost } from "@destack/test/host";
@@ -20,7 +21,6 @@ import {
     Bookmark,
     CallError,
 } from "@destack/object";
-import objectPackage from "@destack/object/package";
 import { createClient, ObjectConnection } from "@destack/object/client";
 import { describeObject, describePackage } from "@destack/object/inspect";
 import { OriginPath, PackageId, PackageVersion, Sandbox } from "@destack/package";
@@ -31,6 +31,7 @@ import { RequestId, ObjectReference, Scope } from "@destack/sync";
 import { Identifier, nth, present, schema } from "@destack/schema";
 import { setting } from "@destack/setting/object";
 import * as stackObject from "@destack/stack/object";
+import objectPackage from "@destack/object/package";
 import stackPackage from "@destack/stack/package";
 import { expect, refusal, test } from "@destack/test";
 import { type Address, ScopePath, ViewAddress } from "@destack/view/declare";
@@ -183,50 +184,48 @@ function tasksBuild(crypto: Crypto): Promise<BuildReader> {
         render: { mode: "client" as const },
     };
 
-    return MemoryBuild.of(
-        tasks,
-        [
-            {
-                kind: "object",
-                kindPackageId: objectDefinition.id,
-                name: "task",
-                description: describeObject(task),
-            },
-            {
-                kind: "package",
-                kindPackageId: objectDefinition.id,
-                name: "default",
-                description: describePackage(tasksPackage),
-            },
-            {
-                kind: "view",
-                kindPackageId: viewPackage.id,
-                name: "board",
-                description: {
-                    name: "board",
-                    presents: [],
-                    categories: [],
-                    audience: "person" as const,
-                    packages: [stackPackage.id],
-                    render: { mode: "client" },
-                },
-            },
-        ],
-        crypto,
+    const declared = [
         {
-            outputs: {
-                browser: {
-                    runtime: "browser",
-                    emit: true,
-                    workloads: {},
-                    views: { board },
-                    directory: "browser",
-                    exports: {},
-                    peers: {},
-                },
+            kind: "object",
+            kindPackageId: objectDefinition.id,
+            name: "task",
+            description: describeObject(task),
+        },
+        {
+            kind: "package",
+            kindPackageId: objectDefinition.id,
+            name: "default",
+            description: describePackage(tasksPackage),
+        },
+        {
+            kind: "view",
+            kindPackageId: viewPackage.id,
+            name: "board",
+            description: {
+                name: "board",
+                presents: [],
+                categories: [],
+                audience: "person" as const,
+                packages: [stackPackage.id],
+                render: { mode: "client" },
             },
         },
-    );
+    ];
+
+    return MemoryBuild.of(tasks, declared, crypto, {
+        tables: describedTables(declared, tasks.id, KNOWN_TYPES),
+        outputs: {
+            browser: {
+                runtime: "browser",
+                emit: true,
+                workloads: {},
+                views: { board },
+                directory: "browser",
+                exports: {},
+                peers: {},
+            },
+        },
+    });
 }
 
 /** The articles package, whose articles their owner publishes through links. */
@@ -290,50 +289,48 @@ function articlesBuild(crypto: Crypto): Promise<BuildReader> {
         render: { mode: "client" as const },
     };
 
-    return MemoryBuild.of(
-        articles,
-        [
-            {
-                kind: "object",
-                kindPackageId: objectDefinition.id,
-                name: "article",
-                description: describeObject(article),
-            },
-            {
-                kind: "package",
-                kindPackageId: objectDefinition.id,
-                name: "default",
-                description: describePackage(articlesPackage),
-            },
-            {
-                kind: "view",
-                kindPackageId: viewPackage.id,
-                name: "reader",
-                description: {
-                    name: "reader",
-                    presents: [],
-                    categories: [],
-                    audience: "person" as const,
-                    packages: [],
-                    render: { mode: "client" },
-                },
-            },
-        ],
-        crypto,
+    const declared = [
         {
-            outputs: {
-                browser: {
-                    runtime: "browser",
-                    emit: true,
-                    workloads: {},
-                    views: { reader },
-                    directory: "browser",
-                    exports: {},
-                    peers: {},
-                },
+            kind: "object",
+            kindPackageId: objectDefinition.id,
+            name: "article",
+            description: describeObject(article),
+        },
+        {
+            kind: "package",
+            kindPackageId: objectDefinition.id,
+            name: "default",
+            description: describePackage(articlesPackage),
+        },
+        {
+            kind: "view",
+            kindPackageId: viewPackage.id,
+            name: "reader",
+            description: {
+                name: "reader",
+                presents: [],
+                categories: [],
+                audience: "person" as const,
+                packages: [],
+                render: { mode: "client" },
             },
         },
-    );
+    ];
+
+    return MemoryBuild.of(articles, declared, crypto, {
+        tables: describedTables(declared, articles.id, KNOWN_TYPES),
+        outputs: {
+            browser: {
+                runtime: "browser",
+                emit: true,
+                workloads: {},
+                views: { reader },
+                directory: "browser",
+                exports: {},
+                peers: {},
+            },
+        },
+    });
 }
 
 /** A space a computer serves, with the owner signed in on the computer's device. */
@@ -569,8 +566,8 @@ test("launch a view onto a session cookie serving its document", async () => {
 
     // allow the optional camera and read the document again
     const service = createClient(
-        objectPackage,
-        login.endpoint(objectPackage.id, await native.locate(spaceId)),
+        stackPackage,
+        login.endpoint(stackPackage.id, await native.locate(spaceId)),
         native.environment,
     );
     await service.installation.update({
@@ -1067,14 +1064,8 @@ test("call a page's package and its space's packages under its grant only", asyn
         );
     const outside = await call(
         stackPackage.id,
-        `/spaces/${home.spaceId}/rollouts/${installation.id}`,
+        `/installations/${installation.id}?scope=${home.spaceId}`,
     );
-    const { database } = await home.computer.machine.space(home.spaceId);
-    const [rolled] = await database
-        .select({ id: stackObject.rollout.table.id })
-        .from(stackObject.rollout.table)
-        .where(eq(stackObject.rollout.table.installationId, installation.id));
-    const { id: rolloutId } = present(rolled, "the tasks rollout");
 
     // refuse a call from another site, and an anonymous visitor without the page's cookie the unshared space
     const listener = home.computer.computer;
@@ -1111,10 +1102,10 @@ test("call a page's package and its space's packages under its grant only", asyn
                 status: 403,
                 reason: "GRANT_DENIED",
                 domain: "@destack/object",
-                message: `'read' on rollout '${rolloutId}' is forbidden: grant '${page.grant.id}' does not give it`,
+                message: `'read' on installation '${installation.id}' is forbidden: grant '${page.grant.id}' does not give it`,
                 data: {
-                    permission: stackObject.rollout.permission("read"),
-                    object: stackObject.rollout.reference(home.spaceId, rolloutId),
+                    permission: stackObject.installation.permission("read"),
+                    object: stackObject.installation.reference(home.spaceId, installation.id),
                     grant: page.grant.id,
                 },
             },
@@ -1209,9 +1200,9 @@ test("keep a page's session cookie across its computer's restart", async () => {
     const document = await send(new Request(location));
     await document.body?.cancel();
     const objects = createClient(
-        objectPackage,
+        stackPackage,
         {
-            url: `${page.origin}${ScopePath.of(home.spaceId)}${PackageMount.path(objectPackage.id)}`,
+            url: `${page.origin}${ScopePath.of(home.spaceId)}${PackageMount.path(stackPackage.id)}`,
             fetch: send,
         },
         restarted.environment,
@@ -1252,7 +1243,7 @@ test("keep a page's session cookie across its computer's restart", async () => {
 });
 
 test("call a scope's home path within the start page's grant only", async () => {
-    // open the start page, whose grant lists the space's installations and rollouts and gives the owner's settings
+    // open the start page, whose grant lists the space's installations and gives the owner's settings
     const home = await openHome();
     const { owner } = home.computer.world;
     const page = await openPage(home, {
@@ -1272,14 +1263,13 @@ test("call a scope's home path within the start page's grant only", async () => 
         },
     });
     const stack = createClient(stackPackage, below(stackPackage.id), home.computer.environment);
-    const objects = createClient(objectPackage, below(objectPackage.id), home.computer.environment);
 
-    // list the applied rollouts and the enabled installations
-    const rollouts = await stack.rollout.list({
-        spaceId: home.spaceId,
+    // list the applied and the enabled installations
+    const applied = await stack.installation.list({
+        scope: home.spaceId,
         where: { appliedRevisionId: { isNotNull: true } },
     });
-    const installations = await objects.installation.list({
+    const installations = await stack.installation.list({
         scope: home.spaceId,
         where: { status: "enabled" },
     });
@@ -1300,10 +1290,10 @@ test("call a scope's home path within the start page's grant only", async () => 
             (error: unknown) => CallError.of(error)?.toJSON(),
         );
 
-    // list each enabled installation with its applied rollout, and refuse the push at the universe as outside the grant
+    // list each applied and each enabled installation, and refuse the push at the universe as outside the grant
     expect({
         installations: installations.items.map((row) => row.name).toSorted(),
-        rollouts: rollouts.items.map((row) => row.installationId).toSorted(),
+        applied: applied.items.map((row) => row.id).toSorted(),
         pushed,
     }).toEqual({
         installations: [
@@ -1316,7 +1306,7 @@ test("call a scope's home path within the start page's grant only", async () => 
             "start",
             "vault",
         ],
-        rollouts: installations.items.map((row) => row.id).toSorted(),
+        applied: installations.items.map((row) => row.id).toSorted(),
         pushed: {
             defined: true,
             code: "FORBIDDEN",

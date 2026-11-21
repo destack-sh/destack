@@ -1,3 +1,4 @@
+import { installation } from "@destack/stack/object";
 import { Failure } from "@destack/error";
 import { eq } from "@destack/db";
 import { ConnectionKind } from "@destack/connection/declare";
@@ -12,7 +13,6 @@ import { Exchange } from "@destack/access/token";
 import {
     CallError,
     Egress,
-    installation,
     InstallationMount,
     PackageMount,
     SpaceMount,

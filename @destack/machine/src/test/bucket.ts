@@ -1,3 +1,4 @@
+import { installation, bucket } from "@destack/stack/object";
 import { space, account } from "@destack/account/object";
 import { and, type DatabaseConnection, defineDatabase, eq, Transaction } from "@destack/db";
 import { MemoryBlobStorage } from "@destack/resource";
@@ -14,7 +15,7 @@ import {
     Relationship,
 } from "@destack/access";
 import { STACKS, TestAccountStore, TestDirectory } from "@destack/account/test";
-import { CallEvent, call, journal, CallError, installation } from "@destack/object";
+import { approval, CallEvent, call, changeRequest, journal, CallError } from "@destack/object";
 import { Health, Journal, Server, type ClaimPrimary, ObjectStore } from "@destack/object/server";
 import { testEvents, serversOf, testCallKey } from "@destack/object/test";
 import type { EventStore } from "@destack/event";
@@ -31,15 +32,21 @@ import { TestDatabase } from "@destack/db/test";
 import { ResourceContext } from "@destack/resource/context";
 import { Identifier } from "@destack/schema";
 import { createClient } from "@destack/object/client";
-import { bucket } from "@destack/stack/object";
 import { implementBucket } from "../resource/bucket.ts";
 import type { Lease } from "@destack/resource";
 import type { Clock, Environment } from "@destack/environment";
 
-/** A database with buckets, a journal and calls, replicating the spaces they live in. */
+/** A database with buckets, installations, a journal and calls, replicating their spaces. */
 export const bucketDatabase = defineDatabase({
     name: "bucket",
-    tables: [...bucket.tables, journal, ...call.tables, ...installation.tables],
+    tables: [
+        ...bucket.tables,
+        journal,
+        ...call.tables,
+        ...installation.tables,
+        ...changeRequest.tables,
+        ...approval.tables,
+    ],
     replicated: [space.table],
 });
 

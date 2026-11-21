@@ -4,7 +4,7 @@ import { Identifier, schema, Digest } from "@destack/schema";
 import { expect, Recording, test } from "@destack/test";
 import { TestDatabase } from "@destack/db/test";
 import { Build, build, installationRevision } from "@destack/stack/object";
-import { ids, insertRollout, TestSpace } from "../test/index.ts";
+import { ids, insertInstallation, TestSpace } from "../test/index.ts";
 
 /** The builds the stress test records in one space, enough that a read per build shows. */
 const STRESS_BUILDS = 2000;
@@ -53,7 +53,7 @@ test("retain each source's latest builds and every build a revision applies", as
     await record("tools", Digest.parse("e".repeat(64)), now - 5000);
 
     // apply the oldest build in a revision, as the rows retention reads record it
-    await insertRollout(
+    await insertInstallation(
         database,
         {
             id: ids.notes,

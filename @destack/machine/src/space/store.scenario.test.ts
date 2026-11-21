@@ -37,14 +37,14 @@ test("serve a person calling the space with the token their client exchanges for
     await fixture.serve();
     const stranger = await fixture.universe.signIn("stranger@example.test");
     const listing = (caller: ReturnType<TestSpace["person"]>) =>
-        caller.client(stackPackage).rollout.list({ spaceId: fixture.id });
+        caller.client(stackPackage).installation.list({ scope: fixture.id });
     const owned = await listing(fixture.person(fixture.owner));
     const refused = await refusal(listing(fixture.person(stranger)));
 
     // list the space's stack to its owner, and conceal the space from the stranger
     const stack = await readStack(fixture.database);
-    expect([owned.items.map((item) => item.installationId), refused]).toEqual([
-        [stack.installationId],
+    expect([owned.items.map((item) => item.id), refused]).toEqual([
+        [stack.id],
         ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope '${fixture.id}' not found`],
     ]);
 });

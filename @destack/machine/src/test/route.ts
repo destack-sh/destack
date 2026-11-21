@@ -3,7 +3,7 @@ import { TestDns } from "@destack/account/test";
 import { type DatabaseConnection, Snapshot } from "@destack/db";
 import type { Simulation } from "@destack/environment/simulation";
 import { ClaimLookup, claimTable } from "@destack/object";
-import type { StackInput } from "@destack/stack/declare";
+import type { StackDocument } from "@destack/stack/declare";
 import { found, type Identifier, nth, present, schema } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { fixtureBuild } from "./build.ts";
@@ -192,7 +192,7 @@ export class TestRoute implements AsyncDisposable {
     /** Apply a stack's route declarations to a space, approved as its owner. */
     async apply(
         spaceId: Identifier<"space">,
-        routes: NonNullable<StackInput["routes"]>,
+        routes: NonNullable<StackDocument["routes"]>,
     ): Promise<void> {
         await found(this.#spaces, spaceId).apply([], { routes });
     }
@@ -200,7 +200,7 @@ export class TestRoute implements AsyncDisposable {
     /** Submit a stack's route declarations to a space, answering its deploy's refusal. */
     submit(
         spaceId: Identifier<"space">,
-        routes: NonNullable<StackInput["routes"]>,
+        routes: NonNullable<StackDocument["routes"]>,
     ): Promise<readonly [string, string, string] | undefined> {
         return found(this.#spaces, spaceId).submit([], { routes });
     }

@@ -141,6 +141,7 @@ test("retry a provisioning its provider failed", async () => {
             const flaky: typeof base = {
                 ...base,
                 provision: {
+                    isPure: false,
                     provision: async (record) => {
                         if (isFailing) {
                             isFailing = false;

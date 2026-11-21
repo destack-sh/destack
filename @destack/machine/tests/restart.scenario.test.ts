@@ -1,6 +1,6 @@
+import { installation } from "@destack/stack/object";
 import type { Select } from "@destack/db";
-import { installation } from "@destack/object";
-import objectPackage from "@destack/object/package";
+import stackPackage from "@destack/stack/package";
 import { createClient } from "@destack/object/client";
 import { present } from "@destack/schema";
 import { RequestId } from "@destack/sync";
@@ -34,8 +34,8 @@ test("deliver a home change to a laptop replica soon after the home restarts", a
     const ready = world.simulation.clock.now();
     const owner = await restarted.device.launcher(login);
     const objects = createClient(
-        objectPackage,
-        owner.endpoint(objectPackage.id, await restarted.device.locate(world.owner.home)),
+        stackPackage,
+        owner.endpoint(stackPackage.id, await restarted.device.locate(world.owner.home)),
         restarted.environment,
     );
     await objects.installation.update({

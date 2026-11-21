@@ -1,3 +1,4 @@
+import { installation } from "@destack/stack/object";
 import { and, eq, Snapshot } from "@destack/db";
 import * as accountObject from "@destack/account/object";
 import type { Login } from "@destack/account/native";
@@ -16,7 +17,7 @@ import { activity } from "@destack/notification/object";
 import notificationPackage from "@destack/notification/package";
 import messagePackage from "@destack/message/package";
 import vaultPackage from "@destack/vault/package";
-import { installation, PackageMount } from "@destack/object";
+import { PackageMount } from "@destack/object";
 import * as stackObject from "@destack/stack/object";
 import { createClient } from "@destack/object/client";
 import { found, Identifier, present, schema } from "@destack/schema";

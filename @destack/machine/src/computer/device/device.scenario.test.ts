@@ -1,6 +1,6 @@
 import { currentLogin, currentSpace } from "@destack/account/native";
 import { PackageMount } from "@destack/object";
-import { rollout } from "@destack/stack/object";
+import { installation } from "@destack/stack/object";
 import stackPackage from "@destack/stack/package";
 import { setting } from "@destack/setting/object";
 import { Identifier, present } from "@destack/schema";
@@ -88,12 +88,12 @@ test("describe the types a space's store serves over a connection to the stack p
     const launcher = await device.launcher(login);
     const stack = await launcher.connect({ space: world.owner.home }, stackPackage.id);
 
-    // describe the rollouts
-    const described = await stack.describe([rollout.typeReference]);
+    // describe the installations
+    const described = await stack.describe([installation.typeReference]);
 
-    // expect the rollout type first, then the types it refers to
+    // expect the installation type first, then the types it refers to
     expect(described.map((type) => type.name)).toEqual([
-        "rollout",
+        "installation",
         "installation-revision",
         "build",
         "machine",
@@ -140,7 +140,7 @@ test("forward the owner's calls as a signed-in person to a space's package, refu
     );
 
     // describe the rollouts there, and through a target of no kind
-    const described = await stack.describe([rollout.typeReference]);
+    const described = await stack.describe([installation.typeReference]);
     const nowhere = device.loopback.connection(
         `${people}/elsewhere/${stackPackage.id}`,
         world.owner.home,
@@ -149,9 +149,9 @@ test("forward the owner's calls as a signed-in person to a space's package, refu
     // expect the space's answer, as the session gives it directly, and the target refused
     expect({
         described: described.map((type) => type.name).slice(0, 2),
-        nowhere: await refusal(nowhere.describe([rollout.typeReference])),
+        nowhere: await refusal(nowhere.describe([installation.typeReference])),
     }).toEqual({
-        described: ["rollout", "installation-revision"],
+        described: ["installation", "installation-revision"],
         nowhere: [
             "BAD_REQUEST",
             "TARGET_INVALID",

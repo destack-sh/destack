@@ -1,6 +1,6 @@
+import { installation, build, database, installationRevision } from "@destack/stack/object";
 import { MAIN_DATABASE } from "@destack/stack/declare";
 import { eq, isNotNull } from "@destack/db";
-import { installation } from "@destack/object";
 import { PackageVersion } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
 import { Identifier, nth, present, schema } from "@destack/schema";
@@ -10,8 +10,6 @@ import settingPackage from "@destack/setting/package";
 import { RequestId } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import { testSimulation } from "@destack/object/test";
-import { build, database, rollout, installationRevision } from "@destack/stack/object";
-import objectPackage from "@destack/object/package";
 import { ObjectReference } from "@destack/sync";
 import stackPackage from "@destack/stack/package";
 import { ids, imageOf, spaceDatabase, TestSpace } from "../src/test/index.ts";
@@ -81,9 +79,9 @@ test("give birth to placed spaces from their replicated rows with main in their 
     // forget the home's submission as a crash before it would, and give birth to it again
     await home.database.transaction(async (transaction) => {
         await transaction
-            .update(rollout.table)
+            .update(installation.table)
             .set({ targetRevisionId: null, spaceStack: null })
-            .where(eq(rollout.table.scope, home.id));
+            .where(eq(installation.table.scope, home.id));
     });
     await home.serve();
 
@@ -93,9 +91,11 @@ test("give birth to placed spaces from their replicated rows with main in their 
         .from(database.table)
         .where(eq(database.table.name, MAIN_DATABASE));
     const stacks = await home.database
-        .select({ scope: rollout.table.scope, revisionId: rollout.table.targetRevisionId })
-        .from(rollout.table)
-        .innerJoin(installation.table, eq(installation.table.id, rollout.table.installationId))
+        .select({
+            scope: installation.table.scope,
+            revisionId: installation.table.targetRevisionId,
+        })
+        .from(installation.table)
         .where(isNotNull(installation.table.export));
     expect({
         mains: mains.map((entry) => entry.placement),
@@ -159,14 +159,13 @@ test("retain a person's own apply of a placed space's stack, and submit the spac
     // read the space's stack installation and the revision it follows
     const stack = async () => {
         const [row] = await fixture.database
-            .select({ installed: rollout.table, revision: installationRevision.table })
-            .from(rollout.table)
-            .innerJoin(installation.table, eq(installation.table.id, rollout.table.installationId))
+            .select({ installed: installation.table, revision: installationRevision.table })
+            .from(installation.table)
             .innerJoin(
                 installationRevision.table,
-                eq(installationRevision.table.id, rollout.table.targetRevisionId),
+                eq(installationRevision.table.id, installation.table.targetRevisionId),
             )
-            .where(eq(rollout.table.scope, fixture.id));
+            .where(eq(installation.table.scope, fixture.id));
 
         return present(row, "the space's stack");
     };
@@ -197,8 +196,8 @@ test("retain a person's own apply of a placed space's stack, and submit the spac
     // apply the second build as the space's owner does, without the space's stack
     const apply = async () => {
         const { installed } = await stack();
-        const owner = fixture.as(fixture.owner.subject).client(objectPackage);
-        const id = installed.installationId;
+        const owner = fixture.as(fixture.owner.subject).client(stackPackage);
+        const id = installed.id;
         const current = await owner.installation.get({ scope: fixture.id, id });
         await owner.installation.update({
             scope: fixture.id,

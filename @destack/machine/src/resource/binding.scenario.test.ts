@@ -1,12 +1,13 @@
+import { installation } from "@destack/stack/object";
 import { ObjectReference, Scope } from "@destack/sync";
 import { expect, test } from "@destack/test";
-import { type BindingSelection, installation } from "@destack/object";
+import { type BindingSelection } from "@destack/object";
 import { AccessContext, Authorization, Authorizer, Caller, principal } from "@destack/access";
 import { Identifier, present, schema } from "@destack/schema";
 import * as object from "@destack/stack/object";
 import * as accountObject from "@destack/account/object";
 import { eq, Transaction } from "@destack/db";
-import { ids, insertRollout, TestSpace } from "../test/index.ts";
+import { ids, insertInstallation, TestSpace } from "../test/index.ts";
 
 test("capture each binding at its target's generation or pin, and relate its resources", async () => {
     // add two provisioned buckets at different generations, bound by one installation with one binding pinned
@@ -44,7 +45,7 @@ test("capture each binding at its target's generation or pin, and relate its res
         async (transaction) =>
             await transaction.insert(object.bucket.table).values([ledger, archive, spare]),
     );
-    await insertRollout(
+    await insertInstallation(
         database,
         {
             id: ids.notes,

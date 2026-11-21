@@ -22,6 +22,8 @@ import type { JsonObject } from "@destack/schema";
 import { SecretDeclaration } from "@destack/vault/declare";
 import { TestVault } from "@destack/vault/test";
 import { VIEW_KIND } from "@destack/view/declare";
+import { KNOWN_TYPES } from "@destack/stack/stack";
+import { describedTables } from "@destack/object/test";
 
 /** The public origin a written static view declares for its pages. */
 const SITE_ORIGIN = "https://example.test";
@@ -120,6 +122,7 @@ export const TestViewBuild = {
         return MemoryBuild.of(built, declared, crypto, {
             files,
             requires,
+            tables: describedTables(declared, built.id, KNOWN_TYPES),
             outputs: {
                 browser: {
                     runtime: "browser",

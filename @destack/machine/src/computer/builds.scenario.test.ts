@@ -1,3 +1,4 @@
+import { installation, build, installationRevision } from "@destack/stack/object";
 import { testHost } from "@destack/test/host";
 import registryPackage from "@destack/registry/package";
 import { PackageManifest } from "@destack/package/manifest";
@@ -12,9 +13,7 @@ import { type Identifier, present, schema } from "@destack/schema";
 import { createClient } from "@destack/object/client";
 import { RequestId, ObjectReference } from "@destack/sync";
 import * as stackObject from "@destack/stack/object";
-import { installation } from "@destack/object";
-import { build, installationRevision } from "@destack/stack/object";
-import objectPackage from "@destack/object/package";
+import stackPackage from "@destack/stack/package";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TestComputer } from "./test/index.ts";
 
@@ -86,8 +85,8 @@ async function pushHome() {
 
     // install the site in the owner's home following the repository's main branch
     const service = createClient(
-        objectPackage,
-        person.endpoint(objectPackage.id, await device.locate(world.owner.home)),
+        stackPackage,
+        person.endpoint(stackPackage.id, await device.locate(world.owner.home)),
         device.environment,
     );
     // follow the main branch as the person
@@ -137,9 +136,9 @@ async function servedForge(home: TestComputer, residency: Identifier<"space">, p
             )
         ).find(
             (entry) =>
-                entry.rollout.installation.packageId === forgePackage.id &&
-                entry.rollout.appliedRevisionId !== null,
-        )?.rollout;
+                entry.installation.packageId === forgePackage.id &&
+                entry.installation.appliedRevisionId !== null,
+        )?.installation;
     if (
         !(await home.world.simulation.wait(
             database.log.waitUntil(
@@ -167,7 +166,7 @@ async function servedForge(home: TestComputer, residency: Identifier<"space">, p
     // call its package below the installation on the cloud machine serving the home, as the owner
     const owner = createClient(
         registryPackage,
-        await person.installation(residency, found.installation.name, registryPackage.id),
+        await person.installation(residency, found.name, registryPackage.id),
         device.environment,
     );
 
@@ -240,15 +239,15 @@ async function writeSite(directory: string, files: FileSystem): Promise<string> 
 async function followed(database: DatabaseConnection, id: Identifier<"installation">) {
     const [row] = await database
         .select({ buildId: installationRevision.table.buildId })
-        .from(stackObject.rollout.table)
+        .from(stackObject.installation.table)
         .innerJoin(
             installationRevision.table,
             and(
-                eq(installationRevision.table.id, stackObject.rollout.table.targetRevisionId),
-                eq(installationRevision.table.id, stackObject.rollout.table.servedRevisionId),
+                eq(installationRevision.table.id, stackObject.installation.table.targetRevisionId),
+                eq(installationRevision.table.id, stackObject.installation.table.servedRevisionId),
             ),
         )
-        .where(eq(stackObject.rollout.table.installationId, id));
+        .where(eq(stackObject.installation.table.id, id));
 
     return row?.buildId;
 }

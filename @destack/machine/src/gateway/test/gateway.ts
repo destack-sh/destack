@@ -1,12 +1,12 @@
+import { installation, deployment, instance, installationRevision } from "@destack/stack/object";
 import { Identity } from "@destack/account/object";
 import { TokenVerifier } from "@destack/access/token";
 import { Directory, UniverseOrigin } from "@destack/account/address";
 import type { S3Server } from "@destack/bucket/s3";
-import { installation, type Package } from "@destack/object";
+import { type Package } from "@destack/object";
 import { ids, type TestSpace } from "../../test/space.ts";
-import { insertRollout } from "../../test/install.ts";
+import { insertInstallation } from "../../test/install.ts";
 import { workload } from "../../test/build.ts";
-import { deployment, instance, installationRevision, rollout } from "@destack/stack/object";
 import { eq } from "@destack/db";
 import { Digest, Identifier, present } from "@destack/schema";
 import { type GatewaySpace, Gateway, type TokenExchange } from "../gateway.ts";
@@ -165,7 +165,7 @@ export async function deployNotes(
     const now = environment.clock.now();
     const release = await space.release(ids.package, "2026.9.0");
     const notes = { id: ids.notes, scope: ids.space, packageId: ids.package, name: "notes" };
-    await insertRollout(
+    await insertInstallation(
         database,
         {
             ...notes,
@@ -213,13 +213,13 @@ export async function deployNotes(
             })
             .where(eq(installation.table.id, ids.notes));
         await transaction
-            .update(rollout.table)
+            .update(installation.table)
             .set({
                 targetRevisionId: revisionId,
                 appliedRevisionId: revisionId,
                 servedRevisionId: revisionId,
             })
-            .where(eq(rollout.table.installationId, ids.notes));
+            .where(eq(installation.table.id, ids.notes));
     });
 
     // deploy each release and run one instance of it on the fixture's machine

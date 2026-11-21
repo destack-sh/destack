@@ -1,3 +1,4 @@
+import { installation, Installation } from "@destack/stack/object";
 import { Observation } from "@destack/object";
 import {
     type Environment,
@@ -16,16 +17,14 @@ import { type DatabaseConnection, Snapshot } from "@destack/db";
 import { TestTemplate, type TestDatabase, TestRun } from "@destack/db/test";
 import { Simulation, SimulatedClock } from "@destack/environment/simulation";
 import { MemoryKeychain } from "@destack/identity";
-import { installation, type ObjectType, type Package, PackageMount } from "@destack/object";
+import { type ObjectType, type Package, PackageMount } from "@destack/object";
 import { createClient } from "@destack/object/client";
 import { type Digest, Identifier, nth, schema, present } from "@destack/schema";
 import type { HostListening, HostSocketAttachment, SocketRefusal } from "@destack/object/workload";
 import { type BuildReader, PackageManifest } from "@destack/package/manifest";
-import { rollout, Rollout } from "@destack/stack/object";
-import type { Installation } from "@destack/object";
-import objectPackage from "@destack/object/package";
+import stackPackage from "@destack/stack/package";
 import { RequestId, Scope, ObjectReference } from "@destack/sync";
-import { RolloutTarget } from "../../installation/target.ts";
+import { InstallationTarget } from "../../installation/target.ts";
 import type { PackageId } from "@destack/package";
 import { inject, onTestFinished } from "@destack/test";
 import { Universe } from "@destack/universe";
@@ -813,7 +812,7 @@ export class TestComputer implements AsyncDisposable {
             name,
             ...options,
         });
-        await this.#waitRollout(spaceId, created.id, name);
+        await this.#waitInstalled(spaceId, created.id, name);
 
         return await service.installation.get({ scope: spaceId, id: created.id });
     }
@@ -839,7 +838,7 @@ export class TestComputer implements AsyncDisposable {
             requestId: RequestId.create(this.environment),
             ...(await this.#follows(installed.packageId, version)),
         });
-        await this.#waitRollout(spaceId, installed.id, name);
+        await this.#waitInstalled(spaceId, installed.id, name);
 
         return await service.installation.get({ scope: spaceId, id: installed.id });
     }
@@ -847,7 +846,11 @@ export class TestComputer implements AsyncDisposable {
     /** Resolve what an installation of a release follows, the host's for a shipped version. */
     async #follows(packageId: PackageId, version: string) {
         const { machine } = this.computer;
-        const { follows } = await RolloutTarget.resolveDeclared(packageId, { version }, machine);
+        const { follows } = await InstallationTarget.resolveDeclared(
+            packageId,
+            { version },
+            machine,
+        );
 
         return ObjectReference.columns("follows", follows);
     }
@@ -857,9 +860,9 @@ export class TestComputer implements AsyncDisposable {
         const { device } = this;
 
         return createClient(
-            objectPackage,
+            stackPackage,
             (await device.launcher(login)).endpoint(
-                objectPackage.id,
+                stackPackage.id,
                 await device.locate(spaceId).catch((error: unknown) => {
                     throw this.#failure(`space ${spaceId} did not locate`, error);
                 }),
@@ -868,50 +871,40 @@ export class TestComputer implements AsyncDisposable {
         );
     }
 
-    /** Wait until a space applies an installation's targeted revision, or its rollout fails. */
-    async #waitRollout(
+    /** Wait until a space applies and serves an installation's targeted revision, or it fails. */
+    async #waitInstalled(
         spaceId: Identifier<"space">,
         installationId: Identifier<"installation">,
         name: string,
     ): Promise<void> {
-        // read its rollout with the installation
+        // read the installation as the space has it now
         await this.machine.health.waitUp();
         const { database } = await this.machine.space(spaceId);
-        const read = async () => {
-            // read the rollout as the space has it now
-            const snapshot = Snapshot.live(database);
-            const rows = await snapshot.read(rollout.table).findMany({ where: { installationId } });
-            const [row] = await Rollout.read(snapshot, rows);
+        const read = () =>
+            Snapshot.live(database)
+                .read(installation.table)
+                .findFirst({ where: { id: installationId } });
 
-            return row;
-        };
-
-        // wait until the applied revision is the targeted one, or the rollout failed
+        // wait until the space applied and serves the targeted revision, or the installation failed
         const settled = async () => {
             const row = await read();
-            const isApplied =
-                row !== undefined &&
-                row.appliedRevisionId !== null &&
-                row.appliedRevisionId === row.targetRevisionId;
 
             return (
-                isApplied ||
-                (row !== undefined && Observation.progress(row.installation) === "failed")
+                row !== undefined &&
+                (Installation.isServed(row) || Observation.progress(row) === "failed")
             );
         };
         await this.waitUntil(database, settled, INSTALL_MILLISECONDS).catch(
             async (error: unknown) => {
-                const conditions = JSON.stringify((await read())?.installation.conditions);
+                const conditions = JSON.stringify((await read())?.conditions);
                 throw this.#failure(`${name} did not apply: ${conditions}`, error);
             },
         );
 
         // refuse an installation whose rollout failed for good, with its conditions
         const row = await read();
-        if (row !== undefined && Observation.progress(row.installation) === "failed") {
-            throw new TypeError(
-                `'${name}' did not apply: '${Observation.message(row.installation)}'`,
-            );
+        if (row !== undefined && Observation.progress(row) === "failed") {
+            throw new TypeError(`'${name}' did not apply: '${Observation.message(row)}'`);
         }
     }
 

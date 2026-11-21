@@ -28,7 +28,7 @@ import { ProviderIndex, SpaceTransfer } from "../src/index.ts";
 import {
     fixtureBuild,
     ids,
-    insertRollout,
+    insertInstallation,
     TestRuntime,
     runNotes,
     TestSpace,
@@ -546,7 +546,7 @@ test("move a space afresh after a cancelled takeover", async () => {
     // add an enabled installation on the space's machine and an empty target
     const { source, target, targetId, universe } = await openMove();
     const now = source.machine.clock.now();
-    await insertRollout(
+    await insertInstallation(
         source.database,
         {
             id: ids.notes,
@@ -605,7 +605,7 @@ test("move a space afresh after a cancelled takeover", async () => {
             stackPackage,
             space.as(source.owner.id).endpoint(stackPackage),
             source.machine.environment,
-        ).rollout.get({ spaceId: ids.space, id: ids.notes });
+        ).installation.get({ scope: ids.space, id: ids.notes });
 
     // let the target machine destroy the cancelled move's copy once the space no longer moves there
     await target.simulation.waitUntil(
@@ -638,7 +638,7 @@ test("move a space afresh after a cancelled takeover", async () => {
         moved,
         placement: await placementOf(universe),
         transfers: received,
-        installation: rollout.installationId,
+        installation: rollout.id,
     }).toEqual({
         cancelled: [],
         abandoned: [],

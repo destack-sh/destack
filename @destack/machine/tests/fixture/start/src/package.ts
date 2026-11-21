@@ -1,7 +1,7 @@
+import { installation, declaration, installationRevision } from "@destack/stack/object";
 import { t } from "@destack/locale";
 import { client, space, user } from "@destack/account/object";
-import { definePackage, installation } from "@destack/object";
-import { declaration, installationRevision, rollout } from "@destack/stack/object";
+import { definePackage } from "@destack/object";
 import { setting } from "@destack/setting/object";
 
 /** The start page every person's home installs, granted what a start page reads. */
@@ -29,8 +29,8 @@ export default definePackage({
                 space: [
                     installation.permission("list"),
                     installation.permission("read"),
-                    rollout.permission("list"),
-                    rollout.permission("read"),
+                    installation.permission("list"),
+                    installation.permission("read"),
                     installationRevision.permission("read"),
                     declaration.permission("read"),
                 ],

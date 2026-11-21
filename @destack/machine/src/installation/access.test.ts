@@ -14,8 +14,8 @@ import { grant, role, type PackageDescription } from "@destack/object";
 import { nth } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { expect, test } from "@destack/test";
-import { ids, insertRollout, NOTES_RELEASE, openSpaceDatabase } from "../test/index.ts";
-import { Rollout, rollout } from "@destack/stack/object";
+import { ids, insertInstallation, NOTES_RELEASE, openSpaceDatabase } from "../test/index.ts";
+import { installation } from "@destack/stack/object";
 import { InstallationAccess } from "./access.ts";
 
 /** The description of a notes release requesting reading the space and its own notes. */
@@ -51,7 +51,7 @@ async function installNotes(): ReturnType<typeof openSpaceDatabase> {
     const opened = await openSpaceDatabase();
 
     // record its notes rollout
-    await insertRollout(
+    await insertInstallation(
         opened.database,
         {
             id: ids.notes,
@@ -72,14 +72,12 @@ test("bind an installation's requests on other packages' types on its consenter'
     const { database, now } = await installNotes();
     const installer = INSTALLER;
     const snapshot = Snapshot.live(database);
-    const rows = await snapshot
-        .read(rollout.table)
-        .findMany({ where: { installationId: ids.notes } });
-    const target = nth(await Rollout.read(snapshot, rows), 0);
+    const rows = await snapshot.read(installation.table).findMany({ where: { id: ids.notes } });
+    const target = nth(rows, 0);
 
     // build its access as the space, whose own code installs it, then once it goes
     const subject = principal.space.reference(Scope.universe.id, ids.space);
-    const installation = principal.installation.reference(ids.space, ids.notes);
+    const runner = principal.installation.reference(ids.space, ids.notes);
     const installed = await InstallationAccess.changes(snapshot, target, DESCRIPTION, subject, now);
     const removed = await InstallationAccess.changes(snapshot, target, undefined, subject, now);
 
@@ -90,13 +88,13 @@ test("bind an installation's requests on other packages' types on its consenter'
             name: `installation/${ids.notes}`,
             description: "What notes requests in this space",
             permissions: [...permissions],
-            subjects: [installation],
+            subjects: [runner],
             manager: { installationId: ids.notes, packageId: ids.package, name: "permissions" },
         });
     const delegator = AccessContext.of(Caller.of(subject), now);
     const lent = grant.call("create", {
         ...grant.in(ids.space),
-        delegate: installation,
+        delegate: runner,
         permissions: [
             { ...account.permission("read"), scope: ids.account },
             user.permission("recipient"),
@@ -135,15 +133,12 @@ test("relate and unrelate a residency home's installation as its requests change
             ),
     );
     const snapshot = Snapshot.live(database);
-    const rows = await snapshot
-        .read(rollout.table)
-        .findMany({ where: { installationId: ids.notes } });
-    const read = nth(await Rollout.read(snapshot, rows), 0);
+    const rows = await snapshot.read(installation.table).findMany({ where: { id: ids.notes } });
+    const read = nth(rows, 0);
     const stack = schema
         .identifier("installation")
         .parse("installation-01996ab0-0000-7000-8000-00000000000d");
-    const managed = { ...read.installation, managerInstallationId: stack };
-    const target = { ...read, installation: managed };
+    const target = { ...read, managerInstallationId: stack };
 
     // relate an unrelated installation asking the universe, and leave one asking nothing
     const set = { universe: [user.permission("recipient")] };
