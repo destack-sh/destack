@@ -9,6 +9,12 @@ import { SpanPath } from "@destack/environment";
 import { LOG_TABLES } from "../log/schema.ts";
 import type {} from "@destack/package/import-meta";
 
+/** The operations that change rows. */
+const WRITE_OPERATIONS: ReadonlySet<string> = new Set(["INSERT", "UPDATE", "DELETE"]);
+
+/** The span total counting the statements that change rows. */
+const WRITES = "db.client.operation.write.count";
+
 /** The statement verbs, as OpenTelemetry's `db.operation.name`. */
 const OPERATIONS: ReadonlySet<string> = new Set([
     "SELECT",
@@ -81,32 +87,44 @@ export class DatabaseDriver {
         const { context } = state.environment.telemetry;
         let rows = 0;
 
-        return state.scope.measure(
-            "db.client.operation.duration",
-            attributes,
-            async () => {
-                // run it, counting its rows, none for a transaction
-                const value = await run();
-                const isTransaction = operation === "TRANSACTION";
-                rows = isTransaction
-                    ? 0
-                    : Array.isArray(value)
-                      ? value.length
-                      : typeof value === "number"
-                        ? value
-                        : 0;
+        // measure the run, adding it to the running spans' totals
+        const measured = () =>
+            state.scope.measure(
+                "db.client.operation.duration",
+                attributes,
+                async () => {
+                    // run it, counting its rows, none for a transaction
+                    const value = await run();
+                    const isTransaction = operation === "TRANSACTION";
+                    rows = isTransaction
+                        ? 0
+                        : Array.isArray(value)
+                          ? value.length
+                          : typeof value === "number"
+                            ? value
+                            : 0;
 
-                return value;
-            },
-            (seconds) => {
-                // add the run to the running spans' totals
-                const active = context.active();
-                SpanPath.add(active, "db.client.operation.count", 1);
-                SpanPath.add(active, "db.client.operation.duration", seconds);
-                SpanPath.add(active, "db.response.returned_rows", rows);
-                state.rows.add(rows, attributes);
-            },
-        );
+                    return value;
+                },
+                (seconds) => {
+                    // add the run to the running spans' totals
+                    const active = context.active();
+                    SpanPath.add(active, "db.client.operation.count", 1);
+                    SpanPath.add(active, WRITES, WRITE_OPERATIONS.has(statement.operation) ? 1 : 0);
+                    SpanPath.add(active, "db.client.operation.duration", seconds);
+                    SpanPath.add(active, "db.response.returned_rows", rows);
+                    state.rows.add(rows, attributes);
+                },
+            );
+
+        // run a statement outside any span in a database client span of its own
+        const name = [operation, isDeclared ? table : undefined]
+            .filter((part) => part !== undefined)
+            .join(" ");
+
+        return SpanPath.of(context.active()) === undefined && name !== ""
+            ? state.scope.span(name, attributes, measured, { kind: "client", duration: false })
+            : measured();
     }
 
     /** Submit a statement writing its tables. */
