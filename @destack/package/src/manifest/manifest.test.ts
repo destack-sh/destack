@@ -3,7 +3,7 @@ import { PackageManifest } from "./manifest.ts";
 
 /** A manifest's fields beside its package. */
 const FIELDS = {
-    formatVersion: 4,
+    formatVersion: 5,
     role: "app",
     destack: "2026.11.0",
     language: "typescript",
@@ -29,6 +29,12 @@ const FIELDS = {
         },
         relationships: {
             path: "manifest/relationships.json",
+            digest: "0".repeat(64),
+            size: 2,
+            mediaType: "application/json",
+        },
+        tables: {
+            path: "manifest/tables.json",
             digest: "0".repeat(64),
             size: 2,
             mediaType: "application/json",

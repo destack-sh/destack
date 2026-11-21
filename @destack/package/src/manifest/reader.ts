@@ -1,5 +1,5 @@
 import { type Crypto, type FileHandle, type FileSystem, Once } from "@destack/environment";
-import { Digest, present, schema } from "@destack/schema";
+import { Digest, type JsonObject, present, schema } from "@destack/schema";
 import { PackageFile, PackagePath } from "../file/file.ts";
 import { SourceMapReference } from "../source/map.ts";
 import { Declaration } from "../graph/declaration.ts";
@@ -137,10 +137,10 @@ export class BuildReader {
 
     /** List the manifest's own list files: its lists and each output's. */
     lists(): PackageFile[] {
-        const { files, sourceMaps, declarations, relationships } = this.manifest.lists;
+        const { files, sourceMaps, declarations, relationships, tables } = this.manifest.lists;
         const outputs = Object.values(this.manifest.outputs).map((output) => output.files);
 
-        return [files, sourceMaps, declarations, relationships, ...outputs];
+        return [files, sourceMaps, declarations, relationships, tables, ...outputs];
     }
 
     /** List every file the build references: its lists and the files they list. */
@@ -163,6 +163,11 @@ export class BuildReader {
         return this.read<Edge[]>(this.manifest.lists.relationships);
     }
 
+    /** Read the tables the package's object types keep in a database, by dialect. */
+    tables(): Promise<JsonObject> {
+        return this.read<JsonObject>(this.manifest.lists.tables);
+    }
+
     /** Read the declaration list once. */
     #declared(): Promise<readonly Declaration[]> {
         return this.#declarations.get(() =>
@@ -173,12 +178,13 @@ export class BuildReader {
     /** Refuse lists without their formats, as a store checks a build it takes in from outside. */
     async check(): Promise<void> {
         // parse each list against its format
-        const { files, sourceMaps, declarations, relationships } = this.manifest.lists;
+        const { files, sourceMaps, declarations, relationships, tables } = this.manifest.lists;
         const checked = [
             [files, schema.array(PackageFile)],
             [sourceMaps, schema.array(SourceMapReference)],
             [declarations, schema.array(Declaration)],
             [relationships, schema.array(Edge)],
+            [tables, schema.record(schema.string(), schema.unknown())],
             ...Object.values(this.manifest.outputs).map(
                 (output) => [output.files, schema.array(PackageFile)] as const,
             ),

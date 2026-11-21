@@ -1,5 +1,5 @@
 import type { Crypto } from "@destack/environment";
-import { canonicalize, Digest, type Version } from "@destack/schema";
+import { canonicalize, Digest, type JsonObject, type Version } from "@destack/schema";
 import type { NpmPackage, PackageVersion, PackageRole } from "../definition/index.ts";
 import type { Declaration } from "../graph/declaration.ts";
 import type { Edge } from "../graph/edge.ts";
@@ -11,11 +11,12 @@ import { type OutputContent, PackageOutput } from "./output.ts";
 import { MANIFEST_PATH } from "./reader.ts";
 
 /** The path of each list a build's manifest references, inside the build. */
-const MANIFEST_LISTS = {
+export const MANIFEST_LISTS = {
     files: "manifest/files.json",
     sourceMaps: "manifest/sourceMaps.json",
     declarations: "manifest/declarations.json",
     relationships: "manifest/relationships.json",
+    tables: "manifest/tables.json",
 } as const;
 
 /** The directory of each output's list of the files its runtime loads, inside the build. */
@@ -138,6 +139,8 @@ export interface BuildContent {
     readonly declarations?: readonly Declaration[];
     /** The relationships between the declarations and members, none when absent. */
     readonly relationships?: readonly Edge[];
+    /** The tables its object types keep in a database, by dialect, none when absent. */
+    readonly tables?: JsonObject;
     /** Whether the package extends its dependents' builds, whose interface then has every file. */
     readonly isExtension?: boolean;
 }
@@ -233,6 +236,7 @@ export class BuildWriter {
                 MANIFEST_LISTS.relationships,
                 contents.relationships ?? [],
             ),
+            tables: await this.#writeJson(MANIFEST_LISTS.tables, contents.tables ?? {}),
         };
 
         // list the files each output's runtime loads

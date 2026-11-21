@@ -12,24 +12,10 @@ import { PackageFile } from "../file/file.ts";
 import { PackageOutput } from "./output.ts";
 
 /** The manifest format a build writes. */
-export const MANIFEST_FORMAT = 4;
+export const MANIFEST_FORMAT = 5;
 
 /** The directory of a build's catalogs, which every runtime loads. */
 export const CATALOG_DIRECTORY = "locale";
-
-/** The list files of a build, each read on demand and verified by its digest. */
-export const ManifestLists = schema.object({
-    /** The source, executable and asset files. */
-    files: PackageFile,
-    /** The source maps of generated files. */
-    sourceMaps: PackageFile,
-    /** The declarations the build's evaluation described, with the members they derive. */
-    declarations: PackageFile,
-    /** The relationships between the declarations and members, as edges. */
-    relationships: PackageFile,
-});
-/** The list files of a build. */
-export type ManifestLists = schema.Infer<typeof ManifestLists>;
 
 /** The portable structure of a package build manifest. */
 const manifest = schema.object({
@@ -45,8 +31,19 @@ const manifest = schema.object({
     language: Language,
     /** The Destack and npm packages it requires, by name, at their declared ranges. */
     requires: schema.record(DependencyName, schema.string().min(1)),
-    /** The list files of the build's files, source maps and declarations. */
-    lists: ManifestLists,
+    /** The list files of the build, each read on demand and verified by its digest. */
+    lists: schema.object({
+        /** The source, executable and asset files. */
+        files: PackageFile,
+        /** The source maps of generated files. */
+        sourceMaps: PackageFile,
+        /** The declarations the build's evaluation described, with the members they derive. */
+        declarations: PackageFile,
+        /** The relationships between the declarations and members, as edges. */
+        relationships: PackageFile,
+        /** The tables the package's object types keep in a database, by dialect. */
+        tables: PackageFile,
+    }),
     /** The digest of what dependents' compilations read of the build, which their keys include. */
     interface: Digest,
     /** Named outputs compiled from the package. */
