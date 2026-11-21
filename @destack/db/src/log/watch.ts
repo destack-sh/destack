@@ -258,7 +258,15 @@ export class CommitWatch {
                 const next = this.#next(AbortSignal.any([signal, checked.signal]));
                 const tables: ReadonlySet<string> = new Set(committed);
                 committed.clear();
-                const isPassed = await check(tables).catch(async (error: unknown) => {
+
+                // check in a span of its own once the span that started the wait ended
+                const isSpanned = this.#span.current()?.isRecording() === true;
+                const checking = isSpanned
+                    ? check(tables)
+                    : this.#span("destack.log.check", attributes, () => check(tables), {
+                          duration: false,
+                      });
+                const isPassed = await checking.catch(async (error: unknown) => {
                     // settle the registered wait
                     checked.abort();
                     await Promise.allSettled([next]);
