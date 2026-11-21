@@ -92,4 +92,5 @@ export const bridgeTriggers: TriggerSet = {
         (state.bridges ?? []).flatMap((bridge) => install(state.table.name, bridge, dialect)),
     remove: (state, dialect) =>
         (state.bridges ?? []).flatMap((bridge) => remove(state.table.name, bridge, dialect)),
+    tables: () => [],
 };

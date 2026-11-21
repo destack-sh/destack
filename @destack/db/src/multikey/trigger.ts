@@ -129,4 +129,6 @@ export const multikeyIndexTriggers: TriggerSet = {
         (state.multikeyIndexes ?? []).flatMap((each) => install(each, dialect)),
     remove: (state, dialect) =>
         (state.multikeyIndexes ?? []).flatMap((each) => remove(each, dialect)),
+    tables: (state) =>
+        (state.multikeyIndexes ?? []).flatMap((each) => [each.table, each.entryTable]),
 };

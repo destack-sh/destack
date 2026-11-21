@@ -90,4 +90,5 @@ export const dependentTriggers: TriggerSet = {
         (state.dependents ?? []).flatMap((dependent) => install(dependent, dialect, namespace)),
     remove: (state, dialect) =>
         (state.dependents ?? []).flatMap((dependent) => remove(dependent, dialect)),
+    tables: (state) => (state.dependents ?? []).flatMap((each) => [each.table, each.source]),
 };

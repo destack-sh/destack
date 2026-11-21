@@ -12,11 +12,11 @@ import { relation } from "../table/namespace.ts";
 import { bridgeTriggers } from "./bridge.ts";
 import type { TriggerSet } from "./trigger.ts";
 import type { Merge } from "./merge.ts";
-import { canonicalize, Edition, present, Version } from "@destack/schema";
+import { canonicalize, Edition, nth, present, Version } from "@destack/schema";
 import { Address, Plan, type Risk, type Step, type StepKind } from "@destack/resource";
 import { type PlanProblem, ResourceError, unreachablePlan } from "@destack/resource/error";
 
-/** The generated triggers every plan removes and reinstalls. */
+/** The generated triggers a plan removes and reinstalls on the tables it changes. */
 const TRIGGERS: readonly TriggerSet[] = [
     logTriggers,
     multikeyIndexTriggers,
@@ -173,12 +173,12 @@ export function planTables(input: PlanInput): TablePlan {
         throw unreachablePlan(problems);
     }
 
-    // reinstall every generated trigger around the steps
+    // reinstall the generated triggers of the changed tables around the steps
     const triggers = reinstallTriggers(
         [...applied, ...followed],
         [...declared, ...followed],
         dialect,
-        steps.length > 0,
+        steps,
         input.namespace,
     );
 
@@ -659,30 +659,52 @@ function unreferencedTables(tables: readonly TableDescription[]): TableDescripti
     return tables.filter((table) => !referenced.has(table.name));
 }
 
-/** Remove the applied generated triggers before changed steps and install declared ones after. */
+/** Remove the changed tables' triggers before the steps and install them again after. */
 function reinstallTriggers(
     applied: readonly TableState[],
     declared: readonly TableState[],
     dialect: Dialect,
-    isChanged: boolean,
+    steps: readonly TableStep[],
     namespace: string | undefined,
 ): { readonly before: string[]; readonly after: string[] } {
     // leave the triggers of an unchanged database
-    if (!isChanged) {
+    if (steps.length === 0) {
         return { before: [], after: [] };
     }
 
+    // list the tables the steps change, the second segment of each step's address
+    const changed = new Set(steps.map((each) => nth(Address.split(each.target), 1)));
+    const install = (state: TableState) =>
+        TRIGGERS.flatMap((triggers) => triggers.install(state, dialect, namespace));
+    const isChanged = (state: TableState) =>
+        [state.table.name, ...TRIGGERS.flatMap((triggers) => triggers.tables(state))].some(
+            (table) => changed.has(table),
+        );
+
+    // keep the triggers of a table no step changes whose declared triggers equal its applied ones
+    const appliedBy = new Map(applied.map((state) => [state.table.name, state]));
+    const kept = new Set(
+        declared.flatMap((state) => {
+            const previous = appliedBy.get(state.table.name);
+            const isKept =
+                previous !== undefined &&
+                !isChanged(previous) &&
+                !isChanged(state) &&
+                install(previous).join("\n") === install(state).join("\n");
+
+            return isKept ? [state.table.name] : [];
+        }),
+    );
+
     return {
-        before: applied.flatMap((state) =>
-            TRIGGERS.flatMap((triggers) => triggers.remove(state, dialect)),
-        ),
+        before: applied
+            .filter((state) => !kept.has(state.table.name))
+            .flatMap((state) => TRIGGERS.flatMap((triggers) => triggers.remove(state, dialect))),
         after: [
             ...createLog(dialect, namespace),
             createState(namespace),
             createStamp(namespace),
-            ...declared.flatMap((state) =>
-                TRIGGERS.flatMap((triggers) => triggers.install(state, dialect, namespace)),
-            ),
+            ...declared.filter((state) => !kept.has(state.table.name)).flatMap(install),
         ],
     };
 }

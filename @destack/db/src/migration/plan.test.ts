@@ -177,6 +177,46 @@ const unit = defineTable(
     },
 );
 
+/** Notes with a log of their own, beside the tasks. */
+const note = defineTable(
+    "note",
+    {
+        id: text("id").primaryKey(),
+        scope: text("scope").notNull(),
+        body: text("body").notNull(),
+    },
+    { log: {} },
+);
+
+/** List which of some tables a plan's statements drop or create triggers of. */
+function triggered(statements: readonly string[], tables: readonly Table[]): string[] {
+    const triggers = statements.filter((statement) => statement.includes("TRIGGER"));
+
+    return tables
+        .map((declaration) => table(declaration))
+        .filter((name) => triggers.some((statement) => statement.includes(`"${name}`)));
+}
+
+test("reinstall the triggers of the tables a plan changes alone", async () => {
+    // create the tasks, then add the notes beside them
+    const database = await open([taskOne, note]);
+    await database.migrate([taskOne]);
+    const added = await database.migrate([taskOne, note]);
+
+    // install the notes' triggers and leave the tasks' in place
+    expect({
+        dropped: triggered(added.before, [taskOne, note]),
+        created: triggered(added.after, [taskOne, note]),
+    }).toEqual({ dropped: [], created: [table(note)] });
+
+    // drop and install the tasks' triggers once their table changes, leaving the notes' in place
+    const changed = await database.migrate([taskTwo, note]);
+    expect({
+        dropped: triggered(changed.before, [taskOne, note]),
+        created: triggered(changed.after, [taskOne, note]),
+    }).toEqual({ dropped: [table(taskOne)], created: [table(taskOne)] });
+});
+
 /** The outbox queueing rows for their global indexes' home. */
 const outbox = defineTable("outbox", {
     requestId: text("request_id").primaryKey(),

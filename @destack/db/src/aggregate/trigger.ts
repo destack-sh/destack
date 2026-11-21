@@ -146,4 +146,5 @@ export const aggregateTriggers: TriggerSet = {
         (state.aggregates ?? []).flatMap((aggregate) => install(aggregate, dialect, namespace)),
     remove: (state, dialect) =>
         (state.aggregates ?? []).flatMap((aggregate) => remove(aggregate, dialect)),
+    tables: (state) => (state.aggregates ?? []).flatMap((each) => [each.source, each.table]),
 };

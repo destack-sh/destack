@@ -17,4 +17,5 @@ export const logTriggers: TriggerSet = {
     install: (state, dialect, namespace) =>
         state.log ? LOGS[dialect].install(state.table.name, state.log, namespace) : [],
     remove: (state, dialect) => (state.log ? LOGS[dialect].remove(state.table.name) : []),
+    tables: () => [],
 };
