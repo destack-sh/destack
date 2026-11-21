@@ -1,14 +1,16 @@
 import { schema } from "@destack/schema";
+import type { TimeScale } from "@destack/schema";
 import type { TreeColumns } from "@destack/db";
 import type { Field } from "../field/field.ts";
 import { BoardLayout } from "./board.ts";
 import { CalendarLayout } from "./calendar.ts";
 import { GalleryLayout } from "./gallery.ts";
 import { TableLayout } from "./table.ts";
-import { TimelineLayout, type TimeWindow } from "./timeline.ts";
+import { TimelineLayout } from "./timeline.ts";
+
 import { TreeLayout } from "./tree.ts";
 
-/** What an object type offers layouts from: its fields, its tree and its declared layouts. */
+/** The fields, tree and declared layouts of an object type. */
 export interface LayoutSource {
     /** The fields, by property. */
     readonly fields: Readonly<Record<string, Field>>;
@@ -34,8 +36,8 @@ export type Layout = schema.Infer<typeof kinds>;
 
 /** How a list of objects draws: a table, a tree, a board, a calendar, a timeline or a gallery. */
 export const Layout = Object.assign(kinds, {
-    /** List the layouts a type offers: a table, the derived ones and the declared ones. */
-    offered(source: LayoutSource): Layout[] {
+    /** List the layouts of a type. */
+    list(source: LayoutSource): Layout[] {
         // derive a tree from the type's own parent, a board per enum, a calendar per time field
         const fields = Object.entries(source.fields);
         const derived: Layout[] = [
@@ -69,7 +71,7 @@ export const Layout = Object.assign(kinds, {
     query<Query extends { readonly where?: object; readonly orderBy?: object }>(
         layout: Layout,
         query: Query,
-        window?: TimeWindow,
+        window?: TimeScale,
     ): Query {
         // extend it by the kinds that order or window their objects
         if (layout.kind === "board") {

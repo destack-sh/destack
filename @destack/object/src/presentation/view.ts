@@ -1,8 +1,9 @@
 import { Condition, type Moment, OrderBy } from "@destack/db";
 import { Message, t } from "@destack/locale";
+
 import { schema } from "@destack/schema";
+import type { TimeScale } from "@destack/schema";
 import { Layout } from "../layout/layout.ts";
-import type { TimeWindow } from "../layout/timeline.ts";
 
 /** A view's name: lowercase words joined by hyphens, as deep links and flags write it. */
 const VIEW_NAME = schema.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/u);
@@ -25,11 +26,11 @@ const objectView = schema.object({
 /** One way of looking at a type's objects. */
 export type ObjectView = schema.Infer<typeof objectView>;
 
-/** One way of looking at a type's objects, offered by a type and read by a query. */
+/** One way of looking at a type's objects. */
 export const ObjectView = Object.assign(objectView, {
-    /** List the views a type offers: one per offered layout, named by its kind and field. */
-    offered(layouts: readonly Layout[], declared: readonly ObjectView[]): ObjectView[] {
-        // take each declared view, then a view per offered layout no declared view draws
+    /** List the views of a type. */
+    list(layouts: readonly Layout[], declared: readonly ObjectView[]): ObjectView[] {
+        // take each declared view, then a view per layout without one
         const drawn = new Set(declared.map((view) => JSON.stringify(view.layout)));
         const derived = layouts
             .filter((layout) => !drawn.has(JSON.stringify(layout)))
@@ -75,7 +76,7 @@ export const ObjectView = Object.assign(objectView, {
         view: ObjectView,
         query: Query,
         moment: Moment,
-        window?: TimeWindow,
+        window?: TimeScale,
     ): Query {
         // meet the view's condition, its times bound, and its order before the layout's
         const bound = view.where === undefined ? undefined : Condition.at(view.where, moment);

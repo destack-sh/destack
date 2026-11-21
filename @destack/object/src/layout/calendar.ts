@@ -1,5 +1,5 @@
 import { type JsonObject, present, schema } from "@destack/schema";
-import type { TimeWindow } from "./timeline.ts";
+import type { TimeScale } from "@destack/schema";
 
 /** The milliseconds in a day, the step between two dates' midnights in UTC. */
 const DAY_MILLISECONDS = 24 * 60 * 60 * 1000;
@@ -42,7 +42,7 @@ export const CalendarLayout = Object.assign(calendarLayout, {
         layout: CalendarLayout,
         rows: readonly JsonObject[],
         timeZone: string,
-        window?: TimeWindow,
+        window?: TimeScale,
     ): CalendarDay[] {
         // read each object's date in the time zone
         const dateOf = dateFormat(timeZone);
@@ -71,7 +71,7 @@ export const CalendarLayout = Object.assign(calendarLayout, {
     },
 
     /** Read the window of the month a moment falls in, in a time zone. */
-    month(now: number, timeZone: string): TimeWindow {
+    month(now: number, timeZone: string): TimeScale {
         // take the month's first date and the next month's
         const today = dateFormat(timeZone)(now);
         const first = `${today.slice(0, 7)}-01`;
@@ -86,7 +86,7 @@ export const CalendarLayout = Object.assign(calendarLayout, {
     query<Query extends { readonly where?: object; readonly orderBy?: object }>(
         layout: CalendarLayout,
         query: Query,
-        window?: TimeWindow,
+        window?: TimeScale,
     ): Query {
         // read every object without a window
         if (window === undefined) {

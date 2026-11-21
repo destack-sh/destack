@@ -344,17 +344,22 @@ export class Action<
             ),
         );
         const derived = Object.keys(object.methods).flatMap((name) => {
-            // title the method, and offer it when clients run it on an object
+            // title the method when clients call it on an object
             const title = Action.#titleOf(object, name, rows);
-            const { target, visibility = "client" } = object.method(name);
-            const isOffered = target !== "scope" && visibility === "client";
 
-            return covered.has(name) || !isOffered || title === undefined
+            return covered.has(name) || !Action.#isClientMethod(object, name) || title === undefined
                 ? []
                 : [new Action(object.package, { name, title, call: { object, method: name } })];
         });
 
         return [...own, ...derived];
+    }
+
+    /** Report whether clients call a method on an object. */
+    static #isClientMethod(object: ObjectType, name: string): boolean {
+        const { target, visibility = "client" } = object.method(name);
+
+        return target !== "scope" && visibility === "client";
     }
 
     /** Title a method people run on objects, absent for one they do not run from a list. */
@@ -363,7 +368,7 @@ export class Action<
         name: string,
         rows: readonly JsonObject[],
     ): Message | undefined {
-        // title a transition by the state it enters, offered when every row may leave its state
+        // title a transition by the state it enters
         const method = object.method(name);
         const machine = Object.entries(object.fields).find(
             ([, field]) => field.machine?.transitions[name] !== undefined,

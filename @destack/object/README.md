@@ -331,6 +331,19 @@ store ─► sandbox: authorize, relate, expand, prepare, handle(next ─► sto
 | `focus`         | `"page"` by default, outside form fields, or `"any"`                        |
 | `call`          | the `object` and `method` it calls, its preset `input` and `when` condition |
 
+### Layouts
+
+`type.layouts` lists the layouts of a type.
+
+| Layout           | For                              | What it does                           |
+| ---------------- | -------------------------------- | -------------------------------------- |
+| `TableLayout`    | every type                       | shows a row per object                 |
+| `TreeLayout`     | a type with its own parent field | nests objects under their parents      |
+| `BoardLayout`    | each enum or state field         | groups objects into a column per value |
+| `CalendarLayout` | each time field                  | shows objects on their days            |
+| `TimelineLayout` | a type that declares one         | draws objects along a time axis        |
+| `GalleryLayout`  | a type with a cover              | shows a card per object                |
+
 ### definePackage
 
 `definePackage({ title, description, icon, color, objects, views, actions, mounts, resources, access, errors })` declares a package's handle, with how people recognise it: its title, its description, its Phosphor icon and the swatch the stack draws it in.

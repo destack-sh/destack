@@ -1228,7 +1228,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         // derive from the fields the type shows, and add the declared views' layouts
         const shown = new Set(ObjectDetail.shown(this));
 
-        return Layout.offered({
+        return Layout.list({
             fields: Object.fromEntries(
                 Object.entries(this.fields).filter(([name]) => shown.has(name)),
             ),
@@ -1240,7 +1240,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
 
     /** The views a list of the objects offers, declared then derived. */
     get views(): readonly ObjectView[] {
-        return ObjectView.offered(this.layouts, this.presentation?.views ?? []);
+        return ObjectView.list(this.layouts, this.presentation?.views ?? []);
     }
 
     /** The view a list shows by default: the first declared, else a table. */

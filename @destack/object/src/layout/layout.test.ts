@@ -166,7 +166,7 @@ test("group a board by its columns, place a calendar's objects on days, and lay 
         days: days.map((day) => [day.date, day.rows.map((row) => row["title"])]),
         axis: {
             window: axis?.window,
-            entries: axis?.entries.map((each) => [each.row["id"], each.from, each.to]),
+            entries: axis?.entries.map((each) => [each.row["id"], each.start, each.end]),
         },
         open: TimelineLayout.axis(timeline, [{ id: "z", start: 120, end: null }]),
     }).toEqual({
@@ -184,8 +184,8 @@ test("group a board by its columns, place a calendar's objects on days, and lay 
         axis: {
             window: { start: 100, end: 300 },
             entries: [
-                ["x", 0, 0.25],
-                ["y", 0.25, 1],
+                ["x", 100, 150],
+                ["y", 150, 300],
             ],
         },
         open: undefined,

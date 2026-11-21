@@ -1,4 +1,5 @@
 import { type JsonObject, type JsonValue, schema } from "@destack/schema";
+import type { TimeScale } from "@destack/schema";
 import { TreeLayout } from "./tree.ts";
 
 /** The microseconds in a millisecond. */
@@ -9,15 +10,7 @@ export const TimeUnit = schema.enum(["millisecond", "microsecond"]);
 /** The unit a timeline's times and durations count in. */
 export type TimeUnit = schema.Infer<typeof TimeUnit>;
 
-/** A window of time a calendar or a timeline shows, in milliseconds. */
-export interface TimeWindow {
-    /** The first moment shown. */
-    readonly start: number;
-    /** The moment after the last shown. */
-    readonly end: number;
-}
-
-/** One object on a timeline's axis, in milliseconds and as fractions of the axis. */
+/** One object on a timeline's axis, in milliseconds. */
 export interface TimelineEntry {
     /** The object. */
     readonly row: JsonObject;
@@ -25,16 +18,12 @@ export interface TimelineEntry {
     readonly start: number;
     /** When it ends. */
     readonly end: number;
-    /** Where it starts, from 0 at the axis's start to 1 at its end. */
-    readonly from: number;
-    /** Where it ends, from 0 at the axis's start to 1 at its end. */
-    readonly to: number;
 }
 
 /** A timeline's axis: the window its objects span and each object on it. */
 export interface TimelineAxis {
     /** The window from the first start to the last end. */
-    readonly window: TimeWindow;
+    readonly window: TimeScale;
     /** The objects with a start and an end, in the order given. */
     readonly entries: readonly TimelineEntry[];
 }
@@ -112,14 +101,7 @@ export const TimelineLayout = Object.assign(timelineLayout, {
         const end = Math.max(...timed.map((each) => each.end));
         const length = Math.max(1, end - start);
 
-        return {
-            window: { start, end },
-            entries: timed.map((each) => ({
-                ...each,
-                from: (each.start - start) / length,
-                to: (each.end - start) / length,
-            })),
-        };
+        return { window: { start, end: start + length }, entries: timed };
     },
 
     /** Tell whether an object failed, by the layout's failure field. */
@@ -168,7 +150,7 @@ export const TimelineLayout = Object.assign(timelineLayout, {
     query<Query extends { readonly where?: object; readonly orderBy?: object }>(
         layout: TimelineLayout,
         query: Query,
-        window?: TimeWindow,
+        window?: TimeScale,
     ): Query {
         // read the objects starting before the window ends
         const before = window === undefined ? undefined : { [layout.start]: { lt: window.end } };
