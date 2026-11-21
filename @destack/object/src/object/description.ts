@@ -1,7 +1,7 @@
 import { Message } from "@destack/locale";
 import * as accessExports from "@destack/access";
 import { Policy, PolicySubject } from "@destack/access";
-import { DatabaseState, TABLE, type Table, TableState } from "@destack/db";
+import { DatabaseState, TABLE, type Table } from "@destack/db";
 import {
     defineKind,
     graph,
@@ -10,10 +10,9 @@ import {
     type PackageId,
     PackageVersion,
 } from "@destack/package";
-import { type BuildReader, PackageManifest } from "@destack/package/manifest";
+import type { BuildReader } from "@destack/package/manifest";
 import { ResourceDeclaration } from "@destack/resource";
 import {
-    canonicalize,
     fromJsonSchema,
     present,
     schema,
@@ -22,8 +21,6 @@ import {
     JsonValue,
 } from "@destack/schema";
 import { ObjectTypeReference } from "@destack/sync";
-import { ObjectError } from "../error/error.ts";
-import { PackageDescription } from "../declare/description.ts";
 import { field, Field, FIELD_MODIFIERS } from "../field/field.ts";
 import { Method } from "../method/method.ts";
 import { method } from "../method/builder.ts";
@@ -335,15 +332,10 @@ export const ObjectDescription = Object.assign(objectDescription, {
         packages: readonly PackageId[],
         known: Iterable<KnownDeclaration> = [],
     ): DatabaseState {
-        // declare the types against each other and the known ones, and take the packages' known types beside them
-        const familiar = [...known];
-        const declared = ObjectTypePool.of(familiar).declare(descriptions);
-        const owned = familiar.filter(
-            (each): each is ObjectType =>
-                each instanceof ObjectType && packages.includes(each.package.id),
-        );
+        // declare the types against each other and the known ones, and take the durable and events tables
+        const declared = ObjectTypePool.of(known).declare(descriptions);
         const tables = new Set(
-            [...declared, ...owned]
+            declared
                 .filter((type) => type.storage === "durable" || type.storage === "events")
                 .flatMap((type) => type.tables),
         );
@@ -356,56 +348,6 @@ export const ObjectDescription = Object.assign(objectDescription, {
         }
 
         return DatabaseState.of([...tables], { packages });
-    },
-
-    /** Refuse a build listing tables its types do not describe among its image's builds. */
-    async check(
-        reader: BuildReader,
-        image: readonly BuildReader[],
-        known: Iterable<KnownDeclaration> = [],
-    ): Promise<void> {
-        // leave an npm unit's build, which declares no object types
-        if (!PackageManifest.isPackage(reader.manifest)) {
-            return;
-        }
-        const listed = ListedTables.parse(await reader.tables());
-
-        // describe its types' tables and its protocols' against the types its image's builds declare
-        const owner = reader.manifest.package;
-        const declarations = await reader.declarations();
-        const own = ObjectDescription.installed(declarations);
-        const others = await Promise.all(
-            image
-                .filter((each) => each !== reader)
-                .map(async (each) => ObjectDescription.installed(await each.declarations())),
-        );
-        const packages = [owner.id, ...(PackageDescription.find(declarations)?.protocols ?? [])];
-        const described =
-            own.length === 0
-                ? ListedTables.parse({})
-                : ObjectDescription.tables([...others.flat(), ...own], packages, known).tables;
-
-        // refuse a table it lacks, adds or lists otherwise, compared without the rows other packages cascade
-        for (const dialect of ["sqlite", "postgresql"] as const) {
-            const expected = new Map(described[dialect].map((state) => TableListing.of(state)));
-            const found = new Map(listed[dialect].map((state) => TableListing.of(state)));
-            const differing = [...new Set([...expected.keys(), ...found.keys()])].find(
-                (name) => expected.get(name) !== found.get(name),
-            );
-            if (differing !== undefined) {
-                // say whether it lacks the table, adds it or lists it otherwise
-                const table = `the '${dialect}' table '${differing}'`;
-                const build = `build of '${owner.name}' is invalid`;
-                throw ObjectError.of(
-                    "DECLARATION_INVALID",
-                    !found.has(differing)
-                        ? `${build}: it does not list ${table}`
-                        : expected.has(differing)
-                          ? `${build}: it lists ${table} otherwise than its types describe it`
-                          : `${build}: it lists ${table}, which its types do not describe`,
-                );
-            }
-        }
     },
 
     /** Read the object descriptions among an installation's declarations. */
@@ -847,24 +789,6 @@ const BuilderCalls = schema
         schema.object({ builder: schema.string().min(1), arguments: schema.array(schema.json()) }),
     )
     .min(1);
-
-/** The tables a build lists its package's types keep, by dialect, none for one without types. */
-const ListedTables = schema.object({
-    /** The SQLite table states. */
-    sqlite: schema.array(TableState).default([]),
-    /** The PostgreSQL table states. */
-    postgresql: schema.array(TableState).default([]),
-});
-
-/** A listed table as its package decides it, without what other packages cascade or aggregate. */
-const TableListing = {
-    /** Key a table state by its SQL name beside its canonical form. */
-    of(state: TableState): readonly [string, string] {
-        const { dependents: _dependents, aggregates: _aggregates, ...decided } = state;
-
-        return [state.table.name, canonicalize(decided)];
-    },
-};
 
 /** The fields of a described definition that stack documents read: plural, storage and kind. */
 const DescribedDefinition = schema.looseObject({

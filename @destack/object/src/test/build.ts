@@ -97,11 +97,8 @@ export async function testBuild(
 function testTables(
     handle: Package & PackageIdentity & { readonly objects: Readonly<Record<string, ObjectType>> },
 ): DatabaseState["tables"] {
-    // take its types and those of the protocols it implements
-    const served = [handle, ...handle.protocols];
-    const types = served
-        .flatMap((each): unknown[] => Object.values(each.objects))
-        .filter((type) => ObjectType.is(type));
+    // take its own types, as a protocol's tables are the host's
+    const types = Object.values(handle.objects);
 
     // know the types theirs refer to as the loaded code has them
     const known = new Set<ObjectType>();
@@ -123,9 +120,8 @@ function testTables(
 
     // describe each type and derive the tables from the descriptions
     const described = types.map((type) => ObjectDescription.of(type));
-    const packages = served.map((each) => each.id);
 
-    return ObjectDescription.tables(described, packages, known).tables;
+    return ObjectDescription.tables(described, [handle.id], known).tables;
 }
 
 /** List the tables a hand-written build's described types keep, as a compiler writes them. */

@@ -38,7 +38,6 @@ import {
     defineObject,
     field,
     type FileBucket,
-    OBJECT_KIND,
     ObjectDescription,
     ObjectType,
     ObjectTypePool,
@@ -48,19 +47,17 @@ import { ExportIndex } from "../src/object/description.ts";
 import * as objectRoot from "../src/index.ts";
 import * as accessRoot from "@destack/access";
 import { Execution } from "../src/method/execution.ts";
-import { expect, refusal, test } from "@destack/test";
-import { testHost } from "@destack/test/host";
-import { MemoryBuild } from "@destack/package/test";
+import { expect, test } from "@destack/test";
 import { declareState, TABLE } from "@destack/db";
 import { principal, through } from "@destack/access";
 import { argument, plural, t } from "@destack/locale";
 import { ResourceDeclaration } from "@destack/resource";
-import { canonicalize, nth, present, schema, toJsonSchema } from "@destack/schema";
+import { canonicalize, nth, schema, toJsonSchema } from "@destack/schema";
 import { Chunk } from "../src/text/index.ts";
 import { space } from "../src/test/space.ts";
 import { comment, folder, label, note, task, taskCopy, taskVersion, team, user } from "./schema.ts";
 import { nested, provisioned } from "../src/index.ts";
-import { defineKind, PackageVersion } from "@destack/package";
+import { defineKind } from "@destack/package";
 
 /** The bucket the sample's file field stores its files in. */
 const files: FileBucket = new ResourceDeclaration(
@@ -551,44 +548,6 @@ test("refuse a handled method no loaded package exports, and an export path the 
     expect(() =>
         ExportIndex.loaded().resolve({ package: "@destack/object", path: ["nothing"] }),
     ).toThrow("the export @destack/object#nothing");
-});
-
-test("check a build listing the tables its types describe, refusing a missing and an altered one", async () => {
-    // build the test types' package three times: with their tables, without them, and with one altered
-    const owner = PackageVersion.parse({ ...note.package, version: "2026.11.0" });
-    const described = TYPES.map((type) => ObjectDescription.of(type));
-    const declared = TYPES.map((type, index) => ({
-        ...OBJECT_KIND.identity,
-        name: type.name,
-        description: nth(described, index),
-    }));
-    const { crypto } = testHost();
-    const { tables } = ObjectDescription.tables(described, [owner.id]);
-    const [first, ...rest] = tables.sqlite;
-    const { name } = present(first, "a table").table;
-    const altered = { ...tables, sqlite: [{ ...first, fullText: ["altered"] }, ...rest] };
-    const listed = await MemoryBuild.of(owner, declared, crypto, { tables });
-    const bare = await MemoryBuild.of(owner, declared, crypto);
-    const wrong = await MemoryBuild.of(owner, declared, crypto, { tables: altered });
-
-    // pass the listed ones, and refuse the others by the first table that differs
-    expect([
-        await ObjectDescription.check(listed, [listed]),
-        await refusal(ObjectDescription.check(bare, [bare])),
-        await refusal(ObjectDescription.check(wrong, [wrong])),
-    ]).toEqual([
-        undefined,
-        [
-            "BAD_REQUEST",
-            "DECLARATION_INVALID",
-            `build of '${owner.name}' is invalid: it does not list the 'sqlite' table '${name}'`,
-        ],
-        [
-            "BAD_REQUEST",
-            "DECLARATION_INVALID",
-            `build of '${owner.name}' is invalid: it lists the 'sqlite' table '${name}' otherwise than its types describe it`,
-        ],
-    ]);
 });
 
 /** List a type's procedures as clients read them: each route, and its input as JSON Schema. */
