@@ -1,4 +1,4 @@
-import { expect, onTestFinished, Recording, refusal, test } from "@destack/test";
+import { expect, onTestFinished, Recording, test } from "@destack/test";
 import {
     Condition,
     defineRelations,
@@ -850,39 +850,62 @@ test("retry a transient failure after the wait it asks, else after the backoff",
     ]);
 });
 
-test("fail the loop, its run and its idle waiters, once a controller throws a failure it declares no outcome for", async () => {
-    // reconcile one open job, its controller throwing a TypeError
-    await using simulation = testSimulation();
-    const { database, write } = await openJobs(simulation);
-    await write([{ id: "job", status: "open", dueAt: 0 }]);
-    const defect = new TypeError("undefined is not an object");
+test("retry a failure a controller declares no outcome for after the backoff, capturing it once, and leave a declared refusal", async () => {
+    // throw a TypeError for "defect" until its third attempt, and refuse "refused" for good
+    const simulation = testSimulation();
+    const { database, write, telemetry } = await openJobs(simulation);
+    await write([
+        { id: "defect", status: "open", dueAt: 0 },
+        { id: "refused", status: "open", dueAt: 0 },
+    ]);
+    const clock = simulation.clock;
+    const started = clock.now();
+    const attempts: [string, number][] = [];
     const controller: Controller<typeof job> = {
         name: "job",
         table: job,
         pending: { status: "open" },
-        reconcile: async () => {
-            throw defect;
+        reconcile: async (rows) => {
+            const { id } = nth(rows, 0);
+            attempts.push([id, clock.now() - started]);
+            if (id === "refused") {
+                throw Failure.error(Failure.http("BAD_REQUEST", "refused"));
+            } else if (attempts.filter(([each]) => each === id).length < 3) {
+                throw new TypeError("undefined is not an object");
+            }
         },
     };
-    const loop = new ControlLoop(database, [
-        { projections: [], controllers: [controller], cursors: [] },
-    ]);
-    const run = loop.run(new AbortController().signal);
+    const loop = new ControlLoop(
+        database,
+        [{ projections: [], controllers: [controller], cursors: [] }],
+        { retry: { initialInterval: 60_000, maximumInterval: 60_000 } },
+    );
+    running(loop);
 
-    // fail the run and the idle waiter with the controller's failure
-    const [ran, idled] = await Promise.all([refusal(run), refusal(loop.idle())]);
-    expect([ran, idled]).toEqual([
-        [
-            "INTERNAL_SERVER_ERROR",
-            "CONTROLLER_BROKEN",
-            "'job' did not reconcile '{\"id\":\"job\"}'",
+    // run until "defect" succeeds a backoff apart, with "refused" tried once
+    await loop.idle();
+    for (const at of [60_000, 120_000]) {
+        await simulation.jump(started + at);
+        await loop.idle();
+    }
+    const captured = telemetry
+        .records()
+        .filter((record) => record.event === "exception")
+        .map((record) => String(record.attributes["destack.key"]));
+    telemetry.take();
+    expect({
+        attempts: attempts.toSorted(([left], [right]) => left.localeCompare(right)),
+        captured: captured.toSorted(),
+    }).toEqual({
+        attempts: [
+            ["defect", 0],
+            ["defect", 60_000],
+            ["defect", 120_000],
+            ["refused", 0],
         ],
-        [
-            "INTERNAL_SERVER_ERROR",
-            "CONTROLLER_BROKEN",
-            "'job' did not reconcile '{\"id\":\"job\"}'",
-        ],
-    ]);
+        // capture each failure once, the defect's repeats left out
+        captured: ['{"id":"defect"}', '{"id":"refused"}'],
+    });
 });
 
 test("reconcile keys up to a controller's concurrency, never one key twice at once", async () => {

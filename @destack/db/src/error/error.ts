@@ -52,7 +52,6 @@ export const DatabaseError = defineErrorFamily({
 
         // broken
         CHANNEL_BROKEN: {},
-        CONTROLLER_BROKEN: {},
         FOLLOW_BROKEN: {},
         MIGRATION_BROKEN: {},
         QUERY_BROKEN: {},

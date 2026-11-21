@@ -2031,19 +2031,6 @@ export class ControlLoop {
                 return;
             }
 
-            // stop the loop on a failure the controller declares no outcome for
-            if (!Failure.isDeclared(error)) {
-                this.#failing.abort(
-                    DatabaseError.of(
-                        "CONTROLLER_BROKEN",
-                        `'${controller.name}' did not reconcile '${key}'`,
-                        { cause: error },
-                    ),
-                );
-
-                return;
-            }
-
             // report a failure once, a transient one once it persists
             const previous = failures.get(key);
             const failure = Failure.of(error);
@@ -2059,8 +2046,8 @@ export class ControlLoop {
             }
             failures.set(key, { count: failed, failure, isReported: isRepeated || isReported });
 
-            // retry a transient failure when it asks, else on backoff, leaving any other to the key's next change
-            if (Failure.isTransient(failure)) {
+            // retry when the failure asks, else on backoff, leaving a declared refusal to the key's next change
+            if (!Failure.isRefusal(error)) {
                 const drawn = RetryPolicy.draw(`${controller.name} ${key} ${failed}`);
                 const interval =
                     Failure.retryAfter(failure) ??
