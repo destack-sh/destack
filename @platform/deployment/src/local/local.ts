@@ -14,6 +14,7 @@ import {
     type HostCapability,
     untilAborted,
     waitAborted,
+    LOG_LEVEL_VARIABLE,
 } from "@destack/environment";
 import { type Keychain, KeyPair, LocalKeyring, MemoryKeychain } from "@destack/identity";
 import { BunKeychain } from "@destack/identity/bun";
@@ -126,8 +127,8 @@ const PLACEHOLDER_IDENTIFIER = "0".repeat(32);
 /** The offset of a script's inspector port from its own port, clear of the loopback ports. */
 const INSPECTOR_OFFSET = 5000;
 
-/** The configuration keys a run under workerd leaves out: routes, tails and artifacts. */
-const DEPLOYED_KEYS = new Set(["routes", "tail_consumers", "artifacts"]);
+/** The configuration keys a run under workerd leaves out: routes and tails. */
+const DEPLOYED_KEYS = new Set(["routes", "tail_consumers"]);
 
 /** The directory below a local universe's directory a run under workerd keeps its files in. */
 const WORKERD_DIRECTORY = "workerd";
@@ -601,7 +602,15 @@ export class LocalUniverse {
                 const local = Object.fromEntries(
                     Object.entries(configuration).filter(([key]) => !DEPLOYED_KEYS.has(key)),
                 );
-                const path = await script.write(local, modules);
+
+                // log at this process's level, as the servers of a universe on Bun do
+                const level = environment.process.variables[LOG_LEVEL_VARIABLE];
+                const vars = schema.record(schema.string(), schema.unknown()).parse(local["vars"]);
+                const leveled =
+                    level === undefined
+                        ? local
+                        : { ...local, vars: { ...vars, [LOG_LEVEL_VARIABLE]: level } };
+                const path = await script.write(leveled, modules);
                 const placeholders = deployment.providers(() => PLACEHOLDER_KEY.secretAccessKey);
                 const secrets = script.secrets(custody, PLACEHOLDER_KEY, placeholders);
                 const variables = Object.entries(secrets).map(
