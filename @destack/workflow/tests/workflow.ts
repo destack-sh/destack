@@ -1,3 +1,4 @@
+import { installation } from "@destack/object/test";
 import type { Environment, HostCapability } from "@destack/environment";
 import { Grant, type GrantPermission, principal, relation, universe } from "@destack/access";
 import { space } from "@destack/account/object";
@@ -8,7 +9,6 @@ import {
     defineObject,
     field,
     grantShape,
-    installation,
     Package,
     type ObjectType,
 } from "@destack/object";
@@ -231,12 +231,14 @@ export async function openServed<Input, Output>(
                     servedNote,
                     ...implementations.flatMap((each) => each.objects),
                     ...objects,
+                    installation,
                 ],
                 mounts: Object.fromEntries(
                     implementations.flatMap((each) => Object.entries(each.mounts)),
                 ),
             }).at(context),
         ],
+        tables: [installation.table],
         simulation,
         node: SPACE_NODE,
         owners: [alice],
