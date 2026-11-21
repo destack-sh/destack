@@ -12,14 +12,14 @@ export const LAYER_INDEX = "index.json";
 /** The file of a layer directory listing its files as one table sorted by digest. */
 export const LAYER_FILES = "files.bin";
 
-/** How a layer's file table finds a file: by its recorded path, or at its digest. */
-const LAYER_ADDRESSINGS = ["path", "digest"] as const;
+/** How a layer's file table finds a file: by its recorded path, or by its offset in the packs. */
+const LAYER_ADDRESSINGS = ["path", "pack"] as const;
 
 /** How a layer's file table finds a file. */
-export type LayerAddressing = (typeof LAYER_ADDRESSINGS)[number];
+export type BuildLayerAddressing = (typeof LAYER_ADDRESSINGS)[number];
 
 /** The layer index format a store writes. */
-export const LAYER_FORMAT = 7;
+export const LAYER_FORMAT = 8;
 
 /** The bytes of a file table's header: the row count, a little-endian u32. */
 const FILES_HEADER = 4;
@@ -27,7 +27,7 @@ const FILES_HEADER = 4;
 /** The bytes of a SHA-256 digest, the first field of a file table's row. */
 const DIGEST_BYTES = 32;
 
-/** The bytes of a file table's row: the digest, the byte count and the end of its path, as u32s. */
+/** The bytes of a file table's row: the digest, the byte count and the path's end or offset. */
 const FILE_ROW = DIGEST_BYTES + 8;
 
 /** The most bytes a file table's row records for one file, a u32's largest value. */
@@ -36,11 +36,17 @@ const MAXIMUM_FILE_BYTES = 0xff_ff_ff_ff;
 /** The directory of a layer with its releases' dependency trees, laid out once on writing. */
 export const LAYER_TREES = "trees";
 
-/** The directory of an addressed layer's manifests and files, each named by its digest. */
+/** The directory of a packed layer's manifests, each named by its digest. */
 export const LAYER_BLOBS = "blobs";
 
+/** The directory of a packed layer's packs, each named by its number. */
+export const LAYER_PACKS = "packs";
+
+/** The most bytes of packs a layer keeps read: 64 MiB, half of a Worker isolate's 128 MB. */
+const KEPT_PACK_BYTES = 64 * 1024 * 1024;
+
 /** The index of a layer directory, written once with it, so opening it reads one file. */
-export const LayerIndex = schema.object({
+export const BuildLayerIndex = schema.object({
     /** The layer index format version. */
     formatVersion: schema.literal(LAYER_FORMAT),
     /** The images of the releases the layer ships, each with what it runs. */
@@ -49,35 +55,50 @@ export const LayerIndex = schema.object({
     images: schema.record(Digest, BuildImage),
     /** The byte count of each layered build's manifest, by the manifest's digest. */
     builds: schema.record(Digest, schema.int()),
-    /** How the file table finds a file: by its recorded path, or at its digest. */
+    /** How the file table finds a file: by its recorded path, or by its offset in the packs. */
     addressing: schema.enum(LAYER_ADDRESSINGS),
+    /** The byte count of each pack in order, none for a layer finding files by path. */
+    packs: schema.array(schema.int()),
 });
 /** The index of a layer directory. */
-export type LayerIndex = schema.Infer<typeof LayerIndex>;
+export type BuildLayerIndex = schema.Infer<typeof BuildLayerIndex>;
 
-/** A layered file: its digest, its path below the layer and its byte count. */
-export interface LayerFile {
-    /** The file's digest. */
-    readonly digest: Digest;
-    /** The file's path below the layer. */
-    readonly path: string;
-    /** The file's byte count. */
-    readonly size: number;
-}
+/** A layered file, found at a path below the layer or at an offset in its packs. */
+export type BuildLayerFile =
+    | {
+          /** The file's digest. */
+          readonly digest: Digest;
+          /** The file's byte count. */
+          readonly size: number;
+          /** A file of its own. */
+          readonly addressing: "path";
+          /** The file's path below the layer. */
+          readonly path: string;
+      }
+    | {
+          /** The file's digest. */
+          readonly digest: Digest;
+          /** The file's byte count. */
+          readonly size: number;
+          /** A file inside a pack. */
+          readonly addressing: "pack";
+          /** The file's offset in the packs laid end to end. */
+          readonly offset: number;
+      };
 
 /** A layer's files as one table sorted by digest, searched in place as git's pack indexes are. */
-export class LayerFiles {
+export class BuildLayerTable {
     /** The table: the row count, the rows, then the paths' UTF-8 bytes. */
     readonly #bytes: Uint8Array;
     /** A view reading the table's u32 fields. */
     readonly #view: DataView;
     /** The number of rows. */
     readonly #count: number;
-    /** How the table finds a file: by its recorded path, or at its digest. */
-    readonly #addressing: LayerAddressing;
+    /** How the table finds a file: by its recorded path, or by its offset in the packs. */
+    readonly #addressing: BuildLayerAddressing;
 
     /** Read a table a layer wrote. */
-    constructor(bytes: Uint8Array, addressing: LayerAddressing) {
+    constructor(bytes: Uint8Array, addressing: BuildLayerAddressing) {
         // read the row count from the header, none for an empty table
         this.#bytes = bytes;
         this.#view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
@@ -85,16 +106,13 @@ export class LayerFiles {
         this.#addressing = addressing;
     }
 
-    /** Write a table of files, sorted by digest, their paths left out when found by digest. */
-    static encode(
-        files: readonly LayerFile[],
-        addressing: LayerAddressing,
-    ): Uint8Array<ArrayBuffer> {
+    /** Write a table of files sorted by digest: each row's offset, or its path after the rows. */
+    static encode(files: readonly BuildLayerFile[]): Uint8Array<ArrayBuffer> {
         // order the rows by digest, whose hexadecimal order is its bytes' order
         const sorted = files.toSorted((left, right) => (left.digest < right.digest ? -1 : 1));
         const encoder = new TextEncoder();
         const paths = sorted.map((file) =>
-            addressing === "digest" ? new Uint8Array() : encoder.encode(file.path),
+            file.addressing === "path" ? encoder.encode(file.path) : new Uint8Array(),
         );
         const pathBytes = paths.reduce((total, path) => total + path.byteLength, 0);
 
@@ -104,29 +122,32 @@ export class LayerFiles {
         view.setUint32(0, sorted.length, true);
         let end = 0;
         for (const [index, file] of sorted.entries()) {
-            // refuse a byte count a row cannot hold
-            if (file.size > MAXIMUM_FILE_BYTES) {
+            // read where the row points: a packed file's offset, else where its path ends
+            const path = present(paths[index], `the path of row ${String(index)}`);
+            end += path.byteLength;
+            const pointer = file.addressing === "pack" ? file.offset : end;
+
+            // refuse a byte count or an offset a row cannot hold
+            if (file.size > MAXIMUM_FILE_BYTES || pointer > MAXIMUM_FILE_BYTES) {
                 throw PackageError.of(
                     "LAYER_FILE_BROKEN",
-                    `the layer cannot list file '${file.path}': its ${String(file.size)} bytes exceed a row's u32`,
+                    `the layer cannot list file '${file.digest}': its '${String(file.size)}' bytes at '${String(pointer)}' exceed a row's u32`,
                 );
             }
 
-            // write the digest, the byte count and where the path ends
+            // write the digest, the byte count, the pointer and the path
             const row = FILES_HEADER + index * FILE_ROW;
-            const path = present(paths[index], `the path of row ${String(index)}`);
             bytes.set(Uint8Array.fromHex(file.digest), row);
             view.setUint32(row + DIGEST_BYTES, file.size, true);
-            end += path.byteLength;
-            view.setUint32(row + DIGEST_BYTES + 4, end, true);
+            view.setUint32(row + DIGEST_BYTES + 4, pointer, true);
             bytes.set(path, FILES_HEADER + sorted.length * FILE_ROW + end - path.byteLength);
         }
 
         return bytes;
     }
 
-    /** Find a file's path and byte count by its digest, absent for a file outside the table. */
-    find(digest: Digest): { readonly path: string; readonly size: number } | undefined {
+    /** Find a file by its digest, absent for a file outside the table. */
+    find(digest: Digest): BuildLayerFile | undefined {
         // search the sorted digests
         const wanted = Uint8Array.fromHex(digest);
         let low = 0;
@@ -159,20 +180,22 @@ export class LayerFiles {
         return 0;
     }
 
-    /** Read a row's path and byte count, a file found by digest lying at its blob. */
-    #row(index: number, digest: Digest): { readonly path: string; readonly size: number } {
-        // read the byte count, and the path between the previous row's end and this row's
+    /** Read a row's file: its byte count, with its offset in the packs or its path. */
+    #row(index: number, digest: Digest): BuildLayerFile {
+        // read the byte count, and a packed file's offset
         const row = FILES_HEADER + index * FILE_ROW;
         const size = this.#view.getUint32(row + DIGEST_BYTES, true);
-        if (this.#addressing === "digest") {
-            return { path: `${LAYER_BLOBS}/${digest}`, size };
+        const end = this.#view.getUint32(row + DIGEST_BYTES + 4, true);
+        if (this.#addressing === "pack") {
+            return { digest, size, addressing: "pack", offset: end };
         }
+
+        // read the path between the previous row's end and this row's
         const paths = FILES_HEADER + this.#count * FILE_ROW;
         const start = index === 0 ? 0 : this.#view.getUint32(row - 4, true);
-        const end = this.#view.getUint32(row + DIGEST_BYTES + 4, true);
         const path = new TextDecoder().decode(this.#bytes.subarray(paths + start, paths + end));
 
-        return { path, size };
+        return { digest, size, addressing: "path", path };
     }
 }
 
@@ -180,7 +203,7 @@ export class LayerFiles {
 const ASSETS_ORIGIN = "https://assets.invalid";
 
 /** Where a layer's files lie: a directory on disk, or the static assets a Worker version ships. */
-type LayerSource =
+type BuildLayerSource =
     | {
           /** A directory on disk. */
           readonly kind: "directory";
@@ -190,7 +213,7 @@ type LayerSource =
           readonly environment: Pick<Environment<"files">, "files" | "crypto">;
       }
     | {
-          /** The static assets a Worker version ships, an addressed layer. */
+          /** The static assets a Worker version ships, a packed layer. */
           readonly kind: "assets";
           /** The assets' binding. */
           readonly assets: AssetBinding;
@@ -207,21 +230,23 @@ export interface AssetBinding {
 /** Read-only builds a store reads in place, as Nix substituters and OCI layers lend theirs. */
 export class BuildLayer {
     /** Where the layer's files lie, none for an empty layer. */
-    readonly #source: LayerSource | undefined;
+    readonly #source: BuildLayerSource | undefined;
     /** The index of the layer's releases and builds. */
-    readonly #index: LayerIndex;
+    readonly #index: BuildLayerIndex;
     /** The table of the layer's files. */
-    readonly #files: LayerFiles;
+    readonly #files: BuildLayerTable;
     /** The digest of the index naming the builds the layer ships, absent for an empty layer. */
     readonly digest: Digest | undefined;
     /** The layered builds' readers opened so far, each once, by manifest digest. */
     readonly #readers = new Map<Digest, Promise<BuildReader>>();
+    /** The packs read last, by number, the least recently read first. */
+    readonly #packs = new Map<number, Promise<Uint8Array<ArrayBuffer>>>();
 
     /** Create a layer from where its files lie and its index. */
     private constructor(
-        source: LayerSource | undefined,
-        index: LayerIndex,
-        files: LayerFiles,
+        source: BuildLayerSource | undefined,
+        index: BuildLayerIndex,
+        files: BuildLayerTable,
         digest: Digest | undefined,
     ) {
         // take where the files lie, the index, the file table and the index's digest
@@ -241,8 +266,9 @@ export class BuildLayer {
                 images: {},
                 builds: {},
                 addressing: "path",
+                packs: [],
             },
-            new LayerFiles(new Uint8Array(), "path"),
+            new BuildLayerTable(new Uint8Array(), "path"),
             undefined,
         );
     }
@@ -251,13 +277,13 @@ export class BuildLayer {
     static async assets(assets: AssetBinding, crypto: Environment["crypto"]): Promise<BuildLayer> {
         // read the index and the file table
         const text = await (await BuildLayer.#fetch(assets, LAYER_INDEX)).text();
-        const index = LayerIndex.parse(JSON.parse(text));
+        const index = BuildLayerIndex.parse(JSON.parse(text));
         const table = await (await BuildLayer.#fetch(assets, LAYER_FILES)).arrayBuffer();
 
         return new BuildLayer(
             { kind: "assets", assets, crypto },
             index,
-            new LayerFiles(new Uint8Array(table), index.addressing),
+            new BuildLayerTable(new Uint8Array(table), index.addressing),
             await Digest.of(text, crypto),
         );
     }
@@ -270,35 +296,36 @@ export class BuildLayer {
         // read the index and the file table
         const { files } = environment;
         const text = await files.readTextFile(files.join(directory, LAYER_INDEX));
-        const index = LayerIndex.parse(JSON.parse(text));
+        const index = BuildLayerIndex.parse(JSON.parse(text));
         const table = await files.readFile(files.join(directory, LAYER_FILES));
 
         return new BuildLayer(
             { kind: "directory", directory, environment },
             index,
-            new LayerFiles(table, index.addressing),
+            new BuildLayerTable(table, index.addressing),
             await Digest.of(text, environment.crypto),
         );
     }
 
-    /** Write a layer directory's file table, then its index of its images and builds. */
+    /** Write a layer directory's file table, then its index of its images, builds and packs. */
     static async writeIndex(
         directory: string,
         images: ReadonlyMap<Digest, BuildImage>,
-        builds: LayerIndex["builds"],
-        placed: readonly LayerFile[],
-        addressing: LayerAddressing,
+        builds: BuildLayerIndex["builds"],
+        addressing: BuildLayerAddressing,
+        placed: readonly BuildLayerFile[],
+        packs: readonly number[],
         files: FileSystem,
     ): Promise<void> {
         // write the file table, then the index last
-        const table = LayerFiles.encode(placed, addressing);
-        await files.writeFile(files.join(directory, LAYER_FILES), table);
-        const index: LayerIndex = {
+        await files.writeFile(files.join(directory, LAYER_FILES), BuildLayerTable.encode(placed));
+        const index: BuildLayerIndex = {
             formatVersion: LAYER_FORMAT,
             releases: [...images.keys()],
             images: Object.fromEntries(images),
             builds,
             addressing,
+            packs: [...packs],
         };
         await files.writeTextFile(files.join(directory, LAYER_INDEX), JSON.stringify(index));
     }
@@ -377,7 +404,7 @@ export class BuildLayer {
         const source = this.#source;
         const located = this.#files.find(digest);
 
-        return source?.kind === "directory" && located !== undefined
+        return source?.kind === "directory" && located?.addressing === "path"
             ? source.environment.files.join(source.directory, located.path)
             : undefined;
     }
@@ -405,15 +432,15 @@ export class BuildLayer {
 
     /** Read a layered blob whole, absent for one outside the layer. */
     read(digest: Digest): Promise<Uint8Array<ArrayBuffer>> | undefined {
-        // serve an image's canonical bytes, else read a manifest's or a file's path below the layer
+        // serve an image's canonical bytes, else read a manifest or a file where it lies
         const image = this.#index.images[digest];
-        const path = this.hasBuild(digest)
-            ? this.#manifestPath(digest)
-            : this.#files.find(digest)?.path;
+        const located = this.#files.find(digest);
         if (image !== undefined) {
             return Promise.resolve(BuildImage.serialize(image));
-        } else if (path !== undefined) {
-            return this.#read(path);
+        } else if (this.hasBuild(digest)) {
+            return this.#read(this.#manifestPath(digest));
+        } else if (located !== undefined) {
+            return this.#located(located);
         } else {
             return undefined;
         }
@@ -456,15 +483,100 @@ export class BuildLayer {
                 // stream a layered file by its digest, else through the caller's stream
                 const listed = await reader.file(path);
                 const located = this.#files.find(listed.digest);
+                if (located === undefined) {
+                    return present(missing, `the layered file ${path}`)(path, signal);
+                }
+                const bytes = await this.#located(located);
 
-                return located === undefined
-                    ? present(missing, `the layered file ${path}`)(path, signal)
-                    : present((await BuildLayer.#fetch(source.assets, located.path)).body, path);
+                return new Blob([bytes]).stream();
             },
             source.crypto,
         );
 
         return reader;
+    }
+
+    /** Read a file where the table finds it: a file of its own, or a slice of its pack. */
+    async #located(located: BuildLayerFile): Promise<Uint8Array<ArrayBuffer>> {
+        // read a file of its own whole, and an empty packed file from no pack
+        if (located.addressing === "path") {
+            return await this.#read(located.path);
+        } else if (located.size === 0) {
+            return new Uint8Array();
+        }
+
+        // find the pack the file lies in, by the packs' byte counts in order
+        const { packs } = this.#index;
+        let number = 0;
+        let start = 0;
+        while (number < packs.length && located.offset >= start + (packs[number] ?? 0)) {
+            start += packs[number] ?? 0;
+            number += 1;
+        }
+        if (located.offset + located.size > start + (packs[number] ?? 0)) {
+            throw PackageError.of(
+                "LAYER_FILE_BROKEN",
+                `the layer has no pack for '${String(located.size)}' bytes at '${String(located.offset)}'`,
+            );
+        }
+
+        // copy the file's bytes out of its pack
+        const pack = await this.#pack(number);
+        const from = located.offset - start;
+
+        return pack.slice(from, from + located.size);
+    }
+
+    /** Read a pack whole once, keeping the packs read last within the kept bytes. */
+    #pack(number: number): Promise<Uint8Array<ArrayBuffer>> {
+        // read the pack unless it is kept, mark it read last, and forget a read that fails
+        const reading = this.#packs.get(number) ?? this.#read(`${LAYER_PACKS}/${String(number)}`);
+        this.#packs.delete(number);
+        this.#packs.set(number, reading);
+        reading.catch(() => this.#packs.delete(number));
+
+        // drop the packs read longest ago past the kept bytes, keeping the one just read
+        const sizes = this.#index.packs;
+        let kept = [...this.#packs.keys()].reduce((sum, each) => sum + (sizes[each] ?? 0), 0);
+        for (const earlier of this.#packs.keys()) {
+            if (kept <= KEPT_PACK_BYTES || earlier === number) {
+                break;
+            }
+            this.#packs.delete(earlier);
+            kept -= sizes[earlier] ?? 0;
+        }
+
+        return reading;
+    }
+
+    /** Lay groups of files out into packs: a group's files together, a new pack at the limit. */
+    static pack(
+        groups: readonly (readonly Pick<BuildLayerFile, "digest" | "size">[])[],
+        limit: number,
+    ): BuildLayerFile[][] {
+        // place each file after the one before it, closing a pack at a group's end or the limit
+        const packs: BuildLayerFile[][] = [];
+        let offset = 0;
+        for (const group of groups) {
+            let pack: BuildLayerFile[] = [];
+            let packed = 0;
+            for (const file of group) {
+                // start the next pack once this file passes the limit
+                if (pack.length > 0 && packed + file.size > limit) {
+                    packs.push(pack);
+                    pack = [];
+                    packed = 0;
+                }
+                pack.push({ digest: file.digest, size: file.size, addressing: "pack", offset });
+                packed += file.size;
+                offset += file.size;
+            }
+            if (pack.length > 0) {
+                packs.push(pack);
+            }
+        }
+
+        return packs;
     }
 
     /** Find a layered build's manifest below the layer: a blob in assets, else in its build. */
