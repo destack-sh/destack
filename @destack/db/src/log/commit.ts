@@ -5,6 +5,7 @@ import { elementValue, jsonElements, jsonOf, Statement } from "../query/statemen
 import { ColumnCipher, ENCRYPTED_DIALECT } from "../database/cipher.ts";
 import { sql } from "../sql/index.ts";
 import { DatabaseError } from "../error/error.ts";
+import { Failure } from "@destack/error";
 import { Condition, Scalar } from "../query/condition.ts";
 import { Key } from "../query/key.ts";
 import { Namespace } from "../query/namespace.ts";
@@ -619,7 +620,12 @@ export class Transaction {
         const { name, scope, environment } = database.state;
         const attributes = { "db.namespace": name, "destack.transaction.kind": RACE_KINDS[race] };
         let attempts = 0;
-        const attempted = () => ({ ...attributes, "destack.transaction.attempts": attempts });
+        const conflicts: string[] = [];
+        const attempted = () => ({
+            ...attributes,
+            "destack.transaction.attempts": attempts,
+            ...(conflicts.length === 0 ? {} : { "destack.transaction.conflicts": conflicts }),
+        });
 
         return scope.span(
             "destack.transaction.run",
@@ -635,7 +641,13 @@ export class Transaction {
                     return run();
                 };
                 try {
-                    return await Transaction.#retry(database, race, attempt, signal);
+                    return await Transaction.#retry(
+                        database,
+                        race,
+                        attempt,
+                        (error) => conflicts.push(Failure.of(error).message),
+                        signal,
+                    );
                 } finally {
                     span.setAttributes(attempted());
                 }
@@ -649,6 +661,7 @@ export class Transaction {
         database: DatabaseConnection,
         race: LostRace,
         run: () => Promise<Value>,
+        lost: (error: unknown) => void,
         signal?: AbortSignal,
     ): Promise<Value> {
         for (let attempt = 1; ; attempt++) {
@@ -660,7 +673,8 @@ export class Transaction {
                     throw error;
                 }
 
-                // count the lost race, and expire the cached reads so the rerun reads anew
+                // record what the race was lost to, count it, and expire the cached reads so the rerun reads anew
+                lost(error);
                 database.state.retries.add(1, { "db.namespace": database.state.name });
                 database.state.commits.expire();
 
