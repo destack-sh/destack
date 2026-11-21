@@ -104,6 +104,9 @@ jobs:
               uses: ./.github/actions/setup-apt
               with:
                   packages: zsh age
+            - name: Install the browser scenarios' Chromium
+              working-directory: "@destack/view"
+              run: bunx playwright install --with-deps chromium-headless-shell
             - name: Run the test PostgreSQL without durability
               env:
                   POSTGRES: ${{ job.services.postgres.id }}
