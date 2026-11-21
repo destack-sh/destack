@@ -12,7 +12,7 @@ import {
     TEST_EXPORT,
 } from "@destack/package";
 import { found, type JsonObject, present, schema } from "@destack/schema";
-import { ObjectDescription, PackageDescription } from "@destack/object";
+import { ObjectDescription } from "@destack/object";
 import type { BuildExtension, TransformCache } from "@destack/package/build";
 import { type SourceMapReference } from "@destack/package/source";
 import { MANIFEST_LISTS } from "@destack/package/manifest";
@@ -360,11 +360,8 @@ export class CompilerWorker {
             }),
         );
 
-        // describe its own tables and those of the protocols it implements
-        const protocols = PackageDescription.find(declarations)?.protocols ?? [];
-
-        return ObjectDescription.tables([...depended.flat(), ...own], [source.id, ...protocols])
-            .tables;
+        // describe its own tables, as a protocol's tables are the host's
+        return ObjectDescription.tables([...depended.flat(), ...own], [source.id]).tables;
     }
 
     /** Plan a package's outputs with its closure's extensions, and open each output's project. */
