@@ -46,6 +46,7 @@ import {
     type Network,
     type SocketAddress,
     WebSocketUpgrade,
+    Telemetry,
 } from "@destack/environment";
 import type { Deriver } from "@destack/identity";
 import {
@@ -401,54 +402,65 @@ export class Space {
 
     /** Open a space on its machine and start its workload. */
     static start(machine: Machine, id: Identifier<"space">): Promise<Space> {
-        return machine.scope.span("destack.space.start", { "destack.space.id": id }, async () => {
-            // open the space's volume and its blobs
-            const volume = await machine.volumes.open(id);
-            try {
-                const { environment } = machine;
-                const blobs = new BlobStore({
-                    storage: volume.blobs,
-                    database: volume.database,
-                    environment,
-                });
-                const space = new Space({
-                    id,
-                    machine,
-                    volume,
-                    universe: await machine.universe(),
-                    identities: await machine.identities(),
-                    blobs,
-                });
+        // start the space in a span of its own, linked to the pass that asked for it
+        const { telemetry } = machine.environment;
 
-                // keep the space store's sockets at the machine's host, sending through it in this process
-                space.#hibernation = machine.hibernation?.instance(id);
+        return Telemetry.detach(telemetry, (links) =>
+            machine.scope.span(
+                "destack.space.start",
+                { "destack.space.id": id },
+                async () => {
+                    // open the space's volume and its blobs
+                    const volume = await machine.volumes.open(id);
+                    try {
+                        const { environment } = machine;
+                        const blobs = new BlobStore({
+                            storage: volume.blobs,
+                            database: volume.database,
+                            environment,
+                        });
+                        const space = new Space({
+                            id,
+                            machine,
+                            volume,
+                            universe: await machine.universe(),
+                            identities: await machine.identities(),
+                            blobs,
+                        });
 
-                // start the machine workload serving the space
-                space.#instance = await WorkloadInstance.start(spaceWorkload, {
-                    environment,
-                    ...(space.#hibernation === undefined
-                        ? {}
-                        : { hibernation: space.#hibernation }),
-                    resources: new ResourceContext().bind(machineSpace, space),
-                    callKey: () => space.callKey(),
-                    ...(machine.alarm === undefined ? {} : { alarm: machine.alarm }),
-                    serverOptions: (handle) => ({
-                        environment,
-                        authenticate: (request) => machine.authenticate(request, handle.id, id),
-                        authorizeMachine: (call) => machine.authorizeSpace(call),
-                        drainTimeout: DRAIN_TIMEOUT_MILLISECONDS,
-                        instance: id,
-                    }),
-                });
+                        // keep the space store's sockets at the machine's host, sending through it in this process
+                        space.#hibernation = machine.hibernation?.instance(id);
 
-                return space;
-            }
-            // close the space's volume when its start fails, as a close does
-            catch (error) {
-                await volume.close();
-                throw error;
-            }
-        });
+                        // start the machine workload serving the space
+                        space.#instance = await WorkloadInstance.start(spaceWorkload, {
+                            environment,
+                            ...(space.#hibernation === undefined
+                                ? {}
+                                : { hibernation: space.#hibernation }),
+                            resources: new ResourceContext().bind(machineSpace, space),
+                            callKey: () => space.callKey(),
+                            ...(machine.alarm === undefined ? {} : { alarm: machine.alarm }),
+                            serverOptions: (handle) => ({
+                                environment,
+                                authenticate: (request) =>
+                                    machine.authenticate(request, handle.id, id),
+                                authorizeMachine: (call) => machine.authorizeSpace(call),
+                                drainTimeout: DRAIN_TIMEOUT_MILLISECONDS,
+                                instance: id,
+                            }),
+                        });
+
+                        return space;
+                    }
+                    // close the space's volume when its start fails, as a close does
+                    catch (error) {
+                        await volume.close();
+                        throw error;
+                    }
+                },
+                { links },
+            ),
+        );
     }
 
     /** Prepare a start of the space's workload: its role, buckets, forge, remote and jobs. */
