@@ -1,7 +1,7 @@
 import type { Clock } from "@destack/environment";
-import type { Fetch } from "@destack/object";
+import { type Fetch, RetryAfter } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
-import { Duration, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import type { ObjectReference } from "@destack/sync";
 import type { MessageReason, RefusalReason } from "../error/error.ts";
 import type { PushSubscription } from "@destack/account/object";
@@ -25,9 +25,6 @@ const RETRIED_STATUSES: ReadonlyMap<number, MessageReason> = new Map([
     [425, "PROVIDER_UNAVAILABLE"],
     [429, "PROVIDER_EXHAUSTED"],
 ]);
-
-/** An HTTP date in the IMF-fixdate form senders generate (RFC 9110 5.6.7). */
-const HTTP_DATE = /^[A-Z][a-z]{2}, \d{2} [A-Z][a-z]{2} \d{4} \d{2}:\d{2}:\d{2} GMT$/u;
 
 /** The least status of a server's failure, which a later try may get past (RFC 9110 15.6). */
 const SERVER_ERROR = 500;
@@ -80,7 +77,7 @@ export const Outcome = Object.assign(outcome, {
               (status >= SERVER_ERROR ? "PROVIDER_UNAVAILABLE" : "MESSAGE_INVALID"));
         const refusal = { reason, code: String(status), message: response.statusText };
 
-        return Outcome.refuse(refusal, retryAfter(response.headers.get("Retry-After"), now));
+        return Outcome.refuse(refusal, RetryAfter.read(response.headers, now));
     },
 
     /** Send a request and read its answer, retrying one the network lost or its signal ended. */
@@ -129,17 +126,4 @@ export interface MessageProvider {
 /** Describe a failure by its message, or as the value it is. */
 function describe(failure: unknown): string {
     return failure instanceof Error ? failure.message : String(failure);
-}
-
-/** Read a Retry-After header as milliseconds from now, absent when invalid (RFC 9110 10.2.3). */
-function retryAfter(header: string | null, now: number): number | undefined {
-    // read the wait
-    const date = header !== null && HTTP_DATE.test(header) ? Date.parse(header) : Number.NaN;
-    if (header !== null && /^\d+$/u.test(header)) {
-        return Duration.milliseconds({ seconds: Number(header) });
-    } else if (Number.isFinite(date)) {
-        return Math.max(0, date - now);
-    } else {
-        return undefined;
-    }
 }
