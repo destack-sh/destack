@@ -29,6 +29,9 @@ import { FileSystemError, HostAddress } from "@destack/environment";
 /** The pause before asking again when nothing listens at a Worker's origin yet: 0.2 s. */
 const CONNECT_RETRY_MILLISECONDS = 200;
 
+/** The status of a Worker that cannot serve yet, such as one whose bound Worker has not started. */
+const UNAVAILABLE_STATUS = 503;
+
 /** How long a Worker may take to answer: four times the slowest local start measured, 15 s. */
 const ANSWER_MILLISECONDS = 60_000;
 
@@ -583,12 +586,15 @@ export class WorkerScript {
             const isJson = !answered.ok && type.startsWith("application/json");
             const body: unknown = isJson ? await answered.clone().json() : undefined;
 
-            // ask again after the pause a starting server names
+            // ask again after the pause a starting server names, or while a Worker it binds is unavailable
             const starting = Starting.safeParse(body).data;
-
-            return starting === undefined
-                ? { answered }
-                : { answered, retryAfter: starting.data.retryAfter };
+            if (starting !== undefined) {
+                return { answered, retryAfter: starting.data.retryAfter };
+            } else if (answered.status === UNAVAILABLE_STATUS) {
+                return { answered, retryAfter: CONNECT_RETRY_MILLISECONDS };
+            } else {
+                return { answered };
+            }
         };
         let reply = await ask();
         while (reply.retryAfter !== undefined) {
