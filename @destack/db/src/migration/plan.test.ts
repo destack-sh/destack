@@ -3,6 +3,7 @@ import { Change, defineTable, index, integer, json, sql, text, uniqueIndex } fro
 import { PackageVersion } from "@destack/package";
 import { present, schema, Version } from "@destack/schema";
 import { TABLE, type Table } from "../table/table.ts";
+import type { Column } from "../table/column.ts";
 import { qualify } from "../table/namespace.ts";
 import { defineDatabase } from "../declare/database.ts";
 import { mergeStates } from "./merge.ts";
@@ -39,6 +40,20 @@ const page = defineTable("page", {
     folderId: text("folder_id")
         .notNull()
         .references(() => folderTwo.id),
+});
+
+/** Albums naming their cover photo, which the photos' album references back. */
+const album = defineTable("album", {
+    id: text("id").primaryKey(),
+    coverId: text("cover_id").references((): Column => photo.id),
+});
+
+/** Photos referencing their album. */
+const photo = defineTable("photo", {
+    id: text("id").primaryKey(),
+    albumId: text("album_id")
+        .notNull()
+        .references(() => album.id),
 });
 
 /** Another package's release, declaring its documents' attachments. */
@@ -379,6 +394,28 @@ test("drop a referencing table before the table it references", async () => {
         `destructive delete table/${table(page)}: drop table`,
         `destructive delete table/${table(folderTwo)}: drop table`,
     ]);
+});
+
+test("drop tables whose foreign keys reference each other", async () => {
+    // apply the albums and the photos referencing each other, then leave both out
+    const database = await open([]);
+    await database.migrate([album, photo], { manager: "photos" });
+    const dropped = await database.migrate([], { manager: "photos" });
+
+    // drop both, the keys between them first where each drop is checked
+    const cover = `${table(album)}_cover_id_${table(photo)}_id_fk`;
+    const owner = `${table(photo)}_album_id_${table(album)}_id_fk`;
+    expect(review(dropped)).toEqual([
+        ...(TestDatabase.target() === "sqlite"
+            ? []
+            : [
+                  `destructive delete table/${table(album)}/constraint/${cover}: drop foreign key ${cover}`,
+                  `destructive delete table/${table(photo)}/constraint/${owner}: drop foreign key ${owner}`,
+              ]),
+        `destructive delete table/${table(album)}: drop table`,
+        `destructive delete table/${table(photo)}: drop table`,
+    ]);
+    expect(await database.unapplied([])).toEqual([]);
 });
 
 test("refuse taking over a table another manager applied, leaving it as applied", async () => {

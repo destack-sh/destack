@@ -156,8 +156,9 @@ export function planTables(input: PlanInput): TablePlan {
     steps.push(...declared.flatMap((state) => globalIndexSteps(state, applied, input.namespace)));
 
     // drop applied tables no longer declared, except a newer release's tables
-    const dropped = droppedTables(declared, remaining, problems);
-    for (const name of dropped) {
+    const dropped = droppedTables(declared, remaining);
+    steps.push(...(dialect === "postgresql" ? cyclicKeySteps(dropped.cyclic) : []));
+    for (const name of dropped.ordered) {
         const previous = present(remaining.get(name), `the applied state of ${name}`);
         steps.push(
             step("delete", Address.join("table", name), "destructive", "drop table", [
@@ -182,7 +183,7 @@ export function planTables(input: PlanInput): TablePlan {
         input.namespace,
     );
 
-    return { dialect, steps, ...triggers, state: declared, dropped };
+    return { dialect, steps, ...triggers, state: declared, dropped: dropped.ordered };
 }
 
 /** Plan each declared table without a conflict. */
@@ -599,12 +600,11 @@ function foreignKeySteps(created: readonly TableDescription[]): TableStep[] {
     );
 }
 
-/** List the applied tables to drop, each table before the tables it references. */
+/** List the applied tables to drop, each before the tables it references, a cycle's tables last. */
 function droppedTables(
     declared: readonly TableState[],
     remaining: ReadonlyMap<string, TableState>,
-    problems: Problem[],
-): string[] {
+): { readonly ordered: string[]; readonly cyclic: readonly TableDescription[] } {
     // find each declared package's newest release
     const releases = new Map<string, Version>();
     for (const state of declared) {
@@ -633,15 +633,30 @@ function droppedTables(
         layer = unreferencedTables(pending);
     }
 
-    // refuse the tables left, whose foreign keys form a cycle
-    problems.push(
-        ...pending.map((table) => ({
-            target: Address.join("table", table.name),
-            detail: "drop table: its foreign keys form a cycle",
-        })),
-    );
+    // drop the tables left last, whose foreign keys form a cycle
+    ordered.push(...pending.map((table) => table.name));
 
-    return ordered;
+    return { ordered, cyclic: pending };
+}
+
+/** Drop the foreign keys between tables dropped as a cycle, as PostgreSQL checks each drop. */
+function cyclicKeySteps(cyclic: readonly TableDescription[]): TableStep[] {
+    const names = new Set(cyclic.map((table) => table.name));
+
+    return cyclic.flatMap((table) =>
+        table.constraints
+            .filter((constraint) => constraint.kind === "foreignKey")
+            .filter((key) => key.table !== table.name && names.has(key.table))
+            .map((key) =>
+                step(
+                    "delete",
+                    Address.join("table", table.name, "constraint", key.name),
+                    "destructive",
+                    `drop foreign key ${key.name}`,
+                    [statement.dropConstraint(table.name, key.name)],
+                ),
+            ),
+    );
 }
 
 /** Select the tables that no other table in the list references. */
