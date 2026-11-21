@@ -89,12 +89,32 @@ async function applySteps(
     });
 }
 
-/** Run a manager's statements in order, reporting the one that fails. */
+/** Run a manager's statements in order as one script, reporting the one that fails. */
 async function runStatements(
     database: DatabaseConnection,
     statements: readonly string[],
     manager: string,
 ): Promise<void> {
+    // run nothing without statements
+    if (statements.length === 0) {
+        return;
+    }
+
+    // run them in one round trip, in a savepoint a failure rolls back
+    const script = statements.map((statement) => `${statement};`).join("\n");
+    const failure = await database
+        .transaction(async (nested) => {
+            await nested.executeScript(script);
+        })
+        .then(
+            () => undefined,
+            (error: unknown) => ({ error }),
+        );
+    if (failure === undefined) {
+        return;
+    }
+
+    // run them again one at a time to find the statement that fails
     for (const statement of statements) {
         // wrap the failure in a migration error with the statement's first line
         try {
@@ -109,6 +129,14 @@ async function runStatements(
             );
         }
     }
+
+    // fail with the script's failure when every statement ran alone
+    const message = failure.error instanceof Error ? failure.error.message : String(failure.error);
+    throw DatabaseError.of(
+        "MIGRATION_BROKEN",
+        `migration of '${manager}' failed as one script: ${message}`,
+        { cause: failure.error },
+    );
 }
 
 /** Require a conversion's written JSON values to pass their columns' recorded schemas. */
