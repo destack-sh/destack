@@ -322,8 +322,8 @@ test("route each call to the newest deployment serving the caller's release, and
         EARLIER.instanceId,
         NEWEST.instanceId,
         NEWEST.instanceId,
-        `SERVICE_UNAVAILABLE: DEPLOYMENT_UNAVAILABLE: deployment of installation 'runs release 2026.11.0' is unavailable: none is running`,
-        `SERVICE_UNAVAILABLE: DEPLOYMENT_UNAVAILABLE: deployment of installation 'runs release 2026.11.0-dev.20260912100001.0123456789ab' is unavailable: none is running`,
+        `SERVICE_UNAVAILABLE: DEPLOYMENT_UNAVAILABLE: deployment of installation '${ids.notes}' is unavailable: none running serves the call`,
+        `SERVICE_UNAVAILABLE: DEPLOYMENT_UNAVAILABLE: deployment of installation '${ids.notes}' is unavailable: none running serves the call`,
         "BAD_REQUEST: VERSION_INVALID: requires Destack-Version",
         "BAD_REQUEST: VERSION_INVALID: invalid Destack-Version: next",
     ]);
@@ -544,7 +544,7 @@ test("forward a mount's request to its newest deployment, refusing none deployed
         refused: await answerOf(refused),
     }).toEqual({
         accepted: [200, [[NEWEST.instanceId, path, null, null]]],
-        refused: `SERVICE_UNAVAILABLE: DEPLOYMENT_UNAVAILABLE: deployment of installation 'serves its mounts' is unavailable: none is running`,
+        refused: `SERVICE_UNAVAILABLE: DEPLOYMENT_UNAVAILABLE: deployment of installation '${ids.notes}' is unavailable: none running serves the call`,
     });
 });
 
@@ -577,11 +577,11 @@ test("ask a caller to wait for an installation still deploying, and refuse a dep
     expect([deployed, await call()]).toEqual([
         [
             null,
-            "SERVICE_UNAVAILABLE: DEPLOYMENT_UNAVAILABLE: deployment of installation 'runs release 2026.9.0' is unavailable: none is running",
+            `SERVICE_UNAVAILABLE: DEPLOYMENT_UNAVAILABLE: deployment of installation '${ids.notes}' is unavailable: none running serves the call`,
         ],
         [
             "1",
-            "SERVICE_UNAVAILABLE: DEPLOYMENT_UNAVAILABLE: deployment is unavailable: the deployment of this installation that 'runs release 2026.9.0' is starting",
+            `SERVICE_UNAVAILABLE: DEPLOYMENT_UNAVAILABLE: deployment of installation '${ids.notes}' is unavailable: it is starting`,
         ],
     ]);
 });

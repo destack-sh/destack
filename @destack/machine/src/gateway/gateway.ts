@@ -682,7 +682,6 @@ export class Gateway {
                 Version.compare(spoken, Version.release(endpoint.release)) <= 0 &&
                 (endpoint.since === undefined ||
                     Version.compare(Version.release(endpoint.since), spoken) <= 0),
-            `runs release ${version}`,
         );
 
         // count the request and limit it by the installation's space
@@ -786,7 +785,7 @@ export class Gateway {
         request: Request,
         caller: { readonly authentication: Authentication | undefined; readonly voucher: Voucher },
     ): Promise<Response> {
-        const newest = await this.#newest(installationId, () => true, "serves its mounts");
+        const newest = await this.#newest(installationId, () => true);
 
         return this.#forward(
             this.#runtime(newest.runtime),
@@ -806,7 +805,6 @@ export class Gateway {
         const newest = await this.#newest(
             installationId,
             (endpoint) => endpoint.workload === HOOK_WORKLOAD,
-            "handles hooks",
         );
 
         // send the request and read its answer, throwing a refusal
@@ -831,7 +829,6 @@ export class Gateway {
     async #newest(
         installationId: Identifier<"installation">,
         serves: (endpoint: Endpoint) => boolean,
-        serving: string,
     ): Promise<Endpoint> {
         // take the newest release among the running deployments that serve the call
         const endpoints = await this.#endpoints(installationId);
@@ -849,13 +846,13 @@ export class Gateway {
         if (installed !== undefined && Observation.progress(installed) === "waiting") {
             throw MachineError.of(
                 "DEPLOYMENT_UNAVAILABLE",
-                `deployment is unavailable: the deployment of this installation that '${serving}' is starting`,
+                `deployment of installation '${installationId}' is unavailable: it is starting`,
                 { data: { retryAfter: DEPLOYMENT_RETRY_MILLISECONDS } },
             );
         } else {
             throw MachineError.of(
                 "DEPLOYMENT_UNAVAILABLE",
-                `deployment of installation '${serving}' is unavailable: none is running`,
+                `deployment of installation '${installationId}' is unavailable: none running serves the call`,
                 { data: {} },
             );
         }
