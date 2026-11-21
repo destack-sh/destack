@@ -32,7 +32,7 @@ function writeBuild(): Promise<BuildReader> {
 
 /** List the digests of a build's referenced and stored files. */
 async function digests(build: BuildReader): Promise<string[]> {
-    return [...build.references(), ...(await build.files())].map((file) => file.digest);
+    return [...build.lists(), ...(await build.files())].map((file) => file.digest);
 }
 
 /** Serve a machine with builds in its build store, the owner creating builds it runs. */

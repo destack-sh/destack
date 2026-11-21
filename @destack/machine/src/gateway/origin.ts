@@ -132,6 +132,8 @@ export class InstallationOriginServer {
     readonly #assets = new Map<string, Promise<AssetIndex>>();
     /** The catalog paths each build's pages load, by build and base. */
     readonly #catalogs = new Map<string, Promise<string[]>>();
+    /** The reader of each build a served page reaches, opened once, by build. */
+    readonly #readers = new Map<string, Promise<BuildReader>>();
 
     /** Serve the origins of a space's installations through its gateway. */
     constructor(
@@ -550,6 +552,13 @@ export class InstallationOriginServer {
                 "set-cookie": new OriginCookie(SESSION_COOKIE, url).write(session, SESSION_SECONDS),
             },
         });
+    }
+
+    /** Open a build a served page reaches once, keeping its reader while the space serves. */
+    #reader(digest: Digest): Promise<BuildReader> {
+        return InstallationOriginServer.#memo(this.#readers, digest, () =>
+            this.#space.builds.contents(digest),
+        );
     }
 
     /** Read a value once per key, forgetting a failed read so a later one tries again. */
@@ -1053,7 +1062,7 @@ export class InstallationOriginServer {
             if (!reached.success || !closure.builds.has(reached.data)) {
                 throw MachineError.of("VIEW_NOT_FOUND", `build '${digest}' of the views not found`);
             }
-            const dependency = await this.#space.builds.contents(reached.data);
+            const dependency = await this.#reader(reached.data);
             const file = await dependency.file(path.join("/"));
 
             return InstallationOriginServer.#file(request, file, () => dependency.load(file.path), {
@@ -1066,7 +1075,7 @@ export class InstallationOriginServer {
         const assets = await InstallationOriginServer.#memo(
             this.#assets,
             `${page.image} ${base}`,
-            () => AssetIndex.of(closure.builds, (digest) => this.#space.builds.contents(digest)),
+            () => AssetIndex.of(closure.builds, (digest) => this.#reader(digest)),
         );
         const published = assets.find(pathname);
         if (published !== undefined) {
@@ -1261,7 +1270,7 @@ export class InstallationOriginServer {
         const listed = await Promise.all(
             [...closure.builds].map(async (digest) => {
                 // read a Destack build's catalog files, an npm unit's build having none
-                const reached = await this.#space.builds.contents(digest);
+                const reached = await this.#reader(digest);
                 if (!PackageManifest.isPackage(reached.manifest)) {
                     return [];
                 }
@@ -1288,7 +1297,7 @@ export class InstallationOriginServer {
     /** Find a package's runtime build among the builds a page's views import, refusing others. */
     async #build(closure: ImportClosure, packageId: PackageId): Promise<BuildReader> {
         for (const digest of closure.builds) {
-            const reader = await this.#space.builds.contents(digest);
+            const reader = await this.#reader(digest);
             if (
                 PackageManifest.isPackage(reader.manifest) &&
                 reader.manifest.package.id === packageId
