@@ -2826,31 +2826,38 @@ export class Space {
 
     /** Find the one installation serving a package here, holding while it deploys. */
     installation(packageId: PackageId, signal: AbortSignal): Promise<InstallationRollout> {
-        // list the packages here implementing it: the store's own, and the workloads'
-        const implementers = [
-            ...this.instance.packages.map(
-                (handle) => [handle.id, handle.protocols.map((protocol) => protocol.id)] as const,
-            ),
-            ...this.#current().installed.map(
-                (entry) =>
-                    [
-                        entry.rollout.installation.packageId,
-                        PackageDescription.find(entry.declarations)?.protocols ?? [],
-                    ] as const,
-            ),
-        ]
-            .filter(([, protocols]) => protocols.includes(packageId))
-            .map(([implementer]) => implementer);
-
+        // read the packages serving it at each attempt, as workloads serve theirs after the store
         return this.waitServing(
             () =>
                 Rollout.requireServing(this.database, {
                     spaceId: this.id,
                     packageId,
-                    implementers,
+                    packages: this.#servingPackages(packageId),
                 }),
             signal,
         );
+    }
+
+    /** List the packages serving a package here: itself and each serving its protocols. */
+    #servingPackages(packageId: PackageId): PackageId[] {
+        // read the protocols of the store's own packages and of the workloads'
+        const stored = this.instance.packages.map(
+            (handle) => [handle.id, handle.protocols.map((protocol) => protocol.id)] as const,
+        );
+        const installed = this.#current().installed.map(
+            (entry) =>
+                [
+                    entry.rollout.installation.packageId,
+                    PackageDescription.find(entry.declarations)?.protocols ?? [],
+                ] as const,
+        );
+
+        // take the package and each one serving its protocols
+        const others = [...stored, ...installed]
+            .filter(([, protocols]) => protocols.includes(packageId))
+            .map(([served]) => served);
+
+        return [packageId, ...others];
     }
 
     /** List the mounts an installation the space serves declares. */

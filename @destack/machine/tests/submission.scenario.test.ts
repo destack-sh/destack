@@ -786,10 +786,10 @@ test("find the one installation serving a package, else ask to wait or refuse", 
     const serving = (
         spaceId: Identifier<"space">,
         packageId: PackageId,
-        implementers: readonly PackageId[] = [],
+        packages: readonly PackageId[] = [packageId],
     ) =>
         refusal(
-            Rollout.requireServing(database, { spaceId, packageId, implementers }).then(
+            Rollout.requireServing(database, { spaceId, packageId, packages }).then(
                 ({ installationId }) => installationId,
             ),
         );
@@ -797,12 +797,12 @@ test("find the one installation serving a package, else ask to wait or refuse", 
     const alone = await Rollout.requireServing(database, {
         spaceId: ids.space,
         packageId: ids.package,
-        implementers: [],
+        packages: [ids.package],
     });
     const unknown = await serving(ids.space, OTHER_PACKAGE);
     const pending = await serving(schema.identifier("space").parse(UNAPPLIED_SPACE), ids.package);
     await install("other", OTHER_PACKAGE);
-    const twice = await serving(ids.space, ids.package, [OTHER_PACKAGE]);
+    const twice = await serving(ids.space, ids.package, [ids.package, OTHER_PACKAGE]);
 
     // find notes alone, refuse an unknown package, ask to wait before the stack applies, and refuse two
     expect([alone.installationId, unknown, pending, twice]).toEqual([
