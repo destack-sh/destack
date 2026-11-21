@@ -20,13 +20,17 @@ import {
     LAYER_BLOBS,
     LAYER_FORMAT,
     LAYER_INDEX,
+    LAYER_PACKS,
     LAYER_TREES,
-    LayerIndex,
-    type LayerFile,
+    BuildLayerIndex,
+    type BuildLayerFile,
 } from "@destack/package/manifest";
 import { BuildTree } from "../dependency/tree.ts";
 import { Digest, JsonValue, present, schema, Uuid } from "@destack/schema";
 import { HOST_RUNTIME, type Runtime } from "@destack/package/runtime";
+
+/** The most bytes of files a pack takes: 16 MiB, below a Worker's 25 MiB per static asset. */
+const PACK_BYTES = 16 * 1024 * 1024;
 
 /** The directory below a store's directory with its blobs, by digest. */
 const FILES_DIRECTORY = "files";
@@ -76,8 +80,8 @@ const CACHE_DIRECTORY = "destack";
 /** What the person's store has builds for: development tools, or test runs. */
 export type LocalStoreUse = "development" | "test";
 
-/** How a layer lays out its builds: linked to its store's pooled builds, or as blobs by digest. */
-export type LayerLayout = "linked" | "addressed";
+/** How a layer lays out its builds: linked to its store's pooled builds, or as packs of files. */
+export type LayerLayout = "linked" | "packed";
 
 /** The blobs, database, trees directory and environment of a store on this machine's disk. */
 export interface LocalBuildStoreOptions {
@@ -376,7 +380,7 @@ export class LocalBuildStore
         await files.symlink(target, path);
     }
 
-    /** Write the images' builds in a layout: addressed blobs, or whole builds and run trees. */
+    /** Write the images' builds in a layout: packs of files, or whole builds and run trees. */
     async #writeLayer(
         images: readonly Digest[],
         runtimes: readonly Runtime[],
@@ -394,9 +398,9 @@ export class LocalBuildStore
             }
         }
 
-        // write an addressed layer's blobs alone, what the runtimes run, as the cloud only runs
-        if (layout === "addressed") {
-            await this.#writeAddressed(shipped, runtimes, directory);
+        // write a packed layer's files alone, what the runtimes run, as the cloud only runs
+        if (layout === "packed") {
+            await this.#writePacked(shipped, runtimes, directory);
 
             return;
         }
@@ -437,21 +441,23 @@ export class LocalBuildStore
         }
 
         // index each build's manifest and files last
-        const sizes: LayerIndex["builds"] = {};
-        const placed = new Map<Digest, LayerFile>();
+        const sizes: BuildLayerIndex["builds"] = {};
+        const placed = new Map<Digest, BuildLayerFile>();
         for (const [digest, reader] of readers) {
             sizes[digest] = PackageManifest.serialize(reader.manifest).byteLength;
             for (const file of await reader.distributed()) {
                 if (!placed.has(file.digest)) {
                     placed.set(file.digest, {
                         digest: file.digest,
-                        path: `${digest}/${file.path}`,
                         size: file.size,
+                        addressing: "path",
+                        path: `${digest}/${file.path}`,
                     });
                 }
             }
         }
-        await BuildLayer.writeIndex(directory, shipped, sizes, [...placed.values()], "path", files);
+        const linked = [...placed.values()];
+        await BuildLayer.writeIndex(directory, shipped, sizes, "path", linked, [], files);
     }
 
     /** Write a linked layer of release images once, keyed with the runtimes. */
@@ -481,8 +487,8 @@ export class LocalBuildStore
         return directory;
     }
 
-    /** Write what the images' runtimes run as blobs by digest, the index last. */
-    async #writeAddressed(
+    /** Write what the images' runtimes run as packs of each build's files, the index last. */
+    async #writePacked(
         images: ReadonlyMap<Digest, BuildImage>,
         runtimes: readonly Runtime[],
         directory: string,
@@ -528,40 +534,48 @@ export class LocalBuildStore
             }
         }
 
-        // write each build's manifest at its digest, and list the wanted files of it that run
-        const sizes: LayerIndex["builds"] = {};
-        const placed = new Map<Digest, LayerFile>();
-        const placements: FilePlacement[] = [];
+        // write each build's manifest at its digest, and list its wanted files that run
+        const sizes: BuildLayerIndex["builds"] = {};
+        const sources = new Map<Digest, { readonly reader: BuildReader; readonly path: string }>();
+        const groups: Pick<BuildLayerFile, "digest" | "size">[][] = [];
         for (const { digest } of objects.filter((object) => object.kind === "manifest")) {
             const reader = await this.contents(digest);
             const manifest = PackageManifest.serialize(reader.manifest);
             await files.writeFile(join(blobs, digest), manifest);
             sizes[digest] = manifest.byteLength;
+
+            // group the build's files no earlier build listed
             const distributed = await reader.distributed();
             const unreached = ImportClosure.unused(digest, reader, distributed, reached);
-            for (const file of distributed) {
-                const isWanted = wanted.has(file.digest) && !unreached.has(file.digest);
-                if (isWanted && !placed.has(file.digest)) {
-                    placements.push({ file, destination: join(blobs, file.digest) });
-                    placed.set(file.digest, {
-                        digest: file.digest,
-                        path: `${LAYER_BLOBS}/${file.digest}`,
-                        size: file.size,
-                    });
-                }
+            const added = distributed
+                .filter((file) => wanted.has(file.digest) && !unreached.has(file.digest))
+                .filter((file) => !sources.has(file.digest));
+            const group = [...new Map(added.map((file) => [file.digest, file])).values()];
+            for (const file of group) {
+                sources.set(file.digest, { reader, path: file.path });
             }
+            groups.push(group);
         }
 
-        // clone the listed files, then write the index
-        await this.place(placements);
-        await BuildLayer.writeIndex(
-            directory,
-            images,
-            sizes,
-            [...placed.values()],
-            "digest",
-            files,
-        );
+        // write each pack: its files' bytes end to end
+        const packs = BuildLayer.pack(groups, PACK_BYTES);
+        await files.mkdir(join(directory, LAYER_PACKS));
+        for (const [number, pack] of packs.entries()) {
+            const loaded: Uint8Array<ArrayBuffer>[] = [];
+            for (const entry of pack) {
+                const source = present(
+                    sources.get(entry.digest),
+                    `the packed file ${entry.digest}`,
+                );
+                loaded.push(await source.reader.load(source.path));
+            }
+            const bytes = new Uint8Array(await new Blob(loaded).arrayBuffer());
+            await files.writeFile(join(directory, LAYER_PACKS, String(number)), bytes);
+        }
+
+        // write the index
+        const packed = packs.map((pack) => pack.reduce((sum, entry) => sum + entry.size, 0));
+        await BuildLayer.writeIndex(directory, images, sizes, "pack", packs.flat(), packed, files);
     }
 
     /** Write a build into the store's layered builds once, unless another writer did first. */
@@ -765,7 +779,9 @@ export class LocalBuildStore
             const written =
                 text === undefined ? undefined : JsonValue.object(JsonValue.parse(text));
             const index =
-                written?.["formatVersion"] === LAYER_FORMAT ? LayerIndex.parse(written) : undefined;
+                written?.["formatVersion"] === LAYER_FORMAT
+                    ? BuildLayerIndex.parse(written)
+                    : undefined;
             const builds = Object.keys(index?.builds ?? {}).map((each) => Digest.parse(each));
             const isComplete =
                 index !== undefined && (await this.has(builds)).every((isStored) => isStored);

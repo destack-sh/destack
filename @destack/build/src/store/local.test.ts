@@ -323,7 +323,7 @@ test("pull every file of a build its layer ships in part, when pulled for all ru
     const release = await distributor.put(build);
     const image = await imageAlone(distributor, release);
     const distribution = join(directory, "distribution");
-    await distributor.writeLayer([image], ["workerd"], distribution, "addressed");
+    await distributor.writeLayer([image], ["workerd"], distribution, "packed");
     const fetch = async (input: string) => {
         const file = join(distribution, new URL(input).pathname);
 
@@ -354,7 +354,7 @@ test("pull every file of a build its layer ships in part, when pulled for all ru
     expect([shipped, await read()]).toEqual(["package file 'docs/notes.txt' not found", "kept"]);
 });
 
-test("read an addressed layer's builds in assets by digest, without other runtimes' outputs", async () => {
+test("read a packed layer's builds in assets by digest, without other runtimes' outputs", async () => {
     // write a layer of a release for workerd alone, whose build has a Bun output too
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -364,7 +364,7 @@ test("read an addressed layer's builds in assets by digest, without other runtim
     const release = await store.put(await written("export const answer = 42;", crypto));
     const image = await imageAlone(store, release);
     const distribution = join(directory, "distribution");
-    await store.writeLayer([image], ["workerd"], distribution, "addressed");
+    await store.writeLayer([image], ["workerd"], distribution, "packed");
 
     // open it through assets answering the layer's files by path, as a Worker's binding does
     const fetch = async (input: string) => {
@@ -379,18 +379,27 @@ test("read an addressed layer's builds in assets by digest, without other runtim
         reader.digest(),
     );
 
-    // read the release by its digest, its blobs its manifest and lists alone, as it has no workerd output and ships no sources off the host
+    // read the release by its digest: its manifest a blob, its lists in one pack, as it has no workerd output and ships no sources off the host
     const shipped = (await store.contents(release)).references();
+    const names = async (below: string) =>
+        (await files.readDirectory(join(distribution, below)))
+            .map((entry) => entry.name)
+            .toSorted();
+    const sizes = await Promise.all(
+        shipped.map(async (file) => (await layer.read(file.digest))?.byteLength),
+    );
     expect({
         releases: layer.releases,
         read,
-        blobs: (await files.readDirectory(join(distribution, "blobs")))
-            .map((entry) => entry.name)
-            .toSorted(),
+        blobs: await names("blobs"),
+        packs: await names("packs"),
+        sizes,
     }).toEqual({
         releases: [image],
         read: release,
-        blobs: [...new Set([release, ...shipped.map((file) => file.digest)])].toSorted(),
+        blobs: [release],
+        packs: ["0"],
+        sizes: shipped.map((file) => file.size),
     });
 });
 
