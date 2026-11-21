@@ -22,6 +22,7 @@ import { preventAbbreviations } from "./prevent-abbreviations.ts";
 import { requireBlockComment } from "./require-block-comment.ts";
 import { requireJsdoc } from "./require-jsdoc.ts";
 import { styleAttribute } from "./style-attribute.ts";
+import { styleFocus } from "./style-focus.ts";
 import { styleHover } from "./style-hover.ts";
 import { styleShorthand } from "./style-shorthand.ts";
 import { styleTokens } from "./style-tokens.ts";
@@ -65,6 +66,7 @@ export const rules = {
     "require-block-comment": requireBlockComment,
     "require-jsdoc": requireJsdoc,
     "style-attribute": styleAttribute,
+    "style-focus": styleFocus,
     "style-hover": styleHover,
     "style-shorthand": styleShorthand,
     "style-tokens": styleTokens,

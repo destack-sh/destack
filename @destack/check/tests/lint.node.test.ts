@@ -1131,6 +1131,19 @@ tester.run("no-class-name", rules["no-class-name"], {
     ],
 });
 
+tester.run("style-focus", rules["style-focus"], {
+    valid: [
+        'const styles = style.create({ field: { outlineStyle: { default: "none", ":focus-within": "solid" } } });',
+        'const styles = style.create({ item: { outlineStyle: "none" } });',
+    ],
+    invalid: [
+        {
+            code: 'const styles = style.create({ link: { outlineStyle: { default: "none", ":focus-visible": "solid" } } });',
+            errors: [{ messageId: "focus" }],
+        },
+    ],
+});
+
 tester.run("style-hover", rules["style-hover"], {
     valid: [
         'const styles = style.create({ link: { color: { default: "inherit", ":hover": { default: null, [media.hover]: "red" } } } });',
