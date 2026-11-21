@@ -2,8 +2,11 @@ import type { CommandBody } from "../command/command.ts";
 import type { CommandEnvironment } from "../command/context.ts";
 import { CliError } from "../error/index.ts";
 
-/** The capability git announces to helpers answering an authentication scheme, since 2.46. */
+/** The capability git announces since 2.46, with which a helper marks a credential ephemeral. */
 const AUTHTYPE_CAPABILITY = "capability[]=authtype";
+
+/** The user name beside a token in Git's Basic authentication, as GitHub's tokens take. */
+const TOKEN_USER = "x-access-token";
 
 /** The prefix of the capabilities git lists in a request, each its own line. */
 const CAPABILITY_PREFIX = "capability[]=";
@@ -82,22 +85,15 @@ export class GitCredentialRequest {
         return new GitCredentialRequest(new Map(fields));
     }
 
-    /** Answer the request with a Bearer token, refusing a git without the authtype capability. */
+    /** Answer the request with a token as a password, which git sends with every request. */
     answer(token: string): string {
-        // require git's authtype capability, which carries a Bearer token
-        if (!this.fields.has(AUTHTYPE_CAPABILITY)) {
-            throw CliError.of(
-                "GIT_VERSION_INVALID",
-                "git version is invalid: Destack's credentials need git 2.46 or later",
-            );
-        }
+        // answer a user and the token as its password, as git sends Basic credentials with a large push's probe
+        const credential = [`username=${TOKEN_USER}`, `password=${token}`];
 
-        return [
-            AUTHTYPE_CAPABILITY,
-            "authtype=Bearer",
-            `credential=${token}`,
-            "ephemeral=true",
-        ].join("\n");
+        // ask a git with the capability to keep the token out of its other helpers
+        return this.fields.has(AUTHTYPE_CAPABILITY)
+            ? [AUTHTYPE_CAPABILITY, ...credential, "ephemeral=true"].join("\n")
+            : credential.join("\n");
     }
 }
 

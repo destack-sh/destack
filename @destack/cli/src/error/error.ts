@@ -26,8 +26,6 @@ export const CliError = defineErrorFamily({
 
         CHECK_INVALID: {},
 
-        GIT_VERSION_INVALID: {},
-
         METHOD_INVALID: {},
 
         PACKAGE_INVALID: {},
