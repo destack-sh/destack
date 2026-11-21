@@ -1,5 +1,6 @@
+import { DatabaseState } from "@destack/db";
 import type { Crypto } from "@destack/environment";
-import { PackageVersion } from "@destack/package";
+import { type PackageId, PackageVersion } from "@destack/package";
 import { type BuildReader, type OutputContent, PackageManifest } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import { ResourceDeclaration } from "@destack/resource";
@@ -11,7 +12,12 @@ import {
     SERVER_EXPORT,
 } from "../declare/index.ts";
 import { describePackage } from "../inspect/index.ts";
-import { OBJECT_KIND, ObjectDescription, type ObjectType } from "../object/index.ts";
+import {
+    type KnownDeclaration,
+    OBJECT_KIND,
+    ObjectDescription,
+    ObjectType,
+} from "../object/index.ts";
 
 /** The output of every test build: a Bun server output exporting the server, running nothing. */
 const SERVER_OUTPUT: OutputContent = {
@@ -75,10 +81,43 @@ export async function testBuild(
         }),
     );
 
+    // list the tables its durable and events types keep, and those of the protocols it implements
+    const served = [handle, ...handle.protocols];
+    const kept = served
+        .flatMap((each): unknown[] => Object.values(each.objects))
+        .filter((type) => ObjectType.is(type))
+        .filter((type) => type.storage === "durable" || type.storage === "events")
+        .flatMap((type) => type.tables);
+    const packages = served.map((each) => each.id);
+    const { tables } = DatabaseState.of([...new Set(kept)], { packages });
+
     // write the build with a server output unless given others
     return MemoryBuild.of(PackageVersion.of(handle), [...described, ...declared], crypto, {
         outputs: { server: SERVER_OUTPUT },
+        tables,
         ...contents,
         requires,
     });
+}
+
+/** List the tables a hand-written build's described types keep, as a compiler writes them. */
+export function describedTables(
+    declared: readonly {
+        /** The declaration's kind. */
+        readonly kind: string;
+        /** The package defining the kind. */
+        readonly kindPackageId?: string;
+        /** The declaration's description. */
+        readonly description?: Readonly<Record<string, unknown>>;
+    }[],
+    packageId: PackageId,
+    known: Iterable<KnownDeclaration>,
+): DatabaseState["tables"] {
+    // take the object types among the declarations
+    const { kind, kindPackageId } = OBJECT_KIND.identity;
+    const descriptions = declared
+        .filter((each) => each.kind === kind && each.kindPackageId === kindPackageId)
+        .map((each) => ObjectDescription.parse(each.description));
+
+    return ObjectDescription.tables(descriptions, [packageId], known).tables;
 }

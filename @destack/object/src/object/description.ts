@@ -1,8 +1,15 @@
 import { Message } from "@destack/locale";
 import * as accessExports from "@destack/access";
 import { Policy, PolicySubject } from "@destack/access";
-import { TABLE, type Table } from "@destack/db";
-import { defineKind, graph, Kind, KIND_JSON, PackageVersion } from "@destack/package";
+import { DatabaseState, TABLE, type Table } from "@destack/db";
+import {
+    defineKind,
+    graph,
+    Kind,
+    KIND_JSON,
+    type PackageId,
+    PackageVersion,
+} from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import { ResourceDeclaration } from "@destack/resource";
 import {
@@ -312,6 +319,23 @@ export const ObjectDescription = Object.assign(objectDescription, {
         return declared.map((each) => each.description);
     },
 
+    /** Describe the tables some packages' types keep, declared from descriptions alone. */
+    tables(
+        descriptions: readonly ObjectDescription[],
+        packages: readonly PackageId[],
+        known: Iterable<KnownDeclaration> = [],
+    ): DatabaseState {
+        // declare the types against each other and the known ones, then describe the packages' durable and events tables
+        const declared = ObjectTypePool.of(known).declare(descriptions);
+        const tables = new Set(
+            declared
+                .filter((type) => type.storage === "durable" || type.storage === "events")
+                .flatMap((type) => type.tables),
+        );
+
+        return DatabaseState.of([...tables], { packages });
+    },
+
     /** Read the object descriptions among an installation's declarations. */
     installed(
         declarations: readonly Pick<graph.Declaration, "kind" | "kindPackageId" | "description">[],
@@ -368,8 +392,8 @@ export class ObjectTypePool {
 
     /** Declare object types from descriptions and add them, each once its references are known. */
     declare(descriptions: readonly ObjectDescription[]): ObjectType[] {
-        // declare each type once the object types of the same descriptions it refers to now are
-        //  declared, as their tables are the ones its tables refer to; policies match by key alone
+        // declare each type once the types and policies of the same descriptions it refers to now are
+        //  declared, as their tables and policies are the ones its own refer to
         const pending = new Map(descriptions.map((each) => [ObjectDescription.key(each), each]));
         const declared = new Map<string, ObjectType>();
         while (pending.size > 0) {
@@ -377,7 +401,11 @@ export class ObjectTypePool {
                 ObjectTypePool.#references(each.definition, false).every(({ reference, kind }) => {
                     const referred = ObjectTypeReference.key(reference);
 
-                    return kind === "policies" || referred === key || !pending.has(referred);
+                    return (
+                        referred === key ||
+                        !pending.has(referred) ||
+                        (kind === "policies" && this.policies.has(referred))
+                    );
                 }),
             );
             if (ready.length === 0) {
