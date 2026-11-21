@@ -13,14 +13,7 @@ import { notification } from "@destack/notification/object";
 import messagePackage from "@destack/message/package";
 import notificationPackage from "@destack/notification/package";
 import { TestNotification } from "@destack/notification/test";
-import {
-    EventView,
-    OBJECT_KIND,
-    ObjectDescription,
-    PACKAGE_KIND,
-    PACKAGE_EXPORT,
-} from "@destack/object";
-import { describePackage } from "@destack/object/inspect";
+import { EventView } from "@destack/object";
 import { implementPackage, type ObjectStore } from "@destack/object/server";
 import type { ServerContext } from "@destack/object/workload";
 import { describeMeter } from "@destack/telemetry/inspect";
@@ -50,6 +43,7 @@ import vaultPackage from "@destack/vault/package";
 import { TestVault } from "@destack/vault/test";
 import { RequestId, Scope, Subject } from "@destack/sync";
 import { TestTelemetry } from "@destack/telemetry/test";
+import { testBuild } from "@destack/object/test";
 import { testHost } from "@destack/test/host";
 import { Feature } from "../feature/index.ts";
 import { describeFeature, describeSku } from "../inspect/index.ts";
@@ -128,19 +122,8 @@ export interface FinanceFixtureOptions {
 /** Finance's build, declaring its package, notifications, secrets and resources. */
 const FINANCE: TestPackage = {
     handle: financePackage,
-    build: await MemoryBuild.of(
-        usageLimit.package,
-        [
-            {
-                ...PACKAGE_KIND.identity,
-                name: PACKAGE_EXPORT,
-                description: describePackage(financePackage),
-            },
-            ...Object.values(financePackage.objects).map((type) => ({
-                ...OBJECT_KIND.identity,
-                name: type.name,
-                description: ObjectDescription.of(type),
-            })),
+    build: await testBuild(financePackage, testHost().crypto, {
+        declared: [
             {
                 kind: "notification",
                 kindPackageId: notification.package.id,
@@ -148,15 +131,9 @@ const FINANCE: TestPackage = {
                 description: usageLimit.describe(),
             },
             ...TestVault.declarations([], Object.values(financePackage.secrets)),
-            {
-                ...stripe.kind.identity,
-                provisioned: true,
-                name: stripe.name,
-                description: { ...stripe.describe(), ...stripe.state() },
-            },
         ],
-        testHost().crypto,
-    ),
+        outputs: {},
+    }),
     server: financeServer(new Map(), undefined),
     connectors: [],
     providers: [],
