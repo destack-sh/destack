@@ -11,9 +11,11 @@ import {
     PackageJson,
     TEST_EXPORT,
 } from "@destack/package";
-import { found, present, schema } from "@destack/schema";
+import { found, type JsonObject, present, schema } from "@destack/schema";
+import { ObjectDescription, PackageDescription } from "@destack/object";
 import type { BuildExtension, TransformCache } from "@destack/package/build";
 import { type SourceMapReference } from "@destack/package/source";
+import { MANIFEST_LISTS } from "@destack/package/manifest";
 import { PackageLocator } from "@destack/package/locator";
 import type { Toolchain } from "@destack/check/toolchain";
 import { ConstructorCatalog, Evaluation, type EvaluatedDeclaration } from "../declaration/index.ts";
@@ -307,10 +309,11 @@ export class CompilerWorker {
         // write the manifest
         const source = opened.primary.packageJson.package;
         const requires = PackageJson.ranges(opened.packageJson);
-        const graph = DeclarationGraph.describe(
+        const described = DeclarationGraph.describe(
             source,
             declarations.map((declaration) => declaration.description),
         );
+        const tables = await this.#tables(source, described.list(), options.tree);
         await files.finish({
             destack: DESTACK_VERSION,
             package: source,
@@ -320,10 +323,48 @@ export class CompilerWorker {
             ),
             requires,
             sourceMaps: compiled.sourceMaps,
-            declarations: graph.list(),
-            relationships: graph.relationships(),
+            declarations: described.list(),
+            relationships: described.relationships(),
+            tables,
             isExtension: opened.packageJson.definition.build !== undefined,
         });
+    }
+
+    /** Describe the tables the package's object types keep, with its dependencies' types. */
+    async #tables(
+        source: PackageVersion,
+        declarations: readonly graph.Declaration[],
+        tree: Readonly<Record<string, string>>,
+    ): Promise<JsonObject> {
+        // describe no tables for a package declaring no object types
+        const own = ObjectDescription.installed(declarations);
+        if (own.length === 0) {
+            return {};
+        }
+
+        // read the object types the builds of its dependencies describe, from the tree it compiles against
+        const { files } = this.environment;
+        const directories = Object.entries(tree).filter(([name]) => name !== source.name);
+        const depended = await Promise.all(
+            directories.map(async ([, directory]) => {
+                // pass a build without declarations, such as an npm package's
+                const path = join(directory, MANIFEST_LISTS.declarations);
+                if (!(await files.exists(path))) {
+                    return [];
+                }
+                const listed = schema
+                    .array(graph.Declaration)
+                    .parse(JSON.parse(await files.readTextFile(path)));
+
+                return ObjectDescription.installed(listed);
+            }),
+        );
+
+        // describe its own tables and those of the protocols it implements
+        const protocols = PackageDescription.find(declarations)?.protocols ?? [];
+
+        return ObjectDescription.tables([...depended.flat(), ...own], [source.id, ...protocols])
+            .tables;
     }
 
     /** Plan a package's outputs with its closure's extensions, and open each output's project. */
