@@ -16,7 +16,7 @@ import {
     type WorkloadStart,
     type WorkloadTelemetry,
 } from "@destack/object/workload";
-import type { BunWorkload } from "@destack/stack/bun";
+import type { BunWorkload } from "@destack/object/bun";
 import {
     type InstanceExit,
     InstanceSpec,

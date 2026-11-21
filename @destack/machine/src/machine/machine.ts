@@ -220,6 +220,8 @@ export class Machine {
     readonly #trusted: Set<Digest>;
     /** The releases of the packages the machine links, by package. */
     readonly #linked: Map<PackageId, PackageRelease>;
+    /** The images of the linked releases, pulled once, by package name. */
+    #linkedImages: Promise<ReadonlyMap<string, BuildImage>> | undefined;
     /** The releases the machine ships, by package. */
     readonly shipped: ReadonlyMap<PackageId, PackageRelease>;
     /** The URL the machine answers at: a cloud machine's declared origin, else its local one. */
@@ -481,16 +483,26 @@ export class Machine {
         }
     }
 
-    /** Pull the images of the releases the machine links, by package name. */
-    async linkedImages(): Promise<Map<string, BuildImage>> {
+    /** Pull the images of the releases the machine links once, by package name. */
+    linkedImages(): Promise<ReadonlyMap<string, BuildImage>> {
+        // take the images pulled or pulling already, as the machine links the same releases while it runs
+        if (this.#linkedImages !== undefined) {
+            return this.#linkedImages;
+        }
+
+        // pull each image for the machine's runtimes, then read it, forgetting a failed pull
         const pulled = [...this.#linked.values()].map(async (each) => {
-            // pull the image for the machine's runtimes, then read it
             await this.pull(each.package.id, { kind: "image", digest: each.image });
 
             return [each.package.name, await this.builds.image(each.image)] as const;
         });
+        const pulling = Promise.all(pulled).then((images) => new Map(images));
+        this.#linkedImages = pulling;
+        pulling.catch(() => {
+            this.#linkedImages = undefined;
+        });
 
-        return new Map(await Promise.all(pulled));
+        return pulling;
     }
 
     /** The releases of the packages the machine links, by package. */
@@ -512,6 +524,7 @@ export class Machine {
             this.#trusted.delete(replaced.image);
         }
         this.#linked.set(id, released);
+        this.#linkedImages = undefined;
         this.#trusted.add(released.image);
     }
 

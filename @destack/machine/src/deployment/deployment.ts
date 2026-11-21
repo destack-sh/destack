@@ -1,7 +1,20 @@
-import type { RevisionOptions } from "../installation/target.ts";
 import {
     installation,
-    type Installation,
+    Installation,
+    Binding,
+    Database,
+    Deployment,
+    deployment,
+    type Instance,
+    instance,
+    type InstanceCondition,
+    installationRevision,
+    InstallationRevision,
+    dependency,
+    type ObjectBindingKind,
+} from "@destack/stack/object";
+import type { RevisionOptions } from "../installation/target.ts";
+import {
     InstallationName,
     type ObjectReconciliation,
     type ObjectWatch,
@@ -45,24 +58,10 @@ import {
     type WorkloadServed,
 } from "../runtime/index.ts";
 import type { BuildReader } from "@destack/package/manifest";
-import {
-    Binding,
-    Database,
-    Deployment,
-    deployment,
-    type Instance,
-    instance,
-    type InstanceCondition,
-    installationRevision,
-    InstallationRevision,
-    dependency,
-    Rollout,
-} from "@destack/stack/object";
 import { MAIN_DATABASE } from "@destack/stack/declare";
 import { StackError } from "@destack/stack/error";
 import type { ProviderIndex } from "../resource/resource.ts";
-import type { ObjectBindingKind } from "@destack/stack/object";
-import { RolloutTarget } from "../installation/target.ts";
+import { InstallationTarget } from "../installation/target.ts";
 import type { Kind, Provisioning } from "@destack/package";
 
 /** The deployment an instance runs. */
@@ -224,7 +223,7 @@ class Reconcile {
     /** What the machine runs deployments with. */
     readonly #options: DeploymentOptions;
 
-    /** Create the rollout of a deployment with its recorded instances. */
+    /** Create the run of a deployment with its recorded instances. */
     constructor(
         current: Deployment,
         recorded: readonly Instance[],
@@ -472,7 +471,7 @@ class Reconcile {
                 .findFirst({ where: { id: this.#current.installationId } }),
             `the installation ${this.#current.installationId}`,
         );
-        if (Rollout.isSuperseded(installed, built.image, this.#options.trusted)) {
+        if (Installation.isSuperseded(installed, built.image, this.#options.trusted)) {
             const message =
                 "waiting for the space's stack to move it to a release this machine runs";
             await this.#observe(recorded, {
@@ -562,7 +561,7 @@ class Reconcile {
                 resources: resources
                     .filter((entry) => Reconcile.#isUsed(current.description, entry))
                     .map((entry) => this.#workloadResource(entry)),
-                settings: await RolloutTarget.settings(this.#reconciliation.database, reader, {
+                settings: await InstallationTarget.settings(this.#reconciliation.database, reader, {
                     scope: current.scope,
                     installation: current.installationId,
                 }),

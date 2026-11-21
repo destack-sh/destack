@@ -1,3 +1,4 @@
+import { type Installation, InstallationView } from "@destack/stack/object";
 import type { DatabaseConnection } from "@destack/db";
 import type { GrantClaim, PermissionReference } from "@destack/access";
 import { Account, HOME_SPACE, RESIDENCY_SPACE } from "@destack/account/object";
@@ -16,7 +17,6 @@ import type { Session, TokenBinding, UserIdentity } from "@destack/account/clien
 import type { Environment } from "@destack/environment";
 import accountPackage from "@destack/account/package";
 import {
-    type Installation,
     type Fetch,
     InstallationMount,
     ListPage,
@@ -25,7 +25,6 @@ import {
     SpaceMount,
     CallError,
 } from "@destack/object";
-import objectPackage from "@destack/object/package";
 import {
     type ClientOptions,
     createClient,
@@ -41,7 +40,6 @@ import {
 } from "@destack/package/manifest";
 import { type Identifier, nth, present, schema, Text } from "@destack/schema";
 import { ObjectReference, RequestId, Subject } from "@destack/sync";
-import { InstallationView } from "@destack/stack/object";
 import stackPackage from "@destack/stack/package";
 import {
     type Address,
@@ -716,8 +714,8 @@ export class Launcher {
         return {
             stack: createClient(stackPackage, endpoint(stackPackage.id), this.machine.environment),
             objects: createClient(
-                objectPackage,
-                endpoint(objectPackage.id),
+                stackPackage,
+                endpoint(stackPackage.id),
                 this.machine.environment,
             ),
         };
@@ -743,8 +741,8 @@ export class Launcher {
             );
         }
         const opened = InstallationView.parse(
-            await stack.rollout.open({
-                spaceId,
+            await stack.installation.open({
+                scope: spaceId,
                 id: found.id,
                 view: view.view,
                 path: view.path,
@@ -755,7 +753,7 @@ export class Launcher {
         const delegate = principal.installation.reference(spaceId, found.id);
         const requested = await Promise.all(
             further.map((permission) =>
-                stack.rollout.request({ spaceId, id: found.id, permission }),
+                stack.installation.request({ scope: spaceId, id: found.id, permission }),
             ),
         );
         const described = [...opened.permissions, ...requested.flat()];

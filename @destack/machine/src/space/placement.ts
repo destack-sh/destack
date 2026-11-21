@@ -1,5 +1,6 @@
+import { installation, installationRevision, Installation } from "@destack/stack/object";
 import { Entitlement, Space, space } from "@destack/account/object";
-import { and, eq, Snapshot, Transaction } from "@destack/db";
+import { eq, Snapshot, Transaction } from "@destack/db";
 import {
     type ObjectProjection,
     type ObjectReconciliation,
@@ -9,9 +10,7 @@ import { present, type UuidEnvironment, type JsonObject } from "@destack/schema"
 import { RequestId, Scope } from "@destack/sync";
 import { ObjectRemote } from "@destack/object/client";
 import { AccessContext, Authorization, Caller, principal } from "@destack/access";
-import { installation } from "@destack/object";
 import { Failure } from "@destack/error";
-import { installationRevision, Rollout, rollout } from "@destack/stack/object";
 import { Scheduler } from "../machine/scheduler.ts";
 
 /** The condition a space records its placement under, next to its entitlements' conditions. */
@@ -118,32 +117,25 @@ async function remove(
     reconciliation: Pick<ObjectReconciliation<typeof space>, "database" | "store" | "now">,
     options: Pick<Parameters<typeof implementSpace>[0], "remote">,
 ): Promise<void> {
-    // request the uninstall of the unmanaged rollouts not deleting yet as the space itself, the stack deleting what it manages
+    // request the uninstall of the unmanaged installations not deleting yet as the space, the stack deleting what it manages
     const { database, store, now } = reconciliation;
     const itself = principal.space.reference(Scope.universe.id, row.id);
-    const rollouts = await database
+    const installed = await database
         .select({
-            id: rollout.table.installationId,
-            scope: rollout.table.scope,
+            id: installation.table.id,
+            scope: installation.table.scope,
             packageId: installation.table.packageId,
             deletedAt: installation.table.deletedAt,
             managerInstallationId: installation.table.managerInstallationId,
             dependencies: installationRevision.table.dependencies,
         })
-        .from(rollout.table)
-        .innerJoin(
-            installation.table,
-            and(
-                eq(installation.table.id, rollout.table.installationId),
-                eq(installation.table.scope, rollout.table.scope),
-            ),
-        )
+        .from(installation.table)
         .leftJoin(
             installationRevision.table,
-            eq(installationRevision.table.id, rollout.table.targetRevisionId),
+            eq(installationRevision.table.id, installation.table.targetRevisionId),
         )
-        .where(eq(rollout.table.scope, row.id));
-    const live = rollouts.filter(
+        .where(eq(installation.table.scope, row.id));
+    const live = installed.filter(
         (entry) => entry.deletedAt === null && entry.managerInstallationId === null,
     );
     if (live.length > 0) {
@@ -151,14 +143,14 @@ async function remove(
             AccessContext.of(Caller.of(itself), now),
             {
                 id: RequestId.create(store.environment),
-                calls: Rollout.dependentsFirst(live).map((entry) =>
+                calls: Installation.dependentsFirst(live).map((entry) =>
                     installation.call("delete", installation.target(entry)),
                 ),
             },
             { component: space.name },
         );
     }
-    if (rollouts.length > 0) {
+    if (installed.length > 0) {
         return;
     }
 

@@ -1,3 +1,4 @@
+import { installation, Database, installationRevision, Installation } from "@destack/stack/object";
 import { space } from "@destack/account/object";
 import { Snapshot } from "@destack/db";
 import {
@@ -5,7 +6,6 @@ import {
     AWAITING_APPROVAL,
     changeRequest,
     type ChangeRequest,
-    installation,
     MethodContext,
     type ObjectReconciliation,
     type ObservationReport,
@@ -18,13 +18,6 @@ import { ObjectReference, ObjectTypeReference, Scope, type Subject } from "@dest
 import type { Crypto } from "@destack/environment";
 import { canonicalize, Digest, type Identifier, present, schema } from "@destack/schema";
 import { MAIN_DATABASE } from "@destack/stack/declare";
-import {
-    Database,
-    installationRevision,
-    type InstallationRollout,
-    Rollout,
-    rollout,
-} from "@destack/stack/object";
 import type {} from "@destack/package/import-meta";
 import { StackError } from "@destack/stack/error";
 
@@ -70,31 +63,29 @@ export class Approval {
     static async of(
         view: Pick<Snapshot, "read">,
         resources: readonly ResourceType<typeof space>[],
-        target: InstallationRollout,
+        target: Installation,
     ): Promise<Approval> {
         // walk the installation and those it manages and take each resource's plan once
         const waiting: PendingPlan[] = [];
         const seen = new Set<string>();
         const walked = new Set<string>();
-        const queue: InstallationRollout[] = [target];
+        const queue: Installation[] = [target];
         for (const entry of queue) {
             // refuse a manager cycle, which the managed installations' tree forbids
-            if (walked.has(entry.installationId)) {
-                throw new TypeError(
-                    `installation '${entry.installationId}' manages itself through a cycle`,
-                );
+            if (walked.has(entry.id)) {
+                throw new TypeError(`installation '${entry.id}' manages itself through a cycle`);
             }
-            walked.add(entry.installationId);
+            walked.add(entry.id);
 
             // take its own waiting plan
-            const installed = entry.installation;
+            const installed = entry;
             const isAwaiting = installed.conditions["Ready"]?.reason === AWAITING_APPROVAL;
             if (installed.plan !== null && isAwaiting) {
                 const { plan } = installed;
                 waiting.push({
                     kind: "installation",
                     object: installation,
-                    id: entry.installationId,
+                    id: entry.id,
                     plan,
                 });
             }
@@ -112,9 +103,9 @@ export class Approval {
 
             // queue the installations it manages
             const managed = await view.read(installation.table).findMany({
-                where: { scope: entry.scope, managerInstallationId: entry.installationId },
+                where: { scope: entry.scope, managerInstallationId: entry.id },
             });
-            queue.push(...(await Rollout.installed(view, managed)));
+            queue.push(...managed);
         }
 
         return new Approval(waiting);
@@ -135,7 +126,7 @@ export class Approval {
 
     /** Keep one change request open for the plan an installation waits on, failing if rejected. */
     async request(
-        rolled: Pick<Rollout, "id" | "scope" | "installationId">,
+        rolled: Pick<Installation, "id" | "scope">,
         reconciliation: Pick<ObjectReconciliation, "database" | "mutate" | "store">,
     ): Promise<void> {
         // read the plan waiting and its digest, none when nothing waits
@@ -143,8 +134,8 @@ export class Approval {
         const { crypto } = reconciliation.store.environment;
         const digest = plan.steps.length === 0 ? undefined : await Plan.digest(plan, crypto);
 
-        // read the rollout's plan approvals still open or rejected, and the plan each asks for
-        const parent = { packageId: rollout.package.id, type: rollout.name, id: rolled.id };
+        // read the installation's plan approvals still open or rejected, and the plan each asks for
+        const parent = { ...installation.typeReference, id: rolled.id };
         const requests = await Approval.requests(Snapshot.live(reconciliation.database), rolled);
         const asked = (row: (typeof requests)[number]) => RequestedPlan.parse(row.call.input).plan;
 
@@ -159,8 +150,11 @@ export class Approval {
                       changeRequest.call("create", {
                           ...changeRequest.in(rolled.scope),
                           parent,
-                          call: rollout.call("approve", {
-                              ...rollout.target({ scope: rolled.scope, id: rolled.installationId }),
+                          call: installation.call("approve", {
+                              ...installation.target({
+                                  scope: rolled.scope,
+                                  id: rolled.id,
+                              }),
                               plan: digest,
                           }),
                           ...ObjectReference.columns("as", managers),
@@ -187,23 +181,23 @@ export class Approval {
         }
     }
 
-    /** Read a rollout's plan approvals still open or rejected, past its other change requests. */
+    /** Read an installation's plan approvals still open or rejected, past its other requests. */
     static async requests(
         reader: Pick<Snapshot, "read">,
-        rolled: Pick<Rollout, "id" | "scope">,
+        rolled: Pick<Installation, "id" | "scope">,
     ): Promise<ChangeRequest["row"][]> {
         const found = await reader.read(changeRequest.table).findMany({
             where: {
                 scope: rolled.scope,
-                parentPackageId: rollout.package.id,
-                parentType: rollout.name,
+                parentPackageId: installation.typeReference.packageId,
+                parentType: installation.typeReference.type,
                 parentId: rolled.id,
                 state: { in: ["open", "rejected"] },
             },
         });
         const approving = ObjectTypeReference.key({
-            packageId: rollout.package.id,
-            type: rollout.name,
+            packageId: installation.typeReference.packageId,
+            type: installation.name,
         });
 
         return found.filter(
@@ -216,7 +210,7 @@ export class Approval {
     /** Read the approval a plan's open change request asks, absent before the request opens. */
     static async asked(
         reader: Pick<Snapshot, "read">,
-        rolled: Pick<Rollout, "id" | "scope">,
+        rolled: Pick<Installation, "id" | "scope">,
         digest: string,
     ): Promise<Identifier<"approval"> | null> {
         // find the open request for the plan, then the approval it asks
@@ -235,7 +229,7 @@ export class Approval {
     }
 
     /** Read who a plan asks: the managers of the installation's space, as one subject set. */
-    static managers(target: Pick<Rollout, "scope">): Subject {
+    static managers(target: Pick<Installation, "scope">): Subject {
         return {
             ...principal.space.reference(Scope.universe.id, target.scope),
             relation: "manage",
@@ -295,19 +289,21 @@ export class Approval {
     /** Describe an installation's own plan waiting for approval. */
     static async waiting(
         snapshot: Pick<Snapshot, "read">,
-        target: InstallationRollout,
+        target: Installation,
         plan: Plan,
         crypto: Pick<Crypto, "digest">,
     ): Promise<ObservationReport | undefined> {
         // pass a plan below the space's threshold, approved as it stands, or resuming the approved plan it is part of
         const scoped = present(
-            await snapshot.read(space.table).findFirst({ where: { id: target.scope } }),
+            await snapshot
+                .read(space.table)
+                .findFirst({ where: { id: Installation.space(target) } }),
             `space ${target.scope}`,
         );
         const digest = await Plan.digest(plan, crypto);
         if (
             !Plan.isAtLeast(plan, scoped.approval) ||
-            target.installation.approvedPlan === digest ||
+            target.approvedPlan === digest ||
             (await Approval.#isResumed(target, plan, crypto))
         ) {
             return undefined;
@@ -324,12 +320,12 @@ export class Approval {
 
     /** Decide whether a plan resumes an approved plan of the installation, each step approved. */
     static async #isResumed(
-        target: InstallationRollout,
+        target: Installation,
         plan: Plan,
         crypto: Pick<Crypto, "digest">,
     ): Promise<boolean> {
         // require the stored plan to be the approved one
-        const { plan: kept, approvedPlan } = target.installation;
+        const { plan: kept, approvedPlan } = target;
         if (kept === null || approvedPlan !== (await Plan.digest(kept, crypto))) {
             return false;
         }
@@ -345,7 +341,7 @@ export class Approval {
 async function readResources(
     view: Pick<Snapshot, "read">,
     resources: readonly ResourceType<typeof space>[],
-    target: InstallationRollout,
+    target: Installation,
 ): Promise<{ readonly object: ResourceType<typeof space>; readonly row: Resource }[]> {
     // read the targeted revision and the targets here it binds
     const revision =
@@ -368,15 +364,15 @@ async function readResources(
     const found: { readonly object: ResourceType<typeof space>; readonly row: Resource }[] = [];
     const owner = ObjectReference.columns(
         "owner",
-        principal.installation.reference(target.scope, target.installationId),
+        principal.installation.reference(target.scope, target.id),
     );
     for (const object of resources) {
         const targeted = targets.filter((id) => object.identifies(id));
         const rows = await view.read(object.table).findMany({
             where: {
-                scope: target.scope,
+                scope: Installation.space(target),
                 OR: [
-                    { managerInstallationId: target.installationId },
+                    { managerInstallationId: target.id },
                     owner,
                     ...(targeted.length === 0
                         ? []

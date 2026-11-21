@@ -23,7 +23,6 @@ import { build, Build } from "@destack/stack/object";
 import type { CheckoutSource } from "../../../installation/build.ts";
 import type { StackClient } from "@destack/stack/client";
 import stackPackage from "@destack/stack/package";
-import objectPackage from "@destack/object/package";
 import type { ClientOf } from "@destack/object/client";
 import type { Machine } from "../../../machine/index.ts";
 import { BuildImage, PackageManifest, ViewDescription } from "@destack/package/manifest";
@@ -328,7 +327,7 @@ export class CheckoutServer {
             row.login,
             spaceId,
         );
-        const objects = await this.connect(objectPackage, row.login, spaceId);
+        const objects = await this.connect(stackPackage, row.login, spaceId);
         await CheckoutServer.#submitPreview(
             client,
             objects,
@@ -401,7 +400,7 @@ export class CheckoutServer {
     /** Submit a preview's build to its installation as the preview's person, installing it once. */
     static async #submitPreview(
         spaces: StackClient,
-        objects: ClientOf<typeof objectPackage>,
+        objects: ClientOf<typeof stackPackage>,
         spaceId: Identifier<"space">,
         selection: CheckoutSource,
         built: PackageVersion,
@@ -452,8 +451,8 @@ export class CheckoutServer {
         }
 
         // apply the installation at the build
-        await spaces.rollout.deploy({
-            spaceId,
+        await spaces.installation.reconcile({
+            scope: spaceId,
             id: installed.id,
             requestId: RequestId.create(submitted.environment),
             build: submitted.build,

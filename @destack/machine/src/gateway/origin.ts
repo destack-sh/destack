@@ -20,12 +20,7 @@ import {
     RequestBody,
     refusal,
 } from "@destack/object";
-import {
-    Build,
-    InstallationRevision,
-    Rollout,
-    type InstallationRollout,
-} from "@destack/stack/object";
+import { Build, InstallationRevision, Installation } from "@destack/stack/object";
 import { Snapshot } from "@destack/db";
 import type { ExchangeSubject } from "./gateway.ts";
 import { PageCredential } from "./credential.ts";
@@ -145,7 +140,7 @@ export class InstallationOriginServer {
     }
 
     /** Serve an installation's origin, or its views below a route, to a person or a visitor. */
-    async serve(given: Request, found: InstallationRollout, mount?: ViewMount): Promise<Response> {
+    async serve(given: Request, found: Installation, mount?: ViewMount): Promise<Response> {
         try {
             // serve the request below a route's base as at the origin's root
             const request = InstallationOriginServer.#below(given, mount);
@@ -331,7 +326,7 @@ export class InstallationOriginServer {
         const state = Uuid.v4(environment.random);
         const issuer = this.#issuer();
         const identity = this.#space.identityOf(
-            principal.installation.reference(this.#space.id, page.rollout.installationId),
+            principal.installation.reference(this.#space.id, page.installation.id),
         );
         const details =
             grant === undefined
@@ -372,7 +367,7 @@ export class InstallationOriginServer {
         request: Request,
         url: URL,
         code: string,
-        found: InstallationRollout,
+        found: Installation,
         mount: ViewMount | undefined,
     ): Promise<Response> {
         // read the attempt the origin's cookie remembers, refusing another state and the issuer's refusal
@@ -478,7 +473,7 @@ export class InstallationOriginServer {
     }
 
     /** Address the view a page's path asks for: its first segment's view, else the main view. */
-    #address(url: URL, found: InstallationRollout, page: Page, asked: string): ViewAddress {
+    #address(url: URL, found: Installation, page: Page, asked: string): ViewAddress {
         // read the space's address from the origin, and the views the installation serves
         const origin = present(
             InstallationOrigin.parse(url.hostname, this.#space.machine.domain),
@@ -489,16 +484,13 @@ export class InstallationOriginServer {
         const isNamed = Object.hasOwn(views, segment);
         const view = isNamed ? segment : ViewDescription.main(views);
         if (view === undefined) {
-            throw MachineError.of(
-                "VIEW_NOT_FOUND",
-                `view '${asked}' of '${found.installation.name}' not found`,
-            );
+            throw MachineError.of("VIEW_NOT_FOUND", `view '${asked}' of '${found.name}' not found`);
         }
         const rest = isNamed ? asked.slice(segment.length + 1) : asked;
 
         return {
             space: SpaceAddress.of({ space: origin.space, handle: origin.handle }),
-            installation: found.installation.name,
+            installation: found.name,
             view,
             path: rest.startsWith("/") ? rest : `/${rest}`,
         };
@@ -508,7 +500,7 @@ export class InstallationOriginServer {
     async #launch(
         request: Request,
         url: URL,
-        found: InstallationRollout,
+        found: Installation,
         token: string,
         mount: ViewMount | undefined,
     ): Promise<Response> {
@@ -538,7 +530,7 @@ export class InstallationOriginServer {
             sub: schema.identifier("user").parse(caller.subject.id),
             credential: within.data,
             grant,
-            installation: found.installationId,
+            installation: found.id,
             exp: now + SESSION_SECONDS,
         });
         url.searchParams.delete(TOKEN_PARAMETER);
@@ -582,7 +574,7 @@ export class InstallationOriginServer {
     async #page(
         request: Request,
         url: URL,
-        found: InstallationRollout,
+        found: Installation,
         mount: ViewMount | undefined,
     ): Promise<Page> {
         // serve a route's visitors anonymously, else the person whose session the cookie has
@@ -596,7 +588,7 @@ export class InstallationOriginServer {
         if (revision === undefined) {
             throw MachineError.of(
                 "REVISION_UNAVAILABLE",
-                `'${found.installation.name}' is unavailable: it has no revision to serve yet`,
+                `'${found.name}' is unavailable: it has no revision to serve yet`,
             );
         }
         // read the revision's image and its root once per revision
@@ -610,18 +602,18 @@ export class InstallationOriginServer {
                     this.#space.id,
                     revision.buildId,
                 );
-                const packageId = PackageId.parse(found.installation.packageId);
+                const packageId = PackageId.parse(found.packageId);
                 const root = await this.#space.root(packageId, built.image);
 
                 return { image: built.image, reader: root };
             },
         );
 
-        return { rollout: found, image, reader, visitor, linkSecrets, mount: mount ?? ROOT };
+        return { installation: found, image, reader, visitor, linkSecrets, mount: mount ?? ROOT };
     }
 
     /** Read the person of a session cookie, anonymous on a page load without a valid one. */
-    async #visitor(request: Request, url: URL, found: InstallationRollout): Promise<PageVisitor> {
+    async #visitor(request: Request, url: URL, found: Installation): Promise<PageVisitor> {
         // serve an anonymous visitor without a cookie, as Kubernetes serves a request without credentials
         const cookie = new OriginCookie(SESSION_COOKIE, url).read(request);
         if (cookie === undefined) {
@@ -630,14 +622,14 @@ export class InstallationOriginServer {
 
         // read the session the space signed for this installation
         const session = await this.#read(PageSession, cookie);
-        const isForeign = session === undefined || session.installation !== found.installationId;
+        const isForeign = session === undefined || session.installation !== found.id;
 
         // load a page with an expired or foreign session as a visitor, who signs in again
         if (isForeign && ViewState.isPageLoad(request)) {
             return ANONYMOUS_VISITOR;
         }
         // refuse any other request with it
-        else if (session === undefined || session.installation !== found.installationId) {
+        else if (session === undefined || session.installation !== found.id) {
             throw MachineError.of(
                 "SESSION_UNAUTHENTICATED",
                 "authentication required: the page's session is invalid or expired",
@@ -653,18 +645,14 @@ export class InstallationOriginServer {
     }
 
     /** Verify a person's token toward an installation's package in the space. */
-    async #verify(
-        request: Request,
-        token: string,
-        found: InstallationRollout,
-    ): Promise<Authentication> {
+    async #verify(request: Request, token: string, found: Installation): Promise<Authentication> {
         // verify the token as the request's bearer, without the session cookie a reopened browser sends beside it
         const headers = new Headers(request.headers);
         headers.delete("cookie");
         headers.set("authorization", `Bearer ${token}`);
         const authentication = await this.#space.machine.authenticate(
             new Request(request.url, { headers }),
-            PackageId.parse(found.installation.packageId),
+            PackageId.parse(found.packageId),
             this.#space.id,
         );
 
@@ -718,10 +706,10 @@ export class InstallationOriginServer {
         // call an installation's package below its mount, the page's own by its package alone
         else if (
             mounted !== undefined &&
-            (installed !== undefined || mounted.packageId === page.rollout.installation.packageId)
+            (installed !== undefined || mounted.packageId === page.installation.packageId)
         ) {
             const packageId = PackageId.parse(mounted.packageId);
-            const installation = installed?.installation ?? page.rollout.installationId;
+            const installation = installed?.installation ?? page.installation.id;
             const mount = InstallationMount.url(request.url, this.#space.id, installation);
             const below = new URL(mounted.request.url);
             const served = copyRequest(
@@ -1031,7 +1019,7 @@ export class InstallationOriginServer {
         }
         const body = await RequestBody.json(request, `an OTLP/JSON ${signal} export`);
         await this.#gateway.record(
-            { installation: page.rollout.installationId, build: page.image },
+            { installation: page.installation.id, build: page.image },
             signal,
             body,
         );
@@ -1048,7 +1036,7 @@ export class InstallationOriginServer {
         const pathname = InstallationOriginServer.#decoded(url);
 
         // serve a file of a dependency build the installation's import map reaches, unchanging under its digest
-        const { reader, rollout: found } = page;
+        const { reader, installation: found } = page;
         const policy = await this.#policy(page);
         const { base } = page.mount;
         const closure = await InstallationOriginServer.#memo(
@@ -1205,7 +1193,7 @@ export class InstallationOriginServer {
         else if (name === undefined || view === undefined || !isMounted) {
             throw MachineError.of(
                 "VIEW_NOT_FOUND",
-                `view '${name ?? "at its root"}' of '${found.installation.name}' not found`,
+                `view '${name ?? "at its root"}' of '${found.name}' not found`,
             );
         }
         // sign an anonymous visitor in first on a page load of a view serving people
@@ -1228,7 +1216,7 @@ export class InstallationOriginServer {
         );
         const document = ViewContext.document(
             {
-                installation: found.installationId,
+                installation: found.id,
                 space: this.#space.id,
                 account: space.scope,
                 residencyHome: await locateHome(
@@ -1317,7 +1305,7 @@ export class InstallationOriginServer {
         return Sandbox.policy(
             Sandbox.merge(
                 ...views.map((view) => view.sandbox),
-                Rollout.sandbox(page.rollout.installation, description),
+                Installation.sandbox(page.installation, description),
             ),
         );
     }
@@ -1348,7 +1336,7 @@ export class InstallationOriginServer {
 
     /** The installation a page acts as for its person. */
     #acting(page: Page): Subject {
-        return principal.installation.reference(this.#space.id, page.rollout.installationId);
+        return principal.installation.reference(this.#space.id, page.installation.id);
     }
 
     /** Authenticate a page's call to a package in the space, an anonymous visitor by address. */
@@ -1587,8 +1575,8 @@ export class InstallationOriginServer {
 
 /** A page's request at its origin: the installation's build, its visitor and their links. */
 interface Page {
-    /** The rollout of the installation the origin serves. */
-    readonly rollout: InstallationRollout;
+    /** The installation the origin serves. */
+    readonly installation: Installation;
     /** The digest of the image of the build serving the page. */
     readonly image: Digest;
     /** The build. */

@@ -1,5 +1,10 @@
 import * as accountObject from "@destack/account/object";
-import { PROCESS_RUNTIME } from "@destack/stack/object";
+import {
+    PROCESS_RUNTIME,
+    installation,
+    ObjectBindingKind,
+    type SpaceProvider,
+} from "@destack/stack/object";
 import { KNOWN_TYPES } from "@destack/stack/stack";
 import { and, type ControllerSet, eq, isNull, Snapshot } from "@destack/db";
 import { principal } from "@destack/access";
@@ -29,21 +34,14 @@ import { bucketProvider } from "@destack/bucket/provider";
 import { implementBucket } from "../resource/bucket.ts";
 import { settingServer } from "@destack/setting/server";
 import type { BootstrapPackageName } from "@destack/stack/declare";
-import { rollout } from "@destack/stack/object";
 import objectPackage from "@destack/object/package";
 import stackPackage from "@destack/stack/package";
 import { implementRestore, implementSnapshot } from "../resource/snapshot.ts";
 import { Binder, ResourceBindingKind } from "../resource/binding.ts";
-import { ObjectBindingKind } from "@destack/stack/object";
 import { implementDeployment, implementInstance } from "../deployment/deployment.ts";
-import {
-    type InstallationOptions,
-    implementInstallations,
-    implementRollouts,
-} from "../installation/installation.ts";
+import { type InstallationOptions, implementInstallations } from "../installation/installation.ts";
 import { implementInstallationRevision } from "../installation/revision.ts";
 import { installationProvider, ProviderIndex } from "../resource/resource.ts";
-import { type SpaceProvider } from "@destack/stack/object";
 import { implementSpace } from "./placement.ts";
 import { implementTransfer, type TransferOptions } from "../transfer/transfer.ts";
 import { handoffMount } from "../transfer/handoff.ts";
@@ -199,18 +197,14 @@ export function ownServers(
     } = {
         stack: stackServer(space, start, providers, binder, transfers),
         object: implementPackage(objectPackage, {
-            objects: [
-                implementRole(),
-                implementRelationship(),
-                implementInstallations(installationOptions(space, start, providers, binder)),
-            ],
+            objects: [implementRole(), implementRelationship()],
         }),
     };
 
-    // serve every own package on a primary, its settings after rollout
+    // serve every own package on a primary, its settings after installations
     const primary: { readonly [Name in BootstrapPackageName]: PackageImplementation } = {
         ...standby,
-        setting: settingServer({ after: [rollout] }),
+        setting: settingServer({ after: [installation] }),
     };
 
     return {
@@ -269,7 +263,7 @@ function ownObjects(
             isEnforcingEntitlements: space.machine.isEnforcingEntitlements,
         }),
         ...providers.provided(),
-        implementRollouts(installationOptions(space, start, providers, binder)),
+        implementInstallations(installationOptions(space, start, providers, binder)),
         implementInstallationRevision(),
         implementDeployment({
             providers,

@@ -1,3 +1,25 @@
+import {
+    installation,
+    ACTIVE_BUILD_STATES,
+    Binding,
+    bucket,
+    build,
+    Build,
+    database,
+    Database,
+    dependency,
+    deployment,
+    Deployment,
+    installationRevision,
+    PROCESS_RUNTIME,
+    Installation,
+    ObjectBindingKind,
+    type Serving,
+    type ServingReason,
+    SPACE_PROVIDER,
+    type SpaceProvider,
+    StoreProvider,
+} from "@destack/stack/object";
 import { TelemetryScope } from "@destack/telemetry";
 import { reference, repository } from "@destack/registry/object";
 import { referenceFollow, tagFollow } from "../installation/follow.ts";
@@ -54,7 +76,6 @@ import {
     type CursorPage,
     Egress,
     Isolate,
-    installation,
     InstallationBinding,
     InstallationMount,
     ObjectDescription,
@@ -119,29 +140,6 @@ import {
     Subject,
     type Subscription,
 } from "@destack/sync";
-import {
-    ACTIVE_BUILD_STATES,
-    Binding,
-    bucket,
-    build,
-    Build,
-    database,
-    Database,
-    dependency,
-    deployment,
-    Deployment,
-    installationRevision,
-    PROCESS_RUNTIME,
-    type InstallationRollout,
-    ObjectBindingKind,
-    Rollout,
-    rollout,
-    type Serving,
-    type ServingReason,
-    SPACE_PROVIDER,
-    type SpaceProvider,
-    StoreProvider,
-} from "@destack/stack/object";
 import { StackError } from "@destack/stack/error";
 import type {
     EgressCaller,
@@ -149,7 +147,7 @@ import type {
     WorkloadInstallation,
     WorkloadResource,
 } from "../runtime/runtime.ts";
-import { RolloutTarget } from "../installation/target.ts";
+import { InstallationTarget } from "../installation/target.ts";
 import registryPackage from "@destack/registry/package";
 import { S3Credentials, type S3Server } from "@destack/bucket/s3";
 import connectionPackage from "@destack/connection/client";
@@ -236,8 +234,8 @@ export interface Mount {
 
 /** An installation with its build: the revision in effect and the image the machine runs. */
 export interface InstallationBuild {
-    /** The installation's rollout. */
-    readonly rollout: InstallationRollout;
+    /** The installation. */
+    readonly installation: Installation;
     /** The revision in effect. */
     readonly revisionId: Identifier<"installation-revision">;
     /** The image the machine runs. */
@@ -339,6 +337,8 @@ export class Space {
     readonly #closures = new Map<string, Promise<ImportClosure>>();
     /** The images pulled into the machine's builds or pulling, by image. */
     readonly #pulled = new Map<Digest, Promise<BuildImage>>();
+    /** The root build of each image opened, by image, read once with the lists it parsed. */
+    readonly #roots = new Map<Digest, Promise<BuildReader>>();
     /** Whether the space serves every installation at its revision, and why not. */
     readonly health: Health;
     /** The identities of the space and its installations, reusing their tokens, by subject. */
@@ -599,7 +599,7 @@ export class Space {
     ): Promise<BuildReader | undefined> {
         // read the installed release and the distribution's
         const { linked, shipped } = this.machine;
-        const installed = await RolloutTarget.reader(view, spaceId, packageId, undefined, {
+        const installed = await InstallationTarget.reader(view, spaceId, packageId, undefined, {
             linked,
             shipped,
             space: this,
@@ -694,15 +694,14 @@ export class Space {
 
     /** Run an installation's hooks in an isolate, their calls sent through the gateway. */
     #isolate(
-        row: InstallationRollout,
+        row: Installation,
         server: ServerContext,
         declarations: readonly graph.Declaration[],
     ): Isolate {
         return new Isolate({
             server,
             declarations,
-            send: async (request) =>
-                (await this.#current().gateway.promise).hook(row.installationId, request),
+            send: async (request) => (await this.#current().gateway.promise).hook(row.id, request),
         });
     }
 
@@ -764,9 +763,11 @@ export class Space {
 
     /** Pull a published image from its forge, or the space's own image from the space's builds. */
     async #pull(packageId: PackageId, image: Digest): Promise<BuildImage> {
-        // pull a published image from its forge
+        // pull a published image from its forge, unless the machine keeps it whole
         if (!(await this.builds.contains(image))) {
-            await this.machine.pull(packageId, { kind: "image", digest: image });
+            if ((await this.machine.builds.storeOf(image)) === undefined) {
+                await this.machine.pull(packageId, { kind: "image", digest: image });
+            }
 
             return await this.machine.builds.image(image);
         }
@@ -779,8 +780,21 @@ export class Space {
     }
 
     /** Open an image's root build, pulling a published one with its closures first. */
-    async root(packageId: PackageId, image: Digest): Promise<BuildReader> {
-        return await this.builds.contents((await this.pull(packageId, image)).root);
+    root(packageId: PackageId, image: Digest): Promise<BuildReader> {
+        // take a root opened or opening already
+        const known = this.#roots.get(image);
+        if (known !== undefined) {
+            return known;
+        }
+
+        // open it once, forgetting a failed open
+        const opening = this.pull(packageId, image).then((pulled) =>
+            this.builds.contents(pulled.root),
+        );
+        this.#roots.set(image, opening);
+        opening.catch(() => this.#roots.delete(image));
+
+        return opening;
     }
 
     /** Read a package's build: the space's own, else a published one listed from its forge. */
@@ -827,19 +841,19 @@ export class Space {
 
     /** Report an installation serving nothing, once per failure. */
     #reportFailed(
-        row: Pick<InstallationRollout, "installationId" | "installation">,
+        row: Pick<Installation, "id" | "name">,
         description: "its server did not load" | "its server did not start",
         error: unknown,
     ): void {
         // leave a failure the installation reported last
         const failure = [description, Failure.of(error).message].join(": ");
-        if (this.#failed.get(row.installationId) === failure) {
+        if (this.#failed.get(row.id) === failure) {
             return;
         }
-        this.#failed.set(row.installationId, failure);
+        this.#failed.set(row.id, failure);
 
         // report it with its cause
-        const name = row.installation.name ?? row.installationId;
+        const { name } = row;
         TelemetryScope.of(
             import.meta.destack.package,
             this.machine.environment.telemetry,
@@ -1130,24 +1144,29 @@ export class Space {
         const { signal } = start.context;
         const earlier: ReadonlyMap<string, InstallationRun> =
             this.#runs?.start === start ? this.#runs.runs : new Map();
-        const keys = installed.map(({ rollout: row, revisionId, image }) =>
-            Space.#key(row.installationId, revisionId, image, row.installation.capabilities),
+        const keys = installed.map(({ installation: row, revisionId, image }) =>
+            Space.#key(row.id, revisionId, image, row.capabilities),
         );
 
         // load the server of each other installation the store runs from its build
         const loaded = await Promise.all(
-            installed.map(async ({ rollout: row, image }, index) => {
+            installed.map(async ({ installation: row, image }, index) => {
                 // take the earlier load, else load a trusted one, reporting a server that fails to load
                 const kept = earlier.get(present(keys[index], "the installation's key"));
-                const isLinked =
-                    this.machine.linked.get(row.installation.packageId)?.image === image;
+                const isLinked = this.machine.linked.get(row.packageId)?.image === image;
                 if (kept !== undefined) {
                     return kept.load;
-                } else if (row.installation.isolation !== "host" && !isLinked) {
+                } else if (row.isolation !== "host" && !isLinked) {
                     return { kind: "isolate" } as const;
                 }
                 try {
-                    return { kind: "host", server: await this.machine.server(image) } as const;
+                    const server = await this.machine.scope.span(
+                        "destack.space.serve.import",
+                        InstallationTarget.attributes(row),
+                        () => this.machine.server(image),
+                    );
+
+                    return { kind: "host", server } as const;
                 } catch (error) {
                     this.#reportFailed(row, "its server did not load", error);
 
@@ -1168,7 +1187,7 @@ export class Space {
             const key = present(keys[index], "the installation's key");
             const load = present(
                 loaded[index],
-                `the load of installation ${entry.rollout.installationId}`,
+                `the load of installation ${entry.installation.id}`,
             );
             // reuse an earlier run and its connections, starting a failed or new one again with its own
             const earlierRun = earlier.get(key);
@@ -1181,18 +1200,26 @@ export class Space {
             const outcome =
                 isKept && kept !== undefined
                     ? kept
-                    : await this.#serve(entry, load, { signal, trusted, connections }).catch(
-                          (error: unknown) => {
+                    : await this.machine.scope
+                          .span(
+                              "destack.space.serve.start",
+                              InstallationTarget.attributes(entry.installation),
+                              () => this.#serve(entry, load, { signal, trusted, connections }),
+                          )
+                          .catch((error: unknown) => {
                               // report an installation that fails to start, and start the space without it
-                              this.#reportFailed(entry.rollout, "its server did not start", error);
+                              this.#reportFailed(
+                                  entry.installation,
+                                  "its server did not start",
+                                  error,
+                              );
 
                               return { kind: "failed", reason: "StartFailed", error } as const;
-                          },
-                      );
+                          });
             runs.set(key, { connections, load, outcome });
 
             // serve each installation in its store or its isolate, else record why it failed
-            const { installationId } = entry.rollout;
+            const { id: installationId } = entry.installation;
             if (outcome.kind === "failed") {
                 serving.set(installationId, {
                     reason: outcome.reason,
@@ -1225,7 +1252,7 @@ export class Space {
             name: "destack.space.serve",
             table: Scope.table,
             pending: { scope: this.id },
-            // apply again as the installed set, its rollouts or the main database's status move
+            // apply again as the installed set or the main database's status move
             watches: [
                 {
                     table: installation.table,
@@ -1238,7 +1265,7 @@ export class Space {
                         "conditions",
                     ],
                 },
-                { table: rollout.table, fields: ["targetRevisionId", "appliedRevisionId"] },
+                { table: installation.table, fields: ["targetRevisionId", "appliedRevisionId"] },
                 { table: database.table, fields: ["appliedStates"] },
             ].map((watch) => ({ ...watch, isObserving: true, keys: () => [{ scope: this.id }] })),
             reconcile: () => this.reconcile(),
@@ -1251,10 +1278,17 @@ export class Space {
         const start = this.#current();
         const store = await start.store.promise;
         const before = this.#runs?.start === start ? this.#serving() : undefined;
-        const { servers, isolates, serving } = await this.#servers(installed, start);
+        const { scope } = this.machine;
+        const { servers, isolates, serving } = await scope.span(
+            "destack.space.serve.load",
+            {},
+            () => this.#servers(installed, start),
+        );
         const after = this.#serving();
         if (before === undefined || before.symmetricDifference(after).size > 0) {
-            start.context.serve(store.apply(this.#storeServers(servers), isolates));
+            await scope.span("destack.space.serve.apply", {}, async () => {
+                start.context.serve(store.apply(this.#storeServers(servers), isolates));
+            });
         }
 
         // record what the start serves of each installation, the ones its store leaves out with why
@@ -1266,7 +1300,21 @@ export class Space {
         for (const each of left) {
             outcomes.set(each.installation, { reason: each.reason, message: each.error.message });
         }
-        await Rollout.serve(store, this.id, outcomes);
+        const refusals = await scope.span("destack.space.serve.record", {}, () =>
+            Installation.serve(store, this.id, outcomes),
+        );
+
+        // report each refusal of the store it recorded, a failed load or start being reported where it failed
+        const telemetry = TelemetryScope.of(
+            import.meta.destack.package,
+            this.machine.environment.telemetry,
+        );
+        for (const each of store.refused) {
+            const refusal = refusals.get(each.installation);
+            if (refusal !== undefined) {
+                telemetry.captureException(refusal, { isEscaped: true });
+            }
+        }
 
         // read the mounts the set declares
         start.mounts = Space.#mounts(installed);
@@ -1293,11 +1341,10 @@ export class Space {
             return [];
         }
 
-        // read the rollouts with their installations, and their revisions with their bindings and builds
-        const installations = await Rollout.read(
-            snapshot,
-            await snapshot.read(rollout.table).findMany({ where: { scope: spaceId } }),
-        );
+        // read the installations, and their revisions with their bindings and builds
+        const installations = await snapshot
+            .read(installation.table)
+            .findMany({ where: { scope: spaceId } });
         const revisionIds = installations.flatMap((entry) =>
             [entry.targetRevisionId, entry.appliedRevisionId].filter((id) => id !== null),
         );
@@ -1326,15 +1373,9 @@ export class Space {
                         `the installation of revision ${revision.id}`,
                     );
                     const recorded = Build.image(built);
-                    const image = RolloutTarget.running(
-                        installed.installation,
-                        recorded,
-                        this.machine,
-                    );
+                    const image = InstallationTarget.running(installed, recorded, this.machine);
                     const reader =
-                        image === undefined
-                            ? undefined
-                            : await open(installed.installation.packageId, image);
+                        image === undefined ? undefined : await open(installed.packageId, image);
                     if (image === undefined || reader === undefined) {
                         return [];
                     }
@@ -1370,20 +1411,20 @@ export class Space {
                               MAIN_DATABASE
                           ];
                 const isBound =
-                    Observation.isCurrent(entry.installation, "Bound") &&
-                    entry.installation.conditions["Bound"]?.status === "true";
+                    Observation.isCurrent(entry, "Bound") &&
+                    entry.conditions["Bound"]?.status === "true";
                 const isApplied =
                     latest !== undefined &&
                     isBound &&
                     (latest.objects.length === 0 || (tables !== undefined && applied.has(tables)));
                 const revisionId = isApplied ? entry.targetRevisionId : entry.appliedRevisionId;
 
-                return revisionId === null ? [] : [{ rollout: entry, revisionId }];
+                return revisionId === null ? [] : [{ installation: entry, revisionId }];
             }),
         );
 
         // select each one whose revision binds its own resources, since servers open them at start and read secrets on use
-        return served.flat().flatMap(({ rollout: entry, revisionId }) => {
+        return served.flat().flatMap(({ installation: entry, revisionId }) => {
             // read the served revision's build and declarations, leaving out one whose build is absent
             const opened = declared.get(revisionId);
             if (opened === undefined) {
@@ -1392,9 +1433,9 @@ export class Space {
             const { image, recorded, declarations } = opened;
 
             // serve a stack at once, which runs nothing and whose resources its document instantiates
-            const isStack = entry.installation.export !== null;
+            const isStack = entry.export !== null;
             const revision = revisions.find((each) => each.id === revisionId);
-            const { packageId } = entry.installation;
+            const { packageId } = entry;
             const hasBindings = declarations
                 .filter((each) => each.provisioned === true)
                 .every(
@@ -1406,7 +1447,7 @@ export class Space {
                 );
 
             return isStack || hasBindings
-                ? [{ rollout: entry, revisionId, image, recorded, declarations }]
+                ? [{ installation: entry, revisionId, image, recorded, declarations }]
                 : [];
         });
     }
@@ -1423,7 +1464,7 @@ export class Space {
 
     /** Serve one installation: a loaded server in the store, else its hooks in an isolate. */
     async #serve(
-        { rollout: row, revisionId, image, declarations }: InstallationBuild,
+        { installation: row, revisionId, image, declarations }: InstallationBuild,
         load: InstallationRun["load"],
         run: {
             readonly signal: AbortSignal;
@@ -1443,9 +1484,15 @@ export class Space {
         const { bindings } = present(revision, `revision ${revisionId}`);
         if (stored !== undefined) {
             const caller = this.#callerOnce(row, stored.package, bindings);
-            const resources = await this.#resources(row, stored.package, caller, trusted, bindings);
-            const context = await this.#context(row, image, resources, caller, connections);
-            const requested = Rollout.permissions(row.installation, stored.package, "space");
+            const resources = await this.machine.scope.span(
+                "destack.space.serve.resources",
+                {},
+                () => this.#resources(row, stored.package, caller, trusted, bindings),
+            );
+            const context = await this.machine.scope.span("destack.space.serve.context", {}, () =>
+                this.#context(row, image, resources, caller, connections),
+            );
+            const requested = Installation.permissions(row, stored.package, "space");
             const isLent = Object.entries(requested).some(
                 ([scope, each]) => scope !== "space" && each.length > 0,
             );
@@ -1471,7 +1518,7 @@ export class Space {
 
     /** Activate an installation once it applied its revision and has any grant it borrows by. */
     async #activate(
-        target: InstallationRollout,
+        target: Installation,
         revisionId: Identifier<"installation-revision">,
         isLent: boolean,
         signal: AbortSignal,
@@ -1486,7 +1533,7 @@ export class Space {
 
     /** Wait until an installation applied a revision and the grant it borrows by arrived. */
     async #applied(
-        target: InstallationRollout,
+        target: Installation,
         revisionId: Identifier<"installation-revision">,
         isLent: boolean,
         signal: AbortSignal,
@@ -1494,14 +1541,14 @@ export class Space {
         // wait for the applied revision and for the replica of the grant its space lends it
         const parties = {
             delegator: principal.space.reference(Scope.universe.id, target.scope),
-            delegate: principal.installation.reference(target.scope, target.installationId),
+            delegate: principal.installation.reference(target.scope, target.id),
         };
         await this.database.log.waitUntil(async () => {
-            // read the rollout's applied revision and the grant it borrows by
+            // read the installation's applied revision and the grant it borrows by
             const snapshot = Snapshot.live(this.database);
             const [row] = await snapshot
-                .read(rollout.table)
-                .findMany({ where: { installationId: target.installationId } });
+                .read(installation.table)
+                .findMany({ where: { id: target.id } });
             const isApplied = row?.appliedRevisionId === revisionId;
             const isGranted =
                 !isLent ||
@@ -1514,7 +1561,7 @@ export class Space {
 
     /** Bind a package's declared resources and secrets to the host's clients for it. */
     async #resources(
-        row: InstallationRollout,
+        row: Installation,
         handle: Pick<Package, "resources" | "secrets">,
         caller: () => Promise<EgressCaller>,
         trusted: readonly PackageImplementation[],
@@ -1528,7 +1575,7 @@ export class Space {
             // refuse a requirement another package declares
             if (!ResourceDeclaration.is(declaration)) {
                 throw new TypeError(
-                    `installation '${row.installationId}' binds '${declaration.name}', which is no declaration of this process's resource kinds`,
+                    `installation '${row.id}' binds '${declaration.name}', which is no declaration of this process's resource kinds`,
                 );
             }
             bound.bind(declaration, await this.#open(row, declaration, caller, trusted, bindings));
@@ -1539,7 +1586,7 @@ export class Space {
 
     /** Open a declaration an installation binds in this process, through what opens its kind. */
     async #open(
-        row: InstallationRollout,
+        row: Installation,
         declaration: ResourceDeclaration<unknown>,
         caller: () => Promise<EgressCaller>,
         trusted: readonly PackageImplementation[],
@@ -1547,10 +1594,10 @@ export class Space {
     ): Promise<unknown> {
         // take the target the served revision binds the declaration to
         const { scope } = row;
-        const { packageId } = row.installation;
+        const { packageId } = row;
         const found = present(
             bindings.find((each) => each.packageId === packageId && each.name === declaration.name),
-            `the binding of ${declaration.name} by ${row.installationId}`,
+            `the binding of ${declaration.name} by ${row.id}`,
         );
         const { target } = found;
         const bindable = ObjectBindingKind.of(trusted).find((each) =>
@@ -1647,7 +1694,7 @@ export class Space {
 
     /** Build an installation's in-store caller once per start, at its first call. */
     #callerOnce(
-        row: InstallationRollout,
+        row: Installation,
         handle: Pick<Package, "resources">,
         bindings: readonly Binding[],
     ): () => Promise<EgressCaller> {
@@ -1658,7 +1705,7 @@ export class Space {
 
     /** Read an in-process installation as its egress's caller, with what it binds. */
     async #caller(
-        row: InstallationRollout,
+        row: Installation,
         handle: Pick<Package, "resources">,
         bindings: readonly Binding[],
     ): Promise<EgressCaller> {
@@ -1668,17 +1715,14 @@ export class Space {
             .findMany({
                 where: {
                     ...Deployment.live(),
-                    scope: row.scope,
-                    installationId: row.installationId,
-                    revisionId: present(
-                        row.targetRevisionId,
-                        `the revision of ${row.installation.name}`,
-                    ),
+                    scope: Installation.space(row),
+                    installationId: row.id,
+                    revisionId: present(row.targetRevisionId, `the revision of ${row.name}`),
                     runtime: PROCESS_RUNTIME,
                 },
                 limit: 1,
             });
-        const served = present(deployed, `the process deployment of ${row.installation.name}`);
+        const served = present(deployed, `the process deployment of ${row.name}`);
 
         // take the served revision's bindings to targets here, and the resources they target
         const local = bindings.filter((each) => each.targetSpaceId === null);
@@ -1708,7 +1752,7 @@ export class Space {
                     if (found.reference === null || found.provider === null) {
                         throw StackError.of(
                             "RESOURCE_NOT_FOUND",
-                            `resource '${found.id}' that '${entry.name}' of '${row.installation.name}' binds not found`,
+                            `resource '${found.id}' that '${entry.name}' of '${row.name}' binds not found`,
                         );
                     }
 
@@ -1748,8 +1792,8 @@ export class Space {
         });
 
         return {
-            scope: row.scope,
-            installationId: row.installationId,
+            scope: Installation.space(row),
+            installationId: row.id,
             resources: resources.flat(),
             installations,
             runs: { kind: "store", deploymentId: served.id },
@@ -1758,7 +1802,7 @@ export class Space {
 
     /** Connect a resource where its provider placed it, through the machine's connector for it. */
     async #connect(
-        row: InstallationRollout,
+        row: Installation,
         declaration: ResourceDeclaration<unknown>,
         provider: SpaceProvider,
         target: string,
@@ -1797,7 +1841,7 @@ export class Space {
 
     /** Describe an installation to its code serving in the store, calling the platform as it. */
     async #context(
-        row: InstallationRollout,
+        row: Installation,
         image: Digest,
         resources: ResourceContext,
         caller: () => Promise<EgressCaller>,
@@ -1806,7 +1850,8 @@ export class Space {
         // connect to the space's stack store in process as the installation, through the machine's sockets
         const { machine } = this;
         const host = present(machine.hibernation, "the machine's sockets");
-        const { installationId: id, scope } = row;
+        const { id } = row;
+        const scope = Installation.space(row);
         const signer = principal.installation.reference(scope, id);
         const stack = ObjectConnection.open({
             scope,
@@ -1831,16 +1876,22 @@ export class Space {
         const peers = new Map<string, ObjectConnection>();
 
         // describe its build and package, settings, keys rooted in its space's identity, replicas and peers
-        const reader = await this.root(row.installation.packageId, image);
-        const description = await PackageDescription.of(reader);
+        const reader = await this.root(row.packageId, image);
+        const description = await machine.scope.span(
+            "destack.space.serve.context.describe",
+            {},
+            () => PackageDescription.of(reader),
+        );
         const identity = present(
-            await this.keystore.deriver(this.database, scope),
+            await machine.scope.span("destack.space.serve.context.keys", {}, () =>
+                this.keystore.deriver(this.database, scope),
+            ),
             `the keys of ${scope}, which this machine keeps`,
         );
 
         // serve below the installation's mount at this machine's origin, on the network its sandbox lists
-        const named = row.installation;
-        const network = this.#network(named.name, Rollout.sandbox(row.installation, description));
+        const named = row;
+        const network = this.#network(named.name, Installation.sandbox(row, description));
         const { clock, scheduler, random, crypto, compression, telemetry, locale, timeZone } =
             machine.environment;
 
@@ -1851,10 +1902,12 @@ export class Space {
             url: InstallationMount.url(machine.origin, scope, id),
             build: reader,
             resources,
-            capabilities: Rollout.enabled(row.installation, description),
-            keys: await InstallationRoot.open(
-                await InstallationRoot.derive(identity, id),
-                machine.environment.crypto,
+            capabilities: Installation.enabled(row, description),
+            keys: await machine.scope.span("destack.space.serve.context.root", {}, async () =>
+                InstallationRoot.open(
+                    await InstallationRoot.derive(identity, id),
+                    machine.environment.crypto,
+                ),
             ),
             fetch: (request) => network.fetch(request),
             environment: {
@@ -1869,10 +1922,9 @@ export class Space {
                 timeZone,
             },
             distribution: this.machine.builds.layer,
-            settings: await RolloutTarget.settings(this.database, reader, {
-                scope,
-                installation: id,
-            }),
+            settings: await machine.scope.span("destack.space.serve.context.settings", {}, () =>
+                InstallationTarget.settings(this.database, reader, { scope, installation: id }),
+            ),
             remote: stack,
             connect: (address, packageId) => {
                 // connect to the package's store at the address through egress, once per package and address
@@ -2069,10 +2121,10 @@ export class Space {
             result: "process",
             all: { table: accountObject.space.table, column: "id", where: here },
             watches: [
-                // take the space's row, its placement and its rollouts, its stack's among them
+                // take the space's row, its placement and its installations, its stack's among them
                 { table: accountObject.space.table, where: here },
                 { table: accountObject.placement.table, on: { id: "spaceId" } },
-                { table: rollout.table, fields: ["spaceStack"], on: { id: "scope" } },
+                { table: installation.table, fields: ["spaceStack"], on: { id: "scope" } },
                 // take the space again once its account's scope arrives
                 { table: Scope.table, where: { type: "account" }, isListing: true },
             ],
@@ -2177,7 +2229,7 @@ export class Space {
         const { stack } = present(declared, `the row of ${spaceId}`);
         const digest = await Digest.json(stack, this.machine.environment.crypto);
         const { selection } = stack;
-        const { follows } = await RolloutTarget.resolveDeclared(
+        const { follows } = await InstallationTarget.resolveDeclared(
             stack.packageId,
             selection.kind === "release" ? { version: selection.version } : { selection },
             this.machine,
@@ -2205,9 +2257,7 @@ export class Space {
         const [followed] =
             installed === undefined
                 ? []
-                : await snapshot
-                      .read(rollout.table)
-                      .findMany({ where: { installationId: installed.id } });
+                : await snapshot.read(installation.table).findMany({ where: { id: installed.id } });
         const digest = await Digest.json(stack, transaction.database.state.environment.crypto);
         if (digest !== followed?.spaceStack && digest === resolved.digest) {
             await this.#followStack(
@@ -2302,7 +2352,7 @@ export class Space {
             export: stack.export,
         };
         const [created] = await store.mutate(
-            store.as(rollout),
+            store.as(installation),
             {
                 id: RequestId.create(store.environment),
                 calls: [
@@ -2326,12 +2376,12 @@ export class Space {
         // record the stack followed and drop an owner's earlier apply, so one its owner applies later stays
         const id = installed ?? present(created, `the stack of ${spaceId}`).id;
         await store.mutate(
-            store.as(rollout),
+            store.as(installation),
             {
                 id: RequestId.create(store.environment),
                 calls: [
-                    rollout.call("follow", {
-                        ...rollout.target({ scope: spaceId, id }),
+                    installation.call("follow", {
+                        ...installation.target({ scope: spaceId, id }),
                         spaceStack: resolved.digest,
                     }),
                 ],
@@ -2564,17 +2614,28 @@ export class Space {
         const serving = present(this.#start, `the serving of ${this.id}`);
         let unavailable: readonly Digest[] = [];
         if (serving.role === "primary") {
-            const { installed, unavailable: waiting } = await this.installed("forges");
+            const { scope } = this.machine;
+            const { installed, unavailable: waiting } = await scope.span(
+                "destack.space.serve.installed",
+                {},
+                () => this.installed("forges"),
+            );
             unavailable = waiting;
-            await this.#root(installed, waiting);
+            await scope.span("destack.space.serve.root", {}, () => this.#root(installed, waiting));
             await this.#serveInstalled(installed);
         }
 
         // report whether every installation serves its revision, and tell the universe a primary serves the space
-        const [status, reason] = await this.#readiness(serving.role);
+        const [status, reason] = await this.machine.scope.span(
+            "destack.space.serve.readiness",
+            {},
+            () => this.#readiness(serving.role),
+        );
         this.health.set(status, reason);
         if (serving.role === "primary") {
-            await this.#reportServing();
+            await this.machine.scope.span("destack.space.serve.report", {}, () =>
+                this.#reportServing(),
+            );
         }
 
         // retry once a build the space's forges cannot answer yet arrives, as an image pull backs off
@@ -2652,26 +2713,21 @@ export class Space {
             return ["up", "it follows its primary as standby"];
         }
 
-        // read the rollouts with their installations' conditions
+        // read the installations with their conditions
         const snapshot = Snapshot.live(this.database);
-        const rows = await Rollout.read(
-            snapshot,
-            await snapshot.read(rollout.table).findMany({ where: { scope: this.id } }),
-        );
+        const rows = await snapshot
+            .read(installation.table)
+            .findMany({ where: { scope: this.id } });
         const lagging = rows.find(
-            (row) =>
-                Rollout.servingFailure(row.installation) === undefined &&
-                (row.targetRevisionId === null ||
-                    row.appliedRevisionId !== row.targetRevisionId ||
-                    row.servedRevisionId !== row.targetRevisionId),
+            (row) => Installation.servingFailure(row) === undefined && !Installation.isServed(row),
         );
 
         // wait for a first installation, then for each to serve its revision, naming its open condition
         if (rows.length === 0) {
             return ["starting", "no installation is applied yet"];
         } else if (lagging !== undefined) {
-            const installed = lagging.installation.name;
-            const open = Object.entries(lagging.installation.conditions).find(
+            const installed = lagging.name;
+            const open = Object.entries(lagging.conditions).find(
                 ([, condition]) => condition.status !== "true",
             );
             const condition =
@@ -2685,11 +2741,11 @@ export class Space {
         // serve the rest, naming each installation the space fails to serve
         else {
             const failed = rows.flatMap((row) => {
-                const failure = Rollout.servingFailure(row.installation);
+                const failure = Installation.servingFailure(row);
 
                 return failure === undefined
                     ? []
-                    : [`${row.installation.name} (${failure.reason}: ${failure.message})`];
+                    : [`${row.name} (${failure.reason}: ${failure.message})`];
             });
 
             return [
@@ -2703,18 +2759,18 @@ export class Space {
 
     /** Read the installation a request reaches, holding it while that installation deploys. */
     async waitServing(
-        resolve: () => Promise<InstallationRollout>,
+        resolve: () => Promise<Installation>,
         signal: AbortSignal,
-    ): Promise<InstallationRollout> {
+    ): Promise<Installation> {
         // answer at once, holding only an installation not served yet
         const first = await Space.#attempt(resolve);
         if ("served" in first) {
             return first.served;
         }
 
-        // read again after each change of installations, rollouts and spaces, until it serves or the wait ends
+        // read again after each change of installations and spaces, until it serves or the wait ends
         const tables = new Set(
-            [installation.table, rollout.table, accountObject.space.table].map(
+            [installation.table, installation.table, accountObject.space.table].map(
                 (table) => table[TABLE].sqlName,
             ),
         );
@@ -2722,7 +2778,7 @@ export class Space {
             signal,
             this.machine.environment.clock.timeout(DEPLOYING_WAIT_MILLISECONDS),
         ]);
-        let served: InstallationRollout | undefined;
+        let served: Installation | undefined;
         const isServed = await this.database.log.waitUntil(async (changed) => {
             const attempt = [...changed].some((name) => tables.has(name))
                 ? await Space.#attempt(resolve)
@@ -2742,8 +2798,8 @@ export class Space {
 
     /** Read an installation once, taking a refusal as not served yet apart from other failures. */
     static async #attempt(
-        resolve: () => Promise<InstallationRollout>,
-    ): Promise<{ readonly served: InstallationRollout } | { readonly error: unknown }> {
+        resolve: () => Promise<Installation>,
+    ): Promise<{ readonly served: Installation } | { readonly error: unknown }> {
         return resolve().then(
             (served) => ({ served }),
             (error: unknown) => {
@@ -2758,12 +2814,11 @@ export class Space {
 
     /** Wait until an installation of the space is current and served, refusing once aborted. */
     async waitServed(name: string, signal: AbortSignal): Promise<void> {
-        // wake on changes of installations and their rollouts
+        // wake on changes of installations
         const installations = installation.table[TABLE].sqlName;
-        const rollouts = rollout.table[TABLE].sqlName;
         const isServed = await this.database.log.waitUntil(async (tables) => {
-            // skip commits that change no installation and no rollout
-            if (!tables.has(installations) && !tables.has(rollouts)) {
+            // skip commits that change no installation
+            if (!tables.has(installations)) {
                 return false;
             }
 
@@ -2772,18 +2827,11 @@ export class Space {
             const installed = await snapshot
                 .read(installation.table)
                 .findFirst({ where: { scope: this.id, name } });
-            const served =
-                installed === undefined
-                    ? undefined
-                    : await snapshot
-                          .read(rollout.table)
-                          .findFirst({ where: { installationId: installed.id } });
 
             return (
                 installed !== undefined &&
                 Observation.progress(installed) === "current" &&
-                served?.targetRevisionId !== null &&
-                served?.servedRevisionId === served?.targetRevisionId
+                Installation.isServed(installed)
             );
         }, signal);
         if (!isServed) {
@@ -2811,8 +2859,8 @@ export class Space {
     static #mounts(installed: readonly InstallationBuild[]): Mount[] {
         return installed.flatMap((entry) => {
             // read the mounts the package declares, none for a library
-            const { installationId } = entry.rollout;
-            const packageId = PackageId.parse(entry.rollout.installation.packageId);
+            const { id: installationId } = entry.installation;
+            const packageId = PackageId.parse(entry.installation.packageId);
             const mounts = PackageDescription.find(entry.declarations)?.mounts ?? {};
 
             return Object.entries(mounts).map(([name, mount]) => ({
@@ -2825,11 +2873,11 @@ export class Space {
     }
 
     /** Find the one installation serving a package here, holding while it deploys. */
-    installation(packageId: PackageId, signal: AbortSignal): Promise<InstallationRollout> {
+    installation(packageId: PackageId, signal: AbortSignal): Promise<Installation> {
         // read the packages serving it at each attempt, as workloads serve theirs after the store
         return this.waitServing(
             () =>
-                Rollout.requireServing(this.database, {
+                Installation.requireServing(this.database, {
                     spaceId: this.id,
                     packageId,
                     packages: this.#servingPackages(packageId),
@@ -2847,7 +2895,7 @@ export class Space {
         const installed = this.#current().installed.map(
             (entry) =>
                 [
-                    entry.rollout.installation.packageId,
+                    entry.installation.packageId,
                     PackageDescription.find(entry.declarations)?.protocols ?? [],
                 ] as const,
         );

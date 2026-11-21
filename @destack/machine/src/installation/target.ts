@@ -1,3 +1,14 @@
+import {
+    Installation,
+    installation,
+    build,
+    Build,
+    type BuildSource,
+    StackEvaluation,
+    Binding,
+    InstallationRevision,
+    installationRevision,
+} from "@destack/stack/object";
 import type { Machine } from "../machine/machine.ts";
 import { callRegistry, findPublisherHome } from "../machine/registry.ts";
 import type { Space } from "../space/space.ts";
@@ -10,18 +21,13 @@ import {
     DatabaseState,
     Snapshot,
     TABLE,
-    type TableState,
+    TableState,
 } from "@destack/db";
 import {
-    Installation,
-    installation,
     InstallationBindingSpec,
     type InstallationBindingState,
     InstallationKind,
-    ObjectDescription,
     ObjectType,
-    ObjectTypePool,
-    PackageDescription,
 } from "@destack/object";
 import { type DependencyRelease, PackageId, PackageRelease } from "@destack/package";
 import { type BuildReader, BuildImage, PackageManifest } from "@destack/package/manifest";
@@ -35,10 +41,9 @@ import {
     schema,
     Version,
 } from "@destack/schema";
-import { ObjectReference, ObjectTypeReference } from "@destack/sync";
+import { ObjectReference } from "@destack/sync";
 import { Setting } from "@destack/setting";
 import { SettingValue } from "@destack/setting/object";
-import { build, Build, type BuildSource } from "@destack/stack/object";
 import { followedReference, followedVersion } from "./follow.ts";
 import { packageObject, release, reference, repository, tag } from "@destack/registry/object";
 import { RegistryError } from "@destack/registry/error";
@@ -46,16 +51,7 @@ import { checkout } from "../computer/checkout/object/index.ts";
 import type { InstallationSelection } from "@destack/object";
 import type { Binder } from "../resource/binding.ts";
 import { space } from "@destack/account/object";
-import { StackEvaluation } from "@destack/stack/object";
 import { StackError } from "@destack/stack/error";
-import { Binding } from "@destack/stack/object";
-import {
-    InstallationRevision,
-    installationRevision,
-    type InstallationRollout,
-    Rollout,
-    rollout,
-} from "@destack/stack/object";
 
 /** What targeting and describing revisions read: space, blobs and the known types. */
 export interface RevisionOptions {
@@ -99,8 +95,8 @@ export interface SelectedBuild {
 /** The kind of row an installation follows, or the host's release without one. */
 export type FollowKind = "host" | "release" | "tag" | "reference" | "checkout" | "build";
 
-/** The revision a rollout targets: selecting its build, evaluating its stack, recording it. */
-export const RolloutTarget = {
+/** The revision an installation targets: its build selected, its stack evaluated, recorded. */
+export const InstallationTarget = {
     /** Name the kind of row an installation follows, the host's release without one. */
     follows(installed: Pick<Installation, "followsType">): FollowKind {
         // follow the host's release without a followed row
@@ -168,7 +164,7 @@ export const RolloutTarget = {
         }
 
         // read a release, tag or reference at its registry's home
-        const followed = await RolloutTarget.resolveFollowed(options, packageId, selection);
+        const followed = await InstallationTarget.resolveFollowed(options, packageId, selection);
 
         return {
             follows: followed,
@@ -233,16 +229,16 @@ export const RolloutTarget = {
 
     /** Report whether an installation's build resolves without a build here: a release or a pin. */
     isPinned(installed: Pick<Installation, "followsType">): boolean {
-        const kind = RolloutTarget.follows(installed);
+        const kind = InstallationTarget.follows(installed);
 
         return kind === "host" || kind === "release" || kind === "tag" || kind === "build";
     },
 
-    /** Attribute a rollout step's span to the target's space and installation. */
-    attributes(target: Pick<InstallationRollout, "scope" | "installationId">) {
+    /** Attribute a reconcile step's span to the target's space and installation. */
+    attributes(target: Pick<Installation, "scope" | "id">) {
         return {
             "destack.space.id": target.scope,
-            "destack.installation.id": target.installationId,
+            "destack.id": target.id,
         };
     },
 
@@ -259,7 +255,7 @@ export const RolloutTarget = {
         packageId: PackageId,
         options: Pick<RevisionOptions, "linked" | "shipped">,
     ): PackageRelease {
-        const provided = RolloutTarget.provided(packageId, options);
+        const provided = InstallationTarget.provided(packageId, options);
         if (provided === undefined) {
             throw StackError.of(
                 "TARGET_BLOCKED",
@@ -278,17 +274,16 @@ export const RolloutTarget = {
     ): Digest | undefined {
         const { packageId } = installed;
 
-        return RolloutTarget.follows(installed) === "host"
-            ? RolloutTarget.provided(packageId, options)?.image
+        return InstallationTarget.follows(installed) === "host"
+            ? InstallationTarget.provided(packageId, options)?.image
             : (options.linked.get(packageId)?.image ?? recorded);
     },
 
     /** Choose the build an installation runs and describe its revision, none while none is here. */
     async choose(
         reader: Pick<Snapshot, "read">,
-        row: InstallationRollout,
+        row: Installation,
         requested: Identifier<"build"> | undefined,
-        objects: readonly ObjectType[],
         options: RevisionOptions,
     ): Promise<ChosenBuild | undefined> {
         // read the build its targeted revision evaluates
@@ -305,10 +300,14 @@ export const RolloutTarget = {
         const current = built === undefined ? undefined : Build.of(built);
 
         // take the requested build, else the build of what it follows, else its targeted one
+        const { scope } = options.space.machine;
+        const attributes = InstallationTarget.attributes(row);
         const selected =
             requested === undefined
-                ? await selectBuild(reader, row, current, options)
-                : await Build.require(reader, row.scope, requested).then((found) => ({
+                ? await scope.span("destack.installation.select", attributes, () =>
+                      selectBuild(reader, row, current, options),
+                  )
+                : await Build.require(reader, Installation.space(row), requested).then((found) => ({
                       build: found.id,
                       image: found.image,
                       source: found.source,
@@ -332,7 +331,9 @@ export const RolloutTarget = {
         const described =
             revision !== undefined && revision.buildId === chosen.build
                 ? { dependencies: revision.dependencies, states: revision.states }
-                : await RolloutTarget.describe(row.installation, image, objects, options);
+                : await scope.span("destack.installation.describe", attributes, () =>
+                      InstallationTarget.describe(image, options),
+                  );
 
         return { ...chosen, ...described };
     },
@@ -340,20 +341,20 @@ export const RolloutTarget = {
     /** Pull the release an installation follows, none while its tag is unset. */
     async pull(
         reader: Pick<Snapshot, "read">,
-        row: InstallationRollout,
+        row: Installation,
         options: RevisionOptions,
     ): Promise<SelectedBuild | undefined> {
         // leave an installation following a build of the space
-        const { installation: installed } = row;
+        const installed = row;
         const { packageId } = installed;
-        const kind = RolloutTarget.follows(installed);
+        const kind = InstallationTarget.follows(installed);
         if (kind !== "host" && kind !== "release" && kind !== "tag") {
             return undefined;
         }
 
         // leave a host's release already on the machine
         const { isBuilding } = options.space.machine;
-        const hosted = kind === "host" ? RolloutTarget.host(packageId, options) : undefined;
+        const hosted = kind === "host" ? InstallationTarget.host(packageId, options) : undefined;
         if (
             hosted !== undefined &&
             (await options.space.builds.storeOf(hosted.image)) !== undefined
@@ -402,7 +403,7 @@ export const RolloutTarget = {
             readonly space: Pick<Space, "builds" | "machine" | "root" | "pull" | "read">;
         },
     ): Promise<BuildReader | undefined> {
-        // read the installation's rollout, refusing several of the package unless one is named
+        // read the package's installations, refusing several unless one is named
         const installed = await snapshot.read(installation.table).findMany({
             where: {
                 scope: spaceId,
@@ -411,14 +412,14 @@ export const RolloutTarget = {
             },
         });
         const rows = await snapshot
-            .read(rollout.table)
-            .findMany({ where: { installationId: { in: installed.map((row) => row.id) } } });
+            .read(installation.table)
+            .findMany({ where: { id: { in: installed.map((row) => row.id) } } });
         const [found] = rows;
         const [only] = installed.length === 1 ? installed : [];
         const linked = options.linked.get(packageId);
-        const followed = installed.find((row) => row.id === found?.installationId);
+        const followed = installed.find((row) => row.id === found?.id);
         const following = followed ?? only;
-        const kind = following === undefined ? undefined : RolloutTarget.follows(following);
+        const kind = following === undefined ? undefined : InstallationTarget.follows(following);
         if (rows.length > 1) {
             throw StackError.of(
                 "TARGET_BLOCKED",
@@ -431,7 +432,7 @@ export const RolloutTarget = {
         }
         // read the release the machine provides for one following the host's
         else if (kind === "host") {
-            return options.space.root(packageId, RolloutTarget.host(packageId, options).image);
+            return options.space.root(packageId, InstallationTarget.host(packageId, options).image);
         }
         // read the revision's build
         else if (found?.targetRevisionId !== undefined && found.targetRevisionId !== null) {
@@ -553,35 +554,45 @@ export const RolloutTarget = {
 
     /** Describe a build's revision of an installation: its dependencies and required states. */
     async describe(
-        target: Pick<Installation, "name" | "capabilities" | "allowed">,
         image: BuildImage,
-        objects: readonly ObjectType[],
-        options: Pick<RevisionOptions, "space" | "blobs" | "known">,
+        options: Pick<RevisionOptions, "space" | "blobs">,
     ): Promise<Pick<InstallationRevision, "dependencies" | "states">> {
         // read the image's root and the builds of the installable packages the image has
         const { blobs } = options;
+        const { scope } = options.space.machine;
         const reader = await options.space.builds.contents(image.root);
-        const entries = await BuildImage.entries(image, (digest) =>
-            options.space.builds.get(digest),
+        const entries = await scope.span("destack.installation.describe.entries", {}, () =>
+            BuildImage.entries(image, (digest) => options.space.builds.get(digest)),
         );
         const read = (dependency: PackageId, manifest: Digest) =>
             options.space.read(dependency, manifest);
-        const dependencies = await installableBuilds(entries, image.root, read);
+        const dependencies = await scope.span(
+            "destack.installation.describe.dependencies",
+            {},
+            () => installableBuilds(entries, image.root, read),
+        );
 
         // describe the state each declaration requires: main's tables, an installation's release, a resource's own
         const required = new Map<string, JsonValue>();
-        const tables = await mainState(target, reader, { dependencies }, objects, options);
+        const tables = await scope.span("destack.installation.describe.tables", {}, () =>
+            mainState(reader, options),
+        );
         if (tables !== undefined) {
             required.set(MAIN_DATABASE, tables);
         }
-        for (const [name, state] of await declaredStates(reader, entries)) {
+        const declared = await scope.span("destack.installation.describe.states", {}, () =>
+            declaredStates(reader, entries),
+        );
+        for (const [name, state] of declared) {
             required.set(name, state);
         }
 
         // write each state as a blob, keyed by its declaration
-        const states = await Promise.all(
-            [...required].map(
-                async ([name, state]) => [name, await blobs.writeJson(state)] as const,
+        const states = await scope.span("destack.installation.describe.write", {}, () =>
+            Promise.all(
+                [...required].map(
+                    async ([name, state]) => [name, await blobs.writeJson(state)] as const,
+                ),
             ),
         );
 
@@ -620,18 +631,18 @@ export const RolloutTarget = {
 /** Resolve what an installation follows to its build, none until built or pulled. */
 async function selectBuild(
     snapshot: Pick<Snapshot, "read">,
-    row: InstallationRollout,
+    row: Installation,
     current: Build | undefined,
     options: RevisionOptions,
 ): Promise<SelectedBuild | undefined> {
     // read what it follows
-    const { installation: installed } = row;
+    const installed = row;
     const { packageId } = installed;
-    const kind = RolloutTarget.follows(installed);
+    const kind = InstallationTarget.follows(installed);
 
     // take the release the machine provides for one following the host's, reusing its current build
     if (kind === "host") {
-        const { image } = RolloutTarget.host(packageId, options);
+        const { image } = InstallationTarget.host(packageId, options);
         const source = current?.source;
         if (source?.kind === "release" && current !== undefined && Build.image(current) === image) {
             return { image, source, build: current.id };
@@ -653,7 +664,7 @@ async function selectBuild(
     else if (kind === "build") {
         const pinned = await Build.require(
             snapshot,
-            row.scope,
+            Installation.space(row),
             schema.identifier("build").parse(installed.followsId),
         );
 
@@ -678,7 +689,7 @@ async function selectBuild(
             commit: followed.commit,
             directory: present(installed.directory, "the followed directory"),
         };
-        const found = await Build.find(snapshot, row.scope, source);
+        const found = await Build.find(snapshot, Installation.space(row), source);
 
         return found?.state === "succeeded"
             ? { image: Build.image(found), source, build: found.id }
@@ -688,7 +699,11 @@ async function selectBuild(
     else {
         const newest = (
             await snapshot.read(build.table).findMany({
-                where: { scope: row.scope, state: "succeeded", expiredAt: { isNull: true } },
+                where: {
+                    scope: Installation.space(row),
+                    state: "succeeded",
+                    expiredAt: { isNull: true },
+                },
             })
         )
             .map((entry) => Build.of(entry))
@@ -722,7 +737,7 @@ async function selectedRelease(
     const { packageId } = installed;
     const { machine } = options.space;
     const followed = ObjectReference.at("follows", installed);
-    const kind = RolloutTarget.follows(installed);
+    const kind = InstallationTarget.follows(installed);
     if (kind === "tag" && machine.isBuilding) {
         const version = await followedVersion(snapshot, followed.id);
 
@@ -754,78 +769,25 @@ async function published(
     });
 }
 
-/** Describe the tables a build's types keep in the space's main database, none without types. */
+/** The tables a build lists its package's types keep, by dialect, none for one without types. */
+const ListedTables = schema.object({
+    /** The SQLite table states. */
+    sqlite: schema.array(TableState).default([]),
+    /** The PostgreSQL table states. */
+    postgresql: schema.array(TableState).default([]),
+});
+
+/** Read the tables a build's types keep in the space's main database, none without types. */
 async function mainState(
-    target: Pick<Installation, "name" | "capabilities" | "allowed">,
     reader: BuildReader,
-    revision: Pick<InstallationRevision, "dependencies">,
-    objects: readonly ObjectType[],
-    options: Pick<RevisionOptions, "space" | "known">,
+    options: Pick<RevisionOptions, "space">,
 ): Promise<DatabaseState | undefined> {
-    // declare no tables for a package declaring no object types
+    // read the tables its build lists, none for a package declaring no object types
     const packageId = PackageManifest.package(reader.manifest).id;
-    const owned = await ObjectDescription.read(reader);
-    if (owned.length === 0) {
+    const listed = ListedTables.parse(await reader.tables());
+    if (listed.sqlite.length === 0 && listed.postgresql.length === 0) {
         return undefined;
     }
-
-    // read the types the builds of the packages it needs declare, reading none of a package the pool knows
-    const pooled = ObjectType.known(objects, options.known);
-    const known = new Set(objects.map((type) => ObjectTypeReference.key(type.typeReference)));
-    const pooledPackages = new Set(pooled.map((type) => type.package.id));
-    const description = await PackageDescription.of(reader);
-    const needed = new Set(
-        Rollout.needed(target, revision, description).map((entry) => entry.package.id),
-    );
-    const depended = await Promise.all(
-        revision.dependencies
-            .filter(
-                (dependency) =>
-                    needed.has(dependency.package.id) && !pooledPackages.has(dependency.package.id),
-            )
-            .map(async (dependency) => {
-                const { id } = dependency.package;
-                const read = await options.space.read(id, dependency.manifest);
-
-                return await ObjectDescription.read(read);
-            }),
-    );
-    const unserved = depended.flat().filter((each) => !known.has(ObjectDescription.key(each)));
-
-    // read the linked packages whose types they refer to, as a linked package's image lists none
-    const { linked } = options.space.machine;
-    const pool = ObjectTypePool.of(pooled);
-    const descriptions = [...unserved, ...owned];
-    const read = new Set<PackageId>();
-    const unread = () =>
-        [...new Set(pool.missing(descriptions).map((each) => each.packageId))].filter(
-            (id) => linked.has(id) && !read.has(id),
-        );
-    for (let ids = unread(); ids.length > 0; ids = unread()) {
-        for (const id of ids) {
-            // read each linked package once, its types' own references in the next round
-            read.add(id);
-            const { image } = present(linked.get(id), `the linked release of ${id}`);
-            const types = await ObjectDescription.read(await options.space.root(id, image));
-            descriptions.push(...types.filter((each) => !known.has(ObjectDescription.key(each))));
-        }
-    }
-
-    // declare the package's own types against the served ones, its dependencies' and the linked ones
-    const declared = pool.declare(descriptions);
-
-    // describe its durable and events objects' tables, placing the other packages' they refer to
-    const protocols = description?.protocols ?? [];
-    const others = objects.filter((type) => type.package.id !== packageId);
-    const implemented = pooled.filter(
-        (type): type is ObjectType =>
-            type instanceof ObjectType && protocols.includes(type.package.id),
-    );
-    const tables = new Set(
-        [...others, ...implemented, ...declared]
-            .filter((type) => type.storage === "durable" || type.storage === "events")
-            .flatMap((type) => type.tables),
-    );
 
     // own the package's tables, and those of the protocols it implements that a space replicates otherwise
     const { volumes } = options.space.machine;
@@ -833,14 +795,13 @@ async function mainState(
         ...volumes.replicated.map((table) => table[TABLE].sqlName),
         ...volumes.main.replicated,
     ]);
-    const described = DatabaseState.of([...tables], { packages: [packageId, ...protocols] });
     const isOwned = (state: TableState) =>
         state.package.id === packageId || replicated.has(state.table.name);
 
     return {
         tables: {
-            sqlite: described.tables.sqlite.filter(isOwned),
-            postgresql: described.tables.postgresql.filter(isOwned),
+            sqlite: listed.sqlite.filter(isOwned),
+            postgresql: listed.postgresql.filter(isOwned),
         },
     };
 }

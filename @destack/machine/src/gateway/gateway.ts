@@ -1,3 +1,10 @@
+import {
+    installation,
+    type DeploymentRuntime,
+    type Endpoint,
+    Instance,
+    Installation,
+} from "@destack/stack/object";
 import type { Voucher } from "@destack/object/server";
 import type { BuildStore } from "@destack/build/store";
 import type { PageCredential } from "./credential.ts";
@@ -19,7 +26,6 @@ import {
     Egress,
     HandlerAnswer,
     type HandlerRequest,
-    installation,
     InstallationBindingSpec,
     InstallationKind,
     InstallationMount,
@@ -42,13 +48,6 @@ import {
     SOCKET_INSTANCE_HEADER,
     SOCKET_PATH,
 } from "@destack/object/workload";
-import {
-    type DeploymentRuntime,
-    type Endpoint,
-    Instance,
-    type InstallationRollout,
-    Rollout,
-} from "@destack/stack/object";
 import { Bucket, Snapshot } from "@destack/db";
 import { Attribution } from "@destack/package/stack";
 import { OtlpSignal } from "@destack/telemetry/otlp";
@@ -317,7 +316,7 @@ export class Gateway {
             } else if (packageId !== undefined) {
                 const served = await this.#space.installation(packageId, request.signal);
                 const url = new URL(request.url);
-                const at = `${InstallationMount.url(request.url, this.#space.id, served.installationId)}${url.pathname}${url.search}`;
+                const at = `${InstallationMount.url(request.url, this.#space.id, served.id)}${url.pathname}${url.search}`;
                 const forwarded = copyRequest(request, {}, at);
 
                 return (
@@ -367,7 +366,7 @@ export class Gateway {
         else if (routed.kind === "view") {
             const found = await this.#space.waitServing(
                 () =>
-                    Rollout.requireServed(this.#space.database, {
+                    Installation.requireServed(this.#space.database, {
                         spaceId: this.#space.id,
                         installation: routed.installation,
                     }),
@@ -407,13 +406,13 @@ export class Gateway {
         // read the installation of the origin's name the space serves
         const found = await this.#space.waitServing(
             () =>
-                Rollout.requireServed(this.#space.database, {
+                Installation.requireServed(this.#space.database, {
                     spaceId: this.#space.id,
                     installation: origin.name,
                 }),
             request.signal,
         );
-        const mount = InstallationMount.url(request.url, this.#space.id, found.installationId);
+        const mount = InstallationMount.url(request.url, this.#space.id, found.id);
         const url = new URL(request.url);
 
         // address its packages below their paths, such as a mount a service calls
@@ -543,42 +542,41 @@ export class Gateway {
         const { database } = this.#space;
         const { traffic } = this.#space.machine;
         const served = await this.#space.waitServing(
-            () => Rollout.requireServed(database, mounted),
+            () => Installation.requireServed(database, mounted),
             mounted.request.signal,
         );
-        const { scope, installationId } = served;
+        const scope = Installation.space(served);
+        const installationId = served.id;
         const request = traffic.countIngress(scope, installationId, mounted.request);
         const installed = { ...mounted, request };
 
         // hand an installation the space's store serves to its package there
-        const isStored = this.#packages().some(
-            (handle) => handle.id === served.installation.packageId,
-        );
+        const isStored = this.#packages().some((handle) => handle.id === served.packageId);
         if (isStored) {
             const answered = await this.#store(served, installed, voucher);
 
             return traffic.countEgress(scope, installationId, answered);
         }
         // ask the caller to wait for a host installation the store does not serve now, such as one its stack moves
-        else if (served.installation.isolation === "host") {
+        else if (served.isolation === "host") {
             throw StackError.of(
                 "INSTALLATION_UNAVAILABLE",
-                `installation '${served.installation.name ?? installationId}' in this space is unavailable: it is not served yet`,
+                `installation '${served.name ?? installationId}' in this space is unavailable: it is not served yet`,
                 { data: { retryAfter: DEPLOYMENT_RETRY_MILLISECONDS } },
             );
         }
 
         // hand a request at a mount its package declares to the newest deployment, as it speaks no release
         const path = new URL(installed.request.url).pathname;
-        const own = PackageId.parse(served.installation.packageId);
+        const own = PackageId.parse(served.packageId);
         const calls: Voucher = async (call) => {
             const each = { ...installed, request: call };
 
             return (await this.#authenticate(each, served, own, voucher)).authentication;
         };
-        if (this.#isAdapted(served.installationId, own, path)) {
+        if (this.#isAdapted(served.id, own, path)) {
             const called = await this.#authenticate(installed, served, own, voucher);
-            const answered = await this.#adapted(served.installationId, path, installed.request, {
+            const answered = await this.#adapted(served.id, path, installed.request, {
                 authentication: called.authentication,
                 voucher: calls,
             });
@@ -589,24 +587,28 @@ export class Gateway {
         // verify the caller for the installation's package and route the call to the deployment serving its release
         const called = await this.#authenticate(installed, served, own, voucher);
         const answered = await this.ingress(
-            called.rollout.installationId,
+            called.installation.id,
             path,
             installed.request,
             called.authentication,
             calls,
         );
 
-        return traffic.countEgress(called.rollout.scope, called.rollout.installationId, answered);
+        return traffic.countEgress(
+            Installation.space(called.installation),
+            called.installation.id,
+            answered,
+        );
     }
 
     /** Hand a request below an installation's mount to its package in the store. */
     async #store(
-        served: InstallationRollout,
+        served: Installation,
         installed: NonNullable<ReturnType<typeof InstallationMount.of>>,
         voucher: Voucher | undefined,
     ): Promise<Response> {
         // hand a call below its package's path or a protocol's the package implements over as its verified caller
-        const packageId = PackageId.parse(served.installation.packageId);
+        const packageId = PackageId.parse(served.packageId);
         const path = new URL(installed.request.url).pathname;
         const mounted = PackageMount.of(installed.request);
         const handle = this.#packages().find((each) => each.id === packageId);
@@ -634,7 +636,7 @@ export class Gateway {
     /** Verify an installation's caller for a package it serves, taking one handed verified. */
     async #authenticate(
         installed: NonNullable<ReturnType<typeof InstallationMount.of>>,
-        served: InstallationRollout,
+        served: Installation,
         audience: PackageId,
         voucher: Voucher | undefined,
     ) {
@@ -652,7 +654,7 @@ export class Gateway {
                 ? handed
                 : await this.#space.machine.authenticate(request, audience, this.#space.id);
 
-        return { rollout: served, authentication };
+        return { installation: served, authentication };
     }
 
     /** Serve a call at its path below an installation, the mount of the package it calls first. */
@@ -1169,9 +1171,9 @@ export class Gateway {
         // refuse an unknown name or another package and call one of the caller's space
         const name = DeclarationName.safeParse(address);
         const found = name.success
-            ? await Rollout.find(this.#space.database, caller.scope, name.data, "launchable")
+            ? await Installation.find(this.#space.database, caller.scope, name.data, "launchable")
             : undefined;
-        if (found === undefined || found.installation.packageId !== audience) {
+        if (found === undefined || found.packageId !== audience) {
             throw MachineError.of(
                 "INSTALLATION_NOT_FOUND",
                 `installation '${address}' of '${audience}' in '${caller.scope}' not found`,
@@ -1181,7 +1183,7 @@ export class Gateway {
         return {
             kind: "installation",
             scope: caller.scope,
-            installationId: found.installationId,
+            installationId: found.id,
             audience,
             path: `${PackageMount.path(audience)}${path}`,
         };
@@ -1194,14 +1196,14 @@ export class Gateway {
         path: string,
     ): Promise<Destination> {
         // call an installation this machine serves in the space, by its name there
-        const served = await Rollout.find(this.#space.database, spaceId, name, "served");
+        const served = await Installation.find(this.#space.database, spaceId, name, "served");
         if (served !== undefined) {
-            const audience = PackageId.parse(served.installation.packageId);
+            const audience = PackageId.parse(served.packageId);
 
             return {
                 kind: "installation",
                 scope: spaceId,
-                installationId: served.installationId,
+                installationId: served.id,
                 audience,
                 path,
             };

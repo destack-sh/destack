@@ -1,6 +1,13 @@
+import {
+    installation,
+    Installation,
+    ACTIVE_BUILD_STATES,
+    build,
+    Build,
+    installationRevision,
+} from "@destack/stack/object";
 import type { RevisionOptions } from "./target.ts";
 import { Manager } from "@destack/access";
-import { installation, type Installation } from "@destack/object";
 import { Space } from "@destack/account/object";
 import { reference, referenceShape, tag, tagShape } from "@destack/registry/object";
 import { and, type DatabaseConnection, eq, inArray, Snapshot } from "@destack/db";
@@ -8,8 +15,6 @@ import type { ObjectReconciliation } from "@destack/object";
 import { Commit, type Identifier, present, schema } from "@destack/schema";
 import { DatabaseError } from "@destack/db";
 import { StackError } from "@destack/stack/error";
-import { ACTIVE_BUILD_STATES, build, Build } from "@destack/stack/object";
-import { installationRevision, type InstallationRollout, rollout } from "@destack/stack/object";
 import type { CommitSource } from "./build.ts";
 
 /** Read a followed reference in a space's replica of its registry, absent once deleted. */
@@ -85,8 +90,8 @@ export interface CommitBuildOptions {
 
 /** The build of the commit an installation's followed reference points at. */
 export class CommitBuild {
-    /** The installation's rollout, with its installation's fields. */
-    readonly #target: InstallationRollout;
+    /** The installation following the commit. */
+    readonly #target: Installation;
     /** The followed reference's identifier, and the package directory within its repository. */
     readonly #followed: { readonly id: string; readonly directory: string };
     /** What the machine builds and evaluates with. */
@@ -94,7 +99,7 @@ export class CommitBuild {
 
     /** Build the commit an installation's followed reference points at. */
     constructor(
-        target: InstallationRollout,
+        target: Installation,
         followed: { readonly id: string; readonly directory: string },
         options: CommitBuildOptions,
     ) {
@@ -133,7 +138,7 @@ export class CommitBuild {
         const built = await this.#create(reconciliation, source);
         if (
             built.state !== "succeeded" ||
-            Manager.isManaged(target.installation) ||
+            Manager.isManaged(target) ||
             (await this.#isTargeted(built.id, database))
         ) {
             return;
@@ -141,8 +146,8 @@ export class CommitBuild {
 
         // apply the installation at the succeeded build
         await reconciliation.mutate([
-            rollout.call("deploy", {
-                ...rollout.target({ scope: target.scope, id: target.installationId }),
+            installation.call("reconcile", {
+                ...installation.target({ scope: target.scope, id: target.id }),
                 build: built.id,
             }),
         ]);
@@ -208,7 +213,7 @@ export class CommitBuild {
     /** Read the live build of a commit source in the space, creating it when there is none. */
     async #create(reconciliation: ObjectReconciliation, source: CommitSource): Promise<Build> {
         // reuse the live build of the source
-        const { scope } = this.#target;
+        const scope = Installation.space(this.#target);
         const live = await Build.find(Snapshot.live(reconciliation.database), scope, source);
         if (live !== undefined) {
             return live;

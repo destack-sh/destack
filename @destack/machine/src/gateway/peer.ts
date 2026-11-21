@@ -3,7 +3,7 @@ import { Bearer } from "@destack/access/token";
 import { space } from "@destack/account/object";
 import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
-import { Rollout, type InstallationRollout } from "@destack/stack/object";
+import { Installation } from "@destack/stack/object";
 import stackPackage from "@destack/stack/package";
 import type { GatewaySpace } from "./gateway.ts";
 
@@ -35,7 +35,7 @@ export class PeerCall {
         receiving: Pick<GatewaySpace, "database" | "contain" | "universe" | "machine">,
         installed: { readonly spaceId: string; readonly installation: string },
     ): Promise<{
-        readonly rollout: InstallationRollout;
+        readonly installation: Installation;
         readonly authentication: Authentication;
     }> {
         // verify the token for the stack package receiving calls to the space's installations, before reading any
@@ -47,18 +47,21 @@ export class PeerCall {
         });
 
         // require the installation the space serves
-        const served = await Rollout.requireServed(receiving.database, installed);
-        const audience = PackageId.parse(served.installation.packageId);
+        const served = await Installation.requireServed(receiving.database, installed);
+        const audience = PackageId.parse(served.packageId);
         const credential = { ...verified.credential, audience };
 
         // call as a person acting through the calling installation under their grant, as the universe describes them
         if (Caller.isDelegated(verified.caller)) {
-            return { rollout: served, authentication: { caller: verified.caller, credential } };
+            return {
+                installation: served,
+                authentication: { caller: verified.caller, credential },
+            };
         }
 
         // call as the space or its installation, inside its account's chain
         const contained = await receiving.contain(verified);
 
-        return { rollout: served, authentication: { caller: contained.caller, credential } };
+        return { installation: served, authentication: { caller: contained.caller, credential } };
     }
 }

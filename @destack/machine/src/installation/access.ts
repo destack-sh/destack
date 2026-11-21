@@ -1,3 +1,4 @@
+import { installation, Installation } from "@destack/stack/object";
 import {
     AccessContext,
     Caller,
@@ -9,13 +10,12 @@ import {
     Relationship,
 } from "@destack/access";
 import { Snapshot } from "@destack/db";
-import { RolloutTarget } from "./target.ts";
-import { grant, installation, type MethodContext, PackageDescription, role } from "@destack/object";
+import { InstallationTarget } from "./target.ts";
+import { grant, type MethodContext, PackageDescription, role } from "@destack/object";
 import { canonicalize, present } from "@destack/schema";
 import { type Call, Scope, type Subject } from "@destack/sync";
 import { residency } from "@destack/account/object";
 import { StackError } from "@destack/stack/error";
-import { type InstallationRollout, Rollout } from "@destack/stack/object";
 
 /** The name under which an installation manages its permissions binding and space grant. */
 const GRANT_NAME = "permissions";
@@ -33,7 +33,7 @@ export const InstallationAccess = {
     /** Upsert an installation's roles in its space and its space's grant, each as its caller. */
     async upsert(
         context: MethodContext,
-        target: InstallationRollout,
+        target: Installation,
         description: PackageDescription | undefined,
     ): Promise<void> {
         // make each change as its caller, with the code running the call as the actor
@@ -53,32 +53,32 @@ export const InstallationAccess = {
     /** List the changes upserting an installation's roles and space grant, as some code now. */
     async changes(
         reader: Pick<Snapshot, "read">,
-        target: InstallationRollout,
+        target: Installation,
         description: PackageDescription | undefined,
         subject: Subject,
         now: number,
     ): Promise<AccessChange[]> {
         // act for the consenter, so access refuses grants beyond their permissions
-        const consenter = Caller.acting(Rollout.consenter(target), subject);
+        const consenter = Caller.acting(Installation.consenter(target), subject);
 
         // ask consent for its requests on other packages' types, its own types going by their policies
-        const set = Rollout.permissions(target.installation, description, "space");
-        const installed = principal.installation.reference(target.scope, target.installationId);
+        const set = Installation.permissions(target, description, "space");
+        const installed = principal.installation.reference(target.scope, target.id);
         const requested = set.space ?? [];
         const consented = requested.filter(
-            (permission) => permission.packageId !== target.installation.packageId,
+            (permission) => permission.packageId !== target.packageId,
         );
 
         // bind the consented permissions in the role the consenter manages
         const manager = {
-            installationId: target.installationId,
-            packageId: target.installation.packageId,
+            installationId: target.id,
+            packageId: target.packageId,
             name: GRANT_NAME,
         };
         const binding = role.call("declare", {
             ...role.in(target.scope),
-            name: `installation/${target.installationId}`,
-            description: `What ${target.installation.name} requests in this space`,
+            name: `installation/${target.id}`,
+            description: `What ${target.name} requests in this space`,
             permissions: consented,
             subjects: [installed],
             manager,
@@ -104,7 +104,7 @@ export const InstallationAccess = {
                   {
                       ...installation.permission("allow"),
                       scope: target.scope,
-                      objectId: target.installationId,
+                      objectId: target.id,
                       mode: "approval" as const,
                   },
               ]
@@ -131,27 +131,27 @@ export const InstallationAccess = {
     /** Build the calls relating a residency home's installation at its deployed release. */
     async relate(
         reader: Pick<Snapshot, "read">,
-        previous: Pick<InstallationRollout, "appliedRevisionId">,
-        target: InstallationRollout,
+        previous: Pick<Installation, "appliedRevisionId">,
+        target: Installation,
         set: PermissionSet,
         version: string | undefined,
     ): Promise<Call[]> {
         // relate only the installations its stack manages, and only those of a residency's home
-        if (!Manager.isManaged(target.installation)) {
+        if (!Manager.isManaged(target)) {
             return [];
         }
         const [homed] = await reader
             .read(residency.table)
-            .findMany({ where: { space: target.scope }, limit: 1 });
+            .findMany({ where: { space: Installation.space(target) }, limit: 1 });
         if (homed === undefined) {
             return [];
         }
 
         // read whether the residency relates the installation now
         const at = residency.target({ scope: Scope.universe.id, id: homed.id });
-        const { installationId: installed } = target;
-        const { name, packageId } = target.installation;
-        const kind = RolloutTarget.follows(target.installation);
+        const { id: installed } = target;
+        const { name, packageId } = target;
+        const kind = InstallationTarget.follows(target);
         const [related] = await Relationship.read(
             reader,
             residency.reference(Scope.universe.id, homed.id),
