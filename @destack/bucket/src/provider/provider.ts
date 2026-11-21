@@ -33,6 +33,7 @@ export function bucketProvider<Object>(
         code: buckets.provider,
         object,
         provision: {
+            isPure: false,
             provision: async (resource) => {
                 // create the bucket in its space
                 await buckets.open(bucketOf(resource), resource.scope);
