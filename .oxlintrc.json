@@ -88,6 +88,7 @@
         "destack/require-block-comment": "error",
         "destack/require-jsdoc": "error",
         "destack/style-attribute": "error",
+        "destack/style-focus": "error",
         "destack/style-hover": "error",
         "destack/style-shorthand": "error",
         "destack/style-tokens": "error",
@@ -221,6 +222,10 @@
         {
             "files": ["@destack/telemetry/src/browser/devtools.ts"],
             "rules": { "eslint/no-console": "off" }
+        },
+        {
+            "files": ["@destack/theme/src/state/state.ts"],
+            "rules": { "destack/style-focus": "off" }
         },
         {
             "files": ["@destack/view/src/media/image.tsx"],
@@ -618,6 +623,7 @@
                 "@destack/test/src/plan/vitest.ts",
                 "@destack/theme/src/token/generate.ts",
                 "@destack/ui/src/chart/generate.ts",
+                "@destack/ui/scripts/examples.ts",
                 "@destack/universe/src/cloudflare/worker.ts",
                 "@destack/update/src/test/command.ts",
                 "@destack/view/src/build/prerender/program.ts",

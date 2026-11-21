@@ -88,6 +88,7 @@
         "destack/require-block-comment": "error",
         "destack/require-jsdoc": "error",
         "destack/style-attribute": "error",
+        "destack/style-focus": "error",
         "destack/style-hover": "error",
         "destack/style-shorthand": "error",
         "destack/style-tokens": "error",
