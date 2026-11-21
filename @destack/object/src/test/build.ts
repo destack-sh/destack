@@ -1,4 +1,4 @@
-import { DatabaseState } from "@destack/db";
+import type { DatabaseState } from "@destack/db";
 import type { Crypto } from "@destack/environment";
 import { type PackageId, PackageVersion } from "@destack/package";
 import { type BuildReader, type OutputContent, PackageManifest } from "@destack/package/manifest";
@@ -81,15 +81,8 @@ export async function testBuild(
         }),
     );
 
-    // list the tables its durable and events types keep, and those of the protocols it implements
-    const served = [handle, ...handle.protocols];
-    const kept = served
-        .flatMap((each): unknown[] => Object.values(each.objects))
-        .filter((type) => ObjectType.is(type))
-        .filter((type) => type.storage === "durable" || type.storage === "events")
-        .flatMap((type) => type.tables);
-    const packages = served.map((each) => each.id);
-    const { tables } = DatabaseState.of([...new Set(kept)], { packages });
+    // list the tables its stored types keep, as its compiler does
+    const tables = testTables(handle);
 
     // write the build with a server output unless given others
     return MemoryBuild.of(PackageVersion.of(handle), [...described, ...declared], crypto, {
@@ -98,6 +91,41 @@ export async function testBuild(
         ...contents,
         requires,
     });
+}
+
+/** List the tables a package's stored types keep, with its protocols', as its compiler does. */
+function testTables(
+    handle: Package & PackageIdentity & { readonly objects: Readonly<Record<string, ObjectType>> },
+): DatabaseState["tables"] {
+    // take its types and those of the protocols it implements
+    const served = [handle, ...handle.protocols];
+    const types = served
+        .flatMap((each): unknown[] => Object.values(each.objects))
+        .filter((type) => ObjectType.is(type));
+
+    // know the types theirs refer to as the loaded code has them
+    const known = new Set<ObjectType>();
+    const pending = [...types];
+    for (let type = pending.pop(); type !== undefined; type = pending.pop()) {
+        const referred = [
+            ...type.scopes,
+            ...type.referenced,
+            ...type.ancestors,
+            ...type.attachments.map((attachment) => attachment.object),
+        ];
+        for (const other of referred) {
+            if (!known.has(other) && !types.includes(other)) {
+                known.add(other);
+                pending.push(other);
+            }
+        }
+    }
+
+    // describe each type and derive the tables from the descriptions
+    const described = types.map((type) => ObjectDescription.of(type));
+    const packages = served.map((each) => each.id);
+
+    return ObjectDescription.tables(described, packages, known).tables;
 }
 
 /** List the tables a hand-written build's described types keep, as a compiler writes them. */
