@@ -75,3 +75,24 @@ export const listInstallations = defineScenario({
         },
     ],
 });
+
+/** The credential request git sends its helper for a repository at the universe's origin. */
+const CREDENTIAL_REQUEST = "capability[]=authtype\nprotocol=https\nhost=universe.test\n\n";
+
+/** Answer git's credential request. */
+export const answerGitCredential = defineScenario({
+    of: CommandLine,
+    interaction: terminalInteraction,
+    name: "answer-git-credential",
+    description: "answer git's credential request with the owner's token",
+    given: { examples: [] },
+    parameters: PARAMETERS,
+    when: [
+        {
+            operation: "git.credential",
+            times: "{runs}",
+            warmup: "{warmup}",
+            step: { action: "run", words: ["git", "credential", "get"], input: CREDENTIAL_REQUEST },
+        },
+    ],
+});

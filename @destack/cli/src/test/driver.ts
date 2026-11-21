@@ -50,7 +50,8 @@ export class TerminalDriver implements Driver<TerminalStep, TerminalObservation>
         }
 
         // run the command line, refusing a failure with what it printed
-        const printed = await this.#terminal.printed(step.words);
+        const input = step.input === undefined ? {} : { stdin: step.input };
+        const printed = await this.#terminal.printed(step.words, input);
         if (printed.code !== 0) {
             throw new TypeError(
                 `'${step.words.join(" ")}' exited ${printed.code}: '${printed.error}'`,

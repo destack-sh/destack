@@ -7,6 +7,8 @@ export const TerminalStep = schema.object({
     action: schema.literal("run"),
     /** The command line's words, such as `["spaces", "--json"]`. */
     words: schema.array(schema.string()).min(1),
+    /** The text the command line reads on its standard input, none by default. */
+    input: schema.string().exactOptional(),
 });
 /** A step of a terminal world. */
 export type TerminalStep = schema.Infer<typeof TerminalStep>;
