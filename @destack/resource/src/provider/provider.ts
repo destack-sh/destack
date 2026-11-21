@@ -166,6 +166,8 @@ export interface Reconciler<
 export interface Provisioner<
     Provisioned extends Kind<schema.Schema, Provisioning> = Kind<schema.Schema, Provisioning>,
 > {
+    /** Whether provisioning creates nothing outside the store, so it may run in a transaction. */
+    readonly isPure: boolean;
     /** Create or confirm the resource, returning the same reference each time. */
     provision(record: ResourceRecord<Provisioned>): Promise<Placement>;
     /** Destroy the resource and everything it stores. */

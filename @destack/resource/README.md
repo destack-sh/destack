@@ -163,6 +163,7 @@ export function directoryProvider<Object>(
         code: "directory",
         object,
         provision: {
+            isPure: false,
             provision: async (resource) => {
                 await files.mkdir(path(resource), { recursive: true });
 
