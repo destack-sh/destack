@@ -1,368 +1,376 @@
 import "@destack/view/styles";
 import type { BrowserEnvironment } from "@destack/environment/browser";
+import { OriginPath } from "@destack/package";
 import type { Example } from "@destack/package/declare";
-import { nth, schema } from "@destack/schema";
+import { type JsonValue, nth, schema } from "@destack/schema";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
-import { DEFAULT_DISPLAY } from "@destack/theme";
-import { destackTheme } from "@destack/theme/declare";
-import { color, font, radius, space, stroke, weight } from "@destack/theme/tokens.stylex";
+import { DEFAULT_DISPLAY, Radius, Theme } from "@destack/theme";
+import { THEMES } from "@destack/theme/declare";
+import { text } from "@destack/theme/text";
+import { color, radius, size, space, stroke, weight, width } from "@destack/theme/tokens.stylex";
 import { type JSX, render } from "@solidjs/web";
-import { createEffect, createSignal, For, onCleanup } from "solid-js";
-import type { Globals } from "../scenario/interaction.ts";
+import { createSignal, For, Show } from "solid-js";
+import type { ExampleLocation } from "../build/examples.ts";
+import { Globals } from "../scenario/interaction.ts";
 import { renderExample } from "./frame.ts";
 
-/** The widths a reviewer checks an example at, in CSS pixels. */
-const WIDTHS = { phone: 390, tablet: 768 } as const;
-
-/** The locales a reviewer checks an example in. */
+/** The locales an example is checked in: the source language, one more, and one right to left. */
 const LOCALES = ["en-US", "de-AT", "ar-EG"] as const;
 
-/** The appearances a reviewer checks an example in. */
-const APPEARANCES = ["light", "dark"] as const;
+/** The widths an example is checked at in CSS pixels: a phone's and a tablet's. */
+const WIDTHS = ["390", "768"] as const;
 
-/** The module and export of an example. */
-export interface ExampleLocation {
-    /** The URL path of the module declaring it, such as /src/board/board.example.tsx. */
-    readonly module: string;
-    /** The export of the module. */
-    readonly export: string;
-}
+/** The widest the list of examples runs, a laptop's content width. */
+const LIST_WIDTH = "72rem";
 
-/** One example a package declares, loaded from its module. */
-interface ExampleEntry extends ExampleLocation {
-    /** The example. */
-    readonly example: Example<object, JSX.Element>;
-}
+/** What a page of examples shows, as its URL's query sets it. */
+const Query = schema.object({
+    /** The theme by name, Destack's brand when absent. */
+    theme: schema.string().min(1).exactOptional(),
+    /** The corners, the theme's when absent. */
+    radius: Radius.exactOptional(),
+    /** The globals the example renders with. */
+    globals: Globals,
+});
+/** What a page of examples shows. */
+type Query = schema.Infer<typeof Query>;
 
-/** The choices a reviewer makes. */
-interface Choice {
-    /** The chosen example, as `module#export`. */
-    readonly example: string | undefined;
-    /** The appearance. */
-    readonly appearance: (typeof APPEARANCES)[number];
-    /** The locale. */
-    readonly locale: (typeof LOCALES)[number];
-    /** The width, or the full page. */
-    readonly width: keyof typeof WIDTHS | "full";
-}
-
-/** The styles of the examples page. */
+/** The styles of the pages of examples. */
 const styles = style.create({
     page: {
-        display: "grid",
-        gridTemplateColumns: "16rem minmax(0, 1fr)",
-        minHeight: "100vh",
+        minHeight: "100dvh",
+        margin: 0,
         backgroundColor: color.background,
         color: color.foreground,
-        fontFamily: font.text,
-        fontSize: "14px",
     },
-    sidebar: {
-        position: "sticky",
-        top: 0,
-        height: "100vh",
-        overflowY: "auto",
-        padding: space[3],
-        borderInlineEndWidth: stroke.border,
-        borderInlineEndStyle: "solid",
-        borderInlineEndColor: color.border,
+    list: {
+        maxWidth: LIST_WIDTH,
+        marginInline: "auto",
+        paddingBlock: space[8],
+        paddingInline: space[6],
+    },
+    title: {
+        margin: 0,
+        fontWeight: weight.medium,
+    },
+    muted: {
+        marginBlock: space[1],
+        color: color.mutedForeground,
+    },
+    settings: {
+        display: "flex",
+        flexWrap: "wrap",
+        gap: space[2],
+        marginBlock: space[6],
+    },
+    form: {
+        display: "contents",
+    },
+    control: {
+        height: size[2],
+        paddingInline: space[3],
+        borderWidth: stroke.border,
+        borderStyle: "solid",
+        borderColor: color.input,
+        borderRadius: radius[3],
+        backgroundColor: color.background,
+        color: color.foreground,
+        fontFamily: "inherit",
+        fontSize: "inherit",
+    },
+    groups: {
+        columnWidth: width.tile,
+        columnGap: space[8],
     },
     group: {
-        marginBlockStart: space[3],
+        breakInside: "avoid",
+        marginBlockEnd: space[6],
+    },
+    heading: {
+        margin: 0,
         marginBlockEnd: space[1],
-        marginInline: 0,
-        color: color.mutedForeground,
-        fontSize: "12px",
-        textTransform: "uppercase",
-        letterSpacing: "0.04em",
+        fontWeight: weight.medium,
+    },
+    entries: {
+        margin: 0,
+        padding: 0,
+        listStyle: "none",
     },
     link: {
         display: "block",
+        overflow: "hidden",
         paddingBlock: space[1],
-        paddingInline: space[2],
-        borderRadius: radius[2],
-        color: "inherit",
-        textDecoration: "none",
-        backgroundColor: {
-            default: "transparent",
-            ":hover": { default: null, [media.hover]: color.accent },
+        whiteSpace: "nowrap",
+        textOverflow: "ellipsis",
+        color: {
+            default: color.mutedForeground,
+            ":hover": { default: null, [media.hover]: color.foreground },
         },
+        textDecoration: "none",
     },
-    current: {
-        backgroundColor: color.accent,
-        fontWeight: weight.semibold,
+    centered: {
+        display: "grid",
+        placeItems: "center",
+        padding: space[6],
     },
-    main: {
-        display: "flex",
-        flexDirection: "column",
-        gap: space[3],
-        padding: space[4],
-        minWidth: 0,
+    padded: {
+        padding: space[6],
     },
-    bar: {
-        display: "flex",
-        flexWrap: "wrap",
-        alignItems: "center",
-        gap: space[2],
+    fullscreen: {
+        display: "grid",
     },
-    title: {
-        flexGrow: 1,
-        margin: 0,
-        fontSize: "16px",
-    },
-    description: {
-        margin: 0,
-        color: color.mutedForeground,
-    },
-    failed: {
-        color: color.destructive,
-    },
-    frame: {
-        width: "100%",
-        minWidth: 0,
-        marginInline: "auto",
-    },
-    phone: { maxWidth: WIDTHS.phone },
-    tablet: { maxWidth: WIDTHS.tablet },
 });
 
-/** Render the examples of a package. */
+/** Render the examples of a package: one on its own when the URL names it, else the list. */
 export function hostExamples(
     element: HTMLElement,
     locations: readonly ExampleLocation[],
     environment: BrowserEnvironment,
 ): () => void {
-    // load every example from its module
-    const [entries, setEntries] = createSignal<readonly ExampleEntry[]>([]);
-    const [failures, setFailures] = createSignal<readonly string[]>([]);
-    void Promise.allSettled(locations.map((location) => loadExample(location))).then((settled) => {
-        setEntries(
-            settled.flatMap((result) => (result.status === "fulfilled" ? [result.value] : [])),
-        );
-        setFailures(
-            settled.flatMap((result, index) =>
-                result.status === "rejected"
-                    ? [`${keyOf(nth(locations, index))}: ${String(result.reason)}`]
-                    : [],
-            ),
-        );
-    });
+    // read what the URL asks for, and theme the page with it
+    const url = new URL(environment.navigation.currentEntry.url);
+    const query = queryOf(url);
+    const theme = themeOf(query);
+    const variables = theme.variables({ ...DEFAULT_DISPLAY, ...query.globals.theme });
+    for (const [name, value] of Object.entries(variables)) {
+        element.style.setProperty(name, value);
+    }
+    element.className = style.attrs(text.sm, styles.page).class ?? "";
 
-    return render(
-        () => <ExamplesPage entries={entries()} failures={failures()} environment={environment} />,
-        element,
-    );
+    // render the one example the path names, as `<module>/<name>` below the reserved path
+    const path = url.pathname.slice(OriginPath.examples.length).replace(/^\//u, "");
+    const chosen = locations.find((each) => pathOf(each) === path);
+    if (chosen !== undefined) {
+        return hostExample(element, chosen, query, theme, environment);
+    }
+
+    return render(() => <ExampleList locations={locations} query={query} url={url} />, element);
 }
 
-/** Render the examples page. */
-function ExamplesPage(properties: {
-    /** The examples. */
-    readonly entries: readonly ExampleEntry[];
-    /** The example modules that failed to load, with their errors. */
-    readonly failures: readonly string[];
-    /** The browser environment of the examples. */
-    readonly environment: BrowserEnvironment;
-}): JSX.Element {
-    // keep the reviewer's choices in the URL
-    const navigation = properties.environment.navigation;
-    const [choice, setChoice] = createSignal(readChoice(new URL(navigation.currentEntry.url)));
-    createEffect(choice, (current) => {
-        navigation.navigate(`?${writeChoice(current).toString()}`, { history: "replace" });
+/** Render one example on the whole page, laid out as it declares, under the URL's globals. */
+function hostExample(
+    element: HTMLElement,
+    location: ExampleLocation,
+    query: Query,
+    theme: Theme,
+    environment: BrowserEnvironment,
+): () => void {
+    // load the example
+    let dispose: (() => void) | undefined;
+    void loadExample(location).then((example) => {
+        // lay the page out as the example declares, and render it
+        element.className = style.attrs(styles.page, styles[example.layout]).class ?? "";
+        dispose = renderExample(element, { example, globals: query.globals, theme }, environment);
+
+        // give a centred example's elements their own widths
+        const container = element.querySelector(":scope > [data-slot=example]");
+        if (container instanceof HTMLElement && example.layout === "centered") {
+            container.style.display = "contents";
+        }
     });
-    const change = (next: Partial<Choice>) => setChoice({ ...choice(), ...next });
-    const chosen = () =>
-        properties.entries.find((entry) => keyOf(entry) === choice().example) ??
-        properties.entries[0];
 
-    // group the examples by the directory of their module
-    const groups = () =>
-        Object.entries(Object.groupBy(properties.entries, (entry) => groupOf(entry.module))).map(
-            ([name, entries]) => ({ name, entries: entries ?? [] }),
-        );
+    return () => dispose?.();
+}
 
-    // render the chosen example into the frame
-    let frame: HTMLDivElement | undefined;
-    createEffect(
-        () => [chosen(), choice()] as const,
-        ([entry, current]) => {
-            // draw the example, removing the last one
-            const target = frame;
-            if (entry === undefined || target === undefined) {
-                return undefined;
-            }
-            target.replaceChildren();
+/** Render the list of a package's examples by module, each a link under the URL's settings. */
+function ExampleList(properties: {
+    /** The examples. */
+    readonly locations: readonly ExampleLocation[];
+    /** What the URL asks for. */
+    readonly query: Query;
+    /** The page's URL. */
+    readonly url: URL;
+}): JSX.Element {
+    // group the examples whose module and export match the search by module
+    const [search, setSearch] = createSignal("");
+    const groups = () => {
+        const wanted = search().toLowerCase();
+        const matching = properties.locations.filter((each) => pathOf(each).includes(wanted));
 
-            return renderExample(
-                target,
-                { example: entry.example, globals: globalsOf(current) },
-                properties.environment,
-            );
-        },
-    );
-    onCleanup(() => frame?.replaceChildren());
+        return Object.entries(Object.groupBy(matching, (each) => groupOf(each.module)));
+    };
 
-    // theme the page in the chosen appearance
-    let page: HTMLDivElement | undefined;
-    createEffect(
-        () => choice().appearance,
-        (appearance) => {
-            const variables = destackTheme.variables({ ...DEFAULT_DISPLAY, appearance });
-            for (const [name, value] of Object.entries(variables)) {
-                page?.style.setProperty(name, value);
-            }
-        },
-    );
+    // link each example with the page's settings
+    const linkOf = (each: ExampleLocation): string =>
+        `${OriginPath.examples}/${pathOf(each)}${properties.url.search}`;
+    const { query } = properties;
 
     return (
-        <div ref={(created) => (page = created)} {...style.attrs(styles.page)}>
-            {/* Examples by module, after the modules that failed to load */}
-            <nav aria-label="Examples" {...style.attrs(styles.sidebar)}>
-                <For each={properties.failures}>
-                    {(failure) => <p {...style.attrs(styles.failed)}>{failure}</p>}
-                </For>
-                <For each={groups()}>
-                    {(group) => (
-                        <>
-                            <h2 {...style.attrs(styles.group)}>{group.name}</h2>
-                            <For each={group.entries}>
-                                {(entry) => {
-                                    const isCurrent = (): boolean => chosen() === entry;
+        <main {...style.attrs(styles.list)}>
+            {/* Heading */}
+            <h1 {...style.attrs(text["2xl"], styles.title)}>Examples</h1>
+            <p {...style.attrs(styles.muted)}>
+                {properties.locations.length} examples, each on its own page with these settings in
+                its URL.
+            </p>
 
-                                    return (
-                                        <a
-                                            href={`?example=${encodeURIComponent(keyOf(entry))}`}
-                                            aria-current={isCurrent() ? "page" : undefined}
-                                            onClick={(event) => {
-                                                event.preventDefault();
-                                                change({ example: keyOf(entry) });
-                                            }}
-                                            {...style.attrs(
-                                                styles.link,
-                                                isCurrent() && styles.current,
-                                            )}
-                                        >
-                                            {entry.example.name}
-                                        </a>
-                                    );
-                                }}
-                            </For>
-                        </>
-                    )}
-                </For>
-            </nav>
-
-            {/* The chosen example and its controls */}
-            <main {...style.attrs(styles.main)}>
-                <div {...style.attrs(styles.bar)}>
-                    <h1 {...style.attrs(styles.title)}>{titleOf(chosen())}</h1>
-                    <Picker
-                        label="Appearance"
-                        value={choice().appearance}
-                        options={APPEARANCES}
-                        onChange={(appearance) => change({ appearance })}
-                    />
-                    <Picker
-                        label="Locale"
-                        value={choice().locale}
-                        options={LOCALES}
-                        onChange={(locale) => change({ locale })}
-                    />
-                    <Picker
-                        label="Width"
-                        value={choice().width}
-                        options={["full", "tablet", "phone"] as const}
-                        onChange={(width) => change({ width })}
-                    />
-                </div>
-                <p {...style.attrs(styles.description)}>{chosen()?.example.description}</p>
-                <div
-                    ref={(created) => (frame = created)}
-                    data-slot="example-frame"
-                    {...style.attrs(
-                        styles.frame,
-                        choice().width === "phone" && styles.phone,
-                        choice().width === "tablet" && styles.tablet,
-                    )}
+            {/* Search, and the settings every example opens with, applied by reloading */}
+            <div {...style.attrs(styles.settings)}>
+                <input
+                    type="search"
+                    {...style.attrs(styles.control)}
+                    aria-label="Search examples"
+                    placeholder="Search"
+                    onInput={(event) => setSearch(event.currentTarget.value)}
                 />
-            </main>
-        </div>
+                <form
+                    method="get"
+                    onChange={(event) => event.currentTarget.requestSubmit()}
+                    {...style.attrs(styles.form)}
+                >
+                    <Choice
+                        name="theme"
+                        label="Theme"
+                        value={query.theme}
+                        options={THEMES.map((each) => each.definition.name)}
+                    />
+                    <Choice
+                        name="radius"
+                        label="Corners"
+                        value={query.radius}
+                        options={Radius.options}
+                    />
+                    <Choice
+                        name="appearance"
+                        label="Appearance"
+                        value={textOf(query.globals.theme?.["appearance"])}
+                        options={["light", "dark"]}
+                    />
+                    <Choice
+                        name="density"
+                        label="Density"
+                        value={textOf(query.globals.theme?.["density"])}
+                        options={["compact", "regular", "spacious"]}
+                    />
+                    <Choice
+                        name="locale"
+                        label="Locale"
+                        value={query.globals.locale}
+                        options={LOCALES}
+                    />
+                    <Choice
+                        name="width"
+                        label="Width"
+                        value={query.globals.width?.toString()}
+                        options={WIDTHS}
+                    />
+                </form>
+            </div>
+
+            {/* Examples by module */}
+            <div {...style.attrs(styles.groups)}>
+                <For each={groups()}>
+                    {([group, entries]) => (
+                        <section {...style.attrs(styles.group)}>
+                            <h2 {...style.attrs(text.sm, styles.heading)}>{group}</h2>
+                            <ul {...style.attrs(styles.entries)}>
+                                <For each={entries ?? []}>
+                                    {(each) => (
+                                        <li>
+                                            <a
+                                                href={linkOf(each)}
+                                                title={each.export}
+                                                {...style.attrs(styles.link)}
+                                            >
+                                                {each.name}
+                                            </a>
+                                        </li>
+                                    )}
+                                </For>
+                            </ul>
+                        </section>
+                    )}
+                </For>
+            </div>
+            <Show when={groups().length === 0}>
+                <p {...style.attrs(styles.muted)}>No example matches.</p>
+            </Show>
+        </main>
     );
 }
 
-/** Render a labelled choice among a few options. */
-function Picker<Option extends string>(properties: {
+/** Render a choice of one URL setting, its label standing for the default. */
+function Choice(properties: {
+    /** The URL parameter it sets. */
+    readonly name: string;
     /** The label. */
     readonly label: string;
-    /** The chosen option. */
-    readonly value: Option;
-    /** The options. */
-    readonly options: readonly Option[];
-    /** Handle another option being chosen. */
-    readonly onChange: (value: Option) => void;
+    /** The chosen value, the default when absent. */
+    readonly value: string | undefined;
+    /** The values to choose from. */
+    readonly options: readonly string[];
 }): JSX.Element {
     return (
-        <label>
-            {properties.label}{" "}
-            <select
-                value={properties.value}
-                onChange={(event) => {
-                    const chosen = properties.options.find(
-                        (option) => option === event.currentTarget.value,
-                    );
-                    if (chosen !== undefined) {
-                        properties.onChange(chosen);
-                    }
-                }}
-            >
-                <For each={properties.options}>
-                    {(option) => <option value={option}>{option}</option>}
-                </For>
-            </select>
-        </label>
+        <select
+            name={properties.name}
+            aria-label={properties.label}
+            {...style.attrs(styles.control)}
+        >
+            <option value="" selected={properties.value === undefined}>
+                {properties.label}
+            </option>
+            <For each={properties.options}>
+                {(option) => (
+                    <option value={option} selected={option === properties.value}>
+                        {option}
+                    </option>
+                )}
+            </For>
+        </select>
     );
 }
 
-/** Read the reviewer's choices from a URL. */
-function readChoice(url: URL): Choice {
-    const search = url.searchParams;
-    const width = search.get("width");
+/** Read what a URL's query asks for, refusing values outside their choices. */
+function queryOf(url: URL): Query {
+    // read each parameter, taking the empty ones a form sends for its defaults as absent
+    const read = (name: string): string | undefined => {
+        const value = url.searchParams.get(name);
 
-    return {
-        example: search.get("example") ?? undefined,
-        appearance: search.get("appearance") === "dark" ? "dark" : "light",
-        locale: LOCALES.find((each) => each === search.get("locale")) ?? LOCALES[0],
-        width: width === "phone" || width === "tablet" ? width : "full",
+        return value === null || value === "" ? undefined : value;
     };
-}
+    const entries = (names: readonly string[]) =>
+        Object.fromEntries(
+            names.flatMap((name) => {
+                const value = read(name);
 
-/** Write the reviewer's choices as URL parameters. */
-function writeChoice(choice: Choice): URLSearchParams {
-    return new URLSearchParams({
-        ...(choice.example === undefined ? {} : { example: choice.example }),
-        appearance: choice.appearance,
-        locale: choice.locale,
-        width: choice.width,
+                return value === undefined ? [] : [[name, value]];
+            }),
+        );
+    const pixels = read("width");
+
+    return Query.parse({
+        ...entries(["theme", "radius"]),
+        globals: {
+            theme: entries(["appearance", "density"]),
+            ...entries(["locale"]),
+            ...(pixels === undefined ? {} : { width: Number(pixels) }),
+        },
     });
 }
 
-/** Read the globals an example renders with from the reviewer's choices. */
-function globalsOf(choice: Choice): Globals {
-    return {
-        theme: { appearance: choice.appearance },
-        locale: choice.locale,
-        ...(choice.width === "full" ? {} : { width: WIDTHS[choice.width] }),
-    };
+/** Read the theme a query asks for, with its corners. */
+function themeOf(query: Query): Theme {
+    const theme = THEMES.find((each) => each.definition.name === query.theme) ?? nth(THEMES, 0);
+
+    return query.radius === undefined
+        ? theme
+        : new Theme(theme.package, { ...theme.definition, radius: query.radius });
+}
+
+/** Read a JSON value as text, absent unless it is a string. */
+function textOf(value: JsonValue | undefined): string | undefined {
+    return typeof value === "string" ? value : undefined;
 }
 
 /** Read an example's key: its module and export. */
-function keyOf(entry: ExampleLocation): string {
-    return `${entry.module}#${entry.export}`;
+function keyOf(location: ExampleLocation): string {
+    return `${location.module}#${location.export}`;
 }
 
-/** Read the title of the chosen example. */
-function titleOf(entry: ExampleEntry | undefined): string {
-    return entry === undefined ? "No examples" : `${groupOf(entry.module)} · ${entry.example.name}`;
+/** Read an example's path below the reserved path: its module's directory and its name. */
+function pathOf(location: ExampleLocation): string {
+    return `${groupOf(location.module)}/${location.name}`;
 }
 
 /** Read the directory of an example's module. */
@@ -371,20 +379,24 @@ function groupOf(module: string): string {
 }
 
 /** Load an example from its module. */
-async function loadExample(location: ExampleLocation): Promise<ExampleEntry> {
+async function loadExample(
+    location: ExampleLocation,
+): Promise<Example<Record<string, JsonValue>, JSX.Element>> {
     // import the module and read its export
     const loaded: unknown = await import(/* @vite-ignore */ location.module);
     const exports = schema.record(schema.string(), schema.unknown()).parse(loaded);
     const example = exports[location.export];
     if (!isExample(example)) {
-        throw new TypeError(`example '${keyOf(location)}' is invalid: its export holds no example`);
+        throw new TypeError(
+            `example '${keyOf(location)}' is invalid: its export is not an example`,
+        );
     }
 
-    return { ...location, example };
+    return example;
 }
 
 /** Report whether a value is an example a host renders. */
-function isExample(value: unknown): value is Example<object, JSX.Element> {
+function isExample(value: unknown): value is Example<Record<string, JsonValue>, JSX.Element> {
     return (
         typeof value === "object" &&
         value !== null &&

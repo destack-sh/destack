@@ -1,23 +1,14 @@
 import { isAbsolute, join } from "node:path";
 import type { Environment, FileSystem } from "@destack/environment";
-import { LineExporter } from "@destack/environment/line";
-import {
-    type Connect,
-    createServer,
-    isCSSRequest,
-    type ServerOptions,
-    type ViteDevServer,
-} from "vite";
+import { createServer, isCSSRequest, type ServerOptions, type ViteDevServer } from "vite";
 import type { WorkspacePackage } from "@destack/build";
-import type { ExampleLocation } from "../example/host.tsx";
 import { loadTransforms } from "@destack/build/local";
-import { graph, OriginPath } from "@destack/package";
+import { OriginPath } from "@destack/package";
 import { type Plugin, runtimeConditions, runtimeCss, runtimeTarget } from "@destack/package/build";
 import { PackageLocator } from "@destack/package/locator";
 import { baselinePlugin, modulePlugin } from "@destack/package/vite";
 import { ModuleTransformer } from "@destack/package/transform";
 import { present } from "@destack/schema";
-import { OtlpExport, type OtlpSignal } from "@destack/telemetry/otlp";
 import type { PageHead, RouteTable } from "../static/page.ts";
 import { ViewError } from "../error/error.ts";
 import {
@@ -28,12 +19,12 @@ import {
     type StaticRender,
     type ViewPackage,
 } from "./build.ts";
+import { examplesPlugin, readExamples } from "./examples.ts";
+import { jsonPlugin } from "./json.ts";
+import { ORIGIN, originPlugin } from "./origin.ts";
 
-/** The OTLP signals the server takes below the telemetry path, each at `/v1/<signal>`. */
-const SIGNALS: readonly OtlpSignal[] = ["traces", "logs", "metrics"];
-
-/** The base the server reads request paths against, which have no origin. */
-const ORIGIN = "http://localhost";
+/** The files that define a package: its declarations, and the entries it exports. */
+const DEFINITIONS = ["destack.json", "package.json"];
 
 /** The script connecting a page to Vite's updates, loaded after the head the page hydrates. */
 const VITE_CLIENT = '<script type="module" src="/@vite/client"></script>';
@@ -43,17 +34,14 @@ export class DevelopmentServer implements AsyncDisposable {
     /** The running Vite server, replaced on each restart. */
     #vite: ViteDevServer;
     /** The options the server starts from, applied again on each restart. */
-    readonly #options: DevelopmentServerOptions | ExamplesServerOptions;
+    readonly #options: DevelopmentServerOptions;
     /** The restarts in order, settled once the last one has. */
     #restarting: Promise<void> = Promise.resolve();
     /** Whether network listeners and watchers have closed. */
     #isClosed = false;
 
     /** Retain the server until shutdown. */
-    private constructor(
-        vite: ViteDevServer,
-        options: DevelopmentServerOptions | ExamplesServerOptions,
-    ) {
+    private constructor(vite: ViteDevServer, options: DevelopmentServerOptions) {
         this.#vite = vite;
         this.#options = options;
     }
@@ -63,20 +51,8 @@ export class DevelopmentServer implements AsyncDisposable {
         return this.#vite;
     }
 
-    /** Start serving the view with the build's transforms and entries. */
+    /** Serve the package's view, when it names one, and its examples. */
     static async start(options: DevelopmentServerOptions): Promise<DevelopmentServer> {
-        return DevelopmentServer.#listen(options);
-    }
-
-    /** Start serving the package's examples. */
-    static async examples(options: ExamplesServerOptions): Promise<DevelopmentServer> {
-        return DevelopmentServer.#listen(options);
-    }
-
-    /** Listen for a view or the examples. */
-    static async #listen(
-        options: DevelopmentServerOptions | ExamplesServerOptions,
-    ): Promise<DevelopmentServer> {
         // follow definition changes once the server exists
         let server: DevelopmentServer | undefined;
         const follow = (): void => {
@@ -85,7 +61,7 @@ export class DevelopmentServer implements AsyncDisposable {
             }
         };
 
-        // listen, keeping the server
+        // listen, then create the server around Vite
         const vite = await serve(options, options.server, follow);
         server = new DevelopmentServer(vite, options);
 
@@ -94,7 +70,7 @@ export class DevelopmentServer implements AsyncDisposable {
 
     /** Replace the Vite server with one of fresh plugins on the same port. */
     restart(): Promise<void> {
-        // restart after any pending restart, keeping the chain going past a failed one
+        // restart after any pending restart, continuing the chain past a failed one
         const restarted = this.#restarting.then(() => this.#replace());
         this.#restarting = restarted.catch(() => undefined);
 
@@ -118,7 +94,7 @@ export class DevelopmentServer implements AsyncDisposable {
 
     /** Close the running Vite server and listen with a fresh one on its port, unless closed. */
     async #replace(): Promise<void> {
-        // keep the port the browser connects to
+        // stop once closed, else reuse the port the browser connects to
         if (this.#isClosed) {
             return;
         }
@@ -149,31 +125,27 @@ export class DevelopmentServer implements AsyncDisposable {
 export interface DevelopmentServerOptions {
     /** The workspace whose root declares the view. */
     readonly workspace: WorkspacePackage;
-    /** The static view's name. */
-    readonly view: string;
+    /** The static view's name, none for a package that only shows its examples. */
+    readonly view?: string;
     /** Network and filesystem access, listening on loopback by default. */
     readonly server?: ServerOptions;
     /** The clock, files and processes the server compiles with. */
     readonly environment: Environment<"files" | "process">;
 }
 
-/** The options of an examples server. */
-export type ExamplesServerOptions = Omit<DevelopmentServerOptions, "view">;
-
-/** Create a Vite server for the view or the examples. */
+/** Create a Vite server for the view and the examples. */
 async function serve(
-    options: DevelopmentServerOptions | ExamplesServerOptions,
+    options: DevelopmentServerOptions,
     server: ServerOptions | undefined,
     onDefinitionChange: () => void,
 ): Promise<ViteDevServer> {
-    // answer a view's pages, or the examples page listing the root's examples
-    const { workspace, environment } = options;
+    // answer the examples below their reserved path, and the view's pages when it names one
+    const { workspace, environment, view } = options;
     const directory = workspace.root.directory;
     const views = await readViews(workspace);
-    const page =
-        "view" in options
-            ? viewPlugin(views.located, options.view)
-            : examplesPlugin(await readExamples(workspace));
+    const examples = examplesPlugin(async () => readExamples(workspace));
+    const pages =
+        view === undefined ? [rootPlugin(OriginPath.examples)] : [viewPlugin(views.located, view)];
 
     // compile the view with the build's transforms and entries, resolving packages as installed
     const vite = await createServer({
@@ -184,11 +156,13 @@ async function serve(
         plugins: [
             modulePlugin(new ModuleTransformer(environment)),
             baselinePlugin(),
+            jsonPlugin(),
             definitionPlugin(directory, environment.files, onDefinitionChange),
             ...(await loadTransforms({ directory, runtime: "browser", server: true, environment })),
             entryPlugin(views.located, views.package),
+            examples,
             originPlugin(environment),
-            page,
+            ...pages,
         ],
         resolve: { conditions: runtimeConditions("browser", "development") },
         // serve the syntax and stylesheets of the baseline browsers, as builds emit them
@@ -235,20 +209,27 @@ async function readViews(
     return { package: owned, located: locate(owned) };
 }
 
-/** Read the examples of a workspace root. */
-async function readExamples(workspace: WorkspacePackage): Promise<ExampleLocation[]> {
-    // index the root's browser modules for their examples
-    const declared = { declarations: [], relationships: [] };
-    const modules = await workspace.index({ runtime: "browser" }, declared);
+/** Send the root to another path, as a package without a view opens on its examples. */
+function rootPlugin(path: string): Plugin {
+    return {
+        name: "@destack/view/root",
+        configureServer(vite) {
+            vite.middlewares.use((request, response, next) => {
+                const { pathname } = new URL(present(request.url, "the request's path"), ORIGIN);
 
-    return modules.flatMap((module) =>
-        module.declarations
-            .filter((declaration) => declaration.kind === "example")
-            .map((declaration) => ({
-                module: `/${graph.Moniker.module(declaration.symbol)}`,
-                export: present(graph.Moniker.name(declaration.symbol), "an example's symbol"),
-            })),
-    );
+                // redirect the root
+                if (pathname === "/") {
+                    response.statusCode = 302;
+                    response.setHeader("location", path);
+                    response.end();
+                }
+                // leave every other path to the origin, Vite and the examples
+                else {
+                    next();
+                }
+            });
+        },
+    };
 }
 
 /** Answer the pages of a static view. */
@@ -262,58 +243,6 @@ function viewPlugin(located: readonly LocatedView[], name: string): Plugin {
     }
 
     return pagePlugin(view, view.render);
-}
-
-/** Answer page requests with the examples page. */
-function examplesPlugin(examples: readonly ExampleLocation[]): Plugin {
-    // write the page once
-    const list = JSON.stringify(examples).replaceAll("<", "\\u003c");
-    const page = `<!doctype html>
-<html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Examples</title></head>
-<body>
-<script type="module">
-import { BrowserEnvironment } from "@destack/environment/browser";
-import { hostExamples, hostScenario } from "@destack/view/example";
-const query = new URLSearchParams(location.search);
-const scenario = query.get("scenario");
-const name = query.get("name");
-if (scenario === null) {
-    hostExamples(document.body, ${list}, BrowserEnvironment.system);
-} else if (name === null) {
-    await import(/* @vite-ignore */ scenario);
-} else {
-    await hostScenario(document.body, scenario, name, BrowserEnvironment.system);
-}
-</script>
-</body>
-</html>`;
-
-    return {
-        name: "@destack/view/examples",
-        configureServer(vite) {
-            // answer document requests after Vite's files
-            return () => {
-                vite.middlewares.use((request, response, next) => {
-                    const url = new URL(present(request.url, "the request's path"), ORIGIN);
-                    if (/\.[^/]+$/u.test(url.pathname)) {
-                        next();
-
-                        return;
-                    }
-                    vite.transformIndexHtml(url.pathname, page).then(
-                        (html) => {
-                            response.setHeader("content-type", "text/html; charset=utf-8");
-                            response.end(html);
-                        },
-                        (error: unknown) => {
-                            next(error);
-                        },
-                    );
-                });
-            };
-        },
-    };
 }
 
 /** Answer the view's endpoints and its pages for document requests, as its prerender does. */
@@ -347,81 +276,6 @@ function pagePlugin(view: LocatedView, render: StaticRender): Plugin {
             };
         },
     };
-}
-
-/** Answer the paths an origin reserves: print telemetry exports, refuse any other path bare. */
-function originPlugin(environment: Environment<"process">): Plugin {
-    return {
-        name: "@destack/view/origin",
-        configureServer(vite) {
-            // print each received span and record as a process's log prints them
-            const lines = new LineExporter(
-                (line, severity) => LineExporter.console(line, severity),
-                LineExporter.options(environment.process.variables),
-            );
-
-            // answer below the reserved root before Vite and the view, as an installation origin does
-            vite.middlewares.use((request, response, next) => {
-                // leave every path outside the reserved root to Vite and the view
-                const { pathname } = new URL(present(request.url, "the request's path"), ORIGIN);
-                if (pathname !== OriginPath.root && !pathname.startsWith(`${OriginPath.root}/`)) {
-                    next();
-
-                    return;
-                }
-
-                // take an export posted at a signal's path, and refuse any other request bare
-                const signal = SIGNALS.find(
-                    (candidate) => pathname === `${OriginPath.telemetry}/v1/${candidate}`,
-                );
-                if (request.method !== "POST" || signal === undefined) {
-                    response.statusCode = 404;
-                    response.end();
-
-                    return;
-                }
-                printExport(request, signal, lines).then(
-                    () => {
-                        response.statusCode = 200;
-                        response.setHeader("content-type", "application/json");
-                        response.end("{}");
-                    },
-                    (error: unknown) => {
-                        response.statusCode = 400;
-                        response.end(String(error));
-                    },
-                );
-            });
-        },
-    };
-}
-
-/** Print an OTLP/JSON export's spans and log records to the server's log, its metrics left out. */
-async function printExport(
-    request: Connect.IncomingMessage,
-    signal: OtlpSignal,
-    lines: LineExporter,
-): Promise<void> {
-    // read the posted body as an export of the signal
-    const chunks: Uint8Array[] = [];
-    for await (const chunk of request) {
-        // require bytes, as a body streamed without an encoding is
-        if (!(chunk instanceof Uint8Array)) {
-            throw new TypeError("the export's body streamed text instead of bytes");
-        }
-        chunks.push(chunk);
-    }
-    const text = new TextDecoder().decode(Buffer.concat(chunks));
-    const exported = new OtlpExport(signal, JSON.parse(text));
-
-    // print each span as it ended, and each record at its severity
-    if (signal === "traces") {
-        for (const span of exported.spans()) {
-            lines.spans.onEnd(span);
-        }
-    } else if (signal === "logs") {
-        lines.logs.export(exported.records(), () => undefined);
-    }
 }
 
 /** Answer an endpoint or a page of the view at a URL, absent for a file Vite answers. */
@@ -510,10 +364,12 @@ function definitionPlugin(directory: string, files: FileSystem, onChange: () => 
     const watched = new Set<string>();
     let server: ViteDevServer | undefined;
     const watch = (vite: ViteDevServer, owner: string) => {
-        const definition = join(owner, "destack.json");
-        if (!watched.has(definition)) {
-            watched.add(definition);
-            vite.watcher.add(definition);
+        for (const name of DEFINITIONS) {
+            const definition = join(owner, name);
+            if (!watched.has(definition)) {
+                watched.add(definition);
+                vite.watcher.add(definition);
+            }
         }
     };
 

@@ -1,6 +1,7 @@
 import { CompilerPool, Workspace } from "@destack/build";
 import { testStore } from "@destack/build/test";
 import { Toolchain } from "@destack/check/toolchain";
+import { OriginPath } from "@destack/package";
 import { present } from "@destack/schema";
 import type { TestProject } from "@destack/test";
 import { testHost } from "@destack/test/host";
@@ -19,7 +20,7 @@ export default async function setup(project: TestProject): Promise<() => Promise
     );
     const workspace = await (await Workspace.open(root, compilers)).package();
     const server = started.use(
-        await DevelopmentServer.examples({ workspace, environment, server: { port: 0 } }),
+        await DevelopmentServer.start({ workspace, environment, server: { port: 0 } }),
     );
     const origin = present(server.vite.resolvedUrls?.local[0], "the examples server's address");
 
@@ -32,7 +33,9 @@ export default async function setup(project: TestProject): Promise<() => Promise
     const page = await warmed.newPage();
     for (const file of project.config.include) {
         const query = new URLSearchParams({ scenario: `/${file}` });
-        await page.goto(`${origin}?${query.toString()}`, { waitUntil: "networkidle" });
+        await page.goto(`${origin}${OriginPath.examples.slice(1)}?${query.toString()}`, {
+            waitUntil: "networkidle",
+        });
     }
     await page.reload({ waitUntil: "networkidle" });
     await warmed.close();
