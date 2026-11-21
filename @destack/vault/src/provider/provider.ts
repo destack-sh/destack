@@ -22,6 +22,7 @@ export const vaultProvider: VaultProvider = {
     code: VAULT_PROVIDER,
     object: vault,
     provision: {
+        isPure: true,
         // answer the vault package's address for a new vault
         provision: async () => ({ reference: VAULT_REFERENCE }),
         // destroy nothing outside the space's database, which stores the vault's secrets
@@ -29,7 +30,7 @@ export const vaultProvider: VaultProvider = {
     },
     connect: async (serving, row, bound) => {
         const id = vault.identifier(bound.target);
-        const reader = principal.installation.reference(row.scope, row.installationId);
+        const reader = principal.installation.reference(row.scope, row.id);
 
         return {
             reference: vault.reference(row.scope, id),
