@@ -94,6 +94,7 @@ import { type ProcedureContext } from "./procedure.ts";
 import { Egress } from "../declare/egress.ts";
 import { type MountDeclaration, Package } from "../declare/package.ts";
 import { type ProcedureRouter } from "../procedure/index.ts";
+import { traceCalls } from "../procedure/telemetry.ts";
 import * as sync from "@destack/sync";
 import {
     defineShape,
@@ -155,6 +156,9 @@ import type { Clock, Environment } from "@destack/environment";
 
 /** How long a scope's access rows stay followed after their last follower: five minutes. */
 const ACCESS_TTL = { minutes: 5 } as const;
+
+/** The RPC system of an in-process follower's calls, as `rpc.system.name` reports it. */
+const PROCESS_SYSTEM = "destack.process";
 
 /** The prefix of the positions of the store loop's sets in the log. */
 const POSITION_PREFIX = "control:";
@@ -1093,6 +1097,11 @@ export class ObjectStore {
         return AccessContext.of({ ...Caller.of(this.principal), groups }, this.clock.now());
     }
 
+    /** Stream the pages of a stream that opens later. */
+    static async *#flatten(opening: Promise<AsyncIterable<sync.Page>>): AsyncGenerator<sync.Page> {
+        yield* await opening;
+    }
+
     /** Serve in-process followers: stream its replicas, and run their calls as the signer. */
     #remote(): ObjectRemote {
         const callerOf = (signer: Subject | undefined) =>
@@ -1101,37 +1110,50 @@ export class ObjectStore {
                 this.clock.now(),
             );
 
+        // trace each verb as a server call of the process, as a channel traces its own
+        const traced = traceCalls("server", PROCESS_SYSTEM, this.environment);
+
         return {
-            stream: (subscription, signal) => this.source.publish(subscription, signal),
-            request: (subscription) => this.source.request(subscription),
+            stream: (subscription, signal) =>
+                ObjectStore.#flatten(
+                    traced(["stream"], async () => this.source.publish(subscription, signal)),
+                ),
+            request: (subscription) => traced(["request"], () => this.source.request(subscription)),
             push: (home, push) =>
-                this.#pushAs(home, push.mutations, callerOf(push.signer), {
-                    ...(push.writerId === undefined ? {} : { writerId: push.writerId }),
-                    ...(push.origin === undefined ? {} : { origin: push.origin }),
-                }),
-            call: async (scope, call, signer) =>
-                schema.json().parse(await this.query(callerOf(signer), this.#place(call, scope))),
-            broadcast: async (scope, object, event, signer) => {
-                // send an event of a type served here to its readers, else through the remote toward its home
-                const served = this.objects.some(
-                    (type) =>
-                        type.name === object.type &&
-                        type.policy.definition.packageId === object.packageId,
-                );
-                if (served) {
-                    await this.source.broadcast(scope, object, event, callerOf(signer));
-                } else {
-                    const publisher = present(
-                        this.subscriber,
-                        `the home of '${object.type}'`,
-                    ).publisher(scope);
-                    const remote = present(
-                        ObjectRemote.is(publisher) ? publisher : undefined,
-                        `the remote toward the home of '${object.type}'`,
+                traced(["push"], () =>
+                    this.#pushAs(home, push.mutations, callerOf(push.signer), {
+                        ...(push.writerId === undefined ? {} : { writerId: push.writerId }),
+                        ...(push.origin === undefined ? {} : { origin: push.origin }),
+                    }),
+                ),
+            call: (scope, call, signer) =>
+                traced(["call"], async () =>
+                    schema
+                        .json()
+                        .parse(await this.query(callerOf(signer), this.#place(call, scope))),
+                ),
+            broadcast: (scope, object, event, signer) =>
+                traced(["broadcast"], async () => {
+                    // send an event of a type served here to its readers, else through the remote toward its home
+                    const served = this.objects.some(
+                        (type) =>
+                            type.name === object.type &&
+                            type.policy.definition.packageId === object.packageId,
                     );
-                    await remote.broadcast(scope, object, event);
-                }
-            },
+                    if (served) {
+                        await this.source.broadcast(scope, object, event, callerOf(signer));
+                    } else {
+                        const publisher = present(
+                            this.subscriber,
+                            `the home of '${object.type}'`,
+                        ).publisher(scope);
+                        const remote = present(
+                            ObjectRemote.is(publisher) ? publisher : undefined,
+                            `the remote toward the home of '${object.type}'`,
+                        );
+                        await remote.broadcast(scope, object, event);
+                    }
+                }),
         };
     }
 
