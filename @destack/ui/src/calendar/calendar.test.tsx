@@ -2,12 +2,12 @@ import { Locale, Localization } from "@destack/locale";
 import { PlainDate } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { flush, type JSX, LocaleContext } from "@destack/view";
-import { Calendar, type DateRange, Day } from "./index.ts";
+import { Calendar, type DateRange } from "./index.ts";
 import { render } from "@destack/view/test";
 
 /** Read a `YYYY-MM-DD` date. */
 function day(text: string): PlainDate {
-    return Day.parse(text);
+    return text;
 }
 
 /** Render an element in a locale. */
@@ -75,13 +75,13 @@ test("select a day on click, ignoring disabled days, and report it", () => {
     const container = drawIn("en-US", () => (
         <Calendar
             defaultMonth={day("2026-10-01")}
-            disabled={(entry) => Day.key(entry) === "2026-10-02"}
+            disabled={(entry) => entry === "2026-10-02"}
             onSelect={(entry) => changes.push(entry)}
         />
     ));
     click(container, "2026-10-02");
     click(container, "2026-10-05");
-    expect([changes.map((entry) => Day.key(entry)), selected(container)]).toEqual([
+    expect([changes.map((entry) => entry), selected(container)]).toEqual([
         ["2026-10-05"],
         ["2026-10-05 selected"],
     ]);
@@ -105,9 +105,7 @@ test("select a range from its start to a later end, marking the start, middle an
         open,
         closed,
         selected(container),
-        changes.map(
-            (range) => `${Day.key(range.from)}..${range.to === undefined ? "" : Day.key(range.to)}`,
-        ),
+        changes.map((range) => `${range.from}..${range.to === undefined ? "" : range.to}`),
     ]).toEqual([
         ["2026-10-05 start"],
         ["2026-10-05 start", "2026-10-06 middle", "2026-10-07 middle", "2026-10-08 end"],
@@ -122,7 +120,7 @@ test("toggle several days in multiple mode", () => {
         <Calendar
             mode="multiple"
             defaultMonth={day("2026-10-01")}
-            onSelect={(days) => changes.push(days.map((entry) => Day.key(entry)))}
+            onSelect={(days) => changes.push(days.map((entry) => entry))}
         />
     ));
     click(container, "2026-10-05");
@@ -132,16 +130,6 @@ test("toggle several days in multiple mode", () => {
         [["2026-10-05"], ["2026-10-05", "2026-10-09"], ["2026-10-09"]],
         ["2026-10-09 selected"],
     ]);
-});
-
-test("count days and months across year ends without time zones", () => {
-    expect([
-        Day.key(Day.of(2026, 12, 32)),
-        Day.key(Day.addMonths(day("2026-01-31"), 1)),
-        Day.key(Day.addMonths(day("2024-03-31"), -1)),
-        Day.weeks(day("2021-02-01"), 1).length,
-        PlainDate.compare(day("2026-10-04"), day("2026-10-05")) < 0,
-    ]).toEqual(["2027-01-01", "2026-02-28", "2024-02-29", 4, true]);
 });
 
 /** Read the captions of a calendar's months. */

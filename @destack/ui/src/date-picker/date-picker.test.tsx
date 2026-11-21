@@ -1,15 +1,15 @@
+import { PlainDate } from "@destack/schema";
 import { Locale, Localization } from "@destack/locale";
-import type { PlainDate } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { press, render, stubPopovers } from "@destack/view/test";
 import { flush, type JSX, LocaleContext } from "@destack/view";
-import { Day, type DateRange } from "../calendar/index.ts";
+import type { DateRange } from "../calendar/index.ts";
 import { Field, FieldLabel } from "../field/index.ts";
 import { DatePicker } from "./index.ts";
 
 /** Read a `YYYY-MM-DD` date. */
 function day(text: string): PlainDate {
-    return Day.parse(text);
+    return text;
 }
 
 /** Render an element in a locale. */

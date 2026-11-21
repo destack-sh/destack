@@ -115,7 +115,7 @@ export function nextValue(
 
 /** Report whether a value is a range. */
 export function isRange(value: CalendarValue): value is DateRange {
-    return value !== undefined && !isDays(value) && "from" in value;
+    return value !== undefined && !isDays(value) && typeof value !== "string";
 }
 
 /** Report whether a value is a list of days. */

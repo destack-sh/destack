@@ -192,7 +192,7 @@ export function TimeField(properties: TimeFieldProperties): JSX.Element {
     const [value, setValue] = createControllableSignal<PlainTime | undefined>({
         isControlled: () => "value" in properties,
         value: () => properties.value,
-        defaultValue: properties.defaultValue,
+        defaultValue: untrack(() => properties.defaultValue),
         onChange: (next) => properties.onValueChange?.(next),
     });
     const [values, setValues] = createSignal(format.valuesOf(untrack(value)), {

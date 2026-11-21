@@ -2,11 +2,10 @@ import { defineExample } from "@destack/package/declare";
 import { PlainDate } from "@destack/schema";
 import { createSignal } from "@destack/view";
 import { Calendar } from "./calendar.tsx";
-import { Day } from "./day.ts";
 import type { DateRange } from "./selection.ts";
 
 /** The day the trip example takes as today, fixed so its render stays the same. */
-const TRIP_TODAY = Day.parse("2026-10-04");
+const TRIP_TODAY = "2026-10-04";
 
 /** Report whether a day lies before the trip example's today. */
 function isPast(day: PlainDate): boolean {
@@ -39,9 +38,7 @@ export const calendarLateOctober = defineExample({
     name: "late-october",
     description:
         "a calendar at the end of October with the thirtieth selected and the fourth as today",
-    render: () => (
-        <Calendar defaultSelected={Day.parse("2026-10-30")} today={Day.parse("2026-10-04")} />
-    ),
+    render: () => <Calendar defaultSelected={"2026-10-30"} today={"2026-10-04"} />,
 });
 
 /** A calendar that picks a stay across two months shown side by side. */
@@ -53,8 +50,11 @@ export const calendarStayTwoMonths = defineExample({
         <Calendar
             mode="range"
             numberOfMonths={2}
-            defaultSelected={{ from: Day.parse("2026-10-28"), to: Day.parse("2026-11-03") }}
-            today={Day.parse("2026-10-04")}
+            defaultSelected={{
+                from: "2026-10-28",
+                to: "2026-11-03",
+            }}
+            today={"2026-10-04"}
         />
     ),
 });
@@ -70,9 +70,9 @@ export const calendarBirthday = defineExample({
             captionLayout="dropdown"
             showWeekNumber
             showOutsideDays={false}
-            max={Day.parse("2026-10-04")}
-            today={Day.parse("2026-10-04")}
-            defaultMonth={Day.parse("1990-06-01")}
+            max={"2026-10-04"}
+            today={"2026-10-04"}
+            defaultMonth={"1990-06-01"}
         />
     ),
 });

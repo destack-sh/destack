@@ -9,12 +9,12 @@ import {
     For,
     type JSX,
     Show,
+    untrack,
     useLocale,
 } from "@destack/view";
 import { Button, type ButtonVariant } from "../button/index.ts";
 import {
     Calendar,
-    Day,
     isDays,
     isRange,
     type CalendarMultiple,
@@ -133,7 +133,7 @@ function DatePickerPanel(properties: DatePickerProperties): JSX.Element {
     const [value, setValue] = createControllableSignal<CalendarValue>({
         isControlled: () => "selected" in properties,
         value: () => properties.selected,
-        defaultValue: properties.defaultSelected,
+        defaultValue: untrack(() => properties.defaultSelected),
         onChange: (next) => report(properties, next),
     });
 
@@ -366,7 +366,7 @@ function labelOf(
     }
 
     return days.length === 1
-        ? locale.date(Day.time(first), { dateStyle: "medium", timeZone: "UTC" })
+        ? locale.plainDate(first, { dateStyle: "medium" })
         : count(days.length);
 }
 

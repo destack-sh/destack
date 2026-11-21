@@ -87,15 +87,7 @@ test("type a date digit by digit, moving on once a segment takes no more digits,
         month?.getAttribute("aria-valuenow"),
         month?.getAttribute("aria-valuetext"),
         container.textContent,
-    ]).toEqual([
-        "month",
-        [],
-        [{ year: 2026, month: 10, day: 7 }],
-        "year",
-        "10",
-        "October",
-        "10/07/2026",
-    ]);
+    ]).toEqual(["month", [], ["2026-10-07"], "year", "10", "October", "10/07/2026"]);
 });
 
 test("step segments with the arrow keys, wrapping, and report undefined for an impossible date", () => {
@@ -103,7 +95,7 @@ test("step segments with the arrow keys, wrapping, and report undefined for an i
     const container = drawIn("en-US", () => (
         <DateField
             aria-label="Due"
-            defaultValue={{ year: 2026, month: 12, day: 31 }}
+            defaultValue={"2026-12-31"}
             onValueChange={(value) => changes.push(value)}
         />
     ));
@@ -113,7 +105,7 @@ test("step segments with the arrow keys, wrapping, and report undefined for an i
     focus(container, "day");
     type("Backspace");
     expect([changes, impossible, container.textContent]).toEqual([
-        [{ year: 2026, month: 1, day: 31 }, { year: 2026, month: 12, day: 31 }, undefined],
+        ["2026-01-31", "2026-12-31", undefined],
         "11/31/2026",
         "11/––/2026",
     ]);
@@ -155,7 +147,7 @@ test("finish a segment typed short of its digits once the focus leaves it", () =
     const container = drawIn("en-US", () => (
         <DateField
             aria-label="Due"
-            defaultValue={{ year: 2026, month: 10, day: 7 }}
+            defaultValue={"2026-10-07"}
             onValueChange={(value) => changes.push(value)}
         />
     ));
@@ -164,5 +156,5 @@ test("finish a segment typed short of its digits once the focus leaves it", () =
     const typing = [...changes];
     focus(container, "day");
     flush();
-    expect([typing, changes]).toEqual([[], [{ year: 2026, month: 1, day: 7 }]]);
+    expect([typing, changes]).toEqual([[], ["2026-01-07"]]);
 });

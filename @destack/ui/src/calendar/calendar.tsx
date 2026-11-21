@@ -1,7 +1,7 @@
 import { Icon } from "@destack/ui/icon";
 import caretLeft from "@destack/icon/phosphor/caret-left";
 import caretRight from "@destack/icon/phosphor/caret-right";
-import { Locale, t } from "@destack/locale";
+import { t } from "@destack/locale";
 import * as style from "@destack/style";
 import { color, size, space, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
@@ -27,8 +27,7 @@ import { Focus, type KeyboardDelegate } from "../focus/index.ts";
 import { buttonVariants } from "../button/index.ts";
 import { Select, SelectItem } from "../select/index.ts";
 import type { Direction } from "@destack/locale";
-import { PlainDate } from "@destack/schema";
-import { Day } from "./day.ts";
+import { PlainDate, TimeZone, type Weekday, Week, WEEK_DAYS, MonthGrid } from "@destack/schema";
 import {
     isDays,
     nextValue,
@@ -143,17 +142,12 @@ const YEARS_BACK = 100;
 /** The years a year picker reaches ahead without a latest day. */
 const YEARS_AHEAD = 10;
 
-/** The comparison that keeps a day signal from notifying when it moves to the same day. */
-const SAME_DAY = {
-    equals: (left: PlainDate, right: PlainDate): boolean => PlainDate.equals(left, right),
-};
-
 /** The keys that move the focused day, and the days or months each moves by. */
 const MOVES: Readonly<Record<string, (day: PlainDate, isShift: boolean) => PlainDate>> = {
-    ArrowUp: (day) => PlainDate.add(day, -7),
-    ArrowDown: (day) => PlainDate.add(day, 7),
-    PageUp: (day, isShift) => Day.addMonths(day, isShift ? -12 : -1),
-    PageDown: (day, isShift) => Day.addMonths(day, isShift ? 12 : 1),
+    ArrowUp: (day) => PlainDate.add(day, { weeks: -1 }),
+    ArrowDown: (day) => PlainDate.add(day, { weeks: 1 }),
+    PageUp: (day, isShift) => PlainDate.add(day, { months: isShift ? -12 : -1 }),
+    PageDown: (day, isShift) => PlainDate.add(day, { months: isShift ? 12 : 1 }),
 };
 
 /** The properties of a calendar: its look and the selection of its mode. */
@@ -166,7 +160,7 @@ export type CalendarProperties = Omit<
     /** Report whether a day cannot be selected. */
     readonly disabled?: (day: PlainDate) => boolean;
     /** The weekday weeks start on, 1 for Monday to 7 for Sunday, the locale's by default. */
-    readonly weekStartsOn?: number;
+    readonly weekStartsOn?: Weekday;
     /** The day the calendar counts as today, the page clock's by default. */
     readonly today?: PlainDate;
     /** The months shown side by side, one by default. */
@@ -205,16 +199,16 @@ class CalendarControl {
     #selected: CalendarValue = undefined;
 
     /** Create the state of a calendar from its properties, showing a first month at first. */
-    constructor(properties: CalendarProperties, firstDay: Accessor<number>, month: PlainDate) {
+    constructor(properties: CalendarProperties, week: Accessor<Week>, month: PlainDate) {
         // follow the controlled selection or the calendar's own
         const [value, setValue] = createControllableSignal<CalendarValue>({
             isControlled: () => "selected" in properties,
             value: () => properties.selected,
-            defaultValue: properties.defaultSelected,
+            defaultValue: untrack(() => properties.defaultSelected),
             onChange: (next) => report(properties, next),
         });
-        const start = untrack(() => Day.clamp(month, properties.min, properties.max));
-        const [first, setFirst] = createSignal<PlainDate>(Day.monthOf(start), SAME_DAY);
+        const start = untrack(() => PlainDate.clamp(month, properties.min, properties.max));
+        const [first, setFirst] = createSignal<PlainDate>(PlainDate.with(start, { day: 1 }));
         this.properties = properties;
         this.value = value;
         this.first = first;
@@ -223,9 +217,8 @@ class CalendarControl {
 
         // focus the start day, bringing the month of each focused day into view
         this.focus = new Focus({
-            delegate: new CalendarDelegate(properties, firstDay, () => start),
+            delegate: new CalendarDelegate(properties, week, () => start),
             mode: "roving",
-            keyText: (day) => Day.key(day),
             onChange: (day) => this.#show(day),
         });
 
@@ -244,7 +237,7 @@ class CalendarControl {
 
     /** The focused day. */
     focused(): PlainDate {
-        return this.focus.active() ?? Day.monthOf(this.first());
+        return this.focus.active() ?? PlainDate.with(this.first(), { day: 1 });
     }
 
     /** The number of months shown side by side. */
@@ -255,14 +248,14 @@ class CalendarControl {
     /** The months shown, from the first. */
     shown(): PlainDate[] {
         return Array.from({ length: this.count() }, (_, index) =>
-            Day.addMonths(this.first(), index),
+            PlainDate.add(this.first(), { months: index }),
         );
     }
 
     /** Report whether a day cannot be selected: outside the limits or disabled by the owner. */
     isUnavailable(day: PlainDate): boolean {
         return (
-            Day.isOutside(day, this.properties.min, this.properties.max) ||
+            isOutsideRange(day, this.properties.min, this.properties.max) ||
             this.properties.disabled?.(day) === true
         );
     }
@@ -271,8 +264,8 @@ class CalendarControl {
     canShift(step: number): boolean {
         // read the first and last day the moved months show
         const { min, max } = this.properties;
-        const target = Day.addMonths(this.first(), step);
-        const end = PlainDate.add(Day.addMonths(target, this.count()), -1);
+        const target = PlainDate.add(this.first(), { months: step });
+        const end = PlainDate.add(PlainDate.add(target, { months: this.count() }), { days: -1 });
 
         return (
             (min === undefined || PlainDate.compare(end, min) >= 0) &&
@@ -282,13 +275,13 @@ class CalendarControl {
 
     /** Focus a day within the allowed days, bringing its month into view. */
     moveTo(day: PlainDate): void {
-        this.focus.focus(Day.clamp(day, this.properties.min, this.properties.max));
+        this.focus.focus(PlainDate.clamp(day, this.properties.min, this.properties.max));
     }
 
     /** Move the months shown and the focus with them. */
     shift(step: number): void {
-        this.#setFirst(Day.addMonths(this.first(), step));
-        this.moveTo(Day.addMonths(this.focused(), step));
+        this.#setFirst(PlainDate.add(this.first(), { months: step }));
+        this.moveTo(PlainDate.add(this.focused(), { months: step }));
     }
 
     /** Select a day in the calendar's mode, focusing it and telling the change handler. */
@@ -300,11 +293,13 @@ class CalendarControl {
 
     /** Move the months shown when a focused day leaves them. */
     #show(day: PlainDate): void {
-        const month = Day.monthOf(day);
+        const month = PlainDate.with(day, { day: 1 });
         if (PlainDate.compare(month, this.first()) < 0) {
             this.#setFirst(month);
-        } else if (PlainDate.compare(month, Day.addMonths(this.first(), this.count() - 1)) > 0) {
-            this.#setFirst(Day.addMonths(month, 1 - this.count()));
+        } else if (
+            PlainDate.compare(month, PlainDate.add(this.first(), { months: this.count() - 1 })) > 0
+        ) {
+            this.#setFirst(PlainDate.add(month, { months: 1 - this.count() }));
         }
     }
 }
@@ -314,28 +309,24 @@ class CalendarDelegate implements KeyboardDelegate<PlainDate> {
     /** The calendar's properties, read for its limits. */
     readonly #properties: CalendarProperties;
     /** The weekday weeks start on. */
-    readonly #firstDay: Accessor<number>;
+    readonly #week: Accessor<Week>;
     /** The day the focus starts on. */
     readonly #start: Accessor<PlainDate>;
 
     /** Move through a calendar's days within its limits. */
-    constructor(
-        properties: CalendarProperties,
-        firstDay: Accessor<number>,
-        start: Accessor<PlainDate>,
-    ) {
+    constructor(properties: CalendarProperties, week: Accessor<Week>, start: Accessor<PlainDate>) {
         this.#properties = properties;
-        this.#firstDay = firstDay;
+        this.#week = week;
         this.#start = start;
     }
 
     /** Read the day a key moves the focus to, kept within the allowed days. */
     target(event: KeyboardEvent, from: PlainDate, direction: Direction): PlainDate | undefined {
-        const next = moveOf(event, from, this.#firstDay(), direction);
+        const next = moveOf(event, from, this.#week(), direction);
 
         return next === undefined
             ? undefined
-            : Day.clamp(next, this.#properties.min, this.#properties.max);
+            : PlainDate.clamp(next, this.#properties.min, this.#properties.max);
     }
 
     /** Read the day the focus starts on. */
@@ -345,7 +336,7 @@ class CalendarDelegate implements KeyboardDelegate<PlainDate> {
 
     /** Report whether a day lies within the allowed days. */
     has(day: PlainDate): boolean {
-        return !Day.isOutside(day, this.#properties.min, this.#properties.max);
+        return !isOutsideRange(day, this.#properties.min, this.#properties.max);
     }
 }
 
@@ -361,7 +352,7 @@ export function Calendar(properties: CalendarProperties): JSX.Element {
         }
         const time = now();
 
-        return time === undefined ? undefined : Day.at(environment.timeZone, time);
+        return time === undefined ? undefined : TimeZone.date(environment.timeZone, time);
     });
 
     // keep the first start: the given month, the selection's, or today's once known
@@ -389,11 +380,18 @@ function CalendarMonths(properties: {
     readonly today: Accessor<PlainDate | undefined>;
 }): JSX.Element {
     // read the locale's direction and week, and the calendar's state
-    const calendar = properties.calendar;
+    const calendar = untrack(() => properties.calendar);
     const locale = useLocale();
-    const firstDay = (): number => calendar.weekStartsOn ?? Locale.firstDay(locale.tag);
-    const control = new CalendarControl(calendar, firstDay, properties.month);
-    const today = properties.today;
+    const week = (): Week =>
+        calendar.weekStartsOn === undefined
+            ? locale.week
+            : { ...locale.week, firstDay: calendar.weekStartsOn };
+    const control = new CalendarControl(
+        calendar,
+        week,
+        untrack(() => properties.month),
+    );
+    const today = untrack(() => properties.today);
 
     // focus the focused day once mounted when asked
     onSettled(() => {
@@ -423,14 +421,17 @@ function CalendarMonths(properties: {
                         max={calendar.max}
                         onPick={(picked) =>
                             control.moveTo(
-                                Day.addMonths(control.focused(), monthsBetween(month, picked)),
+                                PlainDate.add(control.focused(), {
+                                    months: monthsBetween(month, picked),
+                                }),
                             )
                         }
                     >
                         {(captionId) => (
                             <CalendarGrid
                                 captionId={captionId}
-                                weeks={Day.weeks(month, firstDay())}
+                                weeks={MonthGrid.of(month, week(), "fit").weeks}
+                                week={week()}
                                 month={month}
                                 focus={control.focus}
                                 stateOf={(day) => stateOf(calendar, control.value(), day)}
@@ -450,7 +451,10 @@ function CalendarMonths(properties: {
 
 /** Count the months from one month to another. */
 function monthsBetween(from: PlainDate, to: PlainDate): number {
-    return (to.year - from.year) * 12 + (to.month - from.month);
+    return (
+        (PlainDate.year(to) - PlainDate.year(from)) * 12 +
+        (PlainDate.month(to) - PlainDate.month(from))
+    );
 }
 
 /** Render one month: its caption, as its name or a month and year picker, over its grid. */
@@ -472,17 +476,23 @@ function CalendarMonth(properties: {
     const locale = useLocale();
     const captionId = createUniqueId();
     const name = (month: PlainDate, options: Intl.DateTimeFormatOptions): string =>
-        locale.date(Day.time(month), { ...options, timeZone: "UTC" });
+        locale.plainDate(month, options);
     const years = (): number[] => {
         // span the years around the shown month
-        const center = properties.month.year;
-        const from = properties.min?.year ?? center - YEARS_BACK;
-        const to = properties.max?.year ?? center + YEARS_AHEAD;
+        const center = PlainDate.year(properties.month);
+        const from =
+            properties.min === undefined ? center - YEARS_BACK : PlainDate.year(properties.min);
+        const to =
+            properties.max === undefined ? center + YEARS_AHEAD : PlainDate.year(properties.max);
 
         return Array.from({ length: to - from + 1 }, (_, index) => from + index);
     };
     const isAllowed = (month: PlainDate): boolean =>
-        !Day.isOutside(month, properties.min && Day.monthOf(properties.min), properties.max);
+        !isOutsideRange(
+            month,
+            properties.min === undefined ? undefined : PlainDate.with(properties.min, { day: 1 }),
+            properties.max,
+        );
 
     return (
         <div data-slot="calendar-month" {...style.attrs(styles.month)}>
@@ -501,29 +511,37 @@ function CalendarMonth(properties: {
                     </span>
                     <Select
                         aria-label={locale.render(t`Month`)}
-                        value={String(properties.month.month)}
+                        value={String(PlainDate.month(properties.month))}
                         onValueChange={(month) =>
                             month !== undefined &&
-                            properties.onPick({ ...properties.month, month: Number(month) })
+                            properties.onPick(
+                                PlainDate.with(properties.month, { month: Number(month) }),
+                            )
                         }
                     >
                         <For each={Array.from({ length: 12 }, (_, index) => index + 1)}>
                             {(month) => (
                                 <SelectItem
                                     value={String(month)}
-                                    disabled={!isAllowed({ ...properties.month, month })}
+                                    disabled={
+                                        !isAllowed(PlainDate.with(properties.month, { month }))
+                                    }
                                 >
-                                    {name({ ...properties.month, month }, { month: "short" })}
+                                    {name(PlainDate.with(properties.month, { month }), {
+                                        month: "short",
+                                    })}
                                 </SelectItem>
                             )}
                         </For>
                     </Select>
                     <Select
                         aria-label={locale.render(t`Year`)}
-                        value={String(properties.month.year)}
+                        value={String(PlainDate.year(properties.month))}
                         onValueChange={(year) =>
                             year !== undefined &&
-                            properties.onPick({ ...properties.month, year: Number(year) })
+                            properties.onPick(
+                                PlainDate.with(properties.month, { year: Number(year) }),
+                            )
                         }
                     >
                         <For each={years()}>
@@ -559,6 +577,8 @@ interface CalendarGridProperties {
     readonly weekNumbers: boolean;
     /** Whether the days of neighbouring months fill the first and last weeks. */
     readonly outsideDays: boolean;
+    /** The weeks of the locale, which number the rows. */
+    readonly week: Week;
 }
 
 /** Render the grid of the month shown, which keys move through. */
@@ -578,19 +598,20 @@ function CalendarGrid(properties: CalendarGridProperties): JSX.Element {
             />
             <tbody>
                 <For each={properties.weeks}>
-                    {(week) => (
+                    {(row) => (
                         <tr>
                             <Show when={properties.weekNumbers}>
                                 <th scope="row" {...style.attrs(text.xs, styles.week)}>
-                                    {Day.isoWeek(week[3] ?? week[0] ?? properties.month)}
+                                    {Week.weekOfYear(properties.week, row[0] ?? properties.month)}
                                 </th>
                             </Show>
-                            <For each={week}>
+                            <For each={row}>
                                 {(day) => (
                                     <Show
                                         when={
                                             properties.outsideDays ||
-                                            day.month === properties.month.month
+                                            PlainDate.month(day) ===
+                                                PlainDate.month(properties.month)
                                         }
                                         fallback={<td {...style.attrs(styles.cell)} />}
                                     >
@@ -640,10 +661,10 @@ function CalendarWeekdays(properties: {
                     {(day) => (
                         <th
                             scope="col"
-                            abbr={locale.date(Day.time(day), { weekday: "long", timeZone: "UTC" })}
+                            abbr={locale.plainDate(day, { weekday: "long" })}
                             {...style.attrs(text.xs, styles.weekday)}
                         >
-                            {locale.date(Day.time(day), { weekday: "short", timeZone: "UTC" })}
+                            {locale.plainDate(day, { weekday: "short" })}
                         </th>
                     )}
                 </For>
@@ -713,7 +734,8 @@ function CalendarCell(properties: {
         () => properties.day,
         () => element,
     );
-    const isOutside = (): boolean => properties.day.month !== properties.month.month;
+    const isOutside = (): boolean =>
+        PlainDate.month(properties.day) !== PlainDate.month(properties.month);
     const isSelected = (): boolean => properties.state !== "none";
     const isMiddle = (): boolean => properties.state === "middle";
     const isSolid = (): boolean => isSelected() && !isMiddle();
@@ -723,13 +745,10 @@ function CalendarCell(properties: {
             <button
                 type="button"
                 tabindex={properties.focus.isActive(properties.day) ? 0 : -1}
-                aria-label={locale.date(Day.time(properties.day), {
-                    dateStyle: "full",
-                    timeZone: "UTC",
-                })}
+                aria-label={locale.plainDate(properties.day, { dateStyle: "full" })}
                 aria-current={properties.isToday ? "date" : undefined}
                 disabled={properties.isDisabled}
-                data-day={Day.key(properties.day)}
+                data-day={properties.day}
                 data-range={
                     isSelected() && properties.state !== "selected" ? properties.state : undefined
                 }
@@ -746,34 +765,40 @@ function CalendarCell(properties: {
                     isMiddle() && styles.middle,
                 )}
             >
-                {locale.date(Day.time(properties.day), {
-                    day: "numeric",
-                    timeZone: "UTC",
-                })}
+                {locale.plainDate(properties.day, { day: "numeric" })}
             </button>
         </td>
     );
+}
+
+/** Report whether a date lies outside the earliest and latest dates allowed. */
+function isOutsideRange(
+    date: PlainDate,
+    earliest: PlainDate | undefined,
+    latest: PlainDate | undefined,
+): boolean {
+    return !PlainDate.equals(PlainDate.clamp(date, earliest, latest), date);
 }
 
 /** Read the day a key moves the focus to, mirroring left and right in right-to-left text. */
 function moveOf(
     event: KeyboardEvent,
     focused: PlainDate,
-    firstDay: number,
+    week: Week,
     direction: Direction,
 ): PlainDate | undefined {
     // step a day along the reading direction
     const step = direction === "rtl" ? -1 : 1;
     if (event.key === "ArrowRight") {
-        return PlainDate.add(focused, step);
+        return PlainDate.add(focused, { days: step });
     } else if (event.key === "ArrowLeft") {
-        return PlainDate.add(focused, -step);
+        return PlainDate.add(focused, { days: -step });
     }
     // the start and end of the week
     else if (event.key === "Home") {
-        return Day.startOfWeek(focused, firstDay);
+        return Week.startOf(week, focused);
     } else if (event.key === "End") {
-        return PlainDate.add(Day.startOfWeek(focused, firstDay), 6);
+        return PlainDate.add(Week.startOf(week, focused), { days: WEEK_DAYS - 1 });
     }
     // weeks, months and years
     else {
@@ -788,6 +813,6 @@ function firstOf(value: CalendarValue): PlainDate | undefined {
     } else if (isDays(value)) {
         return value[0];
     } else {
-        return "from" in value ? value.from : value;
+        return typeof value === "string" ? value : value.from;
     }
 }

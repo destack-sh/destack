@@ -1,11 +1,10 @@
+import { PlainDate } from "@destack/schema";
 import { defineExample } from "@destack/package/declare";
-import type { PlainDate } from "@destack/schema";
 import { createSignal } from "@destack/view";
-import { Day } from "../calendar/index.ts";
 import { DatePicker } from "./date-picker.tsx";
 
 /** The day the examples count as today, fixed so their renders stay the same. */
-const EXAMPLE_TODAY = Day.parse("2026-10-04");
+const EXAMPLE_TODAY = "2026-10-04";
 
 /** A date picker that sets a task's due day. */
 export const datePickerDueDay = defineExample({
@@ -40,11 +39,11 @@ export const datePickerEditedSpan = defineExample({
             presets={[
                 {
                     label: "Last 7 days",
-                    value: { from: Day.parse("2026-09-28"), to: Day.parse("2026-10-04") },
+                    value: { from: "2026-09-28", to: "2026-10-04" },
                 },
                 {
                     label: "Last 30 days",
-                    value: { from: Day.parse("2026-09-05"), to: Day.parse("2026-10-04") },
+                    value: { from: "2026-09-05", to: "2026-10-04" },
                 },
             ]}
         />
@@ -61,7 +60,10 @@ export const datePickerTrip = defineExample({
             today={EXAMPLE_TODAY}
             mode="range"
             aria-label="Trip"
-            defaultSelected={{ from: Day.parse("2026-10-12"), to: Day.parse("2026-10-16") }}
+            defaultSelected={{
+                from: "2026-10-12",
+                to: "2026-10-16",
+            }}
         />
     ),
 });
@@ -76,7 +78,7 @@ export const datePickerDaysOff = defineExample({
             today={EXAMPLE_TODAY}
             mode="multiple"
             aria-label="Days off"
-            defaultSelected={[Day.parse("2026-10-05"), Day.parse("2026-10-06")]}
+            defaultSelected={["2026-10-05", "2026-10-06"]}
         />
     ),
 });
@@ -90,7 +92,7 @@ export const datePickerDueDayOpen = defineExample({
         <DatePicker
             today={EXAMPLE_TODAY}
             aria-label="Due date"
-            defaultSelected={Day.parse("2026-10-12")}
+            defaultSelected={"2026-10-12"}
             defaultOpen
         />
     ),

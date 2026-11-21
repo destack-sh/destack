@@ -1,6 +1,6 @@
 import type { Environment } from "@destack/environment";
 import { type Localization, t } from "@destack/locale";
-import { PlainDate } from "@destack/schema";
+import { PlainDate, TimeZone } from "@destack/schema";
 import * as style from "@destack/style";
 import {
     createControllableSignal,
@@ -11,7 +11,6 @@ import {
     untrack,
     useLocale,
 } from "@destack/view";
-import { Day } from "../calendar/index.ts";
 import {
     isDateSegment,
     DateSegmentGroup,
@@ -117,16 +116,16 @@ class DateFormat implements DateSegmentFormat {
     /** Read today's year, month or day. */
     now(kind: DateSegmentKind, environment: Pick<Environment, "clock" | "timeZone">): number {
         // read the part of today's date
-        const today = Day.today(environment);
+        const today = TimeZone.date(environment.timeZone, environment.clock.now());
         if (kind === "year") {
-            return today.year;
+            return PlainDate.year(today);
         }
         // the month
         else if (kind === "month") {
-            return today.month;
+            return PlainDate.month(today);
         }
 
-        return today.day;
+        return PlainDate.day(today);
     }
 }
 
@@ -187,12 +186,14 @@ function dateOf(values: DateSegmentValues): PlainDate | undefined {
     const isReal =
         year >= YEARS[0] && month >= 1 && month <= MONTHS && day >= 1 && day <= daysIn(year, month);
 
-    return isReal ? { year, month, day } : undefined;
+    return isReal ? PlainDate.of(year, month, day) : undefined;
 }
 
 /** Split a date into the values of its segments, none for no date. */
 function valuesOf(date: PlainDate | undefined): DateSegmentValues {
-    return date === undefined ? {} : { year: date.year, month: date.month, day: date.day };
+    return date === undefined
+        ? {}
+        : { year: PlainDate.year(date), month: PlainDate.month(date), day: PlainDate.day(date) };
 }
 
 /** Report whether two dates are the same day or both absent. */

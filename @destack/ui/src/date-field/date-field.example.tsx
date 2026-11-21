@@ -27,9 +27,7 @@ export const dateFieldArchived = defineExample({
     of: DateField,
     name: "archived",
     description: "a date field holding the day a note was archived",
-    render: () => (
-        <DateField aria-label="Archived" defaultValue={{ year: 2026, month: 10, day: 7 }} />
-    ),
+    render: () => <DateField aria-label="Archived" defaultValue={"2026-10-07"} />,
 });
 
 /** The archive date marked invalid. */
@@ -38,11 +36,7 @@ export const dateFieldArchivedInvalid = defineExample({
     name: "archived-invalid",
     description: "the archive date marked invalid",
     render: () => (
-        <DateField
-            aria-label="Archived"
-            aria-invalid="true"
-            defaultValue={{ year: 2026, month: 10, day: 7 }}
-        />
+        <DateField aria-label="Archived" aria-invalid="true" defaultValue={"2026-10-07"} />
     ),
 });
 
@@ -51,11 +45,5 @@ export const dateFieldArchivedDisabled = defineExample({
     of: DateField,
     name: "archived-disabled",
     description: "the archive date unavailable",
-    render: () => (
-        <DateField
-            aria-label="Archived"
-            disabled
-            defaultValue={{ year: 2026, month: 10, day: 7 }}
-        />
-    ),
+    render: () => <DateField aria-label="Archived" disabled defaultValue={"2026-10-07"} />,
 });
