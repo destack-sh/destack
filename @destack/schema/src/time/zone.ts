@@ -48,7 +48,7 @@ export const TimeZone = Object.assign(timeZoneSchema, {
         const parts = formatter(zone).formatToParts(at);
         const part = (type: Intl.DateTimeFormatPartTypes) => readPart(parts, type);
 
-        return { year: part("year"), month: part("month"), day: part("day") };
+        return PlainDate.of(part("year"), part("month"), part("day"));
     },
 
     /** Read the time of day an instant falls on in a time zone, to the minute. */
@@ -70,12 +70,17 @@ export const TimeZone = Object.assign(timeZoneSchema, {
         return wall - offset(zone, guess);
     },
 
+    /** Read the offset of a time zone from UTC at an instant, in milliseconds. */
+    offset(zone: TimeZone, at: number): number {
+        return offset(zone, at);
+    },
+
     /** Read the next instant one of some times of day occurs in a time zone. */
     next(zone: TimeZone, times: readonly PlainTime[], now: number): number {
         // try each time today and tomorrow
         const today = TimeZone.date(zone, now);
         const candidates = [0, 1].flatMap((days) =>
-            times.map((time) => TimeZone.instant(zone, PlainDate.add(today, days), time)),
+            times.map((time) => TimeZone.instant(zone, PlainDate.add(today, { days }), time)),
         );
         const next = Math.min(...candidates.filter((candidate) => candidate > now));
         if (!Number.isFinite(next)) {
@@ -91,9 +96,9 @@ function offset(zone: TimeZone, at: number): number {
     // read the local wall time as UTC
     const parts = formatter(zone).formatToParts(at);
     const part = (type: Intl.DateTimeFormatPartTypes) => readPart(parts, type);
-    const date = { year: part("year"), month: part("month"), day: part("day") };
+    const date = PlainDate.of(part("year"), part("month"), part("day"));
     const wall = utc(date, part("hour") * HOUR_MINUTES + part("minute"));
-    const minute = at - (at % MINUTE_MILLISECONDS);
+    const minute = Math.floor(at / MINUTE_MILLISECONDS) * MINUTE_MILLISECONDS;
 
     return wall - minute;
 }
@@ -102,7 +107,11 @@ function offset(zone: TimeZone, at: number): number {
 function utc(date: PlainDate, minutes: number): number {
     const wall = new Date(Date.UTC(2000, 0, 1, 0, minutes));
 
-    return wall.setUTCFullYear(date.year, date.month - 1, date.day);
+    return wall.setUTCFullYear(
+        PlainDate.year(date),
+        PlainDate.month(date) - 1,
+        PlainDate.day(date),
+    );
 }
 
 /** Read the formatter of a time zone, refusing an unknown zone. */

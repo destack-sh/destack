@@ -37,9 +37,7 @@ test("place times of day in a time zone across the end and start of summer time"
     expect(() => TimeZone.next("Mars/Olympus", ["08:00"], saturday)).toThrow(RangeError);
 
     // keep a year below 100 as it is, 0050-03-01T08:00Z, where Date.UTC would read 1950
-    expect(TimeZone.instant("UTC", { year: 50, month: 3, day: 1 }, "08:00")).toBe(
-        -60_584_169_600_000,
-    );
+    expect(TimeZone.instant("UTC", "0050-03-01", "08:00")).toBe(-60_584_169_600_000);
 });
 
 test("read the date and time of day an instant falls on in a time zone, on either side of midnight", () => {
@@ -49,7 +47,17 @@ test("read the date and time of day an instant falls on in a time zone, on eithe
         [TimeZone.date("UTC", at), TimeZone.time("UTC", at)],
         [TimeZone.date("Europe/Vienna", at), TimeZone.time("Europe/Vienna", at)],
     ]).toEqual([
-        [{ year: 2026, month: 10, day: 24 }, "23:30"],
-        [{ year: 2026, month: 10, day: 25 }, "01:30"],
+        ["2026-10-24", "23:30"],
+        ["2026-10-25", "01:30"],
     ]);
+});
+
+test("read wall times before 1970 at their exact instant, the minute floored toward the past", () => {
+    // the Moon landing in UTC and in New York, both before the epoch
+    const date = "1969-07-20";
+
+    expect([
+        new Date(TimeZone.instant("UTC", date, "20:17")).toISOString(),
+        new Date(TimeZone.instant("America/New_York", date, "16:17")).toISOString(),
+    ]).toEqual(["1969-07-20T20:17:00.000Z", "1969-07-20T20:17:00.000Z"]);
 });

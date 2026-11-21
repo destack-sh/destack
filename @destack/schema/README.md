@@ -15,7 +15,8 @@ Packages share these values:
 
 - `Identifier`: a prefixed UUIDv7 such as `note-0199…`, typed by its prefix.
 - `Version`: a calendar version such as `2026.11.0`, with dev builds before their release.
-- `Instant`, `Duration`, `TimeZone`, `PlainDate` and `PlainTime`: time values after Temporal, as JSON.
+- `Instant`, `Duration`, `Period`, `TimeZone`, `PlainDate` and `PlainTime`: time values after Temporal, as JSON.
+- `Week`: the first day, the weekend and the week numbers of a locale.
 - `Digest`: a SHA-256 of bytes, or of canonical JSON.
 
 Declare a schema, create an identifier, and send the schema as JSON Schema:
@@ -98,14 +99,16 @@ A dev build is `<release>-dev`, the same for every unreleased build as Go's `(de
 
 Time values follow Temporal and are plain JSON.
 
-| Value       | Shape                                                            | Verbs                                                   |
-| ----------- | ---------------------------------------------------------------- | ------------------------------------------------------- |
-| `Instant`   | UTC epoch milliseconds                                           |                                                         |
-| `Duration`  | `{ days, hours, minutes, seconds, milliseconds }`, each optional | `milliseconds`, `seconds`, `require`                    |
-| `TimeZone`  | an IANA name, such as `Europe/Vienna`                            | `date`, `time`, `instant`, `next`, `isKnown`, `require` |
-| `PlainDate` | `{ year, month, day }`                                           | `add`, `compare`, `equals`, `weekday`                   |
-| `PlainTime` | `HH:MM` on a 24-hour clock                                       |                                                         |
-| `Weekday`   | Monday `1` through Sunday `7`, as in ISO 8601                    |                                                         |
+| Value       | Shape                                                            |
+| ----------- | ---------------------------------------------------------------- |
+| `Instant`   | UTC epoch milliseconds                                           |
+| `Duration`  | `{ days, hours, minutes, seconds, milliseconds }`, each optional |
+| `TimeZone`  | an IANA name, such as `Europe/Vienna`                            |
+| `PlainDate` | `YYYY-MM-DD` in the ISO 8601 calendar                            |
+| `Week`      | `{ firstDay, weekend, minimalDays }`                             |
+| `Period`    | `{ years, months, weeks, days }`, each optional                  |
+| `PlainTime` | `HH:MM` on a 24-hour clock                                       |
+| `Weekday`   | Monday `1` through Sunday `7`, as in ISO 8601                    |
 
 ### Digest
 
@@ -228,10 +231,10 @@ Schemas are Zod 4's, with the limits a schema needs to travel as JSON Schema.
 
 Time values follow Temporal's names, as plain JSON instead of objects.
 
-| Temporal                 | `@destack/schema` | Difference                                                  |
-| ------------------------ | ----------------- | ----------------------------------------------------------- |
-| `Temporal.Instant`       | `Instant`         | A number of epoch milliseconds.                             |
-| `Temporal.Duration`      | `Duration`        | An object of optional units, without weeks or larger units. |
-| `Temporal.PlainDate`     | `PlainDate`       | `{ year, month, day }` in the ISO calendar.                 |
-| `Temporal.PlainTime`     | `PlainTime`       | `HH:MM`, without seconds.                                   |
-| `Temporal.ZonedDateTime` | `TimeZone` verbs  | Converts instants to and from a zone's dates and times.     |
+| Temporal                 | `@destack/schema`    | Difference                                                      |
+| ------------------------ | -------------------- | --------------------------------------------------------------- |
+| `Temporal.Instant`       | `Instant`            | A number of epoch milliseconds.                                 |
+| `Temporal.Duration`      | `Duration`, `Period` | `Duration` has fixed-length units, `Period` has calendar units. |
+| `Temporal.PlainDate`     | `PlainDate`          | `YYYY-MM-DD` in the ISO calendar.                               |
+| `Temporal.PlainTime`     | `PlainTime`          | `HH:MM`, without seconds.                                       |
+| `Temporal.ZonedDateTime` | `TimeZone` verbs     | Converts instants to and from a zone's dates and times.         |

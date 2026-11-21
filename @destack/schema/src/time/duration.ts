@@ -26,11 +26,8 @@ const durationSchema = schema.object({
 /** A span of time in the optional units of a Temporal duration. */
 export type Duration = Readonly<schema.Infer<typeof durationSchema>>;
 
-/** Measure, check and describe spans of time. */
-export const Duration = {
-    /** The schema of a duration. */
-    schema: durationSchema,
-
+/** A span of time in fixed-length units. */
+export const Duration = Object.assign(durationSchema, {
     /** Measure a duration in milliseconds. */
     milliseconds(duration: Duration): number {
         const { days = 0, hours = 0, minutes = 0, seconds = 0, milliseconds = 0 } = duration;
@@ -51,11 +48,11 @@ export const Duration = {
 
     /** Require a duration of known, finite, non-negative units, at least one of them. */
     require(duration: unknown, name: string): Duration {
-        const parsed = Duration.schema.safeParse(duration);
+        const parsed = durationSchema.safeParse(duration);
         if (!parsed.success || Object.keys(parsed.data).length === 0) {
             throw new TypeError(`'${name}' is not a duration: ${JSON.stringify(duration)}`);
         }
 
         return parsed.data;
     },
-};
+});
