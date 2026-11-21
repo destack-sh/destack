@@ -513,10 +513,12 @@ export class ObjectSink {
     }
 
     /** Read one replica's request, absent once removed. */
-    async #read(key: string): Promise<ReplicaRequest | undefined> {
-        return Snapshot.live(this.store.database)
-            .read(replicaRequest)
-            .findFirst({ where: { key } });
+    #read(key: string): Promise<ReplicaRequest | undefined> {
+        const { database } = this.store;
+
+        return database.state.scope.span("destack.replica.request.read", {}, () =>
+            Snapshot.live(database).read(replicaRequest).findFirst({ where: { key } }),
+        );
     }
 
     /** Watch a followed request: move a reshaped one in place, and revise any other change. */
