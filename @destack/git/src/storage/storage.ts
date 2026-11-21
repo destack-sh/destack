@@ -1,3 +1,4 @@
+import { BasicCredential } from "@destack/environment";
 import type { Lease, LeaseMode } from "@destack/resource";
 import { Instant, schema } from "@destack/schema";
 
@@ -55,9 +56,7 @@ export const GitCredential = Object.assign(credential, {
 
     /** Build the Authorization header of a user and password, as Git sends Basic authentication. */
     basic(username: string, password: string): Readonly<Record<string, string>> {
-        const encoded = new TextEncoder().encode(`${username}:${password}`);
-
-        return { authorization: `Basic ${encoded.toBase64()}` };
+        return { authorization: BasicCredential.write(username, password) };
     },
 });
 
