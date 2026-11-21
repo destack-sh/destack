@@ -152,11 +152,11 @@ test("reinspect edited modules a declaration imports in a retained compiler", as
     expect({
         names: [await thingNames(first), await thingNames(edited)],
         restored: restored.manifest,
-        files: await restored.distributed(),
+        files: await restored.references(),
     }).toEqual({
         names: [["title"], ["heading"]],
         restored: first.manifest,
-        files: await first.distributed(),
+        files: await first.references(),
     });
 });
 

@@ -260,7 +260,7 @@ async function blobsSize(
 /** List the blobs of some stored builds: their manifests and every file they list. */
 async function blobsOf(store: BuildStore, manifests: readonly Digest[]): Promise<Digest[]> {
     const files = await Promise.all(
-        manifests.map(async (digest) => (await store.contents(digest)).distributed()),
+        manifests.map(async (digest) => (await store.contents(digest)).references()),
     );
 
     return [...new Set([...manifests, ...files.flat().map((file) => file.digest)])].toSorted();
@@ -272,7 +272,7 @@ test("store a build's files once by digest, read it after reopening, and refuse 
     const { files } = environment;
     const directory = await temporary(files);
     const build = await written(SOURCES, environment.crypto);
-    const list = await build.distributed();
+    const list = await build.references();
     const answer = present(
         list.find((file) => file.path === "src/answer.ts"),
         "the answer module",
@@ -521,8 +521,8 @@ test("pull a build's graph from its forge on the first read, once, and refuse a 
     });
 });
 
-test("open one reader per stored build, find its manifest, and refuse a collected build or find it absent", async () => {
-    // store a build and open it twice
+test("open a stored build, find its manifest, and refuse a collected build or find it absent", async () => {
+    // store a build and open it twice, each time with a reader of its own
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
     await using opened = await openStore(await temporary(environment.files), environment);
@@ -540,10 +540,15 @@ test("open one reader per stored build, find its manifest, and refuse a collecte
     );
     const collected = await store.find(digest);
 
-    // share the reader and find its manifest while the build is stored, and neither once collected
-    expect({ isShared: first === second, found: manifest, reopened, collected }).toEqual({
-        isShared: true,
-        found: first.manifest,
+    // read the same manifest through each reader while the build is stored, and none once collected
+    expect({
+        isShared: first === second,
+        manifests: [first.manifest, second.manifest],
+        reopened,
+        collected,
+    }).toEqual({
+        isShared: false,
+        manifests: [manifest, manifest],
         reopened: `package manifest '${digest}' not found`,
         collected: undefined,
     });
@@ -671,7 +676,7 @@ test("serve a stored build over HTTP after the host authorizes each read", async
     const build = await written(SOURCES, environment.crypto);
     const digest = await store.put(build);
     const answer = present(
-        (await build.distributed()).find((file) => file.path === "src/answer.ts"),
+        (await build.references()).find((file) => file.path === "src/answer.ts"),
         "the answer module",
     );
     const bytes = new TextEncoder().encode(SOURCES["src/answer.ts"]);
@@ -895,7 +900,7 @@ test("push a stored image to a store, writing only the objects it lacks", async 
     await client.push(source, [image]);
     const first = uploads.splice(0);
     await client.push(source, [image]);
-    const list = await build.distributed();
+    const list = await build.references();
     expect({
         manifest: (await target.contents(digest)).manifest,
         stored: await target.has(list.map((file) => file.digest)),
@@ -1569,4 +1574,35 @@ test("reach the modules an entry imports across builds, a whole build for a comp
         `${openDigest}/output/workerd/a.js`,
         `${openDigest}/output/workerd/lazy.js`,
     ]);
+});
+
+test("list a stored build's objects from the store's rows, the same files its manifest distributes", async () => {
+    // store a build
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    await using opened = await openStore(await temporary(environment.files), environment);
+    const { store } = opened;
+    const digest = await store.put(await written(SOURCES, environment.crypto));
+
+    // list its objects through the store's index alone, which has no verb opening a build
+    const index = {
+        references: (build: Digest) => store.references(build),
+        head: (object: Digest) => store.head(object),
+        image: (image: Digest) => store.image(image),
+    };
+    const listed = await BuildObject.of(index, [{ kind: "manifest", digest }]);
+    const distributed = await (await store.contents(digest)).references();
+
+    // expect each distinct distributed file's size by its digest, then the manifest
+    expect({
+        files: Object.fromEntries(
+            listed
+                .filter((object) => object.kind === "file")
+                .map((object) => [object.digest, object.size]),
+        ),
+        manifests: listed.filter((object) => object.kind === "manifest").map((each) => each.digest),
+    }).toEqual({
+        files: Object.fromEntries(distributed.map((file) => [file.digest, file.size])),
+        manifests: [digest],
+    });
 });

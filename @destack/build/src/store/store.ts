@@ -85,13 +85,63 @@ export interface BuildObject {
     readonly size: number;
 }
 
+/** List the manifests of some builds, then the images among their roots. */
+async function describeRecords(
+    store: Pick<BuildStore, "head">,
+    roots: readonly Pick<BuildObject, "kind" | "digest">[],
+    builds: ReadonlySet<Digest>,
+): Promise<BuildObject[]> {
+    const manifests = await Promise.all([...builds].map((build) => store.head(build)));
+    const images = await Promise.all(
+        roots.filter((root) => root.kind === "image").map((root) => store.head(root.digest)),
+    );
+
+    return [
+        ...manifests.map((file): BuildObject => ({
+            kind: "manifest",
+            digest: file.digest,
+            size: file.size,
+        })),
+        ...images.map((file): BuildObject => ({
+            kind: "image",
+            digest: file.digest,
+            size: file.size,
+        })),
+    ];
+}
+
 /** The objects transfers send: listing them and their tarball paths. */
 export const BuildObject = {
-    /** List the objects of images and builds for some runtimes: files, manifests, then images. */
+    /** List every object of images and builds from their indexes: files, manifests, then images. */
     async of(
+        store: Pick<BuildStore, "head" | "image" | "references">,
+        roots: readonly Pick<BuildObject, "kind" | "digest">[],
+    ): Promise<BuildObject[]> {
+        // take every root's builds once
+        const builds = new Set<Digest>();
+        for (const root of roots) {
+            const image = root.kind === "image" ? await store.image(root.digest) : undefined;
+            for (const build of image === undefined ? [root.digest] : BuildImage.builds(image)) {
+                builds.add(build);
+            }
+        }
+
+        // take every file each build references, from its index
+        const files = new Map<Digest, BuildObject>();
+        for (const build of builds) {
+            for (const file of await store.references(build)) {
+                files.set(file.digest, file);
+            }
+        }
+
+        return [...files.values(), ...(await describeRecords(store, roots, builds))];
+    },
+
+    /** List the objects some runtimes run of images and builds: files, manifests, then images. */
+    async runtime(
         store: Pick<BuildStore, "closure" | "contents" | "head" | "image">,
         roots: readonly Pick<BuildObject, "kind" | "digest">[],
-        runtimes: readonly Runtime[] | "all",
+        runtimes: readonly Runtime[],
     ): Promise<BuildObject[]> {
         // take every root's builds once, and the builds each runtime imports
         const builds = new Set<Digest>();
@@ -101,7 +151,7 @@ export const BuildObject = {
             for (const build of image === undefined ? [root.digest] : BuildImage.builds(image)) {
                 builds.add(build);
             }
-            for (const runtime of runtimes === "all" ? [] : runtimes) {
+            for (const runtime of runtimes) {
                 const reached =
                     image === undefined
                         ? [root.digest]
@@ -112,38 +162,16 @@ export const BuildObject = {
             }
         }
 
-        // take every file of each build, or what the runtimes importing it run
+        // take what the runtimes importing each build run of it, from its manifest
         const files = new Map<Digest, BuildObject>();
         for (const build of builds) {
             const reader = await store.contents(build);
-            const listed =
-                runtimes === "all"
-                    ? await reader.distributed()
-                    : await reader.runFiles([...(imported.get(build) ?? [])]);
-            for (const file of listed) {
+            for (const file of await reader.runFiles([...(imported.get(build) ?? [])])) {
                 files.set(file.digest, { kind: "file", digest: file.digest, size: file.size });
             }
         }
 
-        // add the manifests, then the images
-        const manifests = await Promise.all([...builds].map((build) => store.head(build)));
-        const images = await Promise.all(
-            roots.filter((root) => root.kind === "image").map((root) => store.head(root.digest)),
-        );
-
-        return [
-            ...files.values(),
-            ...manifests.map((file): BuildObject => ({
-                kind: "manifest",
-                digest: file.digest,
-                size: file.size,
-            })),
-            ...images.map((file): BuildObject => ({
-                kind: "image",
-                digest: file.digest,
-                size: file.size,
-            })),
-        ];
+        return [...files.values(), ...(await describeRecords(store, roots, builds))];
     },
 
     /** Give files attached to builds as attachment entries for a write, after the files. */
@@ -260,8 +288,8 @@ export class BuildStore<
     readonly blobs: BlobStore<Storage>;
     /** The crypto and clock the store digests and expires with. */
     readonly environment: StoreEnvironment;
-    /** The reader of each build opened so far, by manifest digest, until its build is deleted. */
-    readonly #readers = new Map<string, Promise<BuildReader>>();
+    /** The manifest of each build its users read, parsed once, by digest. */
+    readonly #manifests = new Map<Digest, Promise<PackageManifest>>();
     /** The source keeping each build of an image read through it, which keeps the image whole. */
     readonly #located = new Map<Digest, BuildStore>();
     /** The images read so far, by digest, as images never change. */
@@ -389,7 +417,7 @@ export class BuildStore<
         write: (files: readonly PackageFile[]) => Promise<void>,
     ): Promise<Digest> {
         // lease the build's blobs, refusing reserved and duplicate file paths
-        const list = await source.distributed();
+        const list = await source.references();
         requireDistinctPaths(list);
         const files = distinctFiles(list);
         const leased = await this.blobs.lease(
@@ -701,7 +729,7 @@ export class BuildStore<
         }
 
         // pull the lists, refusing a pulled build whose lists lack their formats
-        const lists = [...readers.values()].flatMap((reader) => reader.references());
+        const lists = [...readers.values()].flatMap((reader) => reader.lists());
         await gather(lists.map((file) => ({ kind: "file", digest: file.digest })));
         for (const [build, reader] of readers) {
             if (buffers.has(build)) {
@@ -713,6 +741,12 @@ export class BuildStore<
         const view = {
             image: async () => present(image, `the image ${root.digest}`),
             contents: async (build: Digest) => found(readers, build),
+            references: async (build: Digest) =>
+                (await found(readers, build).references()).map((file): BuildObject => ({
+                    kind: "file",
+                    digest: file.digest,
+                    size: file.size,
+                })),
             head: async (object: Digest) => {
                 const buffer = buffers.get(object);
 
@@ -733,7 +767,10 @@ export class BuildStore<
                     entries,
                 ),
         };
-        const objects = await BuildObject.of(view, [root], runtimes);
+        const objects =
+            runtimes === "all"
+                ? await BuildObject.of(view, [root])
+                : await BuildObject.runtime(view, [root], runtimes);
 
         // write the files neither stored nor buffered, then the buffered objects
         const stored = await this.has(objects.map((object) => object.digest));
@@ -799,6 +836,36 @@ export class BuildStore<
 
             return digest;
         });
+    }
+
+    /** List the files a build references from its index: the layer's table, else its rows. */
+    async references(build: Digest): Promise<BuildObject[]> {
+        // read a layered build's files from the layer's table
+        const layered = this.layer.references(build);
+        if (layered !== undefined) {
+            return layered.map((file) => ({ kind: "file", ...file }));
+        }
+
+        // read a build a source keeps from the source
+        const placed = await this.#place(build);
+        if (placed === undefined) {
+            throw BuildError.of("MANIFEST_NOT_FOUND", `package manifest '${build}' not found`);
+        } else if (placed.source !== undefined) {
+            return await placed.source.references(build);
+        }
+
+        // read the store's rows of the build, each with the size its blob has where it lies
+        const rows = await this.database
+            .select({ digest: buildReference.digest })
+            .from(buildReference)
+            .where(eq(buildReference.manifest, build));
+        const located = await this.locate(rows.map((row) => row.digest));
+
+        return rows.map((row) => ({
+            kind: "file",
+            digest: row.digest,
+            size: present(located.get(row.digest), `the blob '${row.digest}' of '${build}'`).size,
+        }));
     }
 
     /** List the manifests and images referencing a blob or build, in the layer and sources too. */
@@ -1037,7 +1104,7 @@ export class BuildStore<
         return reading;
     }
 
-    /** Read a build's manifest, verified and parsed once with its reader. */
+    /** Read a build's manifest, verified and parsed once. */
     async get(digest: Digest): Promise<PackageManifest> {
         return (await this.contents(digest)).manifest;
     }
@@ -1052,7 +1119,7 @@ export class BuildStore<
         return (await this.#find(digest))?.manifest;
     }
 
-    /** Open a stored build for selective reads, one reader per build, as its files never change. */
+    /** Open a stored build for selective reads, with a reader its caller keeps while it reads. */
     async contents(digest: Digest): Promise<BuildReader> {
         const contents = await this.#find(digest);
         if (contents === undefined) {
@@ -1064,37 +1131,50 @@ export class BuildStore<
 
     /** Open a stored build for selective reads, absent for a build the store does not record. */
     async #find(digest: Digest): Promise<BuildReader | undefined> {
-        // find the build's head in the source a read image placed it in, else here, else in the first source with it
-        const keeper = this.#located.get(digest);
-        const placed = keeper === undefined ? undefined : await keeper.#head(digest);
-        const local = placed === undefined ? await this.#head(digest) : undefined;
-        const source =
-            placed === undefined && local === undefined ? await this.#sourceOf(digest) : undefined;
-        const head =
-            placed ?? local ?? (source === undefined ? undefined : await source.#head(digest));
-        if (head === undefined) {
+        // find where the build's manifest lies, forgetting the manifest of a build no longer recorded
+        const placed = await this.#place(digest);
+        if (placed === undefined) {
+            this.#manifests.delete(digest);
+
             return undefined;
         }
 
-        // reuse the build's reader, forgetting one whose opening failed
-        const known = this.#readers.get(digest);
-        if (known !== undefined) {
-            return await known;
+        // read its manifest once, sharing its source's, and forget a failed read
+        let manifest = this.#manifests.get(digest);
+        if (manifest === undefined) {
+            manifest =
+                placed.source === undefined
+                    ? this.file(placed.head).then((bytes) => PackageManifest.deserialize(bytes))
+                    : placed.source.get(digest);
+            this.#manifests.set(digest, manifest);
+            manifest.catch(() => this.#manifests.delete(digest));
         }
-        const opening = this.#open(head, placed === undefined ? source : keeper);
-        this.#readers.set(digest, opening);
-        opening.catch(() => this.#readers.delete(digest));
 
-        return await opening;
+        return this.#open(await manifest, placed.head);
     }
 
-    /** Open a stored build's reader over its manifest's listed files. */
-    async #open(head: PackageFile, source?: BuildStore): Promise<BuildReader> {
-        // take the manifest its source parsed, else read and verify it here, as a build is opened once
-        const manifest =
-            source === undefined
-                ? PackageManifest.deserialize(await this.file(head))
-                : await source.get(head.digest);
+    /** Find where a build's manifest lies: its image's source, else here, else a source. */
+    async #place(
+        digest: Digest,
+    ): Promise<
+        { readonly head: PackageFile; readonly source: BuildStore | undefined } | undefined
+    > {
+        // look in the source keeping the build's image whole, then here, then in the first source with it
+        const keeper = this.#located.get(digest);
+        const kept = keeper === undefined ? undefined : await keeper.#head(digest);
+        const local = kept === undefined ? await this.#head(digest) : undefined;
+        const source =
+            kept === undefined && local === undefined ? await this.#sourceOf(digest) : undefined;
+        const head =
+            kept ?? local ?? (source === undefined ? undefined : await source.#head(digest));
+
+        return head === undefined
+            ? undefined
+            : { head, source: kept === undefined ? source : keeper };
+    }
+
+    /** Open a build's reader over its manifest's listed files. */
+    #open(manifest: PackageManifest, head: PackageFile): BuildReader {
         const reader: BuildReader = new BuildReader(
             manifest,
             async (path, signal) => {
@@ -1226,7 +1306,7 @@ export class BuildStore<
                 ? [{ kind: "image", digest: root.digest, size: root.head.size }]
                 : [],
         );
-        const objects = [...(await BuildObject.of(this, builds, "all")), ...images];
+        const objects = [...(await BuildObject.of(this, builds)), ...images];
 
         // find the layered objects the store lacks: files without a pack, records not complete
         const layered = objects.filter((object) =>
@@ -1398,7 +1478,7 @@ export class BuildStore<
                 await transaction.delete(table);
             }
         });
-        this.#readers.clear();
+        this.#manifests.clear();
     }
 
     /** Read the builds an image's root imports on a runtime, from what it runs or every export. */
@@ -1794,7 +1874,7 @@ export class BuildStore<
 
         // refuse a build whose lists the store lacks
         const lists = [...readers].flatMap(([digest, reader]) =>
-            reader.references().map((file) => ({ digest, file })),
+            reader.lists().map((file) => ({ digest, file })),
         );
         const isListed = await this.has(lists.map(({ file }) => file.digest));
         const unlisted = lists.find((_list, index) => isListed[index] !== true);
@@ -1810,7 +1890,7 @@ export class BuildStore<
         for (const [digest, reader] of readers) {
             // refuse duplicate paths
             await reader.check();
-            const distributed = await reader.distributed();
+            const distributed = await reader.references();
             requireDistinctPaths(distributed);
 
             // list the files each output runs
@@ -1921,7 +2001,7 @@ export class BuildStore<
         }
         // record its lists, then each output whose files are all here
         else {
-            const lists = reader.references().map((file) => file.digest);
+            const lists = reader.lists().map((file) => file.digest);
             await BuildStore.#reference(transaction, digest, lists);
             await transaction
                 .insert(buildManifest)
@@ -1994,7 +2074,7 @@ export class BuildStore<
     ): Promise<ReadableStream<Uint8Array>> {
         const file = present(
             found(readers, build)
-                .references()
+                .lists()
                 .find((each) => each.path === path),
             `the list ${path} of build ${build}`,
         );

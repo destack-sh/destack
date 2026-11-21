@@ -168,7 +168,7 @@ async function select(
     }
 
     // find the path among the files the build distributes
-    const distributed = await (await store.contents(digest)).distributed();
+    const distributed = await (await store.contents(digest)).references();
 
     return distributed.find((entry) => entry.path === name) ?? new Response(null, { status: 404 });
 }
@@ -247,7 +247,7 @@ async function objects(
     const asked = schema
         .array(schema.object({ kind: schema.enum(["file", "manifest", "image"]), digest: Digest }))
         .parse(await request.json());
-    const listed = await BuildObject.of(store, [root], "all");
+    const listed = await BuildObject.of(store, [root]);
     const attached = root.kind === "manifest" ? await store.attachments(root.digest) : [];
     const owned = new Set([...listed, ...attached].map((object) => object.digest));
     const outside = asked.find((object) => !owned.has(object.digest));

@@ -62,7 +62,7 @@ export class PackageBuild implements AsyncDisposable {
         const reader = await store.contents(digest);
         const { manifest } = reader;
         await store.place(
-            (await reader.distributed()).map((file) => ({
+            (await reader.references()).map((file) => ({
                 file,
                 destination: join(destination, file.path),
             })),
@@ -91,7 +91,7 @@ export class PackageBuild implements AsyncDisposable {
         const { files, crypto } = environment;
         const reader = await BuildReader.openDirectory(directory, files, crypto);
         const { manifest } = reader;
-        const list = await reader.distributed();
+        const list = await reader.references();
 
         // reject ambiguous paths and outputs before opening source and executable files
         const paths = requireDistinctPaths(list);

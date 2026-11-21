@@ -176,7 +176,7 @@ export async function readBuildFiles(
     build: BuildReader,
 ): Promise<Map<string, Uint8Array<ArrayBuffer>>> {
     const read = new Map<string, Uint8Array<ArrayBuffer>>();
-    const records = (await build.distributed()).toSorted(comparePath);
+    const records = (await build.references()).toSorted(comparePath);
     for (const file of records) {
         read.set(file.path, await build.load(file.path));
     }

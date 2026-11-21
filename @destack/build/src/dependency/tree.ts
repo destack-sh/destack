@@ -512,7 +512,7 @@ export class BuildTree {
         if (scope.kind === "compile") {
             const outputs = Object.entries(reader.manifest.outputs);
             const directories = outputs.map(([, output]) => `${output.directory}/`);
-            const sources = (await reader.distributed()).filter(
+            const sources = (await reader.references()).filter(
                 (file) => !directories.some((directory) => file.path.startsWith(directory)),
             );
             const loaded = await Promise.all(

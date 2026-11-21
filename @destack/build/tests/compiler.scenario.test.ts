@@ -84,7 +84,7 @@ test("rebuild edited source and restore distributed output", async () => {
             join(directory, "copied"),
         );
         const changed = present(
-            (await copied.reader.distributed()).find(
+            (await copied.reader.references()).find(
                 (file) => file.path !== rootExport(build.manifest, "library"),
             ),
             "a distributed file besides the library",

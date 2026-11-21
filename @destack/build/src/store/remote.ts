@@ -123,14 +123,14 @@ export class RemoteBuildStore {
     async push(
         store: Pick<
             BuildStore,
-            "closure" | "contents" | "head" | "image" | "read" | "attachments" | "environment"
+            "head" | "image" | "references" | "read" | "attachments" | "environment"
         >,
         images: readonly Digest[],
         signal?: AbortSignal,
     ): Promise<void> {
         // list every image's objects, files first, and the files each build attached
         const roots = images.map((digest) => ({ kind: "image", digest }) as const);
-        const objects = await BuildObject.of(store, roots, "all");
+        const objects = await BuildObject.of(store, roots);
         const manifests = objects.filter((object) => object.kind === "manifest");
         const attachments = new Map(
             await Promise.all(

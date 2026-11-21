@@ -34,7 +34,7 @@ async function place(
     const { files } = store.environment;
     const reader = await store.contents(manifest);
     const prefix = `${runtime}/`;
-    for (const file of await reader.distributed()) {
+    for (const file of await reader.references()) {
         if (file.path.startsWith(prefix)) {
             const destination = join(
                 directory,

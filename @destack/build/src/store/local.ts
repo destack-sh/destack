@@ -443,9 +443,12 @@ export class LocalBuildStore
         // index each build's manifest and files last
         const sizes: BuildLayerIndex["builds"] = {};
         const placed = new Map<Digest, BuildLayerFile>();
+        const listed = new Map<Digest, PackageFile[]>();
         for (const [digest, reader] of readers) {
             sizes[digest] = PackageManifest.serialize(reader.manifest).byteLength;
-            for (const file of await reader.distributed()) {
+            const distributed = await reader.references();
+            listed.set(digest, distributed);
+            for (const file of distributed) {
                 if (!placed.has(file.digest)) {
                     placed.set(file.digest, {
                         digest: file.digest,
@@ -457,7 +460,7 @@ export class LocalBuildStore
             }
         }
         const linked = [...placed.values()];
-        await BuildLayer.writeIndex(directory, shipped, sizes, "path", linked, [], files);
+        await BuildLayer.writeIndex(directory, shipped, sizes, listed, "path", linked, [], files);
     }
 
     /** Write a linked layer of release images once, keyed with the runtimes. */
@@ -501,7 +504,7 @@ export class LocalBuildStore
 
         // list the objects a pull of the images for the runtimes reads
         const roots = [...images.keys()].map((digest) => ({ kind: "image", digest }) as const);
-        const objects = await BuildObject.of(this, roots, runtimes);
+        const objects = await BuildObject.runtime(this, roots, runtimes);
         const wanted = new Set(
             objects.filter((object) => object.kind === "file").map((object) => object.digest),
         );
@@ -538,6 +541,7 @@ export class LocalBuildStore
         const sizes: BuildLayerIndex["builds"] = {};
         const sources = new Map<Digest, { readonly reader: BuildReader; readonly path: string }>();
         const groups: Pick<BuildLayerFile, "digest" | "size">[][] = [];
+        const listed = new Map<Digest, PackageFile[]>();
         for (const { digest } of objects.filter((object) => object.kind === "manifest")) {
             const reader = await this.contents(digest);
             const manifest = PackageManifest.serialize(reader.manifest);
@@ -545,7 +549,8 @@ export class LocalBuildStore
             sizes[digest] = manifest.byteLength;
 
             // group the build's files no earlier build listed
-            const distributed = await reader.distributed();
+            const distributed = await reader.references();
+            listed.set(digest, distributed);
             const unreached = ImportClosure.unused(digest, reader, distributed, reached);
             const added = distributed
                 .filter((file) => wanted.has(file.digest) && !unreached.has(file.digest))
@@ -575,7 +580,17 @@ export class LocalBuildStore
 
         // write the index
         const packed = packs.map((pack) => pack.reduce((sum, entry) => sum + entry.size, 0));
-        await BuildLayer.writeIndex(directory, images, sizes, "pack", packs.flat(), packed, files);
+        const placed = packs.flat();
+        await BuildLayer.writeIndex(
+            directory,
+            images,
+            sizes,
+            listed,
+            "pack",
+            placed,
+            packed,
+            files,
+        );
     }
 
     /** Write a build into the store's layered builds once, unless another writer did first. */
@@ -591,7 +606,7 @@ export class LocalBuildStore
         const staging = await this.makeTemporaryDirectory("pooled-");
         try {
             // write every file, as linked layers of any runtimes share the pooled build
-            await this.#writeDirectory(reader, join(staging, "build"), await reader.distributed());
+            await this.#writeDirectory(reader, join(staging, "build"), await reader.references());
             await files.rename(join(staging, "build"), build).catch(async (error: unknown) => {
                 if (!(await files.exists(join(build, MANIFEST_PATH)))) {
                     throw error;

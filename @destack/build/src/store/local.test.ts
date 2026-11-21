@@ -380,7 +380,7 @@ test("read a packed layer's builds in assets by digest, without other runtimes' 
     );
 
     // read the release by its digest: its manifest a blob, its lists in one pack, as it has no workerd output and ships no sources off the host
-    const shipped = (await store.contents(release)).references();
+    const shipped = (await store.contents(release)).lists();
     const names = async (below: string) =>
         (await files.readDirectory(join(distribution, below)))
             .map((entry) => entry.name)
@@ -388,18 +388,27 @@ test("read a packed layer's builds in assets by digest, without other runtimes' 
     const sizes = await Promise.all(
         shipped.map(async (file) => (await layer.read(file.digest))?.byteLength),
     );
+    // list every file the release distributes from the layer's table, opening no build
+    const listed = await (await store.contents(release)).references();
+    const distributed = [...new Map(listed.map(({ digest, size }) => [digest, { digest, size }]))]
+        .map(([, file]) => file)
+        .toSorted((left, right) => (left.digest < right.digest ? -1 : 1));
     expect({
         releases: layer.releases,
         read,
         blobs: await names("blobs"),
         packs: await names("packs"),
         sizes,
+        references: layer.references(release),
+        outside: layer.references(image),
     }).toEqual({
         releases: [image],
         read: release,
         blobs: [release],
         packs: ["0"],
         sizes: shipped.map((file) => file.size),
+        references: distributed,
+        outside: undefined,
     });
 });
 
@@ -568,7 +577,7 @@ test("retain a build's files while another process opens the store twice before 
     const directory = await files.makeTemporaryDirectory("test-stores-");
     await using building = await LocalBuildStore.open(directory, environment);
     const build = await written("export const answer = 42;\n", environment.crypto);
-    const distributed = await build.distributed();
+    const distributed = await build.references();
     for (const file of distributed) {
         await building.write(
             BuildObject.files([{ digest: file.digest, bytes: await build.load(file.path) }]),
