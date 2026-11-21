@@ -7,6 +7,8 @@ import { SPACE_PROVIDER } from "@destack/stack/object";
 export class SpaceDatabaseHost implements DatabaseHost {
     /** The provider code of the spaces' own databases. */
     readonly provider = SPACE_PROVIDER;
+    /** Whether provisioning creates nothing outside the store: it answers the space's storage. */
+    readonly isPure = true;
     /** The host of the machine's databases, one per reference. */
     readonly #host: DatabaseHost;
     /** Read the reference of a space's own storage. */

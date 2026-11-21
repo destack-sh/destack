@@ -1,4 +1,4 @@
-import { Installation } from "@destack/object";
+import { Installation, database } from "@destack/stack/object";
 import type { Random } from "@destack/environment";
 import {
     Snapshot,
@@ -22,7 +22,6 @@ import { type ContentStore, Plan, type ResourceRecord } from "@destack/resource"
 import { Digest, schema } from "@destack/schema";
 import { Bearer } from "@destack/access/token";
 import { StackError } from "@destack/stack/error";
-import { database } from "@destack/stack/object";
 import { MachineError } from "../error/index.ts";
 
 /** The namespace of the space's database in the space object's storage. */
@@ -38,6 +37,8 @@ const COPY_TOKEN_BYTES = 32;
 export class DurableObjectSpaceDatabaseHost implements DatabaseHost {
     /** The provider code of databases in Durable Objects. */
     readonly provider = DURABLE_OBJECT_PROVIDER;
+    /** Whether provisioning creates nothing outside the store, false as it creates the database. */
+    readonly isPure = false;
     /** The space's database, recording each database's owning installation. */
     readonly #records: DatabaseConnection;
     /** The facet of an installation in the space's object, which stores its databases. */

@@ -24,6 +24,7 @@ export const installationProvider = {
     code: INSTALLATION_PROVIDER,
     object: dependency,
     provision: {
+        isPure: true,
         provision: async (resource) => {
             // connect to the binding's address
             const { address } = InstallationBindingSpec.parse(resource.spec);
