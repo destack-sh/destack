@@ -34,7 +34,7 @@ import {
     type ResultOf,
     changeRequest,
 } from "@destack/object";
-import { entitlement, placement, Space, space } from "@destack/account/object";
+import { entitlement, Space, space } from "@destack/account/object";
 import { ViewDescription } from "@destack/package/manifest";
 import { type ApplicationOptions, ApplicationInstallation } from "./application.ts";
 import { Approval } from "./approval.ts";
@@ -435,8 +435,8 @@ const ENTITLED_SPACES: Relation = {
     on: { kind: "key", column: "scope", parent: "scope" },
 };
 
-/** The installations of a tag's scope that have not applied the revision they target. */
-const WAITING: Relation = {
+/** The installations of a build's space that have not applied the revision they target. */
+const UNAPPLIED: Relation = {
     table: installation.table,
     cardinality: "many",
     on: { kind: "key", column: "scope", parent: "scope" },
@@ -448,7 +448,7 @@ const WAITING: Relation = {
     },
 };
 
-/** Wake the followers of a moved tag or reference, and a tag's waiters. */
+/** Wake the followers of a moved tag or reference. */
 function followedWatches(): ObjectWatch[] {
     return [
         ...[tag.table, reference.table].map((table): ObjectWatch => ({
@@ -456,8 +456,6 @@ function followedWatches(): ObjectWatch[] {
             path: [FOLLOWERS],
             on: { id: "id" },
         })),
-        // an installation whose plan waits for a release once a tag of its space moves
-        { table: tag.table, path: [WAITING], on: { id: "id" } },
         // the followers of a reference once the build of its commit succeeds
         {
             table: build.table,
@@ -534,20 +532,16 @@ function resumeWatches(waited: readonly ObjectType[]): ObjectWatch[] {
             ],
             on: { id: "id" },
         },
-        // the space's waiting installations once a build succeeds, as one may wait for it
+        // the space's unapplied installations once a build succeeds
         {
             table: build.table,
             where: { state: "succeeded" },
-            path: [WAITING],
+            fields: ["state"],
+            path: [UNAPPLIED],
             on: { id: "id" },
         },
-        // the space's installations once its row, its placement or a setting value changes
+        // the space's installations once its row or a setting value changes
         { table: space.table, on: { scope: "id" } },
-        {
-            table: placement.table,
-            path: [{ ...WAITING, on: { kind: "key", column: "scope", parent: "spaceId" } }],
-            on: { id: "id" },
-        },
         { table: setting.table, on: { scope: "scope" } },
         // the account's installations once an entitlement changes
         { table: entitlement.table, path: [ENTITLED_SPACES], on: { scope: "id" } },

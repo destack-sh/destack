@@ -389,6 +389,7 @@ test("move every table with a space's rows and the tables main applied, leaving 
             "destack__sync__replica_page",
             "destack__sync__replica_position",
             "destack__sync__replica_result",
+            "destack__sync__replica_scope",
             "destack__sync__replica_subscription",
             "destack__sync__subscription",
         ],
