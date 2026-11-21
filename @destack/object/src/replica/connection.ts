@@ -176,6 +176,35 @@ export class ObjectConnection implements ObjectRemote {
         return "url" in this.#options ? this.#options.url : undefined;
     }
 
+    /** Open connections to stores mounted at URLs under bearer secrets, one per URL and secret. */
+    static pool(environment: Environment): (url: string, secret: string) => ObjectConnection {
+        const connections = new Map<string, ObjectConnection>();
+
+        return (url, secret) => {
+            // reuse the connection of a URL and secret
+            const key = JSON.stringify([url, secret]);
+            const known = connections.get(key);
+            if (known !== undefined) {
+                return known;
+            }
+
+            // connect to a new one, signing its upgrade and each call with the secret
+            const connection = ObjectConnection.open({
+                url: ObjectConnection.url(url),
+                authorize: async (request) => {
+                    const headers = new Headers(request.headers);
+                    headers.set("authorization", `Bearer ${secret}`);
+
+                    return new Request(request, { headers });
+                },
+                environment,
+            });
+            connections.set(key, connection);
+
+            return connection;
+        };
+    }
+
     /** Read the connection URL of the store of a package mounted at a URL. */
     static url(mounted: string): string {
         return `${mounted.replace(/^http/u, "ws")}${CONNECTION_PATH}`;
