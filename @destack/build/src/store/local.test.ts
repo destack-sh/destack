@@ -207,6 +207,39 @@ test("keep an image copied up from the layer once the next layer drops it", asyn
     );
 });
 
+test("keep an image put over a layered build only while that layer is mounted", async () => {
+    // put an image whose build a store has only through its layer
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files, crypto } = environment;
+    const directory = await files.makeTemporaryDirectory("test-stores-");
+    await using store = await LocalBuildStore.open(join(directory, "store"), environment);
+    await using distributor = await LocalBuildStore.temporary(environment);
+    const release = await distributor.put(await written("export const answer = 42;", crypto));
+    const image = await imageAlone(distributor, release);
+    const distribution = join(directory, "distribution");
+    await distributor.writeLayer([image], ["bun"], distribution, "linked");
+    let isKept: boolean;
+    {
+        await using layered = await LocalBuildStore.of({
+            blobs: store.blobs,
+            directory: join(directory, "layered"),
+            environment,
+            layer: await BuildLayer.open(distribution, environment),
+        });
+        await layered.putImage(BuildImage.of(release));
+        isKept = await layered.contains(image);
+    }
+
+    // lose the image with the layer, as its build was never copied up
+    await using reopened = await LocalBuildStore.of({
+        blobs: store.blobs,
+        directory: join(directory, "layered"),
+        environment,
+    });
+    expect([isKept, await reopened.contains(image)]).toEqual([true, false]);
+});
+
 test("relink a linked layer's builds that point at a pool an earlier layer format kept", async () => {
     // write a linked layer, then point its build at a pool directory that no longer exists
     await using simulation = testSimulation();

@@ -1885,12 +1885,20 @@ export class BuildStore<
                 );
             }
             for (const { digest, size, image } of images) {
+                // record the image over the layer once one of its builds relies on it
+                const isRelying = BuildImage.builds(image).some((build) => {
+                    const written = builds.get(build);
+                    const relied =
+                        written === undefined ? recorded.get(build) : locate(written.files)?.layer;
+
+                    return relied !== undefined && relied !== null;
+                });
                 await BuildStore.#recordManifest(
                     transaction,
                     digest,
                     size,
                     BuildImage.builds(image),
-                    null,
+                    isRelying ? this.#layerDigest() : null,
                 );
             }
         });
@@ -1938,18 +1946,24 @@ export class BuildStore<
         }
     }
 
-    /** Find which builds the store records, its layer's among them. */
-    async #recordedBuilds(digests: readonly Digest[]): Promise<Set<Digest>> {
-        // take the layered builds, then read the others' rows a batch at a time
-        const recorded = new Set(digests.filter((digest) => this.layer.head(digest) !== undefined));
+    /** Find which builds the store records, each with the layer it relies on, if any. */
+    async #recordedBuilds(digests: readonly Digest[]): Promise<Map<Digest, string | null>> {
+        // take the layered builds, which rely on the mounted layer
+        const recorded = new Map<Digest, string | null>(
+            digests
+                .filter((digest) => this.layer.head(digest) !== undefined)
+                .map((digest) => [digest, this.#layerDigest()]),
+        );
+
+        // read the others' rows a batch at a time, each with the layer it relies on
         const others = digests.filter((digest) => !recorded.has(digest));
         for (let start = 0; start < others.length; start += BATCH_ROWS) {
             const rows = await this.database
-                .select({ digest: buildManifest.digest })
+                .select({ digest: buildManifest.digest, layer: buildManifest.layer })
                 .from(buildManifest)
                 .where(inArray(buildManifest.digest, others.slice(start, start + BATCH_ROWS)));
             for (const row of rows) {
-                recorded.add(row.digest);
+                recorded.set(row.digest, row.layer);
             }
         }
 
