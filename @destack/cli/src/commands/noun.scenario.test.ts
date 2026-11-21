@@ -278,8 +278,8 @@ Usage: destack card <command>
   new                 Call card.create
   new-ideas           New Ideas Card
   <id>                Show one of the cards
-  <id> pin            Call card.pin
   <id> update         Call card.update
+  <id> pin            Call card.pin
   <id> relationships  Call card.relationships
   <id> grant          Call card.grant
   <id> revoke         Call card.revoke
