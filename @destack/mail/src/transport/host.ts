@@ -12,6 +12,7 @@ export function mailProvider<Client>(
         code,
         object,
         provision: {
+            isPure: true,
             provision: async () => ({ reference: code }),
             destroy: async () => {},
         },
