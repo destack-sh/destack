@@ -548,6 +548,8 @@ export class ObjectStore {
     readonly #rowKeys = new Map<Follow, Map<string, RowKey>>();
     /** The options each catalog compiles with, apart from the servers and isolates. */
     readonly #compiling: Omit<CatalogOptions, "servers" | "isolates">;
+    /** The policies of described types no server here serves yet. */
+    #established: readonly Policy[] = [];
     /** The packages, types, routes, tables and access rules the store serves. */
     #catalog: Catalog;
     /** The handler of each served package, by its catalog entry. */
@@ -667,18 +669,60 @@ export class ObjectStore {
         this.#implement();
     }
 
+    /** Authorize the policies of described types before a server here serves their packages. */
+    establish(policies: readonly Policy[]): void {
+        // leave the policies the catalog decides already
+        const { authorizer } = this.#catalog;
+        const added = policies.filter(
+            (policy) => authorizer.find(policy.typeReference) === undefined,
+        );
+        if (added.length === 0) {
+            return;
+        }
+
+        // compile the catalog again with them, reusing its reads of the servers
+        const compiled = this.#compile(this.servers, this.isolates, [
+            ...this.#established,
+            ...added,
+        ]);
+        this.#established = compiled.established;
+        this.#catalog = compiled.catalog;
+    }
+
+    /** Compile a catalog of some servers and isolates, with the established policies they leave. */
+    #compile(
+        servers: readonly PackageImplementation[],
+        isolates: readonly Isolate[],
+        established: readonly Policy[],
+    ): { readonly catalog: Catalog; readonly established: readonly Policy[] } {
+        // compile what the servers serve, then keep the established policies none of them decides
+        const options = { ...this.#compiling, servers, isolates };
+        const served = Catalog.compile(options, this.#catalog);
+        const left = established.filter(
+            (policy) => served.authorizer.find(policy.typeReference) === undefined,
+        );
+        const policies = [...(options.policies ?? []), ...left];
+
+        return {
+            catalog: left.length === 0 ? served : Catalog.compile({ ...options, policies }, served),
+            established: left,
+        };
+    }
+
     /** Serve other servers and isolates, keeping the handlers of the packages read before. */
     apply(
         servers: readonly PackageImplementation[],
         isolates: readonly Isolate[],
     ): readonly (PackageHandler & { readonly objects: ObjectStore })[] {
         // compile the new catalog, reusing the current one's reads of unchanged servers
-        const catalog = Catalog.compile({ ...this.#compiling, servers, isolates }, this.#catalog);
+        const compiled = this.#compile(servers, isolates, this.#established);
+        const { catalog } = compiled;
 
         // refuse methods in a store started without the journal recording them
         if (catalog.isServing && this.#journal === undefined) {
             throw new TypeError("a store started without methods has no journal for new ones");
         }
+        this.#established = compiled.established;
         this.#catalog = catalog;
 
         // declare its tables to the database and the feed, then implement its packages
@@ -850,6 +894,13 @@ export class ObjectStore {
     /** The providers reconciling the served kinds' resources, none for a store reconciling none. */
     get providers(): ResourceControllerOptions["providers"] {
         return this.#catalog.providers;
+    }
+
+    /** Report whether the provider a resource requests creates nothing outside the store. */
+    isPure(object: ResourceType<"space">, row: Pick<Resource, "provider" | "placement">): boolean {
+        const provided = this.#catalog.providers.filter((each) => each.object.same(object));
+
+        return ResourceController.select(provided, row)?.provision?.isPure === true;
     }
 
     /** Reconcile a provisioned resource inside a method call, as its kind's controller does. */
