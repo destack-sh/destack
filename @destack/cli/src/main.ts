@@ -1,5 +1,7 @@
 import { BunEnvironment } from "@destack/environment/bun";
 import { Release, type ReleaseProcess } from "@destack/update/release";
+import { TelemetryScope } from "@destack/telemetry";
+import type {} from "@destack/package/import-meta";
 import { CommandLine } from "./command/line.ts";
 import { NativeDevice } from "./command/native.ts";
 
@@ -16,11 +18,27 @@ const PROCESSES: Readonly<
     desktop: () => import("@destack/desktop/main"),
 };
 
+/** The milliseconds in a second. */
+const MILLISECONDS_PER_SECOND = 1000;
+
+/** The name the program's command line records its load under, beside its other processes'. */
+const COMMAND_LINE = "command";
+
 /** The environment the program runs on: the system's environment. */
 const environment = BunEnvironment.system;
 
 /** The process the program starts as, absent for its command line. */
 const selected = Release.process(environment.process.arguments);
+
+// record how long the process took to load its modules, on the clock counting from its start
+TelemetryScope.of(import.meta.destack.package, environment.telemetry)
+    .metric.histogram("destack.process.load.duration", {
+        unit: "s",
+        attributes: { "destack.process.name": [COMMAND_LINE, ...Object.keys(PROCESSES)] },
+    })
+    .record(environment.telemetry.monotonic.now() / MILLISECONDS_PER_SECOND, {
+        "destack.process.name": selected ?? COMMAND_LINE,
+    });
 
 // run the selected process with the words after its option
 if (selected !== undefined) {
