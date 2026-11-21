@@ -9,6 +9,7 @@ export {
     type Progress,
     StatusCondition,
     SYNCED,
+    SYNCED_CONDITION,
 } from "./condition.ts";
 export {
     defineObject,

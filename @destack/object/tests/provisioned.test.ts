@@ -191,6 +191,7 @@ class Boxes {
             code: "memory",
             object: box,
             provision: {
+                isPure: false,
                 provision: async (record) => {
                     // fail as many provisionings as the scenario asks
                     if (this.failures > 0) {

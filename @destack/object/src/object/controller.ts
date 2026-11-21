@@ -28,13 +28,11 @@ import {
     Observation,
     type ObservationReport,
     type ObservedRecord,
+    SYNCED_CONDITION,
 } from "./condition.ts";
 import { type ResultsOf } from "../method/context.ts";
 import type { MutateOptions, ObjectStore } from "../server/store.ts";
 import { CallSite } from "../method/site.ts";
-
-/** The synced condition of a controlled object whose last reconcile succeeded. */
-const SYNCED_CONDITION = { status: "true", reason: "ReconcileSuccess", message: "" } as const;
 
 /** The fields of a controlled object its controller observes. */
 const ObservedFields = schema

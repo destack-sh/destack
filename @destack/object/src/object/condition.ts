@@ -5,6 +5,13 @@ import type { ObjectType } from "./object.ts";
 /** The condition of a controlled object's last reconcile succeeding, as Crossplane's Synced. */
 export const SYNCED = "Synced";
 
+/** The Synced condition of a controlled object whose last reconcile succeeded. */
+export const SYNCED_CONDITION = {
+    status: "true",
+    reason: "ReconcileSuccess",
+    message: "",
+} as const;
+
 /** The ready reason of a controlled object whose plan waits for approval. */
 export const AWAITING_APPROVAL = "AwaitingApproval";
 

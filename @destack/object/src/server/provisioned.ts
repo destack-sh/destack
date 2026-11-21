@@ -25,6 +25,8 @@ import {
     type Condition,
     Observation,
     type ObservationReport,
+    SYNCED,
+    SYNCED_CONDITION,
 } from "../object/condition.ts";
 import { type ObjectType } from "../object/object.ts";
 import { CONSUMER } from "../trait/bindable.ts";
@@ -129,7 +131,7 @@ export class ResourceController {
     }
 
     /** Reconcile one resource inside a method call, as a pass of the controller does. */
-    reconcileIn(
+    async reconcileIn(
         call: MethodContext,
         row: Resource,
         apply?: ResourceApply,
@@ -145,11 +147,19 @@ export class ResourceController {
             mutate: (calls) => call.mutate(store.as(object), calls),
         };
 
-        return ResourceController.#reconcileRow(object, this.#kind, row, pass, {
+        // reconcile the row as a pass does
+        const outcome = await ResourceController.#reconcileRow(object, this.#kind, row, pass, {
             ...this.#options,
             states: (_row, digests) => this.#read(store.blobs, digests),
             ...(apply === undefined ? {} : { apply }),
         });
+
+        // record a converged resource synced at the generation the call read, as its controller's pass does
+        if (outcome !== "waiting") {
+            await call.observe(object, row, { conditions: { [SYNCED]: SYNCED_CONDITION } });
+        }
+
+        return outcome;
     }
 
     /** Reconcile one resource. */
