@@ -122,7 +122,7 @@ export const AlertCondition = schema.discriminatedUnion("kind", [
             })
             .exactOptional(),
         /** The window the fold covers, at least a minute. */
-        window: Duration.schema,
+        window: Duration,
         /** Whether the alert fires above or below the threshold; an empty group has no series. */
         comparison: schema.enum(["above", "below"]),
         /** The threshold. */
@@ -181,9 +181,9 @@ export const alertRule = defineObject(
             /** What a firing alert does. */
             actions: field.json(schema.array(AlertAction).min(1).max(MAX_ACTIONS)),
             /** The least time between two alerts of the rule for the same subject. */
-            interval: field.json(Duration.schema).default(REPEAT_INTERVAL),
+            interval: field.json(Duration).default(REPEAT_INTERVAL),
             /** How long an events condition stays crossed before its alert fires. */
-            pending: field.json(Duration.schema).default(NO_PENDING),
+            pending: field.json(Duration).default(NO_PENDING),
             /** Whether an events condition with an empty window fires, or counts as clear. */
             noData: field.enum(NO_DATA).default("ok"),
 
