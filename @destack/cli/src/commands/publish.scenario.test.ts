@@ -1,7 +1,7 @@
 import { Observation } from "@destack/object";
 import { fileURLToPath } from "node:url";
 import { type JsonValue, present, schema, Version } from "@destack/schema";
-import type { InstallationRollout } from "@destack/stack/object";
+import type { Installation } from "@destack/stack/object";
 import { expect, test } from "@destack/test";
 import { TerminalFixture, type TerminalInput } from "../test/terminal.ts";
 
@@ -61,12 +61,9 @@ async function json(
 }
 
 /** Read the build an installation's targeted revision runs, through the command line. */
-async function build(terminal: TerminalFixture, target: InstallationRollout) {
+async function build(terminal: TerminalFixture, target: Installation) {
     // read the revision, then its build
-    const revisionId = present(
-        target.targetRevisionId,
-        `the revision of ${target.installation.name}`,
-    );
+    const revisionId = present(target.targetRevisionId, `the revision of ${target.name}`);
     const revision = Revised.parse(await json(terminal, ["installation-revision", revisionId]));
     const built = Built.parse(await json(terminal, ["stack:build", revision.buildId]));
 
@@ -74,16 +71,16 @@ async function build(terminal: TerminalFixture, target: InstallationRollout) {
 }
 
 /** Read an installation's name, what it follows and its readiness, without its change time. */
-function readiness(target: InstallationRollout) {
-    const { name, followsType, conditions } = target.installation;
+function readiness(target: Installation) {
+    const { name, followsType, conditions } = target;
     const { lastTransitionAt: _changed, ...ready } = present(conditions["Ready"], "a Ready");
 
     return { name, followsType, ready };
 }
 
 /** Report whether an installation is current with its latest change. */
-function isReady(target: InstallationRollout): boolean {
-    return Observation.progress(target.installation) === "current";
+function isReady(target: Installation): boolean {
+    return Observation.progress(target) === "current";
 }
 
 test("follow a published release's tag, then pin the installation to the release", async () => {
@@ -104,15 +101,15 @@ test("follow a published release's tag, then pin the installation to the release
     const following = Created.parse(
         await json(terminal, ["install", `${PACKAGE.name}@stable`, "--name", "notebooks"]),
     );
-    const converged = await terminal.rollout(following.id, isReady);
+    const converged = await terminal.installed(following.id, isReady);
 
     // pin it to the release instead, until it runs it at the new generation
     const { image } = released;
     const { version } = released.package;
     await json(terminal, ["install", specifier, "--name", "notebooks"]);
-    const settled = await terminal.rollout(
+    const settled = await terminal.installed(
         following.id,
-        (target) => isReady(target) && target.installation.followsType === "release",
+        (target) => isReady(target) && target.followsType === "release",
     );
 
     // run the one release, following stable and then pinned, on the build publishing made

@@ -9,9 +9,9 @@ import {
     TestComputer,
     TestDistribution,
 } from "@destack/machine/computer/test";
-import { type DatabaseConnection, Snapshot } from "@destack/db";
+import { Snapshot } from "@destack/db";
 import type { ObjectType } from "@destack/object";
-import { type InstallationRollout, Rollout, rollout } from "@destack/stack/object";
+import { Installation, installation } from "@destack/stack/object";
 import { type Identifier, type JsonObject, present, schema } from "@destack/schema";
 import { onTestFinished } from "@destack/test";
 import { testSimulation } from "@destack/test/world";
@@ -33,8 +33,8 @@ const TERMINAL_USER = 1000;
 /** How long a command line may take to print a line: 10 s, far above its milliseconds. */
 const PRINT_MILLISECONDS = 10_000;
 
-/** How long a rollout may take to meet a check: 2 min, a space pulling a closure in ~30 s. */
-const ROLLOUT_MILLISECONDS = 120_000;
+/** How long an installation may take to meet a check: 2 min, a space pulling a closure in ~30 s. */
+const INSTALLED_MILLISECONDS = 120_000;
 
 /** The input a command line runs on: its standard input and whether it runs on a terminal. */
 export interface TerminalInput {
@@ -178,62 +178,46 @@ export class TerminalFixture {
     }
 
     /** Read an object of an installation in the owner's home as the owner, as JSON prints it. */
-    async object(type: ObjectType, installation: string, id: string): Promise<JsonObject> {
+    async object(type: ObjectType, name: string, id: string): Promise<JsonObject> {
         // follow the installation's objects as the owner, until the object replicates
         await using stack = new AsyncDisposableStack();
         const session = await this.native.launcher(this.login.id);
         const { home } = this.computer.world.owner;
         const objects = await this.wait(
-            this.native.open(session, { space: home, installation }, { type }, stack),
+            this.native.open(session, { space: home, installation: name }, { type }, stack),
         );
         const read = () => objects.query.type.findFirst({ where: { id } });
         await this.computer.waitUntil(
             objects.database,
             async () => (await read()) !== undefined,
-            ROLLOUT_MILLISECONDS,
+            INSTALLED_MILLISECONDS,
         );
         const row = present(await read(), `the ${type.name} ${id}`);
 
         return schema.jsonObject().parse(JSON.parse(JSON.stringify(row)));
     }
 
-    /** Wait until an installation's rollout in the owner's home meets a check, and read it. */
-    async rollout(
-        installation: Identifier<"installation">,
-        isMet: (target: InstallationRollout) => boolean,
-    ): Promise<InstallationRollout> {
-        // wait at each commit of the home's database until the rollout meets the check
+    /** Wait until an installation in the owner's home meets a check, and read it. */
+    async installed(
+        id: Identifier<"installation">,
+        isMet: (target: Installation) => boolean,
+    ): Promise<Installation> {
+        // wait at each commit of the home's database until the installation meets the check
         const { home } = this.computer.world.owner;
         const { database } = await this.computer.machine.space(home);
+        const read = () =>
+            Snapshot.live(database).read(installation.table).findFirst({ where: { id } });
         await this.computer.waitUntil(
             database,
             async () => {
-                const joined = await TerminalFixture.#rollout(database, installation);
+                const row = await read();
 
-                return joined !== undefined && isMet(joined);
+                return row !== undefined && isMet(row);
             },
-            ROLLOUT_MILLISECONDS,
+            INSTALLED_MILLISECONDS,
         );
 
-        return present(
-            await TerminalFixture.#rollout(database, installation),
-            `the rollout of ${installation}`,
-        );
-    }
-
-    /** Read an installation's rollout with its installation from a space's database. */
-    static async #rollout(
-        database: DatabaseConnection,
-        installation: Identifier<"installation">,
-    ): Promise<InstallationRollout | undefined> {
-        // read the rollout, then join its installation
-        const snapshot = Snapshot.live(database);
-        const rows = await snapshot
-            .read(rollout.table)
-            .findMany({ where: { installationId: installation } });
-        const [joined] = await Rollout.read(snapshot, rows);
-
-        return joined;
+        return present(await read(), `the installation ${id}`);
     }
 
     /** Open a command line's context acting in a space, as a command line opens it. */

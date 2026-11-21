@@ -88,6 +88,7 @@ test("render a stack's readiness with aligned resources and the plan it waits on
         revisionId: schema
             .identifier("installation-revision")
             .parse("installation-revision-01996ab0-0000-7000-8000-000000000002"),
+        targetRevisionId: null,
         appliedRevisionId: null,
         servedRevisionId: null,
         conditions: { Ready: condition("false", "WaitingForResources") },
@@ -129,7 +130,6 @@ test("render a stack's readiness with aligned resources and the plan it waits on
         new InstallationStatus({
             installation: stack,
             follows: "release 2026.10.0",
-            rollout: stack,
             resources,
             waiting: { plan: waiting, digest, approval: APPROVAL },
         }).render(TerminalFixture.terminal(TerminalSize.VT100)),
@@ -175,6 +175,9 @@ test("render an application waiting to be granted more access, approved by its n
             scope: spaceId,
             export: null,
             generation: 2,
+            targetRevisionId: revisionId,
+            appliedRevisionId: revisionId,
+            servedRevisionId: null,
             conditions: {
                 Ready: {
                     ...condition("false", "AwaitingApproval"),
@@ -185,7 +188,6 @@ test("render an application waiting to be granted more access, approved by its n
             },
         },
         follows: "tag latest",
-        rollout: { appliedRevisionId: revisionId, servedRevisionId: null },
         resources: [],
         waiting: { plan: waiting, digest, approval: APPROVAL },
     });

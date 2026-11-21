@@ -15,11 +15,11 @@ const Installed = schema.object({
     tag: schema.string().nullable(),
 });
 
-/** The printed statuses of an installation's rollout, as far as the scenario reads them. */
+/** The printed statuses of an installation, as far as the scenario reads them. */
 const Statuses = schema.array(
     schema.looseObject({
         follows: schema.string(),
-        rollout: schema.looseObject({ servedRevisionId: schema.string().nullable() }),
+        installation: schema.looseObject({ servedRevisionId: schema.string().nullable() }),
     }),
 );
 
@@ -55,7 +55,7 @@ test("install a published app, returning once the space serves its revision", as
     const lines = jsonLines(installing.output);
     const installed = Installed.parse(lines.at(-1));
     const statuses = Statuses.parse(lines.slice(0, -1));
-    const served = await terminal.rollout(installed.id, () => true);
+    const served = await terminal.installed(installed.id, () => true);
 
     // watch the notebooks while creating one, then stop the watch
     const watching = terminal.start(["--space", "home", "notebooks", "--watch", "--json"]);
@@ -75,7 +75,7 @@ test("install a published app, returning once the space serves its revision", as
         followed: [
             installed.tag,
             statuses.at(-1)?.follows,
-            statuses.at(-1)?.rollout.servedRevisionId,
+            statuses.at(-1)?.installation.servedRevisionId,
         ],
         served: served.servedRevisionId,
         installed,
@@ -92,7 +92,7 @@ test("install a published app, returning once the space serves its revision", as
         })),
     }).toEqual({
         installing: [0, ""],
-        // follow the latest tag, showing its rollout until the space serves its revision
+        // follow the latest tag, showing the installation until the space serves its revision
         followed: ["latest", "tag latest", served.targetRevisionId],
         served: served.targetRevisionId,
         installed: {

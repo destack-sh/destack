@@ -2,7 +2,7 @@ import { ForgeError } from "@destack/forge/error";
 import { LATEST_TAG, release, tag } from "@destack/registry/object";
 import { type PackageId, PackageName } from "@destack/package";
 import { type Identifier, present, Version } from "@destack/schema";
-import objectPackage from "@destack/object/package";
+import stackPackage from "@destack/stack/package";
 import { ObjectReference, RequestId } from "@destack/sync";
 import { CommandOption, type CommandBody } from "../command/command.ts";
 import type { CommandContext } from "../command/context.ts";
@@ -85,11 +85,11 @@ export const uninstallCommand: CommandBody = {
         // find the package's one installation in the space, or the one of the name
         const asked = present(given, "the installation argument");
         const space = await context.requireSpace();
-        const objects = await context.package(objectPackage, await context.locate());
+        const stack = await context.package(stackPackage, await context.locate());
         const where = PackageName.safeParse(asked).success
             ? { packageId: await packageOf(asked, context) }
             : { name: asked };
-        const { items } = await objects.installation.list({ scope: space, where, limit: 1 });
+        const { items } = await stack.installation.list({ scope: space, where, limit: 1 });
         const [installed] = items;
         if (installed === undefined) {
             throw CliError.of(
@@ -115,7 +115,7 @@ export const uninstallCommand: CommandBody = {
 
         // delete it, then follow it until its controller removed it with its resources
         const { environment } = await context.native();
-        await objects.installation.delete({
+        await stack.installation.delete({
             scope: space,
             id: installed.id,
             requestId: RequestId.create(environment),
@@ -186,9 +186,9 @@ async function upsert(
     // read the package's installation, of which a space has one, and the one of that name
     const { environment } = await context.native();
     const space = await context.requireSpace();
-    const objects = await context.package(objectPackage, await context.locate());
+    const stack = await context.package(stackPackage, await context.locate());
     const find = async (where: { readonly packageId: PackageId } | { readonly name: string }) =>
-        (await objects.installation.list({ scope: space, where, limit: 1 })).items[0];
+        (await stack.installation.list({ scope: space, where, limit: 1 })).items[0];
     const installed = await find({ packageId });
     const name = asked ?? installed?.name ?? fallback;
 
@@ -200,7 +200,7 @@ async function upsert(
                 `installation '${name}' already exists: it installs another package, so choose another name with --name`,
             );
         }
-        const created = await objects.installation.create({
+        const created = await stack.installation.create({
             scope: space,
             requestId: RequestId.create(environment),
             packageId,
@@ -219,7 +219,7 @@ async function upsert(
     }
     // change what it follows
     else {
-        await objects.installation.update({
+        await stack.installation.update({
             scope: space,
             id: installed.id,
             requestId: RequestId.create(environment),

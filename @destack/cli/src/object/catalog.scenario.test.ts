@@ -14,7 +14,7 @@ test("serve each noun at the innermost store serving its type", async () => {
 
     // take the account's types from the universe, the space's from its base packages, the device's and machine's from loopback
     expect(
-        ["spaces", "users", "installations", "rollouts", "settings", "computers", "checkouts"].map(
+        ["spaces", "users", "roles", "installations", "settings", "computers", "checkouts"].map(
             sourceOf,
         ),
     ).toEqual([

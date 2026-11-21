@@ -1,13 +1,7 @@
+import { Installation, installation, bucket, database } from "@destack/stack/object";
 import { RelationalQuery } from "@destack/object/client";
 import { principal } from "@destack/access";
-import {
-    approval,
-    type Installation,
-    installation,
-    Observation,
-    type Progress,
-    type Resource,
-} from "@destack/object";
+import { approval, Observation, type Progress, type Resource } from "@destack/object";
 import { Plan, type Risk, type StepKind } from "@destack/resource";
 import type { Identifier } from "@destack/schema";
 import objectPackage from "@destack/object/package";
@@ -16,7 +10,6 @@ import { createClient } from "@destack/object/client";
 import { reference, release, tag } from "@destack/registry/object";
 import { schema } from "@destack/schema";
 import { ObjectReference, RequestId } from "@destack/sync";
-import { bucket, database, type Rollout, rollout } from "@destack/stack/object";
 import { vault } from "@destack/vault/object";
 import type { EventState, Standing, Terminal, Tone } from "../output/index.ts";
 import type { CommandContext } from "../command/context.ts";
@@ -76,29 +69,33 @@ export class InstallationStatus {
     /** The installation. */
     readonly installation: Pick<
         Installation,
-        "id" | "name" | "scope" | "conditions" | "export" | "generation"
+        | "id"
+        | "name"
+        | "scope"
+        | "conditions"
+        | "export"
+        | "generation"
+        | "targetRevisionId"
+        | "appliedRevisionId"
+        | "servedRevisionId"
     >;
     /** What the installation follows, in words. */
     readonly follows: string;
-    /** The rollout's applied and served revisions. */
-    readonly rollout: Pick<Rollout, "appliedRevisionId" | "servedRevisionId">;
     /** The resources the installation manages or owns. */
     readonly resources: readonly Pick<Resource, "name" | "conditions" | "generation">[];
     /** The plan the installation waits on with its digest, absent unless it awaits approval. */
     readonly waiting: Waiting | undefined;
 
-    /** Take an installation's rollout, resources and waiting plan. */
+    /** Take an installation, its resources and waiting plan. */
     constructor(fields: {
         readonly installation: InstallationStatus["installation"];
         readonly follows: string;
-        readonly rollout: InstallationStatus["rollout"];
         readonly resources: InstallationStatus["resources"];
         readonly waiting?: Waiting;
     }) {
-        // set the installation, what it follows, the rollout, the resources and the waiting plan
+        // set the installation, what it follows, the resources and the waiting plan
         this.installation = fields.installation;
         this.follows = fields.follows;
-        this.rollout = fields.rollout;
         this.resources = fields.resources;
         this.waiting = fields.waiting;
     }
@@ -108,7 +105,7 @@ export class InstallationStatus {
         id: Identifier<"installation">,
         context: CommandContext,
     ): AsyncGenerator<InstallationStatus> {
-        // open the space's installations, rollouts and resources as the person until the follow ends
+        // open the space's installations and resources as the person until the follow ends
         const space = await context.requireSpace();
         const launcher = await context.launcher();
         const stack = await context.package(stackPackage, await context.locate());
@@ -117,7 +114,7 @@ export class InstallationStatus {
         const { query } = await native.open(
             launcher,
             { space },
-            { installation, rollout, database, bucket, vault, approval },
+            { installation, database, bucket, vault, approval },
             opened,
         );
         const watching = new AbortController();
@@ -137,7 +134,6 @@ export class InstallationStatus {
         const status = RelationalQuery.latest(
             {
                 installed: query.installation.findFirst({ where: { id } }),
-                rolled: query.rollout.findFirst({ where: { installationId: id } }),
                 // wake once a plan's change request asks its approval
                 asked: query.approval.findMany({ where: { state: "requested" } }),
                 databases: query.database.findMany(owned),
@@ -147,7 +143,7 @@ export class InstallationStatus {
             watching.signal,
         );
         let described: { readonly id: string | null; readonly follows: string } | undefined;
-        for await (const { installed, rolled, databases, buckets, vaults } of status) {
+        for await (const { installed, databases, buckets, vaults } of status) {
             // refuse more resources than the status shows, and an installation gone
             const resources = [...databases, ...buckets, ...vaults];
             if (resources.length > STATUS_RESOURCES) {
@@ -155,7 +151,7 @@ export class InstallationStatus {
                     "RESOURCE_LIMIT_INVALID",
                     `installation '${id}' is invalid: it has more than ${STATUS_RESOURCES} resources`,
                 );
-            } else if (installed === undefined || rolled === undefined) {
+            } else if (installed === undefined) {
                 throw CliError.of(
                     "INSTALLATION_NOT_FOUND",
                     `installation '${id}' of '${space}' not found`,
@@ -165,7 +161,7 @@ export class InstallationStatus {
             // read the plan, its digest and the approval it asks while the installation awaits approval
             const planned =
                 Observation.progress(installed) === "approval"
-                    ? await stack.rollout.plan({ spaceId: space, id })
+                    ? await stack.installation.plan({ scope: space, id })
                     : undefined;
             const waiting =
                 planned === undefined || planned.approval === null
@@ -181,7 +177,6 @@ export class InstallationStatus {
             yield new InstallationStatus({
                 installation: installed,
                 follows: described.follows,
-                rollout: rolled,
                 resources,
                 ...(waiting === undefined ? {} : { waiting }),
             });
@@ -227,15 +222,15 @@ export class InstallationStatus {
         json: boolean,
         context: CommandContext,
     ): Promise<InstallationStatus> {
-        // show each state live until the installation is current
+        // show each state live until the installation is current and its space serves it
         const live = context.terminal.live(json);
         let approved: string | undefined;
         for await (const status of InstallationStatus.follow(id, context)) {
             await live.show(status.show(json, context));
             const { progress, waiting } = status;
             const { name } = status.installation;
-            // end once current
-            if (progress === "current") {
+            // end once current and served
+            if (progress === "current" && Installation.isServed(status.installation)) {
                 return status;
             }
             // refuse a failure
@@ -296,7 +291,7 @@ export class InstallationStatus {
         const lines = [
             terminal.event(word, state, said, Observation.condition(installed)?.reason),
             `  ${terminal.style("dim", "follows ")}  ${this.follows}`,
-            `  ${terminal.style("dim", "revision")}  ${this.rollout.appliedRevisionId ?? "-"}`,
+            `  ${terminal.style("dim", "revision")}  ${this.installation.appliedRevisionId ?? "-"}`,
         ];
 
         // list each resource with its dot, what it reports, and the reason's code dim for searching

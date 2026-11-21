@@ -55,8 +55,8 @@ export const planCommand: CommandBody = {
     async run({ arguments: { installation: name }, options, isJson: json }, context) {
         // show it once, or each change when watched
         const space = await context.requireSpace();
-        const objects = await context.package(objectPackage, await context.locate());
-        const { id } = await objects.installation.get({
+        const stack = await context.package(stackPackage, await context.locate());
+        const { id } = await stack.installation.get({
             scope: space,
             id: present(name, "the installation argument"),
         });
@@ -98,14 +98,14 @@ function decideCommand(decision: "approve" | "reject"): CommandBody {
                 );
             }
             const space = await context.requireSpace();
-            const objects = await context.package(objectPackage, await context.locate());
-            const { id } = await objects.installation.get({
+            const stack = await context.package(stackPackage, await context.locate());
+            const { id } = await stack.installation.get({
                 scope: space,
                 id: present(name, "the installation argument"),
             });
             const { environment } = await context.native();
-            const stack = await context.package(stackPackage, await context.locate());
-            const waiting = await stack.rollout.plan({ spaceId: space, id });
+            const objects = await context.package(objectPackage, await context.locate());
+            const waiting = await stack.installation.plan({ scope: space, id });
             if (waiting.digest !== plan || waiting.approval === null) {
                 throw CliError.of(
                     "PLAN_BLOCKED",
@@ -165,8 +165,8 @@ async function submitStack(
 
     // create the stack installation when the space has none
     const location = await context.locate();
-    const objects = await context.package(objectPackage, location);
-    const { items } = await objects.installation.list({
+    const stack = await context.package(stackPackage, location);
+    const { items } = await stack.installation.list({
         scope: space,
         where: { name: STACK_INSTALLATION },
         limit: 1,
@@ -190,7 +190,7 @@ async function submitStack(
     // follow the checkout with the export and its arguments on a new installation
     let installed: { readonly id: Identifier<"installation"> };
     if (existing === undefined) {
-        installed = await objects.installation.create({
+        installed = await stack.installation.create({
             scope: space,
             requestId: RequestId.create(environment),
             packageId,
@@ -204,7 +204,7 @@ async function submitStack(
     }
     // follow it on the space's installation
     else {
-        installed = await objects.installation.update({
+        installed = await stack.installation.update({
             scope: space,
             id: existing.id,
             requestId: RequestId.create(environment),
@@ -213,10 +213,9 @@ async function submitStack(
         });
     }
 
-    // deploy the stack at the submitted build
-    const stack = await context.package(stackPackage, location);
-    await stack.rollout.deploy({
-        spaceId: space,
+    // reconcile the stack at the submitted build
+    await stack.installation.reconcile({
+        scope: space,
         id: installed.id,
         requestId: RequestId.create(environment),
         build: submission.build,
