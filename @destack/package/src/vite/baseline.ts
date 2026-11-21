@@ -1,4 +1,4 @@
-import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
 import MagicString from "magic-string";
 import type { Plugin } from "vite";
 
@@ -19,8 +19,9 @@ export function baselinePlugin(): Plugin {
             isWorker = configuration.isWorker;
         },
         resolveId(id) {
+            // resolve it from this package
             return id === BASELINE_MODULE
-                ? fileURLToPath(import.meta.resolve("@destack/environment/baseline"))
+                ? createRequire(import.meta.url).resolve("@destack/environment/baseline")
                 : undefined;
         },
         transformIndexHtml() {
