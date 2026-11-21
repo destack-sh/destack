@@ -33,7 +33,7 @@ import { Dataflow, type DataflowInspection } from "../dataflow/dataflow.ts";
 import { PAGE_SIZE } from "../dataflow/selection.ts";
 import { Run } from "../dataflow/run.ts";
 import { Memo, View, type Cache, type Window } from "../dataflow/view.ts";
-import { Clock, type Scheduler, untilAborted } from "@destack/environment";
+import { Clock, type Scheduler, Telemetry, untilAborted } from "@destack/environment";
 
 /** The default count of recent changes a feed stores in memory. */
 const FEED_CHANGES = 10_000;
@@ -658,7 +658,8 @@ export class Feed implements Cache {
     #watch(): Promise<void> {
         // mark a new watch's failure handled, as followers race the watch in turns
         if (this.#requested === undefined) {
-            const watching = this.#watchRequests();
+            const { telemetry } = this.database.state.environment;
+            const watching = Telemetry.detach(telemetry, () => this.#watchRequests());
             watching.catch(() => {});
             this.#requested = watching;
         }
