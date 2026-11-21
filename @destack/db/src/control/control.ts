@@ -28,7 +28,7 @@ import { type Link, TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
 import { PackageName } from "@destack/package";
 import { Failure } from "@destack/error";
-import { Clock, RetryPolicy, untilAborted, waitAborted } from "@destack/environment";
+import { Clock, RetryPolicy, Telemetry, untilAborted, waitAborted } from "@destack/environment";
 import type { Alarm } from "./alarm.ts";
 import type { Environment } from "@destack/environment";
 
@@ -873,7 +873,12 @@ export class ControlLoop {
             try {
                 for await (const page of this.database.log.follow({ tables, after }, following)) {
                     for (const change of page.changes) {
-                        await this.#changed(change);
+                        await this.#instruments.span(
+                            "destack.controller.select",
+                            { "db.collection.name": change.table[TABLE].sqlName },
+                            () => this.#changed(change),
+                            { duration: false },
+                        );
                     }
 
                     // record the consumed sequence for idle waiters, and let other tasks run
@@ -1353,14 +1358,17 @@ export class ControlLoop {
     /** List a controller's pending keys and its next wake, one listing at a time. */
     #list(controller: Job, by: Listing): Promise<void> {
         // count the listing by what listed it
-        this.#listings.add(1, {
-            "destack.controller.name": controller.name,
-            "destack.wake.kind": by,
-        });
+        const listed = { "destack.controller.name": controller.name, "destack.wake.kind": by };
+        this.#listings.add(1, listed);
 
-        // read the job's keys after its listing in flight
+        // read the job's keys in a span after its listing in flight
         const listing = (this.#listing.get(controller) ?? Promise.resolve()).then(() =>
-            this.#read(controller, by),
+            this.#instruments.span(
+                "destack.controller.list",
+                listed,
+                () => this.#read(controller, by),
+                { duration: false },
+            ),
         );
         this.#listing.set(
             controller,
@@ -1896,11 +1904,17 @@ export class ControlLoop {
         const isFollow = attributes["destack.controller.kind"] === "follow";
         const woken = { ...attributes, "destack.wake.kind": work.wake };
 
-        return this.#instruments.span(
-            "destack.controller.pass",
-            { ...woken, "destack.key": work.key },
-            run,
-            { duration: isFollow ? false : { attributes: woken }, links: work.links },
+        // start the pass with no span active, linked to the changes that made its key due
+        const { telemetry } = this.database.state.environment;
+
+        return Telemetry.detach(telemetry, () =>
+            this.#instruments.span(
+                "destack.controller.pass",
+                { ...woken, "destack.key": work.key },
+                // run a follow's body with no span active
+                isFollow ? () => Telemetry.detach(telemetry, () => run()) : run,
+                { duration: isFollow ? false : { attributes: woken }, links: work.links },
+            ),
         );
     }
 
