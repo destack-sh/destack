@@ -1,4 +1,4 @@
-import type { Environment } from "@destack/environment";
+import { BasicCredential, type Environment } from "@destack/environment";
 import { OriginPath } from "@destack/package";
 import { type DatabaseConnection, eq, Snapshot } from "@destack/db";
 import { Digest, schema } from "@destack/schema";
@@ -31,9 +31,6 @@ const LOOPBACK_HOSTS: ReadonlySet<string> = new Set(["127.0.0.1", "[::1]"]);
 
 /** The path of a native client's loopback redirect. */
 const LOOPBACK_PATH = "/callback";
-
-/** The HTTP authentication scheme of a client's secret (RFC 6749 2.3.1). */
-const BASIC = "Basic ";
 
 /** The scopes an installation's origin may ask: the person and their profile, no refresh tokens. */
 const INSTALLATION_SCOPES: readonly string[] = ["openid", "profile", "email"];
@@ -283,11 +280,10 @@ export const ClientAuthentication = {
     ): Promise<OAuthClient> {
         // read the client's identifier and secret from the basic header, else from the form
         const basic = headers.get("authorization");
-        const isBasic = basic?.slice(0, BASIC.length).toLowerCase() === BASIC.toLowerCase();
-        const [clientId, secret] =
-            basic !== null && isBasic
-                ? ClientAuthentication.basic(basic.slice(BASIC.length))
-                : [body["client_id"], body["client_secret"]];
+        const isBasic = BasicCredential.is(basic);
+        const [clientId, secret] = isBasic
+            ? ClientAuthentication.basic(basic)
+            : [body["client_id"], body["client_secret"]];
         if (clientId === undefined) {
             throw OAuthError.of(
                 "CLIENT_UNAUTHENTICATED",
@@ -300,8 +296,7 @@ export const ClientAuthentication = {
         const { crypto } = options.environment;
         const party = await OAuthClient.find(clientId, database, universe);
         const method = party.application?.tokenEndpointAuthMethod ?? "none";
-        const sent =
-            basic?.startsWith(BASIC) === true ? "client_secret_basic" : "client_secret_post";
+        const sent = isBasic ? "client_secret_basic" : "client_secret_post";
 
         // refuse a secret for a public client
         if (method === "none" && secret !== undefined) {
@@ -332,13 +327,12 @@ export const ClientAuthentication = {
     },
 
     /** Read a basic header's client identifier and secret, each form-encoded (RFC 6749 2.3.1). */
-    basic(credentials: string): [string, string] {
-        // split the decoded pair at its first colon, refusing malformed base64 or escapes
+    basic(authorization: string | null): [string, string] {
+        // read the pair and decode each half, refusing malformed base64 or escapes
+        const read = BasicCredential.read(authorization);
         try {
-            const decoded = new TextDecoder().decode(Uint8Array.fromBase64(credentials));
-            const colon = decoded.indexOf(":");
-            if (colon >= 0) {
-                return [formDecode(decoded.slice(0, colon)), formDecode(decoded.slice(colon + 1))];
+            if (read !== undefined) {
+                return [formDecode(read.username), formDecode(read.password)];
             }
         } catch (error) {
             throw OAuthError.of(
