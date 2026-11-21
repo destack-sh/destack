@@ -52,7 +52,7 @@ export const NotificationDescription = NotificationMetadata.extend({
     /** The actions, the first the default. */
     actions: schema.array(NotificationActionDescription),
     /** How long after its first occurrence a notification collapses later ones of its thread. */
-    collapse: Duration.schema.exactOptional(),
+    collapse: Duration.exactOptional(),
 });
 /** A declared notification as manifests describe it. */
 export type NotificationDescription = schema.Infer<typeof NotificationDescription>;

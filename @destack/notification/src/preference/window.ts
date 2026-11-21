@@ -20,10 +20,10 @@ export const Window = Object.assign(windowSchema, {
         const today = TimeZone.date(timeZone, now);
         const ends: number[] = [];
         for (const offset of [-1, 0]) {
-            const date = PlainDate.add(today, offset);
+            const date = PlainDate.add(today, { days: offset });
             for (const window of windows) {
                 // skip windows not starting on the date's weekday
-                if (!window.days.includes(PlainDate.weekday(date))) {
+                if (!window.days.includes(PlainDate.dayOfWeek(date))) {
                     continue;
                 }
 
@@ -32,7 +32,7 @@ export const Window = Object.assign(windowSchema, {
                 const start = TimeZone.instant(timeZone, date, window.from);
                 const stop = TimeZone.instant(
                     timeZone,
-                    PlainDate.add(date, isOvernight ? 1 : 0),
+                    PlainDate.add(date, { days: isOvernight ? 1 : 0 }),
                     window.to,
                 );
                 if (start <= now && now < stop) {
