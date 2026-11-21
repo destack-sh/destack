@@ -36,6 +36,7 @@ import {
     zip,
 } from "@destack/schema";
 import type { ObjectRemote } from "../replica/remote.ts";
+import type { ObjectConnection } from "../replica/connection.ts";
 import { Replay } from "../audit/replay.ts";
 import { decisionTables } from "@destack/access";
 import { Observable } from "./observable.ts";
@@ -603,12 +604,13 @@ export class ObjectClient<
         }
     }
 
-    /** Open a client over a database only it uses, pushing and following until the stack closes. */
+    /** Open a client over a database and a connection only it uses, until the stack closes. */
     static async start<const Objects extends Readonly<Record<string, ObjectType>>>(
-        options: ObjectClientOptions<Objects>,
+        options: ObjectClientOptions<Objects> & { readonly remote: ObjectConnection },
         stack: AsyncDisposableStack,
     ): Promise<ObjectClient<Objects>> {
-        // open the client, closed with the stack
+        // open the client, closed with the stack before its connection
+        stack.defer(() => options.remote.close());
         const client = await ObjectClient.open(options);
         stack.defer(() => client.close());
 
