@@ -32,6 +32,7 @@ import {
     useLocale,
 } from "@destack/view";
 import { StoredItem } from "@destack/view/primitives/storage";
+import { Hover } from "../interaction/index.ts";
 import {
     type ElementPartProperties,
     type PartAttributes,
@@ -693,14 +694,19 @@ function SidebarMenuButtonElement(
     const tooltip = useContext(TooltipContext);
     const isHinting = (): boolean => tooltip !== null && !control.isOpen() && !control.isMobile();
     const rest = omit(properties, "active", "size", "xstyle", "style", "render");
-    const hint = (event: PartEvent<Event>) => {
+    const hint = (element: HTMLElement) => {
         // anchor the tooltip to the hinted element and show it
-        tooltip?.setTrigger(event.currentTarget);
+        tooltip?.setTrigger(element);
         if (isHinting()) {
             tooltip?.open();
         }
     };
+    const hover = new Hover({
+        onHoverStart: (event) => hint(event.target),
+        onHoverEnd: () => tooltip?.close(),
+    });
     const part: PartAttributes = merge(
+        hover.attributes(),
         {
             "data-slot": "sidebar-menu-button",
             get "data-active"() {
@@ -712,9 +718,7 @@ function SidebarMenuButtonElement(
             get "aria-describedby"() {
                 return isHinting() ? tooltip?.id : undefined;
             },
-            onPointerEnter: hint,
-            onPointerLeave: () => tooltip?.close(),
-            onFocus: hint,
+            onFocus: (event: PartEvent<Event>) => hint(event.currentTarget),
             onBlur: () => tooltip?.close(),
         },
         () =>

@@ -1,6 +1,7 @@
 import * as style from "@destack/style";
 import { color, radius, shadow, space, stroke, width } from "@destack/theme/tokens.stylex";
 import { createContext, createEffect, type JSX, merge, omit, useContext } from "@destack/view";
+import { Hover } from "../interaction/index.ts";
 import { HoverPopover, type HoverPopoverProperties } from "../popover/index.ts";
 import { type Align, Position, type Side } from "../position/index.ts";
 import { TopLayer } from "../layer/index.ts";
@@ -89,6 +90,10 @@ export function HoverCard(properties: HoverCardProperties): JSX.Element {
 /** Render a link that opens its hover card on hover or focus after the delay. */
 export function HoverCardTrigger(properties: HoverCardTriggerProperties): JSX.Element {
     const card = useHoverCard();
+    const hover = new Hover({
+        onHoverStart: () => card.openLater(),
+        onHoverEnd: () => card.closeLater(),
+    });
 
     return (
         <a
@@ -96,8 +101,7 @@ export function HoverCardTrigger(properties: HoverCardTriggerProperties): JSX.El
             data-state={card.isOpen() ? "open" : "closed"}
             {...properties}
             ref={(element) => card.setTrigger(element)}
-            onPointerEnter={() => card.openLater()}
-            onPointerLeave={() => card.closeLater()}
+            {...hover.attributes()}
             onFocus={() => card.openLater()}
             onBlur={() => card.closeLater()}
         />
@@ -114,6 +118,12 @@ export function HoverCardContent(properties: HoverCardContentProperties): JSX.El
     // show and hide the card as it opens and closes
     createEffect(card.isOpen, (isOpen) => card.sync(isOpen));
 
+    // keep the card open while a pointer rests on it
+    const hover = new Hover({
+        onHoverStart: () => card.open(),
+        onHoverEnd: () => card.closeLater(),
+    });
+
     return (
         <TopLayer>
             <div
@@ -126,8 +136,7 @@ export function HoverCardContent(properties: HoverCardContentProperties): JSX.El
                 {...rest}
                 ref={(element) => card.setContent(element)}
                 onToggle={(event) => card.follow(event)}
-                onPointerEnter={() => card.open()}
-                onPointerLeave={() => card.closeLater()}
+                {...hover.attributes()}
                 {...style.attributes(
                     [
                         styles.content,

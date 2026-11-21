@@ -20,6 +20,7 @@ import {
     useContext,
     useLocale,
 } from "@destack/view";
+import { Hover, type InteractionEvent } from "../interaction/index.ts";
 import {
     type ElementPartProperties,
     type PartAttributes,
@@ -471,7 +472,9 @@ export function MenuItem(properties: MenuItemProperties): JSX.Element {
         "render",
     );
     const item = control.join(() => properties.disabled === true);
+    const hover = new Hover({ onHoverStart: (event) => focusItem(event, control) });
     const part: PartAttributes = merge(
+        hover.attributes(),
         {
             role: "menuitem" as const,
             tabindex: -1,
@@ -490,7 +493,6 @@ export function MenuItem(properties: MenuItemProperties): JSX.Element {
             },
             onClick: (event: MouseEvent) => choose(event, control, properties),
             onKeyDown: activate,
-            onPointerEnter: (event: PartEvent<PointerEvent>) => hover(event, control),
         },
         () =>
             style.attributes(
@@ -530,6 +532,7 @@ export function MenuCheckboxItem(properties: MenuCheckboxItemProperties): JSX.El
         "children",
     );
     const item = control.join(() => properties.disabled === true);
+    const hover = new Hover({ onHoverStart: (event) => focusItem(event, control) });
 
     return (
         <div
@@ -552,7 +555,7 @@ export function MenuCheckboxItem(properties: MenuCheckboxItemProperties): JSX.El
                 choose(event, control, properties);
             }}
             onKeyDown={(event) => activate(event)}
-            onPointerEnter={(event) => hover(event, control)}
+            {...hover.attributes()}
             {...style.attributes(
                 [
                     styles.item,
@@ -614,6 +617,7 @@ export function MenuRadioItem(properties: MenuRadioItemProperties): JSX.Element 
     );
     const isChecked = (): boolean => radio.value() === properties.value;
     const item = control.join(() => properties.disabled === true);
+    const hover = new Hover({ onHoverStart: (event) => focusItem(event, control) });
 
     return (
         <div
@@ -636,7 +640,7 @@ export function MenuRadioItem(properties: MenuRadioItemProperties): JSX.Element 
                 choose(event, control, properties);
             }}
             onKeyDown={(event) => activate(event)}
-            onPointerEnter={(event) => hover(event, control)}
+            {...hover.attributes()}
             {...style.attributes(
                 [
                     styles.item,
@@ -709,6 +713,17 @@ export function MenuSubTrigger(
         key === " " ||
         key === (locale.direction === "rtl" ? "ArrowLeft" : "ArrowRight");
 
+    // focus an enabled trigger under the pointer and open its submenu in place of any other
+    const hover = new Hover({
+        onHoverStart: (event) => {
+            if (isEnabled()) {
+                event.target.focus();
+                parent.closeSubmenus();
+                control.open("none");
+            }
+        },
+    });
+
     return (
         <div
             id={control.triggerId}
@@ -732,14 +747,7 @@ export function MenuSubTrigger(
                     control.open("first");
                 }
             }}
-            onPointerEnter={(event) => {
-                // focus an enabled trigger and open its submenu in place of any other
-                if (isEnabled()) {
-                    event.currentTarget.focus();
-                    parent.closeSubmenus();
-                    control.open("none");
-                }
-            }}
+            {...hover.attributes()}
             {...style.attributes(
                 [
                     styles.item,
@@ -792,8 +800,8 @@ function navigate(
 }
 
 /** Focus a hovered item and close the submenus of its menu. */
-function hover(event: PartEvent<PointerEvent>, control: MenuControl): void {
-    event.currentTarget.focus();
+function focusItem(event: InteractionEvent, control: MenuControl): void {
+    event.target.focus();
     control.closeSubmenus();
 }
 

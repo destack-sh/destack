@@ -13,7 +13,8 @@ export const contextMenuOpenAtPointer = defineScenario({
     parameters: {},
     when: [
         {
-            action: "rightClick",
+            action: "click",
+            button: "secondary",
             target: { text: "Groceries: milk, bread, apples" },
             position: { x: 40, y: 120 },
         },

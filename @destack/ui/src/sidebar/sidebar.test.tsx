@@ -118,6 +118,7 @@ test("name a menu button in a tooltip only while the sidebar shows its icons", (
         link?.hasAttribute("aria-describedby"),
         tooltip?.hasAttribute("data-popover-open"),
     ];
+    link?.dispatchEvent(new Event("pointerleave"));
     container.querySelector<HTMLElement>("[data-slot=sidebar-trigger]")?.click();
     flush();
     link?.dispatchEvent(new Event("pointerenter"));

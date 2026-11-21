@@ -19,6 +19,8 @@ import {
     useEnvironment,
     useLocale,
 } from "@destack/view";
+import { Move } from "../interaction/index.ts";
+import { mergeProperties } from "../part/index.ts";
 
 /** The storage key prefix of saved layouts. */
 const LAYOUT_KEY = "destack-resizable:";
@@ -59,7 +61,6 @@ const styles = style.create({
         justifyContent: "center",
         flexShrink: 0,
         backgroundColor: color.border,
-        touchAction: "none",
         outlineStyle: { default: "none", ":focus-visible": "solid" },
         outlineWidth: stroke.ring,
         outlineColor: `color-mix(in oklab, ${color.ring} 50%, transparent)`,
@@ -317,7 +318,7 @@ export interface ResizablePanelProperties extends Omit<
 /** The properties of a handle between two panels, the native element's attributes included. */
 export interface ResizableHandleProperties extends Omit<
     JSX.HTMLAttributes<HTMLDivElement>,
-    "class" | "onKeyDown" | "onPointerDown" | "onPointerMove" | "onPointerUp"
+    "class" | "onKeyDown" | "onPointerDown" | "onPointerMove" | "onPointerUp" | "onPointerCancel"
 > {
     /** Whether the handle shows a grip to aim at. */
     readonly withHandle?: boolean;
@@ -414,9 +415,53 @@ export function ResizableHandle(properties: ResizableHandleProperties): JSX.Elem
     const handle = control.nextHandle();
     const rest = omit(properties, "withHandle", "xstyle", "style");
     const before = (): ResizablePanelState | undefined => control.panels()[handle];
-    let start:
-        | { readonly position: number; readonly extent: number; readonly layout: number[] }
-        | undefined;
+    let start: { readonly extent: number; readonly layout: number[] } = { extent: 0, layout: [] };
+
+    // move by the pointer's share of the group since it pressed
+    const move = new Move(
+        {
+            distance: 0,
+            onMoveStart: (event) => {
+                const group = event.target.parentElement?.getBoundingClientRect();
+                const extent = control.direction() === "horizontal" ? group?.width : group?.height;
+                start = { extent: extent ?? 0, layout: control.layout() };
+            },
+            onMove: (event) => {
+                // step by an arrow key along the group's axis
+                const isHorizontal = control.direction() === "horizontal";
+                if (event.pointerType === "keyboard") {
+                    const mirror = isHorizontal && locale.direction === "rtl" ? -1 : 1;
+                    const steps = isHorizontal ? event.deltaX * mirror : event.deltaY;
+                    control.move(handle, steps * KEYBOARD_STEP);
+
+                    return;
+                }
+
+                // follow a pointer by its share of the group since it pressed
+                const offset = isHorizontal ? event.offsetX : event.offsetY;
+                if (start.extent > 0) {
+                    control.apply(start.layout);
+                    control.move(handle, (offset / start.extent) * 100);
+                }
+            },
+        },
+        useEnvironment().clock,
+    );
+
+    // collapse or restore the panel before on Enter, and move to its limits on Home and End
+    const keys = {
+        onKeyDown: (event: KeyboardEvent) => {
+            const panel = before();
+            if (event.key === "Enter") {
+                event.preventDefault();
+                control.toggle(handle);
+            } else if (panel !== undefined && (event.key === "Home" || event.key === "End")) {
+                event.preventDefault();
+                const limit = event.key === "Home" ? panel.minimum : panel.maximum;
+                control.move(handle, limit - control.sizeOf(panel));
+            }
+        },
+    };
 
     return (
         <div
@@ -429,43 +474,7 @@ export function ResizableHandle(properties: ResizableHandleProperties): JSX.Elem
             aria-valuemax={before()?.maximum ?? 100}
             data-slot="resizable-handle"
             {...rest}
-            onKeyDown={(event) => {
-                // collapse or restore the panel before on Enter
-                if (event.key === "Enter") {
-                    event.preventDefault();
-                    control.toggle(handle);
-                    return;
-                }
-
-                // move by a step, or to the panel's limits on Home and End
-                const delta = keyDelta(event.key, control, before(), locale.direction);
-                if (delta !== undefined) {
-                    event.preventDefault();
-                    control.move(handle, delta);
-                }
-            }}
-            onPointerDown={(event) => {
-                // follow the pointer from where it pressed, measured against the group
-                const group = event.currentTarget.parentElement?.getBoundingClientRect();
-                const isHorizontal = control.direction() === "horizontal";
-                event.currentTarget.setPointerCapture(event.pointerId);
-                start = {
-                    position: isHorizontal ? event.clientX : event.clientY,
-                    extent: (isHorizontal ? group?.width : group?.height) ?? 0,
-                    layout: control.layout(),
-                };
-            }}
-            onPointerMove={(event) => {
-                // move by the pointer's share of the group since it pressed
-                if (start === undefined || start.extent === 0) {
-                    return;
-                }
-                const position =
-                    control.direction() === "horizontal" ? event.clientX : event.clientY;
-                control.apply(start.layout);
-                control.move(handle, ((position - start.position) / start.extent) * 100);
-            }}
-            onPointerUp={() => (start = undefined)}
+            {...mergeProperties(move.attributes(), keys)}
             {...style.attributes(
                 [styles.handle, handles[control.direction()], properties.xstyle],
                 properties.style,
@@ -481,30 +490,4 @@ export function ResizableHandle(properties: ResizableHandleProperties): JSX.Elem
 /** Read a panel's share, or zero before the panel mounts. */
 function sizeOrZero(control: ResizableControl, panel: ResizablePanelState | undefined): number {
     return panel === undefined ? 0 : control.sizeOf(panel);
-}
-
-/** Read the share a key moves a handle by, mirroring left and right in right-to-left text. */
-function keyDelta(
-    key: string,
-    control: ResizableControl,
-    panel: ResizablePanelState | undefined,
-    direction: "ltr" | "rtl",
-): number | undefined {
-    // a step along the group's axis
-    const isHorizontal = control.direction() === "horizontal";
-    const grow = isHorizontal ? (direction === "rtl" ? "ArrowLeft" : "ArrowRight") : "ArrowDown";
-    const shrink = isHorizontal ? (direction === "rtl" ? "ArrowRight" : "ArrowLeft") : "ArrowUp";
-    if (key === grow) {
-        return KEYBOARD_STEP;
-    } else if (key === shrink) {
-        return -KEYBOARD_STEP;
-    }
-    // the panel's limits
-    else if (panel !== undefined && key === "Home") {
-        return panel.minimum - control.sizeOf(panel);
-    } else if (panel !== undefined && key === "End") {
-        return panel.maximum - control.sizeOf(panel);
-    } else {
-        return undefined;
-    }
 }

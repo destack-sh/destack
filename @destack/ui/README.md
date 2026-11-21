@@ -19,6 +19,8 @@ Components build on:
 
 - `renderPart`: builds a part from an element, its slot and styles.
 - Collections, focus, selection and positioning: after React Aria, under lists, menus, trees and tables.
+- `Press`, `LongPress`, `Hover`, `Move`, `Zoom` and `Swipe`: gestures, after React Aria.
+- `DragManager`, `Draggable` and `Droppable`: drags by pointer, touch and keys, after dnd-kit.
 
 Style a button and show a toast:
 
@@ -44,16 +46,15 @@ export const Save = () => (
 
 Each entry is `@destack/ui/<entry>`.
 
-| Group                  | Entries                                                                                                                                                                                                                                                                                                                                                |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Forms                  | `autocomplete`, `button`, `button-group`, `calendar`, `checkbox`, `color-swatch-picker`, `combobox`, `date-field`, `date-picker`, `emoji-picker`, `field`, `icon-picker`, `input`, `input-group`, `input-otp`, `label`, `radio-group`, `schema-form`, `select`, `slider`, `switch`, `textarea`, `time-field`, `toggle`, `toggle-group`, `verification` |
-| Overlays               | `alert-dialog`, `context-menu`, `dialog`, `drawer`, `dropdown-menu`, `hover-card`, `menubar`, `popover`, `sheet`, `toast`, `tooltip`                                                                                                                                                                                                                   |
-| Navigation             | `breadcrumb`, `command`, `navigation-menu`, `pagination`, `sidebar`, `tabs`                                                                                                                                                                                                                                                                            |
-| Data                   | `avatar`, `badge`, `card`, `carousel`, `chart`, `code-block`, `data-table`, `grid-list`, `item`, `kbd`, `list-box`, `table`, `tree`                                                                                                                                                                                                                    |
-| Feedback and structure | `accordion`, `alert`, `aspect-ratio`, `collapsible`, `empty`, `progress`, `prose`, `resizable`, `scroll-area`, `separator`, `skeleton`, `spinner`, `visually-hidden`                                                                                                                                                                                   |
-| Account                | `consent`, `sign-in`, `sign-up`                                                                                                                                                                                                                                                                                                                        |
-| Layout                 | `stack`, `cluster`, `grid`, `center`, `switcher`, `cover`, `content`                                                                                                                                                                                                                                                                                   |
-| Building blocks        | `part`, `collection`, `focus`, `position`, `selection`, `sortable`, `toggle-state`, `virtualizer`, `glyph`                                                                                                                                                                                                                                             |
+| Group                  | Entries                                                                                                                                                                                                                                                                                                                 |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Forms                  | `autocomplete`, `button`, `button-group`, `calendar`, `checkbox`, `color-swatch-picker`, `combobox`, `date-field`, `date-picker`, `emoji-picker`, `field`, `icon-picker`, `input`, `input-group`, `input-otp`, `label`, `radio-group`, `select`, `slider`, `switch`, `textarea`, `time-field`, `toggle`, `toggle-group` |
+| Overlays               | `alert-dialog`, `context-menu`, `dialog`, `drawer`, `dropdown-menu`, `hover-card`, `menubar`, `popover`, `sheet`, `toast`, `tooltip`                                                                                                                                                                                    |
+| Navigation             | `breadcrumb`, `command`, `navigation-menu`, `pagination`, `sidebar`, `tabs`                                                                                                                                                                                                                                             |
+| Data                   | `avatar`, `badge`, `card`, `carousel`, `chart`, `code-block`, `data-table`, `grid-list`, `item`, `kbd`, `list-box`, `object`, `table`, `tree`                                                                                                                                                                           |
+| Feedback and structure | `accordion`, `alert`, `aspect-ratio`, `collapsible`, `empty`, `progress`, `prose`, `resizable`, `scroll-area`, `separator`, `skeleton`, `spinner`, `visually-hidden`                                                                                                                                                    |
+| Layout                 | `stack`, `cluster`, `grid`, `center`, `switcher`, `cover`, `content`                                                                                                                                                                                                                                                    |
+| Building blocks        | `part`, `collection`, `focus`, `position`, `selection`, `interaction`, `drag`, `sortable`, `toggle-state`, `virtualizer`, `glyph`                                                                                                                                                                                       |
 
 ### Parts
 
@@ -149,30 +150,6 @@ export const SortSelect = () => (
 );
 ```
 
-### Generate a form from a schema
-
-`SchemaForm` renders a field per property of a JSON Schema, such as a method's input.
-
-```tsx
-import { JsonValue, schema, toJsonSchema } from "@destack/schema";
-import { SchemaForm } from "@destack/ui/schema-form";
-
-// a task's input, with titles shown as labels
-const task = schema.object({
-    title: schema.string().min(1).meta({ title: "Title" }),
-    priority: schema.enum(["low", "normal", "high"]).meta({ title: "Priority" }).exactOptional(),
-});
-
-/** File a task from a form generated from its input. */
-export const TaskForm = (properties: { readonly file: (input: unknown) => void }) => (
-    <SchemaForm
-        schema={JsonValue.object(toJsonSchema(task))}
-        submit="File task"
-        onSubmit={properties.file}
-    />
-);
-```
-
 ### Build a part
 
 `renderPart` takes an element, its slot, the caller's properties and its styles.
@@ -186,6 +163,66 @@ const styles = style.create({ footer: { display: "flex", gap: "0.5rem" } });
 
 export function CardFooter(properties: { readonly children?: string }) {
     return renderPart("div", "card-footer", properties, styles.footer);
+}
+```
+
+### Press and move an element
+
+Spread a gesture's attributes on its element.
+
+```tsx
+import { Move, Press } from "@destack/ui/interaction";
+import { mergeProperties } from "@destack/ui/part";
+import { useEnvironment } from "@destack/view";
+
+// a pin that opens on a press and follows a held pointer
+export function Pin(properties: {
+    readonly onOpen: () => void;
+    readonly onMove: (x: number, y: number) => void;
+}) {
+    const { clock } = useEnvironment();
+    const press = new Press({ onPress: () => properties.onOpen() });
+    const move = new Move(
+        { onMove: (event) => properties.onMove(event.offsetX, event.offsetY) },
+        clock,
+    );
+
+    return <button {...mergeProperties(press.attributes(), move.attributes())}>Pin</button>;
+}
+```
+
+### Reorder a list
+
+`Sortable` reports where an item was dropped.
+
+```tsx
+import { Sortable, SortableContainer, SortableHandle, SortableItem } from "@destack/ui/sortable";
+import { createSignal, For } from "@destack/view";
+
+// the steps in the order people leave them
+export function Steps() {
+    const [steps, setSteps] = createSignal(["Pack", "Check in", "Board"]);
+    const place = (id: string, next: string | undefined) =>
+        setSteps((current) => {
+            const rest = current.filter((step) => step !== id);
+            const at = next === undefined ? rest.length : rest.indexOf(next);
+
+            return [...rest.slice(0, at), id, ...rest.slice(at)];
+        });
+
+    return (
+        <Sortable onMove={(move) => place(move.id, move.next)}>
+            <SortableContainer id="steps" label="Steps">
+                <For each={steps()}>
+                    {(step) => (
+                        <SortableItem id={step}>
+                            <SortableHandle /> {step}
+                        </SortableItem>
+                    )}
+                </For>
+            </SortableContainer>
+        </Sortable>
+    );
 }
 ```
 
@@ -209,3 +246,17 @@ Components, parts and props follow shadcn/ui and Radix, and some follow their ow
 | copied React components | Solid components in a package | Styled with StyleX instead of Tailwind.            |
 | Radix's Popper          | CSS anchor positioning        | Dialogs, popovers and drawers are native elements. |
 | English strings         | the reader's locale           | Component text is translated.                      |
+
+### React Aria and dnd-kit
+
+Gestures follow React Aria and drags follow dnd-kit.
+
+| Prior art                          | `@destack/ui` | Difference                                          |
+| ---------------------------------- | ------------- | --------------------------------------------------- |
+| React Aria's `usePress`            | `Press`       | Adds `keys`. Positions are in the viewport.         |
+| React Aria's `useLongPress`        | `LongPress`   | A pen long-presses too.                             |
+| React Aria's `useHover`            | `Hover`       | The same.                                           |
+| React Aria's `useMove`             | `Move`        | Starts after a distance, or after a finger's hold.  |
+| use-gesture's pinch                | `Zoom`        | Reports the factor of each step.                    |
+| dnd-kit's `DndContext` and sensors | `DragManager` | A drag targets a place in a list, a cell or a time. |
+| dnd-kit's `DragOverlay`            | `DragPreview` | Shows a copy of the lifted item.                    |

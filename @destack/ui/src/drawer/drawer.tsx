@@ -8,6 +8,7 @@ import {
     omit,
     Show,
     useContext,
+    useEnvironment,
 } from "@destack/view";
 import {
     useDialog,
@@ -25,15 +26,9 @@ import {
     SheetHeader,
     SheetTitle,
     SheetTrigger,
-    type SheetSide,
 } from "../sheet/index.ts";
-import {
-    isDismissal,
-    Swipe,
-    type SwipeDirection,
-    type SwipeRelease,
-    swipeStyle,
-} from "../swipe/index.ts";
+import { Swipe, type SwipeEvent } from "../interaction/index.ts";
+import type { Side } from "../position/index.ts";
 import { renderPart } from "../part/index.ts";
 
 /** The share of the viewport a drawer grows to at most. */
@@ -85,14 +80,6 @@ const styles = style.create({
     width: (length: string) => ({ width: length }),
 });
 
-/** The direction a swipe closes a drawer against each edge. */
-const SWIPES: Readonly<Record<SheetSide, SwipeDirection>> = {
-    top: "up",
-    right: "right",
-    bottom: "down",
-    left: "left",
-};
-
 /** The rounded inner corners of a drawer against each edge. */
 const corners = style.create({
     top: { borderBottomLeftRadius: radius[5], borderBottomRightRadius: radius[5] },
@@ -107,7 +94,7 @@ export type DrawerSnapPoint = number | string;
 /** The properties of a drawer root. */
 export interface DrawerProperties extends DialogProperties {
     /** The edge the drawer slides in from, bottom by default. */
-    readonly direction?: SheetSide;
+    readonly direction?: Side;
     /** The lengths a drag settles the drawer at, from the smallest to the largest. */
     readonly snapPoints?: readonly DrawerSnapPoint[];
     /** The snap point the drawer rests at, which makes it controlled. */
@@ -121,7 +108,7 @@ export interface DrawerProperties extends DialogProperties {
 /** The edge and snap points of a drawer, which its content reads. */
 export class DrawerControl {
     /** The edge the drawer slides in from. */
-    readonly direction: Accessor<SheetSide>;
+    readonly direction: Accessor<Side>;
     /** The lengths a drag settles the drawer at, from the smallest to the largest. */
     readonly snapPoints: Accessor<readonly DrawerSnapPoint[]>;
     /** The snap point the drawer rests at, undefined without snap points. */
@@ -161,11 +148,15 @@ export class DrawerControl {
     }
 
     /** Settle a released drag at the snap point nearest its projected extent. */
-    settle(release: SwipeRelease, viewport: number, close: () => void): void {
-        // close on a far swipe or a flick without snap points
+    settle(release: SwipeEvent, viewport: number, close: () => void): void {
+        // spring back from a swipe the browser took over
         const point = this.activeSnapPoint();
-        if (point === undefined) {
-            if (isDismissal(release)) {
+        if (release.isCancelled) {
+            return;
+        }
+        // close on a far swipe or a flick without snap points
+        else if (point === undefined) {
+            if (release.isDismissal) {
                 close();
             }
 
@@ -243,23 +234,22 @@ export function DrawerContent(properties: DrawerContentProperties): JSX.Element 
     const dialog = useDialog();
     const rest = omit(properties, "showHandle", "xstyle", "style", "children");
     const swipe = new Swipe(
-        () => SWIPES[drawer.direction()],
-        (release) => drawer.settle(release, viewportOf(drawer), () => dialog.close()),
-        (element) => element.scrollTop === 0,
+        {
+            side: () => drawer.direction(),
+            onSwipeEnd: (event) => drawer.settle(event, viewportOf(drawer), () => dialog.close()),
+            canStart: (event) => canSwipe(drawer, event),
+        },
+        useEnvironment().clock,
     );
 
     return (
         <SheetContent
             data-slot="drawer-content"
-            data-swiping={swipe.offset() === undefined ? undefined : ""}
             data-snap-point={drawer.activeIndex()}
             side={drawer.direction()}
             showCloseButton={false}
             {...rest}
-            onPointerDown={(event) => swipe.start(event)}
-            onPointerMove={(event) => swipe.follow(event)}
-            onPointerUp={(event) => swipe.release(event)}
-            onPointerCancel={() => swipe.cancel()}
+            {...swipe.attributes()}
             xstyle={[
                 styles.drawer,
                 corners[drawer.direction()],
@@ -317,7 +307,7 @@ function extentStyle(drawer: DrawerControl, swipe: Swipe): style.Styles {
     const offset = swipe.offset();
     const extent = drawer.isVertical() ? styles.height : styles.width;
     if (point === undefined) {
-        return swipeStyle(swipe.translate());
+        return swipe.style();
     }
     // rest at the active snap point
     else if (offset === undefined) {
@@ -330,6 +320,21 @@ function extentStyle(drawer: DrawerControl, swipe: Swipe): style.Styles {
     const dragged = Math.min(Math.max(extentOf(point, viewport) - offset, 0), largest);
 
     return [styles.snapping, styles.dragging, extent(`${String(dragged)}px`)];
+}
+
+/** Report whether a press may swipe a drawer. */
+function canSwipe(drawer: DrawerControl, event: PointerEvent): boolean {
+    // swipe a drawer against a left or right edge from anywhere
+    const content = event.currentTarget;
+    const target = event.target;
+    if (!drawer.isVertical() || !(content instanceof Element) || !(target instanceof Element)) {
+        return !drawer.isVertical();
+    }
+
+    return (
+        content.scrollHeight <= content.clientHeight ||
+        target.closest("[data-slot=drawer-handle]") !== null
+    );
 }
 
 /** Read the viewport's extent along a drawer's axis, in pixels. */

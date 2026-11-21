@@ -1,6 +1,7 @@
 import * as style from "@destack/style";
 import { color, motion, stroke } from "@destack/theme/tokens.stylex";
 import { type JSX, merge, omit } from "@destack/view";
+import type { Side } from "../position/index.ts";
 import {
     Dialog,
     DialogClose,
@@ -105,13 +106,10 @@ const exits = style.create({
     left: { opacity: 1, transform: "translateX(-100%)" },
 });
 
-/** The edge of the screen a sheet slides in from. */
-export type SheetSide = "top" | "right" | "bottom" | "left";
-
 /** The properties of a sheet's content. */
 export interface SheetContentProperties extends DialogContentProperties {
     /** The edge it slides in from, right by default. */
-    readonly side?: SheetSide;
+    readonly side?: Side;
 }
 
 /** Hold the open state of a panel that slides in from an edge of the screen. */

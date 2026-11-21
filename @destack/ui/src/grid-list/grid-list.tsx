@@ -17,6 +17,7 @@ import {
     useContext,
     useLocale,
 } from "@destack/view";
+import { Hover } from "../interaction/index.ts";
 import type { AutocompleteControl } from "../autocomplete/index.ts";
 import { Collection, type CollectionOptions, type CollectionState } from "../collection/index.ts";
 import { Focus, GridDelegate, type GridRow } from "../focus/index.ts";
@@ -487,6 +488,7 @@ function renderCell<Item>(
         throw new TypeError(`a grid list has no item '${key}'`);
     }
     const label = properties.label(item);
+    const hover = new Hover({ onHoverStart: () => control.focus.focus(key) }).attributes();
     const attributes = {
         id: control.focus.id(key),
         role: "gridcell" as const,
@@ -498,7 +500,11 @@ function renderCell<Item>(
         get isActive() {
             return control.focus.isActive(key);
         },
-        onPointerEnter: () => control.focus.focus(key),
+        get "data-hovered"() {
+            return hover["data-hovered"];
+        },
+        onPointerEnter: hover.onPointerEnter,
+        onPointerLeave: hover.onPointerLeave,
         onClick: () => control.act(key),
     };
 

@@ -12,6 +12,7 @@ import {
 } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import { createContext, type JSX, onCleanup, useContext, useLocale } from "@destack/view";
+import { Hover } from "../interaction/index.ts";
 import { ListState } from "../focus/index.ts";
 import type { Direction } from "@destack/locale";
 import {
@@ -202,6 +203,17 @@ export function MenubarTrigger(
         element: () => element,
     });
 
+    // follow the pointer to this menu while another one is open
+    const hover = new Hover({
+        onHoverStart: (event) => {
+            if (bar.isOpen() && !menu.isOpen()) {
+                bar.closeAll();
+                event.target.focus();
+                menu.open("none");
+            }
+        },
+    }).attributes();
+
     return renderPart(
         "button",
         "menubar-trigger",
@@ -232,14 +244,11 @@ export function MenubarTrigger(
                 }
             },
             onFocus: () => bar.list.focus.focusIn(menu.id),
-            onPointerEnter: (event) => {
-                // follow the pointer to this menu while another one is open
-                if (bar.isOpen() && !menu.isOpen()) {
-                    bar.closeAll();
-                    event.currentTarget.focus();
-                    menu.open("none");
-                }
+            get "data-hovered"() {
+                return hover["data-hovered"];
             },
+            onPointerEnter: hover.onPointerEnter,
+            onPointerLeave: hover.onPointerLeave,
         },
     );
 }

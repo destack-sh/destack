@@ -30,6 +30,7 @@ import {
     useLocale,
 } from "@destack/view";
 import { Timeout } from "@destack/view/primitives/timer";
+import { Hover } from "../interaction/index.ts";
 import { type PartAttributes, type Render, useRender, renderPart } from "../part/index.ts";
 import { ListState } from "../focus/index.ts";
 
@@ -334,6 +335,7 @@ function useItem(): string {
 
 /** Render a site's navigation, whose items disclose panels of links. */
 export function NavigationMenu(properties: NavigationMenuProperties): JSX.Element {
+    // close the open panel as the pointer leaves the navigation
     const control = new NavigationMenuControl(properties);
     const rest = omit(
         properties,
@@ -347,6 +349,7 @@ export function NavigationMenu(properties: NavigationMenuProperties): JSX.Elemen
         "style",
         "children",
     );
+    const hover = new Hover({ onHoverEnd: () => control.hide() });
 
     return (
         <NavigationMenuContext value={control}>
@@ -363,7 +366,7 @@ export function NavigationMenu(properties: NavigationMenuProperties): JSX.Elemen
                         control.hide();
                     }
                 }}
-                onPointerLeave={() => control.hide()}
+                {...hover.attributes()}
                 onKeyDown={(event) => {
                     // close on Escape and return the focus to the open item's trigger
                     const item = control.open();
@@ -447,6 +450,10 @@ export function NavigationMenuTrigger(
     const isOpen = (): boolean => control.open() === item;
     let element: HTMLButtonElement | undefined;
     control.join(item, () => element);
+    const hover = new Hover({
+        onHoverStart: () => control.enter(item),
+        onHoverEnd: () => control.leave(),
+    });
 
     return (
         <button
@@ -461,8 +468,7 @@ export function NavigationMenuTrigger(
             ref={(button) => (element = button)}
             onFocus={() => control.list.focus.focusIn(item)}
             onClick={() => (isOpen() ? control.hide() : control.show(item))}
-            onPointerEnter={() => control.enter(item)}
-            onPointerLeave={() => control.leave()}
+            {...hover.attributes()}
             onKeyDown={(event) => {
                 // carry Tab from an open trigger into its panel, wherever the panel renders
                 const first = document

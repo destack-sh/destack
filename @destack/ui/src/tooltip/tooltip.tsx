@@ -10,6 +10,7 @@ import {
     useContext,
     useEnvironment,
 } from "@destack/view";
+import { Hover } from "../interaction/index.ts";
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { HoverPopover, type HoverPopoverProperties } from "../popover/index.ts";
 import { type Align, Position, type Side } from "../position/index.ts";
@@ -168,6 +169,10 @@ export function Tooltip(properties: TooltipProperties): JSX.Element {
 /** Render a button that shows its tooltip on hover after the delay and on focus at once. */
 export function TooltipTrigger(properties: TooltipTriggerProperties): JSX.Element {
     const tooltip = useTooltip();
+    const hover = new Hover({
+        onHoverStart: () => tooltip.openLater(),
+        onHoverEnd: () => tooltip.closeLater(),
+    });
 
     return (
         <Button
@@ -176,8 +181,7 @@ export function TooltipTrigger(properties: TooltipTriggerProperties): JSX.Elemen
             aria-describedby={tooltip.id}
             {...properties}
             ref={(element) => tooltip.setTrigger(element)}
-            onPointerEnter={() => tooltip.openLater()}
-            onPointerLeave={() => tooltip.closeLater()}
+            {...hover.attributes()}
             onFocus={() => tooltip.open()}
             onBlur={() => tooltip.close()}
             onKeyDown={(event) => {
@@ -200,6 +204,12 @@ export function TooltipContent(properties: TooltipContentProperties): JSX.Elemen
     // show and hide the tooltip as it opens and closes
     createEffect(tooltip.isOpen, (isOpen) => tooltip.sync(isOpen));
 
+    // keep the tooltip open while a pointer rests on it
+    const hover = new Hover({
+        onHoverStart: () => tooltip.open(),
+        onHoverEnd: () => tooltip.closeLater(),
+    });
+
     return (
         <TopLayer>
             <div
@@ -213,8 +223,7 @@ export function TooltipContent(properties: TooltipContentProperties): JSX.Elemen
                 {...rest}
                 ref={(element) => tooltip.setContent(element)}
                 onToggle={(event) => tooltip.follow(event)}
-                onPointerEnter={() => tooltip.open()}
-                onPointerLeave={() => tooltip.closeLater()}
+                {...hover.attributes()}
                 {...style.attributes(
                     [
                         text.xs,

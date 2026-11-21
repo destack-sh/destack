@@ -30,7 +30,6 @@
         "./combobox": "./src/combobox/index.ts",
         "./color-swatch-picker": "./src/color-swatch-picker/index.ts",
         "./command": "./src/command/index.ts",
-        "./consent": "./src/consent/index.ts",
         "./context-menu": "./src/context-menu/index.ts",
         "./data-table": "./src/data-table/index.ts",
         "./date-field": "./src/date-field/index.ts",
@@ -64,15 +63,12 @@
         "./prose.css": "./src/prose/prose.css",
         "./radio-group": "./src/radio-group/index.ts",
         "./resizable": "./src/resizable/index.ts",
-        "./schema-form": "./src/schema-form/index.ts",
         "./scroll-area": "./src/scroll-area/index.ts",
         "./select": "./src/select/index.ts",
         "./selection": "./src/selection/index.ts",
         "./separator": "./src/separator/index.ts",
         "./sheet": "./src/sheet/index.ts",
         "./sidebar": "./src/sidebar/index.ts",
-        "./sign-in": "./src/sign-in/index.ts",
-        "./sign-up": "./src/sign-up/index.ts",
         "./skeleton": "./src/skeleton/index.ts",
         "./slider": "./src/slider/index.ts",
         "./sortable": "./src/sortable/index.ts",
@@ -88,7 +84,6 @@
         "./toggle-state": "./src/toggle-state/index.ts",
         "./tooltip": "./src/tooltip/index.ts",
         "./tree": "./src/tree/index.ts",
-        "./verification": "./src/verification/index.ts",
         "./virtualizer": "./src/virtualizer/index.ts",
         "./visually-hidden": "./src/visually-hidden/index.ts",
         "./stack": "./src/stack/index.ts",
@@ -100,11 +95,15 @@
         "./switcher.css": "./src/switcher/switcher.css",
         "./cover": "./src/cover/index.ts",
         "./content": "./src/content/index.ts",
+        "./object": "./src/object/index.ts",
         "./icon": "./src/icon/index.ts",
-        "./build": "./src/build/index.ts"
+        "./build": "./src/build/index.ts",
+        "./interaction": "./src/interaction/index.ts",
+        "./drag": "./src/drag/index.ts"
     },
     "scripts": {
-        "generate": "bun run src/chart/generate.ts"
+        "generate": "bun run src/chart/generate.ts",
+        "examples": "bun run scripts/examples.ts"
     },
     "dependencies": {
         "@destack/color": "workspace:*",
@@ -125,6 +124,8 @@
         "property-information": "7.2.0"
     },
     "devDependencies": {
+        "@destack/build": "workspace:*",
+        "@destack/check": "workspace:*",
         "@destack/test": "workspace:*",
         "@jridgewell/trace-mapping": "0.3.31",
         "rolldown": "1.2.19",

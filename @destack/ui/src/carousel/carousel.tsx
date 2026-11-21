@@ -26,6 +26,7 @@ import {
     useEnvironment,
     useLocale,
 } from "@destack/view";
+import { Hover } from "../interaction/index.ts";
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
 
@@ -329,6 +330,10 @@ export function Carousel(properties: CarouselProperties): JSX.Element {
         (index) => control.scroll(index),
     );
     properties.setApi?.(control.api());
+    const hover = new Hover({
+        onHoverStart: () => control.rest(true),
+        onHoverEnd: () => control.rest(false),
+    });
 
     return (
         <CarouselContext value={control}>
@@ -338,8 +343,7 @@ export function Carousel(properties: CarouselProperties): JSX.Element {
                 data-slot="carousel"
                 data-orientation={carousel.orientation}
                 {...rest}
-                onPointerEnter={() => control.rest(true)}
-                onPointerLeave={() => control.rest(false)}
+                {...hover.attributes()}
                 onFocusIn={() => control.rest(true)}
                 onFocusOut={() => control.rest(false)}
                 onKeyDown={(event) => {

@@ -17,7 +17,9 @@ const ICON_BODY = /(<svg[^>]*>).*?(<\/svg>)/gu;
 const STATE = new Set([
     "build",
     "collection",
+    "drag",
     "focus",
+    "interaction",
     "part",
     "position",
     "selection",

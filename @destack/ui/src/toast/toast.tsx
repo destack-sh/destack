@@ -25,7 +25,8 @@ import {
 import { Timeout } from "@destack/view/primitives/timer";
 import { Button } from "../button/index.ts";
 import { Spinner } from "../spinner/index.ts";
-import { isDismissal, Swipe, type SwipeDirection, swipeStyle } from "../swipe/index.ts";
+import { Hover, Swipe } from "../interaction/index.ts";
+import type { Side } from "../position/index.ts";
 
 /** The time a toast shows before it leaves on its own, in milliseconds. */
 const DURATION = 4000;
@@ -121,15 +122,15 @@ function richOf(type: ToastType): style.Styles {
         : null;
 }
 
-/** Read the direction a swipe dismisses a toast toward, from where the toasts stack. */
-function swipeOf(position: ToasterPosition): SwipeDirection {
+/** Read the side a swipe dismisses a toast toward, from where the toasts stack. */
+function swipeOf(position: ToasterPosition): Side {
     if (position.endsWith("right")) {
         return "right";
     } else if (position.endsWith("left")) {
         return "left";
     }
 
-    return position.startsWith("top") ? "up" : "down";
+    return position.startsWith("top") ? "top" : "bottom";
 }
 
 /** The corner of the viewport each position stacks toasts in. */
@@ -438,8 +439,8 @@ function ToastItem(properties: {
     readonly toast: Toast;
     /** The time it shows, in milliseconds. */
     readonly duration: number;
-    /** The direction a swipe dismisses it toward. */
-    readonly swipe: SwipeDirection;
+    /** The side a swipe dismisses it toward. */
+    readonly swipe: Side;
     /** Whether its kind colors its surface. */
     readonly isRich: boolean;
 }): JSX.Element {
@@ -451,33 +452,35 @@ function ToastItem(properties: {
         () => store.dismiss(entry.id),
     );
     const swipe = new Swipe(
-        () => properties.swipe,
-        (release) => {
-            // dismiss on a far swipe or a flick
-            if (isDismissal(release)) {
-                store.dismiss(entry.id);
-            }
+        {
+            side: () => properties.swipe,
+            onSwipeEnd: (event) => {
+                // dismiss on a far swipe or a flick
+                if (event.isDismissal) {
+                    store.dismiss(entry.id);
+                }
+            },
         },
+        useEnvironment().clock,
     );
+    const hover = new Hover({
+        onHoverStart: () => timer.pause(),
+        onHoverEnd: () => timer.resume(),
+    });
 
     return (
         <li
             data-slot="toast"
             data-type={entry.type}
-            data-swiping={swipe.offset() === undefined ? undefined : ""}
-            onPointerEnter={() => timer.pause()}
-            onPointerLeave={() => timer.resume()}
+            {...hover.attributes()}
             onFocusIn={() => timer.pause()}
             onFocusOut={() => timer.resume()}
-            onPointerDown={(event) => swipe.start(event)}
-            onPointerMove={(event) => swipe.follow(event)}
-            onPointerUp={(event) => swipe.release(event)}
-            onPointerCancel={() => swipe.cancel()}
+            {...swipe.attributes()}
             {...style.attrs(
                 text.xs,
                 styles.toast,
                 properties.isRich && richOf(entry.type),
-                swipeStyle(swipe.translate()),
+                swipe.style(),
             )}
         >
             <ToastIcon type={entry.type} />
