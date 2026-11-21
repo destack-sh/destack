@@ -764,17 +764,18 @@ export const Rollout = {
         }
     },
 
-    /** Read the one installation a machine serves of a package, or of a package implementing it. */
+    /** Read the one installation a machine serves of a package, or of one serving its protocols. */
     async requireServing(
         database: DatabaseConnection,
         serving: {
             readonly spaceId: Identifier<"space">;
             readonly packageId: PackageId;
-            readonly implementers: readonly PackageId[];
+            /** The packages serving it: itself and each serving its protocols. */
+            readonly packages: readonly PackageId[];
         },
     ): Promise<InstallationRollout> {
-        // list the installations of the package and its implementers, served, suspended or not
-        const { spaceId, packageId, implementers } = serving;
+        // list the installations of the packages serving it, served, suspended or not
+        const { spaceId, packageId, packages } = serving;
         const installed = await database
             .select({ id: installation.table.id, name: installation.table.name })
             .from(installation.table)
@@ -782,7 +783,7 @@ export const Rollout = {
                 and(
                     installation.inScope(spaceId),
                     isNull(installation.table.deletedAt),
-                    inArray(installation.table.packageId, [packageId, ...implementers]),
+                    inArray(installation.table.packageId, [...packages]),
                 ),
             );
         const [only] = installed;
