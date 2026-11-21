@@ -10,7 +10,7 @@ import type { BuildReader } from "@destack/package/manifest";
 import type { Identifier } from "@destack/schema";
 import type { Environment } from "@destack/environment";
 import { TelemetryScope } from "@destack/telemetry";
-import { release } from "@destack/registry/object";
+import { release, tag } from "@destack/registry/object";
 import { ReleaseReader } from "../release/reader.ts";
 import { type Publisher, Usage } from "../object/index.ts";
 import { Rating } from "./rating.ts";
@@ -29,12 +29,12 @@ export class Metering {
 
     /** Meter usage against the packages' current builds. */
     constructor(
-        tag: string,
+        tagName: string,
         open: (packageId: PackageId, release: string) => Promise<BuildReader>,
         telemetry: Environment["telemetry"],
     ) {
         // store the tag and the builds, capturing on the telemetry
-        this.tag = tag;
+        this.tag = tagName;
         this.#open = open;
         this.#instruments = TelemetryScope.of(import.meta.destack.package, telemetry);
     }
@@ -59,7 +59,10 @@ export class Metering {
         );
         await resolving.catch((error: unknown) => {
             if (CallError.of(error) !== undefined) {
-                plan.defer(`${packageId} waits for its ${this.tag} release`);
+                plan.wait(`${packageId} waits for its ${this.tag} release`, tag, {
+                    parentId: packageId,
+                    name: this.tag,
+                });
             }
             throw error;
         });
