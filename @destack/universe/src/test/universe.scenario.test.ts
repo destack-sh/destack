@@ -1,4 +1,5 @@
 import { Snapshot } from "@destack/db";
+import { BasicCredential } from "@destack/environment";
 import { PackageId } from "@destack/package";
 import { present, schema } from "@destack/schema";
 import registryPackage from "@destack/registry/package";
@@ -47,7 +48,7 @@ test("place a person's home on their residency's cloud machine, as the machine's
     expect(placed).toEqual({ space: home, scope: ada.account, machine: machine.id, epoch: 1 });
 });
 
-test("forward Git for a repository link to its account's registry as the caller, refusing a token the issuer refuses and an unknown handle", async () => {
+test("forward Git for a repository link to its account's registry as the caller, challenging a refusal for Basic credentials", async () => {
     // sign ada up, place the residency's home, and answer as its machine, recording what arrives
     await using started = await TestUniverse.open();
     const ada = await started.signIn("ada@example.test");
@@ -65,26 +66,33 @@ test("forward Git for a repository link to its account's registry as the caller,
                 authorization: request.headers.get("authorization"),
             });
 
-            return new Response("refs");
+            // refuse a private repository's anonymous caller, as the registry does
+            const isRefused =
+                request.url.includes("/private.git/") && !request.headers.has("authorization");
+
+            return isRefused ? new Response("sign in", { status: 401 }) : new Response("refs");
         },
     });
     onTestFinished(() => listener.stop(true));
 
-    // ask as git does: anonymously, with ada's account token, with a token the issuer refuses, and for an unknown handle
-    const ask = async (path: string, token?: string) => {
+    // ask as git does: anonymously, with ada's account token as a bearer and as a Basic password, with a token the issuer refuses, for a private repository, and for an unknown handle
+    const ask = async (path: string, authorization?: string) => {
         const response = await started.universe.fetch(
             new Request(`${TEST_UNIVERSE.origin}${path}`, {
-                headers: token === undefined ? {} : { authorization: `Bearer ${token}` },
+                headers: authorization === undefined ? {} : { authorization },
             }),
         );
 
-        return [response.status, await response.text()];
+        return [response.status, await response.text(), response.headers.get("www-authenticate")];
     };
     const references = `/@${ada.handle}/site.git/info/refs?service=git-upload-pack`;
+    const account = (await ada.token()).token;
     const answers = [
         await ask(references),
-        await ask(references, (await ada.token()).token),
-        await ask(references, "not-a-token"),
+        await ask(references, `Bearer ${account}`),
+        await ask(references, BasicCredential.write("x-access-token", account)),
+        await ask(references, "Bearer not-a-token"),
+        await ask(`/@${ada.handle}/private.git/info/refs?service=git-upload-pack`),
         await ask("/@nobody/site.git/info/refs?service=git-upload-pack"),
     ];
     const claims = (index: number) => {
@@ -105,23 +113,31 @@ test("forward Git for a repository link to its account's registry as the caller,
         return { aud: payload.aud, partition: payload.partition, sub: payload.sub };
     };
 
-    // answer through the registry of her home: anonymous as anonymous, her token exchanged for the registry's there
+    // answer through the registry of her home: anonymous as anonymous, her token exchanged for the registry's there in either form, each refusal with the challenge git answers
     const registry = `${url.origin}/spaces/${home}/${registryPackage.id}/git/@${ada.handle}/site.git/info/refs?service=git-upload-pack`;
+    const exchanged = { aud: PackageId.resource(registryPackage.id), partition: home, sub: ada.id };
+    const challenge = 'Basic realm="destack"';
     expect({
         answers,
         urls: received.map((each) => each.url),
         anonymous: received[0]?.authorization,
-        claims: claims(1),
+        claims: [claims(1), claims(2)],
     }).toEqual({
         answers: [
-            [200, "refs"],
-            [200, "refs"],
-            [401, "the token endpoint refused the request: invalid_grant: invalid access token"],
-            [404, ""],
+            [200, "refs", null],
+            [200, "refs", null],
+            [200, "refs", null],
+            [
+                401,
+                "the token endpoint refused the request: invalid_grant: invalid access token",
+                challenge,
+            ],
+            [401, "sign in", challenge],
+            [404, "", null],
         ],
-        urls: [registry, registry],
+        urls: [registry, registry, registry, registry.replace("/site.git/", "/private.git/")],
         anonymous: null,
-        claims: { aud: PackageId.resource(registryPackage.id), partition: home, sub: ada.id },
+        claims: [exchanged, exchanged],
     });
 });
 

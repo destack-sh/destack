@@ -49,13 +49,20 @@ import { Run } from "@destack/workflow";
 import { apply } from "./apply.ts";
 import { UniverseDefinition } from "./definition.ts";
 import { UniverseError } from "../error/error.ts";
-import type { Environment } from "@destack/environment";
+import { Bearer } from "@destack/access/token";
+import { BasicCredential, type Environment } from "@destack/environment";
 
 /** The schema the universe's tables live in, PostgreSQL's default. */
 export const UNIVERSE_SCHEMA = "public";
 
 /** The longest drain on shutdown, in milliseconds. */
 const DRAIN_MILLISECONDS = 5000;
+
+/** The realm a repository link challenges git clients for. */
+const REALM = "destack";
+
+/** The status of a request without valid credentials (RFC 9110 15.5.2). */
+const UNAUTHORIZED_STATUS = 401;
 
 /** What a host runs a universe with. */
 export interface UniverseOptions {
@@ -518,12 +525,12 @@ export class Universe implements AsyncDisposable {
 
         // exchange the caller's account token for the package's in the home, an anonymous caller going on as one
         const headers = new Headers(request.headers);
-        const presented = /^Bearer (?<token>\S+)$/u.exec(
-            headers.get("authorization") ?? "",
-        )?.groups;
-        if (presented?.["token"] !== undefined) {
+        const authorization = headers.get("authorization");
+        const presented =
+            Bearer.token(authorization) ?? BasicCredential.read(authorization)?.password;
+        if (presented !== undefined) {
             const exchanged = await this.#exchanger
-                .exchange({ token: presented["token"], type: ACCESS_TOKEN_TYPE }, packageId, {
+                .exchange({ token: presented, type: ACCESS_TOKEN_TYPE }, packageId, {
                     partition: home,
                 })
                 .then(
@@ -540,13 +547,14 @@ export class Universe implements AsyncDisposable {
             if ("refused" in exchanged) {
                 return new Response(exchanged.refused, {
                     status: 401,
-                    headers: { "www-authenticate": 'Bearer realm="destack"' },
+                    headers: { "www-authenticate": BasicCredential.challenge(REALM) },
                 });
             }
             headers.set("authorization", `Bearer ${exchanged.granted.accessToken}`);
         }
 
-        return await this.#send(
+        // send it on to the home
+        const answer = await this.#send(
             new Request(url, {
                 method: request.method,
                 headers,
@@ -554,6 +562,16 @@ export class Universe implements AsyncDisposable {
                 redirect: "manual",
             }),
         );
+
+        // challenge an unauthenticated caller for the credentials git sends
+        if (answer.status === UNAUTHORIZED_STATUS && !answer.headers.has("www-authenticate")) {
+            const challenged = new Headers(answer.headers);
+            challenged.set("www-authenticate", BasicCredential.challenge(REALM));
+
+            return new Response(answer.body, { status: answer.status, headers: challenged });
+        }
+
+        return answer;
     }
 
     /** Wait until the store's loop is idle, or until a deadline. */
