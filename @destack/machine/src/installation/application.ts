@@ -16,7 +16,14 @@ import {
 } from "@destack/stack/object";
 import type { RevisionOptions } from "./target.ts";
 import { account, Entitlement, space } from "@destack/account/object";
-import { ObjectDescription, ObjectType, ObjectTypePool, Observation } from "@destack/object";
+import {
+    ObjectDescription,
+    ObjectType,
+    ObjectTypePool,
+    Observation,
+    SYNCED,
+    SYNCED_CONDITION,
+} from "@destack/object";
 import { KNOWN_TYPES } from "@destack/stack/stack";
 import { Setting } from "@destack/setting";
 import { setting, SettingValue } from "@destack/setting/object";
@@ -852,6 +859,14 @@ export class ApplicationInstallation {
         call: MethodContextOf<typeof installation, "reconcile">,
         workloads: number,
     ): Promise<void> {
+        // record it synced once it runs what it follows, unless its residency relates it after the call
+        const reader: Pick<Snapshot, "read"> = { read: (table) => call.read(table) };
+        const homed = await InstallationAccess.home(reader, this.#target);
+        const isSynced =
+            homed === undefined &&
+            (await InstallationTarget.isFollowed(reader, this.#target, this.#options));
+
+        // observe it deployed, bound, and waiting for nothing
         await call.observe(installation, this.#target, {
             conditions: {
                 Bound: BOUND,
@@ -860,6 +875,7 @@ export class ApplicationInstallation {
                     reason: "Deployed",
                     message: `${workloads} workloads deployed`,
                 },
+                ...(isSynced ? { [SYNCED]: SYNCED_CONDITION } : {}),
             },
             fields: { plan: null, approvedPlan: null, ...InstallationWait.none },
         });

@@ -5,7 +5,6 @@ import {
     deployment,
     installationRevision,
     Build,
-    type ObjectBindingKind,
 } from "@destack/stack/object";
 import { InstallationDefinition } from "@destack/stack/declare";
 import type accountPackage from "@destack/account/package";
@@ -239,16 +238,21 @@ function reconcileProjection(options: InstallationOptions): ObjectProjection<typ
         // key by identifier, as a name addresses an installation only within its space
         key: "id",
         watches: [
-            // the installation once its spec changes
-            { table: installation.table, on: { id: "id" } },
-            // the installation once it follows another stack of its space
+            // the installation once its spec changes, unless the call changing it reconciled it
             {
                 table: installation.table,
+                where: { generation: { gt: { field: "syncedGeneration" } } },
+                on: { id: "id" },
+            },
+            // a stack without a target once it follows its space's stack
+            {
+                table: installation.table,
+                where: { export: { isNotNull: true }, targetRevisionId: { isNull: true } },
                 fields: ["spaceStack"],
                 isObserving: true,
                 on: { id: "id" },
             },
-            ...resumeWatches(waitedTypes(options), options.binder.objects()),
+            ...resumeWatches(waitedTypes(options)),
             ...(options.space.machine.isBuilding ? followedWatches() : []),
         ],
         reports: REPORTS,
@@ -472,10 +476,7 @@ function followedWatches(): ObjectWatch[] {
 }
 
 /** Wake an installation once something outside it that it waits on arrives. */
-function resumeWatches(
-    waited: readonly ObjectType[],
-    objects: readonly ObjectBindingKind[],
-): ObjectWatch[] {
+function resumeWatches(waited: readonly ObjectType[]): ObjectWatch[] {
     return [
         // the installations waiting for a row of a type once a row meeting what one waits for changes
         ...waited
@@ -550,11 +551,6 @@ function resumeWatches(
         { table: setting.table, on: { scope: "scope" } },
         // the account's installations once an entitlement changes
         { table: entitlement.table, path: [ENTITLED_SPACES], on: { scope: "id" } },
-        // the space's installations once a bindable object changes, as a binding may select it
-        ...objects.map((kind): ObjectWatch => ({
-            table: kind.object.table,
-            on: { scope: "scope" },
-        })),
     ];
 }
 

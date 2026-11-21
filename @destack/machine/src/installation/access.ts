@@ -9,7 +9,7 @@ import {
     principal,
     Relationship,
 } from "@destack/access";
-import { Snapshot } from "@destack/db";
+import { type Select, Snapshot } from "@destack/db";
 import { InstallationTarget } from "./target.ts";
 import { grant, type MethodContext, PackageDescription, role } from "@destack/object";
 import { canonicalize, present } from "@destack/schema";
@@ -128,6 +128,22 @@ export const InstallationAccess = {
         ];
     },
 
+    /** Read the residency whose home a stack-managed installation runs in, which relates it. */
+    async home(
+        reader: Pick<Snapshot, "read">,
+        target: Installation,
+    ): Promise<Select<typeof residency.table> | undefined> {
+        // leave an installation no stack manages
+        if (!Manager.isManaged(target)) {
+            return undefined;
+        }
+        const [homed] = await reader
+            .read(residency.table)
+            .findMany({ where: { space: Installation.space(target) }, limit: 1 });
+
+        return homed;
+    },
+
     /** Build the calls relating a residency home's installation at its deployed release. */
     async relate(
         reader: Pick<Snapshot, "read">,
@@ -137,12 +153,7 @@ export const InstallationAccess = {
         version: string | undefined,
     ): Promise<Call[]> {
         // relate only the installations its stack manages, and only those of a residency's home
-        if (!Manager.isManaged(target)) {
-            return [];
-        }
-        const [homed] = await reader
-            .read(residency.table)
-            .findMany({ where: { space: Installation.space(target) }, limit: 1 });
+        const homed = await InstallationAccess.home(reader, target);
         if (homed === undefined) {
             return [];
         }

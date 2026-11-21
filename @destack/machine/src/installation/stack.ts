@@ -17,6 +17,7 @@ import {
     ObjectType,
     ObjectTypePool,
     SYNCED,
+    SYNCED_CONDITION,
 } from "@destack/object";
 import { Failure } from "@destack/error";
 import { Stack, StackPlan, ObjectStore } from "@destack/object/server";
@@ -244,11 +245,12 @@ export class StackInstallation {
         // observe an applied revision at the installation's latest generation
         else if (stack.appliedRevisionId === revision.id) {
             if (!Observation.isCurrent(stack, "Ready")) {
-                await call.observe(
-                    installation,
+                const isFollowed = await InstallationTarget.isFollowed(
+                    reader,
                     stack,
-                    ready("Applied", "every declaration applied", {}),
+                    this.#options,
                 );
+                await call.observe(installation, stack, readyApplied(isFollowed, {}));
             }
 
             return [];
@@ -314,7 +316,7 @@ export class StackInstallation {
             await call.observe(
                 installation,
                 stack,
-                ready("Applied", "every declaration applied", {
+                readyApplied(await InstallationTarget.isFollowed(reader, stack, this.#options), {
                     plan: null,
                     approvedPlan: null,
                     ...InstallationWait.none,
@@ -510,6 +512,14 @@ function declaredTypes(types: readonly ObjectType[]): readonly ObjectType[] {
     const handled = [...types.filter((type) => type.isDeclarable()), role, relationship];
 
     return [...new Map(handled.map((type) => [type.table, type])).values()];
+}
+
+/** Describe an applied stack, synced once it runs what it follows. */
+function readyApplied(isFollowed: boolean, fields: Readonly<Record<string, unknown>>) {
+    const described = ready("Applied", "every declaration applied", fields);
+    const synced = isFollowed ? { [SYNCED]: SYNCED_CONDITION } : {};
+
+    return { ...described, conditions: { ...described.conditions, ...synced } };
 }
 
 /** Describe a stack's ready observation: its reason, message and observed fields. */

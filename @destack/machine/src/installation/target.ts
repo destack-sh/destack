@@ -97,6 +97,47 @@ export type FollowKind = "host" | "release" | "tag" | "reference" | "checkout" |
 
 /** The revision an installation targets: its build selected, its stack evaluated, recorded. */
 export const InstallationTarget = {
+    /** Report whether an installation targets the build it follows now, by its space's rows. */
+    async isFollowed(
+        reader: Pick<Snapshot, "read">,
+        installed: Installation,
+        options: RevisionOptions,
+    ): Promise<boolean> {
+        // follow nothing without a targeted build
+        const current =
+            installed.targetRevisionId === null
+                ? undefined
+                : await InstallationRevision.build(reader, installed.targetRevisionId);
+        if (current === undefined) {
+            return false;
+        }
+        const kind = InstallationTarget.follows(installed);
+        const { isBuilding } = options.space.machine;
+        const released = current.source.kind === "release" ? current.source.version : undefined;
+
+        // compare a followed release's or tag's version where the space has its registry's rows
+        if (kind === "release" || kind === "tag") {
+            const id = present(installed.followsId, "the followed row");
+            const version = !isBuilding
+                ? undefined
+                : kind === "tag"
+                  ? await followedVersion(reader, id)
+                  : (
+                        await reader
+                            .read(release.table)
+                            .findFirst({ where: { id: schema.identifier("release").parse(id) } })
+                    )?.version;
+
+            return version !== undefined && version === released;
+        }
+        // compare the build the host, a pin, a reference or a checkout selects
+        else {
+            const selected = await selectBuild(reader, installed, undefined, options);
+
+            return selected?.image === current.image;
+        }
+    },
+
     /** Name the kind of row an installation follows, the host's release without one. */
     follows(installed: Pick<Installation, "followsType">): FollowKind {
         // follow the host's release without a followed row
