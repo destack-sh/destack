@@ -10,6 +10,6 @@
         }
     },
     "template": {
-        "files": ["src", "package.json", "destack.json", "bunfig.toml"]
+        "files": ["src", "package.json", "destack.json", "bunfig.toml", ".gitignore"]
     }
 }
