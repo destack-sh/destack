@@ -1,7 +1,7 @@
 import { PackageVersion } from "@destack/package";
 import { expect, test } from "@destack/test";
 import { describeTheme } from "../inspect/index.ts";
-import { defineTheme } from "./index.ts";
+import { defineTheme, THEMES } from "./index.ts";
 
 /** The package release declaring the fixture's theme. */
 const notes = PackageVersion.parse({
@@ -23,4 +23,19 @@ test("describe a declared theme with its package", () => {
         accent: "orange",
         radius: "large",
     });
+});
+
+test("declare Destack's themes, the brand and one per planet from the sun outward", () => {
+    // every theme passed its contrast check when its module declared it
+    expect(THEMES.map((theme) => theme.definition.name)).toEqual([
+        "destack",
+        "mercury",
+        "venus",
+        "earth",
+        "mars",
+        "jupiter",
+        "saturn",
+        "uranus",
+        "neptune",
+    ]);
 });
