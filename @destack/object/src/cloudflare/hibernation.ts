@@ -83,15 +83,24 @@ export class DurableObjectHibernation {
         );
     }
 
-    /** Hand a socket's close to the host, forgetting the socket. */
-    close(host: HibernationHost, socket: HibernatingSocket): void {
+    /** Hand a socket's close to the host, forgetting the socket, and answer the close. */
+    close(
+        host: Pick<HibernationHost, "websocket">,
+        socket: HibernatingSocket,
+        code: number,
+        reason: string,
+    ): void {
+        // tell the host, which forgets the socket
         const kept = this.#socket(host, socket);
         this.#kept.delete(socket);
-        host.websocket.close?.(kept, WebSocketClosure.normal, "");
+        host.websocket.close?.(kept, code, reason);
+
+        // answer the peer's close, which waits for it to finish closing (RFC 6455 7.1.2)
+        socket.close(WebSocketClosure.sendable(code), reason);
     }
 
     /** Read a socket as the host keeps it, rebuilding it after hibernation. */
-    #socket(host: HibernationHost, socket: HibernatingSocket): HostSocket {
+    #socket(host: Pick<HibernationHost, "websocket">, socket: HibernatingSocket): HostSocket {
         return (
             this.#kept.get(socket) ??
             this.#keep(host, socket, HostSocketAttachment.parse(socket.deserializeAttachment()))
@@ -100,7 +109,7 @@ export class DurableObjectHibernation {
 
     /** Keep a hibernating socket at the host, its sends and close going to the socket itself. */
     #keep(
-        host: HibernationHost,
+        host: Pick<HibernationHost, "websocket">,
         socket: HibernatingSocket,
         attachment: HostSocketAttachment,
     ): HostSocket {

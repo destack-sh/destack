@@ -71,8 +71,8 @@ export class DurableObjectWorkload {
     }
 
     /** Hand a kept WebSocket's close to the workload's servers. */
-    async webSocketClose(socket: HibernatingSocket): Promise<void> {
-        this.#sockets.close(await this.#host(), socket);
+    async webSocketClose(socket: HibernatingSocket, code: number, reason: string): Promise<void> {
+        this.#sockets.close(await this.#host(), socket, code, reason);
     }
 
     /** Read the host the workload keeps its sockets at, refusing a workload without one. */
