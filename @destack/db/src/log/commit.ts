@@ -6,7 +6,7 @@ import { ColumnCipher, ENCRYPTED_DIALECT } from "../database/cipher.ts";
 import { sql } from "../sql/index.ts";
 import { DatabaseError } from "../error/error.ts";
 import { Failure } from "@destack/error";
-import { Condition, Scalar } from "../query/condition.ts";
+import { type Comparable, Condition, Scalar } from "../query/condition.ts";
 import { Key } from "../query/key.ts";
 import { Namespace } from "../query/namespace.ts";
 import { Predicate } from "../query/predicate.ts";
@@ -39,17 +39,22 @@ export interface RowChange {
     readonly after: Row | null;
 }
 
+/** One recorded scan: its compiled predicate, and whether it read whole rows or logged images. */
+interface ScanRead {
+    /** The compiled predicate the scanned rows met. */
+    readonly match: ReturnType<typeof Predicate.compile>;
+    /** What the scan read of each row. */
+    readonly kind: ReadKind;
+}
+
 /** What a transaction read, by table, which its commit checks the log against. */
 export class ReadSet {
     /** The tables read, by SQL name. */
     readonly #tables = new Map<string, Table>();
     /** The names of the keys read, by table, and whether any read took the whole row. */
     readonly #keys = new Map<string, Map<string, ReadKind>>();
-    /** The conditions scans met, by table, with what each read. */
-    readonly #matches = new Map<
-        string,
-        { readonly match: ReturnType<typeof Predicate.compile>; readonly kind: ReadKind }[]
-    >();
+    /** The conditions scans met, by table and scan key, with what each read. */
+    readonly #matches = new Map<string, Map<string, ScanRead>>();
 
     /** Record a read of one whole row by its key. */
     row(table: Table, key: Row): void {
@@ -83,10 +88,22 @@ export class ReadSet {
 
     /** Record a scan of the rows a predicate matches, whole or as logged images. */
     match(table: Table, predicate: Predicate, kind: ReadKind): void {
-        // add the compiled predicate to the table's scans
+        // add the compiled predicate to the table's scans once per predicate and kind
         const name = this.#table(table);
-        const matches = this.#matches.get(name) ?? [];
-        this.#matches.set(name, [...matches, { match: Predicate.compile(predicate, table), kind }]);
+        const matches = this.#matches.get(name) ?? new Map<string, ScanRead>();
+        const key = `${kind} ${ReadSet.#scanKey(predicate)}`;
+        if (!matches.has(key)) {
+            matches.set(key, { match: Predicate.compile(predicate, table), kind });
+        }
+        this.#matches.set(name, matches);
+    }
+
+    /** Key a predicate by its shape and its literals. */
+    static #scanKey(predicate: Predicate): string {
+        const literals: Comparable[] = [];
+        const shape = Predicate.key(predicate, literals);
+
+        return `${shape} ${canonicalize(literals)}`;
     }
 
     /** Record every read another set recorded, with the stronger read of a key. */
@@ -103,7 +120,7 @@ export class ReadSet {
             this.#keys.set(name, recorded);
         }
         for (const [name, matches] of other.#matches) {
-            this.#matches.set(name, [...(this.#matches.get(name) ?? []), ...matches]);
+            this.#matches.set(name, new Map([...(this.#matches.get(name) ?? []), ...matches]));
         }
     }
 
@@ -146,7 +163,7 @@ export class ReadSet {
             change.operation === "insert" ? null : change.before,
             change.operation === "delete" ? null : change.after,
         ];
-        const isScanned = (matches ?? []).some(
+        const isScanned = [...(matches?.values() ?? [])].some(
             ({ match, kind }) =>
                 isSeen(kind) &&
                 images.some((image) => image !== null && Predicate.matches(match, image)),
