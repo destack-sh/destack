@@ -246,8 +246,8 @@ function runModule(
 
     return [
         runtime === "bun"
-            ? 'import { hostWorkload } from "@destack/stack/bun";'
-            : 'import { hostWorkload } from "@destack/stack/cloudflare";',
+            ? 'import { hostWorkload } from "@destack/object/bun";'
+            : 'import { hostWorkload } from "@destack/object/cloudflare";',
         ...resources.map(({ module }, index) => importModule(module, `resource${index}`)),
         ...lines,
         `export const ${WORKLOAD_EXPORT} = hostWorkload(${workload}, ${bound});`,

@@ -15,8 +15,6 @@
         "./stack": "./src/stack/index.ts",
         "./error": "./src/error/index.ts",
         "./build": "./src/build/index.ts",
-        "./bun": "./src/bun/index.ts",
-        "./cloudflare": "./src/cloudflare/index.ts",
         "./setting": "./src/setting/index.ts"
     },
     "dependencies": {
