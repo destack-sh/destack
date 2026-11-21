@@ -3,6 +3,7 @@ import { ObjectReference, Scope, type Subject, type Call, RequestId } from "@des
 import { AccessContext, anyone, Authorizer, Manager, type Policy, Caller } from "@destack/access";
 import {
     type ColumnValue,
+    type Condition,
     type DatabaseConnection,
     Transaction,
     type Row,
@@ -71,7 +72,7 @@ export interface DeclarationHandler<Object extends ObjectType = ObjectType> {
     readonly schema?: schema.Schema;
     /** The fields a declaration sets once, refusing another value later. */
     readonly immutable?: readonly (keyof DeclarationOf<Object> & string)[];
-    /** The document collection naming what users declare, such as `installations` for rollouts. */
+    /** The document collection naming what users declare, such as `installations`. */
     readonly collection?: string;
     /** Read a declared record as its declaration lists its fields, when its own row lacks some. */
     read?(row: Select<Object["table"]>, reader: Pick<Snapshot, "read">): Promise<object>;
@@ -119,6 +120,16 @@ export interface StackOptions {
         readonly types: readonly ObjectType[];
         readonly isPending: boolean;
     }>;
+    /** What a plan waits for until the scope installs a package, or serves the stack's own. */
+    readonly installed?: (packageId: PackageId | undefined) => PlanWait;
+}
+
+/** What a deferred plan waits for: a row of one object type meeting a condition. */
+export interface PlanWait {
+    /** The object type of the row. */
+    readonly object: ObjectType;
+    /** The condition the row meets once the plan applies further. */
+    readonly condition: Condition;
 }
 
 /** An object type beside how its declarations become records. */
@@ -400,6 +411,8 @@ export class StackPlan {
     readonly transaction: Transaction;
     /** The planned steps, and the wait deferring the rest, written once on open. */
     #plan: Plan = { steps: [] };
+    /** The row a deferred plan waits for, written once on open. */
+    #waiting: PlanWait | undefined;
     /** The scope enclosing the stack's scope, read on first use. */
     #enclosing: Promise<string> | undefined;
     /** The declarations this plan deferred, by type, which a reference to them waits on. */
@@ -437,6 +450,11 @@ export class StackPlan {
     /** The planned steps, and the wait deferring the rest. */
     get plan(): Plan {
         return this.#plan;
+    }
+
+    /** The row a deferred plan waits for, absent for a plan deferring nothing. */
+    get waiting(): PlanWait | undefined {
+        return this.#waiting;
     }
 
     /** Read the scope enclosing the stack's scope, such as a space's account, once per apply. */
@@ -478,8 +496,10 @@ export class StackPlan {
         // wait for a record's replica to arrive, and refuse an unknown record
         const id = await this.find(object, name);
         const target = this.#select(object).object;
+        const { scope } = this.stack;
+        const declared = { ...Manager.condition({ ...this.stack.manager, name }), scope };
 
-        return id ?? (await this.#missing(target, name, this.stack.scope, target.name));
+        return id ?? (await this.#missing(target, name, declared, target.name));
     }
 
     /** Resolve a declaration into its type's create input: its name and its references. */
@@ -535,7 +555,9 @@ export class StackPlan {
                 .read(parent.table)
                 .findMany({ where: { id: parent.identifier(parentId) } });
             if (row === undefined || !Provisioned.isProvisioned(row)) {
-                this.wait(`${parent.name} ${parentId} is not provisioned`);
+                this.wait(`${parent.name} ${parentId} is not provisioned`, parent, {
+                    id: parent.identifier(parentId),
+                });
             }
         }
 
@@ -637,16 +659,22 @@ export class StackPlan {
             .read(type.table)
             .findMany({ where: { id, scope } });
 
-        return row === undefined ? await this.#missing(type, id, scope, named) : id;
+        return row === undefined ? await this.#missing(type, id, { id, scope }, named) : id;
     }
 
     /** Wait for a missing record's deferred declaration or replica, or refuse the declaration. */
-    async #missing(type: ObjectType, key: string, scope: string, named: string): Promise<never> {
+    async #missing(
+        type: ObjectType,
+        key: string,
+        record: Condition & { readonly scope: string },
+        named: string,
+    ): Promise<never> {
         // wait for a deferred declaration or a replica's record, refusing a record its home lacks
+        const { store } = this.stack.options;
         if (this.#deferred.get(type)?.has(key) === true) {
-            return this.wait(`${named} ${key} waits for its declaration`);
-        } else if (await this.stack.options.store.isReplica(type, this.transaction.view(), scope)) {
-            return this.wait(`${named} ${key} waits for its replica`);
+            return this.wait(`${named} ${key} waits for its declaration`, type, record);
+        } else if (await store.isReplica(type, this.transaction.view(), record.scope)) {
+            return this.wait(`${named} ${key} waits for its replica`, type, record);
         } else {
             throw ObjectError.of(
                 "DECLARATION_INVALID",
@@ -655,9 +683,26 @@ export class StackPlan {
         }
     }
 
-    /** Stop applying until a dependency is ready, reporting why. */
-    wait(message: string): never {
-        throw new DependencyWait(message);
+    /** Stop applying until a row of an object type meets a condition, reporting why. */
+    wait(message: string, object: ObjectType, condition: Condition): never {
+        throw new DependencyWait(message, { object, condition });
+    }
+
+    /** Stop applying until the scope installs a package, or serves the stack's installations. */
+    waitInstalled(message: string, packageId?: PackageId): never {
+        const { object, condition } = this.#installed(packageId);
+
+        return this.wait(message, object, condition);
+    }
+
+    /** Read what waiting for an installation waits for, from the store reading installations. */
+    #installed(packageId?: PackageId): PlanWait {
+        const installed = this.stack.options.installed;
+        if (installed === undefined) {
+            throw new TypeError("the stack waits for an installation, but its store reads none");
+        }
+
+        return installed(packageId);
     }
 
     /** Run a type's calls as a declaration's manager in the stack's transaction, in order. */
@@ -689,11 +734,6 @@ export class StackPlan {
         return AccessContext.of(Caller.of(this.stack.as), this.now);
     }
 
-    /** Defer a declaration until what it needs exists, such as a release published later. */
-    defer(reason: string): never {
-        throw new DependencyWait(reason);
-    }
-
     /** Open the release of a package the stack's scope runs, absent for one it runs none of. */
     async release(packageId: PackageId): Promise<BuildReader | undefined> {
         // require the store opening releases
@@ -712,7 +752,7 @@ export class StackPlan {
         // write each type's resolved declarations in order, deferring each one that waits
         const steps: Step[] = [];
         const resolved = new Map<TypeDeclaration, ReadonlyMap<string, unknown>>();
-        let waiting: string | undefined;
+        let waiting: DependencyWait | undefined;
         for (const declaration of this.stack.ordered) {
             try {
                 // resolve each declaration, deferring the ones that wait
@@ -728,7 +768,7 @@ export class StackPlan {
                             : input;
                     });
                     if (created.kind === "waiting") {
-                        waiting ??= created.message;
+                        waiting ??= created.wait;
                         const deferred = this.#deferred.get(declaration.object) ?? new Set();
                         this.#deferred.set(declaration.object, deferred.add(name));
                     } else {
@@ -743,14 +783,16 @@ export class StackPlan {
             } catch (error) {
                 // defer a type that waits itself, planning the types after it that do not need it
                 if (error instanceof DependencyWait) {
-                    waiting ??= error.message;
+                    waiting ??= error;
                     continue;
                 }
                 throw error;
             }
         }
         if (waiting !== undefined) {
-            return { steps, deferred: waiting };
+            this.#waiting = waiting.wait;
+
+            return { steps, deferred: waiting.message };
         }
 
         // plan the declarations of the types the stack installs and wait until the store serves them
@@ -759,9 +801,12 @@ export class StackPlan {
             const installing = this.stack.installing.join(", ");
             const planned = await StackPlan.#unlessWaiting(() => this.#planInstalling());
             if (planned.kind === "waiting") {
-                return { steps, deferred: planned.message };
+                this.#waiting = planned.wait.wait;
+
+                return { steps, deferred: planned.wait.message };
             }
             steps.push(...planned.value);
+            this.#waiting = this.#installed();
 
             return { steps, deferred: `${installing} wait for the store to serve their types` };
         }
@@ -780,11 +825,17 @@ export class StackPlan {
                 deferred = blocking;
             } else if (blocking === undefined) {
                 const deleting = await this.#deleting(declaration);
-                blocking =
-                    deleting.length > 0
-                        ? `${declaration.object.collection} ${deleting.join(", ")} finish deleting first`
-                        : undefined;
+                if (deleting.length > 0) {
+                    blocking = `${declaration.object.collection} ${deleting.join(", ")} finish deleting first`;
+                    this.#waiting = {
+                        object: declaration.object,
+                        condition: { scope: this.stack.scope, deletedAt: { isNotNull: true } },
+                    };
+                }
             }
+        }
+        if (deferred === undefined) {
+            this.#waiting = undefined;
         }
 
         return deferred === undefined ? { steps } : { steps, deferred };
@@ -824,7 +875,7 @@ export class StackPlan {
         for (const key of this.stack.installing) {
             const type = types.find((each) => each.collection === key);
             if (type === undefined && installed.isPending) {
-                throw new DependencyWait(`${key} wait for an installation's build`);
+                this.waitInstalled(`${key} wait for an installation's build`);
             } else if (type === undefined) {
                 throw ObjectError.of("DECLARATION_BROKEN", `this server cannot apply '${key}'`);
             }
@@ -841,13 +892,13 @@ export class StackPlan {
         resolve: () => Promise<Value>,
     ): Promise<
         | { readonly kind: "resolved"; readonly value: Value }
-        | { readonly kind: "waiting"; readonly message: string }
+        | { readonly kind: "waiting"; readonly wait: DependencyWait }
     > {
         try {
             return { kind: "resolved", value: await resolve() };
         } catch (error) {
             if (error instanceof DependencyWait) {
-                return { kind: "waiting", message: error.message };
+                return { kind: "waiting", wait: error };
             }
             throw error;
         }
@@ -860,7 +911,7 @@ export class StackPlan {
         );
         if (!target && this.stack.installing.length > 0) {
             const plural = typeof object === "string" ? object : object.collection;
-            throw new DependencyWait(`${plural} wait for the store to serve the installed types`);
+            this.waitInstalled(`${plural} wait for the store to serve the installed types`);
         } else if (!target) {
             const plural = typeof object === "string" ? object : object.collection;
             throw ObjectError.of("DECLARATION_BROKEN", `this server cannot apply '${plural}'`);
@@ -1354,8 +1405,17 @@ export class StackPlan {
     }
 }
 
-/** Stop applying until a dependency is ready. */
-class DependencyWait extends Error {}
+/** Stop applying until a row of an object type meets a condition. */
+class DependencyWait extends Error {
+    /** The row waited for. */
+    readonly wait: PlanWait;
+
+    /** Store the report and the row waited for. */
+    constructor(message: string, wait: PlanWait) {
+        super(message);
+        this.wait = wait;
+    }
+}
 
 /** A stack's declarations in dependency order, and the entries left to the types it installs. */
 interface DeclarationOrder {

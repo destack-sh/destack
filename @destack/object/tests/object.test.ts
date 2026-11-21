@@ -7,7 +7,8 @@ import { type DatabaseConnection, defineDatabase, eq } from "@destack/db";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { present, schema, type JsonObject } from "@destack/schema";
-import { defineObject, field, installation, ObjectPolicy, type ObjectType } from "../src/index.ts";
+import { defineObject, field, ObjectPolicy, type ObjectType } from "../src/index.ts";
+import { installation } from "../src/test/installed.ts";
 import {
     accessRole,
     contained,
@@ -142,7 +143,7 @@ test("apply declared objects in dependency order, wait, leave released and retir
                 // wait on a label whose text is not ready yet
                 resolve: async (_name, declared, plan) => {
                     if (declared.text === "later") {
-                        plan.wait("label soon is not ready yet");
+                        plan.wait("label soon is not ready yet", label, { text: "ready" });
                     }
 
                     return declared;
@@ -330,7 +331,12 @@ test("leave a collection no served type collects to the installed type of its pl
             document: { notes: { draft: { title: "Draft" } }, vaults: { secrets: {} } },
             applied: {},
             store: await serve(world, database),
-            ...(installing === undefined ? {} : { installing }),
+            ...(installing === undefined
+                ? {}
+                : {
+                      installing,
+                      installed: () => ({ object: note, condition: { scope: spaceId } }),
+                  }),
         }).apply(world.clock.now());
 
     // refuse the vaults without installed types, then plan them under the installed vault type
