@@ -20,6 +20,8 @@ class SpanEntry {
     readonly parent: SpanEntry | undefined;
     /** What ran inside the span, nested spans included, by attribute name. */
     readonly totals = new Map<string, number>();
+    /** Whether the span ended, taking no more totals. */
+    isEnded = false;
 
     /** Enter a span below another, or as the outermost. */
     constructor(label: string, parent: SpanEntry | undefined) {
@@ -66,11 +68,24 @@ export const SpanPath = {
     totals(context: Context): Attributes {
         return Object.fromEntries(innermost(context)?.totals ?? []);
     },
+
+    /** End the span a context entered, so work outliving it counts to the spans still running. */
+    end(context: Context): void {
+        const entry = context.getValue(PATH_KEY);
+        if (entry instanceof SpanEntry) {
+            entry.isEnded = true;
+        }
+    },
 };
 
-/** Read the innermost span running in a context, absent outside any. */
+/** Read the innermost span still running in a context, absent outside any. */
 function innermost(context: Context): SpanEntry | undefined {
+    // skip the spans that ended while work they started runs on
     const value = context.getValue(PATH_KEY);
+    let entry = value instanceof SpanEntry ? value : undefined;
+    while (entry?.isEnded === true) {
+        entry = entry.parent;
+    }
 
-    return value instanceof SpanEntry ? value : undefined;
+    return entry;
 }

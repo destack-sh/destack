@@ -2,12 +2,14 @@ import { Clock } from "../clock/clock.ts";
 import {
     type Context,
     type ContextManager,
+    type Link,
     type LoggerProvider,
     type MeterProvider,
     ROOT_CONTEXT,
     type TextMapGetter,
     type TextMapPropagator,
     type TextMapSetter,
+    trace,
     type TracerProvider,
 } from "@opentelemetry/api";
 import {
@@ -96,6 +98,14 @@ export const Telemetry = {
         parent: Context = telemetry.context.active(),
     ): void {
         telemetry.propagator.inject(parent, headers, HEADERS_SETTER);
+    },
+
+    /** Run work with no span active, handing it a link to the span that was running. */
+    detach<Result>(telemetry: Pick<Telemetry, "context">, run: (links: Link[]) => Result): Result {
+        const running = trace.getSpanContext(telemetry.context.active());
+        const links = running === undefined ? [] : [{ context: running }];
+
+        return telemetry.context.with(ROOT_CONTEXT, () => run(links));
     },
 
     /** Read a remote trace from a request's headers, inheriting no active context. */

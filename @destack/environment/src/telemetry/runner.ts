@@ -5,6 +5,7 @@ import {
     type Link,
     type Meter,
     type MeterProvider,
+    ROOT_CONTEXT,
     type Span,
     SpanKind,
     SpanStatusCode,
@@ -34,6 +35,9 @@ const MILLISECONDS_PER_SECOND = 1000;
 /** The attribute listing a leveled span's totals, which local logs leave out of its line. */
 export const SPAN_TOTALS_ATTRIBUTE = "destack.span.totals";
 
+/** The attribute marking a span that started with no other span running. */
+export const SPAN_OUTERMOST_ATTRIBUTE = "destack.span.outermost";
+
 /** The attribute marking a span's level, which local logs print at info and above. */
 export const SPAN_LEVEL_ATTRIBUTE = "destack.span.level";
 
@@ -50,6 +54,8 @@ export interface SpanOptions {
     readonly links?: readonly Link[];
     /** The span's level: info for a lifecycle phase a process prints, debug by default. */
     readonly level?: Level;
+    /** Whether a streamed result opens in a span of its own, its later steps in no span. */
+    readonly isDetached?: boolean;
 }
 
 /** The duration a span records: its metric's name and its bounded attributes, never identifiers. */
@@ -128,6 +134,8 @@ export const SpanRunner = {
                 trace.setSpan(parent, span),
                 SpanPath.label(name, attributes),
             );
+            const outermost =
+                SpanPath.of(parent) === undefined ? { [SPAN_OUTERMOST_ATTRIBUTE]: true } : {};
             const started = monotonic.now();
             let isEnded = false;
 
@@ -147,9 +155,10 @@ export const SpanRunner = {
                     });
                 }
                 const totals = SpanPath.totals(entered);
+                SpanPath.end(entered);
                 const listed =
                     how.level === undefined ? {} : { [SPAN_TOTALS_ATTRIBUTE]: Object.keys(totals) };
-                span.setAttributes({ ...failed, ...totals, ...listed });
+                span.setAttributes({ ...failed, ...totals, ...listed, ...outermost });
                 span.end(clock.now());
                 if (how.duration !== false) {
                     const seconds = (monotonic.now() - started) / MILLISECONDS_PER_SECOND;
@@ -166,7 +175,26 @@ export const SpanRunner = {
             try {
                 const result = await context.with(entered, () => work(span));
                 if (isAsyncIterable(result)) {
-                    return follow(result, (step) => context.with(entered, step), end);
+                    // step a stream in its span
+                    if (how.isDetached !== true) {
+                        return follow(result, (step) => context.with(entered, step), end);
+                    }
+
+                    // open a detached stream in a child span with totals of its own, then step it in no span
+                    let isOpened = false;
+                    const opening = trace.setSpan(ROOT_CONTEXT, span);
+                    const opened = (step: Step): ReturnType<Step> => {
+                        const isOpening = !isOpened;
+                        isOpened = true;
+
+                        return isOpening
+                            ? context.with(opening, () =>
+                                  run(`${name}.open`, attributes, step, { duration: false }),
+                              )
+                            : context.with(ROOT_CONTEXT, step);
+                    };
+
+                    return follow(result, opened, end);
                 }
                 end();
 
@@ -222,10 +250,13 @@ export function recordSpanDuration(meters: MeterProvider, span: ReadableSpan): v
         .record(seconds + nanoseconds / NANOSECONDS_PER_SECOND, failed);
 }
 
+/** One step of a stream's iterator. */
+type Step = () => Promise<IteratorResult<unknown>>;
+
 /** Pass a stream through in its span, ending the span once it ends, fails or closes early. */
 function follow<Stream extends AsyncIterable<unknown>>(
     stream: Stream,
-    inSpan: <Value>(step: () => Value) => Value,
+    inSpan: (step: Step) => ReturnType<Step>,
     end: (failure?: unknown) => void,
 ): Stream {
     // step the stream's iterator in the span, ending it at the stream's end or failure
