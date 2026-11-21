@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { flush } from "@destack/view";
-import { render } from "@destack/view/test";
+import { render, stubPopovers } from "@destack/view/test";
 import {
     Sortable,
     SortableContainer,
@@ -53,9 +53,10 @@ const ISOLATES = /[\u2066-\u2069]/gu;
 
 /** Read the live region's announcement without the isolating marks. */
 function announced(container: HTMLElement): string {
-    return (
-        container.querySelector("[data-slot=sortable-announcer]")?.textContent ?? ""
-    ).replaceAll(ISOLATES, "");
+    return (container.querySelector("[data-slot=drag-announcer]")?.textContent ?? "").replaceAll(
+        ISOLATES,
+        "",
+    );
 }
 
 test("lift an item with Space, move it down and across with the arrow keys, announce each step and report the drop", () => {
@@ -98,7 +99,8 @@ test("put a lifted item back on Escape without reporting a move", () => {
     });
 });
 
-test("drag an item with the pointer past the middle of another and drop it there", () => {
+test("drag an item with the pointer past the middle of another, previewed above the page, and drop it there", () => {
+    stubPopovers();
     const moves: SortableMove[] = [];
     const container = drawBoard(moves);
 
@@ -119,11 +121,32 @@ test("drag an item with the pointer past the middle of another and drop it there
     pointer("pointermove", 35);
     flush();
     const state = container.querySelector("[data-slot=sortable-item]")?.getAttribute("data-state");
+    const reached = announced(container);
+    const preview = container.querySelector<HTMLElement>("[data-slot=drag-preview]");
+    const previewed = [
+        preview?.hasAttribute("data-popover-open"),
+        preview?.firstElementChild?.getAttribute("data-slot"),
+        preview?.getAttribute("style"),
+    ];
     pointer("pointerup", 35);
     flush();
 
-    expect({ state, moves }).toEqual({
+    // the copy stands where the item stood, moved by the pointer's 25 pixels
+    expect({
+        state,
+        reached,
+        previewed,
+        isPreviewedAfter: container.querySelector("[data-slot=drag-preview]") !== null,
+        moves,
+    }).toEqual({
         state: "dragging",
+        reached: "Write moved to position 2 of 3 in To do.",
+        previewed: [
+            true,
+            "sortable-item",
+            "--x-width: 200px; --x-height: 20px; --x-translate: 0px 25px;",
+        ],
+        isPreviewedAfter: false,
         moves: [{ id: "a", container: "todo", previous: "b", next: "c" }],
     });
 });
