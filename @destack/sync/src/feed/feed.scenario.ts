@@ -28,7 +28,7 @@ export const snapshotThousandsOfRows = defineScenario({
             warmup: 1,
             step: { action: "replicate", queries: "snapshot" },
             then: [
-                { metric: { name: "db.client.operation.duration", host: "database" }, atMost: 55 },
+                { metric: { name: "db.client.operation.duration", host: "database" }, atMost: 56 },
             ],
         },
     ],

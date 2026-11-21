@@ -24,6 +24,7 @@ import {
     text,
     TABLE,
     type DatabaseConnection,
+    type Dialect,
     type SQL,
     type SQLWrapper,
     Condition,
@@ -105,16 +106,33 @@ export const replica = defineTable(
         layouts: json("layouts", schema.record(schema.string(), schema.string())),
         /** The replicated tables' SQL names, recorded when the replica registers. */
         tables: json("tables", schema.array(schema.string())).notNull(),
-        /** The scopes each replicated table's rows live in, by SQL name. */
-        living: json(
-            "living",
-            schema.record(schema.string(), schema.array(schema.string())),
-        ).notNull(),
     },
     {
         log: {},
     },
 );
+
+/** The scopes each replica stores a table's rows of: a row per replica, table and scope. */
+export const replicaScope = defineTable(
+    "replica_scope",
+    {
+        /** The replica's name. */
+        name: text("name").primaryKey(),
+        /** The replica's scope. */
+        scope: text("scope").primaryKey(),
+        /** The replicated table, by SQL name. */
+        table: text("table").primaryKey(),
+        /** A scope the table's rows live in. */
+        living: text("living").primaryKey(),
+    },
+    {
+        log: {},
+        constraints: (row) => [index("replica_scope_living").on(row.living, row.table)],
+    },
+);
+
+/** The scopes each of a replica's tables' rows live in, by the table's SQL name. */
+type ReplicaLiving = Record<string, string[]>;
 
 /** A replica's position row without its key. */
 type ReplicaPosition = Omit<Select<typeof replicaPosition>, "name" | "scope">;
@@ -199,8 +217,10 @@ export const replicaSubscription = defineTable(
 );
 
 /** A replica's registration with its position and subscription. */
-type ReplicaRecord = Select<typeof replica> &
-    Omit<Select<typeof replicaPosition>, "name" | "scope"> & {
+type ReplicaRecord = Select<typeof replica> & {
+    /** The scopes each replicated table's rows live in, by SQL name. */
+    readonly living: ReplicaLiving;
+} & Omit<Select<typeof replicaPosition>, "name" | "scope"> & {
         /** The subscription it follows, absent for a replica without one. */
         readonly subscription: SubscriptionRecord | undefined;
         /** The audience its subscription is decided for, absent without a subscription. */
@@ -285,6 +305,7 @@ export const replicaKey = defineTable(
 /** The tables of a replica's record, whose commits decide whether it is current. */
 export const replicaRecordTables: readonly Table[] = [
     replica,
+    replicaScope,
     replicaPosition,
     replicaSubscription,
 ];
@@ -293,6 +314,7 @@ export const replicaRecordTables: readonly Table[] = [
 export const replicaTables: readonly Table[] = [
     subscriptionTable,
     replica,
+    replicaScope,
     replicaSubscription,
     replicaPosition,
     replicaPage,
@@ -670,26 +692,42 @@ export class Replica {
             return [];
         }
 
-        // read every replica, or those a reader sees by their subscriptions
-        const columns = { scope: replica.scope, tables: replica.tables, living: replica.living };
-        const records =
+        // read what every replica stores, or those a reader sees by their subscriptions
+        const stored = {
+            name: replicaScope.name,
+            scope: replicaScope.scope,
+            table: replicaScope.table,
+            living: replicaScope.living,
+        };
+        const rows =
             reader.length === 0
-                ? await database.select(columns).from(replica)
+                ? await database
+                      .select(stored)
+                      .from(replicaScope)
+                      .orderBy(...Object.values(stored))
                 : await database
-                      .select(columns)
-                      .from(replica)
-                      .innerJoin(replicaSubscription, SUBSCRIBED)
-                      .where(Replica.#seen(...reader));
+                      .select(stored)
+                      .from(replicaScope)
+                      .innerJoin(
+                          replicaSubscription,
+                          and(
+                              eq(replicaSubscription.name, replicaScope.name),
+                              eq(replicaSubscription.scope, replicaScope.scope),
+                          ),
+                      )
+                      .where(Replica.#seen(...reader))
+                      .orderBy(...Object.values(stored));
 
         // list each replica's tables by the scopes their rows live in
-        return records.flatMap((record) =>
-            Replica.#livingScopes(record).map((scope) => ({
-                scope,
-                tables: record.tables.filter((table) =>
-                    (record.living[table] ?? [record.scope]).includes(scope),
-                ),
-            })),
-        );
+        const listed = new Map<string, { scope: string; tables: string[] }>();
+        for (const row of rows) {
+            const key = `${row.name} ${row.scope} ${row.living}`;
+            const entry = listed.get(key) ?? { scope: row.living, tables: [] };
+            entry.tables.push(row.table);
+            listed.set(key, entry);
+        }
+
+        return [...listed.values()];
     }
 
     /** List the scopes whose rows of a table the replicas have, or those a reader sees. */
@@ -742,17 +780,13 @@ export class Replica {
         scope: string,
         table?: Table,
     ): Promise<boolean> {
-        // read the replicas with the scope's rows of the table, or of any table
-        const records = await snapshot.read(replica).findMany();
+        // read one replica's row of the scope's rows of the table, or of any table
         const name = table?.[TABLE].sqlName;
+        const stored = await snapshot.read(replicaScope).findFirst({
+            where: { living: scope, ...(name === undefined ? {} : { table: name }) },
+        });
 
-        return records.some((record) =>
-            record.tables.some(
-                (replicated) =>
-                    (name === undefined || replicated === name) &&
-                    (record.living[replicated] ?? [record.scope]).includes(scope),
-            ),
-        );
+        return stored !== undefined;
     }
 
     /** Wait until the replicas including a scope reflect its home up to a position. */
@@ -992,11 +1026,13 @@ export class Replica {
         name: string,
         scope: string,
     ): Promise<ReplicaRecord | undefined> {
+        // read the replica's registration with its position, its subscription and its living scopes
         const [record] = await database
             .select({
                 registration: replica,
                 position: replicaPosition,
                 subscription: replicaSubscription,
+                living: Replica.#livingText(database.dialect),
             })
             .from(replica)
             .innerJoin(replicaPosition, POSITIONED)
@@ -1005,7 +1041,12 @@ export class Replica {
 
         return record === undefined
             ? undefined
-            : Replica.#merge(record.registration, record.position, record.subscription);
+            : Replica.#merge(
+                  record.registration,
+                  record.position,
+                  record.subscription,
+                  Replica.#readLiving(record.living),
+              );
     }
 
     /** Refuse relaying a replica that has no position yet. */
@@ -1165,7 +1206,13 @@ export class Replica {
         // read every replica with the scopes' rows it includes, a database having a few replicas
         const keys = new Map(scopes.map((scope) => [Key.name(scopeTable, { scope }), scope]));
         const rows = await database
-            .select()
+            .select({
+                replica,
+                replica_position: replicaPosition,
+                replica_subscription: replicaSubscription,
+                replica_key: replicaKey,
+                living: Replica.#livingText(database.dialect),
+            })
             .from(replica)
             .innerJoin(replicaPosition, POSITIONED)
             .leftJoin(replicaSubscription, SUBSCRIBED)
@@ -1186,8 +1233,14 @@ export class Replica {
             replica_position: position,
             replica_subscription: subscription,
             replica_key: included,
+            living,
         } of rows) {
-            const record = Replica.#merge(registration, position, subscription);
+            const record = Replica.#merge(
+                registration,
+                position,
+                subscription,
+                Replica.#readLiving(living),
+            );
             const listed = [
                 ...Replica.#livingScopes(record).filter((scope) => scopes.includes(scope)),
                 ...(included === null ? [] : [found(keys, included.key)]),
@@ -1215,8 +1268,70 @@ export class Replica {
         );
     }
 
+    /** Write the scopes the replica's tables' rows live in, replacing rows that say otherwise. */
+    async #writeLiving(
+        transaction: DatabaseConnection,
+        record: Pick<ReplicaRecord, "living"> | undefined,
+    ): Promise<void> {
+        // leave rows that say the same
+        const living = Replica.#sortedLiving(this.#living());
+        const stored = record?.living ?? {};
+        if (canonicalize(stored) === canonicalize(living)) {
+            return;
+        }
+
+        // replace a recorded replica's rows by a row per table and living scope
+        const key = { name: this.name, scope: this.scope };
+        const rows = Object.entries(living).flatMap(([table, scopes]) =>
+            scopes.map((scope) => ({ ...key, table, living: scope })),
+        );
+        if (Object.keys(stored).length > 0) {
+            await transaction.delete(replicaScope).where(this.#match(replicaScope));
+        }
+        if (rows.length > 0) {
+            await transaction.insert(replicaScope).values(rows).onConflictDoNothing();
+        }
+    }
+
+    /** Select a replica's living scopes beside its row, as JSON text of table and scope pairs. */
+    static #livingText(dialect: Dialect): SQL<string> {
+        const of = and(eq(replicaScope.name, replica.name), eq(replicaScope.scope, replica.scope));
+
+        return dialect === "sqlite"
+            ? sql<string>`(SELECT json_group_array(json_array(${replicaScope.table}, ${replicaScope.living})) FROM ${replicaScope} WHERE ${of})`
+            : sql<string>`(SELECT coalesce(json_agg(json_build_array(${replicaScope.table}, ${replicaScope.living})), '[]'::json)::text FROM ${replicaScope} WHERE ${of})`;
+    }
+
+    /** Read a replica's living scopes from their JSON text, each table's scopes sorted. */
+    static #readLiving(listed: string): ReplicaLiving {
+        // read the pairs, then list each table's scopes in order
+        const pairs = schema
+            .array(schema.tuple([schema.string(), schema.string()]))
+            .parse(JSON.parse(listed));
+        const living: ReplicaLiving = {};
+        for (const [table, scope] of pairs.toSorted(([, left], [, right]) =>
+            left.localeCompare(right),
+        )) {
+            living[table] = [...(living[table] ?? []), scope];
+        }
+
+        return living;
+    }
+
+    /** Sort each table's living scopes and leave out a table without any, as stored rows read. */
+    static #sortedLiving(living: ReplicaLiving): ReplicaLiving {
+        return Object.fromEntries(
+            Object.entries(living)
+                .filter(([, scopes]) => scopes.length > 0)
+                .map(([table, scopes]) => [
+                    table,
+                    scopes.toSorted((left, right) => left.localeCompare(right)),
+                ]),
+        );
+    }
+
     /** List the scopes a replica's rows live in: its own and those its tables' rows live in. */
-    static #livingScopes(record: Pick<Select<typeof replica>, "scope" | "living">): string[] {
+    static #livingScopes(record: Pick<ReplicaRecord, "scope" | "living">): string[] {
         return [...new Set([record.scope, ...Object.values(record.living).flat()])];
     }
 
@@ -1268,7 +1383,7 @@ export class Replica {
             isSubscribed &&
             canonicalize(record.layouts) === canonicalize(layouts) &&
             canonicalize(record.tables) === canonicalize([...this.#replicated.keys()]) &&
-            canonicalize(record.living) === canonicalize(this.#living())
+            canonicalize(record.living) === canonicalize(Replica.#sortedLiving(this.#living()))
         );
     }
 
@@ -1564,6 +1679,11 @@ export class Replica {
         }
         await transaction.write({ table: replicaPosition, before: position, after: null });
 
+        // drop the rows of what it stores, so the transaction finds its scopes copied by no replica
+        for (const row of await transaction.read(replicaScope).findMany({ where: key })) {
+            await transaction.write({ table: replicaScope, before: row, after: null });
+        }
+
         // drop its keys of copied scope rows in this transaction
         const scopes = scopeTable[TABLE].sqlName;
         const copied = await transaction
@@ -1604,8 +1724,11 @@ export class Replica {
             const key = { name: this.name, scope: this.scope };
             await transaction
                 .insert(replica)
-                .values({ ...key, tables: [...this.#replicated.keys()], living: this.#living() })
+                .values({ ...key, tables: [...this.#replicated.keys()] })
                 .onConflictDoNothing();
+            if (record === undefined) {
+                await this.#writeLiving(transaction, undefined);
+            }
             if (subscription !== undefined) {
                 await transaction
                     .insert(replicaSubscription)
@@ -1651,6 +1774,7 @@ export class Replica {
                         await transaction
                             .delete(replicaSubscription)
                             .where(dropped.#match(replicaSubscription));
+                        await transaction.delete(replicaScope).where(dropped.#match(replicaScope));
                         await transaction.delete(replica).where(dropped.#match(replica));
                     });
                 },
@@ -2112,7 +2236,6 @@ export class Replica {
             ...(page.subjects === undefined ? {} : { subjects: page.subjects }),
             layouts: await this.#layouts(transaction),
             tables: [...this.#replicated.keys()],
-            living: this.#living(),
         };
 
         // register what the run follows unless the record has it
@@ -2123,6 +2246,7 @@ export class Replica {
             .insert(replica)
             .values({ ...key, ...registration })
             .onConflictDoUpdate({ target: [replica.name, replica.scope], set: registration });
+        await this.#writeLiving(transaction, record);
         if (subscription !== undefined) {
             const columns = Replica.subscriptionColumns(subscription, audience);
             await transaction
@@ -2705,6 +2829,7 @@ export class Replica {
     #match(
         table:
             | typeof replica
+            | typeof replicaScope
             | typeof replicaSubscription
             | typeof replicaPosition
             | typeof replicaPage
@@ -3030,10 +3155,12 @@ export class Replica {
         registration: Select<typeof replica>,
         position: Select<typeof replicaPosition>,
         subscription: Select<typeof replicaSubscription> | null,
+        living: ReplicaLiving,
     ): ReplicaRecord {
         return {
             ...position,
             ...registration,
+            living,
             subscription: subscription === null ? undefined : Replica.subscriptionOf(subscription),
             audience:
                 subscription === null
