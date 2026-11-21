@@ -5,9 +5,6 @@ import { forgeInteraction } from "./interaction.ts";
 /** The runs and warm-up runs of each operation. */
 const PARAMETERS = { runs: 3, warmup: 1 };
 
-/** The local commits: one per push, and one more for the clones to pull. */
-const COMMITS = PARAMETERS.runs + PARAMETERS.warmup + 1;
-
 /** Work on a platform repository with git. */
 export const workOnRepository = defineScenario({
     of: repository,
@@ -23,7 +20,8 @@ export const workOnRepository = defineScenario({
             warmup: "{warmup}",
             step: { action: "create" },
         },
-        { action: "commit", count: COMMITS },
+        // commit once per push, and once more for the clones to pull
+        { action: "commit", count: "{runs + warmup + 1}" },
         {
             operation: "repository.push",
             times: "{runs}",
