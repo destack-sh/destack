@@ -71,7 +71,7 @@ function headings(document: string): string[] {
 test("prerender a static view's pages from its declaration, hydrated by its view's chunk", async () => {
     // build the package with no output requested, the view requesting its own
     const build = await source.build({ outputs: OUTPUTS });
-    const distributed = new Set((await build.distributed()).map((file) => file.path));
+    const distributed = new Set((await build.references()).map((file) => file.path));
     const read = async (path: string) =>
         new TextDecoder().decode(await build.load(`output/browser/view/site/${path}`));
 
