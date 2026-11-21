@@ -6,8 +6,7 @@
     "exports": {
         "./main": "./src/main.ts",
         ".": "./src/index.ts",
-        "./error": "./src/error/index.ts",
-        "./workload": "./src/workload/index.ts"
+        "./error": "./src/error/index.ts"
     },
     "dependencies": {
         "@anthropic-ai/sandbox-runtime": "0.0.77",

@@ -8,7 +8,7 @@ import { SANDBOX_TOOLS, SandboxTool } from "./tools.ts";
 import { launcherCommand } from "../bun/command.ts";
 import { SandboxError, type SandboxReason } from "../error/index.ts";
 import { LauncherMessage, SandboxExit, SandboxOptions } from "./message.ts";
-import { SERVER_SOCKET_VARIABLE } from "../workload/index.ts";
+import { SERVER_SOCKET_VARIABLE } from "@destack/environment";
 
 /** Maximum time to prepare OS restrictions and launch a process, in milliseconds. */
 const START_TIMEOUT_MILLISECONDS = 10000;
