@@ -1,3 +1,6 @@
+/** The environment variable with the socket a sandboxed process serves its host on. */
+export const SERVER_SOCKET_VARIABLE = "DESTACK_SERVER_SOCKET";
+
 /** The POSIX signals a process sends, and listens for all but SIGKILL. */
 export type Signal =
     | "SIGHUP"
