@@ -58,13 +58,13 @@ export const Display = schema.object({
     appearance: Appearance,
     /** The text size. */
     textSize: TextSize,
-    /** The density, or null for the theme's own. */
+    /** The density, or null for the theme's. */
     density: Density.nullable(),
     /** The contrast. */
     contrast: Contrast,
     /** The motion. */
     motion: Motion,
-    /** The accent, or null for the theme's own. */
+    /** The accent, or null for the theme's. */
     accent: Seed.nullable(),
 });
 /** How a person wants pages displayed. */

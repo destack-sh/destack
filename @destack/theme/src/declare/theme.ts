@@ -4,12 +4,12 @@ import { Theme, ThemeDefinition, ThemeDescription } from "../theme/index.ts";
 /** The theme declaration kind, which theme defines. */
 export const THEME_KIND = defineKind({ name: "theme", description: ThemeDescription });
 
-/** Declare a theme, refusing text roles that read below their APCA contrast. */
+/** Declare a theme, refusing text below its APCA floor and labels below WCAG's 4.5 to 1. */
 export function defineTheme(definition: ThemeDefinition, module?: ModuleMetadata): Theme {
     // stamp the declaring package
     const owner = PackageVersion.parse(ModuleMetadata.require(module, "defineTheme").package);
 
-    // validate the fields and check every text role's contrast
+    // validate the fields and check the contrast of every role that reads on another
     const theme = new Theme(owner, ThemeDefinition.parse(definition));
     theme.requireContrast();
 

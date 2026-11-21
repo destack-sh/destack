@@ -1,12 +1,9 @@
 import { schema } from "@destack/schema";
-import { Color, HexColor, Srgb } from "./color.ts";
+import { Oklch, HexColor, Srgb } from "./color.ts";
 import { PRESETS, Preset } from "@destack/color";
 
 /** The exponent chroma falls by from the seed's lightness toward white. */
 const LIGHTER_FALLOFF = 0.5;
-
-/** The exponent chroma falls by from the seed's lightness toward black. */
-const DARKER_FALLOFF = 2;
 
 /** The OKLCH lightness of each step of a tone search, below one 8-bit step. */
 const LIGHTNESS_STEP = 0.001;
@@ -33,14 +30,14 @@ export class Palette {
     /** The seed as a lowercase six-digit sRGB hex color. */
     readonly seed: string;
     /** The seed in OKLCH. */
-    readonly #color: Color;
+    readonly #oklch: Oklch;
     /** The tones read so far, by lightness. */
     readonly #tones = new Map<number, Srgb>();
 
     /** Grow a palette from a six-digit sRGB hex color. */
     constructor(seed: string) {
         this.seed = HexColor.parse(seed).toLowerCase();
-        this.#color = Color.parse(this.seed);
+        this.#oklch = Oklch.parse(this.seed);
     }
 
     /** Grow a palette from a preset or a hex seed. */
@@ -61,12 +58,12 @@ export class Palette {
 
     /** The seed's OKLCH lightness. */
     get lightness(): number {
-        return this.#color.lightness;
+        return this.#oklch.lightness;
     }
 
     /** The seed's OKLCH hue in degrees. */
     get hue(): number {
-        return this.#color.hue;
+        return this.#oklch.hue;
     }
 
     /** Read the color at an OKLCH lightness. */
@@ -84,8 +81,8 @@ export class Palette {
 
     /** Grow the color at an OKLCH lightness from the seed. */
     #grow(lightness: number): Srgb {
-        // keep the seed exact at its own lightness
-        const seed = this.#color;
+        // return the seed exactly at its lightness
+        const seed = this.#oklch;
         const clamped = Math.min(1, Math.max(0, lightness));
         if (Math.abs(clamped - seed.lightness) < LIGHTNESS_STEP / 2) {
             return Srgb.parse(this.seed);
@@ -95,9 +92,9 @@ export class Palette {
         const relative =
             clamped > seed.lightness
                 ? ((1 - clamped) / Math.max(1 - seed.lightness, LIGHTNESS_STEP)) ** LIGHTER_FALLOFF
-                : (clamped / Math.max(seed.lightness, LIGHTNESS_STEP)) ** DARKER_FALLOFF;
+                : smoothstep(clamped / Math.max(seed.lightness, LIGHTNESS_STEP));
 
-        return Srgb.parse(new Color(clamped, seed.chroma * relative, seed.hue).hex());
+        return Srgb.parse(new Oklch(clamped, seed.chroma * relative, seed.hue).hex());
     }
 
     /** Find the lightness nearest a start whose tone passes, absent when none does. */
@@ -106,7 +103,7 @@ export class Palette {
         passes: (color: Srgb) => boolean,
         direction: Direction,
     ): number | undefined {
-        // keep a passing start, else take the closer of the first passing lightness each way
+        // return a passing start, else take the closer of the first passing lightness each way
         if (passes(this.tone(start))) {
             return start;
         }
@@ -148,4 +145,9 @@ export class Palette {
 
         return undefined;
     }
+}
+
+/** Ease a ratio from 0 to 1 with a flat start and end, the Hermite curve 3t² − 2t³. */
+function smoothstep(ratio: number): number {
+    return ratio * ratio * (3 - 2 * ratio);
 }

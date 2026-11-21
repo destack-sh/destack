@@ -1,5 +1,12 @@
 import { schema } from "@destack/schema";
-import { apca, Color, HexColor, type Palette, type ColorScheme, Srgb } from "../palette/index.ts";
+import {
+    Oklch,
+    type ContrastMeasure,
+    HexColor,
+    type Palette,
+    type ColorScheme,
+    Srgb,
+} from "../palette/index.ts";
 
 /** An APCA lightness contrast Lc a role needs. */
 export interface Floor {
@@ -17,6 +24,9 @@ export const CONTENT_CONTRAST: Floor = { standard: 60, more: 90 };
 
 /** The contrast of labels on solid fills, Lc 60, and Lc 75 at the most. */
 export const LABEL_CONTRAST: Floor = { standard: 60, more: 75 };
+
+/** The WCAG 2.2 AA contrast ratio of normal text, the least a label on a solid fill takes. */
+export const LABEL_RATIO = 4.5;
 
 /** The contrast of solid graphics such as chart series and focus rings. */
 export const GRAPHIC_CONTRAST: Floor = { standard: 45, more: 60 };
@@ -55,6 +65,7 @@ export const ROLE_NAMES = [
     "popoverForeground",
     "primary",
     "primaryForeground",
+    "primaryText",
     "secondary",
     "secondaryForeground",
     "muted",
@@ -63,12 +74,16 @@ export const ROLE_NAMES = [
     "accentForeground",
     "destructive",
     "destructiveForeground",
+    "destructiveText",
     "success",
     "successForeground",
+    "successText",
     "warning",
     "warningForeground",
+    "warningText",
     "info",
     "infoForeground",
+    "infoText",
     "border",
     "input",
     "ring",
@@ -224,7 +239,7 @@ export class Role {
     /** The contrast the best label on this role needs, for solid roles carrying text. */
     readonly labelled: Floor | undefined;
 
-    /** Hold a role. */
+    /** Create a role. */
     constructor(source: RoleSource, reading?: Reading, labelled?: Floor) {
         this.source = source;
         this.reading = reading;
@@ -274,9 +289,9 @@ export class Resolution {
     /** The roles being resolved, which a role must not read through again. */
     readonly #resolving = new Set<RoleName>();
 
-    /** Hold the roles and palettes of one appearance and level. */
+    /** Create the resolution of one appearance and level. */
     constructor(roles: Roles, palettes: Palettes, scheme: ColorScheme, level: number) {
-        // hold what every color resolves from
+        // set what every color resolves from
         this.#roles = roles;
         this.#palettes = palettes;
         this.scheme = scheme;
@@ -303,8 +318,8 @@ export class Resolution {
         return color;
     }
 
-    /** Measure, as a magnitude, the APCA lightness contrast of a role on the role it reads on. */
-    reads(name: RoleName): number {
+    /** Measure a role's contrast on the role it reads on, APCA's as a magnitude. */
+    contrast(name: RoleName, measure: ContrastMeasure): number {
         // require the role it reads on
         const reading = this.#roles[name].reading;
         if (reading === undefined) {
@@ -313,9 +328,9 @@ export class Resolution {
 
         // measure a translucent role blended over the role it reads on
         const ground = this.color(reading.on);
-        const blended = Srgb.parse(Color.composite(this.color(name), ground));
+        const blended = Srgb.parse(Srgb.composite(this.color(name), ground));
 
-        return Math.abs(apca(blended, Srgb.parse(ground)));
+        return Math.abs(blended.contrast(Srgb.parse(ground), measure));
     }
 
     /** Read a floor at the level. */
@@ -325,12 +340,17 @@ export class Resolution {
 
     /** Pick the label that reads best on a background. */
     label(palette: Palette, background: Srgb): Srgb {
-        // measure each candidate on the background and keep the strongest
+        // measure each candidate on the background and take the strongest
         const dark = TEXT_LIGHTNESS.light;
         const candidates = [WHITE, palette.tone(dark), this.#palettes.base.tone(dark)];
-        const reading = (candidate: Srgb) => Math.abs(apca(candidate, background));
+        const reading = (candidate: Srgb) => Math.abs(candidate.contrast(background, "apca"));
 
-        return candidates.reduce((best, candidate) =>
+        // prefer the candidates at or above the label ratio, where any are
+        const legible = candidates.filter(
+            (candidate) => candidate.contrast(background, "wcag") >= LABEL_RATIO,
+        );
+
+        return (legible.length > 0 ? legible : candidates).reduce((best, candidate) =>
             reading(candidate) > reading(best) ? candidate : best,
         );
     }
@@ -341,9 +361,9 @@ export class Resolution {
         switch (source.kind) {
             case "shift": {
                 // move the role's color in lightness alone
-                const color = Color.parse(this.color(source.from));
+                const color = Oklch.parse(this.color(source.from));
                 const lightness = color.lightness + source.lightness[this.scheme];
-                const shifted = new Color(lightness, color.chroma, color.hue).hex();
+                const shifted = new Oklch(lightness, color.chroma, color.hue).hex();
 
                 return this.#translucent(shifted, source.alpha, role);
             }
@@ -354,7 +374,7 @@ export class Resolution {
                 const start =
                     source.from === undefined
                         ? offset
-                        : Color.parse(this.color(source.from)).lightness + offset;
+                        : Oklch.parse(this.color(source.from)).lightness + offset;
 
                 // settle an opaque tone in lightness, a translucent one in opacity
                 return source.alpha === undefined
@@ -384,34 +404,34 @@ export class Resolution {
 
     /** Apply an opacity to a color. */
     #translucent(color: string, alpha: number | undefined, role: Role): string {
-        // keep an opaque color, and a translucent one reading on nothing
+        // return an opaque color, and a translucent one reading on nothing, as they are
         const reading = role.reading;
         if (alpha === undefined) {
             return color;
         } else if (reading === undefined) {
-            return Color.translucent(color, alpha);
+            return Srgb.translucent(color, alpha);
         }
 
-        // find the least opacity at or above the declared one whose blend reaches the floor
+        // find the least opacity at or above the declared one whose blend reads at the floor
         const ground = this.color(reading.on);
         const under = Srgb.parse(ground);
         const floor = this.floor(reading.contrast);
         const reads = (opacity: number) => {
-            const blended = Srgb.parse(Color.composite(Color.translucent(color, opacity), ground));
+            const blended = Srgb.parse(Srgb.composite(Srgb.translucent(color, opacity), ground));
 
-            return Math.abs(apca(blended, under)) >= floor;
+            return Math.abs(blended.contrast(under, "apca")) >= floor;
         };
         let low = alpha;
         let high = 1;
         if (reads(low) || !reads(high)) {
-            return Color.translucent(color, reads(low) ? low : high);
+            return Srgb.translucent(color, reads(low) ? low : high);
         }
         for (let step = 0; step < OPACITY_STEPS; step += 1) {
             const middle = (low + high) / 2;
             [low, high] = reads(middle) ? [low, middle] : [middle, high];
         }
 
-        return Color.translucent(color, high);
+        return Srgb.translucent(color, high);
     }
 
     /** Find the lightness nearest a start at which a role and its label read. */
@@ -422,15 +442,29 @@ export class Resolution {
         const passes = (color: Srgb) =>
             (reading === undefined ||
                 background === undefined ||
-                Math.abs(apca(color, background)) >= this.floor(reading.contrast)) &&
+                Math.abs(color.contrast(background, "apca")) >= this.floor(reading.contrast)) &&
             (labelled === undefined ||
-                Math.abs(apca(this.label(palette, color), color)) >= this.floor(labelled));
+                (Math.abs(this.label(palette, color).contrast(color, "apca")) >=
+                    this.floor(labelled) &&
+                    this.label(palette, color).contrast(color, "wcag") >= LABEL_RATIO));
 
-        // move a role reading on a background away from it, and a solid either way
+        // move a solid toward its label's side, so a fill under white text deepens
         if (background === undefined || role.source.kind === "solid") {
-            return palette.nearest(start, passes, "either") ?? start;
+            const seed = palette.tone(start);
+            const ink = palette.tone(TEXT_LIGHTNESS.light);
+            const isUnderWhite =
+                Math.abs(WHITE.contrast(seed, "apca")) >= Math.abs(ink.contrast(seed, "apca"));
+            const [first, second] = isUnderWhite
+                ? (["darker", "lighter"] as const)
+                : (["lighter", "darker"] as const);
+
+            return (
+                palette.nearest(start, passes, first) ??
+                palette.nearest(start, passes, second) ??
+                start
+            );
         }
-        const isLighter = start >= Color.parse(background.hex).lightness;
+        const isLighter = start >= Oklch.parse(background.hex).lightness;
 
         return (
             palette.nearest(start, passes, isLighter ? "lighter" : "darker") ?? (isLighter ? 1 : 0)
@@ -451,6 +485,7 @@ export const COLOR_ROLES: Roles = {
     // actions
     primary: solid("accent"),
     primaryForeground: label("primary"),
+    primaryText: readable("accent", MUTED_LIGHTNESS, "background", CONTENT_CONTRAST),
     secondary: shift("background", SUBTLE_OFFSET),
     secondaryForeground: readable("base", TEXT_LIGHTNESS, "secondary", BODY_CONTRAST),
     muted: shift("background", SUBTLE_OFFSET),
@@ -461,12 +496,16 @@ export const COLOR_ROLES: Roles = {
     // statuses
     destructive: solid("destructive"),
     destructiveForeground: label("destructive"),
+    destructiveText: readable("destructive", MUTED_LIGHTNESS, "background", CONTENT_CONTRAST),
     success: solid("success"),
     successForeground: label("success"),
+    successText: readable("success", MUTED_LIGHTNESS, "background", CONTENT_CONTRAST),
     warning: solid("warning"),
     warningForeground: label("warning"),
+    warningText: readable("warning", MUTED_LIGHTNESS, "background", CONTENT_CONTRAST),
     info: solid("info"),
     infoForeground: label("info"),
+    infoText: readable("info", MUTED_LIGHTNESS, "background", CONTENT_CONTRAST),
 
     // lines
     border: readable("base", { light: 0.886, dark: 0.348 }, "background", LINE_CONTRAST),
@@ -496,7 +535,7 @@ export const SURFACE_ROLES: Readonly<Record<SurfaceLevel, RoleName>> = {
     overlay: "popover",
 };
 
-/** The parts of a swatch: the colors one preset gives an object marked with it. */
+/** The colors of a swatch: the ones a preset gives an object marked with it. */
 export const SWATCH_ROLES = {
     /** The preset's solid fill, such as a tag's dot. */
     solid: "primary",
@@ -508,16 +547,16 @@ export const SWATCH_ROLES = {
     text: "accentForeground",
 } as const satisfies Readonly<Record<string, RoleName>>;
 
-/** A part of a swatch. */
-export type SwatchPart = keyof typeof SWATCH_ROLES;
+/** A color of a swatch. */
+export type SwatchColor = keyof typeof SWATCH_ROLES;
 
-/** The parts of a swatch, in token order. */
-export const SWATCH_PARTS = [
+/** The colors of a swatch, in token order. */
+export const SWATCH_COLORS = [
     "solid",
     "label",
     "tint",
     "text",
-] as const satisfies readonly SwatchPart[];
+] as const satisfies readonly SwatchColor[];
 
 /** A role moving another role's color in lightness. */
 function shift(from: RoleName, lightness: Lightness): Role {

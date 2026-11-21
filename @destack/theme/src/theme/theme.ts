@@ -1,6 +1,6 @@
 import { PackageVersion, PackageError } from "@destack/package";
 import { present, schema } from "@destack/schema";
-import { apca, Palette, Seed, type ColorScheme, Srgb } from "../palette/index.ts";
+import { Palette, Seed, type ColorScheme, Srgb } from "../palette/index.ts";
 import { ACCENT_PRESETS } from "@destack/color";
 import { MOTION_VARIABLE, TOKENS, VARIABLE_PREFIX, type Variable } from "../token/index.ts";
 import { DENSITY_SCALES, Density, TEXT_SCALES, type Contrast, type Display } from "./display.ts";
@@ -8,13 +8,14 @@ import {
     BACKGROUND_LIGHTNESS,
     COLOR_ROLES,
     GRAPHIC_CONTRAST,
+    LABEL_RATIO,
     Resolution,
     ROLE_NAMES,
     RoleName,
     RoleOverride,
     SURFACE_ROLES,
     SurfaceLevel,
-    SWATCH_PARTS,
+    SWATCH_COLORS,
     SWATCH_ROLES,
     type Palettes,
     type Role,
@@ -50,7 +51,7 @@ const DEFAULT_DENSITY = "regular";
 /** The windows a fluid text size grows between: a small phone, and the 1280px frame. */
 const FLUID_WINDOWS = { min: 360, max: 1280 } as const;
 
-/** The chart series a theme holds after its accent. */
+/** The chart series a theme has after its accent. */
 const SERIES = ["chart2", "chart3", "chart4", "chart5"] as const;
 
 /** The appearances and contrast levels each theme is checked under. */
@@ -182,7 +183,7 @@ export const ThemeDescription = ThemeDefinition.extend({
 /** A theme declaration as manifests describe it. */
 export type ThemeDescription = schema.Infer<typeof ThemeDescription>;
 
-/** The declarations a theme root's style attribute carries. */
+/** The declarations of a theme root's style attribute. */
 export type ThemeStyle = {
     /** Browser appearance used by light-dark() and native controls. */
     "color-scheme": "light dark" | "light" | "dark";
@@ -196,31 +197,23 @@ export class Theme {
     readonly package: PackageVersion;
     /** The name, seeds, corners, scaling, fonts, density and role replacements. */
     readonly definition: ThemeDefinition;
-    /** The palettes of the theme's own accent. */
+    /** The palettes of the theme's accent. */
     readonly palettes: Palettes;
-    /** The color roles with the theme's replacements. */
+    /** The color roles with the theme's replacements, under its accent. */
     readonly roles: Roles;
     /** The palettes of each accent a person chose, by seed. */
     readonly #accents = new Map<Seed, Palettes>();
     /** The resolved roles of each accent, appearance and contrast level. */
     readonly #resolutions = new Map<string, Resolution>();
 
-    /** Hold a theme, grow its palettes and apply its role replacements. */
+    /** Create a theme, growing its palettes and applying its role replacements. */
     constructor(owner: PackageVersion, definition: ThemeDefinition) {
-        // hold the definition and replace the roles it overrides
+        // set the definition, then grow the palettes and roles of the theme's accent
         this.package = owner;
         this.definition = definition;
-        const roles: Record<RoleName, Role> = { ...COLOR_ROLES };
-        for (const name of ROLE_NAMES) {
-            const override = definition.roles?.[name];
-            if (override !== undefined) {
-                roles[name] = COLOR_ROLES[name].override(override);
-            }
-        }
-        this.roles = roles;
-
-        // grow the palettes of the theme's own accent
-        this.palettes = this.#palettesOf(definition.accent ?? DEFAULT_ACCENT);
+        const accent = definition.accent ?? DEFAULT_ACCENT;
+        this.palettes = this.#palettesOf(accent);
+        this.roles = this.#rolesOf(accent);
     }
 
     /** The package-local name. */
@@ -244,7 +237,12 @@ export class Theme {
         if (known !== undefined) {
             return known;
         }
-        const resolution = new Resolution(this.roles, this.#palettesOf(seed), scheme, level);
+        const resolution = new Resolution(
+            this.#rolesOf(seed),
+            this.#palettesOf(seed),
+            scheme,
+            level,
+        );
         this.#resolutions.set(key, resolution);
 
         return resolution;
@@ -252,13 +250,13 @@ export class Theme {
 
     /** Compute a theme root's custom properties for a person's display. */
     variables(display: Display): ThemeStyle {
-        // let the appearance drive light-dark() and native controls
+        // set the appearance light-dark() and native controls follow
         const { appearance } = display;
         const style: ThemeStyle = {
             "color-scheme": appearance === "system" ? "light dark" : appearance,
         };
 
-        // resolve the roles with the person's accent over the theme's own at their contrast
+        // resolve the roles with the person's accent over the theme's at their contrast
         const css = (name: RoleName) =>
             this.#css(name, display.contrast, display.accent ?? undefined);
         for (const entry of TOKENS.family("color").entries) {
@@ -270,9 +268,9 @@ export class Theme {
 
         // resolve each preset's swatch as the roles it takes under the preset as accent
         for (const preset of ACCENT_PRESETS) {
-            for (const part of SWATCH_PARTS) {
-                const entry = TOKENS.entry(["swatch", `${preset}${capitalize(part)}`]);
-                style[entry.variable] = this.#css(SWATCH_ROLES[part], display.contrast, preset);
+            for (const name of SWATCH_COLORS) {
+                const entry = TOKENS.entry(["swatch", `${preset}${capitalize(name)}`]);
+                style[entry.variable] = this.#css(SWATCH_ROLES[name], display.contrast, preset);
             }
         }
 
@@ -295,7 +293,7 @@ export class Theme {
         return style;
     }
 
-    /** Refuse a theme whose roles read below their APCA contrast. */
+    /** Refuse a theme whose text reads below its APCA floor, or whose labels below 4.5 to 1. */
     requireContrast(): void {
         for (const [scheme, level] of CHECKS) {
             const resolution = this.resolve(scheme, level);
@@ -305,7 +303,7 @@ export class Theme {
                 if (reading === undefined) {
                     continue;
                 }
-                const lightness = resolution.reads(name);
+                const lightness = resolution.contrast(name, "apca");
                 const floor = resolution.floor(reading.contrast);
 
                 // refuse an illegible pair
@@ -314,6 +312,15 @@ export class Theme {
                     throw PackageError.of(
                         "DEFINITION_INVALID",
                         `theme '${this.name}' is invalid: '${name}' on '${reading.on}' reads at Lc ${lightness.toFixed(1)} in '${scheme}' with '${contrast}' contrast, below ${floor}`,
+                    );
+                }
+
+                // refuse a label below the WCAG ratio audits measure
+                const isLabel = this.roles[name].source.kind === "label";
+                if (isLabel && resolution.contrast(name, "wcag") < LABEL_RATIO) {
+                    throw PackageError.of(
+                        "DEFINITION_INVALID",
+                        `theme '${this.name}' is invalid: '${name}' on '${reading.on}' reads at ${resolution.contrast(name, "wcag").toFixed(2)} to 1 in '${scheme}', below ${LABEL_RATIO} to 1`,
                     );
                 }
             }
@@ -343,6 +350,23 @@ export class Theme {
             standard === more ? standard : `color-mix(in oklab, ${standard}, ${more} ${amount})`;
 
         return lightDark(mix(light, lightMore), mix(dark, darkMore));
+    }
+
+    /** List the roles under an accent, replacing accent roles only under the theme's accent. */
+    #rolesOf(accent: Seed): Roles {
+        // replace each role the definition replaces, skipping accent roles under another accent
+        const isOwn = accent === (this.definition.accent ?? DEFAULT_ACCENT);
+        const roles: Record<RoleName, Role> = { ...COLOR_ROLES };
+        for (const name of ROLE_NAMES) {
+            const override = this.definition.roles?.[name];
+            const { source } = COLOR_ROLES[name];
+            const isAccent = "palette" in source && source.palette === "accent";
+            if (override !== undefined && (isOwn || !isAccent)) {
+                roles[name] = COLOR_ROLES[name].override(override);
+            }
+        }
+
+        return roles;
     }
 
     /** Grow the palettes of an accent once: the base, accent, statuses and chart series. */
@@ -445,19 +469,19 @@ export class Theme {
             }
         }
 
-        // square the full radius unless the theme rounds fully
-        if (this.definition.radius !== "full") {
+        // square the full radius of a theme with square corners
+        if (this.definition.radius === "none") {
             style[TOKENS.entry(["radius", "full"]).variable] = "0px";
         }
 
-        // pin the motion scale the stylesheet otherwise reads from the device
+        // set the motion scale the stylesheet otherwise reads from the device
         if (display.motion !== "system") {
             style[MOTION_VARIABLE] = display.motion === "full" ? "1" : "0";
         }
     }
 }
 
-/** Capitalize a word's first letter, as token keys join a preset and a part such as `tealSolid`. */
+/** Capitalize a word's first letter, as token keys join a preset and a color: `tealSolid`. */
 function capitalize(word: string): string {
     return `${word.charAt(0).toUpperCase()}${word.slice(1)}`;
 }
@@ -484,9 +508,10 @@ function lightDark(light: string, dark: string): string {
 
 /** Pick the chart series after the accent. */
 function seriesOf(accent: Palette, declared: readonly Palette[], background: Srgb): Palette[] {
-    // keep the candidates whose seeds read as graphics on the light background, where pale hues would darken into muddy tones
+    // take the candidates whose seeds read as graphics on the light background
     const isVisible = (palette: Palette) =>
-        Math.abs(apca(Srgb.parse(palette.seed), background)) >= GRAPHIC_CONTRAST.standard;
+        Math.abs(Srgb.parse(palette.seed).contrast(background, "apca")) >=
+        GRAPHIC_CONTRAST.standard;
     const candidates = ACCENT_PRESETS.map((name) => Palette.of(name)).filter((palette) =>
         isVisible(palette),
     );

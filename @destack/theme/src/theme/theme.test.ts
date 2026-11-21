@@ -1,7 +1,7 @@
 import { PackageVersion } from "@destack/package";
 import { expect, refusal, test } from "@destack/test";
 import { defineTheme } from "../declare/index.ts";
-import { apca, Color, Palette, Srgb } from "../palette/index.ts";
+import { Oklch, Srgb } from "../palette/index.ts";
 import { GRAY_PRESETS, PRESET_NAMES, PRESETS } from "@destack/color";
 import {
     DEFAULT_DISPLAY,
@@ -37,7 +37,7 @@ function changes(
     );
 }
 
-/** Keep a theme root's role and scale properties, without the swatches the swatch test covers. */
+/** Read a theme root's role and scale properties, without the swatches the swatch test covers. */
 function withoutSwatches(style: ThemeStyle): Readonly<Record<string, string>> {
     return Object.fromEntries(
         Object.entries(style).filter(([name]) => !name.startsWith("--destack-swatch-")),
@@ -52,6 +52,7 @@ const SIZE = [24, 32, 40, 48];
 
 /** The panel and overlay widths of tokens.json, by their custom property's name. */
 const WIDTH = {
+    column: 272,
     "hover-card": 256,
     popover: 288,
     prose: 384,
@@ -77,6 +78,15 @@ const LARGEST_TEXT = {
     "--destack-text-7xl-font-size": "103.5px",
     "--destack-text-8xl-font-size": "138px",
     "--destack-text-9xl-font-size": "184px",
+    "--destack-text-2xl-letter-spacing": "-0.69px",
+    "--destack-text-3xl-letter-spacing": "-0.862px",
+    "--destack-text-4xl-letter-spacing": "-1.035px",
+    "--destack-text-5xl-letter-spacing": "-1.38px",
+    "--destack-text-6xl-letter-spacing": "-1.725px",
+    "--destack-text-7xl-letter-spacing": "-2.07px",
+    "--destack-text-8xl-letter-spacing": "-2.76px",
+    "--destack-text-9xl-letter-spacing": "-3.68px",
+    "--destack-text-xl-letter-spacing": "-0.288px",
 };
 
 /** Format a length in pixels as themes do, to three decimals. */
@@ -120,11 +130,15 @@ test("give every preset accent on every base five chart series of hues apart, st
             const faint = series.filter((entry) =>
                 (["light", "dark"] as const).some(
                     (scheme) =>
-                        Math.abs(apca(Srgb.parse(entry[scheme]), Srgb.parse(background[scheme]))) <
-                        GRAPHIC_CONTRAST.standard,
+                        Math.abs(
+                            Srgb.parse(entry[scheme]).contrast(
+                                Srgb.parse(background[scheme]),
+                                "apca",
+                            ),
+                        ) < GRAPHIC_CONTRAST.standard,
                 ),
             );
-            const hues = series.map((entry) => Color.parse(entry.light).hue);
+            const hues = series.map((entry) => Oklch.parse(entry.light).hue);
             const close = hues.flatMap((hue, index) =>
                 hues.slice(index + 1).filter((other) => {
                     const difference = Math.abs(hue - other) % 360;
@@ -157,29 +171,30 @@ test("pass every role's contrast for every preset accent on every base", () => {
     expect(refused).toEqual([]);
 });
 
-test("shift a seed by a small lightness until its best label reads at Lc 60", () => {
+test("shift a seed in lightness alone until its best label reads at Lc 60 and at 4.5 to 1", () => {
     for (const seed of ["#ff8800", "#22c55e", "#0ea5e9"]) {
         const theme = defineTheme({ name: "seeded", accent: seed }, { package: notes });
         const resolution = theme.resolve("light", 0);
         const solid = resolution.color("primary");
-        const before = Color.parse(seed);
-        const after = Color.parse(solid);
+        const before = Oklch.parse(seed);
+        const after = Oklch.parse(solid);
 
-        // the shift moves lightness alone, by less than 0.04, and the label reads
+        // the shift moves lightness alone, and the label reads by both measures
         const shift = Math.abs(after.lightness - before.lightness);
-        expect([shift > 0, shift < 0.04]).toEqual([true, true]);
+        expect(shift).toBeGreaterThan(0);
         expect(Math.abs(after.hue - before.hue)).toBeLessThan(1);
-        expect(resolution.reads("primaryForeground")).toBeGreaterThanOrEqual(60);
+        expect(resolution.contrast("primaryForeground", "apca")).toBeGreaterThanOrEqual(60);
+        expect(resolution.contrast("primaryForeground", "wcag")).toBeGreaterThanOrEqual(4.5);
     }
 });
 
-test("keep a legible preset's seed and label it with its own palette's darkest text", () => {
+test("keep a legible preset's seed and label it with the darkest text that reads best", () => {
     const amber = defineTheme({ name: "amber", accent: "amber" }, { package: notes });
     const resolution = amber.resolve("light", 0);
 
     expect([resolution.color("primary"), resolution.color("primaryForeground")]).toEqual([
         PRESETS.amber,
-        Palette.of("amber").tone(0.242).hex,
+        standard.resolve("light", 0).color("foreground"),
     ]);
 });
 
@@ -192,7 +207,8 @@ test("read every text, line and graphic role against a nested surface's backgrou
             const reading = row.roles[name].reading;
 
             return (
-                reading !== undefined && resolution.reads(name) < resolution.floor(reading.contrast)
+                reading !== undefined &&
+                resolution.contrast(name, "apca") < resolution.floor(reading.contrast)
             );
         });
         expect([resolution.color("background"), unread]).toEqual([
@@ -202,8 +218,8 @@ test("read every text, line and graphic role against a nested surface's backgrou
     }
 
     // the surfaces above the background follow it
-    const card = Color.parse(row.resolve("light", 0).color("card")).lightness;
-    expect(card - Color.parse("#c9d8ff").lightness).toBeCloseTo(-0.011, 2);
+    const card = Oklch.parse(row.resolve("light", 0).color("card")).lightness;
+    expect(card - Oklch.parse("#c9d8ff").lightness).toBeCloseTo(-0.011, 2);
 });
 
 test("raise every reading role's contrast continuously with the person's level", () => {
@@ -216,11 +232,14 @@ test("raise every reading role's contrast continuously with the person's level",
             const reading = standard.roles[name].reading;
 
             return (
-                reading !== undefined && resolution.reads(name) < resolution.floor(reading.contrast)
+                reading !== undefined &&
+                resolution.contrast(name, "apca") < resolution.floor(reading.contrast)
             );
         });
     });
-    const muted = levels.map((level) => standard.resolve("light", level).reads("mutedForeground"));
+    const muted = levels.map((level) =>
+        standard.resolve("light", level).contrast("mutedForeground", "apca"),
+    );
 
     expect(reads).toEqual([[], [], [], [], []]);
     expect(muted).toEqual(muted.toSorted((left, right) => left - right));
@@ -240,9 +259,28 @@ test("grow the status roles and the first chart series from the theme's declared
     );
     const resolution = declared.resolve("light", 0);
 
+    // the declared tomato deepens until its white label reads at 4.5 to 1
     expect([resolution.color("destructive"), resolution.color("chart2")]).toEqual([
-        PRESETS.tomato,
+        "#d64121",
         "#d946ef",
+    ]);
+});
+
+test("apply a replaced primary under the theme's own accent alone", () => {
+    const branded = defineTheme(
+        { name: "branded", roles: { primary: { light: "#c54e0d", dark: "#c54e0d" } } },
+        { package: notes },
+    );
+
+    // another accent and every swatch take the solid their palette grows
+    expect([
+        branded.resolve("light", 0).color("primary"),
+        branded.resolve("light", 0, "teal").color("primary"),
+        branded.variables(DEFAULT_DISPLAY)["--destack-swatch-teal-solid"],
+    ]).toEqual([
+        "#c54e0d",
+        standard.resolve("light", 0, "teal").color("primary"),
+        standard.variables(DEFAULT_DISPLAY)["--destack-swatch-teal-solid"],
     ]);
 });
 
@@ -265,7 +303,7 @@ test("check the roles a theme replaces like every other role", async () => {
     ]).toEqual([
         "light-dark(#f8f5ee, #0b2029)",
         "light-dark(#f8f5ee, #0b2029)",
-        "light-dark(#1f2021, #ededf2)",
+        "light-dark(#1f1f22, #ededf2)",
     ]);
 
     // a background too close to its text is refused
@@ -295,16 +333,16 @@ test("raise a translucent role's opacity until its blend reads, keeping the decl
         [0, 1].map((level) => {
             const resolution = theme.resolve(scheme, level);
 
-            return [resolution.color("border"), resolution.reads("border").toFixed(1)];
+            return [resolution.color("border"), resolution.contrast("border", "apca").toFixed(1)];
         }),
     );
 
-    // standard contrast keeps a fifth, more contrast raises it exactly to the line floor of Lc 30
+    // standard contrast leaves a fifth, more contrast raises it exactly to the line floor of Lc 30
     expect(borders).toEqual([
-        ["#1f202133", "23.3"],
-        ["#1f202141", "30.0"],
+        ["#1f1f2233", "23.3"],
+        ["#1f1f2241", "30.4"],
         ["#ededf233", "7.5"],
-        ["#ededf275", "30.0"],
+        ["#ededf276", "30.5"],
     ]);
 });
 
@@ -315,10 +353,10 @@ test("label an overridden primary with the candidate that reads best on it", () 
     );
     const resolution = theme.resolve("light", 0);
 
-    // the warning palette's darkest text reads on amber, where the indigo accent's white label would not
+    // the base's darkest text reads on amber, where the indigo accent's white label would not
     expect([resolution.color("primary"), resolution.color("primaryForeground")]).toEqual([
         PRESETS.amber,
-        Palette.of("amber").tone(0.242).hex,
+        standard.resolve("light", 0).color("foreground"),
     ]);
 });
 
@@ -373,7 +411,7 @@ test("emit one swatch per colorful preset as the roles it takes as accent, at th
             "--destack-swatch-teal-text",
         ],
         matching: true,
-        solid: "#12a594",
+        solid: "#008577",
     });
 });
 
@@ -381,54 +419,60 @@ test("emit the default theme's custom properties for the system appearance", () 
     // follow the device's contrast through color-mix() and its motion through the duration scale
     expect(withoutSwatches(standard.variables(DEFAULT_DISPLAY))).toEqual({
         "color-scheme": "light dark",
-        "--destack-color-background": "light-dark(#fcfdfe, #131314)",
-        "--destack-color-foreground": "light-dark(#1f2021, #ededf2)",
-        "--destack-color-card": "light-dark(#f8f9fa, #19191a)",
-        "--destack-color-card-foreground": "light-dark(#1f2021, #ededf2)",
-        "--destack-color-popover": "light-dark(#fcfdfe, #242425)",
-        "--destack-color-popover-foreground": "light-dark(#1f2021, #ededf2)",
+        "--destack-color-background": "light-dark(#fcfdfe, #131315)",
+        "--destack-color-foreground": "light-dark(#1f1f22, #ededf2)",
+        "--destack-color-card": "light-dark(#f8f9fa, #19191b)",
+        "--destack-color-card-foreground": "light-dark(#1f1f22, #ededf2)",
+        "--destack-color-popover": "light-dark(#fcfdfe, #242426)",
+        "--destack-color-popover-foreground": "light-dark(#1f1f22, #ededf2)",
         "--destack-color-primary": "#3e63dd",
         "--destack-color-primary-foreground": "#ffffff",
-        "--destack-color-secondary": "light-dark(#f1f2f3, #252526)",
-        "--destack-color-secondary-foreground": "light-dark(#1f2021, #ededf2)",
-        "--destack-color-muted": "light-dark(#f1f2f3, #252526)",
+        "--destack-color-secondary": "light-dark(#f1f2f3, #252527)",
+        "--destack-color-secondary-foreground": "light-dark(#1f1f22, #ededf2)",
+        "--destack-color-muted": "light-dark(#f1f2f3, #252527)",
         "--destack-color-muted-foreground":
-            "light-dark(color-mix(in oklab, #62636a, #47474b calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #b1b3bc, #e4e5ea calc(var(--destack-contrast, 0) * 100%)))",
-        "--destack-color-accent": "light-dark(#ecf2ff, #1b243b)",
+            "light-dark(color-mix(in oklab, #62636c, #46474e calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #b1b3bc, #e4e5ea calc(var(--destack-contrast, 0) * 100%)))",
+        "--destack-color-accent": "light-dark(#ecf2ff, #112051)",
         "--destack-color-accent-foreground":
-            "light-dark(color-mix(in oklab, #26345c, #253359 calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #d7e3ff, #dfe9ff calc(var(--destack-contrast, 0) * 100%)))",
-        "--destack-color-destructive":
-            "color-mix(in oklab, #e5484d, #d2484b calc(var(--destack-contrast, 0) * 100%))",
+            "light-dark(color-mix(in oklab, #192e77, #192d76 calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #d7e3ff, #dfe9ff calc(var(--destack-contrast, 0) * 100%)))",
+        "--destack-color-destructive": "#d73c43",
+        "--destack-color-destructive-text":
+            "light-dark(color-mix(in oklab, #b22731, #831c22 calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #ff948f, #ffddda calc(var(--destack-contrast, 0) * 100%)))",
+        "--destack-color-info-text":
+            "light-dark(color-mix(in oklab, #0065b5, #004682 calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #78b8ff, #d1e7ff calc(var(--destack-contrast, 0) * 100%)))",
+        "--destack-color-primary-text":
+            "light-dark(color-mix(in oklab, #3456cd, #223c9c calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #92b1ff, #d9e5ff calc(var(--destack-contrast, 0) * 100%)))",
+        "--destack-color-success-text":
+            "light-dark(color-mix(in oklab, #047749, #085131 calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #75c899, #bef0d1 calc(var(--destack-contrast, 0) * 100%)))",
+        "--destack-color-warning-text":
+            "light-dark(color-mix(in oklab, #7e5e0b, #594413 calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #e1aa19, #ffe1a6 calc(var(--destack-contrast, 0) * 100%)))",
         "--destack-color-destructive-foreground": "#ffffff",
-        "--destack-color-success":
-            "color-mix(in oklab, #30a46c, #37885e calc(var(--destack-contrast, 0) * 100%))",
+        "--destack-color-success": "#0f8754",
         "--destack-color-success-foreground": "#ffffff",
-        "--destack-color-warning":
-            "color-mix(in oklab, #ffc53d, #ffc642 calc(var(--destack-contrast, 0) * 100%))",
-        "--destack-color-warning-foreground": "#231f19",
-        "--destack-color-info":
-            "color-mix(in oklab, #0090ff, #237bd0 calc(var(--destack-contrast, 0) * 100%))",
+        "--destack-color-warning": "#ffc53d",
+        "--destack-color-warning-foreground": "#1f1f22",
+        "--destack-color-info": "#0078d6",
         "--destack-color-info-foreground": "#ffffff",
         "--destack-color-border":
-            "light-dark(color-mix(in oklab, #d8d9e0, #c3c4cd calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #393a3c, #76777f calc(var(--destack-contrast, 0) * 100%)))",
+            "light-dark(color-mix(in oklab, #d8d9e0, #c3c4cd calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #393a3f, #757781 calc(var(--destack-contrast, 0) * 100%)))",
         "--destack-color-input":
-            "light-dark(color-mix(in oklab, #ccced5, #c3c4cd calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #47474b, #76777f calc(var(--destack-contrast, 0) * 100%)))",
+            "light-dark(color-mix(in oklab, #ccced5, #c3c4cd calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #46474e, #757781 calc(var(--destack-contrast, 0) * 100%)))",
         "--destack-color-ring":
             "light-dark(color-mix(in oklab, #83a6ff, #5f85f3 calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #6b92fa, #91b1ff calc(var(--destack-contrast, 0) * 100%)))",
-        "--destack-color-scrim": "light-dark(#1f202180, #00000080)",
+        "--destack-color-scrim": "light-dark(#1f1f2280, #00000080)",
         "--destack-color-chart1":
             "light-dark(#3e63dd, color-mix(in oklab, #6b92fa, #91b1ff calc(var(--destack-contrast, 0) * 100%)))",
         "--destack-color-chart2":
             "light-dark(#978365, color-mix(in oklab, #a69477, #c1b098 calc(var(--destack-contrast, 0) * 100%)))",
         "--destack-color-chart3":
-            "light-dark(color-mix(in oklab, #29a383, #2e9b7d calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #35a888, #69c2a6 calc(var(--destack-contrast, 0) * 100%)))",
+            "light-dark(color-mix(in oklab, #29a383, #1f9c7d calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #35a888, #6ac2a6 calc(var(--destack-contrast, 0) * 100%)))",
         "--destack-color-chart4":
             "light-dark(#d6409f, color-mix(in oklab, #ea65b4, #fe8ccd calc(var(--destack-contrast, 0) * 100%)))",
         "--destack-color-chart5":
-            "light-dark(color-mix(in oklab, #00a2c7, #1c96b7 calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #00a2c7, #5abede calc(var(--destack-contrast, 0) * 100%)))",
-        "--destack-surface-base": "light-dark(#fcfdfe, #131314)",
-        "--destack-surface-raised": "light-dark(#f8f9fa, #19191a)",
-        "--destack-surface-overlay": "light-dark(#fcfdfe, #242425)",
+            "light-dark(color-mix(in oklab, #00a2c7, #0096b9 calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #00a2c7, #5abede calc(var(--destack-contrast, 0) * 100%)))",
+        "--destack-surface-base": "light-dark(#fcfdfe, #131315)",
+        "--destack-surface-raised": "light-dark(#f8f9fa, #19191b)",
+        "--destack-surface-overlay": "light-dark(#fcfdfe, #242426)",
         "--destack-font-text":
             '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji"',
         "--destack-font-code":
@@ -436,42 +480,42 @@ test("emit the default theme's custom properties for the system appearance", () 
         "--destack-text-2xl-font-family": "var(--destack-font-text)",
         "--destack-text-2xl-font-size": "24px",
         "--destack-text-2xl-font-weight": "400",
-        "--destack-text-2xl-letter-spacing": "0px",
+        "--destack-text-2xl-letter-spacing": "-0.48px",
         "--destack-text-2xl-line-height": "1.3333",
         "--destack-text-3xl-font-family": "var(--destack-font-text)",
         "--destack-text-3xl-font-size": "30px",
         "--destack-text-3xl-font-weight": "400",
-        "--destack-text-3xl-letter-spacing": "0px",
+        "--destack-text-3xl-letter-spacing": "-0.6px",
         "--destack-text-3xl-line-height": "1.2",
         "--destack-text-4xl-font-family": "var(--destack-font-text)",
         "--destack-text-4xl-font-size": "36px",
         "--destack-text-4xl-font-weight": "400",
-        "--destack-text-4xl-letter-spacing": "0px",
+        "--destack-text-4xl-letter-spacing": "-0.72px",
         "--destack-text-4xl-line-height": "1.1111",
         "--destack-text-5xl-font-family": "var(--destack-font-text)",
         "--destack-text-5xl-font-size": "48px",
         "--destack-text-5xl-font-weight": "400",
-        "--destack-text-5xl-letter-spacing": "0px",
+        "--destack-text-5xl-letter-spacing": "-0.96px",
         "--destack-text-5xl-line-height": "1",
         "--destack-text-6xl-font-family": "var(--destack-font-text)",
         "--destack-text-6xl-font-size": "60px",
         "--destack-text-6xl-font-weight": "400",
-        "--destack-text-6xl-letter-spacing": "0px",
+        "--destack-text-6xl-letter-spacing": "-1.2px",
         "--destack-text-6xl-line-height": "1",
         "--destack-text-7xl-font-family": "var(--destack-font-text)",
         "--destack-text-7xl-font-size": "72px",
         "--destack-text-7xl-font-weight": "400",
-        "--destack-text-7xl-letter-spacing": "0px",
+        "--destack-text-7xl-letter-spacing": "-1.44px",
         "--destack-text-7xl-line-height": "1",
         "--destack-text-8xl-font-family": "var(--destack-font-text)",
         "--destack-text-8xl-font-size": "96px",
         "--destack-text-8xl-font-weight": "400",
-        "--destack-text-8xl-letter-spacing": "0px",
+        "--destack-text-8xl-letter-spacing": "-1.92px",
         "--destack-text-8xl-line-height": "1",
         "--destack-text-9xl-font-family": "var(--destack-font-text)",
         "--destack-text-9xl-font-size": "128px",
         "--destack-text-9xl-font-weight": "400",
-        "--destack-text-9xl-letter-spacing": "0px",
+        "--destack-text-9xl-letter-spacing": "-2.56px",
         "--destack-text-9xl-line-height": "1",
         "--destack-text-base-font-family": "var(--destack-font-text)",
         "--destack-text-base-font-size": "16px",
@@ -491,7 +535,7 @@ test("emit the default theme's custom properties for the system appearance", () 
         "--destack-text-xl-font-family": "var(--destack-font-text)",
         "--destack-text-xl-font-size": "20px",
         "--destack-text-xl-font-weight": "400",
-        "--destack-text-xl-letter-spacing": "0px",
+        "--destack-text-xl-letter-spacing": "-0.2px",
         "--destack-text-xl-line-height": "1.4",
         "--destack-text-xs-font-family": "var(--destack-font-text)",
         "--destack-text-xs-font-size": "12px",
@@ -501,6 +545,7 @@ test("emit the default theme's custom properties for the system appearance", () 
         "--destack-weight-regular": "400",
         "--destack-weight-medium": "500",
         "--destack-weight-semibold": "600",
+        "--destack-width-column": "272px",
         "--destack-width-hover-card": "256px",
         "--destack-width-popover": "288px",
         "--destack-width-prose": "384px",
@@ -529,13 +574,11 @@ test("emit the default theme's custom properties for the system appearance", () 
         "--destack-radius-4": "8px",
         "--destack-radius-5": "12px",
         "--destack-radius-6": "16px",
-        "--destack-radius-full": "0px",
+        "--destack-radius-full": "9999px",
         "--destack-stroke-border": "1px",
-        "--destack-stroke-ring": "3px",
+        "--destack-stroke-ring": "2px",
         "--destack-shadow-edge": "light-dark(#0000000f, #ffffff2c)",
         "--destack-shadow-cast": "light-dark(#0000001a, #00000066)",
-        "--destack-shadow-inset":
-            "inset 0px 0px 0px 1px var(--destack-shadow-edge), inset 0px 1.5px 2px 0px var(--destack-shadow-cast)",
         "--destack-shadow-raised":
             "0px 0px 0px 1px var(--destack-shadow-edge), 0px 1px 3px 0px var(--destack-shadow-cast)",
         "--destack-shadow-overlay":
@@ -558,6 +601,7 @@ test("resolve a seed accent's roles from the palette grown from it", () => {
     expect(Object.keys(changed)).toEqual(
         [
             "primary",
+            "primaryText",
             "accent",
             "accentForeground",
             "ring",
@@ -666,9 +710,9 @@ function hex(color: {
     readonly components: readonly [number, number, number];
     readonly alpha?: number;
 }): string {
-    const opaque = Color.format(color.components);
+    const opaque = Srgb.format(color.components);
 
-    return color.alpha === undefined ? opaque : Color.translucent(opaque, color.alpha);
+    return color.alpha === undefined ? opaque : Srgb.translucent(opaque, color.alpha);
 }
 
 test("change the size, weight, tracking and font of the text styles a theme overrides", () => {

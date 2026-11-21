@@ -20,6 +20,8 @@ export const color = defineConsts({
     primary: "var(--destack-color-primary)",
     /** Text on primary actions. */
     primaryForeground: "var(--destack-color-primary-foreground)",
+    /** Text in the primary color on the background, such as links. */
+    primaryText: "var(--destack-color-primary-text)",
     /** The background of secondary actions. */
     secondary: "var(--destack-color-secondary)",
     /** Text on secondary actions. */
@@ -36,18 +38,26 @@ export const color = defineConsts({
     destructive: "var(--destack-color-destructive)",
     /** Text on destructive actions. */
     destructiveForeground: "var(--destack-color-destructive-foreground)",
+    /** Text in the destructive color on the background, such as errors. */
+    destructiveText: "var(--destack-color-destructive-text)",
     /** The solid background of success states. */
     success: "var(--destack-color-success)",
     /** Text on success states. */
     successForeground: "var(--destack-color-success-foreground)",
+    /** Text in the success color on the background. */
+    successText: "var(--destack-color-success-text)",
     /** The solid background of warning states. */
     warning: "var(--destack-color-warning)",
     /** Text on warning states. */
     warningForeground: "var(--destack-color-warning-foreground)",
+    /** Text in the warning color on the background. */
+    warningText: "var(--destack-color-warning-text)",
     /** The solid background of informational states. */
     info: "var(--destack-color-info)",
     /** Text on informational states. */
     infoForeground: "var(--destack-color-info-foreground)",
+    /** Text in the informational color on the background. */
+    infoText: "var(--destack-color-info-text)",
     /** Borders and separators. */
     border: "var(--destack-color-border)",
     /** Borders of form controls. */
@@ -354,6 +364,8 @@ export const width = defineConsts({
     tile: "var(--destack-width-tile)",
     /** The narrowest a horizontal attachment row runs. */
     row: "var(--destack-width-row)",
+    /** A board column's width, as Trello's lists run. */
+    column: "var(--destack-width-column)",
 });
 
 /** Corner radii, scaled by the scaling and the theme's radius. */
@@ -388,8 +400,6 @@ export const shadow = defineConsts({
     edge: "var(--destack-shadow-edge)",
     /** The cast shadow color, black's alpha steps 2 and 6. */
     cast: "var(--destack-shadow-cast)",
-    /** Sunken fields such as text inputs. */
-    inset: "var(--destack-shadow-inset)",
     /** Raised surfaces such as cards and buttons. */
     raised: "var(--destack-shadow-raised)",
     /** Overlaid surfaces such as popovers and dialogs. */

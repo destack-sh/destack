@@ -1,5 +1,5 @@
 import { schema } from "@destack/schema";
-import { Color, HexColor } from "../palette/color.ts";
+import { HexColor, Srgb } from "../palette/color.ts";
 import tokens from "./tokens.json" with { type: "json" };
 
 /** The prefix of every custom property a theme sets. */
@@ -20,7 +20,7 @@ const SPRING_SETTLED = 0.001;
 /** The segments of a spring's `linear()` easing. */
 const SPRING_SEGMENTS = 32;
 
-/** The members of a typography token, each its own custom property. */
+/** The members of a typography token, each a custom property. */
 const TYPOGRAPHY_MEMBERS = [
     "fontFamily",
     "fontSize",
@@ -88,7 +88,7 @@ const Spring = schema.object({
     damping: schema.number().positive(),
 });
 
-/** The fields every token carries beside its type and value. */
+/** The fields of every token beside its type and value. */
 const common = {
     /** What the token is for. */
     $description: schema.string().min(1),
@@ -180,7 +180,7 @@ export class TokenEntry {
     /** The token. */
     readonly token: Token;
 
-    /** Hold a token at its path. */
+    /** Create a token at its path. */
     constructor(path: readonly string[], token: Token) {
         this.path = path;
         this.token = token;
@@ -230,7 +230,7 @@ export class TokenEntry {
             return;
         }
         for (const color of [token.$value, token.$extensions[EXTENSION].dark]) {
-            const hex = Color.format(color.components);
+            const hex = Srgb.format(color.components);
             if (color.hex !== undefined && color.hex.toLowerCase() !== hex) {
                 throw new RangeError(
                     `token '${this.path.join(".")}' has hex '${color.hex}', but its color is '${hex}'`,
@@ -296,7 +296,7 @@ export interface TokenMember {
 export interface TokenGroup {
     /** The group name. */
     readonly name: string;
-    /** What the group holds. */
+    /** What is in the group. */
     readonly description: string;
     /** The tokens of the group and its nested groups in document order. */
     readonly entries: readonly TokenEntry[];
@@ -307,7 +307,7 @@ export class TokenTree {
     /** The top-level groups in document order. */
     readonly families: readonly TokenGroup[];
 
-    /** Hold the families of a token tree. */
+    /** Create a token tree of its families. */
     constructor(families: readonly TokenGroup[]) {
         this.families = families;
     }
@@ -422,9 +422,9 @@ function number(value: number): string {
 
 /** Format a token color as a hex color, with alpha when translucent. */
 function rgba(color: schema.Infer<typeof ColorValue>): string {
-    const hex = Color.format(color.components);
+    const hex = Srgb.format(color.components);
 
-    return color.alpha === undefined ? hex : Color.translucent(hex, color.alpha);
+    return color.alpha === undefined ? hex : Srgb.translucent(hex, color.alpha);
 }
 
 /** Format a font stack, quoting family names with spaces. */
