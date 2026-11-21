@@ -13,7 +13,12 @@ import {
 import { principal } from "@destack/access";
 import { Scope } from "@destack/sync";
 import { type JsonObject, type JsonValue, present, schema } from "@destack/schema";
-import { type Command, CommandOption, type CommandCall } from "../command/command.ts";
+import {
+    type Command,
+    type CommandBody,
+    CommandOption,
+    type CommandCall,
+} from "../command/command.ts";
 import { Interrupt } from "../command/failure.ts";
 import type { CommandContext } from "../command/context.ts";
 import type { Live } from "../output/index.ts";
@@ -63,28 +68,37 @@ const SOURCE = Localization.of(SOURCE_LOCALE, []);
 const ID_PAGE = 50;
 
 /** Build the command of a word that names a noun. */
-export async function nounCommand(catalog: Catalog, word: string): Promise<Command | undefined> {
-    // find the noun, refusing a word several nouns claim, and open it
-    const noun = await catalog.find(word)?.open();
+export function nounCommand(catalog: Catalog, word: string): Command | undefined {
+    // find the noun, refusing a word several nouns claim
+    const entry = catalog.find(word);
 
     // leave a word no noun claims to the other commands
-    if (noun === undefined) {
+    if (entry === undefined) {
         return undefined;
     }
     // list a noun's objects by its plural, taking the singular's subcommands too, as kubectl's plurals do
-    else if (noun.lists(word)) {
-        return { ...objectCommand(noun), ...listCommand(noun) };
+    else if (entry.lists(word)) {
+        return {
+            description: `List ${entry.plural} (${entry.qualifier})`,
+            load: async () => {
+                const noun = await entry.open();
+
+                return { ...objectCommand(noun), ...listCommand(noun) };
+            },
+        };
     }
     // get, create and call a noun's objects by its singular
     else {
-        return objectCommand(noun);
+        return {
+            description: `Get, create and change ${entry.plural} (${entry.qualifier})`,
+            load: async () => objectCommand(await entry.open()),
+        };
     }
 }
 
 /** Build the command that lists a noun's rows, once or live. */
-export function listCommand(noun: CatalogType): Command {
+export function listCommand(noun: CatalogType): CommandBody {
     return {
-        description: `List ${noun.plural} (${noun.qualifier})`,
         isJson: true,
         get options() {
             return { ...FlagSet.rows(noun.type).options(), ...LIST_OPTIONS };
@@ -331,7 +345,7 @@ function chosenView(noun: CatalogType, name: string | undefined): ObjectView {
 }
 
 /** Build the commands of a noun's objects: create, and per object get, methods and actions. */
-function objectCommand(noun: CatalogType): Command {
+function objectCommand(noun: CatalogType): CommandBody {
     // call the methods of the scope without an object, such as the noun's create
     const methods = Object.entries(noun.type.describeMethods()).filter(
         ([, method]) => !NOUN_KINDS.has(method.kind),
@@ -348,7 +362,6 @@ function objectCommand(noun: CatalogType): Command {
     const called = methods.filter(([, method]) => method.target === "object");
 
     return {
-        description: `Get, create and change ${noun.plural} (${noun.qualifier})`,
         commands: Object.fromEntries([
             // list a method named create under the word new alone, taking both words
             ...creates.map(([name]): [string, Command] => [

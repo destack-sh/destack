@@ -157,13 +157,19 @@ export class CommandTree {
         this.context = context;
     }
 
-    /** Find a command's subcommand of a word: a named one, a loaded one, or its target's. */
-    async child(command: Command, word: string): Promise<Command | undefined> {
-        // take a named subcommand, then a loaded one
+    /** Find a command's unloaded subcommand of a word: a named one, else a resolved one. */
+    async find(command: Command, word: string): Promise<Command | undefined> {
         const named = command.commands ?? {};
-        const found = Object.hasOwn(named, word)
+
+        return Object.hasOwn(named, word)
             ? named[word]
             : await command.resolve?.(word, this.context);
+    }
+
+    /** Find and load a command's subcommand of a word: a named or resolved one, or its target's. */
+    async child(command: Command, word: string): Promise<Command | undefined> {
+        // take a named subcommand, then a resolved one
+        const found = await this.find(command, word);
         if (found?.load === undefined) {
             return found ?? command.target?.command(word);
         }
@@ -178,12 +184,12 @@ export class CommandTree {
         };
     }
 
-    /** List a command's shown subcommands in help order, the loaded ones after the named ones. */
+    /** List a command's shown subcommands unloaded in help order, the resolved ones last. */
     async children(command: Command): Promise<[string, Command][]> {
-        // describe each loaded word by the command it loads
+        // describe each resolved word by its command, which help lists without loading
         const loaded: [string, Command][] = [];
         for (const word of (await command.names?.(this.context)) ?? []) {
-            const child = await this.child(command, word);
+            const child = await this.find(command, word);
             if (child !== undefined) {
                 loaded.push([word, child]);
             }
