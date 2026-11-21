@@ -57,3 +57,18 @@ test("read a locale's direction from the script it most likely writes in, unless
         Localization.of("en", [], { direction: "rtl" }).direction,
     ]).toEqual(["rtl", "rtl", "rtl", "ltr", "ltr", "ltr", "rtl", "rtl"]);
 });
+
+test("read a locale's week from CLDR by its region, its likely region, and its rg and fw keywords", () => {
+    // read the week of seven tags
+    const tags = ["en-US", "de-DE", "ar-SA", "hi-IN", "ar", "en-u-rg-gbzzzz", "en-US-u-fw-mon"];
+
+    expect(Object.fromEntries(tags.map((tag) => [tag, Locale.week(tag)]))).toEqual({
+        "en-US": { firstDay: 7, weekend: [6, 7], minimalDays: 1 },
+        "de-DE": { firstDay: 1, weekend: [6, 7], minimalDays: 4 },
+        "ar-SA": { firstDay: 7, weekend: [5, 6], minimalDays: 1 },
+        "hi-IN": { firstDay: 7, weekend: [7], minimalDays: 1 },
+        ar: { firstDay: 6, weekend: [5, 6], minimalDays: 1 },
+        "en-u-rg-gbzzzz": { firstDay: 1, weekend: [6, 7], minimalDays: 4 },
+        "en-US-u-fw-mon": { firstDay: 1, weekend: [6, 7], minimalDays: 1 },
+    });
+});

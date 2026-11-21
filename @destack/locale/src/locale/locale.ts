@@ -1,16 +1,29 @@
-import { schema } from "@destack/schema";
+import { schema, type Weekday, type Week } from "@destack/schema";
+import {
+    FIRST_DAYS,
+    MINIMAL_DAYS,
+    WEEKENDS,
+    WORLD_FIRST_DAY,
+    WORLD_MINIMAL_DAYS,
+    WORLD_WEEKEND,
+} from "../cldr/index.ts";
 
-/** The first day of the week where the engine does not say, ISO 8601's Monday. */
-const DEFAULT_FIRST_DAY = 1;
+/** The weekdays by their three-letter CLDR codes. */
+const WEEKDAYS: Readonly<Record<string, Weekday>> = {
+    mon: 1,
+    tue: 2,
+    wed: 3,
+    thu: 4,
+    fri: 5,
+    sat: 6,
+    sun: 7,
+};
 
-/** The days of a week. */
-const WEEK_DAYS = 7;
+/** The fw keyword of BCP 47, the first day of the week, as in en-US-u-fw-mon. */
+const FIRST_DAY_KEYWORD = /-u(?:-[a-z0-9]{2,8})*?-fw-([a-z]{3})\b/iu;
 
-/** The week a locale uses, as `Intl.Locale.getWeekInfo` reads it where the engine has it. */
-const WeekInfo = schema.looseObject({
-    /** The first day of the week, from 1 for Monday to 7 for Sunday. */
-    firstDay: schema.number().int().min(DEFAULT_FIRST_DAY).max(WEEK_DAYS),
-});
+/** The rg keyword of BCP 47, the region for conventions, as in en-u-rg-gbzzzz. */
+const REGION_KEYWORD = /-u(?:-[a-z0-9]{2,8})*?-rg-([a-z]{2})[a-z0-9]{4}\b/iu;
 
 /** The parents CLDR gives locales whose parent is not their language alone. */
 const PARENTS: Readonly<Record<string, string>> = {
@@ -75,15 +88,23 @@ export type Direction = schema.Infer<typeof Direction>;
 
 /** The language tags people read and packages write in. */
 export const Locale = {
-    /** Read the first day of the week a locale uses, from 1 for Monday to 7 for Sunday. */
-    firstDay(tag: string): number {
-        // ask the engine, which Firefox does not answer
-        const locale = new Intl.Locale(tag);
-        const getWeekInfo: unknown = Reflect.get(locale, "getWeekInfo");
+    /** Read the week of a locale from CLDR. */
+    week(tag: string): Week {
+        // read the region from the rg keyword, the tag or the language
+        const region =
+            REGION_KEYWORD.exec(tag)?.[1]?.toUpperCase() ?? new Intl.Locale(tag).maximize().region;
+        const of = <Value>(table: Readonly<Record<string, Value>>): Value | undefined =>
+            region === undefined ? undefined : table[region];
 
-        return typeof getWeekInfo === "function"
-            ? WeekInfo.parse(Reflect.apply(getWeekInfo, locale, [])).firstDay
-            : DEFAULT_FIRST_DAY;
+        // take the region's week, or the world's
+        const named = FIRST_DAY_KEYWORD.exec(tag)?.[1]?.toLowerCase();
+        const chosen = named === undefined ? undefined : WEEKDAYS[named];
+
+        return {
+            firstDay: chosen ?? of(FIRST_DAYS) ?? WORLD_FIRST_DAY,
+            weekend: of(WEEKENDS) ?? WORLD_WEEKEND,
+            minimalDays: of(MINIMAL_DAYS) ?? WORLD_MINIMAL_DAYS,
+        };
     },
 
     /** Read the direction a locale writes in from the script it most likely uses. */

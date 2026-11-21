@@ -2,7 +2,7 @@ import { MessageFormat } from "messageformat";
 import { type Direction, Locale, type LocaleTag } from "../locale/locale.ts";
 import type { Catalog } from "../message/catalog.ts";
 import type { Message } from "../message/message.ts";
-import type { JsonValue } from "@destack/schema";
+import { type JsonValue, type PlainDate, TimeZone, type Week } from "@destack/schema";
 import type { PackageId } from "@destack/package";
 
 /** The smallest relative time unit, with its length in milliseconds. */
@@ -32,6 +32,8 @@ export interface Localization {
     readonly tag: LocaleTag;
     /** The direction text and controls run in, the locale's own unless a host sets another. */
     readonly direction: Direction;
+    /** The week of the locale. */
+    readonly week: Week;
 
     /** Render a message with its arguments in the nearest locale its catalogs translate it into. */
     readonly render: <Names extends string>(
@@ -49,6 +51,14 @@ export interface Localization {
     readonly dateRange: (
         start: number,
         end: number,
+        options?: Intl.DateTimeFormatOptions,
+    ) => string;
+    /** Write a calendar date in the locale. */
+    readonly plainDate: (date: PlainDate, options?: Intl.DateTimeFormatOptions) => string;
+    /** Write the span between two calendar dates. */
+    readonly plainDateRange: (
+        start: PlainDate,
+        end: PlainDate,
         options?: Intl.DateTimeFormatOptions,
     ) => string;
     /** Write a list joined as the locale joins one, such as a, b and c. */
@@ -109,6 +119,7 @@ export const Localization = {
         return {
             tag,
             direction: direction ?? Locale.direction(tag),
+            week: Locale.week(tag),
             render: (message, ...[supplied]) => {
                 // ask for the catalogs of a package rendering without any
                 if (!packages.has(message.package)) {
@@ -127,6 +138,15 @@ export const Localization = {
             money: (amount, currency) => money(amount, currency, numbers),
             date: (time, options) => dates(options).format(time),
             dateRange: (start, end, options) => dates(options).formatRange(start, end),
+            plainDate: (date, options) =>
+                dates({ ...options, timeZone: "UTC" }).format(
+                    TimeZone.instant("UTC", date, "00:00"),
+                ),
+            plainDateRange: (start, end, options) =>
+                dates({ ...options, timeZone: "UTC" }).formatRange(
+                    TimeZone.instant("UTC", start, "00:00"),
+                    TimeZone.instant("UTC", end, "00:00"),
+                ),
             list: (items, options) => lists(options).format(items),
             relative: (time, now) => relative(time, now, relatives),
         };
