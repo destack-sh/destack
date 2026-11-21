@@ -1,3 +1,4 @@
+import { installation } from "../src/test/installed.ts";
 import { FOLLOWER_REVISION } from "@destack/sync/test";
 import { testSimulation } from "../src/test/index.ts";
 import { present, schema, type Identifier } from "@destack/schema";
@@ -11,7 +12,6 @@ import { ObjectReference, RequestId, Scope } from "@destack/sync";
 import {
     defineObject,
     field,
-    installation,
     ParentReference,
     type CallableName,
     type ObjectType,
@@ -352,7 +352,11 @@ test("attach remarks to articles and photos, counting them and deleting them wit
 });
 
 test("let the attaching package's installation attach tags to a poster it cannot read, and refuse another package's", async () => {
-    const { storage, environment, store, call, host } = await serveObjects({ poster, tag });
+    const { storage, environment, store, call, host } = await serveObjects({
+        poster,
+        tag,
+        installation,
+    });
 
     // write alice's poster, and an installation of the tags' package beside another package's
     const drawn = await call(poster, "create", {});

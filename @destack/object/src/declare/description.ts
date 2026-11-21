@@ -172,6 +172,15 @@ export const PackageDescription = Object.assign(packageDescription, {
         return declared === undefined ? undefined : packageDescription.parse(declared.description);
     },
 
+    /** List the packages only a package's optional capabilities need installed. */
+    optionalPackages(
+        description: schema.Infer<typeof packageDescription> | undefined,
+    ): PackageId[] {
+        return Object.values(description?.capabilities ?? {}).flatMap((capability) =>
+            capability.optional === true ? (capability.packages ?? []) : [],
+        );
+    },
+
     /** List the permissions a package asks of a delegator with some capabilities enabled. */
     asks(
         description: Pick<schema.Infer<typeof packageDescription>, "permissions" | "capabilities">,

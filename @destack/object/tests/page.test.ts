@@ -256,10 +256,6 @@ test("share page trees with members and links, and move pages within them", asyn
         subject: principal.user.reference("universe", users.carol),
     });
     const parent = `page write / through parent to page ${handbook.id} / page write-direct`;
-    const installed = (prefix: string) => [
-        [`${prefix} / set installation of package ${pagesPackage.id} in ${spaceId}`, "subject"],
-        [`${prefix} / set installation of package ${pagesPackage.id} in universe`, "subject"],
-    ];
     expect([
         why.isAllowed,
         why.tuples.map((tuple) => [tuple.path.join(" / "), tuple.failure]),
@@ -267,16 +263,13 @@ test("share page trees with members and links, and move pages within them", asyn
         false,
         [
             ["page write / page write-direct / field ownerId holding relation owner", "subject"],
-            ...installed("page write / page write-direct"),
             [
                 `page write / page write-direct / role ${Role.OWNER} bound on space ${spaceId}`,
                 "subject",
             ],
             [`${parent} / field ownerId holding relation owner`, "subject"],
             [`${parent} / relation editor`, "subject"],
-            ...installed(parent),
             [`${parent} / role ${Role.OWNER} bound on space ${spaceId}`, "subject"],
-            ...installed("page write"),
             [`page write / role ${Role.OWNER} bound on space ${spaceId}`, "subject"],
             ["scope universe universe", "subject"],
         ],

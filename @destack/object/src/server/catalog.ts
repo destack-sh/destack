@@ -3,7 +3,13 @@ import type { ObjectRemote } from "../replica/remote.ts";
 import { graph, PackageVersion } from "@destack/package";
 import { RelationGraph } from "../query/query.ts";
 import type { EventStore } from "@destack/event";
-import { type Authorizer, decisionTables, Policy, type TableMapping } from "@destack/access";
+import {
+    type Authorizer,
+    decisionTables,
+    Policy,
+    principal,
+    type TableMapping,
+} from "@destack/access";
 import { ObjectTypeReference, type Subject } from "@destack/sync";
 import { type BlobStore, type DatabaseConnection, TABLE, type Table } from "@destack/db";
 import { found, type Identifier } from "@destack/schema";
@@ -27,7 +33,6 @@ import type {
     ObjectPackage,
     ImplementationInput,
 } from "./implementation.ts";
-import { installation } from "../installation/installation.ts";
 import { mapInstalledPackages } from "../installation/package.ts";
 
 /** A policy a store authorizes beside its objects: a policy, a type, or a table mapping. */
@@ -487,13 +492,16 @@ export class Catalog {
             }
         }
 
-        // map packages onto their installations where the database stores them, each serving its types there
-        const isInstalled = stored.has(installation.table[TABLE].sqlName);
-        const sets = isInstalled ? [mapInstalledPackages(installation.table)] : [];
+        // map packages onto the installations the database stores, each serving its types there
+        const installations = [...objects, ...attached].find(
+            (type) =>
+                type.represents === principal.installation && stored.has(type.table[TABLE].sqlName),
+        );
+        const sets = installations === undefined ? [] : [mapInstalledPackages(installations.table)];
         const servers = new Map(
-            isInstalled
-                ? [...options.installed].map(([key, served]) => [key, served.package.id])
-                : [],
+            installations === undefined
+                ? []
+                : [...options.installed].map(([key, served]) => [key, served.package.id]),
         );
 
         return ObjectPolicy.authorizer(

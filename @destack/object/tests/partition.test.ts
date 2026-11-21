@@ -20,7 +20,6 @@ import { request } from "./fixture/request.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
-import { installedPackage } from "@destack/access";
 import { TestObjectStore } from "../src/test/index.ts";
 import { shareable, Shareable } from "../src/index.ts";
 import { argument, plural, t } from "@destack/locale";
@@ -274,13 +273,13 @@ test("list the types a home and a follower decide in the chain subscription, add
     const home = [await chains([card], "home"), await chains([card, marker], "home")];
     const follower = [await chains([card], "follower"), await chains([card, marker], "follower")];
 
-    // carry the decided types in the chain subscription at its nearest scope, the installed marker beside the card and the installations' packages, replicating the home's ancestors or the follower's chain
+    // carry the decided types in the chain subscription at its nearest scope, the installed marker beside the cards' packages, replicating the home's ancestors or the follower's chain
     const chain = (replicated: readonly string[], local: readonly ObjectType[]) => [
         "chain",
         replicated[0],
         {
             scopes: [spaceId, Scope.universe.id],
-            local: [...local.map((type) => type.typeReference), installedPackage.typeReference],
+            local: local.map((type) => type.typeReference),
             replicated: replicated.map((scope) => ({ scope, types: [] })),
             via: [],
             between: [],

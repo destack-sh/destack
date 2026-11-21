@@ -27,7 +27,7 @@ import { defineObject, field, ObjectPolicy, relationship, role } from "../src/in
 import { space, spacePrincipal } from "../src/test/space.ts";
 import { CallSite, tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
-import { installation } from "../src/installation/index.ts";
+import { installation } from "../src/test/installed.ts";
 import { nested, recoverable, shareable } from "../src/index.ts";
 import { argument, plural, t } from "@destack/locale";
 
@@ -368,7 +368,7 @@ test("delete the grants of an installation as its uninstall finalizes", async ()
             ...tablesOf({
                 packages: [objectPackage],
                 follows: [],
-                tables: [],
+                tables: [installation.table],
             }),
         }),
         { environment: world, isMigrated: true },

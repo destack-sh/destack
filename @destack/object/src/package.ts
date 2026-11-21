@@ -2,7 +2,6 @@ import { t } from "@destack/locale";
 import { definePackage } from "./declare/package.ts";
 import { grant, invitation, proof, relationship, role } from "./access/index.ts";
 import { call } from "./audit/call.ts";
-import { installation } from "./installation/installation.ts";
 import { branch, branchChange, branchEntry } from "./branch/object.ts";
 import { approval, changeRequest } from "./approval/index.ts";
 import { ObjectError } from "./error/error.ts";
@@ -24,7 +23,6 @@ export default definePackage({
         invitation,
         grant,
         proof,
-        installation,
         branch,
         branchEntry,
         branchChange,

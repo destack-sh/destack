@@ -5,6 +5,7 @@ export * from "./bearer.ts";
 export * from "./caller.ts";
 export * from "./context.ts";
 export * from "./installation.ts";
+export * from "./installed.ts";
 export * from "./store.ts";
 export * from "./world.ts";
 export * from "./build.ts";
