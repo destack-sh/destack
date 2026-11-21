@@ -1,6 +1,6 @@
 import { nth, Duration, schema } from "@destack/schema";
 import type { Fetch } from "@destack/object";
-import type { Environment } from "@destack/environment";
+import { BasicCredential, type Environment } from "@destack/environment";
 import type { Token } from "../credential/credential.ts";
 import type { FamilyError } from "@destack/error";
 import { ConnectionError } from "../error/error.ts";
@@ -348,7 +348,7 @@ export class AuthorizationServer implements AuthorizationClient {
         if (authentication === "client_secret_basic") {
             const user = encodeURIComponent(clientId);
             const password = encodeURIComponent(this.#secret());
-            headers.set("authorization", `Basic ${btoa(`${user}:${password}`)}`);
+            headers.set("authorization", BasicCredential.write(user, password));
         } else if (authentication === "client_secret_post") {
             form.set("client_id", clientId);
             form.set("client_secret", this.#secret());
