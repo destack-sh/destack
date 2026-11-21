@@ -14,7 +14,7 @@ import type { Terminal } from "../output/index.ts";
 import { listCommand } from "./noun.ts";
 import { LIST_OPTIONS } from "../object/flag.ts";
 import type { ObjectClient, ObjectConnection } from "@destack/object/client";
-import { Noun } from "../object/catalog.ts";
+import { CatalogType } from "../object/catalog.ts";
 import { Cell } from "../object/cell.ts";
 import { Grid } from "../object/grid.ts";
 import { CliError } from "../error/index.ts";
@@ -81,7 +81,7 @@ class SettingScope {
     }
 
     /** Find the settings noun storing the scope's values: the universe's or the space's. */
-    async noun(context: CommandContext): Promise<Noun> {
+    async noun(context: CommandContext): Promise<CatalogType> {
         // refuse the device, whose values are its local objects
         if (this.name === "device") {
             throw CliError.of(
@@ -92,8 +92,12 @@ class SettingScope {
 
         // take the settings of the space's store for a space, else the universe's
         const store = this.name === "space" ? "space" : "universe";
+        const { packageId, type } = setting.typeReference;
         const found = (await context.catalog()).nouns.find(
-            (noun) => noun.store === store && noun.type.isCopyOf(setting),
+            (noun) =>
+                noun.store === store &&
+                noun.entry.packageId === packageId &&
+                noun.entry.type === type,
         );
         if (found === undefined) {
             throw CliError.of(
@@ -102,7 +106,7 @@ class SettingScope {
             );
         }
 
-        return found;
+        return found.open();
     }
 
     /** Open the scope's values until a stack closes. */

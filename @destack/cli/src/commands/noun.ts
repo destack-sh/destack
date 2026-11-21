@@ -19,7 +19,7 @@ import type { CommandContext } from "../command/context.ts";
 import type { Live } from "../output/index.ts";
 
 import { FlagSet, INPUT_OPTION, LIST_OPTIONS } from "../object/flag.ts";
-import { Noun, Catalog } from "../object/catalog.ts";
+import { CatalogType, Catalog } from "../object/catalog.ts";
 import { Localization, SOURCE_LOCALE } from "@destack/locale";
 import { type Action, ActionCall } from "@destack/object";
 import { Frame } from "../object/frame.ts";
@@ -63,9 +63,9 @@ const SOURCE = Localization.of(SOURCE_LOCALE, []);
 const ID_PAGE = 50;
 
 /** Build the command of a word that names a noun. */
-export function nounCommand(catalog: Catalog, word: string): Command | undefined {
-    // find the noun, refusing a word several nouns claim
-    const noun = catalog.find(word);
+export async function nounCommand(catalog: Catalog, word: string): Promise<Command | undefined> {
+    // find the noun, refusing a word several nouns claim, and open it
+    const noun = await catalog.find(word)?.open();
 
     // leave a word no noun claims to the other commands
     if (noun === undefined) {
@@ -82,7 +82,7 @@ export function nounCommand(catalog: Catalog, word: string): Command | undefined
 }
 
 /** Build the command that lists a noun's rows, once or live. */
-export function listCommand(noun: Noun): Command {
+export function listCommand(noun: CatalogType): Command {
     return {
         description: `List ${noun.plural} (${noun.qualifier})`,
         isJson: true,
@@ -198,7 +198,7 @@ interface Shaped {
 async function page(paging: {
     readonly shaped: Shaped;
     readonly shape: (view: ObjectView) => Shaped;
-    readonly noun: Noun;
+    readonly noun: CatalogType;
     readonly remote: ObjectConnection;
     readonly live: Live;
     readonly context: CommandContext;
@@ -313,7 +313,7 @@ async function ran(
 }
 
 /** Pick the view a list asks for by name, else the type's default. */
-function chosenView(noun: Noun, name: string | undefined): ObjectView {
+function chosenView(noun: CatalogType, name: string | undefined): ObjectView {
     // take the view by its name, else the default
     const offered = noun.type.views;
     const chosen = name === undefined ? noun.type.view : offered.find((view) => view.name === name);
@@ -331,7 +331,7 @@ function chosenView(noun: Noun, name: string | undefined): ObjectView {
 }
 
 /** Build the commands of a noun's objects: create, and per object get, methods and actions. */
-function objectCommand(noun: Noun): Command {
+function objectCommand(noun: CatalogType): Command {
     // call the methods of the scope without an object, such as the noun's create
     const methods = Object.entries(noun.type.describeMethods()).filter(
         ([, method]) => !NOUN_KINDS.has(method.kind),
@@ -395,7 +395,7 @@ function objectCommand(noun: Noun): Command {
 }
 
 /** Build the command getting one object, once or live. */
-function getCommand(noun: Noun, id: string): Command {
+function getCommand(noun: CatalogType, id: string): Command {
     return {
         description: `Show one of the ${noun.plural}`,
         isJson: true,
@@ -429,7 +429,7 @@ function getCommand(noun: Noun, id: string): Command {
 }
 
 /** Build the command that calls one method, on an object or on the collection. */
-function methodCommand(noun: Noun, method: string, id: string | undefined): Command {
+function methodCommand(noun: CatalogType, method: string, id: string | undefined): Command {
     return {
         description: `Call ${noun.name}.${method}`,
         isJson: true,
@@ -467,7 +467,7 @@ function methodCommand(noun: Noun, method: string, id: string | undefined): Comm
 /** Ask a person on a terminal before a verb that cannot be undone, unless they passed --yes. */
 async function requireConfirmation(
     verb: string,
-    noun: Noun,
+    noun: CatalogType,
     id: string | undefined,
     options: Readonly<Record<string, unknown>>,
     context: CommandContext,
@@ -489,7 +489,7 @@ async function requireConfirmation(
 }
 
 /** Build the command running a declared action's call on a matching object, or on its scope. */
-function actionCommand(noun: Noun, action: Action, id: string | undefined): Command {
+function actionCommand(noun: CatalogType, action: Action, id: string | undefined): Command {
     const call = present(action.call, `the call of action '${action.name}'`);
     const fields = Object.keys(call.preset);
 
@@ -560,7 +560,7 @@ async function identifyFlags(
             );
         }
 
-        return noun.identify(value, context);
+        return (await noun.open()).identify(value, context);
     });
 }
 
@@ -588,7 +588,7 @@ async function methodInput(
 /** Render a method's result: a changed object as one event, any other result as it is. */
 async function renderResult(
     context: CommandContext,
-    noun: Noun,
+    noun: CatalogType,
     method: string,
     result: JsonValue,
 ): Promise<string> {
@@ -614,7 +614,7 @@ async function renderResult(
 
 /** Follow a query's rows for the person through an in-memory replica until the signal aborts. */
 async function* watch(
-    noun: Noun,
+    noun: CatalogType,
     remote: ObjectConnection,
     query: Pick<ObjectQuery, "where" | "orderBy" | "limit">,
     signal: AbortSignal,

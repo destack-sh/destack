@@ -13,7 +13,7 @@ import { TABLE } from "@destack/db";
 import { type JsonObject, present, schema } from "@destack/schema";
 import type { CommandContext } from "../command/context.ts";
 import type { Terminal } from "../output/index.ts";
-import type { Noun } from "./catalog.ts";
+import type { CatalogType } from "./catalog.ts";
 import { Cell } from "./cell.ts";
 import { Grid } from "./grid.ts";
 import { Page, type PageLine } from "./page.ts";
@@ -97,7 +97,7 @@ export class Frame {
     /** Open a frame for some rows, with the objects they reference for a person. */
     static async of(
         context: CommandContext,
-        noun: Noun,
+        noun: CatalogType,
         rows: readonly JsonObject[],
     ): Promise<Frame> {
         // read no references for a program, which reads identifiers
@@ -115,15 +115,19 @@ export class Frame {
         const catalog = await context.catalog();
         for (const [column, field] of Object.entries(noun.type.fields)) {
             const target = field.target?.();
-            const found = catalog.nouns.find(
-                (each) => target !== undefined && each.type.same(target),
+            const referred = target?.typeReference;
+            const listed = catalog.nouns.find(
+                (each) =>
+                    each.entry.packageId === referred?.packageId &&
+                    each.entry.type === referred.type,
             );
             const ids = [
                 ...new Set(
                     rows.flatMap((row) => (typeof row[column] === "string" ? [row[column]] : [])),
                 ),
             ];
-            if (found !== undefined && ids.length > 0) {
+            if (listed !== undefined && ids.length > 0) {
+                const found = await listed.open();
                 const remote = await found.client(context);
                 const objects = await remote.list(found.type, { where: { id: { in: ids } } });
                 const byId = new Map(

@@ -7,6 +7,7 @@ import type { ObjectAddress } from "@destack/view/declare";
 import type { SpaceAddress } from "@destack/account/address";
 import {
     type Action,
+    ACTION_KIND,
     type PackageImplementationDescription,
     type MethodKind,
     ObjectType,
@@ -14,6 +15,7 @@ import {
     type Package,
     PackageMount,
     Casing,
+    ObjectTypeEntry,
 } from "@destack/object";
 import registryPackage from "@destack/registry/package";
 import { ObjectStoreDescription, ObjectConnection } from "@destack/object/client";
@@ -62,45 +64,45 @@ const OWN_LEVELS = {
 /** A store the command line reads nouns from: device, machine, universe, registry or space. */
 export type Store = (typeof STORES)[number];
 
-/** A noun of the command line: an object type of a package its store serves. */
-export class Noun {
-    /** The package listing the type, as its store describes it. */
+/** An object type the catalog lists: its entry, the package serving it and the store. */
+export class CatalogEntry {
+    /** The package listing the type, as its store lists it. */
     readonly package: PackageImplementationDescription;
     /** The store running the installation. */
     readonly store: Store;
-    /** The object type. */
-    readonly type: ObjectType;
-    /** The actions the installation declares calling the type's methods. */
-    readonly actions: readonly Action[];
+    /** The type's entry. */
+    readonly entry: ObjectTypeEntry;
+    /** The store's description, declaring the type once the noun opens. */
+    readonly #description: ObjectStoreDescription;
 
-    /** Keep an object type of the package listing it, in a store, with its actions. */
+    /** Keep a type's entry of the package listing it, in a store, with the store's description. */
     constructor(
         implementation: PackageImplementationDescription,
         store: Store,
-        type: ObjectType,
-        actions: readonly Action[],
+        entry: ObjectTypeEntry,
+        description: ObjectStoreDescription,
     ) {
-        // keep the type, where it is listed, and its actions
+        // keep the entry, where it is listed, and the description declaring its type
         this.package = implementation;
         this.store = store;
-        this.type = type;
-        this.actions = actions;
+        this.entry = entry;
+        this.#description = description;
     }
 
     /** Read the singular word. */
     get name(): string {
-        return Casing.kebab(this.type.name);
+        return Casing.kebab(this.entry.type);
     }
 
     /** Read the plural word, which lists. */
     get plural(): string {
-        return Casing.kebab(this.type.plural);
+        return Casing.kebab(this.entry.plural);
     }
 
     /** Read the qualifier: the installation's name, else its package's name without the scope. */
     get qualifier(): string {
         const name = this.package.installation?.name;
-        const packageName = this.type.package.name;
+        const { packageName } = this.entry;
 
         return name ?? packageName.slice(packageName.lastIndexOf("/") + 1);
     }
@@ -120,65 +122,32 @@ export class Noun {
         return `${this.qualifier}${QUALIFIER}${word}`;
     }
 
-    /** Find the name of the type's method of a method kind, refusing a type without one. */
-    method(kind: MethodKind): string {
-        // find the one method of the kind, refusing none and several
-        const methods = Object.entries(this.type.describeMethods());
-        const [found, other] = methods.filter(([, method]) => method.kind === kind);
-        if (found === undefined) {
-            throw CliError.of("METHOD_NOT_FOUND", `${kind} method of '${this.plural}' not found`);
-        } else if (other !== undefined) {
-            throw CliError.of(
-                "METHOD_INVALID",
-                `${kind} method of '${this.plural}' is invalid: several match`,
-            );
-        }
+    /** Whether the store keeps the objects at a level of its own, or they live in any scope. */
+    get isOwn(): boolean {
+        const own: readonly string[] = OWN_LEVELS[this.store];
+        const { levels } = this.entry;
 
-        return found[0];
+        return levels.length === 0 || levels.some((level) => own.includes(level));
     }
 
-    /** Find an object's identifier by its identifier or key, refusing keys of unkeyed types. */
-    async identify(key: string, context: CommandContext): Promise<string> {
-        // take an identifier as given, and require a declared key for anything else
-        if (this.type.identifies(key)) {
-            return key;
-        } else if (this.type.keyed === undefined) {
-            throw CliError.of(
-                "USAGE_INVALID",
-                `'${this.plural}' is invalid: they have no key, so give the identifier`,
-            );
-        }
+    /** Open the entry: its type, declared on first use, with the actions calling its methods. */
+    async open(): Promise<CatalogType> {
+        const type = await this.#description.type(this.entry);
 
-        // get the object by its key, which its get method resolves
-        const remote = await this.client(context);
-        const row = await remote.run(this.type, this.method("get"), { id: key });
+        const actions = this.#description.actions(this.package, type);
 
-        return schema.looseObject({ id: schema.string() }).parse(row).id;
+        return new CatalogType(this, this.#description, type, actions);
     }
 
     /** Open a client of the type's objects in the scope the terminal uses for them. */
     async client(context: CommandContext): Promise<ObjectConnection> {
-        return Noun.connect(context, this.store, this.package, await this.#locate(context));
-    }
-
-    /** The levels of the scopes the type's objects live in, none for objects in any scope. */
-    get levels(): string[] {
-        return [this.type.scope]
-            .flat()
-            .map((scope) => (typeof scope === "string" ? scope : scope.name));
-    }
-
-    /** Whether the store keeps the objects at a level of its own, or they live in any scope. */
-    get isOwn(): boolean {
-        const own: readonly string[] = OWN_LEVELS[this.store];
-
-        return this.levels.length === 0 || this.levels.some((level) => own.includes(level));
+        return CatalogType.connect(context, this.store, this.package, await this.#locate(context));
     }
 
     /** Locate the scope the type's objects live in for the person: the store's for several. */
     async #locate(context: CommandContext): Promise<string> {
         // read the store's own level the type lives in, else its one level, any for a type of any scope
-        const { levels } = this;
+        const { levels } = this.entry;
         const own = OWN_LEVELS[this.store];
         const owned = own.find((candidate) => levels.includes(candidate));
         const [level = nth(own, 0), ...others] = owned === undefined ? levels : [owned];
@@ -223,6 +192,62 @@ export class Noun {
             throw CliError.of("USAGE_INVALID", refusal);
         }
     }
+}
+
+/** A listed object type opened: its entry with the object type and the actions calling it. */
+export class CatalogType extends CatalogEntry {
+    /** The object type. */
+    readonly type: ObjectType;
+    /** The actions the installation declares calling the type's methods. */
+    readonly actions: readonly Action[];
+
+    /** Keep a listed entry with its type and its actions. */
+    constructor(
+        listed: CatalogEntry,
+        description: ObjectStoreDescription,
+        type: ObjectType,
+        actions: readonly Action[],
+    ) {
+        super(listed.package, listed.store, listed.entry, description);
+        this.type = type;
+        this.actions = actions;
+    }
+
+    /** Find the name of the type's method of a method kind, refusing a type without one. */
+    method(kind: MethodKind): string {
+        // find the one method of the kind, refusing none and several
+        const methods = Object.entries(this.type.describeMethods());
+        const [found, other] = methods.filter(([, method]) => method.kind === kind);
+        if (found === undefined) {
+            throw CliError.of("METHOD_NOT_FOUND", `${kind} method of '${this.plural}' not found`);
+        } else if (other !== undefined) {
+            throw CliError.of(
+                "METHOD_INVALID",
+                `${kind} method of '${this.plural}' is invalid: several match`,
+            );
+        }
+
+        return found[0];
+    }
+
+    /** Find an object's identifier by its identifier or key, refusing keys of unkeyed types. */
+    async identify(key: string, context: CommandContext): Promise<string> {
+        // take an identifier as given, and require a declared key for anything else
+        if (this.type.identifies(key)) {
+            return key;
+        } else if (this.type.keyed === undefined) {
+            throw CliError.of(
+                "USAGE_INVALID",
+                `'${this.plural}' is invalid: they have no key, so give the identifier`,
+            );
+        }
+
+        // get the object by its key, which its get method resolves
+        const remote = await this.client(context);
+        const row = await remote.run(this.type, this.method("get"), { id: key });
+
+        return schema.looseObject({ id: schema.string() }).parse(row).id;
+    }
 
     /** Connect to a package implementation's store, closed once the command line ran. */
     static async connect(
@@ -232,7 +257,7 @@ export class Noun {
         scope?: string,
     ): Promise<ObjectConnection> {
         // close the connection once the command line ran
-        const connection = await Noun.#open(context, store, implementation, scope);
+        const connection = await CatalogType.#open(context, store, implementation, scope);
         context.defer(() => connection.close());
 
         return connection;
@@ -283,12 +308,12 @@ export class Noun {
 /** The nouns and settings the stores of this machine, the universe and the space describe. */
 export class Catalog {
     /** The nouns: the machine's, the universe's, then the space's. */
-    readonly nouns: readonly Noun[];
+    readonly nouns: readonly CatalogEntry[];
     /** The settings the stores' installations declare. */
     readonly settings: readonly Setting[];
 
     /** Map words and identifiers to nouns, beside the declared settings. */
-    constructor(nouns: readonly Noun[], settings: readonly Setting[]) {
+    constructor(nouns: readonly CatalogEntry[], settings: readonly Setting[]) {
         this.nouns = nouns;
         this.settings = settings;
     }
@@ -315,24 +340,20 @@ export class Catalog {
             })),
         );
 
-        // make a noun of each listed type with its actions, kept at the innermost store keeping its objects
+        // list a noun of each listed type, kept at the innermost store keeping its objects
         const nouns = descriptions.flatMap(({ store, description }) =>
-            description.packages.flatMap((implementation) => {
-                const actions = description.actions(implementation);
-
-                return description.types(implementation).map((type) => {
-                    const own = actions.filter((action) => action.call?.object === type);
-
-                    return new Noun(implementation, store, type, own);
-                });
-            }),
+            description.packages.flatMap((implementation) =>
+                implementation.types.map(
+                    (entry) => new CatalogEntry(implementation, store, entry, description),
+                ),
+            ),
         );
         const owned = nouns.filter((noun) => noun.isOwn);
         const innermost = owned.filter((noun) => {
             const same = owned.filter(
                 (other) =>
-                    other.type.package.id === noun.type.package.id &&
-                    other.type.name === noun.type.name &&
+                    other.entry.packageId === noun.entry.packageId &&
+                    other.entry.type === noun.entry.type &&
                     other.qualifier === noun.qualifier,
             );
 
@@ -357,7 +378,7 @@ export class Catalog {
         const implementation = {
             packageId: registryPackage.id,
             scope: home,
-            types: types.map((type) => type.typeReference),
+            types: types.map((type) => ObjectTypeEntry.of(type)),
             declarations: [],
         };
 
@@ -370,12 +391,17 @@ export class Catalog {
         store: Exclude<Store, "registry">,
     ): Promise<ObjectStoreDescription> {
         // describe the store, the machine's partition by its scope beside the device's default one
-        const connection = await Noun.connect(context, store, { packageId: DESCRIBING[store] });
+        const connection = await CatalogType.connect(context, store, {
+            packageId: DESCRIBING[store],
+        });
         const known = BUILT_IN_PACKAGES.flatMap((handle) => Object.values(handle.objects)).filter(
             (type): type is ObjectType => type instanceof ObjectType,
         );
 
-        return await ObjectStoreDescription.read(connection.store, known);
+        return await ObjectStoreDescription.read(connection.store, {
+            known,
+            kinds: [ACTION_KIND, SETTING_KIND],
+        });
     }
 
     /** Select an object by its identifier, in a space and a view. */
@@ -385,11 +411,12 @@ export class Catalog {
         view: string | undefined,
         context: CommandContext,
     ): Promise<ObjectAddress> {
-        // find the noun by the identifier's prefix
-        const noun = this.owner(id);
-        if (noun === undefined) {
+        // find the noun by the identifier's prefix, and open it
+        const listed = this.owner(id);
+        if (listed === undefined) {
             throw CliError.of("NOUN_NOT_FOUND", `noun listing objects like '${id}' not found`);
         }
+        const noun = await listed.open();
 
         // read the object's scope through its type's get method
         const remote = await noun.client(context);
@@ -409,7 +436,7 @@ export class Catalog {
     }
 
     /** Find the noun of a word, plural or singular and qualified or alone. */
-    find(word: string): Noun | undefined {
+    find(word: string): CatalogEntry | undefined {
         // refuse a word several nouns claim, listing their qualified words in order
         const claimants = this.claimants(word);
         const [only, ...others] = claimants;
@@ -427,7 +454,7 @@ export class Catalog {
     }
 
     /** List the nouns a word refers to. */
-    claimants(word: string): Noun[] {
+    claimants(word: string): CatalogEntry[] {
         // take the one noun of a qualified word
         const qualified = this.nouns.find((noun) =>
             noun.forms.some((form) => word === noun.qualify(form)),
@@ -440,19 +467,19 @@ export class Catalog {
     }
 
     /** Find the noun of an object by its identifier's prefix, the longest prefix first. */
-    owner(id: string): Noun | undefined {
-        const matching = this.nouns.filter((noun) => id.startsWith(`${noun.type.identity}-`));
+    owner(id: string): CatalogEntry | undefined {
+        const matching = this.nouns.filter((noun) => id.startsWith(`${noun.entry.identity}-`));
 
         return matching.toSorted(
-            (left, right) => right.type.identity.length - left.type.identity.length,
+            (left, right) => right.entry.identity.length - left.entry.identity.length,
         )[0];
     }
 
     /** Find the noun of an identity, such as machine: the type of that name among several. */
-    identity(identity: string): Noun | undefined {
+    identity(identity: string): CatalogEntry | undefined {
         // take the nouns of the identity, and the type it refers to among several
-        const identified = this.nouns.filter((noun) => noun.type.identity === identity);
-        const owners = identified.filter((noun) => noun.type.name === identity);
+        const identified = this.nouns.filter((noun) => noun.entry.identity === identity);
+        const owners = identified.filter((noun) => noun.entry.type === identity);
         const matching = identified.length > 1 && owners.length > 0 ? owners : identified;
 
         // refuse several types claiming it

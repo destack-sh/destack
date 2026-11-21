@@ -1,11 +1,12 @@
 import { space } from "@destack/account/object";
 import { expect, test, refusal } from "@destack/test";
 import { principal, relation } from "@destack/access";
-import { defineObject } from "@destack/object";
+import { defineObject, ObjectTypePool, ObjectTypeEntry } from "@destack/object";
+import { ObjectStoreDescription } from "@destack/object/client";
 import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 
-import { Noun, Catalog } from "./catalog.ts";
+import { CatalogEntry, Catalog } from "./catalog.ts";
 import { argument, plural, t } from "@destack/locale";
 
 /** The package declaring every type of the tests. */
@@ -27,27 +28,26 @@ function declared(name: string, identity = name) {
     });
 }
 
-/** A noun of an object type at an installation of a name. */
-function noun(installation: string, name: string, identity = name): Noun {
+/** A listed noun of an object type at an installation of a name. */
+function noun(installation: string, name: string, identity = name): CatalogEntry {
+    // list the type at the installation, among known types alone
     const type = declared(name, identity);
-
-    return new Noun(
-        {
-            packageId: PACKAGE_ID,
-            scope: "space-01996ab0-0000-7000-8000-0000000000c3",
-            installation: {
-                id: schema
-                    .identifier("installation")
-                    .parse("installation-01996ab0-0000-7000-8000-0000000000c2"),
-                name: installation,
-            },
-            types: [type.typeReference],
-            declarations: [],
+    const entry = ObjectTypeEntry.of(type);
+    const implementation = {
+        packageId: PACKAGE_ID,
+        scope: "space-01996ab0-0000-7000-8000-0000000000c3",
+        installation: {
+            id: schema
+                .identifier("installation")
+                .parse("installation-01996ab0-0000-7000-8000-0000000000c2"),
+            name: installation,
         },
-        "space",
-        type,
-        [],
-    );
+        types: [entry],
+        declarations: [],
+    };
+    const description = new ObjectStoreDescription([implementation], ObjectTypePool.of([type]));
+
+    return new CatalogEntry(implementation, "space", entry, description);
 }
 
 /** Build a catalog where two installations serve tasks and two serve machines. */
