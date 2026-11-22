@@ -19,6 +19,7 @@ const FIXTURES = fileURLToPath(new URL("../../tests/fixture/", import.meta.url))
 /** Write a setting of the content's language taking the given values. */
 function languageSetting(values: readonly string[]): string {
     return `import { defineSetting } from "@destack/setting/declare";
+import { schema } from "@destack/schema";
 import { t } from "@destack/locale";
 
 /** The language of generated content. */
