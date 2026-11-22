@@ -3,10 +3,12 @@ import type { Relation } from "@destack/db";
 import { tag } from "@destack/registry/object";
 import { usage } from "@destack/stack/object";
 import {
+    charge,
     customer,
     Customer,
     product,
     productFeature,
+    seller,
     subscription,
     subscriptionItem,
 } from "../object/index.ts";
@@ -41,33 +43,60 @@ export function implementCustomer(home: string, metering: Metering): typeof cust
                 return {};
             },
         },
-        projections: [
+        controllers: [
             {
                 // derive each replicated account's entitlements
                 name: "entitle",
-                key: "accountId",
-                all: { table: account.table, column: "id" },
-                watches: [
-                    { table: account.table },
-                    { table: usage.table, on: { id: "scope" } },
-                    { table: subscription.table, on: { id: "accountId" } },
+                by: ["accountId"],
+                for: { table: account.table, column: "id" },
+                reads: [
+                    // derive an account again once it arrives or its usage is recorded
+                    { table: account.table, fields: [] },
+                    { table: usage.table, fields: [], on: { id: "scope" } },
+                    // derive it again once a subscription's standing, period or limit changes
+                    {
+                        table: subscription.table,
+                        fields: [
+                            "status",
+                            "sellerId",
+                            "currentPeriodStart",
+                            "currentPeriodEnd",
+                            "spendingLimit",
+                        ],
+                        on: { id: "accountId" },
+                    },
                     {
                         table: subscriptionItem.table,
+                        fields: ["quantity", "terms", "grants"],
                         path: [ITEM_SUBSCRIPTION],
                         on: { id: "accountId" },
                     },
-                    // derive every account again once a default product or its grants change
-                    { table: product.table, where: { isDefault: true }, isListing: true },
+                    // derive it again once a usage charge of its period is rated
+                    { table: charge.table, fields: ["billedCost"], on: { id: "accountId" } },
+                    // derive every account again once a default product, its seller or its grants change
+                    {
+                        table: product.table,
+                        where: { isDefault: true },
+                        fields: ["isDefault", "archivedAt", "accountId"],
+                        isListing: true,
+                    },
+                    { table: seller.table, fields: ["accountId"], isListing: true },
                     {
                         table: productFeature.table,
+                        fields: ["packageId", "feature", "value"],
                         path: [FEATURE_DEFAULT_PRODUCT],
                         isListing: true,
                     },
                     // derive every account again once the metering tag moves
-                    { table: tag.table, where: { name: metering.tag }, isListing: true },
+                    {
+                        table: tag.table,
+                        where: { name: metering.tag },
+                        fields: ["version"],
+                        isListing: true,
+                    },
                 ],
-                project: (accountId, { store }) =>
-                    new CustomerEntitlement(store, home, metering).derive(accountId),
+                reconcile: ({ key, store }) =>
+                    new CustomerEntitlement(store, home, metering).derive(key),
             },
         ],
     });
