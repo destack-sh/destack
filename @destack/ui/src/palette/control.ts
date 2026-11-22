@@ -1,5 +1,6 @@
 import type { SwatchName } from "@destack/color";
 import type { IconBodies } from "@destack/icon";
+import type { Action } from "../action/index.ts";
 import { schema } from "@destack/schema";
 import { TelemetryScope } from "@destack/telemetry";
 import { type Accessor, createSignal, type JSX, type Setter, useEnvironment } from "@destack/view";
@@ -37,21 +38,9 @@ const SavedUses = schema.array(
 type Uses = schema.Infer<typeof SavedUses>;
 
 /** Something an entry does, after Raycast's actions: the first opens it, the rest in a panel. */
-export interface PaletteAction {
-    /** The action's id, unique among its entry's actions. */
-    readonly id: string;
-    /** The title the panel and the footer show. */
-    readonly title: string;
-    /** The icon beside the title. */
-    readonly icon?: IconBodies;
-    /** The key combination that runs it while its entry is highlighted, such as `mod+c`. */
-    readonly shortcut?: string;
-    /** Whether the action destroys something, which the panel colors. */
-    readonly isDestructive?: boolean;
+export interface PaletteAction extends Action {
     /** Whether the palette stays open after the action runs, closing by default. */
     readonly isStayingOpen?: boolean;
-    /** Do the action. */
-    readonly run: () => Promise<void> | void;
 }
 
 /** A detail at an entry's end, after Raycast's accessories: text, or a tag in a swatch's tint. */

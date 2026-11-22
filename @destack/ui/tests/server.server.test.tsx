@@ -15,6 +15,7 @@ const ICON_BODY = /(<svg[^>]*>).*?(<\/svg>)/gu;
 
 /** The state units and part builders the package exports, which show no examples. */
 const STATE = new Set([
+    "action",
     "build",
     "collection",
     "drag",
