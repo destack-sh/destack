@@ -14,7 +14,7 @@ import type { CallableName, MethodInput, MethodKind } from "../method/index.ts";
 import type { MethodName } from "../method/procedure.ts";
 import type { ObjectType, PermissionOf } from "../object/object.ts";
 import type { ConditionOf } from "../query/index.ts";
-import { Shortcut, type ShortcutText } from "./shortcut.ts";
+import { Shortcut, type ShortcutText } from "@destack/locale";
 
 /** The titles of the built-in methods people run on objects from a list. */
 const METHOD_TITLES: Readonly<Partial<Record<MethodKind, Message>>> = {

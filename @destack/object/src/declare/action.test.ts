@@ -10,7 +10,7 @@ import { ObjectClient, ObjectRemote } from "../client/index.ts";
 import { testSimulation } from "../test/world.ts";
 import { field } from "../field/index.ts";
 import { defineObject, device } from "../object/index.ts";
-import type { ShortcutText } from "./shortcut.ts";
+import type { ShortcutText } from "@destack/locale";
 import { Action, type ActionCallDefinition, defineAction } from "./action.ts";
 import { definePackage } from "./package.ts";
 import { controlled, recoverable } from "../index.ts";

@@ -5,4 +5,3 @@ export * from "./egress.ts";
 export * from "./description.ts";
 export * from "./fetch.ts";
 export * from "./action.ts";
-export * from "./shortcut.ts";
