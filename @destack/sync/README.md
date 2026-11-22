@@ -25,7 +25,7 @@ Watch the open tasks of a space as commits land:
 
 ```ts
 import { defineTable, text } from "@destack/db";
-import { type DatabaseConnection } from "@destack/db/database";
+import type { DatabaseConnection } from "@destack/db/database";
 import { Feed } from "@destack/sync/dataflow";
 
 // define a logged table of tasks
@@ -124,8 +124,9 @@ A request identifier is a UUIDv7, valid for retries for a week.
 
 ```ts
 import { defineRelations, defineTable, integer, text } from "@destack/db";
-import { type DatabaseConnection } from "@destack/db/database";
-import { type Query } from "@destack/sync";
+import type { DatabaseConnection } from "@destack/db/database";
+import type { Query } from "@destack/sync";
+import { Feed } from "@destack/sync/dataflow";
 
 // define logged projects and their ranked tasks
 const project = defineTable(
