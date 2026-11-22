@@ -7,3 +7,4 @@ export * from "./month.ts";
 export * from "./segment.ts";
 export * from "./scale.ts";
 export * from "./recurrence.ts";
+export * from "./schedule.ts";
