@@ -1,5 +1,6 @@
 import { nth } from "../collection/index.ts";
 import * as schema from "../validate/index.ts";
+import { WorkCalendar } from "./calendar.ts";
 
 /** Which edges a link joins, after MS Project's four dependency types. */
 export const ScheduleLinkType = schema.enum([
@@ -27,13 +28,64 @@ const scheduleLinkSchema = schema.object({
 /** A dependency between two tasks: the later one waits on an edge of the earlier one. */
 export type ScheduleLink = schema.Infer<typeof scheduleLinkSchema>;
 
+/** An edge of a task: its start or its end. */
+export type ScheduleEdge = "start" | "end";
+
+/** The edges each type of link joins: the earlier task's, then the waiting task's. */
+const LINK_EDGES: Readonly<
+    Record<ScheduleLinkType, { readonly from: ScheduleEdge; readonly to: ScheduleEdge }>
+> = {
+    "finish-to-start": { from: "end", to: "start" },
+    "start-to-start": { from: "start", to: "start" },
+    "finish-to-finish": { from: "end", to: "end" },
+    "start-to-finish": { from: "start", to: "end" },
+};
+
 /** A dependency between two tasks, after MS Project's links: the later one waits on the earlier. */
 export const ScheduleLink = Object.assign(scheduleLinkSchema, {
+    /** Read the edges a type of link joins: the earlier task's, then the waiting task's. */
+    edges(type: ScheduleLinkType): { readonly from: ScheduleEdge; readonly to: ScheduleEdge } {
+        return LINK_EDGES[type];
+    },
+
+    /** Read the type of link that joins an earlier task's edge to a waiting task's edge. */
+    joining(from: ScheduleEdge, to: ScheduleEdge): ScheduleLinkType {
+        const type = ScheduleLinkType.options.find(
+            (each) => LINK_EDGES[each].from === from && LINK_EDGES[each].to === to,
+        );
+        if (type === undefined) {
+            throw new RangeError(`schedule link joining '${from}' to '${to}' has no type`);
+        }
+
+        return type;
+    },
+
     /** Report whether two links join the same two tasks, which a schedule links once at most. */
     equals(left: ScheduleLink, right: ScheduleLink): boolean {
         return left.from === right.from && left.to === right.to;
     },
 });
+
+/** How a constraint bounds a task's dates, after MS Project's constraint types. */
+export const ScheduleConstraintType = schema.enum([
+    "start-no-earlier-than",
+    "start-no-later-than",
+    "finish-no-earlier-than",
+    "finish-no-later-than",
+    "must-start-on",
+    "must-finish-on",
+]);
+
+/** How a constraint bounds a task's dates. */
+export type ScheduleConstraintType = schema.Infer<typeof ScheduleConstraintType>;
+
+/** A bound on a task's dates: its type and the instant it names. */
+export interface ScheduleConstraint {
+    /** How it bounds the task. */
+    readonly type: ScheduleConstraintType;
+    /** The instant, in epoch milliseconds. */
+    readonly at: number;
+}
 
 /** A task a schedule orders: a key and a start and end in epoch milliseconds. */
 export interface ScheduleTask {
@@ -43,7 +95,12 @@ export interface ScheduleTask {
     readonly start: number;
     /** The end, in epoch milliseconds. */
     readonly end: number;
+    /** The bound on its dates, none when it runs as soon as its links allow. */
+    readonly constraint?: ScheduleConstraint;
 }
+
+/** How a move places the tasks it changes: pushing them later only, or as soon as links allow. */
+export type ScheduleMode = "push" | "auto";
 
 /** A task in a schedule's order with its links and its latest start. */
 interface ScheduleNode<Task extends ScheduleTask> {
@@ -67,12 +124,19 @@ export class Schedule<Task extends ScheduleTask> {
     readonly #nodes: readonly ScheduleNode<Task>[];
     /** The index of each task in the order, by its key. */
     readonly #indexes: ReadonlyMap<string, number>;
+    /** The calendar whose working time lags and lengths count. */
+    readonly #calendar: WorkCalendar;
 
-    /** Order tasks by their links, refusing repeated keys, missing tasks and cycles. */
-    constructor(tasks: readonly Task[], links: readonly ScheduleLink[]) {
+    /** Order tasks by their links in a calendar's time, refusing repeated keys and cycles. */
+    constructor(
+        tasks: readonly Task[],
+        links: readonly ScheduleLink[],
+        options: { readonly calendar?: WorkCalendar } = {},
+    ) {
         // order the tasks, then index them and their links in that order
         this.tasks = ordered(tasks, links);
         this.links = links;
+        this.#calendar = options.calendar ?? new WorkCalendar("UTC", []);
         this.#indexes = new Map(this.tasks.map((task, index) => [task.key, index]));
         this.#nodes = this.tasks.map((task) => ({ task, incoming: [], outgoing: [], latest: 0 }));
         for (const link of links) {
@@ -85,7 +149,7 @@ export class Schedule<Task extends ScheduleTask> {
         // walk the order backward from the schedule's end for each task's latest start
         const end = Math.max(...this.tasks.map((task) => task.end));
         for (const node of this.#nodes.toReversed()) {
-            node.latest = latestOf(node, end, this.#nodes);
+            node.latest = latestOf(node, end, this.#nodes, this.#calendar);
         }
     }
 
@@ -99,11 +163,36 @@ export class Schedule<Task extends ScheduleTask> {
         return nth(this.tasks, this.#index(key));
     }
 
-    /** Read the milliseconds a task can slip without moving the schedule's end. */
+    /** Read the time a task can slip without moving the schedule's end, negative past a bound. */
     slack(key: string): number {
         const node = nth(this.#nodes, this.#index(key));
 
-        return node.latest - node.task.start;
+        return this.#calendar.between(node.task.start, node.latest);
+    }
+
+    /** Read the time a task can slip without moving any task that waits on it. */
+    freeSlack(key: string): number {
+        // take the latest start each link out of the task allows, at the waiting task's start
+        const node = nth(this.#nodes, this.#index(key));
+        if (node.outgoing.length === 0) {
+            return this.slack(key);
+        }
+        const length = this.#calendar.between(node.task.start, node.task.end);
+        const latest = Math.min(
+            ...node.outgoing.map(({ index, link }) => {
+                const to = nth(this.#nodes, index).task;
+
+                return latestStart(
+                    link,
+                    to.start,
+                    this.#calendar.between(to.start, to.end),
+                    length,
+                    this.#calendar,
+                );
+            }),
+        );
+
+        return this.#calendar.between(node.task.start, latest);
     }
 
     /** Report whether a task is on the critical path: any slip moves the schedule's end. */
@@ -111,25 +200,32 @@ export class Schedule<Task extends ScheduleTask> {
         return this.slack(key) <= 0;
     }
 
-    /** Move tasks to new dates and push later each task whose links the moves break. */
-    move(tasks: readonly Task[]): Task[] {
+    /** Move tasks to new dates, then push the tasks after them later, or reschedule them all. */
+    move(tasks: readonly Task[], options: { readonly mode?: ScheduleMode } = {}): Task[] {
         // take the tasks at their new dates by index, refusing ones the schedule lacks
+        const mode = options.mode ?? "push";
         const moved = new Map<number, Task>();
         for (const task of tasks) {
             moved.set(this.#index(task.key), task);
         }
+        const given = new Set(moved.keys());
         const current = (index: number): Task => moved.get(index) ?? nth(this.tasks, index);
 
-        // push each task after the first moved one to the earliest start its links allow
-        const first = Math.min(...moved.keys());
+        // place each later task at the earliest start its links and bound allow, keeping its length
+        const first = Math.min(...given);
         for (const [index, node] of this.#nodes.entries()) {
             const task = current(index);
-            const earliest = earliestOf(node, task, current);
-            if (index > first && earliest > task.start) {
+            const earliest = earliestOf(node, task, current, mode, this.#calendar);
+            const isPlaced =
+                mode === "push"
+                    ? index > first && earliest > task.start
+                    : !given.has(index) && earliest !== task.start;
+            if (isPlaced) {
+                const length = this.#calendar.between(task.start, task.end);
                 moved.set(index, {
                     ...task,
                     start: earliest,
-                    end: earliest + task.end - task.start,
+                    end: this.#calendar.add(earliest, length),
                 });
             }
         }
@@ -181,47 +277,85 @@ export class Schedule<Task extends ScheduleTask> {
     }
 }
 
-/** Read the earliest start a task's links into it allow, its own start at the least. */
+/** Read the earliest start a task's links and bound allow, its own start at the least to push. */
 function earliestOf<Task extends ScheduleTask>(
     node: ScheduleNode<Task>,
     task: Task,
     current: (index: number) => Task,
+    mode: ScheduleMode,
+    calendar: WorkCalendar,
 ): number {
-    // take the latest start any link into the task asks for
-    const length = task.end - task.start;
+    // pin a task its bound fixes, whatever its links ask
+    const length = calendar.between(task.start, task.end);
+    const { constraint } = task;
+    if (constraint?.type === "must-start-on") {
+        return calendar.align(constraint.at, "start");
+    } else if (constraint?.type === "must-finish-on") {
+        return startOf(constraint.at, length, calendar);
+    }
 
+    // start from its own start to push, or from its bound alone to run as soon as possible
+    const isAnchored = mode === "push" || node.incoming.length === 0;
+    const bound =
+        constraint?.type === "start-no-earlier-than"
+            ? calendar.align(constraint.at, "start")
+            : constraint?.type === "finish-no-earlier-than"
+              ? startOf(constraint.at, length, calendar)
+              : Number.NEGATIVE_INFINITY;
+    const own = isAnchored ? calendar.align(task.start, "start") : Number.NEGATIVE_INFINITY;
+
+    // take the latest start any link into the task asks for
     return node.incoming.reduce(
         (earliest, { index, link }) =>
-            Math.max(earliest, earliestStart(link, current(index), length)),
-        task.start,
+            Math.max(earliest, earliestStart(link, current(index), length, calendar)),
+        Math.max(own, bound),
     );
 }
 
-/** Read the latest start a task's links out of it allow, the schedule's end at the most. */
+/** Read the latest start a task's links and bound allow, the schedule's end at the most. */
 function latestOf<Task extends ScheduleTask>(
     node: ScheduleNode<Task>,
     end: number,
     nodes: readonly ScheduleNode<Task>[],
+    calendar: WorkCalendar,
 ): number {
+    // bound the start by the task's own constraint, and by the schedule's end
+    const length = calendar.between(node.task.start, node.task.end);
+    const { constraint } = node.task;
+    const bound =
+        constraint?.type === "start-no-later-than" || constraint?.type === "must-start-on"
+            ? calendar.align(constraint.at, "start")
+            : constraint?.type === "finish-no-later-than" || constraint?.type === "must-finish-on"
+              ? startOf(constraint.at, length, calendar)
+              : Number.POSITIVE_INFINITY;
+
     // take the earliest start any link out of the task allows, each later task set before
-    const length = node.task.end - node.task.start;
+    return node.outgoing.reduce(
+        (latest, { index, link }) => {
+            const to = nth(nodes, index);
+            const toLength = calendar.between(to.task.start, to.task.end);
 
-    return node.outgoing.reduce((latest, { index, link }) => {
-        const to = nth(nodes, index);
-        const toLength = to.task.end - to.task.start;
-
-        return Math.min(latest, latestStart(link, to.latest, toLength, length));
-    }, end - length);
+            return Math.min(latest, latestStart(link, to.latest, toLength, length, calendar));
+        },
+        Math.min(startOf(end, length, calendar), bound),
+    );
 }
 
 /** Read the start a link asks of the task waiting on it, by the type and the lag. */
-function earliestStart(link: ScheduleLink, from: ScheduleTask, length: number): number {
+function earliestStart(
+    link: ScheduleLink,
+    from: ScheduleTask,
+    length: number,
+    calendar: WorkCalendar,
+): number {
     // wait on an edge of the earlier task, the waiting edge being the start or the end
-    const isFinishLed = link.type === "finish-to-start" || link.type === "finish-to-finish";
-    const isStartWaiting = link.type === "finish-to-start" || link.type === "start-to-start";
-    const edge = (isFinishLed ? from.end : from.start) + link.lag;
+    const edges = ScheduleLink.edges(link.type);
+    const edge = calendar.align(
+        calendar.add(edges.from === "end" ? from.end : from.start, link.lag),
+        edges.to,
+    );
 
-    return isStartWaiting ? edge : edge - length;
+    return edges.to === "start" ? edge : startOf(edge, length, calendar);
 }
 
 /** Read the latest start a link allows the task it starts from, by the waiting task's start. */
@@ -230,13 +364,21 @@ function latestStart(
     toStart: number,
     toLength: number,
     length: number,
+    calendar: WorkCalendar,
 ): number {
     // read the waiting edge, then the earlier task's edge the lag before it
-    const isFinishLed = link.type === "finish-to-start" || link.type === "finish-to-finish";
-    const isStartWaiting = link.type === "finish-to-start" || link.type === "start-to-start";
-    const edge = (isStartWaiting ? toStart : toStart + toLength) - link.lag;
+    const edges = ScheduleLink.edges(link.type);
+    const edge = calendar.add(
+        edges.to === "start" ? toStart : calendar.add(toStart, toLength),
+        -link.lag,
+    );
 
-    return isFinishLed ? edge - length : edge;
+    return edges.from === "end" ? startOf(edge, length, calendar) : calendar.align(edge, "start");
+}
+
+/** Read the start of a task of a length that ends at an instant, both on working time. */
+function startOf(end: number, length: number, calendar: WorkCalendar): number {
+    return calendar.align(calendar.add(calendar.align(end, "end"), -length), "start");
 }
 
 /** Turn a link around, for the pair check that ignores direction. */
