@@ -1,5 +1,5 @@
 import { installation, Installation } from "@destack/stack/object";
-import { Observation } from "@destack/object";
+import { Observation, type ObjectType, type Package, PackageMount } from "@destack/object";
 import {
     type Environment,
     type FileSystem,
@@ -13,11 +13,10 @@ import { Account, type ResidencyCode } from "@destack/account/object";
 import type { StepUp } from "@destack/access";
 import type { Login } from "@destack/account/native";
 import { freshHandle, type TestPerson } from "@destack/account/test";
-import { type DatabaseConnection, Snapshot } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { TestTemplate, type TestDatabase, TestRun } from "@destack/db/test";
 import { Simulation, SimulatedClock } from "@destack/environment/simulation";
 import { MemoryKeychain } from "@destack/identity";
-import { type ObjectType, type Package, PackageMount } from "@destack/object";
 import { createClient } from "@destack/object/client";
 import { type Digest, Identifier, nth, schema, present } from "@destack/schema";
 import type { HostListening, HostSocketAttachment, SocketRefusal } from "@destack/object/workload";
@@ -760,7 +759,7 @@ export class TestComputer implements AsyncDisposable {
 
         // wait until its partition received its scope
         await this.waitUntil(this.machine.database, async () => {
-            const [received] = await Scope.read(Snapshot.live(this.machine.database), [id]);
+            const [received] = await Scope.read(this.machine.database.snapshot(), [id]);
 
             return received !== undefined;
         });
@@ -881,7 +880,8 @@ export class TestComputer implements AsyncDisposable {
         await this.machine.health.waitUp();
         const { database } = await this.machine.space(spaceId);
         const read = () =>
-            Snapshot.live(database)
+            database
+                .snapshot()
                 .read(installation.table)
                 .findFirst({ where: { id: installationId } });
 

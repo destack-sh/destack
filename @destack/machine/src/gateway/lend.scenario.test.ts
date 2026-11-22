@@ -1,3 +1,4 @@
+import { ReplicaSet, RequestId } from "@destack/sync";
 import { testHost } from "@destack/test/host";
 import { principal } from "@destack/access";
 import { connection } from "@destack/connection";
@@ -8,12 +9,10 @@ import {
     type Runtime,
     type WorkloadResource,
 } from "../runtime/runtime.ts";
-import { ResourceId } from "@destack/resource";
+import { ResourceId, EGRESS_PROVIDER } from "@destack/resource";
 import { ConnectionKind, defineConnection } from "@destack/connection/declare";
-import { EGRESS_PROVIDER } from "@destack/resource";
 import { Digest, Identifier, present, schema } from "@destack/schema";
 import { Egress } from "@destack/object";
-import { Replica, RequestId } from "@destack/sync";
 import { testKeys } from "@destack/object/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { openGateway } from "./test/gateway.ts";
@@ -50,7 +49,7 @@ test("apply a bound connection's key to a workload's calls below its resource wi
     const following = new AbortController();
     onTestFinished(() => following.abort());
     const head = await primary.database.log.position();
-    await Replica.wait(connections.database, primary.scope.id, head, following.signal);
+    await new ReplicaSet(connections.database).wait(primary.scope.id, head, following.signal);
     const created = await connections.objects
         .mutate(connections.context().access(), {
             id: RequestId.create(environment),

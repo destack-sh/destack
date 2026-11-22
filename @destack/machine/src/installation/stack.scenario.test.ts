@@ -9,16 +9,27 @@ import { checkout } from "../computer/checkout/object/index.ts";
 import { describedTables, testIdentity } from "@destack/object/test";
 import { KNOWN_TYPES } from "@destack/stack/stack";
 import type { Environment } from "@destack/environment";
-import { InstallationDefinition } from "@destack/stack/declare";
-import { install, StackDefinition } from "@destack/stack/declare";
+import {
+    InstallationDefinition,
+    install,
+    StackDefinition,
+    defineStack,
+} from "@destack/stack/declare";
 import objectPackage from "@destack/object/package";
-import { BindingTarget, role } from "@destack/object";
+import {
+    BindingTarget,
+    role,
+    PACKAGE_KIND,
+    Package,
+    SERVER_EXPORT,
+    Observation,
+} from "@destack/object";
 import { STACKS } from "@destack/account/test";
 import { space } from "@destack/account/object";
-import { PACKAGE_KIND, Package, SERVER_EXPORT } from "@destack/object";
 import { expect, refusal, test } from "@destack/test";
 import { testHost } from "@destack/test/host";
-import { and, databaseProvider, defineDatabase, eq, isNotNull, Snapshot } from "@destack/db";
+import { and, defineDatabase, eq, isNotNull } from "@destack/db";
+import { databaseProvider } from "@destack/db/database";
 import { BunSqliteDatabaseHost } from "@destack/db/bun";
 import { pathToFileURL } from "node:url";
 import { implementPackage, ObjectStore } from "@destack/object/server";
@@ -36,10 +47,8 @@ import { describeObject, describePackage } from "@destack/object/inspect";
 import { type DependencyRelease, PackageVersion, PackageId } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
 import { defineBucket } from "@destack/bucket";
-import { defineStack } from "@destack/stack/declare";
 import stackPackage from "@destack/stack/package";
 import * as object from "@destack/stack/object";
-import { Observation } from "@destack/object";
 import {
     evaluateStack,
     fixtureOutputs,
@@ -619,7 +628,7 @@ test("replace an installation's owned bucket binding with its stack's, releasing
     const installed = present(named, "the notes installation");
     const bound = (
         await Binding.targeted(
-            Snapshot.live(database),
+            database.snapshot(),
             schema.identifier("space").parse(installed.scope),
             installed.id,
         )

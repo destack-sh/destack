@@ -1,27 +1,36 @@
 import { installation, bucket } from "@destack/stack/object";
 import { space, account } from "@destack/account/object";
-import { and, type DatabaseConnection, defineDatabase, eq, Transaction } from "@destack/db";
-import { MemoryBlobStorage } from "@destack/resource";
+import { and, defineDatabase, eq } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
+import { MemoryBlobStorage, type Lease } from "@destack/resource";
 import { Scope, Subject, ObjectReference } from "@destack/sync";
 import {
     AccessContext,
+    Authentication,
+    Caller,
+    principal,
     accessRelationship,
     accessRole,
     accessRolePermission,
-    Authentication,
     Authorization,
-    Caller,
-    principal,
     Relationship,
 } from "@destack/access";
 import { STACKS, TestAccountStore, TestDirectory } from "@destack/account/test";
-import { approval, CallEvent, call, changeRequest, journal, CallError } from "@destack/object";
+import {
+    approval,
+    CallEvent,
+    call,
+    changeRequest,
+    journal,
+    CallError,
+    type Client,
+    type ObjectProcedures,
+} from "@destack/object";
 import { Health, Journal, Server, type ClaimPrimary, ObjectStore } from "@destack/object/server";
 import { testEvents, serversOf, testCallKey } from "@destack/object/test";
-import type { EventStore } from "@destack/event";
+import type { EventStore } from "@destack/event/store";
 import { LocalBucket } from "@destack/bucket/bun";
 import stackPackage from "@destack/stack/package";
-import type { Client, ObjectProcedures } from "@destack/object";
 import {
     type BucketReference,
     S3Server,
@@ -33,7 +42,6 @@ import { ResourceContext } from "@destack/resource/context";
 import { Identifier } from "@destack/schema";
 import { createClient } from "@destack/object/client";
 import { implementBucket } from "../resource/bucket.ts";
-import type { Lease } from "@destack/resource";
 import type { Clock, Environment } from "@destack/environment";
 
 /** A database with buckets, installations, a journal and calls, replicating their spaces. */
@@ -481,7 +489,7 @@ export class TestBucket implements AsyncDisposable {
 
     /** Receive a space at its home, as its placement does. */
     async #receive(spaceId: Identifier<"space">, now: number): Promise<void> {
-        await Transaction.run(this.database, async (transaction) => {
+        await this.database.commit(async (transaction) => {
             const authorization = new Authorization(
                 this.#store.authorizer,
                 transaction,

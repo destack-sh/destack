@@ -1,7 +1,7 @@
 import type { RevisionOptions } from "./target.ts";
 import { type Caller, principal } from "@destack/access";
 import { LATEST_TAG } from "@destack/registry/object";
-import { and, eq, Snapshot } from "@destack/db";
+import { and, eq } from "@destack/db";
 import { setting, SettingValue } from "@destack/setting/object";
 import { buildRetention } from "@destack/stack/setting";
 import { BuildStore } from "@destack/build/store";
@@ -17,7 +17,7 @@ import type { GrantRequest } from "@destack/account/authentication";
 import stackPackage from "@destack/stack/package";
 import type { MountFetch, ObjectStore } from "@destack/object/server";
 import { PackageManifest } from "@destack/package/manifest";
-import { type PackageRelease } from "@destack/package";
+import type { PackageRelease } from "@destack/package";
 import { Digest, type Identifier, present, schema } from "@destack/schema";
 import { RequestId, ObjectReference, Scope } from "@destack/sync";
 import {
@@ -157,7 +157,7 @@ export function implementBuild(options: BuildOptions) {
                     expireBuilds(
                         store,
                         (space) =>
-                            SettingValue.resolve(Snapshot.live(store.database), buildRetention, {
+                            SettingValue.resolve(store.database.snapshot(), buildRetention, {
                                 scope: space,
                             }),
                         store.clock.now(),

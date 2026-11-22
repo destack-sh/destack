@@ -1,7 +1,7 @@
 import { placement, Space } from "@destack/account/object";
 import { principal } from "@destack/access";
-import { type Select, Snapshot } from "@destack/db";
-import { type ObjectWatch, type Condition } from "@destack/object";
+import type { Select } from "@destack/db";
+import type { ObjectWatch, Condition } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import { ObjectReference, RequestId, Scope } from "@destack/sync";
 import { transfer } from "@destack/stack/object";
@@ -24,7 +24,7 @@ export const Scheduler = {
         store: Pick<ObjectStore, "database" | "as" | "mutate" | "environment">,
     ): Promise<Condition> {
         // read the space's running move and the placement the universe decided
-        const view = Snapshot.live(store.database);
+        const view = store.database.snapshot();
         const moving = await view
             .read(transfer.table)
             .findFirst({ where: { scope: row.id, completedAt: { isNull: true } } });

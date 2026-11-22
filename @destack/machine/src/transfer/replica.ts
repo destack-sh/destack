@@ -1,22 +1,13 @@
 import { placement } from "@destack/account/object";
 import { identityKey } from "@destack/account/identity";
 import { canonicalize, Digest, type Identifier } from "@destack/schema";
-import { accessInvitation, decisionTables } from "@destack/access";
+import { decisionTables, accessInvitation } from "@destack/access";
 import { call, journal, SYSTEM_TABLES } from "@destack/object";
-import {
-    and,
-    type DatabaseConnection,
-    inArray,
-    Order,
-    type Row,
-    type RowImage,
-    Snapshot,
-    TABLE,
-    type Table,
-    type Transaction,
-} from "@destack/db";
+import { and, inArray, Order, type Row, type RowImage, TABLE, type Table } from "@destack/db";
+import type { DatabaseConnection, Transaction } from "@destack/db/database";
 import { Recipient } from "@destack/identity";
-import { Feed, Replica, replica, replicaPosition, Scope } from "@destack/sync";
+import { Scope, replica, replicaPosition } from "@destack/sync";
+import { Replica, Feed } from "@destack/sync/dataflow";
 import { type Fence, restore, snapshot, transfer } from "@destack/stack/object";
 import type { Handoff } from "./handoff.ts";
 import type {} from "@destack/package/import-meta";
@@ -86,7 +77,7 @@ export class SpaceReplica {
             : tables;
 
         // replicate the rows of the space and of every scope below it
-        const scopes = await Scope.subtree(Snapshot.live(database), spaceId);
+        const scopes = await Scope.subtree(database.snapshot(), spaceId);
 
         return new SpaceReplica({ database, spaceId, scopes, tables: ordered });
     }

@@ -6,15 +6,16 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
     AccessContext,
-    accessRelationship,
-    accessRole,
     Authentication,
     Caller,
-    Manager,
     principal,
+    accessRelationship,
+    accessRole,
+    Manager,
 } from "@destack/access";
 import * as accountObject from "@destack/account/object";
-import { type DatabaseConnection, eq, or, Snapshot } from "@destack/db";
+import { eq, or } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { PackageManifest } from "@destack/package/manifest";
 import { nth, Identifier, present, schema, Version } from "@destack/schema";
 import { CallError } from "@destack/object";
@@ -527,7 +528,7 @@ test("decide checkout permissions for the owner, the machine and a stranger", as
     );
     const target = checkout.reference(machine.id, registered.id);
     const decide = async (subject: typeof owner, name: "read" | "relocate" | "submit") => {
-        const snapshot = Snapshot.live(partition.database);
+        const snapshot = partition.database.snapshot();
         const access = await partition.authorizer.resolve(
             snapshot,
             machine.id,
@@ -708,7 +709,8 @@ test("build a checkout in a space another computer serves, following the build a
     // wait until the relay publishes the serving computer's tunnel, which the other calls it at
     const universe = world.universe.storage.database;
     await serving.waitUntil(universe, async () => {
-        const published = await Snapshot.live(universe)
+        const published = await universe
+            .snapshot()
             .read(accountObject.endpoint.table)
             .findFirst({ where: { parentId: serving.machine.id } });
 

@@ -6,19 +6,12 @@ import {
     type SpaceProvider,
 } from "@destack/stack/object";
 import { KNOWN_TYPES } from "@destack/stack/stack";
-import { and, type ControllerSet, eq, isNull, Snapshot } from "@destack/db";
+import { and, eq, isNull } from "@destack/db";
+import type { ControllerSet } from "@destack/db/database";
 import { principal } from "@destack/access";
-import { hostname, machine } from "@destack/account/object";
-import { type Identifier, schema } from "@destack/schema";
-import { type Publisher, RequestId, type Subject, Scope } from "@destack/sync";
 import {
-    type Follow,
-    grantShape,
-    type ObjectType,
-    type Isolate,
-    relationship,
-} from "@destack/object";
-import {
+    hostname,
+    machine,
     Account,
     placement,
     profileShape,
@@ -29,6 +22,15 @@ import {
     user,
     Entitlement,
 } from "@destack/account/object";
+import { type Identifier, schema } from "@destack/schema";
+import { RequestId, type Subject, Scope, type Publisher } from "@destack/sync";
+import {
+    type Follow,
+    grantShape,
+    type ObjectType,
+    type Isolate,
+    relationship,
+} from "@destack/object";
 import { implementPackage, ObjectStore, type PackageImplementation } from "@destack/object/server";
 import { bucketProvider } from "@destack/bucket/provider";
 import { implementBucket } from "../resource/bucket.ts";
@@ -43,10 +45,9 @@ import { type InstallationOptions, implementInstallations } from "../installatio
 import { implementInstallationRevision } from "../installation/revision.ts";
 import { installationProvider, ProviderIndex } from "../resource/resource.ts";
 import { implementSpace } from "./placement.ts";
-import { implementTransfer, type TransferOptions } from "../transfer/transfer.ts";
+import { implementTransfer, type TransferOptions, SpaceTransfer } from "../transfer/transfer.ts";
 import { handoffMount } from "../transfer/handoff.ts";
 import { implementBuild, pushMount } from "../installation/build.ts";
-import { SpaceTransfer } from "../transfer/transfer.ts";
 import type { Space, SpaceStart } from "./space.ts";
 import { hookMount } from "../installation/hook.ts";
 import type { SocketRegistry } from "./socket.ts";
@@ -431,7 +432,7 @@ function homePublisher(space: Space, start: SpaceStart, scope: string): Publishe
         if (accountObject.space.identifies(scope)) {
             return space.publisherAt(start, scope, scope);
         }
-        const { id } = await Account.of(Snapshot.live(space.database), scope);
+        const { id } = await Account.of(space.database.snapshot(), scope);
 
         return space.publisherAt(start, Account.home(id), id);
     };

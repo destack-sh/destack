@@ -1,9 +1,8 @@
-import { expect, test } from "@destack/test";
-import { defineTable, text, Snapshot } from "@destack/db";
+import { expect, test, onTestFinished } from "@destack/test";
+import { defineTable, text } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { testSimulation } from "@destack/object/test";
 import { Recipient } from "@destack/identity";
-import { onTestFinished } from "@destack/test";
 import { schema } from "@destack/schema";
 import { Scope, replicaTables } from "@destack/sync";
 import { SpaceReplica } from "./replica.ts";
@@ -80,7 +79,7 @@ test("capture a space's subtree rows onto a replica and delete them", async () =
 
     // capture the source's rows over the subtree it fenced and verify them against its digest
     const leaving = await SpaceReplica.of(source.database, SPACE, []);
-    const scopes = await Scope.subtree(Snapshot.live(source.database), SPACE);
+    const scopes = await Scope.subtree(source.database.snapshot(), SPACE);
     const fenced = {
         position: await source.database.log.position(),
         digest: await SpaceReplica.digest(source.database, leaving.digestTables(), scopes),

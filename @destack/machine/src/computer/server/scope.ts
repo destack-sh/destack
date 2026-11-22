@@ -1,6 +1,7 @@
-import { AccessContext, Authorization, Caller } from "@destack/access";
+import { AccessContext, Caller, Authorization } from "@destack/access";
 import * as accountObject from "@destack/account/object";
-import { type Controller, type Select, Snapshot } from "@destack/db";
+import type { Select } from "@destack/db";
+import type { Controller } from "@destack/db/database";
 import type { ObjectStore } from "@destack/object/server";
 import type { Identifier } from "@destack/schema";
 import { Scope } from "@destack/sync";
@@ -29,7 +30,7 @@ export const ScopeReceiver = {
     ): Promise<void> {
         // leave a machine whose scope this store serves
         const { database, authorizer, environment, principal } = store;
-        const view = Snapshot.live(database);
+        const view = database.snapshot();
         const [row] = rows;
         if (row === undefined || (await Scope.read(view, [row.id])).length > 0) {
             return;

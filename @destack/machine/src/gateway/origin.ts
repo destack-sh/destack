@@ -21,18 +21,17 @@ import {
     refusal,
 } from "@destack/object";
 import { Build, InstallationRevision, Installation } from "@destack/stack/object";
-import { Snapshot } from "@destack/db";
-import type { ExchangeSubject } from "./gateway.ts";
+import type { ExchangeSubject, Gateway, GatewaySpace } from "./gateway.ts";
 import { PageCredential } from "./credential.ts";
 import { OtlpSignal } from "@destack/telemetry/otlp";
 import {
     ANONYMOUS,
     Authentication,
     GrantClaim,
-    LinkSecret,
     PermissionReference,
     principal,
     StepUp,
+    LinkSecret,
 } from "@destack/access";
 import { IdentityError, Jwt, type JwtClaims, Proof, PROOF_HEADER } from "@destack/identity";
 import { copyRequest, Forwarded, HostAddress, WebSocketUpgrade } from "@destack/environment";
@@ -61,7 +60,6 @@ import {
 } from "@destack/view/declare";
 import { LINK_SECRET_HEADER } from "@destack/object/server";
 import { ScopePrimary } from "./primary.ts";
-import type { Gateway, GatewaySpace } from "./gateway.ts";
 import { MachineError } from "../error/index.ts";
 import { OriginCookie } from "./cookie.ts";
 import { StaticHost, AssetIndex } from "./host.ts";
@@ -598,7 +596,7 @@ export class InstallationOriginServer {
             async () => {
                 // pull the revision's image and open its root
                 const built = await Build.require(
-                    Snapshot.live(this.#space.database),
+                    this.#space.database.snapshot(),
                     this.#space.id,
                     revision.buildId,
                 );
@@ -1211,7 +1209,7 @@ export class InstallationOriginServer {
         // mount it in its context, for the person in their home or for an anonymous visitor
         const { visitor } = page;
         const space = await accountObject.Space.read(
-            Snapshot.live(this.#space.database),
+            this.#space.database.snapshot(),
             this.#space.id,
         );
         const document = ViewContext.document(

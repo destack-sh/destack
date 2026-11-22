@@ -20,7 +20,7 @@ import objectServer, {
     type PackageImplementation,
 } from "@destack/object/server";
 import type { WorkloadContext, WorkloadImplementation } from "@destack/object/workload";
-import type { EventStore } from "@destack/event";
+import type { EventStore } from "@destack/event/store";
 import { DistributionHost, distributionServer } from "@destack/update/server";
 import type { Device } from "../device/device.ts";
 import type { NativeClient } from "@destack/account/native";

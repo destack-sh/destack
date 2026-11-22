@@ -20,7 +20,7 @@ import {
     type PermissionSet,
     principal,
 } from "@destack/access";
-import { type Relation, Snapshot, TABLE } from "@destack/db";
+import { type Relation, TABLE } from "@destack/db";
 import {
     type MethodContext,
     type MethodContextOf,
@@ -269,7 +269,8 @@ function reconcileController(options: InstallationOptions): ObjectController<typ
             try {
                 await resume(target, reconciliation, options);
             } catch (error) {
-                const left = await Snapshot.live(reconciliation.database)
+                const left = await reconciliation.database
+                    .snapshot()
                     .read(installation.table)
                     .findFirst({ where: { id: installation.identifier(id) } });
                 if (left !== undefined) {
@@ -287,7 +288,7 @@ async function resume(
     options: InstallationOptions,
 ): Promise<void> {
     // span each step by its space and installation
-    const snapshot = Snapshot.live(reconciliation.database);
+    const snapshot = reconciliation.database.snapshot();
     const { scope: telemetry } = options.space.machine;
     const attributes = InstallationTarget.attributes(target);
 
@@ -326,7 +327,8 @@ async function resume(
             ]);
 
             // record its readiness and what it waits for
-            const left = await Snapshot.live(reconciliation.database)
+            const left = await reconciliation.database
+                .snapshot()
                 .read(installation.table)
                 .findFirst({ where: { id: target.id } });
             span.setAttributes({
@@ -363,7 +365,7 @@ async function resume(
     // keep one change request open for the plan it waits on now, none once none waits
     await telemetry.span("destack.installation.approval", attributes, async () => {
         const waiting = await Approval.of(
-            Snapshot.live(reconciliation.database),
+            reconciliation.database.snapshot(),
             options.resources,
             current,
         );

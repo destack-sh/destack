@@ -13,7 +13,7 @@ import {
     dependency,
     type ObjectBindingKind,
 } from "@destack/stack/object";
-import type { RevisionOptions } from "../installation/target.ts";
+import { type RevisionOptions, InstallationTarget } from "../installation/target.ts";
 import {
     InstallationName,
     type ObjectReconciliation,
@@ -24,19 +24,9 @@ import {
 } from "@destack/object";
 import { placement, Space, space } from "@destack/account/object";
 import { ResourceId } from "@destack/resource";
-import {
-    and,
-    type DatabaseConnection,
-    eq,
-    inArray,
-    isNull,
-    now,
-    or,
-    Snapshot,
-    Condition,
-    type Relation,
-} from "@destack/db";
-import { PackageError, type PackageId } from "@destack/package";
+import { and, eq, inArray, isNull, now, or, Condition, type Relation } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
+import { PackageError, type PackageId, type Kind, type Provisioning } from "@destack/package";
 import {
     type Digest,
     nth,
@@ -61,8 +51,6 @@ import type { BuildReader } from "@destack/package/manifest";
 import { MAIN_DATABASE } from "@destack/stack/declare";
 import { StackError } from "@destack/stack/error";
 import type { ProviderIndex } from "../resource/resource.ts";
-import { InstallationTarget } from "../installation/target.ts";
-import type { Kind, Provisioning } from "@destack/package";
 
 /** The deployment an instance runs. */
 const INSTANCE_DEPLOYMENT: Relation = {
@@ -473,7 +461,7 @@ class Reconcile {
         }
 
         // wait for the stack to revise a superseded host installation
-        const snapshot = Snapshot.live(reconciliation.database);
+        const snapshot = reconciliation.database.snapshot();
         const built = await InstallationRevision.build(snapshot, this.#current.revisionId);
         const installed = present(
             await snapshot
@@ -677,7 +665,7 @@ class Reconcile {
     async #readBindings(): Promise<Binding[]> {
         // read the revision the deployment runs
         const current = this.#current;
-        const snapshot = Snapshot.live(this.#reconciliation.database);
+        const snapshot = this.#reconciliation.database.snapshot();
         const revision = present(
             await snapshot
                 .read(installationRevision.table)

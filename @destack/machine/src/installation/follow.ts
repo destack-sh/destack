@@ -10,10 +10,10 @@ import type { RevisionOptions } from "./target.ts";
 import { Manager } from "@destack/access";
 import { Space } from "@destack/account/object";
 import { reference, referenceShape, tag, tagShape } from "@destack/registry/object";
-import { and, type DatabaseConnection, eq, inArray, Snapshot } from "@destack/db";
+import { and, eq, inArray, DatabaseError } from "@destack/db";
+import type { DatabaseConnection, Snapshot } from "@destack/db/database";
 import type { ObjectReconciliation } from "@destack/object";
 import { Commit, type Identifier, present, schema } from "@destack/schema";
-import { DatabaseError } from "@destack/db";
 import { StackError } from "@destack/stack/error";
 import type { CommitSource } from "./build.ts";
 
@@ -114,7 +114,7 @@ export class CommitBuild {
         const target = this.#target;
         const { id, directory } = this.#followed;
         const { database } = reconciliation;
-        const snapshot = Snapshot.live(database);
+        const snapshot = database.snapshot();
         const followed = await followedReference(snapshot, id);
         if (followed === undefined) {
             return;
@@ -162,7 +162,7 @@ export class CommitBuild {
         const { scope } = this.#target;
         const { directory } = this.#followed;
         const { database } = reconciliation;
-        const snapshot = Snapshot.live(database);
+        const snapshot = database.snapshot();
         const isSame = (source: { readonly repository: string; readonly directory: string }) =>
             source.repository === repository && source.directory === directory;
         const following = await snapshot.read(installation.table).findMany({
@@ -214,7 +214,7 @@ export class CommitBuild {
     async #create(reconciliation: ObjectReconciliation, source: CommitSource): Promise<Build> {
         // reuse the live build of the source
         const scope = Installation.space(this.#target);
-        const live = await Build.find(Snapshot.live(reconciliation.database), scope, source);
+        const live = await Build.find(reconciliation.database.snapshot(), scope, source);
         if (live !== undefined) {
             return live;
         }
@@ -232,7 +232,7 @@ export class CommitBuild {
                 throw error;
             }
             return present(
-                await Build.find(Snapshot.live(reconciliation.database), scope, source),
+                await Build.find(reconciliation.database.snapshot(), scope, source),
                 "the live build of the source",
             );
         }

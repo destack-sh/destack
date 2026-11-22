@@ -1,15 +1,14 @@
 import { installation, build, installationRevision, Installation } from "@destack/stack/object";
 import { fixtureGraph } from "@destack/build/test";
-import { ObjectReference } from "@destack/sync";
+import { ObjectReference, RequestId } from "@destack/sync";
 import { checkout } from "../src/computer/checkout/object/index.ts";
 import { BuildImage } from "@destack/package/manifest";
 import { Plan } from "@destack/resource";
 import { expect, refusal, test } from "@destack/test";
 import { schema, present, Digest, Identifier, type JsonObject } from "@destack/schema";
 import { tag } from "@destack/registry/object";
-import { RequestId } from "@destack/sync";
 import { CallError } from "@destack/object";
-import { and, eq, Snapshot } from "@destack/db";
+import { and, eq } from "@destack/db";
 import { Residency } from "@destack/account/object";
 import { PackageVersion, PackageId } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
@@ -502,7 +501,7 @@ test("wait for a release no one has published under the selected tag, reporting 
         packageId: ids.package,
         ...following({
             follows: tag.reference(
-                await Residency.space(Snapshot.live(fixture.universe.storage.database), "eu"),
+                await Residency.space(fixture.universe.storage.database.snapshot(), "eu"),
                 Identifier.create("tag", fixture.machine.environment),
             ),
         }),
@@ -579,7 +578,7 @@ test("open the build each package's installation in a space follows, and none fo
     // open each package's build, and none for a package the space does not install
     const space = await fixture.space;
     const version = (packageId: PackageId) =>
-        InstallationTarget.reader(Snapshot.live(database), ids.space, packageId, undefined, {
+        InstallationTarget.reader(database.snapshot(), ids.space, packageId, undefined, {
             space,
             linked: new Map(),
             shipped: new Map(),

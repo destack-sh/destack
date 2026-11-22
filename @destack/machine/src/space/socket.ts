@@ -1,4 +1,5 @@
-import { and, type DatabaseConnection, eq, type Table, type Tracker } from "@destack/db";
+import { and, eq, type Table } from "@destack/db";
+import type { DatabaseConnection, Tracker } from "@destack/db/database";
 import { principal } from "@destack/access";
 import type { ObjectType } from "@destack/object";
 import { EphemeralStorage } from "@destack/object/server";

@@ -1,6 +1,6 @@
 import { FOLLOWER_REVISION } from "@destack/sync/test";
 import accountPackage from "@destack/account/package";
-import { CHAIN_PUBLICATION, principal } from "@destack/access";
+import { principal, CHAIN_PUBLICATION } from "@destack/access";
 import { user } from "@destack/account/object";
 import { TABLE } from "@destack/db";
 import { ObjectSink } from "@destack/object/server";

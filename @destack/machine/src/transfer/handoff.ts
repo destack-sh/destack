@@ -1,21 +1,13 @@
 import { type Environment, Pipe } from "@destack/environment";
-import {
-    type BlobStore,
-    type DatabaseConnection,
-    DatabaseState,
-    LogPosition,
-    type Row,
-    Snapshot,
-    type Table,
-} from "@destack/db";
+import { type Row, type Table, DatabaseState, LogPosition } from "@destack/db";
+import type { BlobStore, DatabaseConnection } from "@destack/db/database";
 import { Failure } from "@destack/error";
 import { RequestId, Page, Scope } from "@destack/sync";
-import type { ObjectRemote } from "@destack/object/client";
+import { type ObjectRemote, createClient } from "@destack/object/client";
 import { AccessContext, Caller, principal } from "@destack/access";
 import { Digest, type Identifier, present, schema } from "@destack/schema";
-import { createClient } from "@destack/object/client";
 import type { BuildObject, BuildStore } from "@destack/build/store";
-import { type IdentityKeystore } from "@destack/account/identity";
+import type { IdentityKeystore } from "@destack/account/identity";
 import type { MethodContext } from "@destack/object";
 import type { MountFetch } from "@destack/object/server";
 import type { Runtime } from "../runtime/index.ts";
@@ -494,7 +486,8 @@ export const SourceHandoff = {
     ): Promise<Digest> {
         // read the requested snapshot after each commit to the snapshots until it has a digest
         const read = async () => {
-            const [row] = await Snapshot.live(database)
+            const [row] = await database
+                .snapshot()
                 .read(snapshot.table)
                 .findMany({
                     where: {
@@ -520,7 +513,7 @@ export const SourceHandoff = {
 
     /** Require a space fenced against writes. */
     async requireFenced(database: DatabaseConnection, spaceId: Identifier<"space">): Promise<void> {
-        const chain = await Scope.chain(Snapshot.live(database), spaceId);
+        const chain = await Scope.chain(database.snapshot(), spaceId);
         if (Scope.fenced(chain) === undefined) {
             throw StackError.of("FENCE_BLOCKED", "cannot transfer the space: it is not fenced yet");
         }

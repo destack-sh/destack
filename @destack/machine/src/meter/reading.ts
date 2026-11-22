@@ -7,24 +7,20 @@ import {
     reading,
     usage,
 } from "@destack/stack/object";
-import { type CursorPage } from "@destack/object";
+import type { CursorPage } from "@destack/object";
+import { and, eq, gt, isNotNull, isNull, lt, or } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import {
-    and,
-    type DatabaseConnection,
-    eq,
-    gt,
-    isNotNull,
-    isNull,
-    lt,
-    or,
-    Snapshot,
-} from "@destack/db";
-import type { Meter, MeterAttributes } from "@destack/telemetry/meter";
+    type Meter,
+    type MeterAttributes,
+    bucketUsage,
+    computeUsage,
+    databaseUsage,
+} from "@destack/telemetry/meter";
 import { Duration, type Identifier, present, schema } from "@destack/schema";
 import { EventTime } from "@destack/event";
 import type { Crypto } from "@destack/environment";
 import { RequestId } from "@destack/sync";
-import { bucketUsage, computeUsage, databaseUsage } from "@destack/telemetry/meter";
 
 /** A machine's reading of one meter in a space. */
 export interface Reading {
@@ -265,7 +261,7 @@ function managing(
 ): Promise<ReadonlySet<string>> {
     const managers = rows.flatMap((row) => (row.manager === null ? [] : [row.manager]));
 
-    return Installation.applications(Snapshot.live(records), managers);
+    return Installation.applications(records.snapshot(), managers);
 }
 
 /** Read the application installation managing a resource, none for the space's own. */

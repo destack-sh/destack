@@ -1,5 +1,5 @@
 import { space, type SpaceResource } from "@destack/account/object";
-import { eq, Snapshot } from "@destack/db";
+import { eq } from "@destack/db";
 import { Scope } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import { ids, TestSpace } from "../test/index.ts";
@@ -59,7 +59,7 @@ test("cap writes within a space while its database entitlement is exceeded, and 
     const { fixture, entitlement, control } = await open();
     const isCapped = async () => {
         await control();
-        const [link] = await Scope.chain(Snapshot.live(fixture.database), ids.space);
+        const [link] = await Scope.chain(fixture.database.snapshot(), ids.space);
 
         return link?.isCapped;
     };

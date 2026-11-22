@@ -12,7 +12,8 @@ import {
     principal,
 } from "@destack/access";
 import { login, type NativeClient } from "@destack/account/native";
-import { and, eq, type DatabaseConnection } from "@destack/db";
+import { and, eq } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { Digest, schema } from "@destack/schema";
 import { space } from "@destack/account/object";
 import {

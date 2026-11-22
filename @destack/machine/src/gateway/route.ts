@@ -1,4 +1,4 @@
-import type { DatabaseConnection } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { type Identifier, schema } from "@destack/schema";
 import { InstallationMount, PackageMount } from "@destack/object";
 import { copyRequest } from "@destack/environment";

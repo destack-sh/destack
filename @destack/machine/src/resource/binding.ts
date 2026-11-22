@@ -26,23 +26,14 @@ import {
     ObjectController,
 } from "@destack/object";
 import { AccessContext, Caller, principal } from "@destack/access";
-import {
-    and,
-    DatabaseState,
-    eq,
-    type Projection,
-    type Row,
-    Snapshot,
-    type Table,
-    TABLE,
-} from "@destack/db";
-import { PackageId } from "@destack/package";
+import { and, eq, type Row, type Table, TABLE, DatabaseState } from "@destack/db";
+import type { Projection, Snapshot } from "@destack/db/database";
+import { PackageId, Kind, type Provisioning } from "@destack/package";
 import { RequestId } from "@destack/sync";
 import { DRAINING, type ObjectStore, Stack, StackPlan } from "@destack/object/server";
 import type { BuildReader } from "@destack/package/manifest";
 import { Digest, type Identifier, type JsonObject, present, schema } from "@destack/schema";
 import { StackError } from "@destack/stack/error";
-import { Kind, type Provisioning } from "@destack/package";
 
 /** A resource kind bindings target, whose providers provision its objects. */
 export interface ResourceBindingKind extends BindingKind<ResourceType<typeof space>> {
@@ -932,7 +923,7 @@ export class Binder {
         // write the states its consumers need and its space's approval threshold once they changed
         const isMain = object === database && row.name === MAIN_DATABASE;
         const input = await this.#specification(
-            Snapshot.live(connection),
+            connection.snapshot(),
             store,
             object,
             row,
@@ -1068,7 +1059,7 @@ export class Binder {
     ): Promise<void> {
         // find the deployments whose revision binds the resource on their way out: draining, or active on a revision their installation no longer targets
         const scope = schema.identifier("space").parse(row.scope);
-        const { running } = await consumersOf(Snapshot.live(store.database), scope, row.id, isMain);
+        const { running } = await consumersOf(store.database.snapshot(), scope, row.id, isMain);
         const draining = running.filter(
             (entry) => !entry.isCurrent && entry.deployment.status !== "retired",
         );

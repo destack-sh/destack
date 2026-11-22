@@ -1,6 +1,6 @@
 import accountPackage from "@destack/account/package";
 import { TestDns } from "@destack/account/test";
-import { type DatabaseConnection, Snapshot } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import type { Simulation } from "@destack/environment/simulation";
 import { ClaimLookup, claimTable } from "@destack/object";
 import type { StackDocument } from "@destack/stack/declare";
@@ -111,7 +111,7 @@ export class TestRoute implements AsyncDisposable {
         this.#spaces = new Map(spaces.map((space) => [space.id, space]));
         this.installations = installations;
         const { database } = nth(spaces, 0).universe.storage;
-        this.lookup = ClaimLookup.of(Snapshot.live(database).read(claimTable));
+        this.lookup = ClaimLookup.of(database.snapshot().read(claimTable));
     }
 
     /** Open the route world's spaces from its template, each served with its notes. */

@@ -1,7 +1,8 @@
-import type { SpaceProvider } from "@destack/stack/object";
+import { type SpaceProvider, dependency } from "@destack/stack/object";
 import { space } from "@destack/account/object";
 import { canonicalize, type Digest, nth, type Identifier, present, schema } from "@destack/schema";
-import { type Row, Snapshot, type Table } from "@destack/db";
+import type { Row, Table } from "@destack/db";
+import { Snapshot } from "@destack/db/database";
 import {
     type ObjectType,
     Provisioned,
@@ -14,7 +15,6 @@ import {
 import { ResourceController, type ImplementationInput } from "@destack/object/server";
 import { EGRESS_PROVIDER, ResourceRecord, type Provider, type Rewrapper } from "@destack/resource";
 import { StackError } from "@destack/stack/error";
-import { dependency } from "@destack/stack/object";
 import type {} from "@destack/package/import-meta";
 import type { Kind, Provisioning } from "@destack/package";
 

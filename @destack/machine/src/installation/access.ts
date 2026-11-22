@@ -4,12 +4,13 @@ import {
     Caller,
     Grant,
     type GrantPermission,
-    Manager,
     PermissionSet,
     principal,
     Relationship,
+    Manager,
 } from "@destack/access";
-import { type Select, Snapshot } from "@destack/db";
+import type { Select } from "@destack/db";
+import { Snapshot } from "@destack/db/database";
 import { InstallationTarget } from "./target.ts";
 import { grant, type MethodContext, PackageDescription, role } from "@destack/object";
 import { canonicalize, present } from "@destack/schema";

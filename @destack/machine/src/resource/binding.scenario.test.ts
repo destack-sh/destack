@@ -1,12 +1,14 @@
 import { installation } from "@destack/stack/object";
 import { ObjectReference, Scope } from "@destack/sync";
 import { expect, test } from "@destack/test";
-import { type BindingSelection } from "@destack/object";
-import { AccessContext, Authorization, Authorizer, Caller, principal } from "@destack/access";
+import type { BindingSelection } from "@destack/object";
+import { AccessContext, Caller, principal, Authorization } from "@destack/access";
+import { Authorizer } from "@destack/access/authorizer";
 import { Identifier, present, schema } from "@destack/schema";
 import * as object from "@destack/stack/object";
 import * as accountObject from "@destack/account/object";
-import { eq, Transaction } from "@destack/db";
+import { eq } from "@destack/db";
+import { Transaction } from "@destack/db/database";
 import { ids, insertInstallation, TestSpace } from "../test/index.ts";
 
 test("capture each binding at its target's generation or pin, and relate its resources", async () => {

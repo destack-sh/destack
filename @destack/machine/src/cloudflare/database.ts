@@ -1,15 +1,12 @@
 import { Installation, database } from "@destack/stack/object";
 import type { Random } from "@destack/environment";
+import { and, type DatabaseKind, type DatabaseState } from "@destack/db";
 import {
-    Snapshot,
-    and,
     type DatabaseConnection,
     type DatabaseHandle,
     type DatabaseHost,
-    type DatabaseKind,
-    type DatabaseState,
     gathered,
-} from "@destack/db";
+} from "@destack/db/database";
 import {
     CONTENT_PATH,
     DATABASE_PATH,
@@ -253,7 +250,7 @@ export class DurableObjectSpaceDatabaseHost implements DatabaseHost {
         const applications =
             manager === null
                 ? new Set<string>()
-                : await Installation.applications(Snapshot.live(this.#records), [manager]);
+                : await Installation.applications(this.#records.snapshot(), [manager]);
         if (manager === null || !applications.has(manager)) {
             return undefined;
         }

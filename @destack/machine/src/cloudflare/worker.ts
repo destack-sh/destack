@@ -1,19 +1,24 @@
 import { OtlpExporter } from "@destack/telemetry/otlp";
-import { TokenVerifier } from "@destack/access/token";
-import { CLOUD_RUNTIMES } from "./cloud.ts";
+import { TokenVerifier, Bearer } from "@destack/access/token";
+import {
+    CLOUD_RUNTIMES,
+    CloudMachine,
+    CONNECTING_IP_HEADER,
+    type MachineBindings,
+} from "./cloud.ts";
 import { DistributionManifest } from "@destack/package";
 import { WorkerdDistribution } from "@destack/package/workerd";
 import { ServerBundle } from "./bundle.ts";
 import { ProcessRuntime } from "../runtime/process.ts";
 import { traceSampling } from "@destack/stack/setting";
-import { Directory, type SpaceAddress } from "@destack/account/address";
+import type { SpaceAddress } from "@destack/account/address";
+import { Directory } from "@destack/account/client";
 import * as accountObject from "@destack/account/object";
-import { AlarmClock, Snapshot } from "@destack/db";
+import { AlarmClock, type Alarm } from "@destack/db/database";
 import { type DurableObjectStorage, Jurisdiction, CONTENT_PATH } from "@destack/db/cloudflare";
 import { Forwarded, Once, WebSocketUpgrade } from "@destack/environment";
 import { WorkerdEnvironment } from "@destack/environment/workerd";
 import { ClaimLookup, claimTable, InstallationMount, Egress, refusal } from "@destack/object";
-import { Bearer } from "@destack/access/token";
 import {
     ALARM_MILLISECONDS,
     BUILD_PATH,
@@ -21,9 +26,7 @@ import {
     type DurableObjectWorkloadInstance,
     type Upgrade,
 } from "@destack/object/cloudflare";
-import type { Alarm } from "@destack/db";
 import { type HibernationHost, SOCKET_HEADER, SocketRefusal } from "@destack/object/workload";
-import { CloudMachine, CONNECTING_IP_HEADER, type MachineBindings } from "./cloud.ts";
 import { type Identifier, present, schema } from "@destack/schema";
 import { SettingValue } from "@destack/setting/object";
 import { Route } from "@destack/stack/object";
@@ -380,7 +383,7 @@ export class PartitionObject {
 
         // run the space's instances in the object's facets, rooted in the space's identity
         let served: Space | undefined;
-        const directory = new Directory(Snapshot.live(cloud.replica));
+        const directory = new Directory(cloud.replica.snapshot());
         const verifier = new TokenVerifier({
             issuers: (issuer) =>
                 accountObject.Identity.trust(directory.snapshot, issuer, cloud.issuer),
@@ -395,7 +398,7 @@ export class PartitionObject {
             egress: EGRESS,
             // sample each installation as its settings set, batching at OpenTelemetry's default
             workloadTelemetry: async (scope, installation) => ({
-                sampling: await SettingValue.resolve(Snapshot.live(database), traceSampling, {
+                sampling: await SettingValue.resolve(database.snapshot(), traceSampling, {
                     scope,
                     installation,
                 }),
@@ -443,7 +446,7 @@ export class PartitionObject {
             keyring: cloud.keyring,
             database: cloud.replica,
             describe: async () => ({ osVersion: null, startedAt, update: null, host: null }),
-            enrollment: (view) => cloud.enrollment(view ?? Snapshot.live(cloud.replica)),
+            enrollment: (view) => cloud.enrollment(view ?? cloud.replica.snapshot()),
             volumes: host,
             builds: await host.builds(await cloud.releases()),
             targets: CLOUD_RUNTIMES,
@@ -554,11 +557,7 @@ export class MachineWorker {
         const served = async () => {
             const { replica, id, environment } = await this.#machine(bindings);
 
-            return SpaceRequest.served(
-                new Directory(Snapshot.live(replica)),
-                id,
-                environment.clock,
-            );
+            return SpaceRequest.served(new Directory(replica.snapshot()), id, environment.clock);
         };
         const origins = {
             domain: bindings.DESTACK_SPACE_DOMAIN,
@@ -575,7 +574,7 @@ export class MachineWorker {
                   route: async (host, path) => {
                       // match the route's hostname claims in the directory replica
                       const { replica } = await this.#machine(bindings);
-                      const claims = ClaimLookup.of(Snapshot.live(replica).read(claimTable));
+                      const claims = ClaimLookup.of(replica.snapshot().read(claimTable));
 
                       return Route.locate(claims, host, path);
                   },

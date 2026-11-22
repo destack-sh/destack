@@ -1,17 +1,16 @@
 import { testIdentity } from "@destack/object/test";
-import { schema } from "@destack/schema";
+import { schema, nth } from "@destack/schema";
 import {
     AccessContext,
-    accessRelationship,
     Caller,
     Permission,
     principal,
+    accessRelationship,
     Relationship,
 } from "@destack/access";
 import { account, residency, space, user } from "@destack/account/object";
-import { Snapshot, Table } from "@destack/db";
+import { Table } from "@destack/db";
 import { grant, role, type PackageDescription } from "@destack/object";
-import { nth } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import { ids, insertInstallation, NOTES_RELEASE, openSpaceDatabase } from "../test/index.ts";
@@ -71,7 +70,7 @@ test("bind an installation's requests on other packages' types on its consenter'
     // install notes in the space as its owner
     const { database, now } = await installNotes();
     const installer = INSTALLER;
-    const snapshot = Snapshot.live(database);
+    const snapshot = database.snapshot();
     const rows = await snapshot.read(installation.table).findMany({ where: { id: ids.notes } });
     const target = nth(rows, 0);
 
@@ -132,7 +131,7 @@ test("relate and unrelate a residency home's installation as its requests change
                 }),
             ),
     );
-    const snapshot = Snapshot.live(database);
+    const snapshot = database.snapshot();
     const rows = await snapshot.read(installation.table).findMany({ where: { id: ids.notes } });
     const read = nth(rows, 0);
     const stack = schema

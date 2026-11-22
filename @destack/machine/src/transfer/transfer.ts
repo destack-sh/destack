@@ -1,11 +1,7 @@
 import { untilAborted, waitAborted } from "@destack/environment";
 import {
     and,
-    type BlobStore,
     Condition,
-    type DatabaseConnection,
-    DatabaseHandle,
-    DatabaseState,
     desc,
     eq,
     inArray,
@@ -13,19 +9,37 @@ import {
     isNull,
     lt,
     or,
-    type Controller,
-    type Projection,
     type RowImage,
-    Snapshot,
     sql,
     type SQL,
     type Table,
     TABLE,
-    Transaction,
+    DatabaseState,
 } from "@destack/db";
+import {
+    type BlobStore,
+    type DatabaseConnection,
+    DatabaseHandle,
+    type Controller,
+    type Projection,
+    type Snapshot,
+    type Transaction,
+} from "@destack/db/database";
 import { appliedDigests, type ProviderIndex } from "../resource/resource.ts";
-import { type SpaceProvider } from "@destack/stack/object";
-import { RequestId, Replica, type Call, ObjectReference, Scope, type Subject } from "@destack/sync";
+import {
+    type SpaceProvider,
+    Database,
+    build,
+    restore,
+    Restore,
+    snapshot,
+    SPACE_PROVIDER,
+    transfer,
+    type Transfer,
+    type Fence,
+} from "@destack/stack/object";
+import { RequestId, type Call, ObjectReference, Scope, type Subject } from "@destack/sync";
+import { Replica } from "@destack/sync/dataflow";
 import { placement, Placement, type space } from "@destack/account/object";
 import { SpaceReplica } from "./replica.ts";
 import { stopInstances } from "../deployment/deployment.ts";
@@ -38,23 +52,12 @@ import {
     present,
     schema,
 } from "@destack/schema";
-import { type IdentityKeystore } from "@destack/account/identity";
-import { type Resource, type ResourceType, type SettlementContext } from "@destack/object";
+import type { IdentityKeystore } from "@destack/account/identity";
+import type { Resource, ResourceType, SettlementContext } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import { type ResourceId, ResourceRecord } from "@destack/resource";
 import { Recipient } from "@destack/identity";
 import { AccessContext, Caller, principal } from "@destack/access";
-import {
-    Database,
-    build,
-    restore,
-    Restore,
-    snapshot,
-    SPACE_PROVIDER,
-    transfer,
-    type Transfer,
-    type Fence,
-} from "@destack/stack/object";
 import type { BuildStore } from "@destack/build/store";
 import type {} from "@destack/package/import-meta";
 import { TelemetryScope } from "@destack/telemetry";
@@ -259,7 +262,7 @@ async function mark(
 async function unmark(context: SettlementContext, options: TransferOptions): Promise<void> {
     // leave a space another machine serves now
     const spaceId = schema.identifier("space").parse(context.scope);
-    const [located] = await Placement.find(Snapshot.live(context.database), [spaceId]);
+    const [located] = await Placement.find(context.database.snapshot(), [spaceId]);
     if (located === undefined || located.machine !== options.machine) {
         return;
     }
@@ -361,7 +364,7 @@ export class SpaceTransfer {
         space: TransferSpace,
         spaceId: Identifier<"space">,
     ): Promise<{ readonly id: ResourceId; readonly states: DatabaseState[] } | null> {
-        const main = await Database.mainMaybe(Snapshot.live(space.database), spaceId);
+        const main = await Database.mainMaybe(space.database.snapshot(), spaceId);
 
         return main === undefined || main.reference === null
             ? null
@@ -419,7 +422,7 @@ export class SpaceTransfer {
             options.database.state.environment.telemetry,
         ).span("destack.transfer.plan", {}, async () => {
             // refuse a space placed elsewhere now
-            const [located] = await Placement.find(Snapshot.live(options.database), [record.scope]);
+            const [located] = await Placement.find(options.database.snapshot(), [record.scope]);
             if (located === undefined || located.machine !== record.sourceId) {
                 throw StackError.of(
                     "PLACEMENT_CONFLICT",
@@ -428,7 +431,7 @@ export class SpaceTransfer {
             }
 
             // plan its move with its main database's tables, refusing a plan waiting for approval
-            const main = await Database.mainMaybe(Snapshot.live(options.database), located.space);
+            const main = await Database.mainMaybe(options.database.snapshot(), located.space);
             const states =
                 main === undefined || main.reference === null
                     ? []
@@ -506,7 +509,7 @@ export class SpaceTransfer {
             { "destack.space.id": this.space.spaceId },
             async () => {
                 // fence the space once, reading the database's position and the digest of the space's rows at it
-                await Transaction.run(this.space.database, async (transaction) => {
+                await this.space.database.commit(async (transaction) => {
                     const chain = await Scope.chain(transaction.view(), this.placement.space);
                     if (chain.every((link) => link.movedTo === undefined)) {
                         await Scope.fence(transaction, this.placement.space, this.target, now);
@@ -515,10 +518,7 @@ export class SpaceTransfer {
 
                 // read the space's latest change, its rows' digest and its subtree
                 const fenced = await this.space.database.transaction(async (database) => {
-                    const scopes = await Scope.subtree(
-                        Snapshot.live(database),
-                        this.placement.space,
-                    );
+                    const scopes = await Scope.subtree(database.snapshot(), this.placement.space);
 
                     return {
                         position: await database.log.changed(this.space.tables, scopes),
@@ -646,7 +646,7 @@ export class SpaceTransfer {
 
     /** Index the space's images and builds from its blobs, leaving releases to the registry. */
     async #indexBuilds(builds: BuildStore): Promise<void> {
-        const images = await SpaceTransfer.images(Snapshot.live(this.space.database), this.spaceId);
+        const images = await SpaceTransfer.images(this.space.database.snapshot(), this.spaceId);
         for (const image of images) {
             await builds.record(image);
         }
@@ -797,7 +797,7 @@ export class SpaceTransfer {
         fencedAt: number | null,
     ): Promise<void> {
         const requested = new Set(restores.map((row) => row.resourceId));
-        await Transaction.run(store.database, async (transaction) => {
+        await store.database.commit(async (transaction) => {
             // request the restores of resources without one, and mark the others fenced once the source is, as the space
             const now = store.clock.now();
             const created = resources
@@ -875,7 +875,7 @@ export class SpaceTransfer {
                 await options.keystore.rekey(database, this.spaceId);
 
                 // serve the replica and forget the restores the takeover recorded
-                await Transaction.run(database, async (transaction) => {
+                await database.commit(async (transaction) => {
                     await Scope.unfence(transaction, this.placement.space);
                     for (const row of await transaction
                         .read(restore.table)
@@ -910,7 +910,7 @@ export class SpaceTransfer {
                 await SpaceTransfer.forgetRestores(database, providers, this.spaceId, restoring);
 
                 // drop a replica still following its source
-                if (await this.space.replica.isRecorded(Snapshot.live(database))) {
+                if (await this.space.replica.isRecorded(database.snapshot())) {
                     await Replica.drop(database, this.space.replica);
                 }
                 // delete the rows taken over
@@ -969,7 +969,7 @@ export class SpaceTransfer {
 
         // take over in one transaction on this machine's space database
         const scope = this.spaceId;
-        await Transaction.run(store.database, async (transaction) => {
+        await store.database.commit(async (transaction) => {
             // promote the replicated rows and write into them past the replicated fence
             await this.space.promote(transaction);
             await Scope.unfence(transaction, this.placement.space);
@@ -1022,7 +1022,7 @@ export class SpaceTransfer {
         store: TransferStore,
     ): Promise<void> {
         const restored = await this.#restores(store.database);
-        await Transaction.run(this.space.database, async (transaction) => {
+        await this.space.database.commit(async (transaction) => {
             // promote the replicated rows
             await this.space.promote(transaction);
 
@@ -1147,8 +1147,7 @@ export class SpaceTransfer {
             .from(Scope.table)
             .where(eq(Scope.table.scope, move.spaceId));
         const isReplicating =
-            replicated !== undefined &&
-            (await move.space.replica.isRecorded(Snapshot.live(database)));
+            replicated !== undefined && (await move.space.replica.isRecorded(database.snapshot()));
         const isTakenOver =
             replicated !== undefined && !isReplicating && (await move.isTakenOver(database));
 

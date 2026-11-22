@@ -1,4 +1,5 @@
-import type { DatabaseHost, DatabaseKind } from "@destack/db";
+import type { DatabaseKind } from "@destack/db";
+import type { DatabaseHost } from "@destack/db/database";
 import type { ResourceRecord } from "@destack/resource";
 import { type Identifier, schema } from "@destack/schema";
 import { SPACE_PROVIDER } from "@destack/stack/object";

@@ -16,20 +16,15 @@ import type { Space } from "../space/space.ts";
 import { Failure } from "@destack/error";
 import { DeclarationReference } from "@destack/package/declare";
 import { installableBuilds, MAIN_DATABASE, StackDefinition } from "@destack/stack/declare";
-import {
-    type BlobStore,
-    type DatabaseConnection,
-    DatabaseState,
-    Snapshot,
-    TABLE,
-    TableState,
-} from "@destack/db";
+import { TABLE, DatabaseState, TableState } from "@destack/db";
+import type { BlobStore, DatabaseConnection, Snapshot } from "@destack/db/database";
 import {
     InstallationBindingSpec,
     type InstallationBindingState,
     InstallationKind,
     ObjectType,
     PackageDescription,
+    type InstallationSelection,
 } from "@destack/object";
 import { type DependencyRelease, PackageId, PackageRelease } from "@destack/package";
 import { type BuildReader, BuildImage, PackageManifest } from "@destack/package/manifest";
@@ -50,7 +45,6 @@ import { followedReference, followedVersion } from "./follow.ts";
 import { packageObject, release, reference, repository, tag } from "@destack/registry/object";
 import { RegistryError } from "@destack/registry/error";
 import { checkout } from "../computer/checkout/object/index.ts";
-import type { InstallationSelection } from "@destack/object";
 import type { Binder } from "../resource/binding.ts";
 import { space } from "@destack/account/object";
 import { StackError } from "@destack/stack/error";
@@ -588,7 +582,7 @@ export const InstallationTarget = {
                 DeclarationReference.key(setting.reference),
                 schema
                     .json()
-                    .parse(await SettingValue.resolve(Snapshot.live(database), setting, target)),
+                    .parse(await SettingValue.resolve(database.snapshot(), setting, target)),
             ]),
         );
 

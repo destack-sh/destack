@@ -4,7 +4,8 @@ import registryPackage from "@destack/registry/package";
 import { PackageManifest } from "@destack/package/manifest";
 import type { FileSystem } from "@destack/environment";
 import { join } from "node:path";
-import { and, type DatabaseConnection, eq, Snapshot } from "@destack/db";
+import { and, eq } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import type { Launcher } from "../launcher/index.ts";
 import { PackageId } from "@destack/package";
 import { reference, referenceShape } from "@destack/registry/object";
@@ -147,13 +148,15 @@ async function servedForge(home: TestComputer, residency: Identifier<"space">, p
             ),
         ))
     ) {
-        const [installed] = await Snapshot.live(database)
+        const [installed] = await database
+            .snapshot()
             .read(installation.table)
             .findMany({ where: { scope: residency, packageId: forgePackage.id } });
         const row =
             installed === undefined
                 ? undefined
-                : await Snapshot.live(database)
+                : await database
+                      .snapshot()
                       .read(installation.table)
                       .findFirst({ where: { id: installed.id } });
         const ready = row?.conditions["Ready"];

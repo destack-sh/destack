@@ -1,16 +1,7 @@
 import { installation } from "@destack/stack/object";
-import { SERVER_EXPORT } from "@destack/object";
-import { checkout } from "../src/computer/checkout/object/index.ts";
-import type { ObjectStore } from "@destack/object/server";
-import { BucketKind } from "@destack/bucket/declare";
-import { and, DatabaseKind } from "@destack/db";
-import { defineKind, type Kind, type Provisioning } from "@destack/package";
-import { InstallationKind } from "@destack/object";
-import settingPackage from "@destack/setting/package";
-import { testHost } from "@destack/test/host";
-import type { Crypto } from "@destack/environment";
-import objectHandle from "@destack/object/package";
 import {
+    SERVER_EXPORT,
+    InstallationKind,
     approval,
     type BindingTarget,
     changeRequest,
@@ -22,21 +13,41 @@ import {
     ObjectDescription,
     InstallationBindingSpec,
     Observation,
+    shareable,
 } from "@destack/object";
-import { MemoryBuild } from "@destack/package/test";
-import { testIdentity } from "@destack/object/test";
-import { Plan } from "@destack/resource";
-import { ObjectReference, Scope, RequestId } from "@destack/sync";
-import { expect, refusal, single, test } from "@destack/test";
+import { checkout } from "../src/computer/checkout/object/index.ts";
+import type { ObjectStore } from "@destack/object/server";
+import { BucketKind } from "@destack/bucket/declare";
 import {
-    type DatabaseConnection,
+    and,
+    DatabaseKind,
     type Select,
-    DatabaseState,
     eq,
     Expression,
     isNotNull,
-    Snapshot,
+    DatabaseState,
 } from "@destack/db";
+import {
+    defineKind,
+    type Kind,
+    type Provisioning,
+    BROWSER_SANDBOX,
+    HOST_SANDBOX,
+    Sandbox,
+    type DirectoryGrant,
+    PackageVersion,
+    PackageId,
+} from "@destack/package";
+import settingPackage from "@destack/setting/package";
+import { testHost } from "@destack/test/host";
+import type { Crypto } from "@destack/environment";
+import objectHandle from "@destack/object/package";
+import { MemoryBuild } from "@destack/package/test";
+import { testIdentity, describedTables } from "@destack/object/test";
+import { Plan } from "@destack/resource";
+import { ObjectReference, Scope, RequestId } from "@destack/sync";
+import { expect, refusal, single, test } from "@destack/test";
+import type { DatabaseConnection } from "@destack/db/database";
 import {
     Digest,
     nth,
@@ -46,30 +57,21 @@ import {
     type VersionRange,
     Version,
 } from "@destack/schema";
-import {
-    BROWSER_SANDBOX,
-    HOST_SANDBOX,
-    Sandbox,
-    type DirectoryGrant,
-    PackageVersion,
-    PackageId,
-} from "@destack/package";
 import { TestEntitlement } from "@destack/account/test";
 import {
     AccessContext,
     accessGrant,
-    accessRole,
-    accessRolePermission,
     Caller,
     type GrantDeclaration,
     principal,
+    accessRole,
+    accessRolePermission,
 } from "@destack/access";
 import { space } from "@destack/account/object";
 import type { ServerRuntime } from "@destack/package/runtime";
 import { BuildReader } from "@destack/package/manifest";
 import * as object from "@destack/stack/object";
 import { KNOWN_TYPES } from "@destack/stack/stack";
-import { describedTables } from "@destack/object/test";
 import * as accountObject from "@destack/account/object";
 import { Approval } from "../src/index.ts";
 import {
@@ -84,7 +86,6 @@ import {
     workload,
 } from "../src/test/index.ts";
 import { argument, plural, t } from "@destack/locale";
-import { shareable } from "@destack/object";
 
 /** The notes package the scenarios install. */
 const notesPackage = PackageVersion.parse({
@@ -522,7 +523,7 @@ async function approvePlan(
         .where(eq(object.installation.table.id, id));
     const resources = [object.database, object.dependency];
     const pending = await Approval.of(
-        Snapshot.live(database),
+        database.snapshot(),
         resources,
         present(target, "the installation's rollout"),
     );

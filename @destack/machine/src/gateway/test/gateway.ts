@@ -1,9 +1,10 @@
 import { installation, deployment, instance, installationRevision } from "@destack/stack/object";
 import { Identity } from "@destack/account/object";
-import { TokenVerifier } from "@destack/access/token";
-import { Directory, UniverseOrigin } from "@destack/account/address";
+import { TokenVerifier, TokenIssuer } from "@destack/access/token";
+import { UniverseOrigin } from "@destack/account/address";
+import { Directory } from "@destack/account/client";
 import type { S3Server } from "@destack/bucket/s3";
-import { type Package } from "@destack/object";
+import type { Package } from "@destack/object";
 import { ids, type TestSpace } from "../../test/space.ts";
 import { insertInstallation } from "../../test/install.ts";
 import { workload } from "../../test/build.ts";
@@ -12,7 +13,6 @@ import { Digest, Identifier, present } from "@destack/schema";
 import { type GatewaySpace, Gateway, type TokenExchange } from "../gateway.ts";
 import type { Machine } from "../../machine/index.ts";
 import type { Runtime } from "../../runtime/runtime.ts";
-import { TokenIssuer } from "@destack/access/token";
 import type { JwtClaims } from "@destack/identity";
 import { Traffic } from "../traffic.ts";
 

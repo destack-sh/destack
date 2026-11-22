@@ -1,8 +1,9 @@
 import type { FileSystem } from "@destack/environment";
 import { Workspace } from "@destack/check/workspace";
 import { join, sep } from "node:path";
-import { type Controller, eq, type Following, type Select } from "@destack/db";
-import { type ObjectStore } from "@destack/object/server";
+import { eq, type Select } from "@destack/db";
+import type { Controller, Following } from "@destack/db/database";
+import type { ObjectStore } from "@destack/object/server";
 import type { Identifier } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { CheckoutServer } from "./checkout.ts";

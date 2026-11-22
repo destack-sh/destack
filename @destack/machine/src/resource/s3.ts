@@ -1,4 +1,5 @@
-import { and, type DatabaseConnection, eq } from "@destack/db";
+import { and, eq } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { schema } from "@destack/schema";
 import type { CatalogueBucketHost } from "@destack/bucket/provider";
 import { bucket } from "@destack/stack/object";

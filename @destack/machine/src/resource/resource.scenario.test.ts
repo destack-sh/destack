@@ -2,7 +2,8 @@ import type { Environment } from "@destack/environment";
 import { expect, onTestFinished, test } from "@destack/test";
 import { Scope, ObjectReference } from "@destack/sync";
 import { pathToFileURL } from "node:url";
-import { DatabaseKind, databaseProvider, eq, Transaction } from "@destack/db";
+import { DatabaseKind, eq } from "@destack/db";
+import { databaseProvider } from "@destack/db/database";
 import * as sqlite from "@destack/db/bun";
 import { nth, schema } from "@destack/schema";
 import { ProviderIndex } from "../index.ts";
@@ -73,9 +74,7 @@ test("provision a space's database, and leave it alone while its space is fenced
     const provisioned = await stored();
 
     // leave it alone once a transfer fences the space's scope, even when its deletion is requested
-    await Transaction.run(database, (transaction) =>
-        Scope.fence(transaction, ids.space, ids.machine, now),
-    );
+    await database.commit((transaction) => Scope.fence(transaction, ids.space, ids.machine, now));
     await database.transaction(
         async (transaction) =>
             await transaction

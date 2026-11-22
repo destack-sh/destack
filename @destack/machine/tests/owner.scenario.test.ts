@@ -1,6 +1,6 @@
 import { AccessContext, Caller } from "@destack/access";
 import { space } from "@destack/account/object";
-import { Transaction } from "@destack/db";
+import { Transaction } from "@destack/db/database";
 import { expect, refusal, test } from "@destack/test";
 import type { Subject } from "@destack/sync";
 import { ids, TestSpace } from "../src/test/index.ts";

@@ -1,6 +1,5 @@
 import { Shape } from "@destack/object";
 import { principal } from "@destack/access";
-import { Snapshot } from "@destack/db";
 import { spaceShape } from "@destack/account/object";
 import { present } from "@destack/schema";
 import { Scope } from "@destack/sync";
@@ -21,7 +20,7 @@ test("follow a space's own rows as its machine serves it", async () => {
         { target: ids.space, subject: principal.machine.reference(Scope.universe.id, machineId) },
     );
     const listed = await present(store.subscriber, "the space's subscriber").subscriptions(
-        Snapshot.live(store.database),
+        store.database.snapshot(),
     );
     const own = listed
         .map((entry) => entry.subscription)

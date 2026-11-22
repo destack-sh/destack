@@ -1,10 +1,10 @@
 import { installation } from "@destack/stack/object";
-import { and, eq, Snapshot } from "@destack/db";
+import { and, eq } from "@destack/db";
 import * as accountObject from "@destack/account/object";
 import type { Login } from "@destack/account/native";
 import type { TestPerson } from "@destack/account/test";
 import accountPackage from "@destack/account/package";
-import { accessRelationship, Caller, principal, Role } from "@destack/access";
+import { Caller, principal, accessRelationship, Role } from "@destack/access";
 import {
     OWNER_EMAIL,
     PUBLISHER,
@@ -101,7 +101,8 @@ async function openBoard(
         [notificationPackage.id, "notification", "inbox"],
         [boardPackage.id, "mention", "board"],
     ] as const) {
-        const installed = await Snapshot.live(database)
+        const installed = await database
+            .snapshot()
             .read(installation.table)
             .findFirst({ where: { scope: space, packageId } });
         // publish a missing one as the platform's operator, and install it
@@ -115,7 +116,8 @@ async function openBoard(
     await computer.waitUntil(database, async () => (await storePackage(served)) !== undefined);
 
     // wait until the board's sandboxed instance serves
-    const board = await Snapshot.live(database)
+    const board = await database
+        .snapshot()
         .read(installation.table)
         .findFirst({ where: { scope: space, packageId: boardPackage.id } });
     const boardId = present(board, "the board's installation").id;

@@ -1,11 +1,11 @@
-import type { LocalGitEnvironment } from "@destack/git/local";
+import { type LocalGitEnvironment, GitLease } from "@destack/git/local";
 import { join } from "node:path";
 import type { ClientOf } from "@destack/object/client";
 import { type CompilerPool, outputsOf, Workspace, type WorkspacePackage } from "@destack/build";
 import type { PackageVersion } from "@destack/package";
 import type { BuildReader, BuildImage } from "@destack/package/manifest";
-import { type Controller, eq, type Select, Reconciliation } from "@destack/db";
-import { GitLease } from "@destack/git/local";
+import { eq, type Select } from "@destack/db";
+import { type Controller, Reconciliation } from "@destack/db/database";
 import { Digest, type Identifier, schema, Uuid, type Version } from "@destack/schema";
 import { CallError } from "@destack/object";
 import { RequestId } from "@destack/sync";

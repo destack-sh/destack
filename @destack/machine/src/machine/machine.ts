@@ -4,31 +4,37 @@ import { type BuildImage, PackageManifest } from "@destack/package/manifest";
 import { BuildObject, type BuildStore, RemoteBuildStore } from "@destack/build/store";
 import type * as packageRuntime from "@destack/package/runtime";
 import { Traffic } from "../gateway/traffic.ts";
-import { Authentication, Caller, type ChainOptions, principal } from "@destack/access";
-import { Directory, UniverseOrigin } from "@destack/account/address";
-import { AccountError } from "@destack/account/error";
+import { Authentication, Caller, principal } from "@destack/access";
+import type { ChainOptions } from "@destack/access/authorizer";
+import { UniverseOrigin } from "@destack/account/address";
 import {
+    Directory,
     type Enrollment,
     type MachineKey,
     Session,
     type TokenBinding,
 } from "@destack/account/client";
-import { Bookmark } from "@destack/object/client";
+import { AccountError } from "@destack/account/error";
+import { Bookmark, createClient, type ClientOf, ObjectConnection } from "@destack/object/client";
 import { IdentityRegistry } from "@destack/account/identity";
 import * as accountObject from "@destack/account/object";
 import { Identity, Key, placement } from "@destack/account/object";
 import accountPackage from "@destack/account/package";
-import {
-    eq,
-    or,
-    type DatabaseConnection,
-    type Select,
+import { eq, or, type Select, type Table } from "@destack/db";
+import type {
+    DatabaseConnection,
     Snapshot,
-    type Table,
-    type Controller,
-    type Following,
-} from "@destack/db";
-import type { Environment, FetchOptions } from "@destack/environment";
+    Controller,
+    Following,
+    Alarm,
+} from "@destack/db/database";
+import {
+    type Environment,
+    type FetchOptions,
+    copyRequest,
+    untilAborted,
+    WebSocketUpgrade,
+} from "@destack/environment";
 import { packageObject } from "@destack/registry/object";
 import registryPackage from "@destack/registry/package";
 import { RegistryError } from "@destack/registry/error";
@@ -46,11 +52,13 @@ import {
     refusal,
     SpaceMount,
 } from "@destack/object";
-import type {
-    PackageImplementation,
-    ProcedureContext,
-    RequestContext,
-    Server,
+import {
+    type PackageImplementation,
+    type ProcedureContext,
+    type RequestContext,
+    type Server,
+    Health,
+    type Voucher,
 } from "@destack/object/server";
 import { PackageId, PackageName, PackageRelease } from "@destack/package";
 import {
@@ -60,11 +68,7 @@ import {
     type TunnelStatus,
 } from "@destack/tunnel";
 import { Bearer, type PartitionId, SPACE_KEY, TokenVerifier } from "@destack/access/token";
-import { createClient, type ClientOf, ObjectConnection } from "@destack/object/client";
-import { Health, type Voucher } from "@destack/object/server";
-import type { Alarm } from "@destack/db";
-import { copyRequest, untilAborted, WebSocketUpgrade } from "@destack/environment";
-import { RequestId, type Publisher, Scope } from "@destack/sync";
+import { RequestId, Scope, type Publisher } from "@destack/sync";
 import { HibernationHost, type SocketDelivery } from "@destack/object/workload";
 import { SocketBridge } from "../gateway/bridge.ts";
 import {
@@ -272,7 +276,7 @@ export class Machine {
         this.identity = options.identity;
         this.keyring = options.keyring;
         this.database = options.database;
-        this.directory = new Directory(Snapshot.live(options.database));
+        this.directory = new Directory(options.database.snapshot());
         const { snapshot } = this.directory;
         this.verifier = new TokenVerifier({
             issuers: async (issuer) =>

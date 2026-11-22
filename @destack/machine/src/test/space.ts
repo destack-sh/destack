@@ -9,36 +9,48 @@ import { SpaceStorage } from "../space/storage.ts";
 import * as accountObject from "@destack/account/object";
 import { FORGE_INSTALLATION } from "@destack/forge/package";
 import { pathToFileURL } from "node:url";
-import { Crypto, WebSocketUpgrade } from "@destack/environment";
+import {
+    Crypto,
+    WebSocketUpgrade,
+    type ClientSocket,
+    type Environment,
+    type HostCapability,
+    type Scheduler,
+} from "@destack/environment";
 import { TestTelemetry } from "@destack/telemetry/test";
 import { Refusal } from "./refusal.ts";
-import { InstallationDefinition, STACK_KIND, StackDefinition } from "@destack/stack/declare";
-import type { ClientSocket, Environment, HostCapability, Scheduler } from "@destack/environment";
+import {
+    InstallationDefinition,
+    STACK_KIND,
+    StackDefinition,
+    StackDocument,
+    type StackRecordType,
+} from "@destack/stack/declare";
 import type { Connector, Plan } from "@destack/resource";
 import { join } from "node:path";
 import { LocalBucketHost } from "@destack/bucket/bun";
+import { defineDatabase, eq, hashName, type Table, TABLE } from "@destack/db";
 import {
     type ControllerSet,
     ControlLoop,
     type DatabaseConnection,
     databaseProvider,
-    defineDatabase,
-    eq,
-    hashName,
-    Snapshot,
-    type Table,
-    TABLE,
     DatabaseHandle,
-} from "@destack/db";
-import { type BuildReader, BuildImage, BuildLayer } from "@destack/package/manifest";
+} from "@destack/db/database";
+import {
+    type BuildReader,
+    BuildImage,
+    BuildLayer,
+    PackageManifest,
+} from "@destack/package/manifest";
 import { ObjectTypeReference, RequestId, type Subject, ObjectReference } from "@destack/sync";
 import { TestBearer, TestCaller, type TestSigner, type TestScope } from "@destack/object/test";
 import { TestTemplate, TestDatabase, TestRun, type TemplateStorage } from "@destack/db/test";
 import { onTestFinished, single, expect } from "@destack/test";
 import { Failure } from "@destack/error";
 import { type Authentication, principal } from "@destack/access";
-import { Account, Residency, type ResidencyCode } from "@destack/account/object";
-import { OPERATOR_EMAIL, RESIDENCY_STACK, STACKS } from "@destack/account/test";
+import { Account, Residency, type ResidencyCode, type StackRelease } from "@destack/account/object";
+import { OPERATOR_EMAIL, RESIDENCY_STACK, STACKS, type TestPerson } from "@destack/account/test";
 import accountPackage from "@destack/account/package";
 import {
     AWAITING_APPROVAL,
@@ -49,6 +61,7 @@ import {
     PackageMount,
     SpaceMount,
     SYNCED,
+    type Fetch,
 } from "@destack/object";
 import { ObjectStore, type PackageImplementation } from "@destack/object/server";
 import { BunSqliteDatabaseHost } from "@destack/db/bun";
@@ -69,7 +82,6 @@ import {
 } from "@destack/schema";
 import objectDefinition from "@destack/object/destack.json" with { type: "json" };
 import { Simulation } from "@destack/environment/simulation";
-import { StackDocument, type StackRecordType } from "@destack/stack/declare";
 import { Handoff } from "../transfer/handoff.ts";
 import * as object from "@destack/stack/object";
 import { SocketRegistry, type InstallationBuild } from "../index.ts";
@@ -85,7 +97,6 @@ import {
     UniverseWorld,
     UNIVERSE_NODE,
 } from "@destack/universe/test";
-import type { TestPerson } from "@destack/account/test";
 import type { ClientOf } from "@destack/object/client";
 import objectPackage from "@destack/object/package";
 import stackPackage, { PUSH_PATH } from "@destack/stack/package";
@@ -101,16 +112,13 @@ import { FORGE_HOME_OPTIONS, FORGE_HOME_STACK, FORGE_HOME_TYPES } from "./home.t
 import { callRegistry } from "../machine/registry.ts";
 import { LATEST_TAG } from "@destack/registry/object";
 import registryPackage from "@destack/registry/package";
-import type { Fetch } from "@destack/object";
 import { TestSpaceStorage } from "./storage.ts";
 import { TestGateway } from "./gateway.ts";
 import { TestRuntime } from "./runtime.ts";
 import { ProcessRuntime, type Runtime } from "../runtime/index.ts";
 import { insertBuildScope, insertRelease } from "./install.ts";
 import { BunGraphStorage } from "../computer/graph.ts";
-import { PackageManifest } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
-import type { StackRelease } from "@destack/account/object";
 import { RemoteBuildStore, BuildStore } from "@destack/build/store";
 import { fixtureGraph, TestBuildStore, testStore } from "@destack/build/test";
 import { TestDistribution } from "../computer/test/distribution.ts";
@@ -499,7 +507,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
         const { defer, simulation } = lifetime;
         const world = await TestSpace.#universe(options, defer, simulation);
         const { universe } = world;
-        const snapshot = Snapshot.live(universe.storage.database);
+        const snapshot = universe.storage.database.snapshot();
         const home = await Residency.space(snapshot, code);
         const row = await snapshot
             .read(accountObject.space.table)
@@ -1524,7 +1532,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
     ): Promise<TestSpace> {
         // host the residency's home as the operator, applying its forge's stack once
         const { universe } = world;
-        const snapshot = Snapshot.live(universe.storage.database);
+        const snapshot = universe.storage.database.snapshot();
         const home = await Residency.space(snapshot, RESIDENCY);
         const row = await snapshot
             .read(accountObject.space.table)
@@ -1542,7 +1550,8 @@ export class TestSpace implements AsyncDisposable, TestScope {
                       hosting,
                   );
         await residency.serve();
-        const installed = await Snapshot.live(residency.database)
+        const installed = await residency.database
+            .snapshot()
             .read(installation.table)
             .findFirst({ where: { name: FORGE_INSTALLATION } });
         const isApplied = installed !== undefined;
@@ -1837,7 +1846,8 @@ export class TestSpace implements AsyncDisposable, TestScope {
         // wait until the space's row arrives at the machine, then run the world idle mirroring it
         await this.simulation.idle();
         await this.database.log.waitUntil(async () => {
-            const [row] = await Snapshot.live(this.database)
+            const [row] = await this.database
+                .snapshot()
                 .read(accountObject.space.table)
                 .findMany({ where: { id: this.id } });
 
@@ -2547,7 +2557,8 @@ export async function reconcile(
     const projection = sets.flatMap((set) => set.projections).find((each) => each.name === name);
     try {
         if (controller !== undefined && "reconcile" in controller) {
-            const rows = await Snapshot.live(store.database)
+            const rows = await store.database
+                .snapshot()
                 .read(controller.table)
                 .findMany({ where: key });
             await controller.reconcile(rows, { ...reconciliation, key: canonicalize(key) });

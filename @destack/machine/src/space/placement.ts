@@ -1,15 +1,11 @@
 import { installation, installationRevision, Installation } from "@destack/stack/object";
 import { Entitlement, Space, space } from "@destack/account/object";
-import { eq, Snapshot, Transaction } from "@destack/db";
-import {
-    type ObjectController,
-    type ObjectReconciliation,
-    type Observation,
-} from "@destack/object";
+import { eq } from "@destack/db";
+import type { ObjectController, ObjectReconciliation, Observation } from "@destack/object";
 import { present, type UuidEnvironment, type JsonObject } from "@destack/schema";
 import { RequestId, Scope } from "@destack/sync";
 import { ObjectRemote } from "@destack/object/client";
-import { AccessContext, Authorization, Caller, principal } from "@destack/access";
+import { AccessContext, Caller, principal, Authorization } from "@destack/access";
 import { Failure } from "@destack/error";
 import { Scheduler } from "../machine/scheduler.ts";
 
@@ -50,7 +46,7 @@ function limit(options: Parameters<typeof implementSpace>[0]): ObjectController<
         reconcile: async ({ rows, database, store, now }) => {
             // leave a space gone or another machine serves
             const [row] = rows;
-            if (row === undefined || !(await Space.isServing(Snapshot.live(database), row.id))) {
+            if (row === undefined || !(await Space.isServing(database.snapshot(), row.id))) {
                 return;
             }
 
@@ -92,14 +88,14 @@ async function mirrorSuspension(
 ): Promise<void> {
     // leave a scope already as the row asks
     const { database, store, now } = reconciliation;
-    const [scope] = await Scope.read(Snapshot.live(database), [row.id]);
+    const [scope] = await Scope.read(database.snapshot(), [row.id]);
     const isSuspended = present(scope, `the scope of ${row.id}`).suspendedAt !== null;
     if (isSuspended === (row.suspendedAt !== null)) {
         return;
     }
 
     // mark the scope as the store's principal
-    await Transaction.run(database, async (transaction) => {
+    await database.commit(async (transaction) => {
         const authorization = new Authorization(
             store.authorizer,
             transaction,

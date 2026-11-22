@@ -6,14 +6,13 @@ import {
     installationRevision,
 } from "@destack/stack/object";
 import { Plan } from "@destack/resource";
-import { ObjectReference } from "@destack/sync";
+import { ObjectReference, RequestId, Scope, type Subject } from "@destack/sync";
 import { testBuild, testIdentity } from "@destack/object/test";
 import { expect, refusal, test } from "@destack/test";
-import { eq, Snapshot } from "@destack/db";
+import { eq } from "@destack/db";
 import { argument, plural, t } from "@destack/locale";
 import { Identifier, present, Digest, nth, schema } from "@destack/schema";
-import { RequestId, Scope, type Subject } from "@destack/sync";
-import { accessRelationship, InstallationId, principal, Relationship } from "@destack/access";
+import { InstallationId, principal, accessRelationship, Relationship } from "@destack/access";
 import { account, residency, space } from "@destack/account/object";
 import { UNIVERSE_NODE } from "@destack/universe/test";
 import {
@@ -387,7 +386,7 @@ test("name a residency home's declared installation by its derived identifier", 
 
     // read the residency's installation relationships at the universe
     const related = await Relationship.read(
-        Snapshot.live(home.universe.storage.database),
+        home.universe.storage.database.snapshot(),
         residency.reference(Scope.universe.id, "eu"),
         { relation: "installation" },
     );
@@ -445,7 +444,7 @@ test("relate a residency home's installation at the universe once a partition he
     const { network } = home.simulation;
     network.partition(home.machine.id, UNIVERSE_NODE);
     const installed = await home.install(reader);
-    const snapshot = Snapshot.live(home.universe.storage.database);
+    const snapshot = home.universe.storage.database.snapshot();
     const eu = present(
         await snapshot.read(residency.table).findFirst({ where: { code: "eu" } }),
         "the eu residency",

@@ -1,17 +1,24 @@
+import { ReplicaSet, RequestId, Scope, replicaTables } from "@destack/sync";
 import { FOLLOWER_REVISION } from "@destack/sync/test";
 import type { Environment } from "@destack/environment";
-import { testSimulation } from "@destack/object/test";
-import { testEvents, serversOf, TestObjectStore } from "@destack/object/test";
+import {
+    testSimulation,
+    testEvents,
+    serversOf,
+    TestObjectStore,
+    subjectContext,
+    testCallKey,
+} from "@destack/object/test";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import {
-    accessInvitation,
-    accessRelationship,
     anyone,
-    decisionTables,
     none,
     principal,
-    Relationship,
     relation,
+    decisionTables,
+    accessInvitation,
+    accessRelationship,
+    Relationship,
 } from "@destack/access";
 import { TestAccess } from "@destack/access/test";
 import { IdentityKeystore } from "@destack/account/identity";
@@ -19,16 +26,13 @@ import { LocalKeyring } from "@destack/identity";
 import { account, Placement } from "@destack/account/object";
 import { TestAccountStore, TestDirectory, TestIdentityRegistry } from "@destack/account/test";
 import { spaceDatabase } from "../test/index.ts";
-import type { EventStore } from "@destack/event";
-import { journal, defineObject, field } from "@destack/object";
-import { type DatabaseConnection, Snapshot, Transaction } from "@destack/db";
+import type { EventStore } from "@destack/event/store";
+import { journal, defineObject, field, shareable } from "@destack/object";
+import type { DatabaseConnection } from "@destack/db/database";
 import { TestDatabase } from "@destack/db/test";
 import { ObjectStore } from "@destack/object/server";
 import { canonicalize, Identifier, present, schema } from "@destack/schema";
-import { subjectContext, testCallKey } from "@destack/object/test";
-import { RequestId, Scope, Replica, replicaTables } from "@destack/sync";
 import { ProviderIndex, SpaceReplica, SpaceTransfer } from "../index.ts";
-import { shareable } from "@destack/object";
 import { argument, plural, t } from "@destack/locale";
 
 /** The identifiers the scenarios place, assign and publish. */
@@ -230,8 +234,7 @@ test("hand a space's database to another machine and send its clients there", as
     expect(redirected).toEqual([moved, moved, moved, moved]);
 
     // wait for the fenced position on the target and verify the replica
-    const isReached = await Replica.wait(
-        target.database,
+    const isReached = await new ReplicaSet(target.database).wait(
         spaceId,
         fenced.position,
         AbortSignal.timeout(4000),
@@ -251,7 +254,7 @@ test("hand a space's database to another machine and send its clients there", as
         target: ids.machineB,
         transferId,
     });
-    await Transaction.run(target.database, (transaction) => arriving.replica.promote(transaction));
+    await target.database.commit((transaction) => arriving.replica.promote(transaction));
     const early = await refusal(create(target.database, "early"));
 
     // place the space on the target with the identity keys the move sent, and rekey them
@@ -269,7 +272,7 @@ test("hand a space's database to another machine and send its clients there", as
     expect([
         early,
         completed,
-        (await Placement.find(Snapshot.live(universe.database), [spaceId]))[0],
+        (await Placement.find(universe.database.snapshot(), [spaceId]))[0],
         [rekeyed.signingKeys.length, canonicalize(rekeyed) === canonicalize(carried)],
         (await target.database.select().from(key.table)).map((row) => row.name),
     ]).toEqual([

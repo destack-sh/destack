@@ -9,7 +9,7 @@ import { Caller } from "@destack/access";
 import { Account, space } from "@destack/account/object";
 import { KNOWN_TYPES } from "@destack/stack/stack";
 import { type Identifier, type JsonObject, present, schema } from "@destack/schema";
-import { type DatabaseConnection, Snapshot } from "@destack/db";
+import { type DatabaseConnection, Snapshot } from "@destack/db/database";
 import {
     ObjectController,
     ObjectDescription,
@@ -18,11 +18,12 @@ import {
     ObjectTypePool,
     SYNCED,
     SYNCED_CONDITION,
+    type MethodContextOf,
+    Observation,
 } from "@destack/object";
 import { Failure } from "@destack/error";
 import { Stack, StackPlan, ObjectStore } from "@destack/object/server";
 import { StackError } from "@destack/stack/error";
-import { type MethodContextOf, Observation } from "@destack/object";
 import { ApplicationInstallation, type ApplicationOptions } from "./application.ts";
 import { Approval } from "./approval.ts";
 import { planWait } from "./wait.ts";

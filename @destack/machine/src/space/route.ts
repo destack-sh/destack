@@ -1,10 +1,10 @@
 import {
-    Directory,
     InstallationOrigin,
     S3Origin,
     SpaceAddress,
     type SpaceOrigin,
 } from "@destack/account/address";
+import { Directory } from "@destack/account/client";
 import * as accountObject from "@destack/account/object";
 import { type Identifier, present, schema } from "@destack/schema";
 import { InstallationMount, RequestBody, SpaceMount } from "@destack/object";

@@ -1,7 +1,7 @@
 import { DURABLE_OBJECT_GIGABYTES } from "@destack/package/runtime";
 import type {} from "@destack/package/import-meta";
 import { TelemetryScope } from "@destack/telemetry";
-import type { SpaceProvider } from "@destack/stack/object";
+import { type SpaceProvider, gitStorage } from "@destack/stack/object";
 import { MachineError } from "../error/index.ts";
 import type { CatalogueBucketHost } from "@destack/bucket/provider";
 import { BuildStore } from "@destack/build/store";
@@ -10,7 +10,7 @@ import type { Connector } from "@destack/resource";
 import type * as Cloudflare from "@cloudflare/workers-types";
 import { Entitlement } from "@destack/account/object";
 import { SettingValue } from "@destack/setting/object";
-import { DatabasePersonalKeyring, EventStore } from "@destack/event";
+import { DatabasePersonalKeyring, EventStore } from "@destack/event/store";
 import { bucketOperation, databaseOperation } from "@destack/telemetry/meter";
 import { DurableObjectCatalogueStore, R2Bucket, R2BucketHost } from "@destack/bucket/cloudflare";
 import { BucketBlobStorage } from "@destack/bucket/blob";
@@ -18,11 +18,11 @@ import { S3Origin } from "@destack/account/address";
 import type { S3Credentials } from "@destack/bucket/s3";
 import {
     BlobStore,
-    channelHub,
     databaseProvider,
     type DatabaseConnection,
     Tracker,
-} from "@destack/db";
+} from "@destack/db/database";
+import { channelHub } from "@destack/db";
 import {
     DurableObjectDatabaseHost,
     type DurableObjectStorage,
@@ -33,7 +33,6 @@ import {
     ArtifactsStorage,
     artifactsProvider,
 } from "@destack/git/cloudflare";
-import { gitStorage } from "@destack/stack/object";
 import { mailProvider, type MailTransport } from "@destack/mail/transport";
 import type { Keyring } from "@destack/identity";
 import type { Identifier } from "@destack/schema";

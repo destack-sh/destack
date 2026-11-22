@@ -1,5 +1,5 @@
 import { installation } from "@destack/stack/object";
-import { type DatabaseConnection, Snapshot } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { OWNER_EMAIL, TestComputer, TestDistribution } from "@destack/machine/computer/test";
 import { expect, test } from "@destack/test";
 import { type Identifier, present } from "@destack/schema";
@@ -24,7 +24,8 @@ test("serve a tracked type reading through its space, keeping the space up", asy
     const served = await home.machine.space(space);
     const store = await served.store();
     const installed = present(
-        await Snapshot.live(served.database)
+        await served.database
+            .snapshot()
             .read(installation.table)
             .findFirst({ where: { scope: space, packageId: journalPackage.id } }),
         "the journal's installation",
@@ -61,7 +62,7 @@ test("refuse serving a type reading through a type without history", async () =>
 
     // read the installation's Serving and its failure
     const served = await home.machine.space(space);
-    const snapshot = Snapshot.live(served.database);
+    const snapshot = served.database.snapshot();
     const installed = present(
         await snapshot
             .read(installation.table)
@@ -96,7 +97,8 @@ test("refuse serving a type reading through a type without history", async () =>
 
 /** Read the revision an installation's rollout targets. */
 async function targeted(database: DatabaseConnection, id: Identifier<"installation">) {
-    const row = await Snapshot.live(database)
+    const row = await database
+        .snapshot()
         .read(installation.table)
         .findFirst({ where: { id: id } });
 

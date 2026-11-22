@@ -1,5 +1,5 @@
 import { defineScenario } from "@destack/package/declare";
-import { Feed } from "@destack/sync";
+import { Feed } from "@destack/sync/dataflow";
 import { machineInteraction } from "./interaction.ts";
 
 /** The members, their devices and the writes. */

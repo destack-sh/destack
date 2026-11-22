@@ -1,7 +1,7 @@
 import { WorkerdEnvironment } from "@destack/environment/workerd";
 import { BUILD_PATH } from "@destack/object/cloudflare";
 import { Egress } from "@destack/object";
-import { AlarmClock } from "@destack/db";
+import { AlarmClock } from "@destack/db/database";
 import {
     FacetHost,
     type HibernatingSocket,

@@ -1,4 +1,5 @@
-import { type Controller, eq, type Following, type Select } from "@destack/db";
+import { eq, type Select } from "@destack/db";
+import type { Controller, Following } from "@destack/db/database";
 import type { ObjectStore } from "@destack/object/server";
 import { waitAborted } from "@destack/environment";
 import { present } from "@destack/schema";

@@ -1,6 +1,6 @@
 import { installation, Database, installationRevision, Installation } from "@destack/stack/object";
 import { space } from "@destack/account/object";
-import { Snapshot } from "@destack/db";
+import type { Snapshot } from "@destack/db/database";
 import {
     approval,
     AWAITING_APPROVAL,
@@ -136,7 +136,7 @@ export class Approval {
 
         // read the installation's plan approvals still open or rejected, and the plan each asks for
         const parent = { ...installation.typeReference, id: rolled.id };
-        const requests = await Approval.requests(Snapshot.live(reconciliation.database), rolled);
+        const requests = await Approval.requests(reconciliation.database.snapshot(), rolled);
         const asked = (row: (typeof requests)[number]) => RequestedPlan.parse(row.call.input).plan;
 
         // withdraw the open requests for another plan, and ask for this one unless decided already

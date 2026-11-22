@@ -1,7 +1,8 @@
 import { appliedDigests } from "./resource.ts";
-import { type BlobStore, Condition, now, Snapshot, Transaction } from "@destack/db";
+import { Condition, now } from "@destack/db";
+import type { BlobStore, Transaction } from "@destack/db/database";
 import { AccessContext, Caller, principal } from "@destack/access";
-import { type ObjectReconciliation, type Resource, type ResourceType } from "@destack/object";
+import type { ObjectReconciliation, Resource, ResourceType } from "@destack/object";
 import type { space } from "@destack/account/object";
 import type { ObjectStore } from "@destack/object/server";
 import { Plan, type ContentStore, ResourceRecord } from "@destack/resource";
@@ -58,7 +59,7 @@ export function implementSnapshot(options: TransferOptions) {
                         const { spaceId } = row;
                         const { object, row: resource } = present(
                             await options.providers.find(
-                                Snapshot.live(reconciliation.store.database),
+                                reconciliation.store.database.snapshot(),
                                 spaceId,
                                 row.resourceId,
                             ),
@@ -176,7 +177,7 @@ async function restoreRow(
     const { spaceId } = row;
     const found = present(
         await options.providers.find(
-            Snapshot.live(reconciliation.store.database),
+            reconciliation.store.database.snapshot(),
             spaceId,
             row.resourceId,
         ),

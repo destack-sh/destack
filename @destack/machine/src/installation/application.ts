@@ -15,7 +15,7 @@ import {
     type DeploymentRuntime,
     PROCESS_RUNTIME,
 } from "@destack/stack/object";
-import type { RevisionOptions } from "./target.ts";
+import { type RevisionOptions, InstallationTarget } from "./target.ts";
 import { account, Entitlement, space } from "@destack/account/object";
 import {
     ObjectDescription,
@@ -24,14 +24,6 @@ import {
     Observation,
     SYNCED,
     SYNCED_CONDITION,
-} from "@destack/object";
-import { KNOWN_TYPES } from "@destack/stack/stack";
-import { Setting } from "@destack/setting";
-import { setting, SettingValue } from "@destack/setting/object";
-import { DeclarationReference } from "@destack/package/declare";
-import { AccessContext, Caller, principal } from "@destack/access";
-import { type BlobStore, type DatabaseConnection, DatabaseKind, Snapshot } from "@destack/db";
-import {
     InstallationBindingSpec,
     InstallationKind,
     type MethodContext,
@@ -39,6 +31,13 @@ import {
     type ObjectReconciliation,
     PackageDescription,
 } from "@destack/object";
+import { KNOWN_TYPES } from "@destack/stack/stack";
+import { Setting } from "@destack/setting";
+import { setting, SettingValue } from "@destack/setting/object";
+import { DeclarationReference } from "@destack/package/declare";
+import { AccessContext, Caller, principal } from "@destack/access";
+import { DatabaseKind } from "@destack/db";
+import type { BlobStore, DatabaseConnection, Snapshot } from "@destack/db/database";
 import {
     HOST_SANDBOX,
     Sandbox,
@@ -79,7 +78,6 @@ import type { Binder } from "../resource/binding.ts";
 import { Approval } from "./approval.ts";
 import { HOOK_WORKLOAD } from "@destack/stack/workload";
 import { BOOTSTRAP_PACKAGES } from "@destack/stack/declare";
-import { InstallationTarget } from "./target.ts";
 import { InstallationAccess } from "./access.ts";
 
 /** The condition of an installation whose bound targets are each ready. */
@@ -394,7 +392,7 @@ export class ApplicationInstallation {
     async relate(reconciliation: ObjectReconciliation): Promise<void> {
         // read the installation as it stands, and the build of the revision it applied
         const target = this.#target;
-        const snapshot = Snapshot.live(reconciliation.database);
+        const snapshot = reconciliation.database.snapshot();
         const deployed = await snapshot
             .read(installation.table)
             .findFirst({ where: { id: target.id } });

@@ -8,7 +8,8 @@ import {
     type InstallationRevision,
 } from "@destack/stack/object";
 import type { Environment } from "@destack/environment";
-import { type DatabaseConnection, eq, isNotNull, Table } from "@destack/db";
+import { eq, isNotNull, Table } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { TestDatabase } from "@destack/db/test";
 import { testSimulation } from "@destack/object/test";
 import { Digest, Identifier, present, schema } from "@destack/schema";

@@ -1,13 +1,17 @@
-import { principal, Role, StepUp } from "@destack/access";
-import { createClient } from "@destack/object/client";
+import { principal, StepUp, Role } from "@destack/access";
+import {
+    createClient,
+    ObjectClient,
+    ObjectConnection,
+    type TextDocument,
+} from "@destack/object/client";
 import { space } from "@destack/account/object";
 import type { Login } from "@destack/account/native";
 import type { Workspace } from "@destack/build";
-import type { DatabaseConnection } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { connectBunSqlite } from "@destack/db/bun";
 import { type Clock, type Environment, World } from "@destack/environment";
 import { ObjectType, PackageMount, role, SpaceMount } from "@destack/object";
-import { ObjectClient, ObjectConnection, type TextDocument } from "@destack/object/client";
 import { PackageManifest } from "@destack/package/manifest";
 import type { PackageId } from "@destack/package";
 import type { Given, SetStep } from "@destack/package/declare";

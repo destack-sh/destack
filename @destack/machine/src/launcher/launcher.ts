@@ -1,8 +1,18 @@
 import { type Installation, InstallationView } from "@destack/stack/object";
-import type { DatabaseConnection } from "@destack/db";
-import type { GrantClaim, PermissionReference } from "@destack/access";
-import { Account, HOME_SPACE, RESIDENCY_SPACE } from "@destack/account/object";
-import { GrantPermission, principal, StepUp } from "@destack/access";
+import type { DatabaseConnection } from "@destack/db/database";
+import {
+    type GrantClaim,
+    type PermissionReference,
+    GrantPermission,
+    principal,
+    StepUp,
+} from "@destack/access";
+import {
+    Account,
+    HOME_SPACE,
+    RESIDENCY_SPACE,
+    type PlacementEndpoint,
+} from "@destack/account/object";
 import { SpaceAddress } from "@destack/account/address";
 import { AccountError } from "@destack/account/error";
 import {
@@ -12,7 +22,6 @@ import {
     RequestedPermission,
 } from "@destack/account/authentication";
 import { Failure } from "@destack/error";
-import type { PlacementEndpoint } from "@destack/account/object";
 import type { Session, TokenBinding, UserIdentity } from "@destack/account/client";
 import type { Environment } from "@destack/environment";
 import accountPackage from "@destack/account/package";

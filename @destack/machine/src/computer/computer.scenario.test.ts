@@ -1,7 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { CLIENT_KEYS, SESSIONS } from "@destack/account/native";
 import { account, endpoint } from "@destack/account/object";
-import { Snapshot } from "@destack/db";
 import { present } from "@destack/schema";
 import registryPackage from "@destack/registry/package";
 import { RequestId } from "@destack/sync";
@@ -74,7 +73,8 @@ test("answer a relay-less computer's spaces at its loopback endpoint, and a rela
     // wait until the relay publishes the relayed computer's tunnel, at the name it told the computer
     const universe = world.universe.storage.database;
     const published = async () =>
-        await Snapshot.live(universe)
+        await universe
+            .snapshot()
             .read(endpoint.table)
             .findFirst({ where: { parentId: relayed.machine.id } });
     await relayed.waitUntil(universe, async () => (await published())?.relay !== undefined);
@@ -102,7 +102,8 @@ test("list a relayed computer's checkouts as its account's owner on another comp
     // wait until the relay publishes the relayed computer's tunnel
     const universe = world.universe.storage.database;
     await relayed.waitUntil(universe, async () => {
-        const published = await Snapshot.live(universe)
+        const published = await universe
+            .snapshot()
             .read(endpoint.table)
             .findFirst({ where: { parentId: relayed.machine.id } });
 
@@ -126,7 +127,8 @@ test("send an npm client to the forge of the handle it asks for, and answer 404 
     const login = await computer.signIn(OWNER_EMAIL);
     await computer.enroll(login, world.owner.account);
     const universe = world.universe.storage.database;
-    const owner = await Snapshot.live(universe)
+    const owner = await universe
+        .snapshot()
         .read(account.table)
         .findFirst({ where: { id: world.owner.account } });
     const handle = present(owner, "the owner's account").handle;

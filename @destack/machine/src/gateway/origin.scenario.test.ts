@@ -9,7 +9,7 @@ import { TestDns } from "@destack/account/test";
 import { Jwt, KeyPair, Proof, PROOF_HEADER } from "@destack/identity";
 import * as accountObject from "@destack/account/object";
 import { space, user } from "@destack/account/object";
-import { ANONYMOUS, anyone, LinkSecret, principal, relation, Role } from "@destack/access";
+import { ANONYMOUS, anyone, principal, relation, LinkSecret, Role } from "@destack/access";
 import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
 import {
     defineObject,
@@ -20,6 +20,8 @@ import {
     VERSION_HEADER,
     Bookmark,
     CallError,
+    presentable,
+    shareable,
 } from "@destack/object";
 import { createClient, ObjectConnection } from "@destack/object/client";
 import { describeObject, describePackage } from "@destack/object/inspect";
@@ -40,7 +42,6 @@ import { LINK_COOKIE, SESSION_COOKIE } from "./origin.ts";
 import { OWNER_EMAIL, PUBLISHER, TestComputer } from "../computer/test/index.ts";
 import { TestViewBuild } from "./test/view.ts";
 import { argument, plural, t } from "@destack/locale";
-import { presentable, shareable } from "@destack/object";
 
 /** The address of a second person signing in on the owner's computer. */
 const MEMBER_EMAIL = "member@example.test";

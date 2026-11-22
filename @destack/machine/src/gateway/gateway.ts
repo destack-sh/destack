@@ -10,8 +10,15 @@ import type { BuildStore } from "@destack/build/store";
 import type { PageCredential } from "./credential.ts";
 import { ViewState } from "@destack/view/declare";
 import * as accountObject from "@destack/account/object";
-import type { WorkloadInstance } from "@destack/object/workload";
-import { OtlpExport } from "@destack/telemetry/otlp";
+import {
+    type WorkloadInstance,
+    HOOK_PATH,
+    ROUTE_HEADER,
+    SOCKET_HEADER,
+    SOCKET_INSTANCE_HEADER,
+    SOCKET_PATH,
+} from "@destack/object/workload";
+import { OtlpExport, OtlpSignal } from "@destack/telemetry/otlp";
 import { DeclarationName, OriginPath, PackageId, PackageName } from "@destack/package";
 import {
     canonicalize,
@@ -41,19 +48,11 @@ import { PeerCall } from "./peer.ts";
 import type { IdentityKeystore } from "@destack/account/identity";
 import type { Machine } from "../machine/index.ts";
 import { Bearer, Exchange, TOKEN_LIFETIME_MILLISECONDS, TokenCache } from "@destack/access/token";
-import {
-    HOOK_PATH,
-    ROUTE_HEADER,
-    SOCKET_HEADER,
-    SOCKET_INSTANCE_HEADER,
-    SOCKET_PATH,
-} from "@destack/object/workload";
-import { Bucket, Snapshot } from "@destack/db";
+import { Bucket } from "@destack/db";
 import { Attribution } from "@destack/package/stack";
-import { OtlpSignal } from "@destack/telemetry/otlp";
 import { Authentication, Caller, CALLER_HEADER, principal } from "@destack/access";
 import { copyRequest, Forwarded, WebSocketUpgrade } from "@destack/environment";
-import { type Space, type SpaceStart } from "../space/space.ts";
+import type { Space, SpaceStart } from "../space/space.ts";
 import { BucketKind } from "@destack/bucket";
 import { S3_PACKAGE } from "@destack/bucket/s3";
 import { ConnectionKind, ConnectionSpec } from "@destack/connection/declare";
@@ -842,7 +841,8 @@ export class Gateway {
         }
 
         // ask the caller to wait while the installation still deploys, else refuse
-        const installed = await Snapshot.live(this.#space.database)
+        const installed = await this.#space.database
+            .snapshot()
             .read(installation.table)
             .findFirst({ where: { id: installationId } });
         if (installed !== undefined && Observation.progress(installed) === "waiting") {
@@ -869,7 +869,7 @@ export class Gateway {
     async #limit(scope: Identifier<"space">): Promise<void> {
         // read whether the space's throttling entitlement is exceeded, passing a space within it
         const throttled = accountObject.Space.throttled(
-            await accountObject.Space.read(Snapshot.live(this.#space.database), scope),
+            await accountObject.Space.read(this.#space.database.snapshot(), scope),
         );
         if (throttled === undefined) {
             return;

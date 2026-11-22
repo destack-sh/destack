@@ -15,13 +15,11 @@ import {
     text,
     DatabaseKind,
     defineDatabase,
-    type DatabaseConnection,
-    Snapshot,
     DatabaseState,
-    databaseProvider,
 } from "@destack/db";
+import { type DatabaseConnection, databaseProvider } from "@destack/db/database";
 import { BunSqliteDatabaseHost } from "@destack/db/bun";
-import { ResourceId } from "@destack/resource";
+import { ResourceId, ResourceRecord } from "@destack/resource";
 import { nth, Digest, Identifier, schema, present } from "@destack/schema";
 import { RequestId, Scope, ObjectReference } from "@destack/sync";
 import { ProviderIndex, SpaceTransfer } from "../src/index.ts";
@@ -33,7 +31,6 @@ import {
     runNotes,
     TestSpace,
 } from "../src/test/index.ts";
-import { ResourceRecord } from "@destack/resource";
 import * as object from "@destack/stack/object";
 import * as accountObject from "@destack/account/object";
 import { principal } from "@destack/access";
@@ -229,7 +226,7 @@ test("move a space and back, each source destroying its copy", async () => {
             await Jwt.verify(
                 signed,
                 Jwks.local(
-                    await Identity.keys(Snapshot.live(universe), ids.space, world.crypto),
+                    await Identity.keys(universe.snapshot(), ids.space, world.crypto),
                     world.crypto,
                 ),
                 { algorithms: JWS_ALGORITHMS, now: sourceMachine.machine.clock.now() },
@@ -757,7 +754,7 @@ async function moveSpace(
 ): Promise<void> {
     // ask for the move as the space's owner on its source, once it follows the space's chain
     const isFollowed = async () =>
-        (await Scope.read(Snapshot.live(source.database), [ids.account])).length > 0;
+        (await Scope.read(source.database.snapshot(), [ids.account])).length > 0;
     await source.simulation.idle();
     await source.serve();
     await source.database.log.waitUntil(isFollowed, FOREVER);
@@ -836,7 +833,7 @@ async function placementRow(database: DatabaseConnection) {
 
 /** Read the space's placement in the universe, none while unplaced. */
 async function placementOf(universe: DatabaseConnection): Promise<Placement | undefined> {
-    const [placed] = await Placement.find(Snapshot.live(universe), [ids.space]);
+    const [placed] = await Placement.find(universe.snapshot(), [ids.space]);
 
     return placed;
 }

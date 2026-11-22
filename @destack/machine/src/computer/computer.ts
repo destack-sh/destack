@@ -1,9 +1,20 @@
 import type { TunnelStatus } from "@destack/tunnel";
 import { BunDistribution, Program } from "@destack/package/bun";
-import { PackageMount, refusal, tablesOf } from "@destack/object";
+import {
+    PackageMount,
+    refusal,
+    tablesOf,
+    call,
+    Egress,
+    InstallationMount,
+    type Package,
+    SpaceMount,
+    CallKey,
+    type ObjectType,
+} from "@destack/object";
 import objectPackage from "@destack/object/package";
 import { checkout, preview } from "./checkout/index.ts";
-import { defineDatabase } from "@destack/db";
+import { defineDatabase, TABLE } from "@destack/db";
 import { BUILD_STORE_TABLES } from "@destack/build/store";
 import { build } from "@destack/stack/object";
 import { join } from "node:path";
@@ -12,28 +23,19 @@ import { Toolchain } from "@destack/check/toolchain";
 import { distribution } from "@destack/update/object";
 import { MachineKey } from "@destack/account/client";
 import { login, type NativeClient } from "@destack/account/native";
-import {
-    call,
-    Egress,
-    InstallationMount,
-    type Package,
-    SpaceMount,
-    CallKey,
-} from "@destack/object";
-import type { Server } from "@destack/object/server";
+import type { Server, ObjectStore } from "@destack/object/server";
 import { LocalBlobStorage, LocalBucket } from "@destack/bucket/bun";
 import { CompilerPool, LocalBuildStore } from "@destack/build";
 import { BuildLayer } from "@destack/package/manifest";
-import { BlobStore, type DatabaseConnection, Snapshot, TABLE } from "@destack/db";
+import { BlobStore, type DatabaseConnection, type Snapshot } from "@destack/db/database";
 import { connectBunSqlite } from "@destack/db/bun";
 import type { SqliteDatabase } from "@destack/db/sqlite";
-import { DatabasePersonalKeyring, type EventKind, EventStore } from "@destack/event";
+import type { EventKind } from "@destack/event";
+import { DatabasePersonalKeyring, EventStore } from "@destack/event/store";
 import { type Deriver, type Keychain, type Keyring, LocalKeyring } from "@destack/identity";
 import { BunKeychain, type KeychainStore } from "@destack/identity/bun";
 import { mailConnector } from "@destack/mail/transport";
 import { PrintTransport } from "@destack/mail/print";
-import type { ObjectType } from "@destack/object";
-import type { ObjectStore } from "@destack/object/server";
 import { traceSampling } from "@destack/stack/setting";
 import { ResourceContext } from "@destack/resource/context";
 import { Identifier, present, schema } from "@destack/schema";
@@ -48,7 +50,7 @@ import { type Hibernation, HibernationHost, WorkloadInstance } from "@destack/ob
 import { deviceSetting, SettingValue } from "@destack/setting/object";
 import { type BunIsolation, BunRuntime } from "../bun/index.ts";
 import { ProcessRuntime } from "../runtime/process.ts";
-import { type Runtime } from "../runtime/runtime.ts";
+import type { Runtime } from "../runtime/runtime.ts";
 import { createClient, type ClientOf } from "@destack/object/client";
 import { SeverityNumber, TelemetryScope } from "@destack/telemetry";
 import { startTelemetry } from "@destack/telemetry/bun";
@@ -64,15 +66,20 @@ import {
 import { Authenticator } from "./device/authentication/index.ts";
 import { Device } from "./device/device.ts";
 import { MachineError } from "../error/index.ts";
-import { InstallationOrigin, LOOPBACK_DOMAIN, S3Origin } from "@destack/account/address";
+import {
+    InstallationOrigin,
+    LOOPBACK_DOMAIN,
+    S3Origin,
+    MachineAddress,
+} from "@destack/account/address";
 import { ComputerServer } from "./server/index.ts";
 import { LocalSpaceStorage } from "./storage.ts";
 import { computer, type MachineEnrollment, signIn, visit } from "./device/object/index.ts";
 import { MachineProcess, LOCK_FILE, UniverseHome } from "./process/index.ts";
 import { BuildRunner } from "./build.ts";
 import { computerServer, machineWorkload, deviceWorkload } from "./server/workload.ts";
-import { Environment, HostAddress, LineExporter, Telemetry } from "@destack/environment";
-import { MachineAddress } from "@destack/account/address";
+import { Environment, HostAddress } from "@destack/environment";
+import { LineExporter } from "@destack/environment/line";
 import { DEPLOYING_WAIT_MILLISECONDS, PartitionRequest } from "../space/index.ts";
 
 /** The origin the machine's own exports are addressed below until its owner's home is located. */
@@ -364,19 +371,13 @@ export class Computer implements AsyncDisposable {
                     keyring,
                     database,
                     enrollment: (view) =>
-                        Computer.#enrollment(
-                            view ?? Snapshot.live(state.device.database),
-                            machineId,
-                        ),
+                        Computer.#enrollment(view ?? state.device.database.snapshot(), machineId),
                     partition: () => routed.partition(),
                     describe: async () =>
                         Computer.#describe(
                             options,
                             state.device,
-                            await Computer.#enrollment(
-                                Snapshot.live(state.device.database),
-                                machineId,
-                            ),
+                            await Computer.#enrollment(state.device.database.snapshot(), machineId),
                         ),
                     volumes: spaces,
                     builds,
@@ -740,7 +741,7 @@ export class Computer implements AsyncDisposable {
             // sample each installation as its settings set, batching as the machine's own variables set
             workloadTelemetry: async (scope, installation) => ({
                 sampling: await SettingValue.resolve(
-                    Snapshot.live((await machine().space(scope)).database),
+                    (await machine().space(scope)).database.snapshot(),
                     traceSampling,
                     { scope, installation },
                 ),
@@ -1355,7 +1356,7 @@ export class Computer implements AsyncDisposable {
         const local = new LineExporter(write, options);
         const own = TelemetryScope.of(
             MACHINE_PACKAGE,
-            Telemetry.local(environment.clock, write, environment.telemetry.context, options),
+            local.telemetry(environment.clock, environment.telemetry.context),
         );
         const exporter = new OtlpExporter(
             async (signal, body, abort) => {

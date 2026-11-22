@@ -1,12 +1,11 @@
-import { Snapshot } from "@destack/db";
 import type { Address } from "@destack/view/declare";
 import { join } from "node:path";
-import { type Select, type Table } from "@destack/db";
+import type { Select, Table } from "@destack/db";
 import { MemoryBlobStorage } from "@destack/resource";
 import { pathToFileURL } from "node:url";
-import { AccessContext, Authorization, Caller, principal } from "@destack/access";
+import { AccessContext, Caller, principal, Authorization } from "@destack/access";
 import { SpaceAddress, UniverseOrigin } from "@destack/account/address";
-import type { PlacementEndpoint } from "@destack/account/object";
+import { type PlacementEndpoint, Platform, type Residency } from "@destack/account/object";
 import { Issuer, Session } from "@destack/account/client";
 import {
     CLIENT_KEYS,
@@ -21,21 +20,27 @@ import {
     currentLogin,
 } from "@destack/account/native";
 import * as native from "@destack/account/native";
-import { Platform, type Residency } from "@destack/account/object";
 import { connectBunSqlite, openBunSqlite } from "@destack/db/bun";
 import type { SqliteDatabase } from "@destack/db/sqlite";
-import type { EventStore } from "@destack/event";
+import type { EventStore } from "@destack/event/store";
 import type { Keychain } from "@destack/identity";
-import { call, device, type ObjectType, tablesOf } from "@destack/object";
+import {
+    call,
+    device,
+    type ObjectType,
+    tablesOf,
+    type Fetch,
+    Package,
+    PackageMount,
+    SpaceMount,
+    type CallKey,
+} from "@destack/object";
 import objectPackage from "@destack/object/package";
 import { distribution } from "@destack/update/object";
 import { implementPackage, ObjectStore, type PackageImplementation } from "@destack/object/server";
-import { ObjectClient, ObjectRemote } from "@destack/object/client";
+import { ObjectClient, ObjectRemote, Bookmark, createClient } from "@destack/object/client";
 import { PackageVersion, PackageId } from "@destack/package";
 import { Identifier, nth, present, schema } from "@destack/schema";
-import { type Fetch, Package, PackageMount, SpaceMount } from "@destack/object";
-import { Bookmark, createClient } from "@destack/object/client";
-import { type CallKey } from "@destack/object";
 import { RequestId, Scope, Subject } from "@destack/sync";
 import type { Setting } from "@destack/setting";
 import { deviceSetting, setting, SettingValue } from "@destack/setting/object";
@@ -587,7 +592,7 @@ export class Device<
             // wait until the follow holds them, as a query's first answer does, then resolve along the chain
             await settings.query.setting.findMany({});
 
-            return await SettingValue.resolve(Snapshot.live(settings.database), declared, {
+            return await SettingValue.resolve(settings.database.snapshot(), declared, {
                 scope: userScope,
             });
         }

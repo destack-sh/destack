@@ -1,5 +1,6 @@
 import { Environment } from "@destack/environment";
-import { type DatabaseConnection, relation, TABLE, Table } from "@destack/db";
+import { relation, TABLE, Table } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import {
     DATABASE_PATH,
     DurableObjectDatabaseHost,

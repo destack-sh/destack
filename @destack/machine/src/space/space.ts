@@ -25,53 +25,35 @@ import { reference, repository } from "@destack/registry/object";
 import { referenceFollow, tagFollow } from "../installation/follow.ts";
 import { callRegistry, locateHome } from "../machine/registry.ts";
 import type * as packageRuntime from "@destack/package/runtime";
-import type { defineDatabase } from "@destack/db";
-import { Failure } from "@destack/error";
-import { openStore, ownServers, spaceProviders } from "./store.ts";
-import type { ClaimPrimary, ExternalStorage, Voucher } from "@destack/object/server";
-import type { Follow, ObjectType } from "@destack/object";
 import {
-    AccessContext,
-    type Authentication,
-    Authorization,
-    Caller,
-    CONTAINED,
-    Grant,
-    principal,
-} from "@destack/access";
-import { Exchange, PartitionId } from "@destack/access/token";
-import { type Identity, IdentityKeystore, type IdentityRegistry } from "@destack/account/identity";
-import type { UniverseOrigin } from "@destack/account/address";
-import accountPackage from "@destack/account/package";
-import {
+    type defineDatabase,
     and,
-    BlobStore,
     Condition,
-    type Controller,
-    type ControllerSet,
-    type Cursor,
-    type DatabaseConnection,
     eq,
     inArray,
     isNotNull,
     isNull,
-    type Projection,
     type Relation,
-    Snapshot,
     TABLE,
-    Transaction,
 } from "@destack/db";
-import { MAIN_DATABASE } from "@destack/stack/declare";
-import stackPackage, { STACK_INSTALLATION } from "@destack/stack/package";
+import { Failure } from "@destack/error";
+import { openStore, ownServers, spaceProviders } from "./store.ts";
 import {
-    HostAddress,
-    type Network,
-    type SocketAddress,
-    WebSocketUpgrade,
-    Telemetry,
-} from "@destack/environment";
-import type { Deriver } from "@destack/identity";
+    type ClaimPrimary,
+    type ExternalStorage,
+    type Voucher,
+    Health,
+    type ImplementationInput,
+    implementPackage,
+    ObjectSink,
+    type ObjectStore,
+    type PackageHandler,
+    type PackageImplementation,
+    RemoteStore,
+} from "@destack/object/server";
 import {
+    type Follow,
+    type ObjectType,
     CallKey,
     type CursorPage,
     Egress,
@@ -87,6 +69,39 @@ import {
     Provisioned,
     SpaceMount,
 } from "@destack/object";
+import {
+    AccessContext,
+    type Authentication,
+    Caller,
+    CONTAINED,
+    Grant,
+    principal,
+    Authorization,
+} from "@destack/access";
+import { Exchange, PartitionId } from "@destack/access/token";
+import { type Identity, IdentityKeystore, type IdentityRegistry } from "@destack/account/identity";
+import type { UniverseOrigin } from "@destack/account/address";
+import accountPackage from "@destack/account/package";
+import {
+    BlobStore,
+    type Controller,
+    type ControllerSet,
+    type Cursor,
+    type DatabaseConnection,
+    type Projection,
+    type Snapshot,
+    type Transaction,
+} from "@destack/db/database";
+import { MAIN_DATABASE } from "@destack/stack/declare";
+import stackPackage, { STACK_INSTALLATION } from "@destack/stack/package";
+import {
+    HostAddress,
+    type Network,
+    type SocketAddress,
+    WebSocketUpgrade,
+    Telemetry,
+} from "@destack/environment";
+import type { Deriver } from "@destack/identity";
 import {
     defineWorkload,
     type Hibernation,
@@ -111,16 +126,6 @@ import { BucketKind } from "@destack/bucket";
 import type { CatalogueBucketHost } from "@destack/bucket/provider";
 import { ResourceContext } from "@destack/resource/context";
 import {
-    Health,
-    type ImplementationInput,
-    implementPackage,
-    ObjectSink,
-    type ObjectStore,
-    type PackageHandler,
-    type PackageImplementation,
-    RemoteStore,
-} from "@destack/object/server";
-import {
     Bookmark,
     type ClientOf,
     createClient,
@@ -133,11 +138,11 @@ import { type graph, PackageId, PackageRelease, Sandbox } from "@destack/package
 import { Commit, Digest, type Identifier, present, schema } from "@destack/schema";
 import {
     ObjectReference,
-    type Publisher,
     REQUEST_LIFETIME_MILLISECONDS,
     RequestId,
     Scope,
     Subject,
+    type Publisher,
     type Subscription,
 } from "@destack/sync";
 import { StackError } from "@destack/stack/error";
@@ -883,7 +888,7 @@ export class Space {
         }
 
         // stand by where the copy never had the space, and leave once its row is deleted or removed
-        const snapshot = Snapshot.live(this.database);
+        const snapshot = this.database.snapshot();
         const [row] = await snapshot
             .read(accountObject.space.table)
             .findMany({ where: { id: this.id } });
@@ -1334,7 +1339,7 @@ export class Space {
         open: (packageId: PackageId, image: Digest) => Promise<BuildReader | undefined>,
     ): Promise<InstallationBuild[]> {
         // read no installations of a space before its instantiation gives it main
-        const snapshot = Snapshot.live(this.database);
+        const snapshot = this.database.snapshot();
         const spaceId = this.id;
         const main = await Database.mainMaybe(snapshot, spaceId);
         if (main === undefined) {
@@ -1478,7 +1483,8 @@ export class Space {
         if (load.kind === "failed") {
             return { kind: "failed", reason: "LoadFailed", error: load.error };
         }
-        const revision = await Snapshot.live(this.database)
+        const revision = await this.database
+            .snapshot()
             .read(installationRevision.table)
             .findFirst({ where: { id: revisionId } });
         const { bindings } = present(revision, `revision ${revisionId}`);
@@ -1545,7 +1551,7 @@ export class Space {
         };
         await this.database.log.waitUntil(async () => {
             // read the installation's applied revision and the grant it borrows by
-            const snapshot = Snapshot.live(this.database);
+            const snapshot = this.database.snapshot();
             const [row] = await snapshot
                 .read(installation.table)
                 .findMany({ where: { id: target.id } });
@@ -1683,7 +1689,7 @@ export class Space {
         }
 
         // read the reference of the dependency the binding targets
-        const view = Snapshot.live(this.database);
+        const view = this.database.snapshot();
         const { target } = bound;
         const found = await view
             .read(dependency.table)
@@ -1710,7 +1716,8 @@ export class Space {
         bindings: readonly Binding[],
     ): Promise<EgressCaller> {
         // read the process deployment the store runs the installation's server as
-        const [deployed] = await Snapshot.live(this.database)
+        const [deployed] = await this.database
+            .snapshot()
             .read(deployment.table)
             .findMany({
                 where: {
@@ -1811,7 +1818,8 @@ export class Space {
         // read the resource's row
         const resource = provider.object.identifier(target);
         const found = present(
-            await Snapshot.live(this.database)
+            await this.database
+                .snapshot()
                 .read(provider.object.table)
                 .findFirst({ where: { id: resource } }),
             `the resource ${resource}`,
@@ -2103,7 +2111,7 @@ export class Space {
         }
 
         // add the account's chain from this space's records
-        const links = await Scope.chain(Snapshot.live(this.database), placement.scope);
+        const links = await Scope.chain(this.database.snapshot(), placement.scope);
         const inside = links.flatMap((link) =>
             link.object.id === Scope.universe.id ? [] : [{ ...link.object, relation: CONTAINED }],
         );
@@ -2215,7 +2223,7 @@ export class Space {
         }
         // otherwise follow the space's stack once it changed, leaving a stack its owner applied since
         else {
-            await Transaction.run(this.database, (transaction) =>
+            await this.database.commit((transaction) =>
                 this.#followChangedStack(store, spaceId, transaction, resolved),
             );
         }
@@ -2229,7 +2237,7 @@ export class Space {
         ancestors: readonly string[],
         resolved: ResolvedStack,
     ): Promise<void> {
-        await Transaction.run(this.database, async (transaction) => {
+        await this.database.commit(async (transaction) => {
             // receive its scope, create its main database and follow its stack
             await this.#receive(store, spaceId, ancestors, transaction);
             await this.#createMain(store, main, spaceId, transaction);
@@ -2240,7 +2248,8 @@ export class Space {
     /** Resolve what the space's declared stack follows, the host's for a shipped version. */
     async #resolveStack(spaceId: Identifier<"space">): Promise<ResolvedStack> {
         // read the declared stack, and resolve what it follows at its forge
-        const [declared] = await Snapshot.live(this.database)
+        const [declared] = await this.database
+            .snapshot()
             .read(accountObject.space.table)
             .findMany({ where: { id: spaceId } });
         const { stack } = present(declared, `the row of ${spaceId}`);
@@ -2452,7 +2461,7 @@ export class Space {
     /** List the machines a space gave work, from the replicated assignments. */
     async #assigned(spaceId: Identifier<"space">): Promise<Identifier<"machine">[]> {
         // read the space's placement, then the machines its assignments give work
-        const reader = Snapshot.live(this.database);
+        const reader = this.database.snapshot();
         const placed = await reader
             .read(accountObject.placement.table)
             .findFirst({ where: { spaceId } });
@@ -2731,7 +2740,7 @@ export class Space {
         }
 
         // read the installations with their conditions
-        const snapshot = Snapshot.live(this.database);
+        const snapshot = this.database.snapshot();
         const rows = await snapshot
             .read(installation.table)
             .findMany({ where: { scope: this.id } });
@@ -2840,7 +2849,7 @@ export class Space {
             }
 
             // read the installation by its name, current once this start serves its latest revision
-            const snapshot = Snapshot.live(this.database);
+            const snapshot = this.database.snapshot();
             const installed = await snapshot
                 .read(installation.table)
                 .findFirst({ where: { scope: this.id, name } });
@@ -3077,7 +3086,7 @@ export class Space {
     ): Promise<ConnectionLease> {
         // call the connections' primary in the home of the scope's account as the consumer
         const { environment } = this.machine;
-        const home = await accountObject.Account.homeOf(Snapshot.live(this.database), lent.scope);
+        const home = await accountObject.Account.homeOf(this.database.snapshot(), lent.scope);
         const identity = this.identityOf(consumer);
         const primary = this.machine.directory.client(
             connectionPackage,

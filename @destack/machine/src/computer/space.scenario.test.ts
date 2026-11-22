@@ -6,7 +6,7 @@ import type { ResourceDeclaration } from "@destack/resource";
 import { log, LogData } from "@destack/observability/object";
 import { BunWorkload } from "@destack/object/bun";
 import { MemoryBuild } from "@destack/package/test";
-import { eq, Snapshot } from "@destack/db";
+import { eq } from "@destack/db";
 import settingPackage from "@destack/setting/package";
 import * as settingObject from "@destack/setting/object";
 import * as accountObject from "@destack/account/object";
@@ -396,7 +396,8 @@ async function openBoard(
     await storing(served, boardPackage.id);
 
     // wait until the board's sandboxed instance serves
-    const board = await Snapshot.live(database)
+    const board = await database
+        .snapshot()
         .read(installation.table)
         .findFirst({ where: { scope: space, packageId: boardPackage.id } });
     const boardId = present(board, "the board's installation").id;
@@ -654,7 +655,8 @@ test("stamp a sandboxed instance's telemetry with its installation", async () =>
     const source = await openBoard(home, found(organizations, PUBLISHER.handle));
     const { computer, space } = source;
     const sourced = (await computer.machine.space(space)).database;
-    const [boards] = await Snapshot.live(sourced)
+    const [boards] = await sourced
+        .snapshot()
         .read(installation.table)
         .findMany({ where: { scope: space, packageId: boardPackage.id } });
     const boardId = present(boards, "the board's installation").id;
@@ -945,7 +947,8 @@ test("serve a space whose installation fails to start", async () => {
     // wait until the installation reads the failure and its pass ends
     const read = async () =>
         present(
-            await Snapshot.live(started.database)
+            await started.database
+                .snapshot()
                 .read(installation.table)
                 .findFirst({ where: { scope: space, packageId: released.id } }),
             "the regional installation",
