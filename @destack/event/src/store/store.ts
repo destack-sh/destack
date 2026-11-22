@@ -155,15 +155,15 @@ export class EventStore {
         const expiry: Controller<typeof eventSegment> = {
             name: "event-expiry",
             table: eventSegment,
-            pending: { expiresAt: { lte: now } },
-            key: ["scope"],
+            when: { expiresAt: { lte: now } },
+            by: ["scope"],
             reconcile: async (rows) => archive.expire(rows, clock.now()),
         };
         const deletion: Controller<typeof segmentDeletion> = {
             name: "event-deletion",
             table: segmentDeletion,
-            pending: { deleteAt: { lte: now } },
-            key: ["scope"],
+            when: { deleteAt: { lte: now } },
+            by: ["scope"],
             reconcile: async (rows) =>
                 archive.delete(
                     nth(rows, 0).scope,
@@ -175,7 +175,7 @@ export class EventStore {
             ...[...this.#kinds.values()].map((kind): Controller => ({
                 name: `event-flush:${kind.key}`,
                 table: kind.table,
-                pending: {
+                when: {
                     time: {
                         lte: now.microseconds().minus({
                             milliseconds: Math.max(
@@ -185,7 +185,7 @@ export class EventStore {
                         }),
                     },
                 },
-                key: ["scope"],
+                by: ["scope"],
                 reconcile: async (rows) => {
                     // read the scope and the time
                     const scope = schema.string().parse(nth(rows, 0)["scope"]);
