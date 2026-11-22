@@ -1319,7 +1319,7 @@ export class ControlLoop {
         const key = ControlLoop.#keyOf(compiled, row);
         this.#notify(controller, key);
 
-        // take a matching row's key now, or a waiting row's key at its due time, as its pass reads it again
+        // take a matching row's key, or wake at a waiting row's due time
         if (this.#matches(compiled, compiled.when, row, at)) {
             this.#enqueue(controller, key, at, change);
         } else if (
@@ -1328,7 +1328,7 @@ export class ControlLoop {
         ) {
             const due = ControlLoop.#dueOf(compiled, row);
             if (due !== undefined) {
-                this.#enqueue(controller, key, due, change);
+                this.#wakeAt(controller, due);
             }
         }
     }
