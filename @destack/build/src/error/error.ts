@@ -51,7 +51,6 @@ export const BuildError = defineErrorFamily({
         BUILD_CANCELLED: {},
 
         // broken
-        CHECKOUT_BROKEN: {},
         COMPILER_BROKEN: {},
         INVARIANT_BROKEN: {},
     },

@@ -15,7 +15,6 @@ import { type BuildReader, BuildImage, PackageManifest } from "@destack/package/
 import { PackageLocator } from "@destack/package/locator";
 import { PRIMARY_RUNTIMES } from "@destack/package/runtime";
 import { Digest, found, nth, present, Version } from "@destack/schema";
-import { Checkout } from "../cache/index.ts";
 import { NpmInstallation, type NpmUnit } from "./npm.ts";
 import { outputsOf, type PackageBuildOptions } from "../build/build.ts";
 import type { Compiler } from "../build/compiler.ts";
@@ -32,6 +31,10 @@ import type { LocalBuildStore } from "../store/local.ts";
 import type { DependencyBuild } from "./tree.ts";
 import type {} from "@destack/package/import-meta";
 import { TelemetryScope } from "@destack/telemetry";
+import { Checkout } from "@destack/check/workspace";
+
+/** The files no build reads: test modules, the tests folder and recipes. */
+const UNREAD_FILES = [/(?:^|\/)[^/]*\.test\.[^/]+$/u, /^tests\//u, /(?:^|\/)justfile$/u];
 
 /** A Destack package of a workspace, built as one unit on its dependencies' builds. */
 interface WorkspaceUnit {
@@ -880,7 +883,7 @@ export class WorkspacePackage {
         isUnreleased: boolean,
     ): Promise<CacheOutcome> {
         // key the unit by its sources as they read now
-        const sources = await this.workspace.checkout.identify(unit.directory);
+        const sources = await this.workspace.checkout.identify(unit.directory, UNREAD_FILES);
         const key = await this.#key(unit, options, sources, isUnreleased);
 
         // build it once when missing
@@ -899,7 +902,7 @@ export class WorkspacePackage {
                 this.#store.environment,
                 "directory",
             );
-            if ((await listed.identify(unit.directory)) !== sources) {
+            if ((await listed.identify(unit.directory, UNREAD_FILES)) !== sources) {
                 throw BuildError.of(
                     "SOURCE_CONFLICT",
                     `cannot build '${unit.name}': it changed while it built`,

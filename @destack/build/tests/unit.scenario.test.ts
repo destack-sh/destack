@@ -401,7 +401,7 @@ test("trace a workspace's unit builds: compile each unit on a miss, take each fr
     const counts = Object.fromEntries(
         Object.entries(await simulation.telemetry.counts()).filter(
             ([key]) =>
-                /^destack\.(build|compiler|workspace|checkout)\./u.test(key) &&
+                /^destack\.(build|compiler|workspace)\./u.test(key) &&
                 !key.endsWith(".seconds"),
         ),
     );
@@ -410,8 +410,6 @@ test("trace a workspace's unit builds: compile each unit on a miss, take each fr
     expect({ spans, counts }).toEqual({
         spans: {
             "destack.build.move": 2,
-            "destack.checkout.identify": 6,
-            "destack.checkout.list": 4,
             "destack.compiler.build": 2,
             "destack.compiler.compile": 2,
             "destack.compiler.evaluate": 2,
@@ -423,8 +421,6 @@ test("trace a workspace's unit builds: compile each unit on a miss, take each fr
         },
         counts: {
             "destack.build.move.duration.count": 2,
-            "destack.checkout.identify.duration.count": 6,
-            "destack.checkout.list.duration.count": 4,
             "destack.compiler.build.duration.count": 2,
             "destack.compiler.compile.duration.count": 2,
             "destack.compiler.count": 2,
