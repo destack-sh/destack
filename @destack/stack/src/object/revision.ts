@@ -4,7 +4,7 @@ import { type DatabaseConnection, eq, Snapshot, type Select } from "@destack/db"
 import { defineObject, field, type ObjectOf } from "@destack/object";
 import { PackageId, PackageBuild } from "@destack/package";
 import { type BuildReader } from "@destack/package/manifest";
-import { Digest, type DigestCrypto, Identifier, schema, type Uuid } from "@destack/schema";
+import { Digest, type DigestCrypto, Identifier, schema, type Uuid, Version } from "@destack/schema";
 import { build, Build } from "./build.ts";
 import { space } from "@destack/account/object";
 import { StackEvaluation } from "./stack.ts";
@@ -38,6 +38,10 @@ export const installationRevision = defineObject(
             dependencies: field.json(schema.array(PackageBuild)),
             /** The state each declaration requires, such as main's tables, by name. */
             states: field.blobMap(),
+            /** The release of the build's package, which the next upgrade plans from. */
+            release: field.string(Version),
+            /** The build's declarations as a blob, which the next upgrade compares against. */
+            declarations: field.blob(),
             /** The evaluated stack definition, for stacks. */
             definition: field.json(StackDefinition).optional(),
             /** The targets its package's declarations run with, by package and declaration name. */
@@ -67,6 +71,8 @@ export const installationRevision = defineObject(
                 "buildId",
                 "dependencies",
                 "states",
+                "release",
+                "declarations",
                 "definition",
                 "bindings",
                 "generation",
@@ -82,6 +88,12 @@ export const installationRevision = defineObject(
 
 /** An immutable evaluation applied to an installation. */
 export type InstallationRevision = Select<typeof installationRevision.table>;
+
+/** What a revision records of its build: dependencies, states, release and declarations. */
+export type RevisionDescription = Pick<
+    InstallationRevision,
+    "dependencies" | "states" | "release" | "declarations"
+>;
 
 /** The revisions of an installation: one per distinct build and stack evaluation. */
 export const InstallationRevision = {
