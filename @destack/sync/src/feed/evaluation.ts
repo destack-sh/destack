@@ -22,7 +22,7 @@ import { View } from "../dataflow/view.ts";
 import { type Affected, ALL_ROWS, type Audience, NO_ROWS, Watch } from "./audience.ts";
 import type { Feed } from "./feed.ts";
 
-/** The recent sequences whose decided pages an evaluation stores. */
+/** The recent advances an evaluation stores for the streams that share it. */
 const DECIDED_RECENT = 4;
 
 /** The timer of a deadline the waiting streams of an evaluation share. */
@@ -47,10 +47,16 @@ export class Evaluation {
     readonly #audience: Audience;
     /** The images of the rows the subscriber holds, by which pages leave out unchanged rows. */
     readonly #record = new ViewRecord();
-    /** The decided pages after each recent sequence. */
-    readonly #decided: Map<number, Promise<Advance>>;
-    /** The sequences with final decisions and their expiry. */
-    readonly #idle: Map<number, number | undefined>;
+    /** The recent advances in the order decided, each a stream takes once. */
+    #advances: {
+        readonly index: number;
+        readonly from: number;
+        readonly advance: Promise<Advance>;
+    }[];
+    /** The last advance that went no further, while it stands: its order, sequence and expiry. */
+    #idle: Pick<Advance, "index" | "from" | "until"> | undefined;
+    /** The order of the last advance decided. */
+    #index = 0;
     /** Each query's dataflow, by name. */
     readonly #dataflows: Map<string, Dataflow>;
     /** The rows any query's dataflow has, which the subscriber has, by key. */
@@ -65,8 +71,8 @@ export class Evaluation {
     /** Compile queries for an audience over a feed. */
     constructor(feed: Feed, queries: Readonly<Record<string, Query>>, audience: Audience) {
         // start with empty state
-        this.#decided = new Map<number, Promise<Advance>>();
-        this.#idle = new Map<number, number | undefined>();
+        this.#advances = [];
+        this.#idle = undefined;
         this.#present = new Set<string>();
 
         // compile each query
@@ -143,41 +149,60 @@ export class Evaluation {
         );
     }
 
-    /** Decide the pages after the current position, absent for another position. */
-    after(position: LogPosition): Promise<Advance> | undefined {
-        // reuse the decided pages unless stale
+    /** Take the advance after a stream's last one from its position, absent elsewhere. */
+    async next(index: number, position: LogPosition): Promise<Advance | undefined> {
+        // take the first advance from the position the stream has not taken
         const sequence = position.sequence;
-        const known = this.#decided.get(sequence);
-        const until = this.#idle.get(sequence);
-        const isStale =
-            this.#idle.has(sequence) &&
-            (this.#feed.sequence > sequence ||
-                (until !== undefined && until <= this.#feed.clock.now()));
-        if (known !== undefined && !isStale) {
-            return known;
-        } else if (this.position === undefined || !LogPosition.same(this.position, position)) {
+        const known = this.#advances.find((each) => each.index > index && each.from === sequence);
+        if (known !== undefined) {
+            return await known.advance;
+        }
+
+        // decide only at the evaluation's own position
+        if (this.position === undefined || !LogPosition.same(this.position, position)) {
             return undefined;
         }
 
-        // decide the pages and store a few recent ones
-        const decided = this.#pagesAfter(position);
-        this.#decided.set(sequence, decided);
-        this.#idle.delete(sequence);
-        for (const old of [...this.#decided.keys()].slice(0, -DECIDED_RECENT)) {
-            this.#decided.delete(old);
-            this.#idle.delete(old);
+        // answer nothing to the stream holding the last advance while it stands: no commit since, unexpired
+        const idle = this.#idle;
+        const now = this.#feed.clock.now();
+        if (
+            idle?.index === index &&
+            idle.from === sequence &&
+            this.#feed.sequence === sequence &&
+            (idle.until === undefined || idle.until > now)
+        ) {
+            return { index, from: sequence, pages: [], sequence, until: idle.until };
         }
-        decided.then(
-            (result) => {
-                // note decisions that went no further
-                if (result.sequence === sequence && this.#decided.get(sequence) === decided) {
-                    this.#idle.set(sequence, result.until);
+
+        return await this.#decide(position);
+    }
+
+    /** Decide the next advance from a position, keeping a few recent ones for sharing streams. */
+    #decide(position: LogPosition): Promise<Advance> {
+        // decide the pages in order
+        this.#index += 1;
+        const decided = {
+            index: this.#index,
+            from: position.sequence,
+            advance: this.#pagesAfter(position, this.#index),
+        };
+        this.#advances = [...this.#advances, decided].slice(-DECIDED_RECENT);
+        this.#idle = undefined;
+
+        // note the last advance once it went no further, and forget a failed one
+        decided.advance.then(
+            (advance) => {
+                if (advance.sequence === advance.from && this.#advances.at(-1) === decided) {
+                    this.#idle = advance;
                 }
             },
-            () => this.#decided.delete(sequence),
+            () => {
+                this.#advances = this.#advances.filter((each) => each !== decided);
+            },
         );
 
-        return decided;
+        return decided.advance;
     }
 
     /** Wait until the feed passes a change in some scopes, the decisions expire, or aborts. */
@@ -283,8 +308,8 @@ export class Evaluation {
         for (const [name, dataflow] of [...kept, ...added]) {
             this.#dataflows.set(name, dataflow);
         }
-        this.#decided.clear();
-        this.#idle.clear();
+        this.#advances = [];
+        this.#idle = undefined;
 
         // send what entered and left the union at the position
         const patch = this.#union([released, ...patches], "snapshot");
@@ -709,7 +734,7 @@ export class Evaluation {
     }
 
     /** Decide the pages after the current position, and a refresh once decisions expire. */
-    async #pagesAfter(position: LogPosition): Promise<Advance> {
+    async #pagesAfter(position: LogPosition, index: number): Promise<Advance> {
         // decide what follows
         const pages: Page[] = [];
         const advancing = await this.advance(position, true, new AbortController().signal);
@@ -734,7 +759,13 @@ export class Evaluation {
             pages[pages.length - 1] = { ...last, position: { ...last.position, sequence } };
         }
 
-        return { pages, sequence, until: await this.#audience.until() };
+        return {
+            index,
+            from: position.sequence,
+            pages,
+            sequence,
+            until: await this.#audience.until(),
+        };
     }
 
     /** Join the rows some changes affect beyond themselves. */
@@ -802,8 +833,12 @@ export class Evaluation {
     }
 }
 
-/** The pages decided after a sequence. */
+/** The pages decided after a sequence, in the order an evaluation decides them. */
 export interface Advance {
+    /** Its order among the evaluation's advances. */
+    readonly index: number;
+    /** The sequence it follows. */
+    readonly from: number;
     /** The pages, complete at their positions. */
     readonly pages: readonly Page[];
     /** The sequence the pages arrive at. */

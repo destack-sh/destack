@@ -35,6 +35,8 @@ export class Stream {
     readonly #every: number | undefined;
     /** Wakes the stream's wait once a subscriber moves it to other queries or beats it. */
     #waking = new AbortController();
+    /** The last advance the stream took, with the evaluation that decided it. */
+    #taken: { readonly evaluation: Evaluation; readonly index: number } | undefined;
     /** The feed's beats when the stream last published, a later one making it publish again. */
     #lastBeat: number;
     /** Whether the stream was beaten alone since it last published, making it publish again. */
@@ -283,15 +285,16 @@ export class Stream {
                 published = position.sequence;
             }
 
-            // join the shared evaluation, deciding after the beats so far
+            // join the shared evaluation, taking its advances from the position afresh once it is another
             this.#evaluation = this.#feed.join(this.#evaluation, position);
             const beats = this.#feed.beats;
             const isBeaten = this.#isBeaten;
             this.#isBeaten = false;
-            const decided = this.#evaluation.after(position);
+            const taken = this.#taken?.evaluation === this.#evaluation ? this.#taken.index : 0;
+            const advance = await this.#evaluation.next(taken, position);
 
             // catch up alone once the shared evaluation moved on, keeping a beat for the next decision
-            if (decided === undefined) {
+            if (advance === undefined) {
                 this.#isBeaten ||= isBeaten;
                 this.#alone();
                 await this.#audience.refresh();
@@ -300,7 +303,8 @@ export class Stream {
             }
             // publish the decided pages before waiting or moving on
             else {
-                const { pages, sequence } = await decided;
+                const { pages, sequence, index } = advance;
+                this.#taken = { evaluation: this.#evaluation, index };
                 await this.#feed.scheduler.yield();
                 for (const page of pages) {
                     published = page.position.sequence;
