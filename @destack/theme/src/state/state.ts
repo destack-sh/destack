@@ -5,6 +5,9 @@ import { color, stroke, swatch, weight } from "../token/tokens.stylex.ts";
 /** The scale of a pressed control: subtle, between 0.95 and 0.98. */
 const PRESS_SCALE = "scale(0.97)";
 
+/** The states that disable a control: native, or by ARIA on links and other elements. */
+const DISABLED = ":is(:disabled, [aria-disabled=true])";
+
 /** The states every component shows the same way, after shadcn/ui. */
 export const state = style.create({
     /** The ring around a control the keyboard focuses. */
@@ -25,11 +28,11 @@ export const state = style.create({
     press: {
         transform: { default: null, ":active": PRESS_SCALE },
     },
-    /** A native control while it is disabled. */
+    /** A control while it is disabled, natively or by ARIA as a link is. */
     disabled: {
-        opacity: { default: null, ":disabled": 0.5 },
-        cursor: { default: null, ":disabled": "not-allowed" },
-        pointerEvents: { default: null, ":disabled": "none" },
+        opacity: { default: null, [DISABLED]: 0.5 },
+        cursor: { default: null, [DISABLED]: "not-allowed" },
+        pointerEvents: { default: null, [DISABLED]: "none" },
     },
     /** An element that takes no input, where no native state says so. */
     inert: {
@@ -48,7 +51,7 @@ export const state = style.create({
             ":hover": { default: null, [media.hover]: color.hover },
         },
     },
-    /** An item that is highlighted, open or selected among others. */
+    /** An item highlighted, open or selected among others, or today beside a chosen date. */
     selected: {
         backgroundColor: color.selected,
     },
@@ -61,7 +64,7 @@ export const state = style.create({
     target: {
         backgroundColor: swatch.accentTint,
     },
-    /** A control that is checked, a chosen date, or today. */
+    /** A control that is checked, a chosen date, or today where no date is chosen. */
     checked: {
         backgroundColor: swatch.accentSolid,
         color: swatch.accentLabel,
