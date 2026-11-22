@@ -108,7 +108,7 @@ test("start as the viewer left the sidebar, remembering each change", () => {
     expect([started, tab.storage.getItem("destack-sidebar-open")]).toEqual(["collapsed", "true"]);
 });
 
-test("name a menu button in a tooltip only while the sidebar shows its icons", () => {
+test("label a menu button with a tooltip only while the sidebar shows its icons", () => {
     stubPopovers();
     const container = drawPage([]);
     const link = container.querySelector<HTMLElement>("a[data-slot=sidebar-menu-button]");

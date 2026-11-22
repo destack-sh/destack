@@ -1,4 +1,6 @@
+import { state } from "@destack/theme/state";
 import type { Environment } from "@destack/environment";
+import { schema } from "@destack/schema";
 import { TelemetryScope } from "@destack/telemetry";
 import { Icon } from "@destack/ui/icon";
 import { t } from "@destack/locale";
@@ -8,7 +10,6 @@ import {
     color,
     motion,
     radius,
-    shadow,
     size,
     space,
     stroke,
@@ -26,17 +27,19 @@ import {
     merge,
     omit,
     onSettled,
+    type Setter,
     Show,
     useContext,
     useEnvironment,
     useLocale,
 } from "@destack/view";
 import { StoredItem } from "@destack/view/primitives/storage";
-import { Hover } from "../interaction/index.ts";
+import { Hover, Move } from "../interaction/index.ts";
 import {
     type ElementPartProperties,
     type PartAttributes,
     type PartEvent,
+    mergeProperties,
     type Render,
     useRender,
     renderPart,
@@ -57,6 +60,18 @@ const FNV_PRIME = 16_777_619;
 /** The key the open state is remembered under in the viewer's local storage. */
 const STORAGE_KEY = "destack-sidebar-open";
 
+/** The key the dragged width is remembered under in the viewer's local storage. */
+const WIDTH_KEY = "destack-sidebar-width";
+
+/** A width the viewer left the sidebar at, in pixels. */
+const StoredWidth = schema.number().positive();
+
+/** The narrowest a dragged sidebar gets in pixels, 13rem, which keeps a project's name readable. */
+const MIN_WIDTH = 208;
+
+/** The widest a dragged sidebar gets in pixels, 25rem, which leaves the page most of the screen. */
+const MAX_WIDTH = 400;
+
 /** The viewports narrower than 768 pixels, where the sidebar opens as a sheet. */
 const MOBILE_QUERY = "(max-width: 47.999rem)";
 
@@ -70,11 +85,14 @@ const DEFAULTS: Required<Pick<SidebarProperties, "side" | "variant" | "collapsib
 /** The sidebar state of the nearest provider, null outside one. */
 const SidebarContext = createContext<SidebarControl | null>(null);
 
+/** The height of the app: its host's size container, else the small viewport. */
+const VIEWPORT_HEIGHT = "100cqh";
+
 /** The styles of a sidebar and its elements. */
 const styles = style.create({
     wrapper: {
         display: "flex",
-        minHeight: "100vh",
+        minHeight: VIEWPORT_HEIGHT,
         width: "100%",
     },
     sidebar: {
@@ -83,10 +101,10 @@ const styles = style.create({
         display: "flex",
         flexDirection: "column",
         flexShrink: 0,
-        height: "100vh",
+        height: VIEWPORT_HEIGHT,
         overflow: "hidden",
         backgroundColor: color.card,
-        color: color.cardForeground,
+        color: color.foreground,
         transitionProperty: "width",
         transitionDuration: motion.durationMedium,
         transitionTimingFunction: motion.easingStandard,
@@ -103,12 +121,11 @@ const styles = style.create({
         borderLeftColor: color.border,
     },
     floating: {
-        height: `calc(100vh - 2 * ${space[2]})`,
+        height: `calc(${VIEWPORT_HEIGHT} - 2 * ${space[2]})`,
         margin: space[2],
         borderWidth: stroke.border,
         borderColor: color.border,
         borderRadius: radius[4],
-        boxShadow: shadow.raised,
     },
     inner: {
         display: "flex",
@@ -117,6 +134,8 @@ const styles = style.create({
         height: "100%",
     },
     expanded: { width: width.sidebar },
+    sized: (pixels: number) => ({ width: `${String(pixels)}px` }),
+    resizing: { transitionDuration: "0s" },
     offcanvas: { width: 0, borderWidth: 0 },
     icon: { width: width.sidebarIcon },
     sheet: { width: width.sidebar, padding: 0 },
@@ -124,8 +143,19 @@ const styles = style.create({
         position: "absolute",
         top: 0,
         bottom: 0,
+        zIndex: 1,
         width: space[4],
+        right: { default: 0, [style.when.ancestor('[data-side="right"]')]: "auto" },
+        left: { default: "auto", [style.when.ancestor('[data-side="right"]')]: 0 },
         cursor: "ew-resize",
+        borderStyle: "solid",
+        borderColor: {
+            default: "transparent",
+            ":hover": { default: null, [media.hover]: color.border },
+        },
+        borderWidth: 0,
+        borderRightWidth: { default: stroke.ring, [style.when.ancestor('[data-side="right"]')]: 0 },
+        borderLeftWidth: { default: 0, [style.when.ancestor('[data-side="right"]')]: stroke.ring },
     },
     inset: {
         display: "flex",
@@ -185,25 +215,10 @@ const styles = style.create({
         overflow: "hidden",
         paddingInline: space[2],
         borderRadius: radius[3],
-        backgroundColor: {
-            default: "transparent",
-            ":hover": { default: null, [media.hover]: color.accent },
-        },
-        color: {
-            default: "inherit",
-            ":hover": { default: null, [media.hover]: color.accentForeground },
-        },
+        color: "inherit",
         textAlign: "start",
         whiteSpace: "nowrap",
         cursor: "pointer",
-        outlineStyle: { default: "none", ":focus-visible": "solid" },
-        outlineWidth: stroke.ring,
-        outlineColor: `color-mix(in oklab, ${color.ring} 50%, transparent)`,
-    },
-    active: {
-        backgroundColor: color.accent,
-        color: color.accentForeground,
-        fontWeight: weight.medium,
     },
     menuAction: { position: "absolute", top: space[1], right: space[1] },
     menuBadge: {
@@ -286,6 +301,16 @@ export class SidebarControl {
     readonly #environment: Environment<"display">;
     /** The open state the viewer left the sidebar in. */
     readonly #stored: StoredItem;
+    /** The width the viewer dragged the sidebar to in pixels, the theme's while never dragged. */
+    readonly width: Accessor<number | undefined>;
+    /** Whether the sidebar follows a drag of its rail, its width transition off meanwhile. */
+    readonly isResizing: Accessor<boolean>;
+    /** Replace the dragged width. */
+    readonly #setWidth: Setter<number | undefined>;
+    /** Replace whether the sidebar follows a drag. */
+    readonly #setResizing: Setter<boolean>;
+    /** The width the viewer left the sidebar at. */
+    readonly #storedWidth: StoredItem;
 
     /** Create the state of a sidebar. */
     constructor(properties: SidebarProviderProperties) {
@@ -297,6 +322,10 @@ export class SidebarControl {
         });
         const [isMobileOpen, setMobileOpen] = createSignal(false);
         const [isMobile, setMobile] = createSignal(false);
+        const [sidebarWidth, setWidth] = createSignal<number | undefined>(undefined, {
+            ownedWrite: true,
+        });
+        const [isResizing, setResizing] = createSignal(false, { ownedWrite: true });
 
         // keep the state
         this.id = createUniqueId();
@@ -311,14 +340,23 @@ export class SidebarControl {
         const telemetry = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
         this.#environment = environment;
         this.#stored = new StoredItem(STORAGE_KEY, environment, telemetry);
+        this.width = sidebarWidth;
+        this.isResizing = isResizing;
+        this.#setWidth = setWidth;
+        this.#setResizing = setResizing;
+        this.#storedWidth = new StoredItem(WIDTH_KEY, environment, telemetry);
     }
 
     /** Take the state the viewer left the sidebar in, and follow the viewport's width. */
     follow(): () => void {
-        // start as the viewer left it
+        // start as the viewer left it, at the width they dragged it to
         const stored = this.#stored.read();
         if (stored !== undefined) {
             this.#setOpen(stored === "true");
+        }
+        const storedWidth = this.#storedWidth.read();
+        if (storedWidth !== undefined) {
+            this.#setWidth(this.#clamp(StoredWidth.parse(Number(storedWidth))));
         }
 
         // follow the viewport's width
@@ -342,6 +380,42 @@ export class SidebarControl {
         this.#setMobileOpen(isOpen);
     }
 
+    /** Follow a drag to a width in pixels, collapsing below half the narrowest. */
+    resize(pixels: number): void {
+        // collapse a sidebar dragged well past its narrowest, as Linear's does
+        if (pixels < this.#minimum() / 2) {
+            if (this.isOpen()) {
+                this.setOpen(false);
+            }
+        }
+        // open a collapsed sidebar dragged back out, at a width within its limits
+        else {
+            if (!this.isOpen()) {
+                this.setOpen(true);
+            }
+            this.#setWidth(this.#clamp(pixels));
+        }
+    }
+
+    /** Start or end following a drag, remembering the width it ends at. */
+    setResizing(isResizing: boolean): void {
+        this.#setResizing(isResizing);
+        const dragged = this.width();
+        if (!isResizing && dragged !== undefined) {
+            this.#storedWidth.write(String(dragged));
+        }
+    }
+
+    /** Keep a width within the sidebar's limits. */
+    #clamp(pixels: number): number {
+        return Math.min(Math.max(pixels, this.#minimum()), this.#properties.maxWidth ?? MAX_WIDTH);
+    }
+
+    /** Read the narrowest the sidebar gets. */
+    #minimum(): number {
+        return this.#properties.minWidth ?? MIN_WIDTH;
+    }
+
     /** Toggle the sheet on narrow screens and the sidebar on wide ones. */
     toggle(): void {
         if (this.isMobile()) {
@@ -363,6 +437,10 @@ export interface SidebarProviderProperties extends Omit<
     readonly defaultOpen?: boolean;
     /** Handle the sidebar opening or closing on wide screens. */
     readonly onOpenChange?: (open: boolean) => void;
+    /** The narrowest a dragged sidebar gets in pixels, 208 by default. */
+    readonly minWidth?: number;
+    /** The widest a dragged sidebar gets in pixels, 400 by default. */
+    readonly maxWidth?: number;
     /** The StyleX styles applied after the wrapper's styles. */
     readonly xstyle?: style.Styles;
 }
@@ -426,7 +504,16 @@ export function useSidebar(): SidebarControl {
 export function SidebarProvider(properties: SidebarProviderProperties): JSX.Element {
     // share one state with the sidebar
     const control = new SidebarControl(properties);
-    const rest = omit(properties, "open", "defaultOpen", "onOpenChange", "xstyle", "style");
+    const rest = omit(
+        properties,
+        "open",
+        "defaultOpen",
+        "onOpenChange",
+        "minWidth",
+        "maxWidth",
+        "xstyle",
+        "style",
+    );
 
     // follow the browser once mounted, and toggle the sidebar from the keyboard
     onSettled(() => {
@@ -466,10 +553,15 @@ export function Sidebar(properties: SidebarProperties): JSX.Element {
     const locale = useLocale();
     const sidebar = merge(DEFAULTS, properties);
     const rest = omit(sidebar, "side", "variant", "collapsible", "xstyle", "style", "children");
-    const state = (): "expanded" | "collapsed" => (control.isOpen() ? "expanded" : "collapsed");
+    const expansion = (): "expanded" | "collapsed" => (control.isOpen() ? "expanded" : "collapsed");
+    const dragged = () => {
+        const pixels = control.width();
+
+        return pixels === undefined ? styles.expanded : styles.sized(pixels);
+    };
     const sizing = () =>
         control.isOpen() || sidebar.collapsible === "none"
-            ? styles.expanded
+            ? dragged()
             : styles[sidebar.collapsible === "icon" ? "icon" : "offcanvas"];
 
     return (
@@ -497,26 +589,27 @@ export function Sidebar(properties: SidebarProperties): JSX.Element {
             <div
                 id={control.id}
                 data-slot="sidebar"
-                data-state={state()}
-                data-collapsible={state() === "collapsed" ? sidebar.collapsible : undefined}
+                data-state={expansion()}
+                data-collapsible={expansion() === "collapsed" ? sidebar.collapsible : undefined}
                 data-variant={sidebar.variant}
                 data-side={sidebar.side}
-                inert={state() === "collapsed" && sidebar.collapsible === "offcanvas"}
+                inert={expansion() === "collapsed" && sidebar.collapsible === "offcanvas"}
                 {...rest}
                 {...style.attributes(
                     [
                         style.defaultMarker(),
-                        text.xs,
+                        text.sm,
                         styles.sidebar,
                         styles[sidebar.side],
                         sidebar.variant === "sidebar" ? null : styles.floating,
                         sizing(),
+                        control.isResizing() && styles.resizing,
                         sidebar.xstyle,
                     ],
                     sidebar.style,
                 )}
             >
-                <div {...style.attrs(styles.inner)}>{sidebar.children}</div>
+                <div {...style.attrs(styles.inner, dragged())}>{sidebar.children}</div>
             </div>
         </Show>
     );
@@ -530,7 +623,7 @@ export function SidebarTrigger(properties: Omit<ButtonProperties, "onClick">): J
     return (
         <Button
             variant="ghost"
-            size="icon-sm"
+            size="icon"
             aria-label={locale.render(t`Toggle sidebar`)}
             aria-controls={control.id}
             aria-expanded={
@@ -555,14 +648,59 @@ export function SidebarRail(
     const control = useSidebar();
     const locale = useLocale();
 
-    return renderPart("button", "sidebar-rail", properties, styles.rail, {
-        type: "button",
-        tabindex: -1,
-        get "aria-label"() {
-            return locale.render(t`Toggle sidebar`);
+    // resize the sidebar by the pointer's travel from the width it had, mirrored on the right
+    let start = 0;
+    let sign = 1;
+    let isDragged = false;
+    const move = new Move(
+        {
+            onMoveStart: (event) => {
+                // start from the sidebar's width, on the side it sits
+                const sidebar = event.target.closest<HTMLElement>("[data-slot=sidebar]");
+                if (sidebar === null) {
+                    throw new TypeError("sidebar rail is invalid: it renders outside a sidebar");
+                }
+                start = sidebar.getBoundingClientRect().width;
+                sign = sidebar.dataset["side"] === "right" ? -1 : 1;
+                isDragged = true;
+                control.setResizing(true);
+            },
+            onMove: (event) => control.resize(start + sign * event.offsetX),
+            onMoveEnd: () => control.setResizing(false),
         },
-        onClick: () => control.toggle(),
-    });
+        useEnvironment().clock,
+    );
+
+    // toggle on a plain click, leaving the click that ends a drag alone, each press starting undragged
+    const press = {
+        onPointerDown: () => {
+            isDragged = false;
+        },
+        onClick: () => {
+            if (isDragged) {
+                isDragged = false;
+            } else {
+                control.toggle();
+            }
+        },
+    };
+
+    return renderPart(
+        "button",
+        "sidebar-rail",
+        properties,
+        styles.rail,
+        mergeProperties(
+            {
+                type: "button" as const,
+                tabindex: -1,
+                get "aria-label"() {
+                    return locale.render(t`Toggle sidebar`);
+                },
+            },
+            mergeProperties(move.attributes(), press),
+        ),
+    );
 }
 
 /** Render the main content beside the sidebar. */
@@ -586,7 +724,7 @@ export function SidebarFooter(
     return renderPart("div", "sidebar-footer", properties, styles.footer);
 }
 
-/** Render the scrolling middle of the sidebar that holds its groups. */
+/** Render the scrolling middle of the sidebar with its groups. */
 export function SidebarContent(
     properties: SidebarElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
@@ -640,7 +778,7 @@ export function SidebarGroupAction(properties: ButtonProperties): JSX.Element {
     return (
         <Button
             variant="ghost"
-            size="icon-xs"
+            size="icon-sm"
             data-slot="sidebar-group-action"
             {...rest}
             xstyle={[styles.groupAction, properties.xstyle]}
@@ -724,9 +862,11 @@ function SidebarMenuButtonElement(
         () =>
             style.attributes(
                 [
+                    state.focus,
+                    state.hover,
                     styles.menuButton,
                     sizes[properties.size ?? "default"],
-                    properties.active === true && styles.active,
+                    properties.active === true && state.current,
                     properties.xstyle,
                 ],
                 properties.style,
@@ -778,7 +918,7 @@ export function SidebarMenuAction(properties: ButtonProperties): JSX.Element {
     return (
         <Button
             variant="ghost"
-            size="icon-xs"
+            size="icon-sm"
             data-slot="sidebar-menu-action"
             {...rest}
             xstyle={[styles.menuAction, properties.xstyle]}
@@ -823,9 +963,11 @@ export function SidebarMenuSubButton(properties: SidebarMenuSubButtonProperties)
         () =>
             style.attributes(
                 [
+                    state.focus,
+                    state.hover,
                     styles.menuButton,
                     sizes.sm,
-                    properties.active === true && styles.active,
+                    properties.active === true && state.current,
                     properties.xstyle,
                 ],
                 properties.style,

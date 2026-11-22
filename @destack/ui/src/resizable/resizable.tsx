@@ -1,3 +1,5 @@
+import { state } from "@destack/theme/state";
+import type { Axis } from "../position/index.ts";
 import { schema } from "@destack/schema";
 import { TelemetryScope } from "@destack/telemetry";
 import { StoredItem } from "@destack/view/primitives/storage";
@@ -19,6 +21,7 @@ import {
     useEnvironment,
     useLocale,
 } from "@destack/view";
+import { createElementSize } from "@destack/view/primitives/resize-observer";
 import { Move } from "../interaction/index.ts";
 import { mergeProperties } from "../part/index.ts";
 
@@ -61,9 +64,6 @@ const styles = style.create({
         justifyContent: "center",
         flexShrink: 0,
         backgroundColor: color.border,
-        outlineStyle: { default: "none", ":focus-visible": "solid" },
-        outlineWidth: stroke.ring,
-        outlineColor: `color-mix(in oklab, ${color.ring} 50%, transparent)`,
     },
     grip: {
         zIndex: 1,
@@ -92,7 +92,10 @@ const grips = style.create({
     vertical: { width: size[1], height: space[2] },
 });
 
-/** A panel of a group, with its share of the group and its limits in percent. */
+/** A size in a group: a share in percent, or a length in pixels such as `"320px"`. */
+export type ResizableSize = number | `${number}px`;
+
+/** A panel of a group, with its share of the group in percent and its limits. */
 export interface ResizablePanelState {
     /** The id of the panel element. */
     readonly id: string;
@@ -100,20 +103,20 @@ export interface ResizablePanelState {
     readonly size: Accessor<number | undefined>;
     /** Set the panel's share. */
     readonly resize: Setter<number | undefined>;
-    /** The smallest share. */
-    readonly minimum: number;
-    /** The largest share. */
-    readonly maximum: number;
+    /** The smallest size. */
+    readonly minimum: ResizableSize;
+    /** The largest size. */
+    readonly maximum: ResizableSize;
     /** Whether a drag below half the smallest share collapses the panel. */
     readonly collapsible: boolean;
-    /** The share of the collapsed panel. */
-    readonly collapsedSize: number;
+    /** The size of the collapsed panel. */
+    readonly collapsedSize: ResizableSize;
 }
 
 /** The panels of a resizable group in order and the shares a handle moves between neighbours. */
 export class ResizableControl {
     /** The direction the panels line up in. */
-    readonly direction: () => "horizontal" | "vertical";
+    readonly direction: () => Axis;
     /** The panels in document order. */
     readonly panels: Accessor<readonly ResizablePanelState[]>;
     /** The properties of the group, read for its handlers and saved layout. */
@@ -124,14 +127,15 @@ export class ResizableControl {
     readonly #telemetry: TelemetryScope;
     /** Replace the panels. */
     readonly #setPanels: Setter<readonly ResizablePanelState[]>;
+    /** Replace the group element. */
+    readonly #setElement: Setter<HTMLElement | undefined>;
+    /** The group element's measured size. */
+    readonly #size: { readonly width: number | null; readonly height: number | null };
     /** The number of handles joined so far, which numbers the next handle. */
     #handles: number;
 
     /** Create a group without panels, restoring the layout it saved under its id. */
-    constructor(
-        direction: () => "horizontal" | "vertical",
-        properties: ResizablePanelGroupProperties,
-    ) {
+    constructor(direction: () => Axis, properties: ResizablePanelGroupProperties) {
         // start without panels or handles on the saved layout
         const [panels, setPanels] = createSignal<readonly ResizablePanelState[]>([], {
             ownedWrite: true,
@@ -151,6 +155,42 @@ export class ResizableControl {
                   );
         this.#setPanels = setPanels;
         this.#handles = 0;
+        const [element, setElement] = createSignal<HTMLElement>();
+        this.#setElement = setElement;
+        this.#size = createElementSize(element);
+    }
+
+    /** Set the group element, which pixel sizes measure against. */
+    setElement(element: HTMLElement): void {
+        this.#setElement(element);
+    }
+
+    /** Report whether a size reads as a share now: a share always, pixels once measured. */
+    isShareable(value: ResizableSize): boolean {
+        return typeof value === "number" || (this.#length() ?? 0) > 0;
+    }
+
+    /** Read a size as a share of the group in percent, pixels by the group's measured length. */
+    share(value: ResizableSize): number {
+        // take a share as it is
+        if (typeof value === "number") {
+            return value;
+        }
+
+        // divide a length by the group's, refusing a group not yet measured
+        const length = this.#length();
+        if (length === null || length === 0) {
+            throw new RangeError(
+                `resizable size '${value}' is invalid: the group is not measured yet`,
+            );
+        }
+
+        return (Number.parseFloat(value) / length) * 100;
+    }
+
+    /** Read the group's length along its direction, null before it is measured. */
+    #length(): number | null {
+        return this.direction() === "horizontal" ? this.#size.width : this.#size.height;
     }
 
     /** Add a panel until it unmounts. */
@@ -210,14 +250,20 @@ export class ResizableControl {
             return;
         }
 
-        // keep both shares within their limits and their sum
+        // clamp both shares to their limits and their sum
         const sizeBefore = this.sizeOf(before);
         const sizeAfter = this.sizeOf(after);
-        const lowest = Math.max(before.minimum - sizeBefore, sizeAfter - after.maximum);
-        const highest = Math.min(before.maximum - sizeBefore, sizeAfter - after.minimum);
+        const limits = (panel: ResizablePanelState) => ({
+            minimum: this.share(panel.minimum),
+            maximum: this.share(panel.maximum),
+            collapsed: this.share(panel.collapsedSize),
+        });
+        const [first, second] = [limits(before), limits(after)];
+        const lowest = Math.max(first.minimum - sizeBefore, sizeAfter - second.maximum);
+        const highest = Math.min(first.maximum - sizeBefore, sizeAfter - second.minimum);
         const step =
-            collapseStep(before, sizeBefore, delta) ??
-            collapseStep(after, sizeAfter, -delta, -1) ??
+            collapseStep(before.collapsible, first, sizeBefore, delta) ??
+            collapseStep(after.collapsible, second, sizeAfter, -delta, -1) ??
             Math.min(Math.max(delta, lowest), highest);
         before.resize(sizeBefore + step);
         after.resize(sizeAfter - step);
@@ -242,9 +288,10 @@ export class ResizableControl {
             return;
         }
         const share = this.sizeOf(before);
+        const collapsed = this.share(before.collapsedSize);
         this.move(
             handle,
-            share <= before.collapsedSize ? before.minimum - share : before.collapsedSize - share,
+            share <= collapsed ? this.share(before.minimum) - share : collapsed - share,
         );
     }
 
@@ -254,7 +301,7 @@ export class ResizableControl {
         this.#stored?.write(JSON.stringify(layout));
     }
 
-    /** Read the saved layout, none where storage refuses or keeps something else. */
+    /** Read the saved layout, none where storage refuses or has something else. */
     #load(): readonly number[] {
         // read the saved shares, reporting a garbled layout
         const text = this.#stored?.read();
@@ -270,15 +317,16 @@ export class ResizableControl {
 
 /** The step that collapses a collapsible panel dragged below half its smallest share. */
 function collapseStep(
-    panel: ResizablePanelState,
+    isCollapsible: boolean,
+    limits: { readonly minimum: number; readonly collapsed: number },
     share: number,
     delta: number,
     sign = 1,
 ): number | undefined {
     const isCollapsing =
-        panel.collapsible && share + delta < panel.minimum / 2 && share > panel.collapsedSize;
+        isCollapsible && share + delta < limits.minimum / 2 && share > limits.collapsed;
 
-    return isCollapsing ? sign * (panel.collapsedSize - share) : undefined;
+    return isCollapsing ? sign * (limits.collapsed - share) : undefined;
 }
 
 /** The properties of a panel group, the native element's attributes included. */
@@ -287,7 +335,7 @@ export interface ResizablePanelGroupProperties extends Omit<
     "class"
 > {
     /** The direction the panels line up in, horizontal by default. */
-    readonly direction?: "horizontal" | "vertical";
+    readonly direction?: Axis;
     /** Handle the panels' shares changing, in order. */
     readonly onLayout?: (layout: readonly number[]) => void;
     /** The id the group saves its layout under in the browser, restoring it on the next visit. */
@@ -303,14 +351,14 @@ export interface ResizablePanelProperties extends Omit<
 > {
     /** The panel's share of the group at first in percent, an even part by default. */
     readonly defaultSize?: number;
-    /** The smallest share in percent, 0 by default. */
-    readonly minSize?: number;
-    /** The largest share in percent, 100 by default. */
-    readonly maxSize?: number;
+    /** The smallest size, a share in percent or pixels such as `"320px"`, 0 by default. */
+    readonly minSize?: ResizableSize;
+    /** The largest size, a share in percent or pixels, 100 by default. */
+    readonly maxSize?: ResizableSize;
     /** Whether a drag below half the smallest share or Enter on its handle collapses the panel. */
     readonly collapsible?: boolean;
-    /** The share of the collapsed panel in percent, 0 by default. */
-    readonly collapsedSize?: number;
+    /** The size of the collapsed panel, a share in percent or pixels, 0 by default. */
+    readonly collapsedSize?: ResizableSize;
     /** The StyleX styles applied after the panel's styles. */
     readonly xstyle?: style.Styles;
 }
@@ -352,6 +400,7 @@ export function ResizablePanelGroup(properties: ResizablePanelGroupProperties): 
                 data-slot="resizable-panel-group"
                 data-panel-group-direction={group.direction}
                 {...rest}
+                ref={(element) => control.setElement(element)}
                 {...style.attributes(
                     [styles.group, directions[group.direction], group.xstyle],
                     group.style,
@@ -392,8 +441,8 @@ export function ResizablePanel(properties: ResizablePanelProperties): JSX.Elemen
             id={panel.id}
             data-slot="resizable-panel"
             data-state={
-                panel.collapsible
-                    ? control.sizeOf(panel) <= panel.collapsedSize
+                panel.collapsible && control.isShareable(panel.collapsedSize)
+                    ? control.sizeOf(panel) <= control.share(panel.collapsedSize)
                         ? "collapsed"
                         : "expanded"
                     : undefined
@@ -458,7 +507,7 @@ export function ResizableHandle(properties: ResizableHandleProperties): JSX.Elem
             } else if (panel !== undefined && (event.key === "Home" || event.key === "End")) {
                 event.preventDefault();
                 const limit = event.key === "Home" ? panel.minimum : panel.maximum;
-                control.move(handle, limit - control.sizeOf(panel));
+                control.move(handle, control.share(limit) - control.sizeOf(panel));
             }
         },
     };
@@ -470,13 +519,13 @@ export function ResizableHandle(properties: ResizableHandleProperties): JSX.Elem
             aria-orientation={control.direction() === "horizontal" ? "vertical" : "horizontal"}
             aria-controls={before()?.id}
             aria-valuenow={Math.round(sizeOrZero(control, before()))}
-            aria-valuemin={before()?.minimum ?? 0}
-            aria-valuemax={before()?.maximum ?? 100}
+            aria-valuemin={limitOf(control, before()?.minimum ?? 0)}
+            aria-valuemax={limitOf(control, before()?.maximum ?? 100)}
             data-slot="resizable-handle"
             {...rest}
             {...mergeProperties(move.attributes(), keys)}
             {...style.attributes(
-                [styles.handle, handles[control.direction()], properties.xstyle],
+                [state.focus, styles.handle, handles[control.direction()], properties.xstyle],
                 properties.style,
             )}
         >
@@ -485,6 +534,11 @@ export function ResizableHandle(properties: ResizableHandleProperties): JSX.Elem
             </Show>
         </div>
     );
+}
+
+/** Read a handle's limit as a rounded share, none for pixels before the group is measured. */
+function limitOf(control: ResizableControl, limit: ResizableSize): number | undefined {
+    return control.isShareable(limit) ? Math.round(control.share(limit)) : undefined;
 }
 
 /** Read a panel's share, or zero before the panel mounts. */
