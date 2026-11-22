@@ -54,14 +54,14 @@ export type WorkspaceBuildOptions = Omit<
     PackageBuildOptions,
     "directory" | "dependencies" | "links"
 > & {
-    /** Whether every unit is stamped as a dev build, as Go's pseudo-versions are. */
-    readonly isPrerelease?: boolean;
+    /** Whether every unit builds unreleased source, at its release's dev build version. */
+    readonly isUnreleased?: boolean;
 };
 
 /** What a workspace's units share when stored: cancellation, deadline, versions, stamping. */
 export type WorkspaceUnitOptions = Pick<
     WorkspaceBuildOptions,
-    "signal" | "timeout" | "versions" | "isPrerelease"
+    "signal" | "timeout" | "versions" | "isUnreleased"
 >;
 
 /** The compilers a workspace builds with, and the store they build into. */
@@ -276,7 +276,7 @@ export class Workspace {
         // key the options that shape the build
         const shaping = JSON.stringify({
             versions: shared.versions ?? {},
-            isPrerelease: shared.isPrerelease ?? false,
+            isUnreleased: shared.isUnreleased ?? false,
         });
 
         // start it unless another package started it already
@@ -487,18 +487,18 @@ export class WorkspacePackage {
     /** Build the root on its dependencies' builds with the given outputs, read from the store. */
     async build(request: WorkspaceBuildOptions): Promise<BuildReader> {
         // build the dependencies
-        const { signal, timeout, versions, isPrerelease = false, ...given } = request;
+        const { signal, timeout, versions, isUnreleased = false, ...given } = request;
         const shared = {
             ...(signal === undefined ? {} : { signal }),
             ...(timeout === undefined ? {} : { timeout }),
             ...(versions === undefined ? {} : { versions }),
         };
-        const stored = await this.#storeEach({ ...shared, isPrerelease }, this.#dependencies);
+        const stored = await this.#storeEach({ ...shared, isUnreleased }, this.#dependencies);
 
         // take the root's stored build with the given outputs
         const dependencies = await this.#inputs(this.root, stored);
         const options = await this.#options(this.root, { ...shared, ...given }, dependencies);
-        const manifest = await this.#cachedPut(this.root, options, isPrerelease);
+        const manifest = await this.#cachedPut(this.root, options, isUnreleased);
         await this.#store.rootDirectory(this.root.directory, new Set([manifest]));
 
         return await this.#store.contents(manifest);
@@ -836,9 +836,9 @@ export class WorkspacePackage {
 
         // take its stored build of every output it ships
         const outputs = outputsOf(unit.packageJson);
-        const { isPrerelease = false, ...given } = shared;
+        const { isUnreleased = false, ...given } = shared;
         const options = await this.#options(unit, { ...given, outputs }, dependencies);
-        const manifest = await this.#cachedPut(unit, options, isPrerelease);
+        const manifest = await this.#cachedPut(unit, options, isUnreleased);
         const built = PackageManifest.package(await this.workspace.manifest(manifest));
 
         // root the build as the unit's latest
@@ -851,7 +851,7 @@ export class WorkspacePackage {
     #cachedPut(
         unit: WorkspaceUnit,
         options: PackageBuildOptions,
-        isPrerelease: boolean,
+        isUnreleased: boolean,
     ): Promise<Digest> {
         // build in the unit's span, its duration by how the cache answered
         let cache: CacheOutcome["cache"] | undefined;
@@ -863,7 +863,7 @@ export class WorkspacePackage {
             { "destack.package.name": unit.name },
             async (span) => {
                 // take the build, noting how the cache answered
-                const cached = await this.#takeBuild(unit, options, isPrerelease);
+                const cached = await this.#takeBuild(unit, options, isUnreleased);
                 cache = cached.cache;
                 span.setAttributes(answered());
 
@@ -877,21 +877,18 @@ export class WorkspacePackage {
     async #takeBuild(
         unit: WorkspaceUnit,
         options: PackageBuildOptions,
-        isPrerelease: boolean,
+        isUnreleased: boolean,
     ): Promise<CacheOutcome> {
         // key the unit by its sources as they read now
         const sources = await this.workspace.checkout.identify(unit.directory);
-        const key = await this.#key(unit, options, sources, isPrerelease);
+        const key = await this.#key(unit, options, sources, isUnreleased);
 
         // build it once when missing
         return await this.#store.cachedBuild(key, async () => {
-            // stamp a dev build at its time and key
-            const at = this.#store.environment.clock.now();
-            // lead to the release the build is given for the unit, else the one its package file names
+            // mark unreleased source a dev build of the release it is given, else of its package file's
             const given = WorkspacePackage.#versionsOf(options);
             const release = given[unit.name] ?? unit.packageJson.package.version;
-            const version = Version.dev(release, at, key);
-            const versions = isPrerelease ? { ...given, [unit.name]: version } : given;
+            const versions = isUnreleased ? { ...given, [unit.name]: Version.dev(release) } : given;
             const stamped = { ...options, versions };
 
             // evaluate its declarations and compile it on them, in one request
@@ -1021,7 +1018,7 @@ export class WorkspacePackage {
         unit: WorkspaceUnit,
         options: Omit<PackageBuildOptions, "signal" | "timeout">,
         checkout: Digest,
-        isPrerelease: boolean,
+        isUnreleased: boolean,
     ): Promise<Digest> {
         // read each dependency's interface
         const interfaces = await Promise.all(
@@ -1035,7 +1032,7 @@ export class WorkspacePackage {
             {
                 kind: "unit",
                 ...(await this.#sources(unit, options, checkout)),
-                isPrerelease,
+                isUnreleased,
                 interfaces: Object.fromEntries(interfaces),
             },
             this.#store.environment.crypto,
