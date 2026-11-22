@@ -1,10 +1,25 @@
 import type { TelemetryScope } from "@destack/telemetry";
-import { fill, Parameter, type DriverStatement, type StatementTemplate } from "../sql/index.ts";
-import type { Column, ColumnValue, DriverValue } from "../table/column.ts";
-import type { Table } from "../table/table.ts";
+import {
+    fill,
+    inline,
+    isConstant,
+    Parameter,
+    render,
+    sql,
+    type DriverStatement,
+    type SQL,
+    type SQLWrapper,
+    type StatementTemplate,
+} from "../sql/index.ts";
+import { Column, type ColumnValue, type DriverValue } from "../table/column.ts";
+import { TABLE, type Table } from "../table/table.ts";
+import { Predicate } from "./predicate.ts";
+import type { Comparable } from "./condition.ts";
+import { DatabaseError } from "../error/error.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import type { ColumnCipher } from "../database/cipher.ts";
-import type { Projection } from "./selection.ts";
+import { Projection, type Selection } from "./selection.ts";
+import type { DatabaseConnection } from "../database/connection.ts";
 import { Cache } from "../cache/cache.ts";
 
 /**
@@ -33,6 +48,31 @@ export class PreparedQuery {
         this.template = template;
         this.projection = projection;
         this.slots = slots;
+    }
+
+    /** Prepare a query once for a database's dialect and place, decoded through some fields. */
+    static of(
+        query: SQLWrapper,
+        fields: Selection,
+        slots: readonly (Column | undefined)[],
+        database: DatabaseConnection,
+    ): PreparedQuery {
+        return new PreparedQuery(
+            render(query, database.dialect, database.state),
+            new Projection(fields),
+            slots,
+        );
+    }
+
+    /** Read one run's rows with its literals, decoded through the query's fields. */
+    async rows<Read extends object>(
+        database: DatabaseConnection,
+        literals: readonly ColumnValue[],
+    ): Promise<Read[]> {
+        const { dialect, state } = database;
+        const rows = await database.driver.values(this.bind(literals, dialect, state.cipher));
+
+        return this.projection.decode<Read>(rows, dialect, new Set(), state.cipher);
     }
 
     /** Bind one run's literals to the slots, decoding each from JSON through its column. */
@@ -76,6 +116,8 @@ export class PreparedQuery {
 export class PreparedQueryCache {
     /** The prepared queries by table and shape key. */
     readonly #queries: Cache<PreparedQuery>;
+    /** The text of each fragment binding no value, absent for one binding values. */
+    readonly #fragments = new WeakMap<SQLWrapper, string | undefined>();
     /** A number for each table definition, so a table defined anew prepares its own queries. */
     readonly #tables = new WeakMap<Table, number>();
     /** The number of the next table definition. */
@@ -97,5 +139,61 @@ export class PreparedQueryCache {
         }
 
         return this.#queries.take(`${String(number)} ${shape}`, prepare);
+    }
+
+    /** Read a fragment's text for a shape key once, absent when it binds values. */
+    fragment(fragment: SQLWrapper, dialect: Dialect): string | undefined {
+        // reuse the fragment's text
+        if (this.#fragments.has(fragment)) {
+            return this.#fragments.get(fragment);
+        }
+        const text = isConstant(fragment) ? inline(fragment, dialect) : undefined;
+        this.#fragments.set(fragment, text);
+
+        return text;
+    }
+
+    /** Take a table's prepared query of a predicate's shape, with the literals its slots bind. */
+    matching(
+        table: Table,
+        predicate: Predicate,
+        shape: string,
+        prepare: (where: SQL, slots: readonly (Column | undefined)[]) => PreparedQuery,
+    ): { readonly prepared: PreparedQuery; readonly literals: readonly Comparable[] } {
+        // key the shape, collecting its compared literals in render order
+        const literals: Comparable[] = [];
+        const keyed = `${shape} where ${Predicate.key(predicate, literals)}`;
+        const prepared = this.take(table, keyed, () => {
+            // stand a placeholder in for each literal, noting the column encoding it
+            const slots: (Column | undefined)[] = [];
+            const slot = (field: SQLWrapper, literal: Comparable) => {
+                // refuse a literal the key walk collected at another position
+                const index = slots.length;
+                if (literals[index] !== literal) {
+                    throw DatabaseError.of(
+                        "QUERY_BROKEN",
+                        `prepared query of '${table[TABLE].name}' at '${keyed}' is broken: slot '${String(index)}' renders another literal than its key collects`,
+                    );
+                }
+
+                // note the column encoding it
+                slots.push(Column.is(field) && !Column.isPlain(field) ? field : undefined);
+
+                return sql.placeholder(`s${String(index)}`);
+            };
+            const where = Predicate.render(predicate, Predicate.bind(table, {}, undefined, slot));
+
+            // refuse a render whose slots differ in number from the key's literals
+            if (slots.length !== literals.length) {
+                throw DatabaseError.of(
+                    "QUERY_BROKEN",
+                    `prepared query of '${table[TABLE].name}' at '${keyed}' is broken: it renders '${String(slots.length)}' slots for '${String(literals.length)}' literals`,
+                );
+            }
+
+            return prepare(where, slots);
+        });
+
+        return { prepared, literals };
     }
 }

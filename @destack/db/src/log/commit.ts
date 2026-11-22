@@ -3,7 +3,9 @@ import type { DatabaseConnection } from "../database/connection.ts";
 import { type Dialect } from "../dialect/dialect.ts";
 import { elementValue, jsonElements, jsonOf, Statement } from "../query/statement.ts";
 import { ColumnCipher, ENCRYPTED_DIALECT } from "../database/cipher.ts";
-import { sql } from "../sql/index.ts";
+import { sql, type SQL } from "../sql/index.ts";
+import { PreparedQuery } from "../query/prepared.ts";
+import type { Column } from "../table/column.ts";
 import { DatabaseError } from "../error/error.ts";
 import { Failure } from "@destack/error";
 import { type Comparable, Condition, Scalar } from "../query/condition.ts";
@@ -187,6 +189,8 @@ export class ChangeSet {
     readonly #rows = new Map<string, RowChange>();
     /** The writes so far, by table SQL name. */
     readonly #writes = new Map<string, number>();
+    /** The rows whose images differ, kept until the next write. */
+    #changes: readonly RowChange[] | undefined;
 
     /** Record a write of one row: before, null for a creation, and after, null for a removal. */
     write({ table, before, after }: RowChange): void {
@@ -205,6 +209,7 @@ export class ChangeSet {
         this.#rows.set(name, { table, before: first === undefined ? before : first.before, after });
         const sqlName = table[TABLE].sqlName;
         this.#writes.set(sqlName, (this.#writes.get(sqlName) ?? 0) + 1);
+        this.#changes = undefined;
     }
 
     /** Count the writes of some tables or every table so far, rewrites included. */
@@ -223,7 +228,9 @@ export class ChangeSet {
 
     /** The rows that differ from their images before the set, in write order. */
     get changes(): readonly RowChange[] {
-        return [...this.#rows.values()].filter(isChanged);
+        this.#changes ??= [...this.#rows.values()].filter(isChanged);
+
+        return this.#changes;
     }
 
     /** Read the written rows as an overlay of the database's, by table and key, at each read. */
@@ -268,6 +275,7 @@ export class ChangeSet {
         for (const [name, change] of copied.#rows) {
             this.#rows.set(name, change);
         }
+        this.#changes = undefined;
     }
 
     /** Read the set's row for a key: its latest image, null once removed, absent if unwritten. */
@@ -304,7 +312,7 @@ export class ChangeSet {
                     // take the commit lock, read the position and send the writes in one round trip
                     const locked = transaction.log.serialize();
                     const reading =
-                        reads.tables.length === 0 ? undefined : transaction.log.position();
+                        reads.tables.length === 0 ? undefined : ChangeSet.#head(transaction);
                     const writing = Promise.all([records(transaction), this.apply(transaction)]);
                     const settled = await Promise.allSettled([locked, reading, writing]);
                     const [, read, written] = settled;
@@ -330,6 +338,15 @@ export class ChangeSet {
             }
             throw error;
         }
+    }
+
+    /** Read the head under the commit lock, which a sole SQLite writer knows already. */
+    static async #head(transaction: DatabaseConnection): Promise<LogPosition> {
+        const { commits } = transaction.state;
+        const known =
+            transaction.dialect === "sqlite" && commits.isSole ? commits.position : undefined;
+
+        return known ?? (await transaction.log.position());
     }
 
     /** Write the set's changes in batched runs, in a transaction deferring its constraints. */
@@ -450,7 +467,7 @@ export class ChangeSet {
         return { before, after };
     }
 
-    /** Update plain rows, one statement per set of changed columns, a lone row by itself. */
+    /** Update plain rows, one statement per set of changed columns. */
     static async #update(
         transaction: DatabaseConnection,
         run: readonly RowChange[],
@@ -462,21 +479,15 @@ export class ChangeSet {
         );
     }
 
-    /** Update one group of rows changing the same columns: a lone row by itself, else together. */
+    /** Update one group of rows changing the same columns together. */
     static async #updateGroup(
         transaction: DatabaseConnection,
         group: readonly RowChange[],
     ): Promise<void> {
-        // update a lone row by a separate statement
-        const first = nth(group, 0);
-        if (group.length === 1) {
-            return ChangeSet.#set(transaction, first);
-        }
-
         // update the group from one JSON array of each row's key and changed values
-        const { table } = first;
+        const { table } = nth(group, 0);
         const key = table[TABLE].key;
-        const changed = changedColumns(first);
+        const changed = changedColumns(nth(group, 0));
         const tuples = group.map((change) => {
             const { before, after } = ChangeSet.#images(change);
 
@@ -650,10 +661,10 @@ export class Transaction {
             async (span) => {
                 // count the transaction and each attempt in the running spans' totals
                 const { context } = environment.telemetry;
-                SpanPath.add(context.active(), "destack.transaction.count", 1);
+                SpanPath.add(context.active(), { "destack.transaction.count": 1 });
                 const attempt = () => {
                     attempts += 1;
-                    SpanPath.add(context.active(), "destack.transaction.attempts", 1);
+                    SpanPath.add(context.active(), { "destack.transaction.attempts": 1 });
 
                     return run();
                 };
@@ -757,6 +768,22 @@ export class Transaction {
         );
     }
 
+    /** Prepare a read of a table's committed rows matching a condition, in order up to a limit. */
+    #prepare(
+        table: Table,
+        where: SQL,
+        slots: readonly (Column | undefined)[],
+        order: Order | undefined,
+        limit: number | undefined,
+    ): PreparedQuery {
+        // select every column of the matching rows in order up to the limit, rendered once
+        const query = this.database.select().from(table).where(where);
+        const ordered = order === undefined ? query : query.orderBy(...Order.render(order, table));
+        const limited = limit === undefined ? ordered : ordered.limit(limit);
+
+        return PreparedQuery.of(limited, table[TABLE].columns, slots, this.database);
+    }
+
     /** Read one row by its key with the transaction's writes, unrecorded. */
     async #row<Definition extends Table>(
         table: Definition,
@@ -775,12 +802,28 @@ export class Transaction {
             return known === null ? null : Table.complete(table, known);
         }
 
-        // read the committed row once
-        const [row = null] = await this.database
-            .select()
-            .from(table)
-            .where(Key.match(table, key))
-            .limit(1);
+        // read the committed row once, by a statement prepared once per key shape
+        const values = Key.tuple(table, key);
+        const missing = values.map((value) => (value === null ? "null" : "?")).join(" ");
+        const prepared = this.database.state.preparedQueries.take(
+            table,
+            `committed key ${missing}`,
+            () => {
+                // match the key, a placeholder standing in for each present value
+                const slots: Column[] = [];
+                const where = Key.match(table, key, (_value, column) => {
+                    slots.push(column);
+
+                    return sql.placeholder(`s${String(slots.length - 1)}`);
+                });
+
+                return this.#prepare(table, where, slots, undefined, 1);
+            },
+        );
+        const [row = null] = await prepared.rows<Select<Definition>>(
+            this.database,
+            values.filter((value) => value !== null),
+        );
         this.#committed.set(name, row);
 
         return row;
@@ -795,14 +838,15 @@ export class Transaction {
         // read enough committed rows in order to fill the limit after the writes replace some
         const order = Order.complete(Order.of(options.orderBy ?? {}), table);
         const written = this.changes.writtenRows(table);
-        const query = this.database
-            .select()
-            .from(table)
-            .where(Predicate.render(where, Predicate.bind(table, {})))
-            .orderBy(...Order.render(order, table));
-        const committed = await (options.limit === undefined
-            ? query
-            : query.limit(options.limit + written.size));
+        const limit = options.limit === undefined ? undefined : options.limit + written.size;
+        const ordering = order.map((key) => `${key.column} ${key.direction}`).join(",");
+        const { prepared, literals } = this.database.state.preparedQueries.matching(
+            table,
+            where,
+            `committed order ${ordering} limit ${String(limit ?? "none")}`,
+            (rendered, slots) => this.#prepare(table, rendered, slots, order, limit),
+        );
+        const committed = await prepared.rows<Select<Definition>>(this.database, literals);
 
         // replace the rows the transaction wrote by its writes meeting the condition
         const predicate = Predicate.compile(where, table);
@@ -1016,20 +1060,8 @@ export class Transaction {
         this.#batched.push({ writer: writer as BatchWriter<unknown>, item });
     }
 
-    /** Commit the records, batches and changes if no read changed since the base. */
-    commit(): Promise<void> {
-        const attributes = { "db.namespace": this.database.state.name };
-
-        return this.database.state.scope.span(
-            "destack.transaction.commit",
-            attributes,
-            () => this.#settle(),
-            { duration: { attributes } },
-        );
-    }
-
-    /** Prepare the participants and commit, then confirm them, or cancel them on failure. */
-    async #settle(): Promise<void> {
+    /** Prepare the participants, commit, then confirm them, or cancel them on failure. */
+    async commit(): Promise<void> {
         const prepared: Participant[] = [];
         try {
             // prepare each participant once, those a preparation enlists too, as one may write rows and records
@@ -1159,9 +1191,9 @@ function changedColumns({ table, before, after }: RowChange): string[] {
     );
 }
 
-/** Write a column's JSON value canonically, absent for a column the image lacks. */
-function canonicalColumn(value: unknown): string | undefined {
-    return value === undefined ? undefined : canonicalize(value);
+/** Write a column's value comparably: JSON canonically, scalars as they are. */
+function canonicalColumn(value: unknown): unknown {
+    return typeof value === "object" && value !== null ? canonicalize(value) : value;
 }
 
 /** Decide whether two rows have equal unique key values, comparing their canonical JSON. */

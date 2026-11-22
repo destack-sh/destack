@@ -1,6 +1,8 @@
 import { fill, render, sql, SQL, type SQLWrapper } from "../sql/index.ts";
 import { type Select, TABLE, type Table } from "../table/table.ts";
 import type { DatabaseDriver } from "../database/driver.ts";
+import type { Dialect } from "../dialect/dialect.ts";
+import type { ColumnCipher } from "../database/cipher.ts";
 import { Projection, type Selection, type SelectionResult } from "./selection.ts";
 
 /** How a join treats unmatched rows: inner drops them, left includes the source's. */
@@ -140,24 +142,24 @@ export class SelectQuery<
 
     /** Read every row, decoded by the query's selection, nullable joined groups missing as null. */
     async execute(): Promise<Result[]> {
-        // run the query and decode its rows, nullable joined groups missing as null
-        const projection = this.#projection();
-        const rows = await this.state.driver.values(
-            fill(render(this.#sql(projection), this.state.driver.dialect, this.state.driver.state)),
+        // run the query, then decode its rows
+        const { driver } = this.state;
+        const rows = await driver.values(
+            fill(render(this.#sql(this.#projection()), driver.dialect, driver.state)),
         );
+
+        return this.decode(rows, driver.dialect, driver.state.cipher);
+    }
+
+    /** Decode the query's rows in a dialect, nullable joined groups missing as null. */
+    decode(rows: unknown[][], dialect: Dialect, cipher: ColumnCipher | undefined): Result[] {
         const nullable = new Set(
             this.state.joins
                 .filter((join) => join.kind === "left")
                 .map((join) => join.table[TABLE].sqlName),
         );
 
-        // decode the rows, typed as the query's result
-        return projection.decode<Result>(
-            rows,
-            this.state.driver.dialect,
-            nullable,
-            this.state.driver.state.cipher,
-        );
+        return this.#projection().decode<Result>(rows, dialect, nullable, cipher);
     }
 
     /** Embed the query as a subquery, such as in `inArray` or `exists`. */

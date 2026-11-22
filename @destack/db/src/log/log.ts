@@ -1,5 +1,5 @@
 import { sql, type SQL } from "../sql/index.ts";
-import { listed, Statement } from "../query/statement.ts";
+import { listed, Statement, textElements } from "../query/statement.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { TABLE, type RowImage, Table } from "../table/table.ts";
 import type { Dialect } from "../dialect/dialect.ts";
@@ -321,7 +321,7 @@ export class Log {
 
     /** Read the position of the latest commit, from memory until a commit writes the log. */
     position(): Promise<LogPosition> {
-        return this.#traced("position", () => this.#position());
+        return this.#position();
     }
 
     /** Run a read of the log in its span, recording by whom and whether it found changes. */
@@ -352,24 +352,17 @@ export class Log {
         });
     }
 
-    /** Run a log verb in its span, recording its duration. */
-    #traced<Value>(verb: "position" | "changed", run: () => Promise<Value>): Promise<Value> {
-        const attributes = { "db.namespace": this.database.state.name };
-
-        return this.database.state.scope.span(`destack.log.${verb}`, attributes, run, {
-            duration: { attributes },
-        });
-    }
-
     /** Read the position of the latest commit from the log's head. */
     async #position(): Promise<LogPosition> {
         // read the head, with the tables written since the watch caught up on a shared log
         const { commits } = this.database.state;
         const caught = commits.caughtUp;
         const isCatching = commits.isShared && this.database.driver.transaction === undefined;
-        const statement =
-            isCatching && caught !== undefined ? this.#headSince(caught.sequence) : this.#head();
-        const head = await this.#readHead(statement);
+        const [row] =
+            isCatching && caught !== undefined
+                ? await HEAD_READS.since.all(this.database, { after: caught.sequence })
+                : await HEAD_READS.head.all(this.database);
+        const head = Log.#parseHead(row);
         const sequence = latestOf(head.logged, head.horizon);
         const position = { log: head.log, epoch: head.epoch, sequence };
 
@@ -399,24 +392,9 @@ export class Log {
         return position;
     }
 
-    /** Select the log's head. */
-    #head(): SQL {
-        return selectHead(this.database.dialect);
-    }
-
-    /** Select the log's head with the tables commits after a sequence wrote, comma separated. */
-    #headSince(after: number): SQL {
-        const written =
-            this.database.dialect === "sqlite"
-                ? sql`group_concat(DISTINCT "table")`
-                : sql`string_agg(DISTINCT "table", ',')`;
-
-        return sql`${this.#head()}, (SELECT ${written} FROM ${sql.relation(LOG)} WHERE sequence > ${after}) AS written`;
-    }
-
     /** Read the position of some scopes' latest change to some tables, or the horizon. */
     changed(tables: readonly Table[] | "every", scopes: readonly string[]): Promise<LogPosition> {
-        return this.#traced("changed", () => this.#changed(tables, scopes));
+        return this.#changed(tables, scopes);
     }
 
     /** Seek some scopes' latest change to some tables on the log's scope index. */
@@ -424,34 +402,18 @@ export class Log {
         tables: readonly Table[] | "every",
         scopes: readonly string[],
     ): Promise<LogPosition> {
-        // seek each scope's newest committed entry on the log's scope index
-        const names = tables === "every" ? [] : tables.map((table) => sql`${table[TABLE].sqlName}`);
-        const inTables =
-            tables === "every" ? sql`` : sql`AND "table" IN (${sql.join(names, sql`, `)})`;
-        const seeks = scopes.map(
-            (scope) => sql`((SELECT sequence FROM ${sql.relation(LOG)} AS entry
-            WHERE scope = ${scope} ${inTables}
-                AND sequence IS NOT NULL AND ${committedEntry(this.database.dialect, sql`entry`)}
-            ORDER BY sequence DESC LIMIT 1))`,
-        );
-
-        // take the newest of them beside the head, in one statement, a row of VALUES each, as SQLite counts no VALUES row against its compound limit
-        const isEmpty = scopes.length === 0 || (tables !== "every" && tables.length === 0);
-        const latest = isEmpty
-            ? sql`NULL`
-            : sql`(SELECT max(column1) FROM (VALUES ${sql.join(seeks, sql`, `)}) AS seeks)`;
-        const [row] = await this.database.all(sql`${this.#head()}, ${latest} AS changed`);
+        // seek each scope's newest committed entry beside the head, in one statement
+        const [row] =
+            tables === "every"
+                ? await HEAD_READS.changed.all(this.database, { scopes: JSON.stringify(scopes) })
+                : await HEAD_READS.changedIn.all(this.database, {
+                      scopes: JSON.stringify(scopes),
+                      tables: JSON.stringify(tables.map((table) => table[TABLE].sqlName)),
+                  });
         const head = Log.#parseHead(row);
         const changed = LogColumn.nullableInteger(row?.["changed"]);
 
         return { log: head.log, epoch: head.epoch, sequence: latestOf(changed, head.horizon) };
-    }
-
-    /** Read the log's head row: its log, epoch, latest sequence and horizon. */
-    async #readHead(statement: SQL): Promise<LogHead> {
-        const [row] = await this.database.all(statement);
-
-        return Log.#parseHead(row);
     }
 
     /** Parse the log's head row. */
@@ -522,9 +484,9 @@ export class Log {
     /** Block the log's other commits until this transaction ends. */
     async serialize(): Promise<void> {
         if (this.database.dialect === "postgresql") {
-            await this.database.run(
-                sql`SELECT pg_advisory_xact_lock(${sql.raw(String(COMMIT_LOCK))}, hashtext(${present(this.database.state.schema, "the database's schema")}))`,
-            );
+            await SERIALIZE.run(this.database, {
+                schema: present(this.database.state.schema, "the database's schema"),
+            });
         }
     }
 
@@ -1140,6 +1102,27 @@ interface LogHead {
     readonly written: readonly string[];
 }
 
+/** The statements reading the log's head alone, or with the tables or scopes changed. */
+const HEAD_READS = {
+    head: new Statement((_value, { dialect }) => selectHead(dialect)),
+    since: new Statement(
+        (value, { dialect }) =>
+            sql`${selectHead(dialect)}, (SELECT ${
+                dialect === "sqlite"
+                    ? sql`group_concat(DISTINCT "table")`
+                    : sql`string_agg(DISTINCT "table", ',')`
+            } FROM ${sql.relation(LOG)} WHERE sequence > ${value("after")}) AS written`,
+    ),
+    changed: changedRead(false),
+    changedIn: changedRead(true),
+};
+
+/** The statement taking the log's commit lock in a PostgreSQL schema. */
+const SERIALIZE = new Statement(
+    (value) =>
+        sql`SELECT pg_advisory_xact_lock(${sql.raw(String(COMMIT_LOCK))}, hashtext(${value("schema")}))`,
+);
+
 /** The statements reading log entries after a sequence: a page or a transaction's rest. */
 const ENTRY_READS = {
     page: entryRead({ tables: "listed", isScoped: false, part: "page" }),
@@ -1158,6 +1141,20 @@ interface EntryShape {
     readonly isScoped: boolean;
     /** A page up to a limit, or the rest of one transaction. */
     readonly part: "page" | "rest";
+}
+
+/** Build the statement reading the head and some scopes' latest committed change. */
+function changedRead(isListed: boolean): Statement {
+    return new Statement((value, { dialect }) => {
+        // seek each scope's newest committed entry on the log's scope index
+        const inTables = isListed ? sql`AND ${listed(sql`"table"`, value("tables"))}` : sql``;
+        const seek = sql`(SELECT sequence FROM ${sql.relation(LOG)} AS entry
+            WHERE scope = wanted.value ${inTables}
+                AND sequence IS NOT NULL AND ${committedEntry(dialect, sql`entry`)}
+            ORDER BY sequence DESC LIMIT 1)`;
+
+        return sql`${selectHead(dialect)}, (SELECT max(${seek}) FROM ${textElements(value("scopes"), "wanted")}) AS changed`;
+    });
 }
 
 /** Build the statement reading log entries after a sequence. */

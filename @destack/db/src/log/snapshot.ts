@@ -1,8 +1,8 @@
-import { and, inArray, render, sql, type SQL, type SQLWrapper } from "../sql/index.ts";
+import { and, inArray, sql, type SQL } from "../sql/index.ts";
 import { PreparedQuery } from "../query/prepared.ts";
 import { Projection } from "../query/selection.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
-import { type Comparable, Condition, Scalar } from "../query/condition.ts";
+import { Condition, Scalar } from "../query/condition.ts";
 import { Predicate, type Match } from "../query/predicate.ts";
 import { Key } from "../query/key.ts";
 import { Change } from "./log.ts";
@@ -139,6 +139,30 @@ export class Snapshot {
     /** Show the same database and position under an overlay. */
     layer(overlay: Overlay): Snapshot {
         return new Snapshot(this.database, this.position, this.#rewind, overlay, this.#reads);
+    }
+
+    /** Show the same view, recording the SQL names of the tables its reads touch. */
+    tracking(tables: Set<string>): Snapshot {
+        return new Snapshot(
+            this.database.recording(tables),
+            this.position,
+            this.#rewind,
+            this.#overlay,
+            this.#reads,
+        );
+    }
+
+    /** Report whether the overlay wrote a row of some tables, by SQL name. */
+    async isWritten(tables: ReadonlySet<string>): Promise<boolean> {
+        // read each named table's overlaid rows
+        const overlay = this.#overlay;
+        if (overlay === undefined) {
+            return false;
+        }
+        const named = this.database.tables.filter((table) => tables.has(table[TABLE].sqlName));
+        const written = await Promise.all(named.map((table) => overlay(table)));
+
+        return written.some((rows) => rows.size > 0);
     }
 
     /** Show the same view, recording each read. */
@@ -640,39 +664,12 @@ export class Snapshot {
         table: Table,
         predicate: Predicate,
     ): Promise<{ readonly rows: Row[]; readonly sequence: number | undefined }> {
-        // key the read's shape, collecting its compared literals in render order
-        const literals: Comparable[] = [];
-        const shape = `${this.#reach()} where ${Predicate.key(predicate, literals)}`;
-        const prepared = this.database.state.preparedQueries.take(table, shape, () => {
-            // stand a placeholder in for each literal, noting the column encoding it
-            const slots: (Column | undefined)[] = [];
-            const slot = (field: SQLWrapper, literal: Comparable) => {
-                // refuse a literal the key walk collected at another position
-                const index = slots.length;
-                if (literals[index] !== literal) {
-                    throw DatabaseError.of(
-                        "QUERY_BROKEN",
-                        `prepared query of '${table[TABLE].name}' at '${shape}' is broken: slot '${String(index)}' renders another literal than its key collects`,
-                    );
-                }
-
-                // note the column encoding it
-                slots.push(Column.is(field) && !Column.isPlain(field) ? field : undefined);
-
-                return sql.placeholder(`s${String(index)}`);
-            };
-            const where = Predicate.render(predicate, Predicate.bind(table, {}, undefined, slot));
-
-            // refuse a render whose slots differ in number from the key's literals
-            if (slots.length !== literals.length) {
-                throw DatabaseError.of(
-                    "QUERY_BROKEN",
-                    `prepared query of '${table[TABLE].name}' at '${shape}' is broken: it renders '${String(slots.length)}' slots for '${String(literals.length)}' literals`,
-                );
-            }
-
-            return this.#prepare(table, where, slots);
-        });
+        const { prepared, literals } = this.database.state.preparedQueries.matching(
+            table,
+            predicate,
+            this.#reach(),
+            (where, slots) => this.#prepare(table, where, slots),
+        );
 
         return this.#run(prepared, literals);
     }
@@ -707,12 +704,11 @@ export class Snapshot {
 
     /** Prepare a read of the table's logged columns, beside the head at a position. */
     #prepare(table: Table, where: SQL, slots: readonly (Column | undefined)[]): PreparedQuery {
-        // select the logged columns, beside the head at a position, and render the statement once
+        // select the logged columns, beside the head at a position, rendered once
         const fields = this.#fields(table, { extras: {} });
         const query = this.database.select(fields).from(table).where(where);
-        const { dialect, state } = this.database;
 
-        return new PreparedQuery(render(query, dialect, state), new Projection(fields), slots);
+        return PreparedQuery.of(query, fields, slots, this.database);
     }
 
     /** Run a prepared query with its literals, decoding its rows and the head's sequence. */
@@ -720,17 +716,10 @@ export class Snapshot {
         prepared: PreparedQuery,
         literals: readonly ColumnValue[],
     ): Promise<{ readonly rows: Row[]; readonly sequence: number | undefined }> {
-        const { dialect, state } = this.database;
-        const rows = await this.database.driver.values(
-            prepared.bind(literals, dialect, state.cipher),
-        );
-
         return this.#take(
-            prepared.projection.decode<{ readonly head?: Head; readonly row: Row }>(
-                rows,
-                dialect,
-                new Set(),
-                state.cipher,
+            await prepared.rows<{ readonly head?: Head; readonly row: Row }>(
+                this.database,
+                literals,
             ),
         );
     }

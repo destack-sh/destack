@@ -15,8 +15,6 @@ export class CommitWatch {
     readonly #role: ConnectionRole;
     /** The wakes of the watch, one per commit it announces to its readers, by database. */
     readonly #wakes;
-    /** The runner of the waits' spans. */
-    readonly #span: TelemetryScope["span"];
     /** The readers waiting for a commit now, by database. */
     readonly #waits;
     /** The database's name, as OpenTelemetry's `db.namespace` reports it. */
@@ -73,7 +71,6 @@ export class CommitWatch {
         // store the channel, the role, the unlogged tables and the telemetry, versioning the log's tables from the start
         this.#channel = channel;
         this.#namespace = namespace;
-        this.#span = scope.span;
         this.#waits = scope.metric.upDownCounter("destack.log.wait.count", {
             unit: "{wait}",
             attributes: { "db.namespace": [namespace] },
@@ -133,6 +130,11 @@ export class CommitWatch {
     /** Whether the watch listens for the commits announced on its channel. */
     get isListening(): boolean {
         return this.#stop !== undefined;
+    }
+
+    /** Whether this connection writes the database alone, every commit its own. */
+    get isSole(): boolean {
+        return this.#role === "writer" && this.#channel === undefined;
     }
 
     /** Whether the watch receives every commit: a sole writer's, a channel's, never a reader's. */
@@ -259,14 +261,8 @@ export class CommitWatch {
                 const tables: ReadonlySet<string> = new Set(committed);
                 committed.clear();
 
-                // check in a span of its own once the span that started the wait ended
-                const isSpanned = this.#span.current()?.isRecording() === true;
-                const checking = isSpanned
-                    ? check(tables)
-                    : this.#span("destack.log.check", attributes, () => check(tables), {
-                          duration: false,
-                      });
-                const isPassed = await checking.catch(async (error: unknown) => {
+                // check the committed tables
+                const isPassed = await check(tables).catch(async (error: unknown) => {
                     // settle the registered wait
                     checked.abort();
                     await Promise.allSettled([next]);
@@ -295,16 +291,14 @@ export class CommitWatch {
         return false;
     }
 
-    /** Open a wait's span and count it waiting, ending both once the wait passes or gives up. */
+    /** Count a wait waiting until it passes or gives up. */
     #openWait(attributes: { readonly "db.namespace": string }): {
         readonly pass: (isPassed: boolean) => void;
     } {
-        // run the span until the wait settles, counting the reader meanwhile
+        // count the reader until the wait settles
         const settled = Promise.withResolvers<boolean>();
         this.#waits.add(1, attributes);
-        void this.#span("destack.log.wait", attributes, () => settled.promise, {
-            duration: { attributes },
-        }).finally(() => this.#waits.add(-1, attributes));
+        void settled.promise.finally(() => this.#waits.add(-1, attributes));
 
         return { pass: settled.resolve };
     }

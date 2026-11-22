@@ -239,7 +239,7 @@ export class MutationQuery<
 
     /** Render the mutation's statements, an insert's rows split to bind within the limit. */
     #statements(rendered: (statement: SQL) => DriverStatement): DriverStatement[] {
-        // bind a single-row insert of plain values to its shape's statement, rendered once
+        // bind an insert of plain values to its shape's statement, rendered once
         const prepared = this.#prepared();
         if (prepared !== undefined) {
             return [prepared];
@@ -279,77 +279,126 @@ export class MutationQuery<
         return statements;
     }
 
-    /** Bind a single-row insert or upsert of plain values to its shape's statement, else none. */
+    /** Bind an insert or upsert of plain values to its shape's statement, else none. */
     #prepared(): DriverStatement | undefined {
-        // take only a single-row insert of values returning nothing or the table's columns, without conditions written as SQL
+        // take only inserts of plain values into columns, with conditions binding no values, returning columns
         const { driver, records, table, conflict, returning } = this.state;
-        const [record] = records;
+        const declared = table[TABLE].columns;
         const set: WriteRecord = conflict?.action === "update" ? conflict.set : {};
+        const setWhere = conflict?.action === "update" ? conflict.setWhere : undefined;
+        const returned = Object.entries(returning ?? {});
+        const { dialect } = driver;
+        const { preparedQueries } = driver.state;
+        const keyOf = (fragment: SQLWrapper) => preparedQueries.fragment(fragment, dialect);
+        const fragments = Object.values(set).filter((value) => isSQLWrapper(value));
         if (
             this.state.operation !== "insert" ||
-            record === undefined ||
-            records.length !== 1 ||
-            conflict?.targetWhere !== undefined ||
-            (conflict?.action === "update" && conflict.setWhere !== undefined) ||
-            !Object.values(record).every(isPlain) ||
-            !Object.values(set).every(isPlain) ||
-            ![...Object.keys(record), ...Object.keys(set)].every((property) =>
-                Object.hasOwn(table[TABLE].columns, property),
+            records.length === 0 ||
+            !records.every((record) => Object.values(record).every(isPlain)) ||
+            !Object.values(set).every((value) => !(value instanceof Placeholder)) ||
+            ![...records.flatMap((record) => Object.keys(record)), ...Object.keys(set)].every(
+                (property) => Object.hasOwn(declared, property),
             ) ||
-            (returning !== undefined && returning !== table[TABLE].columns)
+            ![conflict?.targetWhere, setWhere, ...fragments].every(
+                (fragment) => fragment === undefined || keyOf(fragment) !== undefined,
+            ) ||
+            !returned.every(
+                ([, field]) =>
+                    Column.is(field) && !field.isAliased && field.table === table[TABLE].sqlName,
+            )
         ) {
             return undefined;
         }
 
-        // key the shape by the written and set properties, the conflict and the returned fields
-        const declared = table[TABLE].columns;
-        const written = Object.keys(record).filter(
-            (property) =>
-                record[property] !== undefined &&
-                declared[property]?.definition.generated === undefined,
+        // key the shape by each record's written columns, the conflict's text and the returned columns
+        const written = table[TABLE].entries
+            .filter(
+                ([property, column]) =>
+                    column.definition.generated === undefined &&
+                    records.some((record) => record[property] !== undefined),
+            )
+            .map(([property]) => property);
+        const masks = records.map((record) =>
+            written.map((property) => (record[property] === undefined ? "0" : "1")).join(""),
         );
-        const updated = Object.keys(set).filter((property) => set[property] !== undefined);
+        const assigned = Object.entries(set)
+            .filter(([, value]) => value !== undefined)
+            .map(([property, value]) =>
+                isSQLWrapper(value) ? `${property}=${String(keyOf(value))}` : property,
+            );
+        const conditions = [conflict?.targetWhere, setWhere].map((fragment) =>
+            fragment === undefined ? "" : String(keyOf(fragment)),
+        );
         const target = conflict?.target?.map((column) => column.definition.name).join(",") ?? "";
-        const returned = returning === undefined ? "" : "columns";
-        const action = conflict?.action ?? "none";
-        const shape = `insert ${written.join(",")} ${action} ${target} ${updated.join(",")} ${returned}`;
+        const fields = returned.map(
+            ([property, field]) => `${property}:${Column.is(field) ? field.definition.name : ""}`,
+        );
+        const shape = [
+            "insert",
+            written.join(","),
+            masks.join(" "),
+            conflict?.action ?? "none",
+            target,
+            assigned.join(","),
+            ...conditions,
+            fields.join(","),
+        ].join(" | ");
+
+        // refuse a statement binding past the limit, which the split path writes
+        const values = [
+            ...records.flatMap((record) =>
+                written.flatMap((property) =>
+                    record[property] === undefined ? [] : [{ property, value: record[property] }],
+                ),
+            ),
+            ...Object.entries(set).flatMap(([property, value]) =>
+                value === undefined || isSQLWrapper(value) ? [] : [{ property, value }],
+            ),
+        ];
+        if (values.length > driver.session.limits.variables) {
+            return undefined;
+        }
 
         // render the shape's statement once, a placeholder standing in for each value
-        const { cipher } = driver.state;
-        const prepared = driver.state.preparedQueries.take(table, shape, () => {
+        const prepared = preparedQueries.take(table, shape, () => {
             // stand a placeholder in for each written and set value, noting its column
             const slots: Column[] = [];
-            const slotted = (properties: readonly string[]): WriteRecord =>
-                Object.fromEntries(
-                    properties.map((property) => {
-                        slots.push(present(table[TABLE].columns[property], `column '${property}'`));
+            const slot = (property: string) => {
+                slots.push(present(declared[property], `column '${property}'`));
 
-                        return [property, sql.placeholder(`s${String(slots.length - 1)}`)];
-                    }),
-                );
+                return sql.placeholder(`s${String(slots.length - 1)}`);
+            };
+            const slottedRecords = records.map((record) =>
+                Object.fromEntries(
+                    written.map((property) => [
+                        property,
+                        record[property] === undefined ? undefined : slot(property),
+                    ]),
+                ),
+            );
+            const slottedSet = Object.fromEntries(
+                Object.entries(set).map(([property, value]) => [
+                    property,
+                    value === undefined || isSQLWrapper(value) ? value : slot(property),
+                ]),
+            );
 
             // render the insert, its conflict's assignments taking the set placeholders
-            const statement = this.#sql([slotted(written)], slotted(updated));
+            const statement = this.#sql(slottedRecords, slottedSet);
 
             return new PreparedQuery(
-                render(statement, driver.dialect, driver.state),
+                render(statement, dialect, driver.state),
                 new Projection({}),
                 slots,
             );
         });
 
-        // validate each value as it enters the database, and bind it through its column
-        const values = [
-            ...written.map((property) => record[property]),
-            ...updated.map((property) => set[property]),
-        ];
-        const parsed = values.map((value, index) => {
-            const column = present(prepared.slots[index], `slot ${String(index)}`);
-
-            return value === null ? null : column.definition.schema.parse(value);
-        });
-
-        return prepared.bindValues(parsed, driver.dialect, cipher);
+        // bind each typed value through its column
+        return prepared.bindValues(
+            values.map(({ value }) => value),
+            dialect,
+            driver.state.cipher,
+        );
     }
 
     /** Run the mutation and return the first changed row. */
@@ -542,9 +591,9 @@ function valueOf(column: Column, value: unknown): SQLWrapper {
         return new SQL([value]);
     }
 
-    // validate a written value once as it enters the database, and bind it
+    // bind a typed value through its column
     if (value !== undefined && value !== null) {
-        return new SQL([new Parameter(column.definition.schema.parse(value), column)]);
+        return new SQL([new Parameter(value, column)]);
     }
 
     // default a value an insert leaves out, and bind null

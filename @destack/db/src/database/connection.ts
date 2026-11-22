@@ -1,3 +1,5 @@
+import { Cache } from "../cache/cache.ts";
+import type { StatementTemplate } from "../sql/index.ts";
 import type { Clock, Environment } from "@destack/environment";
 import { PreparedQueryCache } from "../query/prepared.ts";
 import { Digest, schema } from "@destack/schema";
@@ -75,6 +77,12 @@ const CACHED_ROWS = 4096;
 /** The most rows one cached read has: a metadata read has a few dozen, a listing page 100. */
 const CACHED_READ_ROWS = 128;
 
+/** The statement texts numbered for read cache keys: past the 768 prepared and statement texts. */
+const NUMBERED_TEXTS = 1024;
+
+/** The statement shapes a connection keeps rendered, as many as its prepared texts. */
+const RENDERED_SHAPES = 512;
+
 /** The key bytes weighing as much as one row, the half kilobyte a row averages. */
 const KEY_BYTES_PER_ROW = 512;
 
@@ -128,6 +136,17 @@ export class DatabaseConnection<
         this.driver = driver;
         this.state.declare(tables);
         this.relations = relations;
+    }
+
+    /** Show the database recording the SQL names of the tables every read touches. */
+    recording(reads: Set<string>): DatabaseConnection<Models> {
+        const { session, state, transaction } = this.driver;
+
+        return new DatabaseConnection(
+            new DatabaseDriver(session, state, transaction, reads),
+            this.tables,
+            this.relations,
+        );
     }
 
     /** The tables the database declares, in declaration order. */
@@ -684,7 +703,7 @@ export class DatabaseConnection<
     ): Promise<Value> {
         const state = new TransactionState(written, scripted, identity, signal);
         const transaction = new DatabaseConnection(
-            new DatabaseDriver(session, this.state, state),
+            new DatabaseDriver(session, this.state, state, this.driver.reads),
             this.tables,
             this.relations,
         );
@@ -786,6 +805,8 @@ export class ConnectionState {
     readonly unlogged = new Set<string>([...LOG_TABLES, STAMP]);
     /** The declared tables, by SQL name. */
     readonly #tables = new Map<string, Table>();
+    /** The declared tables in declaration order, renewed as tables are added. */
+    #list: readonly Table[] = [];
     /** The dialect the tables render in. */
     readonly #dialect: Dialect;
     /** Whether the database announces its logged tables' commits itself. */
@@ -796,6 +817,12 @@ export class ConnectionState {
     readonly recordCache: ReadCache<Record<string, unknown>[]>;
     /** The prepared query of each query shape, such as a snapshot's reads. */
     readonly preparedQueries: PreparedQueryCache;
+    /** The number of each statement text, keying cached reads without the text. */
+    readonly #texts: Cache<number>;
+    /** The rendering of each statement shape, which renders it once. */
+    readonly renderings: Cache<StatementTemplate>;
+    /** The number of the next statement text. */
+    #nextText = 0;
     /** The cipher of sensitive columns, absent until the database is keyed. */
     cipher: ColumnCipher | undefined = undefined;
     /** Whether the database has a log, unknown until a write first looks. */
@@ -846,6 +873,16 @@ export class ConnectionState {
             this.scope,
         );
         this.preparedQueries = new PreparedQueryCache(this.scope);
+        this.#texts = new Cache({
+            name: "statement_text",
+            capacity: NUMBERED_TEXTS,
+            scope: this.scope,
+        });
+        this.renderings = new Cache({
+            name: "rendering",
+            capacity: RENDERED_SHAPES,
+            scope: this.scope,
+        });
         this.declaredReplicas = new Set(options.replicated);
         this.#replicated = this.declaredReplicas;
         this.openChannel = openChannel;
@@ -867,7 +904,7 @@ export class ConnectionState {
 
     /** The declared tables, in declaration order. */
     get tables(): readonly Table[] {
-        return [...this.#tables.values()];
+        return this.#list;
     }
 
     /** The tables each operation on each declared table changes, itself first, through cascades. */
@@ -895,6 +932,15 @@ export class ConnectionState {
         return this.#declared;
     }
 
+    /** Number a statement text once, so cached reads key by its number. */
+    textNumber(text: string): number {
+        return this.#texts.take(text, () => {
+            this.#nextText += 1;
+
+            return this.#nextText;
+        });
+    }
+
     /** The SQL names of the tables the database replicates, as declared and as applied. */
     get replicated(): ReadonlySet<string> {
         return this.#replicated;
@@ -916,7 +962,10 @@ export class ConnectionState {
 
     /** Declare more tables the database stores, such as those an installation migrated. */
     declare(tables: readonly Table[]): void {
-        // add the new tables
+        // add the new tables, at once nothing for the declared list itself
+        if (tables === this.#list) {
+            return;
+        }
         const added = tables.filter((table) => !this.#tables.has(table[TABLE].sqlName));
         if (added.length === 0) {
             return;
@@ -924,6 +973,7 @@ export class ConnectionState {
         for (const table of added) {
             this.#tables.set(table[TABLE].sqlName, table);
         }
+        this.#list = [...this.#tables.values()];
 
         // list what writes to every declared table change, derive, search and name
         const declared = this.tables;

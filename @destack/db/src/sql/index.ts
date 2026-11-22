@@ -4,9 +4,10 @@ export * from "./json.ts";
 export {
     fill,
     inline,
+    isConstant,
     placed,
     render,
     type DriverStatement,
-    type RenderPlace,
+    type RenderOptions,
     type StatementTemplate,
 } from "./render.ts";

@@ -58,21 +58,65 @@ export interface DriverStatement {
     readonly operation: string;
 }
 
-/** Where a statement's relations live and how its sensitive values encrypt. */
-export interface RenderPlace {
+/** The prefix of the slots a kept rendering binds values to, outside any placeholder name. */
+const SLOT = "\u0000";
+
+/** The renderings of statement shapes a connection keeps, each rendered once. */
+export interface Renderings {
+    /** Take a shape's rendering, rendering it the first time. */
+    readonly take: (shape: string, render: () => StatementTemplate) => StatementTemplate;
+}
+
+/** How to render a statement: its relations' place, its values' cipher, its kept renderings. */
+export interface RenderOptions {
     /** The database's namespace in a shared SQLite store, absent for a separate database. */
     readonly namespace?: string | undefined;
     /** The PostgreSQL schema the statement names its relations in, absent for SQLite. */
     readonly schema?: string | undefined;
     /** The cipher encrypting sensitive columns' values, absent for a database without them. */
     readonly cipher?: ColumnCipher | undefined;
+    /** The renderings kept by shape, absent to render every statement anew. */
+    readonly renderings?: Renderings | undefined;
 }
 
 /** Render a fragment for a dialect: quoted identifiers, placed relations, bound values. */
 export function render(
     fragment: SQLWrapper,
     dialect: Dialect,
-    place: RenderPlace = {},
+    place: RenderOptions = {},
+): StatementTemplate {
+    // render anew without kept renderings
+    const { renderings } = place;
+    if (renderings === undefined) {
+        return renderAnew(fragment, dialect, place, false);
+    }
+
+    // take the shape's rendering, its values collected in render order
+    const values: Parameter[] = [];
+    const shape = shapeOf(fragment, dialect, values, new Set());
+    const key = `${dialect}\u0000${place.namespace ?? ""}\u0000${place.schema ?? ""}\u0000${shape}`;
+    const template = renderings.take(key, () => renderAnew(fragment, dialect, place, true));
+    if (values.length === 0) {
+        return template;
+    }
+
+    // bind each value, encoded through its column, to its slot
+    const encoded = values.map((value) => value.encode(dialect, place.cipher));
+    const parameters = template.parameters.map((parameter) =>
+        parameter instanceof Placeholder && parameter.placeholder.startsWith(SLOT)
+            ? (encoded[Number(parameter.placeholder.slice(SLOT.length))] ?? null)
+            : parameter,
+    );
+
+    return { ...template, parameters };
+}
+
+/** Render a fragment, its values bound or as slots for a kept rendering. */
+function renderAnew(
+    fragment: SQLWrapper,
+    dialect: Dialect,
+    place: RenderOptions,
+    isSlotted: boolean,
 ): StatementTemplate {
     // render the statement, then define the common tables it reads at its start
     const parameters: (DriverValue | Placeholder)[] = [];
@@ -87,6 +131,7 @@ export function render(
         bound: new Map(),
         commons,
         tables: named,
+        slots: isSlotted ? { next: 0 } : undefined,
     });
     const tables = [...named];
     const isRead = isReading(text);
@@ -112,7 +157,105 @@ export function inline(value: SQLWrapper | DriverValue, dialect: Dialect): strin
         bound: new Map(),
         commons: undefined,
         tables: undefined,
+        slots: undefined,
     });
+}
+
+/** Write a fragment's shape as its rendering reads it, collecting its values in order. */
+function shapeOf(
+    chunk: Chunk,
+    dialect: Dialect,
+    values: Parameter[],
+    commons: Set<string>,
+): string {
+    // write text as it is, and each listed chunk
+    if (typeof chunk === "string") {
+        return chunk;
+    } else if (isChunkList(chunk)) {
+        return chunk.map((entry) => shapeOf(entry, dialect, values, commons)).join("");
+    }
+    // collect a value, and write a placeholder by its name
+    else if (chunk instanceof Parameter) {
+        values.push(chunk);
+
+        return "\u0001";
+    } else if (chunk instanceof Placeholder) {
+        return `\u0002${chunk.placeholder}`;
+    }
+    // write names, relations, columns and tables by what they render
+    else if (chunk instanceof Name) {
+        return `\u0003${chunk.value}`;
+    } else if (chunk instanceof RelationName) {
+        return `\u0004${chunk.value}`;
+    } else if (Column.is(chunk)) {
+        return `\u0005${chunk.table}.${chunk.definition.name}${chunk.isAliased ? "@" : ""}`;
+    } else if (chunk instanceof Table) {
+        const { source, sqlName } = chunk[TABLE];
+
+        return `\u0006${sqlName}${source === undefined ? "" : `@${source[TABLE].sqlName}`}`;
+    }
+    // write a common table's query at its first read, as the rendering defines it once
+    else if (chunk instanceof CommonTable) {
+        const isFirst = !commons.has(chunk.name);
+        commons.add(chunk.name);
+
+        return `\u0007${chunk.name}${isFirst ? `(${shapeOf(chunk.query, dialect, values, commons)})` : ""}`;
+    }
+    // write the dialect's fragment, a fragment's chunks, a named fragment and any other value
+    else if (chunk instanceof DialectSQL) {
+        return shapeOf(chunk.fragments[dialect], dialect, values, commons);
+    } else if (chunk instanceof SQL) {
+        return shapeOf(chunk.chunks, dialect, values, commons);
+    } else if (chunk instanceof Alias) {
+        return shapeOf(chunk.sql, dialect, values, commons);
+    } else {
+        return shapeOf(chunk.getSQL(), dialect, values, commons);
+    }
+}
+
+/** Report whether a fragment binds no value, so it renders alike on every run. */
+export function isConstant(chunk: Chunk): boolean {
+    // take text, names, relations, columns and tables as constant
+    if (typeof chunk === "string") {
+        return true;
+    }
+    // check each listed chunk
+    else if (isChunkList(chunk)) {
+        return chunk.every((entry) => isConstant(entry));
+    }
+    // refuse values and placeholders
+    else if (chunk instanceof Parameter || chunk instanceof Placeholder) {
+        return false;
+    }
+    // take identifiers, relation names, columns and tables
+    else if (
+        chunk instanceof Name ||
+        chunk instanceof RelationName ||
+        Column.is(chunk) ||
+        chunk instanceof Table
+    ) {
+        return true;
+    }
+    // check every dialect's fragment
+    else if (chunk instanceof DialectSQL) {
+        return Object.values(chunk.fragments).every((fragment) => isConstant(fragment));
+    }
+    // check a common table's query
+    else if (chunk instanceof CommonTable) {
+        return isConstant(chunk.query);
+    }
+    // check a fragment's chunks
+    else if (chunk instanceof SQL) {
+        return isConstant(chunk.chunks);
+    }
+    // check a named fragment's expression
+    else if (chunk instanceof Alias) {
+        return isConstant(chunk.sql);
+    }
+    // check any other SQL value's fragment
+    else {
+        return isConstant(chunk.getSQL());
+    }
 }
 
 /** Write the right side of a declaration's match with a value: equal to it, or null for null. */
@@ -170,6 +313,8 @@ interface Target {
     readonly parameters: (DriverValue | Placeholder)[] | undefined;
     /** The SQL names of the tables referenced so far, absent for a declaration. */
     readonly tables: Set<string> | undefined;
+    /** The next slot a value binds to in a kept rendering, absent to bind values themselves. */
+    readonly slots: { next: number } | undefined;
 }
 
 /** Render a column qualified by its table within the database's place, or by its alias. */
@@ -185,7 +330,7 @@ function renderColumn(column: Column, target: Target): string {
 }
 
 /** Quote a relation in its PostgreSQL schema, or under its SQLite namespace. */
-export function placed(name: string, target: RenderPlace): string {
+export function placed(name: string, target: RenderOptions): string {
     return target.schema === undefined
         ? quote(relation(name, target.namespace))
         : `${quote(target.schema)}.${quote(name)}`;
@@ -251,9 +396,14 @@ function renderChunk(chunk: Chunk, target: Target): string {
 
 /** Bind a value or a placeholder as a marker, or write it as a literal into a declaration. */
 function bind(chunk: Parameter | Placeholder, target: Target): string {
-    // write a literal into a declaration, or bind a parameter
-    const { dialect } = target;
-    const value = chunk instanceof Placeholder ? chunk : chunk.encode(dialect, target.cipher);
+    // write a literal into a declaration, or bind a parameter, or its slot in a kept rendering
+    const { dialect, slots } = target;
+    const slot =
+        slots !== undefined && chunk instanceof Parameter
+            ? new Placeholder(`${SLOT}${String(slots.next++)}`)
+            : undefined;
+    const value =
+        slot ?? (chunk instanceof Placeholder ? chunk : chunk.encode(dialect, target.cipher));
     if (target.parameters === undefined) {
         if (value instanceof Placeholder) {
             throw DatabaseError.of(

@@ -8,22 +8,40 @@ import {
     type SQLWrapper,
 } from "../sql/index.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
+import type { SelectQuery } from "./select.ts";
 import type { Column, DriverValue } from "../table/column.ts";
 import { TABLE, type Table } from "../table/table.ts";
 import type { Row } from "../table/row.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import { DatabaseError } from "../error/error.ts";
 
-/** A statement rendered once per dialect and namespace and run with named values. */
-export class Statement {
-    /** Build the statement from named values. */
-    readonly #build: (value: (name: string) => SQLWrapper) => SQL;
-    /** The rendered statement of each dialect and place. */
-    readonly #rendered = new Map<string, StatementTemplate>();
+/** A statement rendered once per dialect and place, run with named values. */
+export class Statement<Built extends SQLWrapper = SQLWrapper> {
+    /** Build the statement from named values on a connection, which gives its dialect. */
+    readonly #build: (value: (name: string) => SQLWrapper, connection: DatabaseConnection) => Built;
+    /** The rendered statement and its built query of each dialect and place. */
+    readonly #rendered = new Map<
+        string,
+        { readonly template: StatementTemplate; readonly built: Built }
+    >();
 
     /** Create the statement. */
-    constructor(build: (value: (name: string) => SQLWrapper) => SQL) {
+    constructor(
+        build: (value: (name: string) => SQLWrapper, connection: DatabaseConnection) => Built,
+    ) {
         this.#build = build;
+    }
+
+    /** Read every row of a select with the values, decoded through its selection. */
+    async select<Result extends object>(
+        this: Statement<SQLWrapper & Pick<SelectQuery<Result>, "decode">>,
+        database: DatabaseConnection,
+        values: Readonly<Record<string, DriverValue>> = {},
+    ): Promise<Result[]> {
+        const { template, built } = this.#render(database);
+        const rows = await database.driver.values(fill(template, values));
+
+        return built.decode(rows, database.dialect, database.state.cipher);
     }
 
     /** Read every row by column name with the values. */
@@ -31,7 +49,7 @@ export class Statement {
         database: DatabaseConnection,
         values: Readonly<Record<string, DriverValue>> = {},
     ): Promise<Record<string, unknown>[]> {
-        return database.driver.all(fill(this.#render(database), values));
+        return database.driver.all(fill(this.#render(database).template, values));
     }
 
     /** Read every row as an array of values with the values. */
@@ -39,7 +57,7 @@ export class Statement {
         database: DatabaseConnection,
         values: Readonly<Record<string, DriverValue>> = {},
     ): Promise<unknown[][]> {
-        return database.driver.values(fill(this.#render(database), values));
+        return database.driver.values(fill(this.#render(database).template, values));
     }
 
     /** Run the statement for its effect with the values, as a write returning no rows. */
@@ -47,11 +65,14 @@ export class Statement {
         database: DatabaseConnection,
         values: Readonly<Record<string, DriverValue>> = {},
     ): Promise<void> {
-        return database.driver.execute(fill(this.#render(database), values));
+        return database.driver.execute(fill(this.#render(database).template, values));
     }
 
     /** Render the statement once per dialect and place: SQLite namespace or PostgreSQL schema. */
-    #render(database: DatabaseConnection): StatementTemplate {
+    #render(database: DatabaseConnection): {
+        readonly template: StatementTemplate;
+        readonly built: Built;
+    } {
         // reuse the rendering of the database's dialect and place
         const { dialect } = database;
         const { namespace, schema } = database.state;
@@ -60,14 +81,8 @@ export class Statement {
         if (known !== undefined) {
             return known;
         }
-        const rendered = render(
-            this.#build((name) => sql.placeholder(name)),
-            dialect,
-            {
-                namespace,
-                schema,
-            },
-        );
+        const built = this.#build((name) => sql.placeholder(name), database);
+        const rendered = { template: render(built, dialect, { namespace, schema }), built };
         this.#rendered.set(key, rendered);
 
         return rendered;

@@ -40,12 +40,21 @@ export class DatabaseDriver {
     readonly state: ConnectionState;
     /** The active transaction's state. */
     readonly transaction: TransactionState | undefined;
+    /** The SQL names of the tables the driver's reads touch, absent when unrecorded. */
+    readonly reads: Set<string> | undefined;
+
     /** Create the driver. */
-    constructor(session: Session, state: ConnectionState, transaction?: TransactionState) {
-        // keep the session, the connection's state and the transaction
+    constructor(
+        session: Session,
+        state: ConnectionState,
+        transaction?: TransactionState,
+        reads?: Set<string>,
+    ) {
+        // keep the session, the connection's state, the transaction and the recorded reads
         this.session = session;
         this.state = state;
         this.transaction = transaction;
+        this.reads = reads;
     }
 
     /** The SQL dialect. */
@@ -109,10 +118,12 @@ export class DatabaseDriver {
                 (seconds) => {
                     // add the run to the running spans' totals
                     const active = context.active();
-                    SpanPath.add(active, "db.client.operation.count", 1);
-                    SpanPath.add(active, WRITES, WRITE_OPERATIONS.has(statement.operation) ? 1 : 0);
-                    SpanPath.add(active, "db.client.operation.duration", seconds);
-                    SpanPath.add(active, "db.response.returned_rows", rows);
+                    SpanPath.add(active, {
+                        "db.client.operation.count": 1,
+                        [WRITES]: WRITE_OPERATIONS.has(statement.operation) ? 1 : 0,
+                        "db.client.operation.duration": seconds,
+                        "db.response.returned_rows": rows,
+                    });
                     state.rows.add(rows, attributes);
                 },
             );
@@ -200,6 +211,7 @@ export class DatabaseDriver {
 
     /** Read every row of a bound statement as an array of values. */
     values(statement: DriverStatement): Promise<unknown[][]> {
+        this.#record(statement);
         const read = () =>
             this.#query(statement, (session) =>
                 session.values(statement.text, statement.parameters),
@@ -212,12 +224,29 @@ export class DatabaseDriver {
 
     /** Read every row of a bound statement by column name. */
     all(statement: DriverStatement): Promise<Record<string, unknown>[]> {
+        this.#record(statement);
         const read = () =>
             this.#query(statement, (session) => session.all(statement.text, statement.parameters));
 
         return this.#isCacheable(statement)
             ? this.#cached(statement, this.state.recordCache, read)
             : read();
+    }
+
+    /** Record the tables a read touches, every declared table for unknown ones. */
+    #record(statement: DriverStatement): void {
+        // record nothing on an unrecorded driver
+        const { reads } = this;
+        if (reads === undefined) {
+            return;
+        }
+
+        // add each table the statement names, or every declared one
+        const tables =
+            statement.tables.length === 0 ? this.state.declared.keys() : statement.tables;
+        for (const table of tables) {
+            reads.add(table);
+        }
     }
 
     /** Run a bound statement for its effect. */
@@ -227,6 +256,7 @@ export class DatabaseDriver {
         const run = (session: Session) =>
             failing(statement, session.run(statement.text, statement.parameters), this.state);
         if (statement.isRead) {
+            this.#record(statement);
             await this.run(() => run(this.session), statement);
 
             return;
@@ -281,7 +311,7 @@ export class DatabaseDriver {
 
         // key the read by its text, parameters and table versions
         const versions = commits.versions(statement.tables);
-        const key = `${statement.text} ${JSON.stringify(statement.parameters, encodeKey)}`;
+        const key = `${this.state.textNumber(statement.text)} ${JSON.stringify(statement.parameters, encodeKey)}`;
 
         return await cache.get(key, versions, async () => freeze(await read()));
     }

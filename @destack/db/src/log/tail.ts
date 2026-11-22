@@ -112,13 +112,13 @@ export class LogTail<Entry extends TailEntry> {
             return undefined;
         }
 
-        // take the follower's entries, completing the last transaction of a full page
-        const selected = this.#entries.filter(
-            (entry) =>
-                entry.sequence > after &&
-                tables.has(entry.table) &&
-                (scopes === undefined || scopes.has(entry.scope)),
-        );
+        // take the follower's entries past the sequence, completing the last transaction of a full page
+        const selected = this.#entries
+            .slice(this.#first(after))
+            .filter(
+                (entry) =>
+                    tables.has(entry.table) && (scopes === undefined || scopes.has(entry.scope)),
+            );
         const full = selected.slice(0, limit);
         const last = full.at(-1);
         const entries =
@@ -136,6 +136,23 @@ export class LogTail<Entry extends TailEntry> {
         const end = entries.at(-1)?.sequence ?? after;
 
         return { entries, sequence: isLast ? Math.max(end, this.#sequence) : end, isLast };
+    }
+
+    /** Find the index of the window's first entry past a sequence, by binary search. */
+    #first(after: number): number {
+        // halve the range until its start is the first entry past the sequence
+        let low = 0;
+        let high = this.#entries.length;
+        while (low < high) {
+            const middle = (low + high) >>> 1;
+            if ((this.#entries[middle]?.sequence ?? Infinity) > after) {
+                high = middle;
+            } else {
+                low = middle + 1;
+            }
+        }
+
+        return low;
     }
 
     /** Forget the window, as a new epoch or a restore leaves it stale. */

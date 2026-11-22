@@ -50,7 +50,7 @@ test("count a database's statements, transactions, commits and connection waits 
             : {};
     const statements = {
         ...queued,
-        "destack.cache.requests": database.dialect === "sqlite" ? 5 : 2,
+        "destack.cache.requests": database.dialect === "sqlite" ? 9 : 6,
         "destack.db.rows": 3,
         "destack.watch.wakes": 1,
         "db.client.operation.duration.count": 5,
@@ -63,7 +63,7 @@ test("count a database's statements, transactions, commits and connection waits 
         [`destack.transaction.run.duration.count.${name}:database`]: 2,
     };
 
-    // expect the commit's one wake, the read's one cache miss, SQLite's three statements prepared, and its queue timing each turn
+    // expect the commit's one wake, the read's cache miss and text number, each statement's rendering, SQLite's three statements prepared, and its queue timing each turn
     expect(grown).toEqual(statements);
 });
 
