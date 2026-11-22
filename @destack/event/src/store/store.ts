@@ -210,11 +210,7 @@ export class EventStore {
         events: readonly Event<Fields, Data>[],
         transaction?: DatabaseConnection,
     ): Promise<void> {
-        return this.#telemetry.span(
-            "destack.event.append",
-            { "destack.event.kind": kind.key },
-            () => this.#append(kind, events, transaction),
-        );
+        return this.#append(kind, events, transaction);
     }
 
     /** Check, seal and write events, counting those appended and those dropped. */
@@ -504,9 +500,8 @@ export class EventStore {
     ): Promise<Event[]> {
         return Promise.all(
             events.map(async (event) => {
-                // check the keys and data, then seal its personal values and drop its secrets
-                const keys = kind.parseKeys(event.keys);
-                const data = kind.parseData(event.data);
+                // seal its personal values and drop its secrets
+                const { keys, data } = event;
                 const sealed = await PersonalSeal.seal(
                     kind,
                     keys,
@@ -539,7 +534,7 @@ export class EventStore {
             .values(stored.map((event) => kind.row(event)))
             .onConflictDoNothing()
             .returning({ id: table.column("id") });
-        const isWritten = new Set(written.map((row) => schema.string().parse(row.id)));
+        const isWritten = new Set(written.map((row) => row.id));
         const repeated = stored.filter((event) => !isWritten.has(event.id));
         if (repeated.length > 0) {
             await this.#requireRepeats(kind, repeated, transaction);
