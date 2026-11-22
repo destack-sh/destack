@@ -66,7 +66,7 @@ interface DueKey {
     readonly links: Link[];
 }
 
-/** The most pending rows one reconciliation takes: 1,000 rows of about 0.5 KB, half a megabyte. */
+/** The most matching rows one reconciliation takes: 1,000 rows of about 0.5 KB, half a megabyte. */
 const KEY_ROWS = 1000;
 
 /** The fields of a key, as its canonical JSON text has them. */
@@ -109,23 +109,23 @@ export interface Watch<Watched extends Table = Table> {
     readonly isListing?: boolean;
     /** The changed rows that wake keys, every row when absent. */
     readonly where?: Condition;
-    /** The fields whose change wakes keys, any field when absent. */
-    readonly fields?: readonly string[];
+    /** The fields the job reads of the watched rows, whose change wakes keys. */
+    readonly fields: readonly (keyof RowImage<Watched> & string)[];
     /** Whether observations of its rows wake keys too, as an owner waits for what it owns. */
     readonly isObserving?: boolean;
 }
 
-/** What a controller does with its pending rows: converge them, or hold work while they stay. */
+/** What a controller does with the rows matching its condition: converge them, or follow them. */
 type Work<Definition extends Table> =
     | {
-          /** Converge one key's pending rows and return, writing them out of pending. */
+          /** Converge one key's matching rows and return, writing them out of the condition. */
           reconcile(
               rows: readonly Select<Definition>[],
               reconciliation: Reconciliation,
           ): Promise<void>;
       }
     | {
-          /** Hold one key's work in the process while its rows stay pending, until stopped. */
+          /** Keep one key's work running in the process while its rows match, until stopped. */
           follow(rows: readonly Select<Definition>[], following: Following): Promise<void>;
       };
 
@@ -135,12 +135,12 @@ export type Controller<Definition extends Table = Table> = {
     readonly name: string;
     /** The rows with the work. */
     readonly table: Definition;
-    /** The rows with work now, which may compare time fields to `now`. */
-    readonly pending: Condition<RowImage<Definition>>;
-    /** The fields grouping rows into one key, the primary key's by default. */
-    readonly key?: readonly (keyof RowImage<Definition> & string)[];
-    /** Other tables whose changed rows select keys. */
-    readonly watches?: readonly Watch[];
+    /** The condition of the rows with work now, which may compare time fields to `now`. */
+    readonly when: Condition<RowImage<Definition>>;
+    /** The fields grouping rows worked on together, the primary key's by default. */
+    readonly by?: readonly (keyof RowImage<Definition> & string)[];
+    /** The other rows the work reads, whose changed fields select keys. */
+    readonly reads?: readonly Watch[];
     /** The most keys it works on at once, one by default. */
     readonly concurrency?: number;
 } & Work<Definition>;
@@ -151,8 +151,8 @@ export interface Projection {
     readonly name: string;
     /** The key's field name, which its watches map. */
     readonly key: string;
-    /** The inputs whose changed rows touch keys. */
-    readonly watches: readonly Watch[];
+    /** The rows the projection reads, whose changed fields touch keys. */
+    readonly reads: readonly Watch[];
     /** Every key: the distinct values of one input's column. */
     readonly all: {
         /** The input defining the keys. */
@@ -211,7 +211,9 @@ type Job = Controller | Projection | Cursor;
 
 /** One running reconciliation of a key. */
 export interface Reconciliation {
-    /** Abort once the loop stops or the key leaves pending. */
+    /** The key worked on: a projection's key value, else the grouping fields as canonical JSON. */
+    readonly key: string;
+    /** Abort once the loop stops or the key's rows no longer match. */
     readonly signal: AbortSignal;
     /** Wait for the key's rows to change again while it reconciles. */
     readonly changed: () => Promise<void>;
@@ -283,8 +285,8 @@ interface TimeTerm {
 interface Compiled {
     /** The declared controller. */
     readonly controller: Controller;
-    /** The pending rows, matched in memory with the loop's time bound. */
-    readonly pending: Match;
+    /** The condition, matched in memory with the loop's time bound. */
+    readonly when: Match;
     /** The comparisons to the loop's time. */
     readonly terms: readonly TimeTerm[];
     /** The comparisons of each OR branch with the top's, or the top's alone without branches. */
@@ -473,7 +475,7 @@ export class ControlLoop {
             attributes: passed,
         });
         const watched = jobs.flatMap((job) =>
-            "watches" in job ? (job.watches ?? []).map((watch) => watch.table) : [],
+            "reads" in job ? (job.reads ?? []).map((watch) => watch.table) : [],
         );
         const owned = control.controllers.map((controller) => controller.table);
         this.#keyWakes = instruments.metric.counter("destack.controller.wakes", {
@@ -512,11 +514,19 @@ export class ControlLoop {
             }
         }
 
-        // refuse a watch with both a path and stored conditions
+        // refuse a read with both a path and stored conditions, or of a field its table does not log
         for (const job of jobs.filter((each) => !ControlLoop.#isCursor(each))) {
-            const watches = ControlLoop.#isCursor(job) ? [] : (job.watches ?? []);
-            if (watches.some((watch) => watch.matches !== undefined && watch.path !== undefined)) {
-                throw new TypeError(`job '${job.name}' matches stored conditions along a path`);
+            const reads = ControlLoop.#isCursor(job) ? [] : (job.reads ?? []);
+            for (const read of reads) {
+                const logged = read.table[TABLE].logged;
+                const unknown = read.fields.filter((field) => !Object.hasOwn(logged, field));
+                if (read.matches !== undefined && read.path !== undefined) {
+                    throw new TypeError(`job '${job.name}' matches stored conditions along a path`);
+                } else if (unknown.length > 0) {
+                    throw new TypeError(
+                        `job '${job.name}' reads fields '${unknown.join("', '")}' that table '${read.table[TABLE].sqlName}' does not log`,
+                    );
+                }
             }
         }
 
@@ -645,36 +655,36 @@ export class ControlLoop {
     /** Compile a controller: its condition, the comparisons to the loop's time and its key. */
     static #compile(controller: Controller): Compiled {
         // find the comparisons to the loop's time at the top of the condition
-        const top = ControlLoop.#termsOf(controller.pending);
+        const top = ControlLoop.#termsOf(controller.when);
 
         // find each OR branch's own comparisons, which join the top's
-        const either: unknown = controller.pending["OR"];
+        const either: unknown = controller.when["OR"];
         const branches = (Array.isArray(either) ? either : [])
             .filter(Condition.is)
             .map((branch) => [...top, ...ControlLoop.#termsOf(branch)]);
         const terms = [...top, ...branches.flat().filter((term) => !top.includes(term))];
 
         // refuse a reconcile of every row, which has no work to tell apart
-        if ("reconcile" in controller && Object.keys(controller.pending).length === 0) {
+        if ("reconcile" in controller && Object.keys(controller.when).length === 0) {
             throw new TypeError(
-                `controller '${controller.name}' reconciles every row: declare the rows pending`,
+                `controller '${controller.name}' reconciles every row: declare its condition`,
             );
         }
 
         // refuse the loop's time anywhere but a field's upper bound at the top of the condition
-        if (ControlLoop.#countNows(controller.pending) !== terms.length) {
+        if (ControlLoop.#countNows(controller.when) !== terms.length) {
             throw new TypeError(
-                `controller '${controller.name}' compares now outside a field's lt or lte at the top of its pending condition or of its OR's branches`,
+                `controller '${controller.name}' compares now outside a field's lt or lte at the top of its condition or of its OR's branches`,
             );
         }
 
         return {
             controller,
-            pending: ControlLoop.#match(controller.table, controller.pending),
+            when: ControlLoop.#match(controller.table, controller.when),
             terms,
             branches: branches.length === 0 ? [top] : branches,
             times: new Map(terms.map((term) => [term.now.placeholder, term.now])),
-            key: controller.key ?? controller.table[TABLE].key,
+            key: controller.by ?? controller.table[TABLE].key,
         };
     }
 
@@ -705,8 +715,8 @@ export class ControlLoop {
         return {
             name: `${handle}.${table[TABLE].name.replaceAll("-", "_")}.expire`,
             table,
-            pending: { [expiry]: { lte: now } },
-            key: [],
+            when: { [expiry]: { lte: now } },
+            by: [],
             reconcile: async (rows) => {
                 // delete the page's rows still expired, in one statement
                 const matches = rows.map((row) => {
@@ -748,7 +758,7 @@ export class ControlLoop {
         }
         const own = ControlLoop.#isProjection(job) ? job.all.table : job.table;
 
-        return [own, ...(job.watches ?? []).map((watch) => watch.table)];
+        return [own, ...(job.reads ?? []).map((watch) => watch.table)];
     }
 
     /** Count the comparisons to the loop's time anywhere in a condition. */
@@ -820,7 +830,7 @@ export class ControlLoop {
         this.#wake();
     }
 
-    /** List the pending rows, then follow the logged tables from the loop's position. */
+    /** List the matching rows, then follow the logged tables from the loop's position. */
     async #follow(signal: AbortSignal): Promise<void> {
         // read each set's saved position
         const names = this.sets.flatMap((set) =>
@@ -1010,7 +1020,7 @@ export class ControlLoop {
         }
     }
 
-    /** Select the keys a committed change makes pending, wakes or changes. */
+    /** Select the keys a committed change makes match, wakes or changes. */
     async #changed(change: Change): Promise<void> {
         // read the change's table, time and active projections
         const name = change.table[TABLE].sqlName;
@@ -1037,16 +1047,13 @@ export class ControlLoop {
             }
             if (controller.table[TABLE].sqlName === name) {
                 // tell the running key of the row before its change, then select the row after it
-                //  unless an observation leaves it in a pending condition that reads no fields
+                //  unless an observation leaves it matching a condition that reads no fields
                 const before = Change.before(change);
                 const after = Change.after(change);
                 if (before !== null) {
                     this.#notify(controller, ControlLoop.#keyOf(compiled, before));
                 }
-                if (
-                    after !== null &&
-                    (!isObservation || Object.keys(controller.pending).length > 0)
-                ) {
+                if (after !== null && (!isObservation || Object.keys(controller.when).length > 0)) {
                     this.#select(compiled, after, at, change);
                 }
             }
@@ -1074,14 +1081,14 @@ export class ControlLoop {
     ): Promise<void> {
         // take the watches of the changed table
         const name = change.table[TABLE].sqlName;
-        const watches = (job.watches ?? []).filter(
+        const watches = (job.reads ?? []).filter(
             (watch) =>
                 watch.table[TABLE].sqlName === name &&
                 (!isObservation || watch.isObserving === true),
         );
         const fields = ControlLoop.#isProjection(job)
             ? [job.key]
-            : (job.key ?? job.table[TABLE].key);
+            : (job.by ?? job.table[TABLE].key);
         const table = ControlLoop.#isProjection(job) ? job.all.table : job.table;
         const columns = ControlLoop.#isProjection(job) ? [job.all.column] : fields;
         const space = ControlLoop.#isProjection(job) ? job.all.where : undefined;
@@ -1305,19 +1312,19 @@ export class ControlLoop {
         );
     }
 
-    /** Make a row's key pending, or wake the controller once its waiting row comes due. */
+    /** Enqueue a matching row's key, or wake the controller once its waiting row comes due. */
     #select(compiled: Compiled, row: Row, at: number, change: Change): void {
         // tell the running key its rows changed
         const { controller } = compiled;
         const key = ControlLoop.#keyOf(compiled, row);
         this.#notify(controller, key);
 
-        // take a pending row's key, or wake at a waiting row's due time
-        if (this.#matches(compiled, compiled.pending, row, at)) {
+        // take a matching row's key, or wake at a waiting row's due time
+        if (this.#matches(compiled, compiled.when, row, at)) {
             this.#enqueue(controller, key, at, change);
         } else if (
             compiled.terms.length > 0 &&
-            this.#matches(compiled, compiled.pending, row, undefined)
+            this.#matches(compiled, compiled.when, row, undefined)
         ) {
             const due = ControlLoop.#dueOf(compiled, row);
             if (due !== undefined) {
@@ -1326,7 +1333,7 @@ export class ControlLoop {
         }
     }
 
-    /** Read when a waiting row turns pending: the earliest branch whose comparisons all hold. */
+    /** Read when a waiting row starts matching: the earliest branch whose comparisons all hold. */
     static #dueOf(compiled: Compiled, row: Row): number | undefined {
         // read when each branch's comparisons all hold
         const dues = compiled.branches.flatMap((terms) => {
@@ -1355,7 +1362,7 @@ export class ControlLoop {
         }
     }
 
-    /** List a controller's pending keys and its next wake, one listing at a time. */
+    /** List a controller's matching keys and its next wake, one listing at a time. */
     #list(controller: Job, by: Listing): Promise<void> {
         // count the listing by what listed it
         const listed = { "destack.controller.name": controller.name, "destack.wake.kind": by };
@@ -1378,14 +1385,14 @@ export class ControlLoop {
         return listing;
     }
 
-    /** List a keyless controller's one key while any of its rows is pending. */
-    async #firstPending(table: Table, where: SQL | undefined): Promise<readonly Row[]> {
-        const [pending] = await this.database.select().from(table).where(where).limit(1);
+    /** List a keyless controller's one key while any of its rows matches. */
+    async #firstMatch(table: Table, where: SQL | undefined): Promise<readonly Row[]> {
+        const [matching] = await this.database.select().from(table).where(where).limit(1);
 
-        return pending === undefined ? [] : [{}];
+        return matching === undefined ? [] : [{}];
     }
 
-    /** Read a controller's pending keys, enqueueing those not failing, and its next due row. */
+    /** Read a controller's matching keys, enqueueing those not failing, and its next due row. */
     async #read(controller: Job, by: Listing): Promise<void> {
         // take a listed cursor once its batch passes
         if (ControlLoop.#isCursor(controller)) {
@@ -1425,7 +1432,7 @@ export class ControlLoop {
             return;
         }
 
-        // read the pending keys at the loop's time
+        // read the matching keys at the loop's time
         const compiled = found(this.#compiled, controller);
         const { table } = controller;
         const at = this.#clock.now();
@@ -1434,12 +1441,12 @@ export class ControlLoop {
             compiled.key.map((field) => [field, table[TABLE].column(field)]),
         );
         const where = Predicate.render(
-            Condition.resolve(controller.pending, Namespace.fields(table)),
+            Condition.resolve(controller.when, Namespace.fields(table)),
             Predicate.bind(table, placeholders),
         );
         const rows =
             compiled.key.length === 0
-                ? await this.#firstPending(table, where)
+                ? await this.#firstMatch(table, where)
                 : await this.database.selectDistinct(columns).from(table).where(where);
         const failures = found(this.#failures, controller);
         for (const row of rows) {
@@ -1455,7 +1462,7 @@ export class ControlLoop {
             const column = table[TABLE].column(term.field);
             const bound = term.now.at({ now: at, timeZone: "UTC" });
             const rest = Predicate.render(
-                Condition.resolve(controller.pending, Namespace.fields(table)),
+                Condition.resolve(controller.when, Namespace.fields(table)),
                 Predicate.bind(table, this.#bound(compiled, undefined)),
             );
             const [oldest] = await this.database
@@ -1766,10 +1773,13 @@ export class ControlLoop {
 
     /** Write the positions of sets that owe nothing in one statement. */
     async #settlePositions(sets: readonly ControllerSet[]): Promise<void> {
-        // leave each position to the instance leading every projection it covers
+        // read the position and the sets settled at it together, as a change may wake a key meanwhile
         const after = this.#followed;
+        const settled = sets.filter((set) => this.#isSettled(set));
+
+        // leave each position to the instance leading every projection it covers
         const cursors: { readonly set: ControllerSet; readonly cursor: LogCursor }[] = [];
-        for (const set of sets) {
+        for (const set of settled) {
             const continued = set.projections.filter((each) => this.#continued.has(each));
             const leading = await Promise.all(
                 continued.map(async (each) => (await this.#leading.get(each)) ?? true),
@@ -1877,14 +1887,14 @@ export class ControlLoop {
         this.#reconciling.add(reconciling);
     }
 
-    /** Read a key's pending rows at the loop's time. */
+    /** Read a key's matching rows at the loop's time. */
     async #rows(compiled: Compiled, key: string): Promise<Select<Table>[]> {
-        // match the pending rows of the key's fields at the loop's time
+        // match the rows of the key's fields at the loop's time
         const { table } = compiled.controller;
         const fields = KEY_FIELDS.parse(JSON.parse(key));
         const placeholders = this.#bound(compiled, this.#clock.now());
         const condition: Condition = {
-            AND: [compiled.controller.pending, Condition.equal(fields)],
+            AND: [compiled.controller.when, Condition.equal(fields)],
         };
         const where = Predicate.render(
             Condition.resolve(condition, Namespace.fields(table)),
@@ -1952,7 +1962,7 @@ export class ControlLoop {
         return { "destack.controller.name": controller.name, "destack.controller.kind": kind };
     }
 
-    /** Reconcile one key's pending rows, or follow them until they leave, retrying failures. */
+    /** Reconcile or follow one key's matching rows, retrying failures. */
     async #reconcile(work: Pass, stop: AbortController, synced: () => void): Promise<void> {
         // reconcile under the lock
         const { controller, key } = work;
@@ -1979,14 +1989,14 @@ export class ControlLoop {
                         return;
                     }
 
-                    // leave a key without pending rows
+                    // leave a key without matching rows
                     const compiled = found(this.#compiled, controller);
                     const rows = await this.#rows(compiled, key);
                     if (rows.length === 0) {
                         return;
                     }
 
-                    // follow until stopped or the key leaves pending, reporting once caught up
+                    // follow until stopped or the key stops matching, reporting once caught up
                     if ("follow" in controller) {
                         const ended = new AbortController();
                         const watched = {
@@ -2014,7 +2024,7 @@ export class ControlLoop {
                     // reconcile the rows
                     await controller.reconcile(rows, reconciliation);
 
-                    // take the key's next page of pending rows after a full one
+                    // take the key's next page of matching rows after a full one
                     if (rows.length === KEY_ROWS) {
                         this.#enqueue(controller, key, this.#clock.now(), "page");
                     }
@@ -2057,7 +2067,7 @@ export class ControlLoop {
         }
     }
 
-    /** Stop a follow once a change leaves its key without pending rows. */
+    /** Stop a follow once a change leaves its key without matching rows. */
     async #stopWhenSettled(
         compiled: Compiled,
         key: string,
@@ -2071,9 +2081,7 @@ export class ControlLoop {
             }
             const rows = await this.#rows(compiled, key);
             if (rows.length === 0) {
-                stop.abort(
-                    new Error(`'${compiled.controller.name}' no longer has '${key}' pending`),
-                );
+                stop.abort(new Error(`'${compiled.controller.name}' no longer matches '${key}'`));
 
                 return;
             }
@@ -2137,7 +2145,7 @@ export class ControlLoop {
         // reconcile without a lock
         const tracker = this.#tracker;
         if (tracker === undefined) {
-            return reconcile({ signal: stopped, changed });
+            return reconcile({ key: work.key, signal: stopped, changed });
         }
 
         // lead the controller, its keys sharing one take of its lock, counting the releases since
@@ -2167,7 +2175,7 @@ export class ControlLoop {
             return undefined;
         }
 
-        return reconcile({ signal: stopped, changed });
+        return reconcile({ key: work.key, signal: stopped, changed });
     }
 
     /** Schedule the host's wake-up at the earliest due time, once per change. */

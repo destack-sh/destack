@@ -450,8 +450,8 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
             {
                 name: "destack.blob.release",
                 table,
-                pending: { leasedUntil: { gt: 0, lte: new Now() } },
-                key: [],
+                when: { leasedUntil: { gt: 0, lte: new Now() } },
+                by: [],
                 reconcile: async (rows) => {
                     // retire the blobs whose leases ended
                     await this.database
@@ -468,18 +468,18 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
             {
                 name: "destack.blob.collect",
                 table,
-                pending: { isRetired: true, freedAt: { isNull: true } },
-                key: [],
+                when: { isRetired: true, freedAt: { isNull: true } },
+                by: [],
                 reconcile: collect,
             },
             {
                 name: "destack.blob.delete",
                 table,
-                pending: {
+                when: {
                     isRetired: true,
                     freedAt: { lte: new Now().minus({ milliseconds: GRACE_MILLISECONDS }) },
                 },
-                key: [],
+                by: [],
                 reconcile: collect,
             },
         ];

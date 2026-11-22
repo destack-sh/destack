@@ -213,7 +213,7 @@ test("reconcile the pending rows listed at the start and those a change makes pe
     const controller: Controller<typeof job> = {
         name: "job",
         table: job,
-        pending: { status: "open" },
+        when: { status: "open" },
         reconcile: async (rows) => {
             const row = nth(rows, 0);
             reconciled.push(row.id);
@@ -268,7 +268,7 @@ test("report what made each pass's key due, and link the pass to the span of the
     const controller: Controller<typeof job> = {
         name: "job",
         table: job,
-        pending: { status: "open" },
+        when: { status: "open" },
         reconcile: async (rows) => {
             const row = nth(rows, 0);
             reconciled.push(row.id);
@@ -330,7 +330,7 @@ test("reconcile a waiting row once its time comes due, waking at the earliest on
     const controller: Controller<typeof job> = {
         name: "job",
         table: job,
-        pending: { status: "open", dueAt: { lte: now } },
+        when: { status: "open", dueAt: { lte: now } },
         reconcile: async (rows) => {
             for (const row of rows) {
                 reconciled.push([row.id, clock.now() - started]);
@@ -393,8 +393,8 @@ test("reconcile every pending row under one key when a controller groups by no f
     const controller: Controller<typeof job> = {
         name: "job",
         table: job,
-        pending: { status: "open" },
-        key: [],
+        when: { status: "open" },
+        by: [],
         reconcile: async (rows) => {
             batches.push(rows.map((row) => row.id).toSorted());
             await database.transaction((transaction) =>
@@ -438,7 +438,7 @@ test("compare a microsecond field to the loop's time a window earlier, waking as
     const controller: Controller<typeof job> = {
         name: "job",
         table: job,
-        pending: { status: "open", dueAt: { lte: now.microseconds().minus({ milliseconds: 60 }) } },
+        when: { status: "open", dueAt: { lte: now.microseconds().minus({ milliseconds: 60 }) } },
         reconcile: async (rows) => {
             for (const row of rows) {
                 reconciled.push([row.id, clock.now() - started]);
@@ -489,8 +489,8 @@ test("wake the jobs a relation reaches from a watched table's changed row", asyn
     const controller: Controller<typeof job> = {
         name: "job",
         table: job,
-        pending: { status: "open" },
-        watches: [{ table: note, path: [related.get(note, "jobs")] }],
+        when: { status: "open" },
+        reads: [{ table: note, fields: ["scope"], path: [related.get(note, "jobs")] }],
         reconcile: async (rows) => {
             reconciled.push(nth(rows, 0).id);
         },
@@ -532,8 +532,14 @@ test("wake only the jobs whose stored condition a watched table's changed row ma
     const controller: Controller<typeof waiter> = {
         name: "waiter",
         table: waiter,
-        pending: { scope: "space" },
-        watches: [{ table: note, matches: { column: "condition", where: { scope: "space" } } }],
+        when: { scope: "space" },
+        reads: [
+            {
+                table: note,
+                fields: ["scope"],
+                matches: { column: "condition", where: { scope: "space" } },
+            },
+        ],
         reconcile: async (rows) => {
             reconciled.push(nth(rows, 0).id);
         },
@@ -553,27 +559,27 @@ test("wake only the jobs whose stored condition a watched table's changed row ma
     expect(reconciled).toEqual(["second"]);
 });
 
-test("refuse a pending condition comparing now anywhere but a field's upper bound at its top", async () => {
+test("refuse a condition comparing now anywhere but a field's upper bound at its top", async () => {
     await using simulation = testSimulation();
     const { database } = await openJobs(simulation);
-    const declare = (pending: Controller<typeof job>["pending"]) => () =>
+    const declare = (when: Controller<typeof job>["when"]) => () =>
         new ControlLoop(database, [
             {
                 projections: [],
-                controllers: [{ name: "job", table: job, pending, reconcile: async () => {} }],
+                controllers: [{ name: "job", table: job, when, reconcile: async () => {} }],
                 cursors: [],
             },
         ]);
 
     expect(declare({ dueAt: { gte: now } })).toThrow(
-        "controller 'job' compares now outside a field's lt or lte at the top of its pending condition or of its OR's branches",
+        "controller 'job' compares now outside a field's lt or lte at the top of its condition or of its OR's branches",
     );
     expect(declare({ OR: [{ AND: [{ dueAt: { lte: now } }] }] })).toThrow(
-        "controller 'job' compares now outside a field's lt or lte at the top of its pending condition or of its OR's branches",
+        "controller 'job' compares now outside a field's lt or lte at the top of its condition or of its OR's branches",
     );
 });
 
-test("reconcile a row once the time in one of its pending condition's OR branches comes", async () => {
+test("reconcile a row once the time in one of its condition's OR branches comes", async () => {
     // keep a done job due in a minute, pending while open or once due
     await using simulation = testSimulation();
     const { database, world, write } = await openJobs(simulation);
@@ -583,7 +589,7 @@ test("reconcile a row once the time in one of its pending condition's OR branche
     const controller: Controller<typeof job> = {
         name: "job",
         table: job,
-        pending: { OR: [{ status: "open" }, { dueAt: { lte: now } }] },
+        when: { OR: [{ status: "open" }, { dueAt: { lte: now } }] },
         reconcile: async (rows) => {
             reconciled.push(world.clock.now() - start);
             await database.transaction((transaction) =>
@@ -630,9 +636,9 @@ test("select the jobs a watched table's change names", async () => {
     const controller: Controller<typeof job> = {
         name: "job",
         table: job,
-        pending: { status: "open" },
-        key: ["scope"],
-        watches: [{ table: note, on: { scope: "scope" } }],
+        when: { status: "open" },
+        by: ["scope"],
+        reads: [{ table: note, fields: ["scope"], on: { scope: "scope" } }],
         reconcile: async (rows) => {
             reconciled.push(rows.map((row) => row.id).join(","));
         },
@@ -676,11 +682,12 @@ test("wake a watch on an observation only when it observes, and on a desired cha
     ): Controller<typeof job> => ({
         name,
         table: job,
-        pending: { status: "open" },
-        key: ["scope"],
-        watches: [
+        when: { status: "open" },
+        by: ["scope"],
+        reads: [
             {
                 table: order,
+                fields: ["generation", "state"],
                 isObserving,
                 on: { scope: "scope" },
             },
@@ -741,7 +748,7 @@ test("capture a key failing transiently only once its retries last past the wind
     const controller: Controller<typeof job> = {
         name: "job",
         table: job,
-        pending: { status: "open" },
+        when: { status: "open" },
         reconcile: async (rows) => {
             const { id } = nth(rows, 0);
             if (id === "peer" && isDown) {
@@ -815,7 +822,7 @@ test("retry a transient failure after the wait it asks, else after the backoff",
     const controller: Controller<typeof job> = {
         name: "job",
         table: job,
-        pending: { status: "open" },
+        when: { status: "open" },
         reconcile: async (rows) => {
             const { id } = nth(rows, 0);
             attempts.push([id, clock.now() - started]);
@@ -864,7 +871,7 @@ test("retry a failure a controller declares no outcome for after the backoff, ca
     const controller: Controller<typeof job> = {
         name: "job",
         table: job,
-        pending: { status: "open" },
+        when: { status: "open" },
         reconcile: async (rows) => {
             const { id } = nth(rows, 0);
             attempts.push([id, clock.now() - started]);
@@ -922,7 +929,7 @@ test("reconcile keys up to a controller's concurrency, never one key twice at on
     const controller: Controller<typeof job> = {
         name: "job",
         table: job,
-        pending: { status: "open" },
+        when: { status: "open" },
         concurrency: 2,
         reconcile: async (rows) => {
             const { id } = nth(rows, 0);
@@ -979,7 +986,7 @@ test("lock each key to one instance of several sharing a database, handing it ov
     const controllerOf = (instance: string): Controller<typeof job> => ({
         name: "job",
         table: job,
-        pending: { status: "open" },
+        when: { status: "open" },
         reconcile: async (_rows, { signal }) => {
             reconciled.push(instance);
             await waitAborted(signal);
@@ -1023,7 +1030,7 @@ test("follow a key while its rows stay pending, stopping it once they leave or t
     const controller: Controller<typeof job> = {
         name: "job",
         table: job,
-        pending: { status: "open" },
+        when: { status: "open" },
         concurrency: Infinity,
         follow: async (rows, { signal, synced }) => {
             const { id } = nth(rows, 0);
@@ -1065,7 +1072,7 @@ test("capture a follow that fails while its key stays pending", async () => {
     const controller: Controller<typeof job> = {
         name: "job",
         table: job,
-        pending: { status: "open" },
+        when: { status: "open" },
         follow: async () => {
             throw Failure.error(Failure.http("FORBIDDEN", "refused"));
         },
@@ -1187,7 +1194,7 @@ test("project every key at the first start, then only the keys the changes past 
     const projection: Projection = {
         name: "note-spaces",
         key: "scope",
-        watches: [{ table: note, on: { scope: "scope" } }],
+        reads: [{ table: note, fields: ["scope"], on: { scope: "scope" } }],
         all: { table: note, column: "scope" },
         result: "rows",
         project: async (key) => {
@@ -1250,7 +1257,7 @@ test("project a key again that was running when the loop stopped", async () => {
     const projection: Projection = {
         name: "note-spaces",
         key: "scope",
-        watches: [{ table: note, on: { scope: "scope" } }],
+        reads: [{ table: note, fields: ["scope"], on: { scope: "scope" } }],
         all: { table: note, column: "scope" },
         result: "rows",
         project: async (key, reconciliation) => {
@@ -1308,7 +1315,7 @@ test("list a projection kept in the process at each start, beside one continuing
     const projectionOf = (name: string, result: Projection["result"]): Projection => ({
         name,
         key: "scope",
-        watches: [{ table: note, on: { scope: "scope" } }],
+        reads: [{ table: note, fields: ["scope"], on: { scope: "scope" } }],
         all: { table: note, column: "scope" },
         result,
         project: async (key) => {
@@ -1351,7 +1358,7 @@ test("replay a late set's projection from the position", async () => {
     const projection: Projection = {
         name: "note-spaces",
         key: "scope",
-        watches: [{ table: note, on: { scope: "scope" } }],
+        reads: [{ table: note, fields: ["scope"], on: { scope: "scope" } }],
         all: { table: note, column: "scope" },
         result: "rows",
         project: async (key) => {
@@ -1412,7 +1419,7 @@ test("save a set's position once an interval while running, and at a stop that o
     const projection: Projection = {
         name: "note-spaces",
         key: "scope",
-        watches: [{ table: note, on: { scope: "scope" } }],
+        reads: [{ table: note, fields: ["scope"], on: { scope: "scope" } }],
         all: { table: note, column: "scope" },
         result: "rows",
         project: async () => {},
@@ -1462,7 +1469,7 @@ test("continue a stopped loop's projections in the next loop of the process, lis
     const controller: Controller<typeof job> = {
         name: "job",
         table: job,
-        pending: { status: "open" },
+        when: { status: "open" },
         reconcile: async (rows) => {
             const row = nth(rows, 0);
             passed.push(`job ${row.id}`);
@@ -1480,7 +1487,7 @@ test("continue a stopped loop's projections in the next loop of the process, lis
     const projection: Projection = {
         name: "note-spaces",
         key: "scope",
-        watches: [{ table: note, on: { scope: "scope" } }],
+        reads: [{ table: note, fields: ["scope"], on: { scope: "scope" } }],
         all: { table: note, column: "scope" },
         result: "rows",
         project: async (key) => {
@@ -1540,7 +1547,7 @@ test("wake a row at its earliest OR branch's time, a branch with a missing time 
     const controller: Controller<typeof job> = {
         name: "job",
         table: job,
-        pending: {
+        when: {
             OR: [
                 { dueAt: { lte: now }, status: "done" },
                 { dueAt: { lt: now }, id: "early" },
@@ -1628,7 +1635,7 @@ test("list a controller of an unlogged table again after a commit to its table",
     const controller: Controller<typeof ticket> = {
         name: "ticket",
         table: ticket,
-        pending: { status: "open" },
+        when: { status: "open" },
         reconcile: async (rows) => {
             const { id } = nth(rows, 0);
             reconciled.push(id);
@@ -1685,7 +1692,7 @@ test("project every key again once the changes past the loop's position were com
     const projection: Projection = {
         name: "note-spaces",
         key: "scope",
-        watches: [{ table: note, on: { scope: "scope" } }],
+        reads: [{ table: note, fields: ["scope"], on: { scope: "scope" } }],
         all: { table: note, column: "scope" },
         result: "rows",
         project: async (key) => {
@@ -1733,7 +1740,7 @@ test("select a reloaded table's changes by its name, reading pending rows throug
     const controller: Controller<typeof reloadedJob> = {
         name: "job",
         table: reloadedJob,
-        pending: { status: "open" },
+        when: { status: "open" },
         reconcile: async (rows) => {
             reconciled.push(nth(rows, 0).id);
         },
@@ -1756,7 +1763,7 @@ test("spend no statement on commits to tables no controller reads", async () => 
     const controller: Controller<typeof job> = {
         name: "job",
         table: job,
-        pending: { status: "open" },
+        when: { status: "open" },
         reconcile: async () => {},
     };
     const loop = new ControlLoop(database, [
@@ -1808,7 +1815,7 @@ test("run timers between the reconciliations of a synchronous database, one key 
     const controller: Controller<typeof queuedJob> = {
         name: "queued-job",
         table: queuedJob,
-        pending: { status: "open" },
+        when: { status: "open" },
         reconcile: async (rows) => {
             // read the job a few times and work on it without yielding
             const [row] = rows;

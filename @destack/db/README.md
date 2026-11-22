@@ -206,8 +206,8 @@ const payment = defineTable(
 export const ship = (database: DatabaseConnection): Controller<typeof order> => ({
     name: "ship",
     table: order,
-    pending: { status: "open" },
-    watches: [{ table: payment, on: { id: "orderId" } }],
+    when: { status: "open" },
+    reads: [{ table: payment, fields: ["orderId"], on: { id: "orderId" } }],
     concurrency: 4,
     reconcile: async ([row]) => {
         // mark the order shipped
@@ -245,7 +245,10 @@ export const countNotes = (write: (account: string) => Promise<void>): Projectio
     name: "note-usage",
     key: "account",
     all: { table: space, column: "account" },
-    watches: [{ table: space }, { table: note, path: [relations.get(note, "space")] }],
+    reads: [
+        { table: space, fields: ["account"] },
+        { table: note, fields: [], path: [relations.get(note, "space")] },
+    ],
     result: "rows",
     project: (account) => write(account),
 });
@@ -589,7 +592,7 @@ export function closeJobs(database: DatabaseConnection, signal: AbortSignal) {
     const close: Controller<typeof job> = {
         name: "close",
         table: job,
-        pending: { status: "open" },
+        when: { status: "open" },
         reconcile: async (rows) => {
             for (const row of rows) {
                 await database.update(job).set({ status: "done" }).where(eq(job.id, row.id));
