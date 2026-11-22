@@ -1,8 +1,7 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { Subject } from "@destack/sync";
-import { Snapshot } from "@destack/db";
 import { Identifier, nth } from "@destack/schema";
-import { accessRelationship, principal, Relationship } from "../index.ts";
+import { principal, accessRelationship, Relationship } from "../index.ts";
 import { group, node } from "../test/fixture.ts";
 import { openFixture } from "../test/database.ts";
 
@@ -43,7 +42,7 @@ test("list the users with a permission on an object, through nested groups, deci
     const readers = async (id: string) =>
         (
             await authorizer.subjects(
-                Snapshot.live(database),
+                database.snapshot(),
                 node.permission("read"),
                 node.reference("personal", id),
                 {
@@ -59,7 +58,7 @@ test("list the users with a permission on an object, through nested groups, deci
     // walk note a's readers in pages of two in key order
     const page = (after?: string) =>
         authorizer.subjects(
-            Snapshot.live(database),
+            database.snapshot(),
             node.permission("read"),
             node.reference("personal", "a"),
             {

@@ -1,5 +1,5 @@
 import type { Table } from "@destack/db";
-import { replicaTables, Scope } from "@destack/sync";
+import { Scope, replicaTables } from "@destack/sync";
 import type { TableMapping } from "../authorizer/mapping.ts";
 import { grant, invitation, relationship, role } from "../declare/principal.ts";
 import { accessRelationship } from "../relationship/table.ts";

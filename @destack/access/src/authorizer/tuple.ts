@@ -1,14 +1,15 @@
 import { AccessContext } from "../context/context.ts";
 import { ObjectReference, type ObjectTypeReference, Scope, Subject } from "@destack/sync";
-import { type Match, Predicate, type Row, type Snapshot, TABLE, type Select } from "@destack/db";
+import { type Match, Predicate, type Row, TABLE, type Select } from "@destack/db";
+import type { Snapshot } from "@destack/db/database";
 import { found, schema } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
 import { CONTAINED, type AccessExpression } from "../declare/expression.ts";
 import { principal, universe } from "../declare/principal.ts";
-import { type PermissionReference } from "../declare/policy.ts";
+import type { PermissionReference } from "../declare/policy.ts";
 import { accepts, type RelationDescription } from "../declare/subject.ts";
 import { Relationship } from "../relationship/relationship.ts";
-import { type RoleBinding, type accessRelationship } from "../relationship/table.ts";
+import type { RoleBinding, accessRelationship } from "../relationship/table.ts";
 import type { Access } from "./access.ts";
 import type { Authorizer } from "./authorizer.ts";
 import { TupleCondition } from "./condition.ts";

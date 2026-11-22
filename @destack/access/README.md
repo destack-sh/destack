@@ -25,19 +25,10 @@ People share and delegate:
 Declare a policy, share a note with Bob, then require read access:
 
 ```ts
-import {
-    AccessContext,
-    Authorization,
-    type AuthorizationEnvironment,
-    Authorizer,
-    Caller,
-    Policy,
-    principal,
-    Relationship,
-    relation,
-    union,
-} from "@destack/access";
-import { type DatabaseConnection, Snapshot } from "@destack/db";
+import { AccessContext, Caller, Policy, principal, relation, union } from "@destack/access";
+import { Authorizer } from "@destack/access/authorizer";
+import { Authorization, type AuthorizationEnvironment, Relationship } from "@destack/access";
+import type { DatabaseConnection } from "@destack/db/database";
 import type { ObjectReference, Subject } from "@destack/sync";
 
 // declare who may read and share a note
@@ -72,7 +63,7 @@ export async function shareNote(
     );
 
     // require that Alice may read
-    const snapshot = Snapshot.live(database);
+    const snapshot = database.snapshot();
     const access = await authorizer.resolve(snapshot, target.scope, context);
     await authorizer.require(snapshot, [note.permission("read")], target, access);
 }
@@ -234,8 +225,9 @@ export async function shareUntil(
 `subjects` lists the principals of a type with a permission, through groups and roles.
 
 ```ts
-import { type Authorizer, type PermissionReference, principal } from "@destack/access";
-import type { Snapshot } from "@destack/db";
+import { type PermissionReference, principal } from "@destack/access";
+import { type Authorizer } from "@destack/access/authorizer";
+import type { Snapshot } from "@destack/db/database";
 import type { ObjectReference } from "@destack/sync";
 
 /** List the first hundred users who may read a note. */
@@ -257,8 +249,9 @@ export async function readers(
 `check` answers a `Decision`, and `explain` lists why each path failed.
 
 ```ts
-import type { Access, Authorizer, PermissionReference } from "@destack/access";
-import type { Snapshot } from "@destack/db";
+import type { PermissionReference } from "@destack/access";
+import type { Access, Authorizer } from "@destack/access/authorizer";
+import type { Snapshot } from "@destack/db/database";
 import type { ObjectReference } from "@destack/sync";
 
 /** Read why a caller may not use a permission on an object, absent when it may. */
@@ -284,7 +277,8 @@ export async function explainDenial(
 A role grants only permissions its creator has.
 
 ```ts
-import { type Authorization, type PermissionReference, Role } from "@destack/access";
+import { type PermissionReference } from "@destack/access";
+import { type Authorization, Role } from "@destack/access";
 import type { ObjectReference, Subject } from "@destack/sync";
 
 /** Let Carol read every note in a space as its reviewer. */
@@ -306,8 +300,9 @@ export async function addReviewer(
 A delegate acts with what both it and the delegator may do.
 
 ```ts
-import { type Authorization, Grant, type PermissionReference } from "@destack/access";
-import type { Snapshot } from "@destack/db";
+import { Grant, type PermissionReference } from "@destack/access";
+import { type Authorization } from "@destack/access";
+import type { Snapshot } from "@destack/db/database";
 import type { ObjectReference, Subject } from "@destack/sync";
 
 /** Let an agent read for Alice, act once as her, then revoke it. */

@@ -1,6 +1,6 @@
 import { TEST_START, testSimulation } from "@destack/test/world";
 import type { Crypto, Environment } from "@destack/environment";
-import type { DatabaseConnection } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { TestDatabase } from "@destack/db/test";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { Caller, KEY_ASSURANCE } from "../context/index.ts";

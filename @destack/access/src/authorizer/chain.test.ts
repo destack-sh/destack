@@ -3,29 +3,28 @@ import { TEST_START } from "@destack/test/world";
 import { SimulatedClock } from "@destack/environment/simulation";
 import { ChainParameters } from "./authorizer.ts";
 import { expect, onTestFinished, test } from "@destack/test";
-import { asc, eq, Snapshot, type DatabaseConnection } from "@destack/db";
+import { asc, eq } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import {
-    Feed,
     type ObjectTypeReference,
-    Replica,
     Scope,
     type Subject,
-    type Subscription,
     ObjectReference,
+    type Subscription,
 } from "@destack/sync";
+import { Replica, Feed } from "@destack/sync/dataflow";
 import {
     accessGrant,
+    AccessContext,
+    Caller,
     accessRelationship,
     accessRole,
     accessRolePermission,
-    accessTables,
-    AccessContext,
     Authorization,
-    Authorizer,
-    Caller,
-    CHAIN_PUBLICATION,
     Relationship,
 } from "../index.ts";
+import { Authorizer } from "../authorizer.ts";
+import { accessTables, CHAIN_PUBLICATION } from "../replica/replica.ts";
 import {
     account,
     accountTable,
@@ -710,7 +709,7 @@ async function openWorld(
 
 /** Decide whether a person serves the space's account, resolved in the space. */
 async function serves(side: Side, person: Subject): Promise<boolean> {
-    const snapshot = Snapshot.live(side.database);
+    const snapshot = side.database.snapshot();
     const resolved = await side.authorizer.resolve(
         snapshot,
         SPACE,

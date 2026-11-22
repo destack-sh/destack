@@ -1,4 +1,5 @@
-import { type DatabaseConnection, defineTable, index, integer, lte, text } from "@destack/db";
+import { defineTable, index, integer, lte, text } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { AccessError } from "../error/index.ts";
 
 /** The single-use proofs a store spent, each until it expires, after JWT's `jti`. */

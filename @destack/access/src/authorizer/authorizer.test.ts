@@ -2,15 +2,8 @@ import { testSimulation } from "@destack/test/world";
 import { expect, Recording, refusal, test } from "@destack/test";
 import { TestDatabase } from "@destack/db/test";
 import type { FamilyError } from "@destack/error";
-import {
-    defineTable,
-    Snapshot,
-    Transaction,
-    eq,
-    type DatabaseConnection,
-    Table,
-    text,
-} from "@destack/db";
+import { defineTable, eq, Table, text } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { nth, Identifier } from "@destack/schema";
 import { type ObjectReference, Scope, type Subject } from "@destack/sync";
 import {
@@ -18,11 +11,8 @@ import {
     type AccessReason,
     ACCESS_PACKAGE_ID,
     accessGrant,
-    accessRelationship,
     Grant,
     Contact,
-    Authorizer,
-    LinkSecret,
     Policy,
     principal,
     relation,
@@ -30,10 +20,13 @@ import {
     AccessContext,
     Caller,
     ANONYMOUS,
+    anyone,
+    accessRelationship,
+    LinkSecret,
     Invitation,
     Relationship,
-    anyone,
 } from "../index.ts";
+import { Authorizer } from "../authorizer.ts";
 import {
     account,
     cell,
@@ -91,9 +84,9 @@ databaseTest("authorize notes, ranges and world entities", async ({ fixture }) =
         (
             await listRows(
                 query,
-                Snapshot.live(database),
+                database.snapshot(),
                 node.permission("edit"),
-                await query.resolve(Snapshot.live(database), "personal", bob),
+                await query.resolve(database.snapshot(), "personal", bob),
                 item,
             )
         ).map((row) => ({ id: row["id"] })),
@@ -152,9 +145,9 @@ databaseTest("authorize notes, ranges and world entities", async ({ fixture }) =
         const selected = (
             await listRows(
                 authorizer,
-                Snapshot.live(database),
+                database.snapshot(),
                 type.permission("edit"),
-                await authorizer.resolve(Snapshot.live(database), "personal", context),
+                await authorizer.resolve(database.snapshot(), "personal", context),
                 item,
             )
         ).map((row) => ({ id: row["id"] }));
@@ -173,16 +166,16 @@ databaseTest("authorize notes, ranges and world entities", async ({ fixture }) =
         (
             await listRows(
                 authorizer,
-                Snapshot.live(database),
+                database.snapshot(),
                 entity.permission("edit"),
-                await authorizer.resolve(Snapshot.live(database), "personal", stale),
+                await authorizer.resolve(database.snapshot(), "personal", stale),
                 item,
             )
         ).map((row) => ({ id: row["id"] })),
     ).toEqual([]);
 
     // challenge the stale caller for the elevation's authentication, and refuse one no authentication allows
-    const snapshot = Snapshot.live(database);
+    const snapshot = database.snapshot();
     const refusals = [];
     for (const context of [stale, { ...stale, attributes: { team: 1, phase: "view" } }]) {
         const access = await authorizer.resolve(snapshot, "personal", context);
@@ -245,9 +238,9 @@ databaseTest(
                 (
                     await listRows(
                         authorizer,
-                        Snapshot.live(database),
+                        database.snapshot(),
                         node.permission("read"),
-                        await authorizer.resolve(Snapshot.live(database), "personal", context),
+                        await authorizer.resolve(database.snapshot(), "personal", context),
                         item,
                     )
                 ).map((row) => ({ id: row["id"] })),
@@ -776,15 +769,15 @@ databaseTest(
 
         // act for alice under the one live grant, under none once it lapsed, and not through a sub-agent the assistant never granted
         const parties = { delegator: alice.subject, delegate: assistant };
-        const caller = await Grant.act(Snapshot.live(database), parties, 1000);
+        const caller = await Grant.act(database.snapshot(), parties, 1000);
         const grants = await database.select().from(accessGrant);
         const subagent = principal.installation.reference("personal", "subagent");
         const chain = { subject: alice.subject, actors: [assistant, subagent] };
         expect({
             grants: grants.map((row) => row.id),
             caller: [caller.subject, caller.actors, caller.grants],
-            lapsed: await outcome(Grant.act(Snapshot.live(database), parties, 2000)),
-            unlinked: await outcome(Grant.chain(Snapshot.live(database), chain, 1000)),
+            lapsed: await outcome(Grant.act(database.snapshot(), parties, 2000)),
+            unlinked: await outcome(Grant.chain(database.snapshot(), chain, 1000)),
         }).toEqual({
             grants: [later.id],
             caller: [alice.subject, [assistant], [Grant.claim(later)]],
@@ -857,7 +850,7 @@ databaseTest(
         const { database, authorizer, bob, simulation } = fixture;
         const resolve = async () => {
             const before = await Recording.read(simulation.telemetry);
-            const access = await authorizer.resolve(Snapshot.live(database), "personal", bob);
+            const access = await authorizer.resolve(database.snapshot(), "personal", bob);
 
             return {
                 statements: (await Recording.read(simulation.telemetry))
@@ -985,7 +978,7 @@ databaseTest("remove a space's delegated grants when the space goes", async ({ f
     await grant("space-remaining");
 
     // remove the first space
-    await Transaction.run(database, (transaction) =>
+    await database.commit((transaction) =>
         authorizer.cascade(transaction, principal.space.reference(Scope.universe.id, "space-gone")),
     );
 
@@ -1088,14 +1081,14 @@ databaseTest(
 
         // list b and c until the expiry, and only b from then on
         const listed = async (now: number) => {
-            const access = await authorizer.resolve(Snapshot.live(database), "personal", {
+            const access = await authorizer.resolve(database.snapshot(), "personal", {
                 ...bob,
                 now,
             });
             const read = (
                 await listRows(
                     authorizer,
-                    Snapshot.live(database),
+                    database.snapshot(),
                     node.permission("read"),
                     access,
                     item,
@@ -1119,7 +1112,7 @@ databaseTest("evaluate more rows than one query may bind", async ({ fixture }) =
         ...nth(rows, position % 3),
         id: `copy-${position}`,
     }));
-    const access = await authorizer.resolve(Snapshot.live(database), "personal", {
+    const access = await authorizer.resolve(database.snapshot(), "personal", {
         ...alice,
         attributes: {
             "first-row": 1,
@@ -1129,7 +1122,7 @@ databaseTest("evaluate more rows than one query may bind", async ({ fixture }) =
         },
     });
     const permitted = await authorizer.checkRows(
-        Snapshot.live(database),
+        database.snapshot(),
         cell.permission("edit"),
         access,
         copies,
@@ -1168,9 +1161,9 @@ async function expectEditable(
     const selected = (
         await listRows(
             authorizer,
-            Snapshot.live(database),
+            database.snapshot(),
             type.permission("edit"),
-            await authorizer.resolve(Snapshot.live(database), "personal", context),
+            await authorizer.resolve(database.snapshot(), "personal", context),
             item,
         )
     ).map((row) => ({ id: row["id"] }));

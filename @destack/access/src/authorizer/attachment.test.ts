@@ -1,19 +1,20 @@
 import { testSimulation } from "@destack/test/world";
 import { expect, onTestFinished, test } from "@destack/test";
-import { defineTable, Transaction, text, defineDatabase, Snapshot } from "@destack/db";
+import { defineTable, text, defineDatabase } from "@destack/db";
+import { Transaction } from "@destack/db/database";
 import { TestDatabase } from "@destack/db/test";
 import {
     AccessContext,
-    accessTables,
-    Authorization,
-    Authorizer,
     Caller,
     Policy,
     principal,
     relation,
-    type TableMapping,
     through,
+    Authorization,
+    type TableMapping,
 } from "../index.ts";
+import { Authorizer } from "../authorizer.ts";
+import { accessTables } from "../replica/replica.ts";
 import { module1 } from "../test/fixture.ts";
 import { listRows } from "../test/listing.ts";
 
@@ -168,7 +169,7 @@ test("allow a remark exactly when the caller may read its parent, of whichever t
     const queried = (
         await listRows(
             authorization.authorizer,
-            Snapshot.live(database),
+            database.snapshot(),
             remark.permission("read"),
             await authorization.in("personal"),
             remarks,

@@ -1,5 +1,4 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { Snapshot } from "@destack/db";
 import { nth } from "@destack/schema";
 import type { Access } from "./access.ts";
 import { account, item, node, rows, space } from "../test/fixture.ts";
@@ -49,7 +48,7 @@ test("resolve a caller in the scopes one encloses exactly as each scope resolves
     await database.transaction(async (transaction) => await transaction.insert(item).values(nodes));
 
     // resolve the account's spaces at once, leaving out the space of another account and an unknown scope
-    const snapshot = Snapshot.live(database);
+    const snapshot = database.snapshot();
     const above = await authorizer.resolve(snapshot, "near", bob);
     const below = await above.descend(snapshot, [
         "plain",

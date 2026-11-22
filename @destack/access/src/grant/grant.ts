@@ -1,12 +1,11 @@
-import { Table } from "@destack/db";
-import { Caller } from "../context/context.ts";
+import { Table, type Select } from "@destack/db";
+import { Caller, type AccessContext, type GrantClaim } from "../context/context.ts";
 import { isPrincipal, principal } from "../declare/principal.ts";
 import type { Authorization } from "../authorizer/authorization.ts";
-import type { Select, Snapshot } from "@destack/db";
+import type { Snapshot } from "@destack/db/database";
 import { Identifier, Instant, nth, schema } from "@destack/schema";
 import { ObjectReference, Subject } from "@destack/sync";
 import { AccessError } from "../error/index.ts";
-import type { AccessContext, GrantClaim } from "../context/context.ts";
 import { GrantPermission } from "./permission.ts";
 import { accessGrant } from "./table.ts";
 

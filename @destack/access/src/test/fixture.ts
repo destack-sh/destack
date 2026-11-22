@@ -12,8 +12,9 @@ import {
     exclusion,
     resource,
     context,
+    type TableMapping,
 } from "../index.ts";
-import { accessTables, type TableMapping } from "../index.ts";
+import { accessTables } from "../replica/replica.ts";
 import { PackageId } from "@destack/package";
 
 /** Declare objects under a fixed test package. */

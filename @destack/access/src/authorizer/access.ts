@@ -1,9 +1,10 @@
-import type { DatabaseConnection, Row, Select, Snapshot } from "@destack/db";
-import { Replica, type ScopeLink, Scope, ObjectReference, Subject } from "@destack/sync";
+import { ReplicaSet, type ScopeLink, Scope, ObjectReference, Subject } from "@destack/sync";
+import type { Row, Select } from "@destack/db";
+import type { DatabaseConnection, Snapshot } from "@destack/db/database";
 import { found } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
 import { PermissionReference } from "../declare/policy.ts";
-import { type SubjectType } from "../declare/subject.ts";
+import type { SubjectType } from "../declare/subject.ts";
 import { CONTAINED } from "../declare/expression.ts";
 import { ACCESS_PACKAGE_ID } from "../declare/principal.ts";
 import * as principal from "../declare/principal.ts";
@@ -12,7 +13,7 @@ import { Elevation } from "../context/elevation.ts";
 import { GrantPermission } from "../grant/permission.ts";
 import { Grant } from "../grant/grant.ts";
 import { Relationship } from "../relationship/relationship.ts";
-import { type RoleBinding, type accessRelationship } from "../relationship/table.ts";
+import type { RoleBinding, accessRelationship } from "../relationship/table.ts";
 import { accessRole, accessRolePermission } from "../role/table.ts";
 import { Role } from "../role/role.ts";
 import { RoleGrant } from "../role/closure.ts";
@@ -747,7 +748,12 @@ export class Access {
 
         // wait a lag for a stale replica's next page, then refuse it
         const deadline = database.state.clock.timeout(lag);
-        const stale = await Replica.waitLive(database, CHAIN_PUBLICATION, chain, lag, deadline);
+        const stale = await new ReplicaSet(database).waitLive(
+            CHAIN_PUBLICATION,
+            chain,
+            lag,
+            deadline,
+        );
         if (stale !== undefined) {
             throw AccessError.of(
                 "REPLICA_UNAVAILABLE",
@@ -762,7 +768,7 @@ export class Access {
         chain: readonly string[],
         lag: number,
     ): Promise<string | undefined> {
-        return await Replica.stale(database, CHAIN_PUBLICATION, chain, lag);
+        return await new ReplicaSet(database).stale(CHAIN_PUBLICATION, chain, lag);
     }
 
     /** List the approvers of a call's change other than its subject and its actors, each once. */

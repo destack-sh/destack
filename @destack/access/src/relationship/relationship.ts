@@ -1,5 +1,13 @@
-import { nth } from "@destack/schema";
-import { Table } from "@destack/db";
+import { nth, Digest, Identifier, type UuidEnvironment, Instant, schema } from "@destack/schema";
+import {
+    Table,
+    sql,
+    type Comparable,
+    type Condition,
+    type OpenCondition,
+    type Select,
+    type SQL,
+} from "@destack/db";
 import { accessRole, OWNER_ROLE } from "../role/table.ts";
 import type { Authorization } from "../authorizer/authorization.ts";
 import {
@@ -9,17 +17,7 @@ import {
     type ReferenceColumns,
     Subject,
 } from "@destack/sync";
-import {
-    sql,
-    type Comparable,
-    type Condition,
-    type Transaction,
-    type OpenCondition,
-    type Select,
-    type SQL,
-    Snapshot,
-} from "@destack/db";
-import { Digest, Identifier, type UuidEnvironment, Instant, schema } from "@destack/schema";
+import type { Transaction, Snapshot } from "@destack/db/database";
 import { AccessError } from "../error/index.ts";
 import { Manager } from "../manager/manager.ts";
 import { accessRelationship, type RelationshipColumnMap, type RoleBinding } from "./table.ts";

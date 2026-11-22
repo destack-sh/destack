@@ -1,21 +1,21 @@
 import { testSimulation } from "@destack/test/world";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TestDatabase } from "@destack/db/test";
-import { defineTable, Snapshot, text } from "@destack/db";
+import { defineTable, text } from "@destack/db";
 import { nth } from "@destack/schema";
 import type { ObjectReference } from "@destack/sync";
 import {
     AccessContext,
-    Authorizer,
     Caller,
     CONTAINED,
     contained,
     Policy,
     principal,
     relation,
-    TableMapping,
     through,
+    TableMapping,
 } from "../index.ts";
+import { Authorizer } from "../authorizer.ts";
 import {
     accountTable,
     fixtureDatabase,
@@ -115,7 +115,7 @@ test("permit a scope's row to the principals inside it and a row living in a sco
     await database.insert(teamTable).values([{ id: "yard", scope: "inside", member: "nobody" }]);
 
     // decide a principal living in a scope on a row, resolved in the scope of the row, in memory and in SQL
-    const snapshot = Snapshot.live(database);
+    const snapshot = database.snapshot();
     const decide = async (
         target: ObjectReference,
         scope: string,
@@ -222,7 +222,7 @@ test("resolve a credential bound to a scope in that scope, its descendants and i
         linkSecrets: [],
         grants: [],
     };
-    const snapshot = Snapshot.live(database);
+    const snapshot = database.snapshot();
     const resolved = await Promise.all(
         ["near", "inside", "far", "outside", "universe"].map((scope) =>
             refusal(authorizer.resolve(snapshot, scope, caller)),
@@ -289,7 +289,7 @@ test("contain a space's principals under its global principal reference", async 
     );
 
     // decide an installation of each home on the person's contact, in memory and in SQL
-    const snapshot = Snapshot.live(database);
+    const snapshot = database.snapshot();
     const target = person.reference("universe", "alice");
     const decide = async (scope: string) => {
         const caller = AccessContext.of(
@@ -360,7 +360,7 @@ test("contain a global scope's principal in its scope under its universe referen
     ]);
 
     // decide each home's universe reference on the home object, deciding in the realm
-    const snapshot = Snapshot.live(database);
+    const snapshot = database.snapshot();
     const target = home.reference("near", "own");
     const decide = async (id: string) => {
         const caller = AccessContext.of(Caller.of(home.reference("universe", id)), 1000);
@@ -432,7 +432,7 @@ test("admit the contents of a realm related as a zone's residents, through an ar
     await fixture.replicateRelationship(gate.reference("outside", "door"), "zone", north, 0);
 
     // decide an installation of each district on the gate inside its realm, in memory and in SQL
-    const snapshot = Snapshot.live(database);
+    const snapshot = database.snapshot();
     const door = gate.reference("outside", "door");
     const decide = async (scope: string, realmId: string) => {
         const caller = {

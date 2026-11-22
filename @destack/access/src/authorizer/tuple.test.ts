@@ -2,20 +2,20 @@ import { TestDatabase } from "@destack/db/test";
 import { Digest, nth, schema } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { Scope, type Subject } from "@destack/sync";
-import { Snapshot, asc, eq } from "@destack/db";
+import { asc, eq } from "@destack/db";
 import {
-    Relationship,
-    accessRelationship,
-    accessRole,
-    accessRolePermission,
     anyone,
-    Authorizer,
     principal,
     AccessContext,
     type PermissionReference,
     ANONYMOUS,
     Caller,
+    Relationship,
+    accessRelationship,
+    accessRole,
+    accessRolePermission,
 } from "../index.ts";
+import { Authorizer } from "../authorizer.ts";
 import {
     cell,
     entity,
@@ -74,7 +74,7 @@ test("decide in memory exactly as the permission queries do, for objects and the
     const fixture = await openFixture();
     onTestFinished(() => fixture.close());
     const { database, environment } = fixture;
-    const snapshot = Snapshot.live(database);
+    const snapshot = database.snapshot();
 
     // cover roles on ancestors through the tree, as well as without it
     const authorizers = [
@@ -429,7 +429,7 @@ test("read an intersection's grants as the superset its decisions change with", 
     const { database, authorizer } = fixture;
     const rows = await database.select().from(item).orderBy(asc(item.id));
     const trees = await authorizer
-        .reader(Snapshot.live(database), [])
+        .reader(database.snapshot(), [])
         .trees(cell.permission("edit"), rows);
     expect(trees.map((tree) => Tree.flatten(tree).map((grant) => grant.subject.id))).toEqual([
         ["alice"],
@@ -463,9 +463,9 @@ test("explain which grants allow a caller and why the others fail", async () => 
 
     // explain reading the node for a visitor without and with the link secret
     const explain = async (context: AccessContext) => {
-        const access = await authorizer.resolve(Snapshot.live(database), "personal", context);
+        const access = await authorizer.resolve(database.snapshot(), "personal", context);
         const explanation = await authorizer.explain(
-            Snapshot.live(database),
+            database.snapshot(),
             node.permission("read"),
             node.reference("personal", "c"),
             access,

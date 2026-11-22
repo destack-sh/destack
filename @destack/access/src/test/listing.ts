@@ -1,4 +1,5 @@
-import type { Row, Snapshot, Table } from "@destack/db";
+import type { Row, Table } from "@destack/db";
+import type { Snapshot } from "@destack/db/database";
 import type { PermissionReference } from "../declare/policy.ts";
 import type { Access } from "../authorizer/access.ts";
 import type { Authorizer } from "../authorizer/authorizer.ts";

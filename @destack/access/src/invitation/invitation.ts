@@ -1,16 +1,8 @@
-import { Table } from "@destack/db";
+import { Table, and, Condition, eq, type Select, type SQL } from "@destack/db";
 import * as policies from "../declare/principal.ts";
 import { Authorization } from "../authorizer/authorization.ts";
 import { AccessName, ObjectReference, Subject } from "@destack/sync";
-import {
-    and,
-    Condition,
-    eq,
-    type Transaction,
-    type Select,
-    type Snapshot,
-    type SQL,
-} from "@destack/db";
+import type { Transaction, Snapshot } from "@destack/db/database";
 import { Identifier, Instant, schema } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
 import { Contact, AccessContext, Caller } from "../context/context.ts";

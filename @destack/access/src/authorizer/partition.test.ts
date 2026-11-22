@@ -1,13 +1,14 @@
 import { TEST_START } from "@destack/test/world";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { and, asc, type DatabaseConnection, eq, Snapshot } from "@destack/db";
+import { and, asc, eq } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { Scope } from "@destack/sync";
+import { Authorizer } from "../authorizer.ts";
 import {
     accessInvitation,
     accessRelationship,
     accessRole,
     Authorization,
-    Authorizer,
     Role,
     Invitation,
     Relationship,
@@ -52,7 +53,7 @@ test("record each scope in its partition where its type partitions, else in its 
     );
 
     // read the space in its partition and the account in the universe's
-    const chain = await Scope.chain(Snapshot.live(home.database), "personal");
+    const chain = await Scope.chain(home.database.snapshot(), "personal");
     expect(chain.map((link) => [link.object.id, link.partition])).toEqual([
         ["personal", "personal"],
         ["account-1", "universe"],
@@ -108,7 +109,7 @@ test("store a space's own access beside its row in its account's home, refusing 
     );
 
     // record the space in its partition below the account, its owners bound beside its row alone
-    const chain = await Scope.chain(Snapshot.live(partition.database), "personal");
+    const chain = await Scope.chain(partition.database.snapshot(), "personal");
     expect({
         granted: granted.subject,
         refused,
@@ -134,9 +135,9 @@ test("store a space's own access beside its row in its account's home, refusing 
     // remove the space beside its row: its scope row and its own access go, its home keeps its scope
     await owner((authorization) => authorization.remove(personal));
     expect({
-        universe: await Scope.read(Snapshot.live(universe.database), ["personal"]),
+        universe: await Scope.read(universe.database.snapshot(), ["personal"]),
         owners: await owners(universe.database),
-        home: (await Scope.read(Snapshot.live(partition.database), ["personal"])).length,
+        home: (await Scope.read(partition.database.snapshot(), ["personal"])).length,
     }).toEqual({ universe: [], owners: [], home: 1 });
 });
 

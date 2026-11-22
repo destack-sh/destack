@@ -1,16 +1,16 @@
-import { and, eq, Snapshot, Table, Transaction, type DatabaseConnection } from "@destack/db";
+import { and, eq, Table } from "@destack/db";
+import { Transaction, type DatabaseConnection } from "@destack/db/database";
 import { ObjectReference, Scope, type Subject } from "@destack/sync";
 import { Identifier, present } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
 import { Relationship } from "../relationship/relationship.ts";
 import { accessRelationship } from "../relationship/table.ts";
 import type { GrantPermission } from "../grant/permission.ts";
-import type { GrantClaim } from "../context/context.ts";
+import { type GrantClaim, AccessContext, Caller } from "../context/context.ts";
 import type { Policy } from "../declare/policy.ts";
 import { Grant } from "../grant/grant.ts";
 import { accessGrant } from "../grant/table.ts";
 import { Role, type RoleRequest } from "../role/role.ts";
-import { AccessContext, Caller } from "../context/context.ts";
 import { Authorization, type AuthorizationEnvironment } from "../authorizer/authorization.ts";
 import { Authorizer } from "../authorizer/authorizer.ts";
 
@@ -149,7 +149,7 @@ export class TestAccess {
     /** Write a relationship as a row in its scope, as declarations and replication do. */
     async relate(relationship: Relationship): Promise<void> {
         await this.database.transaction(async (transaction) => {
-            const scope = await Relationship.scope(Snapshot.live(transaction), relationship);
+            const scope = await Relationship.scope(transaction.snapshot(), relationship);
             await transaction
                 .insert(accessRelationship)
                 .values(Relationship.encode(relationship, scope));

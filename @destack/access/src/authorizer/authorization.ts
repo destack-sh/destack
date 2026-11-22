@@ -1,12 +1,5 @@
-import {
-    type DatabaseConnection,
-    Transaction,
-    type Row,
-    type RowImage,
-    type Select,
-    type Snapshot,
-    Table,
-} from "@destack/db";
+import { type Row, type RowImage, type Select, Table } from "@destack/db";
+import type { DatabaseConnection, Transaction, Snapshot } from "@destack/db/database";
 import type { Environment } from "@destack/environment";
 import { ObjectReference, Scope, Subject } from "@destack/sync";
 
@@ -131,7 +124,7 @@ export class Authorization {
         environment: AuthorizationEnvironment,
         call: (authorization: Authorization) => Promise<Value>,
     ): Promise<Value> {
-        return Transaction.run(database, (transaction) =>
+        return database.commit((transaction) =>
             call(new Authorization(authorizer, transaction, context, environment)),
         );
     }

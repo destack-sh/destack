@@ -1,20 +1,20 @@
 import { testSimulation } from "@destack/test/world";
 import { expect, onTestFinished, test } from "@destack/test";
 import { TestDatabase } from "@destack/db/test";
-import { defineTable, Snapshot, text } from "@destack/db";
+import { defineTable, text } from "@destack/db";
 import { Scope, type Subject } from "@destack/sync";
 import {
-    accessTables,
     type AccessContext,
-    Authorizer,
     subjectSet,
     permission,
     Policy,
     principal,
     relation,
-    type TableMapping,
     union,
+    type TableMapping,
 } from "../index.ts";
+import { Authorizer } from "../authorizer.ts";
+import { accessTables } from "../replica/replica.ts";
 import { module1 } from "../test/fixture.ts";
 import { listRows } from "../test/listing.ts";
 
@@ -104,7 +104,7 @@ test("permit a package's installations in a note's scope as members of its set, 
     await database.insert(noteTable).values({ id: "note-1", scope: "space-1", owner: "alice" });
 
     // decide pinning the note as its owner and as each installation
-    const snapshot = Snapshot.live(database);
+    const snapshot = database.snapshot();
     const target = note.reference("space-1", "note-1");
     const pin = note.permission("pin");
     const subjects = [
@@ -118,7 +118,7 @@ test("permit a package's installations in a note's scope as members of its set, 
             const access = await authorizer.resolve(snapshot, "space-1", caller(subject));
             const checked = await authorizer.check(snapshot, pin, target, access);
             const listed = (
-                await listRows(authorizer, Snapshot.live(database), pin, access, noteTable)
+                await listRows(authorizer, database.snapshot(), pin, access, noteTable)
             ).map((row) => ({ id: row["id"] }));
 
             return [checked.isAllowed, listed.map((row) => row.id)];
@@ -143,7 +143,7 @@ test("decide a relation the caller states on an object without its row, and refu
     const authorizer = new Authorizer([installed, note], mappings);
 
     // state the note's owner set for one caller, the note's row stored nowhere here
-    const snapshot = Snapshot.live(storage.database);
+    const snapshot = storage.database.snapshot();
     const target = note.reference("space-1", "note-absent");
     const read = note.permission("read");
     const stating = {

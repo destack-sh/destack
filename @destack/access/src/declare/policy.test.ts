@@ -1,5 +1,6 @@
 import { expect, test } from "@destack/test";
-import { Authorizer, INTRINSIC_POLICIES, none, Policy, principal, relation } from "../index.ts";
+import { INTRINSIC_POLICIES, none, Policy, principal, relation } from "../index.ts";
+import { Authorizer } from "../authorizer.ts";
 import { account, group, module1, node, team } from "../test/fixture.ts";
 
 /** List the names of some policies. */

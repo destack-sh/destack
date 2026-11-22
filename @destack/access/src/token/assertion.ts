@@ -1,5 +1,5 @@
 import type { Crypto, Environment } from "@destack/environment";
-import type { DatabaseConnection } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { IdentityError, Jws, Jwt, type JwtClaims, PublicKey } from "@destack/identity";
 import type { PackageId } from "@destack/package";
 import { Digest, schema, Uuid } from "@destack/schema";

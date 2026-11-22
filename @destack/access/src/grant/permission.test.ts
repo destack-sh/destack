@@ -1,13 +1,11 @@
 import { testSimulation } from "@destack/test/world";
 import { expect, onTestFinished, test } from "@destack/test";
-import { defineTable, text, type DatabaseConnection, type Table, Snapshot } from "@destack/db";
+import { defineTable, text, type Table } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { TestDatabase } from "@destack/db/test";
 import type { AuthorizationEnvironment } from "../authorizer/authorization.ts";
 import { type ObjectReference, Scope } from "@destack/sync";
 import {
-    accessTables,
-    ANY_SCOPE,
-    Authorizer,
     permission,
     Policy,
     principal,
@@ -17,8 +15,11 @@ import {
     type AccessContext,
     GrantPermission,
     type PermissionReference,
+    ANY_SCOPE,
     type TableMapping,
 } from "../index.ts";
+import { Authorizer } from "../authorizer.ts";
+import { accessTables } from "../replica/replica.ts";
 import { module1 } from "../test/fixture.ts";
 import { TestAccess } from "../test/access.ts";
 import { isListed, listRows } from "../test/listing.ts";
@@ -307,7 +308,7 @@ test("allow a permission through objects, one in another scope, where a grant gi
     });
 
     // allow the note on page one and its comment under the grant anywhere, none where a scope is unprovable
-    const snapshot = Snapshot.live(database);
+    const snapshot = database.snapshot();
     const allowed = async (context: AccessContext) => {
         const access = await authorizer.resolve(snapshot, "shared", context);
         const targets = [
@@ -373,7 +374,7 @@ test("cap every permission by the grant, lending a global type's permission in e
     };
 
     // check in the governing scope and list in the containing one
-    const snapshot = Snapshot.live(database);
+    const snapshot = database.snapshot();
     const decide = async (
         asked: PermissionReference,
         target: ObjectReference,
@@ -387,7 +388,7 @@ test("cap every permission by the grant, lending a global type's permission in e
         const containing = await authorizer.resolve(snapshot, target.scope, context);
         const checked = await authorizer.check(snapshot, asked, target, governing);
         const listed = (
-            await listRows(authorizer, Snapshot.live(database), asked, containing, table)
+            await listRows(authorizer, database.snapshot(), asked, containing, table)
         ).map((row) => ({ id: row["id"] }));
 
         return [checked.isAllowed, listed.map((row) => row.id)];
@@ -424,7 +425,7 @@ async function decided(
         type === "piece"
             ? [piece, pieceTable, piece.permission("read")]
             : [page, pageTable, page.permission("text")];
-    const snapshot = Snapshot.live(database);
+    const snapshot = database.snapshot();
     const access = await authorizer.resolve(snapshot, "personal", context);
     const column = table.id;
     const ids = (await database.select({ id: column }).from(table).orderBy(column)).map(

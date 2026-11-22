@@ -7,10 +7,10 @@ import {
     type Column,
     type SQL,
     type SQLWrapper,
-    type Snapshot,
     type Table,
     type Row,
 } from "@destack/db";
+import type { Snapshot } from "@destack/db/database";
 import type { PackageId } from "@destack/package";
 import { Scope } from "@destack/sync";
 import { AccessError } from "../error/index.ts";

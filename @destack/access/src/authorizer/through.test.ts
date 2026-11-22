@@ -1,23 +1,22 @@
 import { TestDatabase } from "@destack/db/test";
-import { defineTable, Snapshot, text, type Row } from "@destack/db";
+import { defineTable, text, type Row } from "@destack/db";
 import type { ObjectReference, Subject } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import type { Environment } from "@destack/environment";
 import { testSimulation } from "@destack/test/world";
 import {
-    type Access,
     AccessContext,
-    accessTables,
-    Authorizer,
     Caller,
     contained,
     Policy,
     principal,
     relation,
-    type TableMapping,
     through,
     union,
+    type TableMapping,
 } from "../index.ts";
+import { type Access, Authorizer } from "../authorizer.ts";
+import { accessTables } from "../replica/replica.ts";
 import { TestAccess } from "../test/access.ts";
 import { module4 } from "../test/fixture.ts";
 import { isListed } from "../test/listing.ts";
@@ -257,7 +256,7 @@ test("decide a related object's permission with the chain of its scope, in memor
 
     // decide a permission in memory and in SQL, reporting a disagreement between the two
     const authorizer = new Authorizer(policies, mappings);
-    const snapshot = Snapshot.live(database);
+    const snapshot = database.snapshot();
     const decide = async (target: ObjectReference, name: string, id: string) => {
         const permission = { ...target, name };
         const isTicket = target.type === ticket.definition.name;
@@ -347,7 +346,7 @@ test("decide a batch of rows alike whether other scopes are covered or not", asy
 
     // check the ticket from the realm with its district covered, then with the far district as well
     const authorizer = new Authorizer(policies, mappings);
-    const snapshot = Snapshot.live(database);
+    const snapshot = database.snapshot();
     const context = AccessContext.of(Caller.of(user("realm-warden")), simulation.clock.now());
     const above = await authorizer.resolve(snapshot, crown.id, context);
     const inside = await authorizer.resolve(snapshot, near.id, context);
@@ -396,7 +395,7 @@ test("decide a scope arrow on the nearest scope only, of any declared type, thro
 
     // decide a permission on the crate and the pass in memory and in SQL, for a user or a resident
     const authorizer = new Authorizer(policies, mappings);
-    const snapshot = Snapshot.live(database);
+    const snapshot = database.snapshot();
     const decide = async (target: ObjectReference, name: string, caller: string) => {
         const permission = { ...target, name };
         const table = target.type === crate.definition.name ? crateTable : passTable;
@@ -475,7 +474,7 @@ test("grant nothing through a declared type this database stores none of, in mem
     // decide the ticket's use, which goes through the vault, with every policy declared but no vault table
     const stored = mappings.filter((mapping) => mapping.policy !== vault);
     const authorizer = new Authorizer(policies, stored);
-    const snapshot = Snapshot.live(database);
+    const snapshot = database.snapshot();
     const decide = async (id: string) => {
         const permission = { ...upward, name: "use" };
         const context = AccessContext.of(Caller.of(user(id)), simulation.clock.now());

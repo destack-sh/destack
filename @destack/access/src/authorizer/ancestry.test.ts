@@ -1,18 +1,13 @@
 import { testSimulation } from "@destack/test/world";
 import { present } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
-import { defineTable, integer, type DatabaseConnection, Snapshot, text } from "@destack/db";
+import { defineTable, integer, text } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { TestDatabase } from "@destack/db/test";
 import type { ObjectReference, Subject } from "@destack/sync";
-import {
-    accessTables,
-    Authorizer,
-    Policy,
-    principal,
-    relation,
-    resource,
-    type TableMapping,
-} from "../index.ts";
+import { Policy, principal, relation, resource, type TableMapping } from "../index.ts";
+import { Authorizer } from "../authorizer.ts";
+import { accessTables } from "../replica/replica.ts";
 import { TestAccess } from "../test/access.ts";
 import { module4 } from "../test/fixture.ts";
 
@@ -117,7 +112,7 @@ async function decide(
     subjects: readonly (Subject | ObjectReference)[],
 ) {
     // resolve the caller at the universe
-    const snapshot = Snapshot.live(database);
+    const snapshot = database.snapshot();
     const [subject, ...groups] = subjects;
     const access = await authorizer.resolve(snapshot, "universe", {
         grants: [],

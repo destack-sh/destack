@@ -1,5 +1,4 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { Snapshot } from "@destack/db";
 import { nth } from "@destack/schema";
 import { account, item, node, rows, space } from "../test/fixture.ts";
 import { TestAccess } from "../test/access.ts";
@@ -29,7 +28,7 @@ test("refuse a reader of a suspended space for its suspension, and a stranger as
     );
 
     // refuse each caller for the gate that stops them, none stopping the stranger
-    const snapshot = Snapshot.live(database);
+    const snapshot = database.snapshot();
     const read = node.permission("read");
     const refusal = async (caller: typeof bob) => {
         const resolved = await authorizer.resolve(snapshot, "suspended", caller);

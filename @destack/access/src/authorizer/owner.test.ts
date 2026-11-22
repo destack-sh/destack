@@ -1,20 +1,20 @@
 import { TEST_START, testSimulation } from "@destack/test/world";
 import { Identifier } from "@destack/schema";
-import { defineDatabase, defineTable, Snapshot, asc, text } from "@destack/db";
+import { defineDatabase, defineTable, asc, text } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { Scope, type ObjectReference, type Subject } from "@destack/sync";
 import {
     AccessContext,
-    accessRelationship,
-    Authorizer,
     Caller,
     Policy,
     principal,
+    through,
+    accessRelationship,
     Relationship,
     type TableMapping,
-    through,
 } from "../index.ts";
+import { Authorizer } from "../authorizer.ts";
 import { TestAccess } from "../test/access.ts";
 import {
     account,
@@ -92,13 +92,13 @@ async function openWithOwner(mappings: readonly TableMapping[] = [...homeMapping
     // read the assets carol may read, by SQL and by grant trees
     const authorizer = new Authorizer([...policies, asset], mappings);
     const readable = async () => {
-        const snapshot = Snapshot.live(database);
+        const snapshot = database.snapshot();
         const context = AccessContext.of(Caller.of(carol), TEST_START);
         const access = await authorizer.resolve(snapshot, home.id, context);
         const selected = (
             await listRows(
                 authorizer,
-                Snapshot.live(database),
+                database.snapshot(),
                 asset.permission("read"),
                 access,
                 assetTable,

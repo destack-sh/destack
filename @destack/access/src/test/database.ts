@@ -1,18 +1,19 @@
+import { ReplicaSet, Scope, type Subject } from "@destack/sync";
 import { testSimulation } from "@destack/test/world";
 import type { Simulation } from "@destack/environment/simulation";
 import { TestDatabase } from "@destack/db/test";
-import { Replica, Scope, type Subject } from "@destack/sync";
-import type { DatabaseConnection, LogPosition } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
+import type { LogPosition } from "@destack/db";
 import { fixtureDatabase, item, mappings, node, policies, rows } from "./fixture.ts";
 import {
     ACCESS_PACKAGE_ID,
-    Authorizer,
     principal,
     type AccessContext,
-    Authorization,
     type Credential,
+    Authorization,
     Relationship,
 } from "../index.ts";
+import { Authorizer } from "../authorizer.ts";
 
 /** How long a test session credential lasts: a minute, longer than any test. */
 const CREDENTIAL_MILLISECONDS = 60_000;
@@ -116,11 +117,11 @@ export async function homePositions(
 ): Promise<Record<string, LogPosition | undefined>> {
     const positions = await Promise.all(
         scopes.map(async (scope) => {
-            const [replica] = await Replica.including(database, scope);
+            const [replica] = await new ReplicaSet(database).including(scope);
             const origin =
                 replica === undefined
                     ? undefined
-                    : await Replica.origin(database, replica.name, replica.scope);
+                    : await new ReplicaSet(database).origin(replica.name, replica.scope);
 
             return [scope, origin] as const;
         }),

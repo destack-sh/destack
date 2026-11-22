@@ -1,25 +1,26 @@
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { Scope, type Subject } from "@destack/sync";
-import { Transaction, Snapshot, and, asc, eq, ne } from "@destack/db";
+import { and, asc, eq, ne } from "@destack/db";
+import { Transaction } from "@destack/db/database";
 import { PackageId } from "@destack/package";
 import { present, schema } from "@destack/schema";
 import {
     AccessContext,
+    Caller,
+    principal,
+    role,
     accessRelationship,
     accessRole,
     accessRolePermission,
     Authorization,
-    Authorizer,
-    Caller,
     Invitation,
     Manager,
-    principal,
     Relationship,
     type RelationshipRequest,
-    role,
     Role,
     type RoleDeclaration,
 } from "../index.ts";
+import { Authorizer } from "../authorizer.ts";
 import {
     account,
     accountTable,
@@ -71,9 +72,9 @@ async function openRoleFixture() {
         const ids = (
             await listRows(
                 query,
-                Snapshot.live(database),
+                database.snapshot(),
                 node.permission("read"),
-                await query.resolve(Snapshot.live(database), "personal", context),
+                await query.resolve(database.snapshot(), "personal", context),
                 item,
             )
         )
@@ -162,7 +163,7 @@ test("bind roles on an ancestor, covering its descendants until the binding expi
 test("decide a permission of another type on a node from a role bound on or above it, and refuse roles granting it elsewhere or no longer", async () => {
     const { database, query, defineRole, relate } = await openRoleFixture();
     const decide = async (target: string, context: AccessContext = carol) => {
-        const snapshot = Snapshot.live(database);
+        const snapshot = database.snapshot();
         const access = await query.resolve(snapshot, "personal", context);
         const decision = await query.check(
             snapshot,
@@ -205,7 +206,7 @@ test("give a permission a role grants on approval only to a call whose change ga
     const frank = principal.user.reference("universe", "frank");
     const gina = principal.user.reference("universe", "gina");
     const decide = async (approvers: readonly Subject[]) => {
-        const snapshot = Snapshot.live(database);
+        const snapshot = database.snapshot();
         const access = await query.resolve(snapshot, "personal", { ...carol, approvers });
 
         return (await query.check(snapshot, reading, target, access)).isAllowed;
@@ -224,7 +225,7 @@ test("give a permission a role grants on approval only to a call whose change ga
     }
 
     // refuse the read at once, with one approval, with carol's own or gina's, who cannot read, as the second; allow it with two readers
-    const snapshot = Snapshot.live(database);
+    const snapshot = database.snapshot();
     const access = await query.resolve(snapshot, "personal", carol);
     const needed = await query.requiredApprovals(
         snapshot,
@@ -252,7 +253,7 @@ test("find a scope's role by name, and read an object's relationships through a 
     const viewing = await relate({ object, relation: "viewer", subject: dave });
 
     // read each selection of the note's relationships
-    const snapshot = Snapshot.live(database);
+    const snapshot = database.snapshot();
     const read = async (match: Parameters<typeof Relationship.read>[2]) =>
         (await Relationship.read(snapshot, object, match)).map((row) => row.id).toSorted();
     expect({
@@ -724,9 +725,9 @@ test("create a scope without separate owners, whose account's owners are its own
     await asCarol(universe, (authorization) => authorization.create(place, {}));
 
     // let carol have everything in the space through her account
-    const access = await home.resolve(Snapshot.live(database), "shared", carol);
+    const access = await home.resolve(database.snapshot(), "shared", carol);
     const decision = await home.check(
-        Snapshot.live(database),
+        database.snapshot(),
         space.permission("update"),
         place,
         access,
@@ -779,9 +780,9 @@ test("list the spaces an account contains to the account's owner", async () => {
         (
             await listRows(
                 query,
-                Snapshot.live(database),
+                database.snapshot(),
                 space.permission("read"),
-                await query.resolve(Snapshot.live(database), "account-1", context),
+                await query.resolve(database.snapshot(), "account-1", context),
                 spaceTable,
             )
         )
@@ -798,9 +799,9 @@ test("list the spaces an account contains to the account's owner", async () => {
     const scopes = new Authorizer(policies, mappings);
     const recorded = await listRows(
         scopes,
-        Snapshot.live(database),
+        database.snapshot(),
         space.permission("read"),
-        await scopes.resolve(Snapshot.live(database), "account-1", carol),
+        await scopes.resolve(database.snapshot(), "account-1", carol),
         Scope.table,
     );
     expect(recorded.map((row) => row["scope"])).toEqual(["space-1", "space-2"]);
@@ -951,17 +952,11 @@ test("grant a space's own role bound on the space inside it alone, never on the 
     );
 
     // decide the space's row for bob and its owner, in memory and in SQL
-    const snapshot = Snapshot.live(database);
+    const snapshot = database.snapshot();
     const decide = async (context: AccessContext) => {
         const access = await home.resolve(snapshot, "personal", context);
         const listed = (
-            await listRows(
-                home,
-                Snapshot.live(database),
-                space.permission("read"),
-                access,
-                spaceTable,
-            )
+            await listRows(home, database.snapshot(), space.permission("read"), access, spaceTable)
         ).map((row) => ({ id: row["id"] }));
 
         return [

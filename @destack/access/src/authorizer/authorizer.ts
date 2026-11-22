@@ -1,35 +1,37 @@
+import {
+    ReplicaSet,
+    Scope,
+    type ScopeLink,
+    ObjectReference,
+    ObjectTypeReference,
+    type QuerySelection,
+    Subject,
+    replicaKey,
+    type Subscription,
+} from "@destack/sync";
 import type { Authority } from "./authority.ts";
 import {
-    type DatabaseConnection,
-    type Transaction,
     type SQL,
     type Table,
     Condition,
     Placeholder,
     Predicate,
-    Snapshot,
     TABLE,
     Key,
     type Relation,
     type Row,
     type Select,
+} from "@destack/db";
+import {
+    type DatabaseConnection,
+    type Transaction,
+    Snapshot,
     type Visibility,
     ReadSet,
-} from "@destack/db";
+} from "@destack/db/database";
 import { PackageId } from "@destack/package";
 import { canonicalize, Identifier, type UuidEnvironment, schema, zip } from "@destack/schema";
-import {
-    Replica,
-    replicaKey,
-    Scope,
-    type Subscription,
-    type ScopeLink,
-    Watch,
-    ObjectReference,
-    ObjectTypeReference,
-    type QuerySelection,
-    Subject,
-} from "@destack/sync";
+import { Replica, Watch } from "@destack/sync/dataflow";
 import type { FamilyError } from "@destack/error";
 import { AccessError, type AccessReason } from "../error/index.ts";
 import { Manager } from "../manager/manager.ts";
@@ -49,14 +51,13 @@ import {
     installedPackage,
     INTRINSIC_POLICIES,
 } from "../declare/principal.ts";
-import { ACCESS_MAPPINGS } from "../replica/replica.ts";
+import { ACCESS_MAPPINGS, accessTables, decisionTables } from "../replica/replica.ts";
 import { AccessContext, Caller, Credential } from "../context/context.ts";
 import { HIGHEST_ASSURANCE, type Elevation, type StepUp } from "../context/elevation.ts";
 import { accessRelationship } from "../relationship/table.ts";
 import { Relationship } from "../relationship/relationship.ts";
 import type { Creation } from "./authorization.ts";
 import { accessRole, accessRolePermission, OWNER_ROLE } from "../role/table.ts";
-import { accessTables, decisionTables } from "../replica/replica.ts";
 import { accessGrant } from "../grant/table.ts";
 import { earliest, Access, type Related } from "./access.ts";
 import { TupleCondition } from "./condition.ts";
@@ -1033,7 +1034,7 @@ export class Authorizer {
             snapshot.read(replicaKey).findFirst({
                 where: { table: Scope.table[TABLE].sqlName, key: Key.name(Scope.table, { scope }) },
             }),
-            Replica.isReplicated(snapshot, scope, Scope.table),
+            ReplicaSet.isReplicated(snapshot, scope, Scope.table),
         ]);
 
         return stored !== undefined || isReplicated;

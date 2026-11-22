@@ -6,12 +6,12 @@ import {
     Predicate,
     textElements,
     type Binding,
-    type Snapshot,
     sql,
     type SQL,
     type SQLWrapper,
     type Table,
 } from "@destack/db";
+import type { Snapshot } from "@destack/db/database";
 import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 import { AccessError } from "../error/index.ts";

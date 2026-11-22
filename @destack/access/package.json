@@ -6,6 +6,7 @@
     "description": "Decide who may do what to each object, and share, delegate and revoke that access.",
     "exports": {
         ".": "./src/index.ts",
+        "./authorizer": "./src/authorizer.ts",
         "./declare": "./src/declare/index.ts",
         "./error": "./src/error/index.ts",
         "./test": "./src/test/index.ts",

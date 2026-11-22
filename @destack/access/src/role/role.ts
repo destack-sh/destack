@@ -1,7 +1,8 @@
 import * as policies from "../declare/principal.ts";
 import type { Authorization } from "../authorizer/authorization.ts";
 import { ObjectReference, Subject } from "@destack/sync";
-import { type Select, type Transaction, Table } from "@destack/db";
+import { type Select, Table } from "@destack/db";
+import type { Transaction } from "@destack/db/database";
 import { Identifier, type UuidEnvironment, schema } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
 import { Manager } from "../manager/manager.ts";

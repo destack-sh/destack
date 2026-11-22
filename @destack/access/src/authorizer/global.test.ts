@@ -1,19 +1,19 @@
 import { testSimulation } from "@destack/test/world";
 import { expect, onTestFinished, test } from "@destack/test";
-import { defineTable, Snapshot, text } from "@destack/db";
+import { defineTable, text } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import {
     AccessContext,
-    accessTables,
-    Authorizer,
     Caller,
     none,
     Policy,
     principal,
     relation,
-    type TableMapping,
     through,
+    type TableMapping,
 } from "../index.ts";
+import { Authorizer } from "../authorizer.ts";
+import { accessTables } from "../replica/replica.ts";
 import { module4, space } from "../test/fixture.ts";
 import { TestAccess } from "../test/access.ts";
 import { listRows } from "../test/listing.ts";
@@ -102,7 +102,7 @@ test("follow a relation to a global type at the universe, through a plain and a 
     );
 
     // decide each caller's read through either field, in memory and as SQL
-    const snapshot = Snapshot.live(database);
+    const snapshot = database.snapshot();
     const target = card.reference("personal", "c1");
     const decide = async (caller: string) => {
         const resolved = await authorizer.resolve(
@@ -114,7 +114,7 @@ test("follow a relation to a global type at the universe, through a plain and a 
             (
                 await listRows(
                     authorizer,
-                    Snapshot.live(database),
+                    database.snapshot(),
                     card.permission(name),
                     resolved,
                     cardTable,

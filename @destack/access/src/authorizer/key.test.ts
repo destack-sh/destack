@@ -1,20 +1,20 @@
 import { TestDatabase } from "@destack/db/test";
-import { defineTable, Snapshot, text } from "@destack/db";
+import { defineTable, text } from "@destack/db";
 import { type ObjectReference, Scope } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import { testSimulation } from "@destack/test/world";
 import {
     AccessContext,
-    accessTables,
-    Authorizer,
     Caller,
     contained,
     Policy,
     principal,
     relation,
-    type TableMapping,
     through,
+    type TableMapping,
 } from "../index.ts";
+import { Authorizer } from "../authorizer.ts";
+import { accessTables } from "../replica/replica.ts";
 import { TestAccess } from "../test/access.ts";
 import { module4 } from "../test/fixture.ts";
 import { isListed } from "../test/listing.ts";
@@ -127,7 +127,7 @@ test("decide a relation that names its subject by key, in memory and in SQL alik
 
     // decide breaking a seal in memory and in SQL, reporting a disagreement between the two
     const authorizer = new Authorizer([realm, vault, seal], mappings);
-    const snapshot = Snapshot.live(database);
+    const snapshot = database.snapshot();
     const person = (id: string) =>
         AccessContext.of(
             Caller.of(principal.user.reference("universe", id)),

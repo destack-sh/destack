@@ -1,22 +1,22 @@
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { type ObjectReference, Scope, Subject } from "@destack/sync";
 import { nth, present, schema } from "@destack/schema";
-import { Snapshot, asc, eq } from "@destack/db";
+import { asc, eq } from "@destack/db";
 import {
-    ACCESS_MAPPINGS,
+    principal,
+    invitation,
+    relationship,
+    type AccessContext,
     accessInvitation,
     accessRelationship,
     Authorization,
-    Authorizer,
-    principal,
-    invitation,
     Invitation,
     Manager,
-    relationship,
-    type AccessContext,
     type RelationshipRequest,
     Relationship,
 } from "../index.ts";
+import { Authorizer } from "../authorizer.ts";
+import { ACCESS_MAPPINGS } from "../replica/replica.ts";
 import { account, accountTable, homeMappings, mappings, node, policies } from "../test/fixture.ts";
 import { openFixture, sessionCredential } from "../test/database.ts";
 import { listRows } from "../test/listing.ts";
@@ -34,14 +34,10 @@ test("show an object's relationships to its readers, a concealed relation's only
 
     // list the relationships each caller may read
     const visible = async (context: AccessContext) => {
-        const access = await authorizer.resolve(
-            Snapshot.live(fixture.database),
-            "personal",
-            context,
-        );
+        const access = await authorizer.resolve(fixture.database.snapshot(), "personal", context);
         const rows = await listRows(
             authorizer,
-            Snapshot.live(fixture.database),
+            fixture.database.snapshot(),
             relationship.permission("read"),
             access,
             accessRelationship,
@@ -155,14 +151,10 @@ test("show an invitation to its inviting principal, its addressee and whoever ma
 
     // list the invitations each caller may read, by inviting principal and addressee
     const visible = async (context: AccessContext) => {
-        const access = await authorizer.resolve(
-            Snapshot.live(fixture.database),
-            "personal",
-            context,
-        );
+        const access = await authorizer.resolve(fixture.database.snapshot(), "personal", context);
         const rows = await listRows(
             authorizer,
-            Snapshot.live(fixture.database),
+            fixture.database.snapshot(),
             invitation.permission("read"),
             access,
             accessInvitation,
@@ -207,7 +199,7 @@ test("read the invitations on an object to one addressee, leaving out other addr
     );
 
     // read only the offer to dave, none to bob and none to dave on node a
-    const snapshot = Snapshot.live(fixture.database);
+    const snapshot = fixture.database.snapshot();
     const read = async (on: ObjectReference, addressee: Subject) =>
         (await Invitation.readOn(snapshot, on, addressee)).map((offer) => [
             offer.status,

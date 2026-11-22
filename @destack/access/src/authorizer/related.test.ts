@@ -1,14 +1,13 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { type Subject } from "@destack/sync";
-import { Snapshot } from "@destack/db";
+import type { Subject } from "@destack/sync";
 import { Identifier, schema } from "@destack/schema";
 import {
-    accessRelationship,
-    accessRole,
     principal,
-    Relationship,
     Caller,
     AccessContext,
+    accessRelationship,
+    accessRole,
+    Relationship,
 } from "../index.ts";
 import { account, group, node, space } from "../test/fixture.ts";
 import { TestAccess } from "../test/access.ts";
@@ -26,7 +25,7 @@ test("relate a caller to a scope through a direct, wildcard or subject-set share
     const fixture = await openFixture();
     onTestFinished(() => fixture.close());
     const { database, authorizer, environment } = fixture;
-    const snapshot = Snapshot.live(database);
+    const snapshot = database.snapshot();
     const note = node.reference("personal", "a");
 
     // store the personal space below its account, as every scope has its row

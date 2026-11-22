@@ -1,20 +1,21 @@
 import { FOLLOWER_REVISION } from "@destack/sync/test";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { Snapshot, asc, eq, type DatabaseConnection } from "@destack/db";
-import { Feed, Replica, Scope, type Subscription } from "@destack/sync";
+import { asc, eq } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
+import { Scope, type Subscription } from "@destack/sync";
+import { Replica, Feed } from "@destack/sync/dataflow";
 import { nth } from "@destack/schema";
 import {
     AccessContext,
-    accessRelationship,
-    accessTables,
-    Authorization,
-    Authorizer,
     Caller,
-    CHAIN_PUBLICATION,
     principal,
+    accessRelationship,
+    Authorization,
     Relationship,
     Role,
 } from "../index.ts";
+import { Authorizer } from "../authorizer.ts";
+import { accessTables, CHAIN_PUBLICATION } from "./replica.ts";
 import {
     account,
     accountTable,
@@ -146,9 +147,9 @@ test("relay an account's access through the space's database into an app's, and 
         (
             await listRows(
                 notes,
-                Snapshot.live(app.database),
+                app.database.snapshot(),
                 node.permission("read"),
-                await notes.resolve(Snapshot.live(app.database), "personal", context),
+                await notes.resolve(app.database.snapshot(), "personal", context),
                 item,
             )
         )
@@ -160,7 +161,7 @@ test("relay an account's access through the space's database into an app's, and 
     await owner((authorization) => Relationship.revoke(object, binding.id, authorization));
     const revoked = await global.database.log.position();
     await app.simulation.jump(app.simulation.clock.now() + notes.lag);
-    const resolving = refusal(notes.resolve(Snapshot.live(app.database), "personal", carol));
+    const resolving = refusal(notes.resolve(app.database.snapshot(), "personal", carol));
     await app.simulation.run(app.simulation.clock.now() + notes.lag);
     expect(await resolving).toEqual([
         "SERVICE_UNAVAILABLE",
@@ -248,7 +249,7 @@ test("write a space's own access beside its row where its creator stores it, and
     expect({
         home: await bound(home.database),
         universe: await bound(global.database),
-        isHome: await spaces.isHome(Snapshot.live(home.database), "personal"),
+        isHome: await spaces.isHome(home.database.snapshot(), "personal"),
     }).toEqual({
         home: [[Role.OWNER, "alice"]],
         universe: [[Role.OWNER, "alice"]],

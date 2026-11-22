@@ -1,14 +1,6 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { Snapshot } from "@destack/db";
-import {
-    anyone,
-    Authorizer,
-    none,
-    Policy,
-    principal,
-    relation,
-    type TableMapping,
-} from "../index.ts";
+import { anyone, none, Policy, principal, relation, type TableMapping } from "../index.ts";
+import { Authorizer } from "../authorizer.ts";
 import {
     account,
     accountTable,
@@ -54,7 +46,7 @@ test("allow any signed-in user's read of a public space whose home stores its ro
     await access.replicateRelationship(home, "public", anyone.reference("*", "*"), 0);
 
     // let a stranger who signed in read it in their scope
-    const snapshot = Snapshot.live(database);
+    const snapshot = database.snapshot();
     const stranger = await authorizer.resolve(snapshot, "personal", {
         grants: [],
         subject: principal.user.reference("universe", "erin"),
