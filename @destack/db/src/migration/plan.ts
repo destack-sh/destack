@@ -426,8 +426,11 @@ function convertSteps(
         .toSorted(([left], [right]) => Number(left) - Number(right));
     const editions = conversions.map(([edition]) => edition);
 
+    // update rows for each edition assigning columns, an edition that only drops some updating none
+    const assigning = conversions.filter(([, assignments]) => Object.keys(assignments).length > 0);
+
     return [
-        ...conversions.map(([edition, assignments]) => convertRows(state, edition, assignments)),
+        ...assigning.map(([edition, assignments]) => convertRows(state, edition, assignments)),
         ...changeValues(previous, state, editions, isEmpty, problems),
     ];
 }

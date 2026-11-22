@@ -156,6 +156,23 @@ const taskThree = defineTable(
     NEXT_RELEASE,
 );
 
+/** Tasks after dropping the urgent flag in an edition that assigns nothing, in the next release. */
+const taskDropped = defineTable(
+    "task",
+    {
+        id: text("id").primaryKey(),
+        scope: text("scope").notNull(),
+        title: text("title").notNull(),
+        dueAt: integer("due_at"),
+    },
+    {
+        log: {},
+        convert: { 2: {} },
+        constraints: (task) => [index("task_due").on(task.dueAt)],
+    },
+    NEXT_RELEASE,
+);
+
 /** Tasks declaring the urgent flag as text. */
 const taskText = defineTable("task", {
     id: text("id").primaryKey(),
@@ -555,6 +572,31 @@ test("convert rows to a new release and log the converted values", async () => {
             Change.after(change)?.priority,
         ]),
     ).toEqual([["update", { id: "a" }, "normal", "high"]]);
+});
+
+test("drop a column in an edition that assigns nothing, updating no rows", async () => {
+    const database = await open([taskDropped]);
+    await database.migrate([taskTwo]);
+    await database.transaction(
+        async (transaction) =>
+            await transaction.run(
+                sql`INSERT INTO ${sql.relation(table(taskTwo))} (id, scope, title, urgent, due_at) VALUES ('a', 'inbox', 'Plan', 1, NULL)`,
+            ),
+    );
+
+    // drop the flag with no row conversion, keeping the rows
+    const plan = await database.migrate([taskDropped]);
+    expect({
+        review: review(plan),
+        rows: await database.select().from(taskDropped),
+    }).toEqual({
+        review: [
+            TestDatabase.target() === "sqlite"
+                ? `destructive replace table/${table(taskDropped)}: rebuild table: drop urgent`
+                : `destructive delete table/${table(taskDropped)}/column/urgent: drop column urgent`,
+        ],
+        rows: [{ id: "a", scope: "inbox", title: "Plan", dueAt: null }],
+    });
 });
 
 test("name what the declarations must fix instead of planning", async () => {
