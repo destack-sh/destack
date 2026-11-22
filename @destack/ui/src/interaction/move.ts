@@ -20,7 +20,7 @@ const ARROWS: Readonly<Record<string, readonly [number, number]>> = {
 };
 
 /** The pixels a pointer travels before it moves an element, so a click stays a click. */
-const MOVE_DISTANCE = 4;
+export const MOVE_DISTANCE = 4;
 
 /** The pixels a finger may drift while it waits for the delay, as UIKit's long press allows. */
 const STILL_TOLERANCE = 10;

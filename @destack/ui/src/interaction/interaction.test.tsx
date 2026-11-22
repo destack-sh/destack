@@ -600,6 +600,16 @@ test("end a press for good as its pointer leaves, where the press asks so", () =
     });
 });
 
+test("end a press as its pointer travels as far as a drag starts, where the press asks so", () => {
+    // press, move a few pixels within the element, and release over it
+    const { element, calls } = drawPress({ shouldCancelOnMove: true });
+    pointer(element, "pointerdown", 10, 10);
+    pointer(element, "pointermove", 16, 10);
+    pointer(element, "pointerup", 16, 10);
+
+    expect(calls).toEqual(["start mouse", "end mouse"]);
+});
+
 test("stop a press at its element, and let it on where a handler continues it", () => {
     // press a stopping and a continuing element inside one that counts what reaches it
     const reached: string[] = [];

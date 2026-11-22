@@ -1,4 +1,5 @@
 import { type Accessor, createSignal, onCleanup, type Setter } from "@destack/view";
+import { MOVE_DISTANCE } from "./move.ts";
 import {
     type InteractionEvent,
     interactionOf,
@@ -53,6 +54,8 @@ export interface PressOptions {
     readonly preventFocusOnPress?: boolean;
     /** Whether a pointer that leaves the element ends the press for good. */
     readonly shouldCancelOnPointerExit?: boolean;
+    /** Whether a pointer that travels as far as a drag starts ends the press, as on draggables. */
+    readonly shouldCancelOnMove?: boolean;
     /** Whether a press may select the element's text. */
     readonly allowTextSelectionOnPress?: boolean;
     /** The keys that press, Enter and Space by default. */
@@ -73,6 +76,8 @@ interface PressRun {
     readonly element: HTMLElement;
     /** The element's bounds as the press started. */
     readonly bounds: DOMRect;
+    /** Where the pointer went down, absent for a key. */
+    readonly origin: { readonly x: number; readonly y: number } | undefined;
     /** Whether the pointer is over the element. */
     isOver: boolean;
     /** Stop listening and let text be selected again. */
@@ -173,8 +178,24 @@ export class Press {
 
     /** Follow the pointer on and off the element. */
     #pointerMove(event: PointerEvent): void {
-        // follow only the press's own pointer
+        // end the press once its pointer travels as far as a drag starts, where the press asks so
         const run = this.#run;
+        const origin = run?.origin;
+        const travel =
+            origin === undefined
+                ? 0
+                : Math.hypot(event.clientX - origin.x, event.clientY - origin.y);
+        if (
+            run?.pointerId === event.pointerId &&
+            this.#options.shouldCancelOnMove === true &&
+            travel >= MOVE_DISTANCE
+        ) {
+            this.#end(run, event, false, true);
+
+            return;
+        }
+
+        // follow only the press's own pointer
         const isOver = run !== undefined && isWithin(run.bounds, event);
         if (run?.pointerId !== event.pointerId || isOver === run.isOver) {
             return;
@@ -320,6 +341,7 @@ export class Press {
             isMeta: event.metaKey,
             element,
             bounds: element.getBoundingClientRect(),
+            origin: "clientX" in event ? { x: event.clientX, y: event.clientY } : undefined,
             isOver: true,
             release: () => {
                 releases.forEach((release) => release());
