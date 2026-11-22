@@ -1421,8 +1421,8 @@ export class BuildStore<
         return {
             name: "destack.build.expire",
             table: buildCache,
-            pending: { usedAt: { lte: new Now().minus({ milliseconds: CACHE_MILLISECONDS }) } },
-            key: [],
+            when: { usedAt: { lte: new Now().minus({ milliseconds: CACHE_MILLISECONDS }) } },
+            by: [],
             reconcile: async () => {
                 await this.expire();
             },
