@@ -155,7 +155,7 @@ export type SimulationEvent =
           readonly by: number;
       }
     | {
-          /** A settled operation completed: short ones in settled batches, long ones at idle. */
+          /** A settled operation completed: short ones in begin order, long ones at idle. */
           readonly kind: "completion";
           /** When, in the simulation's UTC epoch milliseconds. */
           readonly at: number;
@@ -858,8 +858,8 @@ export class Simulation {
                 if (isMoving || scheduler.real === 0) {
                     await yieldToEventLoop();
                 }
-                // complete the short operations as one batch once all of them settled, in the order they began
-                else if (scheduler.isShortSettled) {
+                // complete the settled short operations from the next one in begin order, as the world stands still
+                else if (scheduler.isNextSettled) {
                     const at = clock.now();
                     for (const order of scheduler.completeShort()) {
                         this.record({ kind: "completion", at, order, length: "short" });

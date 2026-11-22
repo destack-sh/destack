@@ -39,7 +39,7 @@ interface Completion {
     readonly fail: (error: unknown) => void;
 }
 
-/** A world's scheduler: short operations complete in settled batches, long ones at idle. */
+/** A world's scheduler: short operations complete in the order they began, long ones at idle. */
 export class SimulatedScheduler implements Scheduler {
     /** Whether a loop completes settled operations, instead of completing them at once. */
     #isOrdered: boolean;
@@ -309,11 +309,9 @@ export class SimulatedScheduler implements Scheduler {
         return { ...this.#running };
     }
 
-    /** Whether every uncompleted short operation settled, to complete them as one batch. */
-    get isShortSettled(): boolean {
-        const uncompleted = this.#sequence.short - this.#next;
-
-        return uncompleted > 0 && this.#short.size === uncompleted;
+    /** Whether the next short operation in begin order settled, so the settled run completes. */
+    get isNextSettled(): boolean {
+        return this.#short.has(this.#next);
     }
 
     /** Whether every short operation begun so far completed, so long ones may. */
