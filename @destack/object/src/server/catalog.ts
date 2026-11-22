@@ -326,11 +326,8 @@ export class Catalog {
         const shapes = [...new Set(follows.flatMap((each) => each.shape.objects))];
         const policies = Catalog.#policies(declared, referencing, shapes);
 
-        // require each type valid, then store the ephemeral and events types
+        // store the ephemeral and events types
         const objects = ObjectType.served(declared);
-        for (const type of declared) {
-            type.requireValid();
-        }
         Catalog.#serveStores(objects, given);
 
         // authorize the objects and the replicas the policies do not already decide

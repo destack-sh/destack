@@ -1,10 +1,4 @@
-import {
-    type ErrorFamily,
-    Failure,
-    type ReasonDeclarations,
-    ReasonDescription,
-} from "@destack/error";
-import { isContractProcedure } from "@orpc/contract";
+import { type ErrorFamily, type ReasonDeclarations, ReasonDescription } from "@destack/error";
 import type { Table } from "@destack/db";
 import {
     DeclarationName,
@@ -244,39 +238,6 @@ function handleOf<const Options extends PackageOptions, Identity extends object>
         throw PackageError.of(
             "DEFINITION_INVALID",
             `mount path '${overlap}' is invalid: it overlaps another`,
-        );
-    }
-
-    // refuse an object type whose members or traits it cannot serve
-    for (const object of Object.values(objects)) {
-        try {
-            object.requireValid();
-        } catch (error) {
-            const { message } = Failure.of(error);
-            throw PackageError.of(
-                "DEFINITION_INVALID",
-                `object ${object.name} is invalid: ${message}`,
-                { cause: error },
-            );
-        }
-    }
-
-    // refuse a mount answering below an object's routes, which would take its calls
-    const roots = new Set<string | undefined>();
-    const routers: ProcedureRouter[] = Object.values(objects).map((object) => object.procedures);
-    for (let router = routers.pop(); router !== undefined; router = routers.pop()) {
-        // take a procedure's first path segment, and walk a nested router
-        if (isContractProcedure(router)) {
-            roots.add(router["~orpc"].route.path?.split("/")[1]);
-        } else {
-            routers.push(...Object.values(router));
-        }
-    }
-    const shadowing = paths.find((path) => roots.has(path.split("/")[1]));
-    if (shadowing !== undefined) {
-        throw PackageError.of(
-            "DEFINITION_INVALID",
-            `mount path '${shadowing}' is invalid: it overlaps an object's routes`,
         );
     }
 

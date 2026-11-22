@@ -2467,7 +2467,8 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
 
     /** Require valid methods, fields, aggregates, scopes, indexes and traits. */
     #validate(definition: ObjectTypeDefinition<Configuration>): void {
-        // require the type's members
+        // require the type's policy and members
+        this.policy.requireValid();
         this.#requireMethods();
         this.#requireAggregates();
         this.#requireScopes();

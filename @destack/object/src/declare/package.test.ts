@@ -101,28 +101,6 @@ test("refuse mounts at an empty path, and mounts at or below another's path", as
     ]);
 });
 
-test("refuse a mount at an object's routes, which would take its calls", async () => {
-    const routed = {
-        ...note,
-        procedures: { create: create.route({ method: "POST", path: "/notes" }) },
-    };
-    const notes = defineMount({ name: "notes", path: "/notes" });
-
-    expect(
-        await refusal(() =>
-            definePackage({
-                ...testIdentity,
-                objects: [routed],
-                mounts: [notes],
-            }),
-        ),
-    ).toEqual([
-        "BAD_REQUEST",
-        "DEFINITION_INVALID",
-        "mount path '/notes' is invalid: it overlaps an object's routes",
-    ]);
-});
-
 test("refuse a name taken twice in one namespace, resources and secrets sharing one", async () => {
     const npm = defineMount({ name: "npm", path: "/npm" });
     const module = { package: PackageVersion.of(import.meta.destack.package) };

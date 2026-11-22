@@ -1,3 +1,7 @@
+import { Failure } from "@destack/error";
+import { PackageError } from "@destack/package";
+import { isContractProcedure } from "@orpc/contract";
+import type { ProcedureRouter } from "../procedure/index.ts";
 import { Address, Plan, type Comparator, type Step } from "@destack/resource";
 import { PermissionReference, PermissionScope, type PermissionSet } from "@destack/access";
 import { Version } from "@destack/schema";
@@ -16,6 +20,44 @@ const ACCESS_TARGET = "access";
 
 /** Describe a package: its objects, mounts and views. */
 export function describePackage(handle: Package & PackageIdentity): PackageDescription {
+    // refuse an object type whose members or traits it cannot serve
+    const objects = Object.values(handle.objects);
+    for (const object of objects) {
+        try {
+            object.requireValid();
+        } catch (error) {
+            const { message } = Failure.of(error);
+            throw PackageError.of(
+                "DEFINITION_INVALID",
+                `object ${object.name} is invalid: ${message}`,
+                {
+                    cause: error,
+                },
+            );
+        }
+    }
+
+    // refuse a mount answering below an object's routes, which would take its calls
+    const roots = new Set<string | undefined>();
+    const routers: ProcedureRouter[] = objects.map((object) => object.procedures);
+    for (let router = routers.pop(); router !== undefined; router = routers.pop()) {
+        // take a procedure's first path segment, and walk a nested router
+        if (isContractProcedure(router)) {
+            roots.add(router["~orpc"].route.path?.split("/")[1]);
+        } else {
+            routers.push(...Object.values(router));
+        }
+    }
+    const shadowing = Object.values(handle.mounts)
+        .map((mount) => mount.path)
+        .find((path) => roots.has(path.split("/")[1]));
+    if (shadowing !== undefined) {
+        throw PackageError.of(
+            "DEFINITION_INVALID",
+            `mount path '${shadowing}' is invalid: it overlaps an object's routes`,
+        );
+    }
+
     return PackageDescription.parse({
         title: handle.title,
         description: handle.description,

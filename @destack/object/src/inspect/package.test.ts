@@ -1,9 +1,10 @@
 import { testIdentity } from "../test/index.ts";
 import { none, Policy } from "@destack/access";
 import { defineErrorFamily } from "@destack/error";
-import { expect, test } from "@destack/test";
+import { expect, refusal, test } from "@destack/test";
 import { schema } from "@destack/schema";
-import { PackageId } from "@destack/package";
+import { PackageId, PackageVersion } from "@destack/package";
+import { Procedure } from "../procedure/index.ts";
 import { defineMount, definePackage, type ObjectDeclaration } from "../declare/package.ts";
 import type { ProcedureRouter } from "../procedure/index.ts";
 import { comparePackage, describePackage } from "./package.ts";
@@ -212,4 +213,31 @@ test("refuse a package listing an object type another package defines, which tha
     ).toThrow(
         `object 'card' is invalid: '${PACKAGE.name}' lists it, but only '@destack/board' can serve it`,
     );
+});
+
+test("refuse a mount at an object's routes, which would take its calls", async () => {
+    // declare an object routed at the path a mount also takes
+    const create = Procedure.of({
+        package: PackageVersion.of(import.meta.destack.package),
+        authentication: "public",
+        permission: "anyone",
+        audit: false,
+    });
+    const routed: ObjectDeclaration = {
+        package: { name: "@destack/object" },
+        name: "note",
+        typeReference: { packageId: "package-01a0d462-1b26-7401-be27-6258e0a32141", type: "note" },
+        hooks: {},
+        procedures: { create: create.route({ method: "POST", path: "/notes" }) },
+        requireValid: () => {},
+    };
+    const notes = defineMount({ name: "notes", path: "/notes" });
+    const handle = definePackage({ ...testIdentity, objects: [routed], mounts: [notes] });
+
+    // refuse the package as its description is built
+    expect(await refusal(() => describePackage(handle))).toEqual([
+        "BAD_REQUEST",
+        "DEFINITION_INVALID",
+        "mount path '/notes' is invalid: it overlaps an object's routes",
+    ]);
 });
