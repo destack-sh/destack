@@ -38,15 +38,14 @@ import {
 } from "@destack/db";
 import { canonicalize } from "@destack/schema";
 import { type ObjectStorage, ObjectType } from "../object/object.ts";
-import { ObjectTypeIndex } from "../query/audience.ts";
 import type { Authorization } from "./authorization.ts";
 import type { ObjectStore } from "./store.ts";
 
 /** The columns that store a row's parent. */
 const PARENT_COLUMNS = ["parentPackageId", "parentType", "parentId"] as const;
 
-/** The caller's access to one subscription of a scope's objects. */
-export class SubscriptionAudience implements Audience {
+/** The audience access decides: a reader's rows of a scope's objects. */
+export class AccessAudience implements Audience {
     /** The store serving the objects. */
     readonly #store: ObjectStore;
     /** The scope the stream follows. */
@@ -118,7 +117,7 @@ export class SubscriptionAudience implements Audience {
             readonly within?: readonly ObjectReference[];
             readonly via?: readonly string[];
         } = {},
-    ): Promise<SubscriptionAudience> {
+    ): Promise<AccessAudience> {
         // decide ephemeral and external objects at the durable position
         const storage = options.storage ?? "durable";
         const isContained = options.isContained ?? false;
@@ -128,7 +127,7 @@ export class SubscriptionAudience implements Audience {
         const via =
             options.via === undefined
                 ? []
-                : await SubscriptionAudience.#relays(store, options.via, reader);
+                : await AccessAudience.#relays(store, options.via, reader);
 
         // authorize the reader now as a principal, a contained caller or a remote caller this store serves
         const reauthorize = async () => {
@@ -148,7 +147,7 @@ export class SubscriptionAudience implements Audience {
             return authorization;
         };
 
-        return new SubscriptionAudience(
+        return new AccessAudience(
             store,
             scope,
             reader,
@@ -158,6 +157,29 @@ export class SubscriptionAudience implements Audience {
             decided,
             isContained,
             via,
+        );
+    }
+
+    /** Decide rows by a fixed authorization, such as a call's over its own view. */
+    static async bound(
+        store: ObjectStore,
+        scope: string,
+        authorization: Authorization,
+        storage: ObjectStorage,
+    ): Promise<AccessAudience> {
+        // decide ephemeral and external objects at the durable position
+        const decided = storage === "durable" ? undefined : await store.database.log.position();
+
+        return new AccessAudience(
+            store,
+            scope,
+            authorization.context(),
+            async () => authorization,
+            authorization,
+            storage,
+            decided,
+            false,
+            [],
         );
     }
 
@@ -399,7 +421,7 @@ export class SubscriptionAudience implements Audience {
                       this.#throughRows(positions, [
                           {
                               table: change.table,
-                              id: SubscriptionAudience.#identifier(moved, "id"),
+                              id: AccessAudience.#identifier(moved, "id"),
                           },
                       ]),
               }
@@ -425,7 +447,7 @@ export class SubscriptionAudience implements Audience {
             }
             objects.push({
                 table: mapping.table,
-                id: SubscriptionAudience.#identifier(row, "objectId"),
+                id: AccessAudience.#identifier(row, "objectId"),
             });
         }
 
@@ -469,7 +491,7 @@ export class SubscriptionAudience implements Audience {
                     snapshots.map((snapshot) => snapshot.select(table, [column], tuples)),
                 );
                 for (const row of read.flat()) {
-                    const id = SubscriptionAudience.#identifier(row, "id");
+                    const id = AccessAudience.#identifier(row, "id");
                     if (found.get(table)?.has(id) !== true) {
                         found.set(table, (found.get(table) ?? new Set()).add(id));
                         next.push(id);
@@ -548,14 +570,22 @@ export class SubscriptionAudience implements Audience {
         return [...this.#deciding(), ...this.#via.flatMap((relay) => relay.watches)];
     }
 
-    /** List the access rows deciding what the caller lists. */
+    /** List the rows deciding what the caller lists: the chain's access rows and mapped rows. */
     #deciding(): Watch[] {
-        return this.#storage === "durable"
-            ? this.#store.authorizer.watch(
-                  [...this.chain, ...this.#below],
-                  this.#authorization.access.authority.subjects,
-              )
-            : [];
+        // watch nothing for another storage, which decides as of one position
+        if (this.#storage !== "durable") {
+            return [];
+        }
+
+        // watch the chain's access rows, and the rows of every mapped type anywhere, which policies read
+        const { authorizer } = this.#store;
+        const access = authorizer.watch(
+            [...this.chain, ...this.#below],
+            this.#authorization.access.authority.subjects,
+        );
+        const mapped = authorizer.mappedTables.map((table): Watch => ({ table, scopes: "every" }));
+
+        return [...access, ...mapped];
     }
 
     /** The caller's access, resolved again once access changes. */
@@ -620,4 +650,35 @@ interface Relay {
     readonly watches: readonly Watch[];
     /** Require the follower to replicate the scope. */
     readonly require: () => Promise<void>;
+}
+
+/** Object types by their tables. */
+export class ObjectTypeIndex {
+    /** The object types, by table. */
+    readonly #objects: ReadonlyMap<Table, ObjectType>;
+
+    /** Index object types by their tables. */
+    constructor(objects: readonly ObjectType[]) {
+        this.#objects = new Map(objects.map((object) => [object.table, object]));
+    }
+
+    /** Read the object type of a table, absent for another table. */
+    get(table: Table): ObjectType | undefined {
+        return this.#objects.get(table);
+    }
+
+    /** Read a table's listed object type and listing permission. */
+    listed(table: Table): { readonly object: ObjectType; readonly permission: Permission } {
+        const object = this.#objects.get(table);
+        if (object?.listing === undefined) {
+            throw new TypeError(`no listed object is stored in '${table[TABLE].name}'`);
+        }
+
+        return { object, permission: object.listing };
+    }
+
+    /** List an object type's guarded fields. */
+    concealable(table: Table): readonly string[] {
+        return this.#objects.get(table)?.guarded ?? [];
+    }
 }

@@ -1,3 +1,6 @@
+/** The kebab case of each name cased so far, as declared names are few and fixed. */
+const KEBAB = new Map<string, string>();
+
 /** A kebab-case name in snake case. */
 export type SnakeCase<Name extends string> = Name extends `${infer Head}-${infer Tail}`
     ? `${Head}_${SnakeCase<Tail>}`
@@ -13,12 +16,18 @@ export type CamelCase<Name extends string> =
 export const Casing = {
     /** Write a camel-case or kebab-case name in kebab case. */
     kebab(name: string): string {
-        // split words and acronyms
+        // reuse a declared name's casing, else split words and acronyms once
+        const known = KEBAB.get(name);
+        if (known !== undefined) {
+            return known;
+        }
         const split = name
             .replace(/([a-z0-9])([A-Z])/gu, "$1-$2")
-            .replace(/([A-Z])([A-Z][a-z])/gu, "$1-$2");
+            .replace(/([A-Z])([A-Z][a-z])/gu, "$1-$2")
+            .toLowerCase();
+        KEBAB.set(name, split);
 
-        return split.toLowerCase();
+        return split;
     },
 
     /** Write a camel-case or kebab-case name in snake case. */

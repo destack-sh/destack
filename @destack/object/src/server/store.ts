@@ -1,3 +1,4 @@
+import { AccessAudience } from "./audience.ts";
 import { FormerKey } from "../object/former.ts";
 import type { Health } from "./health.ts";
 import { Casing } from "../object/name.ts";
@@ -122,7 +123,7 @@ import { CallSite } from "../method/site.ts";
 import { Limits } from "../method/limits.ts";
 import { Method } from "../method/method.ts";
 import { callableProcedures } from "../method/procedure.ts";
-import { ACCESS_KINDS, ObjectType } from "../object/object.ts";
+import { ACCESS_KINDS, type ObjectStorage, ObjectType } from "../object/object.ts";
 import { ObjectTypePool, ObjectDescription, type KnownDeclaration } from "../object/description.ts";
 import { ObjectController } from "../object/controller.ts";
 import { Chunk } from "../text/chunk.ts";
@@ -2994,6 +2995,17 @@ export class ObjectStore {
         }
 
         return reader;
+    }
+
+    /** Open the audience of a scope's reader or of a fixed authorization. */
+    async audience(
+        scope: string,
+        reader: AccessContext | Authorization,
+        storage: ObjectStorage = "durable",
+    ): Promise<AccessAudience> {
+        return reader instanceof Authorization
+            ? await AccessAudience.bound(this, scope, reader, storage)
+            : await AccessAudience.of(this, scope, reader, { storage });
     }
 
     /** Resolve a caller's access in a scope at the store's time, inside its principal's scopes. */

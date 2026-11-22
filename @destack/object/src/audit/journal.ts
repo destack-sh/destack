@@ -70,6 +70,19 @@ export interface RequestIdentity {
     readonly requestId: string;
 }
 
+/** The columns a call's finish writes over its started row. */
+const FINISHED = {
+    request: sql`excluded.${sql.identifier("request")}`,
+    call: sql`excluded.${sql.identifier("call")}`,
+    finishedAt: sql`excluded.${sql.identifier("finished_at")}`,
+};
+
+/** The journal rows of calls still running, which a finish may write over. */
+const UNFINISHED = isNull(journal.finishedAt);
+
+/** The most UTF-8 bytes one UTF-16 code unit encodes to, as surrogate pairs take four for two. */
+const UTF8_UNIT_BYTES = 3;
+
 /** The encoder measuring a recorded call's bytes. */
 const ENCODER = new TextEncoder();
 
@@ -133,9 +146,7 @@ export class Journal {
 
     /** Write calls or their outcomes, the ended audited ones as call events, in one round trip. */
     write(records: readonly JournalRecord[], transaction?: DatabaseConnection): Promise<void> {
-        return this.#instruments.span("destack.journal.write", {}, () =>
-            this.#write(records, transaction),
-        );
+        return this.#write(records, transaction);
     }
 
     /** Write calls or their outcomes in their span. */
@@ -145,8 +156,12 @@ export class Journal {
     ): Promise<void> {
         // bound what each call event records
         for (const { entry } of records) {
-            const recorded = canonicalize(Journal.recorded(entry));
-            if (ENCODER.encode(recorded).byteLength > MAX_EXECUTION_BYTES) {
+            // measure the text, encoding it only when its UTF-8 bytes, at most three per unit, may pass the bound
+            const recorded = JSON.stringify(Journal.recorded(entry));
+            const isLarge =
+                recorded.length * UTF8_UNIT_BYTES > MAX_EXECUTION_BYTES &&
+                ENCODER.encode(recorded).byteLength > MAX_EXECUTION_BYTES;
+            if (isLarge) {
                 throw ObjectError.of(
                     "CALL_INVALID",
                     `call is invalid: it must take at most ${MAX_EXECUTION_BYTES} bytes`,
@@ -187,34 +202,31 @@ export class Journal {
                 expiresAt: startedAt + this.lifetime,
             };
         });
-        const ended = records
-            .filter(
-                ({ entry, recording }) =>
-                    recording.isAudited && entry.execution.outcome !== undefined,
-            )
-            .map(({ entry }) => Journal.event(CallEvent.parse(Journal.recorded(entry))));
+        const ended = records.flatMap(({ entry, recording }) => {
+            const recorded = Journal.recorded(entry);
+
+            return recording.isAudited && Journal.#isEnded(recorded)
+                ? [Journal.event(recorded)]
+                : [];
+        });
 
         // remove the expired calls once a lifetime, as a replay refuses an expired request anyway
-        const now = this.clock.now();
-        const isPruning = this.#prunedAt === undefined || now >= this.#prunedAt + this.lifetime;
+        const at = this.clock.now();
+        const isPruning = this.#prunedAt === undefined || at >= this.#prunedAt + this.lifetime;
         if (isPruning) {
-            this.#prunedAt = now;
+            this.#prunedAt = at;
         }
 
         // insert or finish the calls, and append the ended audited ones, in one round trip
         const [, written, refusal] = await Promise.all([
-            isPruning ? transaction.delete(journal).where(lte(journal.expiresAt, now)) : undefined,
+            isPruning ? transaction.delete(journal).where(lte(journal.expiresAt, at)) : undefined,
             transaction
                 .insert(journal)
                 .values(rows)
                 .onConflictDoUpdate({
                     target: journal.id,
-                    set: {
-                        request: sql`excluded.${sql.identifier("request")}`,
-                        call: sql`excluded.${sql.identifier("call")}`,
-                        finishedAt: sql`excluded.${sql.identifier("finished_at")}`,
-                    },
-                    setWhere: isNull(journal.finishedAt),
+                    set: FINISHED,
+                    setWhere: UNFINISHED,
                 })
                 .returning({ id: journal.id }),
             ended.length === 0
@@ -260,6 +272,11 @@ export class Journal {
                 ...(outcome?.kind === "success" ? { outcome: { kind: "success" } } : {}),
             },
         };
+    }
+
+    /** Report whether a call ended: it has its outcome and its end time. */
+    static #isEnded(entry: JournalEntry): entry is CallEvent {
+        return entry.execution.outcome !== undefined && entry.execution.finishedAt !== undefined;
     }
 
     /** Write an ended call as an event of its scope. */

@@ -1543,8 +1543,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     result(name: string, answer: unknown): unknown {
         // validate the answer synchronously by the method's output schema
         const label = `${this.name}.${name}`;
-        const output = schema.standard().parse(this.procedure(name).output);
-        const validated = output["~standard"].validate(answer);
+        const validated = this.procedure(name).output["~standard"].validate(answer);
         if (validated instanceof Promise) {
             throw new TypeError(`the output schema of '${label}' is asynchronous`);
         } else if (validated.issues !== undefined) {

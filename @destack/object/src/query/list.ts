@@ -1,8 +1,8 @@
 import { Caller } from "@destack/access";
 import { ObjectError } from "../error/error.ts";
 import { type Snapshot, TABLE, Transaction, Table } from "@destack/db";
-import { nth, canonicalize, schema } from "@destack/schema";
-import { Dataflow, Replica, View } from "@destack/sync";
+import { nth, canonicalize, schema, type JsonObject } from "@destack/schema";
+import { Dataflow, EVERYONE, Replica, View } from "@destack/sync";
 import type * as sync from "@destack/sync";
 import { Page } from "../method/page.ts";
 import { PageFields } from "../method/procedure.ts";
@@ -11,7 +11,6 @@ import { EventLog } from "./event.ts";
 import { nestItem } from "./item.ts";
 import type { MethodContext } from "../method/context.ts";
 import { Execution } from "../method/execution.ts";
-import { CallAudience } from "./audience.ts";
 import type {} from "@destack/package/import-meta";
 
 /** The query, page and view of a list's input, beside its scope fields. */
@@ -52,26 +51,37 @@ export async function list(call: MethodContext, execution: Execution) {
         ),
         scopes: [...new Set([...call.object.readScopes(call.chain), ...replicated])],
     };
-    const dataflow = listDataflow(compiled, new CallAudience(call, execution), execution);
-    const node = nth(dataflow.roots, 0);
-
-    // read groups at the latest position, or rows
     const requested = requestedView(execution);
     const position = requested?.position;
-    const after = listing.after === undefined ? undefined : Table.decode(node.table, listing.after);
-    const view = Execution.snapshot(execution);
-    await dataflow.load(await View.of(view.database, requested), after);
+    const read = await readList(
+        call,
+        execution,
+        compiled,
+        listing.after,
+        requested,
+        async (dataflow) => {
+            // take the root and its groups or rows
+            const node = nth(dataflow.roots, 0);
+
+            return node.aggregate === undefined
+                ? { node, items: await dataflow.read("list") }
+                : { node, groups: await dataflow.results("list") };
+        },
+    );
+    const { node } = read;
+
+    // answer groups at the latest position, refusing an aggregate at another
     if (node.aggregate !== undefined && position !== undefined) {
         throw ObjectError.of(
             "AGGREGATE_AT_POSITION_INVALID",
             "aggregate position is invalid: aggregates can only read the latest position, where access is decided",
         );
-    } else if (node.aggregate !== undefined) {
-        return { items: [], cursor: null, groups: await dataflow.results("list") };
+    } else if ("groups" in read) {
+        return { items: [], cursor: null, groups: read.groups };
     }
 
     // filter the items the caller could read and split includes and computed values
-    const readable = await readableAt(await dataflow.read("list"), call, execution);
+    const readable = await readableAt(read.items, call, execution);
     const listed = listing.result(readable, (item) =>
         node.table[TABLE].encode(node.position(item.row)),
     );
@@ -79,10 +89,49 @@ export async function list(call: MethodContext, execution: Execution) {
     return { ...listed, ...split(listed.items, node, compiled) };
 }
 
+/** Read a call's query through the feed at the committed head, else over its own view. */
+async function readList<Value>(
+    call: MethodContext,
+    execution: Execution,
+    compiled: sync.Query,
+    cursor: JsonObject | undefined,
+    requested: Snapshot | undefined,
+    use: (dataflow: Dataflow) => Promise<Value>,
+): Promise<Value> {
+    // read the committed head through the shared dataflow when the call's view is the committed state
+    const after = cursor === undefined ? undefined : Table.decode(call.object.table, cursor);
+    const view = Execution.snapshot(execution);
+    const isCommitted =
+        !execution.isPredicted &&
+        requested === undefined &&
+        call.object.storage === "durable" &&
+        view.database.state === execution.store.database.state &&
+        execution.transaction.changes.writes("every") === 0;
+    if (isCommitted) {
+        const audience = await execution.store.audience(call.scope, call.caller);
+
+        return execution.store.feed.read(
+            { list: compiled },
+            audience,
+            after === undefined ? undefined : { row: after, cursor: canonicalize(cursor) },
+            use,
+        );
+    }
+
+    // read the call's own view: a prediction, a requested position, or its uncommitted writes
+    const audience = execution.isPredicted
+        ? EVERYONE
+        : await execution.store.audience(call.scope, execution.authorization, call.object.storage);
+    const dataflow = listDataflow(compiled, audience, execution);
+    await dataflow.load(await View.of(view.database, requested), after);
+
+    return use(dataflow);
+}
+
 /** Build the dataflow listing a call's query, materialized for the call's audience. */
 function listDataflow(
     compiled: sync.Query,
-    audience: CallAudience,
+    audience: sync.Audience,
     execution: Execution,
 ): Dataflow {
     const { database } = Execution.snapshot(execution);

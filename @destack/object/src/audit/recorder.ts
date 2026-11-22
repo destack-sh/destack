@@ -72,6 +72,12 @@ type Ended<Target extends schema.Schema<AuditTarget>, Details extends schema.Sch
     readonly id?: Identifier<"call">;
 };
 
+/** A session's identifier, which a caller's credential may present. */
+const SESSION_ID = schema.identifier("session");
+
+/** An access token's identifier, which a caller's credential may present. */
+const TOKEN_ID = schema.identifier("token");
+
 /** The outcome of a cancelled call. */
 const CANCELLED: Outcome = {
     kind: "cancelled",
@@ -105,8 +111,8 @@ export class AuditRecorder {
         // select the deployment the acting workload ran, and the session or token the caller presented
         const deploymentId =
             credential === undefined ? undefined : Credential.deployment(credential, acting);
-        const session = schema.identifier("session").safeParse(credential?.id);
-        const presented = schema.identifier("token").safeParse(credential?.id);
+        const session = SESSION_ID.safeParse(credential?.id);
+        const presented = TOKEN_ID.safeParse(credential?.id);
         const span = trace.getSpanContext(journal.environment.telemetry.context.active());
 
         // read the caller's session, token, trace and the grant its sender acts under
@@ -207,7 +213,7 @@ export class AuditRecorder {
 
     /** Create the recorder. */
     constructor(origin: CallOrigin, journal: Journal, requestId?: string) {
-        this.#context = CallOrigin.parse(origin);
+        this.#context = origin;
         this.#requestId = requestId;
         this.#journal = journal;
     }
