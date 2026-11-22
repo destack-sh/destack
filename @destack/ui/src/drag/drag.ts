@@ -36,6 +36,8 @@ export type DragTarget =
           readonly droppable: string;
           /** The place among the list's other items. */
           readonly index: number;
+          /** The depth it lands at, where the list nests. */
+          readonly depth?: number;
       }
     | {
           /** A cell of a grid. */
@@ -52,6 +54,8 @@ export type DragTarget =
           readonly droppable: string;
           /** The time, in milliseconds since the epoch. */
           readonly at: number;
+          /** The key of the row it lands on, where the axis runs along several rows. */
+          readonly row?: string;
       }
     | {
           /** An edge of an item, which a link starts or ends at. */
@@ -63,6 +67,29 @@ export type DragTarget =
           /** Which edge: the item's start or its end. */
           readonly edge: "start" | "end";
       };
+
+/** The verbs of drag targets. */
+export const DragTarget = {
+    /** Report whether two targets are the same place. */
+    isSame(left: DragTarget, right: DragTarget): boolean {
+        // compare the droppable, then the place within it
+        if (left.droppable !== right.droppable) {
+            return false;
+        } else if (left.kind === "list") {
+            return (
+                right.kind === "list" && left.index === right.index && left.depth === right.depth
+            );
+        } else if (left.kind === "cell") {
+            return right.kind === "cell" && left.key === right.key;
+        } else if (left.kind === "edge") {
+            return right.kind === "edge" && left.key === right.key && left.edge === right.edge;
+        }
+        // compare a time and its row
+        else {
+            return right.kind === "time" && left.at === right.at && left.row === right.row;
+        }
+    },
+};
 
 /** A place an announcement describes. */
 export type DragPlace =
@@ -431,7 +458,7 @@ export class DragManager {
 
         // announce each new target the pointer reaches
         const last = operation.target;
-        if (target !== undefined && (last === undefined || !isSameTarget(target, last))) {
+        if (target !== undefined && (last === undefined || !DragTarget.isSame(target, last))) {
             this.#announce("move", moved);
         }
 
@@ -503,7 +530,7 @@ export class DragManager {
 
         // hand on a drop at another target while the drag still stands
         const target = operation.target;
-        if (target !== undefined && !isSameTarget(target, operation.from)) {
+        if (target !== undefined && !DragTarget.isSame(target, operation.from)) {
             this.#options.onDrop({ ...operation, target });
         }
         this.#end();
@@ -733,22 +760,6 @@ function stepOf(key: string, direction: Direction): DragStep | undefined {
     }
 
     return undefined;
-}
-
-/** Report whether two targets are the same place. */
-function isSameTarget(left: DragTarget, right: DragTarget): boolean {
-    // compare the droppable, then the place within it
-    if (left.droppable !== right.droppable) {
-        return false;
-    } else if (left.kind === "list") {
-        return right.kind === "list" && left.index === right.index;
-    } else if (left.kind === "cell") {
-        return right.kind === "cell" && left.key === right.key;
-    } else if (left.kind === "edge") {
-        return right.kind === "edge" && left.key === right.key && left.edge === right.edge;
-    }
-
-    return right.kind === "time" && left.at === right.at;
 }
 
 /** Report whether a point lies within bounds. */
