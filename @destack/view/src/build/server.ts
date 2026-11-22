@@ -1,5 +1,6 @@
 import { isAbsolute, join } from "node:path";
-import { type Environment, type FileSystem, LineExporter } from "@destack/environment";
+import type { Environment, FileSystem } from "@destack/environment";
+import { LineExporter } from "@destack/environment/line";
 import {
     type Connect,
     createServer,
@@ -10,8 +11,7 @@ import {
 import type { WorkspacePackage } from "@destack/build";
 import { loadTransforms } from "@destack/build/local";
 import { OriginPath } from "@destack/package";
-import type { Plugin } from "@destack/package/build";
-import { runtimeConditions, runtimeCss, runtimeTarget } from "@destack/package/build";
+import { type Plugin, runtimeConditions, runtimeCss, runtimeTarget } from "@destack/package/build";
 import { PackageLocator } from "@destack/package/locator";
 import { baselinePlugin, modulePlugin } from "@destack/package/vite";
 import { ModuleTransformer } from "@destack/package/transform";

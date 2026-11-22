@@ -12,17 +12,15 @@ import { principal } from "@destack/access";
 import { type ClientOptions, ObjectConnection } from "@destack/object/client";
 import { reportToDevtools, startTelemetry } from "@destack/telemetry/browser";
 import { OtlpExporter } from "@destack/telemetry/otlp";
-import { CONTEXT_ELEMENT, ScopePath, ViewContext } from "../declare/context.ts";
+import { CONTEXT_ELEMENT, ScopePath, ViewContext, CONTEXT_SCOPES } from "../declare/context.ts";
 import type { ActionDeclaration } from "../palette/keybinding.ts";
 import { PageUndo } from "../page/undo.ts";
 import { account, space, user } from "@destack/account/object";
 import { deviceSetting, setting, SettingValue } from "@destack/setting/object";
 import { Theme, type ThemeDescription } from "@destack/theme";
 import { destackTheme } from "@destack/theme/declare";
-import { Snapshot } from "@destack/db";
 import { Presentation, type Page, PRESENTED_SETTINGS } from "./presentation.ts";
 import type { View } from "../declare/view.ts";
-import { CONTEXT_SCOPES } from "../declare/context.ts";
 import type { ViewMount } from "../page/context.ts";
 import { renderView } from "../page/mount.ts";
 import { recordVisits } from "./visit.ts";
@@ -385,7 +383,7 @@ async function* follow(
     // present the person's settings along their chain in their language
     const presented = async (): Promise<Presentation> => {
         // read the values along their chain and their profile's language from one snapshot
-        const snapshot = Snapshot.live(database);
+        const snapshot = database.snapshot();
         const { chain, values } = await SettingValue.list(snapshot, PRESENTED_SETTINGS, person);
         const row = await snapshot.read(user.table).findFirst({ where: { id: person } });
         const locale = present(row, "the person's profile").locale;
