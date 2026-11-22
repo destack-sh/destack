@@ -1,6 +1,8 @@
-import { color, font, motion } from "@destack/theme/tokens.stylex";
+import { color, font, motion, swatch } from "@destack/theme/tokens.stylex";
 import { media } from "@destack/style/media.stylex";
 import * as style from "@destack/style";
+import { Icon } from "@destack/ui/icon";
+import { Button } from "@destack/ui/button";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -42,10 +44,10 @@ export function Picker(properties: {
             <span aria-hidden="true">{properties.label}</span>
             <DropdownMenu>
                 <DropdownMenuTrigger
-                    variant="ghost"
-                    size="sm"
+                    render={(attributes) => (
+                        <Button {...attributes} variant="ghost" xstyle={styles.trigger} />
+                    )}
                     aria-label={`${properties.label}: ${properties.shown}`}
-                    xstyle={styles.trigger}
                 >
                     <span {...style.attrs(styles.names)}>
                         <For each={properties.options}>
@@ -59,9 +61,7 @@ export function Picker(properties: {
                             )}
                         </For>
                     </span>
-                    <svg aria-hidden="true" viewBox="0 0 24 24" {...style.attrs(styles.caret)}>
-                        <path d="m6 9 6 6 6-6" />
-                    </svg>
+                    <Icon name="caret-down" size={10} xstyle={styles.caret} />
                     <Hairline progress={properties.progress} />
                 </DropdownMenuTrigger>
                 <OptionMenu
@@ -86,9 +86,10 @@ export function InlinePicker(properties: {
     return (
         <DropdownMenu>
             <DropdownMenuTrigger
-                variant="ghost"
+                render={(attributes) => (
+                    <Button {...attributes} variant="ghost" xstyle={styles.inline} />
+                )}
                 aria-label={`${properties.label}: ${properties.shown}`}
-                xstyle={styles.inline}
             >
                 {properties.children}
             </DropdownMenuTrigger>
@@ -118,14 +119,7 @@ export function PickerName(properties: { options: readonly Option[]; shown: stri
                     )}
                 </For>
             </span>
-            <svg
-                data-caret
-                aria-hidden="true"
-                viewBox="0 0 24 24"
-                {...style.attrs(styles.caret, styles.inlineCaret)}
-            >
-                <path d="m6 9 6 6 6-6" />
-            </svg>
+            <Icon name="caret-down" size={10} xstyle={[styles.caret, styles.inlineCaret]} />
         </span>
     );
 }
@@ -295,18 +289,11 @@ const styles = style.create({
         position: "absolute",
     },
     caret: {
-        fill: "none",
         flexShrink: 0,
-        height: "10px",
         opacity: 0.6,
-        stroke: "currentColor",
-        strokeLinecap: "round",
-        strokeLinejoin: "round",
-        strokeWidth: 2.5,
-        width: "10px",
     },
     hairline: {
-        backgroundColor: color.primary,
+        backgroundColor: swatch.accentSolid,
         bottom: 0,
         height: "1px",
         insetInline: 0,

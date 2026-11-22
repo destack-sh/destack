@@ -15,9 +15,9 @@ export const paper = defineTheme({
 /** The dark theme root of surfaces that stay night in both appearances, like the sky bands. */
 export const night = paper.variables({ ...DEFAULT_DISPLAY, appearance: "dark" });
 
-/** The app theme's colours for figure windows, in the appearance the page picked. */
+/** The app theme of figure windows, compact and in small text as a window drawn smaller. */
 export const app = Object.fromEntries(
-    Object.entries(destackTheme.variables(DEFAULT_DISPLAY)).filter(
-        ([name]) => name !== "color-scheme",
-    ),
+    Object.entries(
+        destackTheme.variables({ ...DEFAULT_DISPLAY, density: "compact", textSize: "small" }),
+    ).filter(([name]) => name !== "color-scheme"),
 );

@@ -1,12 +1,15 @@
 import * as style from "@destack/style";
-import { media } from "@destack/style/media.stylex";
-import { color, stroke } from "@destack/theme/tokens.stylex";
+import { state } from "@destack/theme/state";
+import { Avatar, AvatarFallback } from "@destack/ui/avatar";
+import { Badge } from "@destack/ui/badge";
+import { Button } from "@destack/ui/button";
+import { Separator } from "@destack/ui/separator";
+import { color, radius, stroke, swatch } from "@destack/theme/tokens.stylex";
 import { createEffect, type JSX, useEnvironment } from "@destack/view";
 import { requestFrame } from "@destack/view/primitives/raf";
 
-import { palette } from "../../palette.stylex";
 import { AgentAvatar, isAgent } from "./agent";
-import { paperGlyphOf, washOf } from "./planet";
+import { paperGlyphOf } from "./planet";
 
 /** A mock narrower than a phone screen, which then takes its phone layout. */
 const NARROW = "@container (max-width: 479px)";
@@ -50,7 +53,7 @@ export const appStyles = style.create({
     },
     rail: {
         alignItems: "center",
-        backgroundColor: color.muted,
+        backgroundColor: color.background,
         borderRightColor: color.border,
         borderRightStyle: "solid",
         borderRightWidth: { default: stroke.border, [NARROW]: 0 },
@@ -71,43 +74,6 @@ export const appStyles = style.create({
     railWide: {
         display: { default: "flex", [NARROW]: "none" },
     },
-    railAvatar: {
-        height: "1.625rem",
-        marginBottom: "0.25rem",
-        width: "1.625rem",
-    },
-    avatar: {
-        alignItems: "center",
-        borderRadius: "50%",
-        color: "white",
-        display: "inline-flex",
-        flexShrink: 0,
-        fontSize: "0.6rem",
-        fontWeight: 700,
-        height: "1.125rem",
-        justifyContent: "center",
-        width: "1.125rem",
-    },
-    railButton: {
-        alignItems: "center",
-        borderRadius: "6px",
-        display: "flex",
-        flexShrink: 0,
-        height: "1.75rem",
-        justifyContent: "center",
-        position: "relative",
-        width: "2rem",
-    },
-    railLink: {
-        backgroundColor: {
-            default: null,
-            ":hover": {
-                default: null,
-                [media.hover]: `color-mix(in srgb, ${color.card} 55%, ${color.muted})`,
-            },
-        },
-        cursor: "pointer",
-    },
     glyph: {
         backgroundColor: color.mutedForeground,
         flexShrink: 0,
@@ -122,28 +88,25 @@ export const appStyles = style.create({
         width: "1rem",
     },
     glyphOn: {
-        backgroundColor: color.primary,
+        backgroundColor: swatch.accentSolid,
     },
-    badge: {
-        backgroundColor: color.primary,
-        borderRadius: "999px",
-        color: color.primaryForeground,
-        fontSize: "0.62rem",
-        fontWeight: 700,
-        paddingInline: "0.375rem",
+    railInbox: {
+        position: "relative",
     },
     railBadge: {
-        fontSize: "0.55rem",
-        paddingInline: "0.25rem",
+        borderRadius: radius.full,
+        fontSize: "0.625rem",
+        fontVariantNumeric: "tabular-nums",
+        height: "0.875rem",
+        insetBlockStart: "-0.125rem",
+        insetInlineEnd: "-0.125rem",
+        minWidth: "0.875rem",
+        paddingInline: "0.1875rem",
         position: "absolute",
-        right: "-0.125rem",
-        top: "-0.125rem",
     },
     railRule: {
         display: { default: "block", [NARROW]: "none" },
-        backgroundColor: color.border,
         flexShrink: 0,
-        height: stroke.border,
         marginBlock: "0.125rem",
         width: "1.5rem",
     },
@@ -181,38 +144,10 @@ export const appStyles = style.create({
         gap: "1.25rem",
         marginLeft: "auto",
     },
-    action: {
+    note: {
         color: color.mutedForeground,
         display: "block",
         lineHeight: "1.25rem",
-        whiteSpace: "nowrap",
-    },
-    actionStrong: {
-        color: color.foreground,
-        fontWeight: 600,
-    },
-    primary: {
-        backgroundColor: color.foreground,
-        borderRadius: "5px",
-        color: color.background,
-        fontWeight: 600,
-        paddingBlock: "0.125rem",
-        paddingInline: "0.625rem",
-        whiteSpace: "nowrap",
-    },
-    property: {
-        alignItems: "center",
-        backgroundColor: color.muted,
-        borderRadius: "5px",
-        boxSizing: "border-box",
-        color: color.mutedForeground,
-        display: "inline-flex",
-        fontSize: "0.75rem",
-        gap: "0.375rem",
-        height: "1.375rem",
-        lineHeight: 1,
-        paddingInline: "0.5rem",
-        verticalAlign: "middle",
         whiteSpace: "nowrap",
     },
     properties: {
@@ -283,35 +218,34 @@ export function AppRail(properties: {
 
     return (
         <nav ref={rail} data-component="AppRail" data-flip-enter {...style.attrs(appStyles.rail)}>
-            <span
-                title="Your space"
-                style={{ "background-color": palette.teal }}
-                {...style.attrs(appStyles.avatar, appStyles.railAvatar, appStyles.railWide)}
-            >
-                F
-            </span>
-            <span title="Search" {...style.attrs(appStyles.railButton, appStyles.railWide)}>
+            <Avatar size="sm" color="teal" title="Your space" xstyle={appStyles.railWide}>
+                <AvatarFallback>F</AvatarFallback>
+            </Avatar>
+            <Button variant="ghost" size="icon-sm" aria-label="Search" xstyle={appStyles.railWide}>
                 <AppGlyph name="search" />
-            </span>
-            <span title="Inbox" {...style.attrs(appStyles.railButton, appStyles.railWide)}>
+            </Button>
+            <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Inbox"
+                xstyle={[appStyles.railWide, appStyles.railInbox]}
+            >
                 <AppGlyph name="notify" />
-                <span {...style.attrs(appStyles.badge, appStyles.railBadge)}>3</span>
-            </span>
-            <span aria-hidden="true" {...style.attrs(appStyles.railRule)} />
+                <Badge xstyle={appStyles.railBadge}>3</Badge>
+            </Button>
+            <Separator xstyle={appStyles.railRule} />
             {properties.apps.map(([name, label]) => (
-                <span
+                <Button
+                    variant="ghost"
+                    size="icon-sm"
                     data-component="AppLink"
                     data-app={name}
                     data-flip={`icon-${name}`}
                     title={label}
+                    aria-label={label}
+                    aria-current={name === properties.open ? "page" : undefined}
                     onClick={() => properties.onOpen?.(name)}
-                    style={{
-                        "background-color": name === properties.open ? washOf(name) : undefined,
-                    }}
-                    {...style.attrs(
-                        appStyles.railButton,
-                        properties.onOpen !== undefined && appStyles.railLink,
-                    )}
+                    xstyle={[name === properties.open && state.selected]}
                 >
                     {isAgent(name) ? (
                         <AgentAvatar size="glyph" />
@@ -326,7 +260,7 @@ export function AppRail(properties: {
                             {...style.attrs(appStyles.glyph, appStyles.railGlyph)}
                         />
                     )}
-                </span>
+                </Button>
             ))}
         </nav>
     );

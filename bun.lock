@@ -1485,6 +1485,7 @@
     "@platform/site": {
       "name": "@platform/site",
       "dependencies": {
+        "@destack/color": "workspace:*",
         "@destack/environment": "workspace:*",
         "@destack/icon": "workspace:*",
         "@destack/locale": "workspace:*",

@@ -9,8 +9,9 @@ import {
     type Workload,
     jobWorkloads,
 } from "../figure/price";
-import { color, font, motion, stroke } from "@destack/theme/tokens.stylex";
+import { color, font, stroke, swatch } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
+import { Toggle } from "@destack/ui/toggle";
 import { createEffect, createSignal, useEnvironment } from "@destack/view";
 import { createVisibilityObserver } from "@destack/view/primitives/intersection-observer";
 
@@ -267,20 +268,21 @@ function makesOf(picks: readonly Tool[]): readonly Make[] {
         .slice(0, MAKE_COUNT);
 }
 
-/** Draw a tool to pick: its mark and its name, underlined once picked. */
+/** Draw a tool to pick: its mark and its name, pressed once picked. */
 function ToolButton(properties: { tool: Tool; isPicked: boolean; onPick: (tool: Tool) => void }) {
     return (
-        <button
-            type="button"
+        <Toggle
+            variant="outline"
+            size="sm"
             data-key={`${properties.tool.category}:${properties.tool.name}`}
-            aria-pressed={properties.isPicked ? "true" : "false"}
+            pressed={properties.isPicked}
+            onPressedChange={() => properties.onPick(properties.tool)}
             title={[properties.tool.name, statusOf(properties.tool)].filter(Boolean).join(", ")}
-            onClick={() => properties.onPick(properties.tool)}
-            {...style.attrs(styles.chip, styles.tool, properties.isPicked && styles.picked)}
+            xstyle={styles.tool}
         >
             <Favicon icon={properties.tool.icon} tint={properties.tool.tint} size={16} />
             <span {...style.attrs(styles.name)}>{properties.tool.label}</span>
-        </button>
+        </Toggle>
     );
 }
 
@@ -596,23 +598,12 @@ const styles = style.create({
         paddingInline: { default: "0.4375rem", [COMPACT]: "0.3125rem" },
     },
     tool: {
-        backgroundColor: {
-            default: "transparent",
-            ":hover": { default: null, [media.hover]: color.muted },
-        },
-        cursor: "pointer",
-        transition: `background-color ${motion.durationShort} ${motion.easingStandard}, box-shadow ${motion.durationShort} ${motion.easingStandard}`,
-    },
-    picked: {
-        backgroundColor: {
-            default: color.card,
-            ":hover": { default: null, [media.hover]: color.card },
-        },
-        boxShadow: `inset 0 -2px 0 ${color.primary}`,
+        flexShrink: 0,
+        paddingInline: { default: "0.4375rem", [COMPACT]: "0.3125rem" },
     },
     app: {
         backgroundColor: color.card,
-        boxShadow: `inset 0 -2px 0 ${color.primary}`,
+        boxShadow: `inset 0 -2px 0 ${swatch.accentSolid}`,
         paddingInlineStart: "0.25rem",
     },
     idle: {

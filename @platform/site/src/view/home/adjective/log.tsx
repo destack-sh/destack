@@ -1,11 +1,13 @@
 import * as style from "@destack/style";
-import { media } from "@destack/style/media.stylex";
-import { color, font } from "@destack/theme/tokens.stylex";
-import { createSignal, For } from "@destack/view";
+import { color, font, space } from "@destack/theme/tokens.stylex";
+import { Badge } from "@destack/ui/badge";
+import { Button } from "@destack/ui/button";
+import { Tree, TreeItem } from "@destack/ui/tree";
+import { createSignal, For, type JSX } from "@destack/view";
 
-import { palette } from "../../palette.stylex";
 import { typeScale } from "../../layout/type.stylex";
 import { AppGlyph, AppHeader, AppRail, appStyles } from "../figure/app";
+import { AgentAvatar } from "../figure/agent";
 import { Glyph } from "../figure/glyph";
 import { CHANGE_COUNT, type Lane, REQUEST, type Step, steps } from "./session";
 
@@ -49,45 +51,60 @@ export function AuditLog(properties: { lane: Lane; onTouch: () => void }) {
             <AppRail open="audit" apps={rail} />
             <article {...style.attrs(styles.page)}>
                 <AppHeader title="Log">
-                    <span {...style.attrs(appStyles.action, styles.wide)}>Undo selected</span>
-                    <span {...style.attrs(appStyles.primary)}>Undo session</span>
+                    <Button variant="ghost" xstyle={styles.wide}>
+                        Undo selected
+                    </Button>
+                    <Button>Undo session</Button>
                 </AppHeader>
 
                 {/* the filters, typed as the log reads them */}
                 <div {...style.attrs(styles.filters)}>
                     <Glyph name="filter" size={13} />
-                    <span {...style.attrs(styles.token)}>
+                    <Badge variant="secondary" xstyle={styles.token}>
                         <span {...style.attrs(styles.key)}>by:</span> Agent
-                    </span>
-                    <span {...style.attrs(styles.token)}>
+                    </Badge>
+                    <Badge variant="secondary" xstyle={styles.token}>
                         <span {...style.attrs(styles.key)}>since:</span> yesterday 22:00
-                    </span>
+                    </Badge>
                 </div>
 
                 {/* the sessions, newest first */}
-                <div role="tree" aria-label="Log" {...style.attrs(styles.tree)}>
+                <Tree aria-label="Log" xstyle={styles.tree}>
                     {/* your agent's fixes */}
                     {properties.lane === "fixed" ? (
-                        <Line
-                            text="Kept 3 changes to your mail, dropped 1, at your request"
-                            badge={undefined}
-                            isFlagged={false}
-                            stamp="08:41"
+                        <TreeItem
+                            value="fixes"
+                            label={
+                                <Session
+                                    text="Kept 3 changes to your mail, dropped 1, at your request"
+                                    stamp="08:41"
+                                />
+                            }
                         />
                     ) : undefined}
 
                     {/* the session, its request, and its steps */}
-                    <Line
-                        text="Tidied your inbox in preview, at your request"
-                        badge={review() === 0 ? `${CHANGE_COUNT} changes` : `${review()} to review`}
-                        isFlagged={review() > 0}
-                        stamp="22:04"
-                    />
-                    <q {...style.attrs(styles.request)}>{REQUEST}</q>
-                    <div {...style.attrs(styles.branch)}>
+                    <TreeItem
+                        value="session"
+                        defaultExpanded
+                        label={
+                            <Session
+                                text="Tidied your inbox in preview, at your request"
+                                stamp="22:04"
+                                badge={
+                                    review() === 0 ? (
+                                        <Badge variant="secondary">{CHANGE_COUNT} changes</Badge>
+                                    ) : (
+                                        <Badge color="tomato">{review()} to review</Badge>
+                                    )
+                                }
+                                request={REQUEST}
+                            />
+                        }
+                    >
                         <For each={steps}>
                             {(step) => (
-                                <StepLine
+                                <StepItem
                                     step={step}
                                     lane={properties.lane}
                                     isOpen={opened() === step}
@@ -95,85 +112,74 @@ export function AuditLog(properties: { lane: Lane; onTouch: () => void }) {
                                 />
                             )}
                         </For>
-                    </div>
-                </div>
+                    </TreeItem>
+                </Tree>
             </article>
         </div>
     );
 }
 
-/** Draw one session of your agent: what it did, how it stands, and when. */
-function Line(properties: {
+/** Draw a session of your agent's: what it did, at your request, how it stands, and when. */
+function Session(properties: {
     text: string;
-    badge: string | undefined;
-    isFlagged: boolean;
     stamp: string;
+    badge?: JSX.Element;
+    request?: string;
 }) {
     return (
-        <div role="treeitem" {...style.attrs(styles.line)}>
-            <span aria-hidden="true" {...style.attrs(appStyles.avatar, styles.agent)}>
-                A
-            </span>
+        <span {...style.attrs(styles.session)}>
+            <AgentAvatar size="glyph" />
             <span {...style.attrs(styles.text)}>
                 <b {...style.attrs(styles.actor)}>Agent</b> {properties.text}
             </span>
-            {properties.badge === undefined ? (
-                <span />
-            ) : (
-                <span
-                    {...style.attrs(
-                        styles.badge,
-                        properties.isFlagged ? styles.flagged : styles.neutral,
-                    )}
-                >
-                    {properties.badge}
-                </span>
-            )}
+            {properties.badge ?? <span />}
             <span {...style.attrs(styles.stamp)}>{properties.stamp}</span>
-        </div>
+            {properties.request === undefined ? undefined : (
+                <q {...style.attrs(styles.request)}>{properties.request}</q>
+            )}
+        </span>
     );
 }
 
 /** Draw one step: its app, what it did, its slip once reviewed, and its changes when open. */
-function StepLine(properties: { step: Step; lane: Lane; isOpen: boolean; onToggle: () => void }) {
+function StepItem(properties: { step: Step; lane: Lane; isOpen: boolean; onToggle: () => void }) {
     // show the slip once your agent has reviewed the session, and its fix once fixed
     const slip = () => (properties.lane === "prepared" ? undefined : properties.step.slip);
     const fixed = () => (properties.lane === "fixed" ? slip()?.fixed : undefined);
 
     return (
-        <div role="treeitem" aria-expanded={properties.isOpen ? "true" : "false"}>
-            <button type="button" onClick={properties.onToggle} {...style.attrs(styles.step)}>
-                <span {...style.attrs(styles.caret, properties.isOpen && styles.caretOpen)}>
-                    <Glyph name="caret" size={11} />
+        <TreeItem
+            value={properties.step.text}
+            expanded={properties.isOpen}
+            onExpandedChange={properties.onToggle}
+            label={
+                <span {...style.attrs(styles.step)}>
+                    <AppGlyph name={properties.step.app} />
+                    <span {...style.attrs(styles.text)}>{properties.step.text}</span>
+                    {slip() === undefined ? (
+                        <span {...style.attrs(styles.quiet)}>{properties.step.count}</span>
+                    ) : fixed() === undefined ? (
+                        <Badge color="tomato">{slip()?.text}</Badge>
+                    ) : (
+                        <Badge color="teal">{fixed()}</Badge>
+                    )}
                 </span>
-                <AppGlyph name={properties.step.app} />
-                <span {...style.attrs(styles.text)}>{properties.step.text}</span>
-                {slip() === undefined ? (
-                    <span {...style.attrs(styles.quiet)}>{properties.step.count}</span>
-                ) : (
-                    <span
-                        {...style.attrs(
-                            styles.badge,
-                            fixed() === undefined ? styles.flagged : styles.fixed,
-                        )}
-                    >
-                        {fixed() ?? slip()?.text}
-                    </span>
-                )}
-            </button>
-            {properties.isOpen ? (
-                <div {...style.attrs(styles.changes)}>
-                    <For each={properties.step.changes}>
-                        {([app, text]) => (
-                            <div {...style.attrs(styles.change)}>
+            }
+        >
+            <For each={properties.step.changes}>
+                {([app, text]) => (
+                    <TreeItem
+                        value={`${properties.step.text} · ${text}`}
+                        label={
+                            <span {...style.attrs(styles.step)}>
                                 <AppGlyph name={app} />
                                 <span {...style.attrs(styles.text)}>{text}</span>
-                            </div>
-                        )}
-                    </For>
-                </div>
-            ) : undefined}
-        </div>
+                            </span>
+                        }
+                    />
+                )}
+            </For>
+        </TreeItem>
     );
 }
 
@@ -213,98 +219,39 @@ const styles = style.create({
         paddingInline: "0.5rem",
     },
     token: {
-        backgroundColor: color.muted,
-        borderRadius: "4px",
-        color: color.foreground,
         fontFamily: font.code,
-        fontSize: typeScale.label,
-        paddingBlock: "0.125rem",
-        paddingInline: "0.375rem",
-        whiteSpace: "nowrap",
     },
     key: {
         color: color.mutedForeground,
     },
     tree: {
-        alignContent: "start",
-        display: "grid",
-        fontSize: typeScale.small,
-        gap: "0.125rem",
         minHeight: 0,
         overflow: "hidden",
-    },
-    line: {
-        alignItems: "center",
-        columnGap: "0.5rem",
-        display: "grid",
-        gridTemplateColumns: "auto minmax(0, 1fr) auto 4.5rem",
-        paddingBlock: "0.3125rem",
     },
     request: {
         color: color.mutedForeground,
         display: "-webkit-box",
         fontStyle: "italic",
+        gridColumn: "2 / -1",
         lineHeight: 1.45,
-        marginInlineStart: "1.625rem",
         overflow: "hidden",
-        paddingBlockEnd: "0.375rem",
         WebkitBoxOrient: "vertical",
         WebkitLineClamp: 2,
     },
-    branch: {
-        borderInlineStartColor: color.border,
-        borderInlineStartStyle: "solid",
-        borderInlineStartWidth: "1px",
-        display: "grid",
-        gap: "0.0625rem",
-        marginInlineStart: "0.5625rem",
-        paddingInlineStart: "0.625rem",
-    },
     step: {
         alignItems: "center",
-        backgroundColor: {
-            default: "transparent",
-            ":hover": { default: null, [media.hover]: color.muted },
-        },
-        borderRadius: "4px",
-        borderStyle: "none",
-        color: "inherit",
-        cursor: "pointer",
         display: "grid",
-        font: "inherit",
-        gap: "0.5rem",
-        gridTemplateColumns: "auto auto minmax(0, 1fr) auto",
-        paddingBlock: "0.3125rem",
-        paddingInline: "0.25rem",
-        textAlign: "start",
+        gap: space[2],
+        gridTemplateColumns: "auto minmax(0, 1fr) auto",
         width: "100%",
     },
-    caret: {
-        color: color.mutedForeground,
-        display: "inline-flex",
-        transform: "rotate(-90deg)",
-    },
-    caretOpen: {
-        transform: "none",
-    },
-    changes: {
-        display: "grid",
-        gap: "0.125rem",
-        paddingBlockEnd: "0.375rem",
-        paddingInlineStart: "2.75rem",
-    },
-    change: {
+    session: {
         alignItems: "center",
-        color: color.mutedForeground,
-        columnGap: "0.5rem",
+        columnGap: space[2],
         display: "grid",
-        fontFamily: font.code,
-        fontSize: typeScale.label,
-        gridTemplateColumns: "auto minmax(0, 1fr)",
-        paddingBlock: "0.125rem",
-    },
-    agent: {
-        backgroundColor: palette.ember,
+        gridTemplateColumns: "auto minmax(0, 1fr) auto 4.5rem",
+        rowGap: space[1],
+        width: "100%",
     },
     actor: {
         fontWeight: 600,
@@ -325,25 +272,5 @@ const styles = style.create({
         color: color.mutedForeground,
         fontSize: typeScale.label,
         whiteSpace: "nowrap",
-    },
-    badge: {
-        borderRadius: "999px",
-        fontSize: typeScale.label,
-        fontWeight: 600,
-        paddingBlock: "0.0625rem",
-        paddingInline: "0.5rem",
-        whiteSpace: "nowrap",
-    },
-    flagged: {
-        backgroundColor: `color-mix(in srgb, ${palette.ember} 14%, transparent)`,
-        color: palette.ember,
-    },
-    neutral: {
-        backgroundColor: color.muted,
-        color: color.mutedForeground,
-    },
-    fixed: {
-        backgroundColor: `color-mix(in srgb, ${palette.teal} 14%, transparent)`,
-        color: palette.teal,
     },
 });

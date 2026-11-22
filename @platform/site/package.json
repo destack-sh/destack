@@ -24,6 +24,7 @@
         "generate-check": "bun run scripts/generate-pricing.ts --check && bun run scripts/generate-headword.ts --check"
     },
     "dependencies": {
+        "@destack/color": "workspace:*",
         "@destack/environment": "workspace:*",
         "@destack/icon": "workspace:*",
         "@destack/locale": "workspace:*",

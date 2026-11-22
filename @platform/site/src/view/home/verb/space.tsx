@@ -4,7 +4,8 @@ import key from "@destack/icon/phosphor/key";
 import { present } from "@destack/schema";
 import { createSignal } from "@destack/view";
 import * as style from "@destack/style";
-import { color, motion, stroke } from "@destack/theme/tokens.stylex";
+import { Button } from "@destack/ui/button";
+import { color, motion, stroke, swatch } from "@destack/theme/tokens.stylex";
 import { ToggleGroup, ToggleGroupItem } from "@destack/ui/toggle-group";
 import { Favicon, Glyph } from "../figure/glyph";
 import type { Entry, Item } from "../figure/item";
@@ -15,7 +16,6 @@ import { AppRail, appStyles, appText } from "../figure/app";
 import { browserStyles } from "../figure/browser";
 import { AgentAvatar } from "../figure/agent";
 import type { Category, Lineup, Tool } from "../tool/tool";
-import { palette } from "../../palette.stylex";
 import { LocalTracker } from "../project/tracker";
 import { VercelChangelog } from "../project/changelog";
 import type { JSX } from "@destack/view";
@@ -688,22 +688,21 @@ function SpaceStatus(properties: {
             <span {...style.attrs(appStyles.statusEnd)}>
                 {/* ask your agent to change the app on the page */}
                 {properties.remix === undefined ? undefined : (
-                    <button
-                        type="button"
+                    <Button
+                        variant="outline"
+                        size="sm"
                         data-component="Remix"
                         onClick={() => properties.remix?.onRemix(properties.page.row)}
-                        {...style.attrs(appText.small, styles.remix)}
                     >
                         <Glyph name="remix" size={12} />
                         Remix
-                    </button>
+                    </Button>
                 )}
                 <span>View as</span>
                 <ToggleGroup
                     data-component="ViewAs"
                     aria-label="View as"
                     variant="outline"
-                    size="sm"
                     value={properties.viewer}
                     onValueChange={(value) => {
                         const chosen = viewers.find((viewer) => viewer === value);
@@ -770,20 +769,6 @@ const styles = style.create({
         height: "1.5rem",
         paddingInline: "0.5rem",
     },
-    remix: {
-        alignItems: "center",
-        backgroundColor: `color-mix(in srgb, ${palette.signal} 14%, transparent)`,
-        borderColor: `color-mix(in srgb, ${palette.signal} 45%, transparent)`,
-        borderRadius: "6px",
-        borderStyle: "solid",
-        borderWidth: stroke.border,
-        color: color.foreground,
-        cursor: "pointer",
-        display: "inline-flex",
-        gap: "0.3125rem",
-        height: "1.5rem",
-        paddingInline: "0.5rem",
-    },
     remixNote: {
         alignItems: "center",
         backgroundColor: color.card,
@@ -837,7 +822,7 @@ const styles = style.create({
             ":hover": { default: null, [media.hover]: "underline" },
         },
         borderWidth: 0,
-        color: color.primary,
+        color: swatch.accentSolid,
         cursor: "pointer",
         fontSize: "0.875rem",
         fontWeight: 600,
@@ -861,7 +846,7 @@ const styles = style.create({
         borderRadius: "10px",
         borderStyle: "solid",
         borderWidth: stroke.border,
-        color: color.cardForeground,
+        color: color.foreground,
         cursor: "pointer",
         display: "grid",
         fontSize: "0.75rem",
@@ -872,8 +857,8 @@ const styles = style.create({
         textAlign: "start",
     },
     cardOn: {
-        borderColor: color.primary,
-        boxShadow: `0 0 0 1px ${color.primary}`,
+        borderColor: swatch.accentSolid,
+        boxShadow: `0 0 0 1px ${swatch.accentSolid}`,
     },
     cardTitle: {
         alignItems: "center",

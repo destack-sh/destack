@@ -65,8 +65,3 @@ export function paperGlyphOf(icon: string): string {
 
     return `light-dark(color-mix(in oklab, ${glyph} ${String(RAIL_SHARE)}%, ${palette.ink}), color-mix(in oklab, ${glyph} ${String(TILE_SHARE)}%, ${palette.cream}))`;
 }
-
-/** Return the wash behind a selected glyph on the page. */
-export function washOf(icon: string): string {
-    return `color-mix(in srgb, ${glyphOf(icon)} 16%, transparent)`;
-}
