@@ -134,12 +134,9 @@ export const catalog = defineObject({
 /** A build's graph as object rows: the build, its manifest and its finish. */
 export class BuildGraph {
     /** The index tables, one per graph object type. */
-    static readonly tables = [
-        module.table,
-        declaration.table,
-        symbol.table,
-        catalog.table,
-    ] as const;
+    static get tables() {
+        return [module.table, declaration.table, symbol.table, catalog.table] as const;
+    }
 
     /** The build reading the index. */
     readonly build: Identifier<"build">;
