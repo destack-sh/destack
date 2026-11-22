@@ -1,12 +1,11 @@
 import {
     Action,
     type ActionArgument,
-    type KeyPress,
     type MethodKind,
     type ObjectType,
     type ObjectView,
-    Shortcut,
 } from "@destack/object";
+import { type KeyPress, Shortcut } from "@destack/locale";
 import type { JsonObject, JsonValue } from "@destack/schema";
 import type { Frame } from "./frame.ts";
 import { type Page, type PageKey, PageState } from "./page.ts";

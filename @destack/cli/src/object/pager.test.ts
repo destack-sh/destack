@@ -1,8 +1,8 @@
 import { through } from "@destack/access";
 import { TerminalSize } from "@destack/environment";
 import { space } from "@destack/account/object";
-import { argument, plural, t } from "@destack/locale";
-import { defineObject, field, type KeyPress, presentable } from "@destack/object";
+import { argument, type KeyPress, plural, t } from "@destack/locale";
+import { defineObject, field, presentable } from "@destack/object";
 import { expect, test } from "@destack/test";
 import { TerminalFixture } from "../test/terminal.ts";
 import { Frame } from "./frame.ts";

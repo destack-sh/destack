@@ -2,7 +2,7 @@ import { styleText } from "node:util";
 import type { Environment } from "@destack/environment";
 import { Localization, LocaleTag } from "@destack/locale";
 import { PRESETS, type Preset } from "@destack/color";
-import type { KeyPress } from "@destack/object";
+import type { KeyPress } from "@destack/locale";
 import { Prompt } from "./prompt.ts";
 
 /** A text format understood by the terminal. */
