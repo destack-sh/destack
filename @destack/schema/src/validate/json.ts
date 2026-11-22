@@ -13,14 +13,14 @@ export const JSON_DESCRIPTION: z.core.JSONSchema.BaseSchema = {
     ],
 };
 
-/** Validate a JSON value, checking its shape in one walk. */
+/** Validate a JSON value, checking its shape in one walk, one shared validator for every caller. */
 export function json(): z.ZodType<JsonValue> {
-    return z.custom<JsonValue>(isJson, { message: "not a JSON value" });
+    return JSON_VALUE;
 }
 
-/** Validate a JSON object, as a record of JSON values. */
+/** Validate a JSON object, as a record of JSON values, one shared validator for every caller. */
 export function jsonObject(): z.ZodType<JsonObject> {
-    return z.record(z.string(), json());
+    return JSON_OBJECT;
 }
 
 /** Report whether a schema is the JSON value check `json` makes. */
@@ -56,3 +56,11 @@ function isJson(value: unknown): value is JsonValue {
         return false;
     }
 }
+
+/** The validator of any JSON value. */
+const JSON_VALUE: z.ZodType<JsonValue> = z.custom<JsonValue>(isJson, {
+    message: "not a JSON value",
+});
+
+/** The validator of any JSON object. */
+const JSON_OBJECT: z.ZodType<JsonObject> = z.record(z.string(), JSON_VALUE);
