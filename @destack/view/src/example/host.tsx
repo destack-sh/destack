@@ -119,6 +119,7 @@ const styles = style.create({
     },
     fullscreen: {
         display: "grid",
+        gridTemplateColumns: "minmax(0, 1fr)",
     },
 });
 
