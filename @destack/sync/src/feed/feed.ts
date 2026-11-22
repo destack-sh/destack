@@ -566,6 +566,10 @@ export class Feed implements Cache {
                         changed: shared.changed,
                         sequence: present(shared.dataflow.position, "the dataflow's position")
                             .sequence,
+                        routes: Watch.routes(
+                            [...shared.dataflow.watches(), ...shared.audience.watches],
+                            [],
+                        ),
                         result:
                             since === undefined || shared.changed > since
                                 ? { value: await resultOf(shared.dataflow) }
@@ -577,8 +581,8 @@ export class Feed implements Cache {
                     yield read.result.value;
                 }
 
-                // wait for the next commit
-                await this.next(read.sequence, signal);
+                // wait for a change of the rows it reads or the rows deciding them
+                await this.next(read.sequence, signal, read.routes);
             }
         } finally {
             this.#leave();
