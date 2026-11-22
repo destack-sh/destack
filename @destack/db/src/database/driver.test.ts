@@ -50,7 +50,7 @@ test("count a database's statements, transactions, commits and connection waits 
             : {};
     const statements = {
         ...queued,
-        "destack.cache.requests": database.dialect === "sqlite" ? 4 : 1,
+        "destack.cache.requests": database.dialect === "sqlite" ? 5 : 2,
         "destack.db.rows": 3,
         "destack.watch.wakes": 1,
         "db.client.operation.duration.count": 5,

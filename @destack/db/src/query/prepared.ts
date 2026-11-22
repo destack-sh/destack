@@ -53,6 +53,23 @@ export class PreparedQuery {
 
         return fill(this.template, values);
     }
+
+    /** Bind one run's values to the slots, each through its column as written. */
+    bindValues(
+        written: readonly unknown[],
+        dialect: Dialect,
+        cipher: ColumnCipher | undefined,
+    ): DriverStatement {
+        const values: Record<string, DriverValue> = {};
+        for (const [index, column] of this.slots.entries()) {
+            values[`s${String(index)}`] = new Parameter(written[index], column).encode(
+                dialect,
+                cipher,
+            );
+        }
+
+        return fill(this.template, values);
+    }
 }
 
 /** The prepared queries of one connection, by table definition and shape. */

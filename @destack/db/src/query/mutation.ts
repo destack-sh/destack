@@ -17,6 +17,8 @@ import { Projection, type SelectionResult } from "./selection.ts";
 import { DatabaseError } from "../error/error.ts";
 import { BlobStore } from "../blob/store.ts";
 import { textValues } from "./statement.ts";
+import { PreparedQuery } from "./prepared.ts";
+import { present } from "@destack/schema";
 
 /** The values of an insert or update: values, fragments or placeholders, undefined as default. */
 export type InsertValue<Definition extends Table> = {
@@ -239,6 +241,12 @@ export class MutationQuery<
 
     /** Render the mutation's statements, an insert's rows split to bind within the limit. */
     #statements(rendered: (statement: SQL) => DriverStatement): DriverStatement[] {
+        // bind a single-row insert of plain values to its shape's statement, rendered once
+        const prepared = this.#prepared();
+        if (prepared !== undefined) {
+            return [prepared];
+        }
+
         // render other mutations and short inserts whole
         const { driver, records, table } = this.state;
         if (this.state.operation !== "insert" || records.length < 2) {
@@ -271,6 +279,79 @@ export class MutationQuery<
         }
 
         return statements;
+    }
+
+    /** Bind a single-row insert or upsert of plain values to its shape's statement, else none. */
+    #prepared(): DriverStatement | undefined {
+        // take only a single-row insert of values returning nothing or the table's columns, without conditions written as SQL
+        const { driver, records, table, conflict, returning } = this.state;
+        const [record] = records;
+        const set: WriteRecord = conflict?.action === "update" ? conflict.set : {};
+        if (
+            this.state.operation !== "insert" ||
+            record === undefined ||
+            records.length !== 1 ||
+            conflict?.targetWhere !== undefined ||
+            (conflict?.action === "update" && conflict.setWhere !== undefined) ||
+            !Object.values(record).every(isPlain) ||
+            !Object.values(set).every(isPlain) ||
+            ![...Object.keys(record), ...Object.keys(set)].every((property) =>
+                Object.hasOwn(table[TABLE].columns, property),
+            ) ||
+            (returning !== undefined && returning !== table[TABLE].columns)
+        ) {
+            return undefined;
+        }
+
+        // key the shape by the written and set properties, the conflict and the returned fields
+        const declared = table[TABLE].columns;
+        const written = Object.keys(record).filter(
+            (property) =>
+                record[property] !== undefined &&
+                declared[property]?.definition.generated === undefined,
+        );
+        const updated = Object.keys(set).filter((property) => set[property] !== undefined);
+        const target = conflict?.target?.map((column) => column.definition.name).join(",") ?? "";
+        const returned = returning === undefined ? "" : "columns";
+        const action = conflict?.action ?? "none";
+        const shape = `insert ${written.join(",")} ${action} ${target} ${updated.join(",")} ${returned}`;
+
+        // render the shape's statement once, a placeholder standing in for each value
+        const { cipher, namespace } = driver.state;
+        const prepared = driver.state.preparedQueries.take(table, shape, () => {
+            // stand a placeholder in for each written and set value, noting its column
+            const slots: Column[] = [];
+            const slotted = (properties: readonly string[]): WriteRecord =>
+                Object.fromEntries(
+                    properties.map((property) => {
+                        slots.push(present(table[TABLE].columns[property], `column '${property}'`));
+
+                        return [property, sql.placeholder(`s${String(slots.length - 1)}`)];
+                    }),
+                );
+
+            // render the insert, its conflict's assignments taking the set placeholders
+            const statement = this.#sql([slotted(written)], slotted(updated));
+
+            return new PreparedQuery(
+                render(statement, driver.dialect, namespace, cipher),
+                new Projection({}),
+                slots,
+            );
+        });
+
+        // validate each value as it enters the database, and bind it through its column
+        const values = [
+            ...written.map((property) => record[property]),
+            ...updated.map((property) => set[property]),
+        ];
+        const parsed = values.map((value, index) => {
+            const column = present(prepared.slots[index], `slot ${String(index)}`);
+
+            return value === null ? null : column.definition.schema.parse(value);
+        });
+
+        return prepared.bindValues(parsed, driver.dialect, cipher);
     }
 
     /** Run the mutation and return the first changed row. */
@@ -334,7 +415,7 @@ export class MutationQuery<
     }
 
     /** Write the mutation as SQL. */
-    #sql(records: readonly WriteRecord[]): SQL {
+    #sql(records: readonly WriteRecord[], set?: WriteRecord): SQL {
         // write the statement in clauses
         const state = this.state;
         const table = state.table;
@@ -358,7 +439,7 @@ export class MutationQuery<
 
         // skip or update conflicting rows
         if (state.conflict !== undefined) {
-            clauses.push(conflictSQL(table, state.conflict));
+            clauses.push(conflictSQL(table, state.conflict, set));
         }
 
         // return the changed rows' fields
@@ -409,7 +490,11 @@ function insertSQL(table: Table, records: readonly WriteRecord[]): SQL {
 }
 
 /** Write an insert's clause skipping or updating the rows that conflict with a unique key. */
-function conflictSQL<Definition extends Table>(table: Table, conflict: Conflict<Definition>): SQL {
+function conflictSQL<Definition extends Table>(
+    table: Table,
+    conflict: Conflict<Definition>,
+    set: WriteRecord = conflict.action === "update" ? conflict.set : {},
+): SQL {
     const target =
         conflict.target === undefined
             ? sql.empty()
@@ -420,7 +505,7 @@ function conflictSQL<Definition extends Table>(table: Table, conflict: Conflict<
 
     return conflict.action === "nothing"
         ? sql` ON CONFLICT${target} DO NOTHING`
-        : sql` ON CONFLICT${target} DO UPDATE SET ${assignments(table, conflict.set)}${
+        : sql` ON CONFLICT${target} DO UPDATE SET ${assignments(table, set)}${
               conflict.setWhere === undefined ? sql.empty() : sql` WHERE ${conflict.setWhere}`
           }`;
 }
@@ -471,6 +556,11 @@ function valueOf(column: Column, value: unknown): SQLWrapper {
     }
 
     return fallback instanceof SQL ? fallback : new SQL([new Parameter(fallback, column)]);
+}
+
+/** Report whether a written value is a plain value: no SQL fragment or placeholder. */
+function isPlain(value: unknown): boolean {
+    return !isSQLWrapper(value) && !(value instanceof Placeholder);
 }
 
 /** Write returned columns without their table, as SQLite's RETURNING requires. */
