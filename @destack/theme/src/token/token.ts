@@ -9,7 +9,7 @@ export const VARIABLE_PREFIX = "--destack";
 export type Variable = `${typeof VARIABLE_PREFIX}-${string}`;
 
 /** The custom property scaling every duration, 0 under reduced motion. */
-export const MOTION_VARIABLE: Variable = `${VARIABLE_PREFIX}-motion-scale`;
+export const MOTION_SCALE: Variable = `${VARIABLE_PREFIX}-motion-scale`;
 
 /** The `$extensions` namespace of Destack's token metadata, per the W3C Design Tokens format. */
 export const EXTENSION = "app.destack";
@@ -252,7 +252,7 @@ export class TokenEntry {
             case "dimension":
                 return [[this.variable, length(token.$value.value * factor)]];
             case "duration": {
-                const scale = `var(${MOTION_VARIABLE}, 1)`;
+                const scale = `var(${MOTION_SCALE}, 1)`;
 
                 return [[this.variable, `calc(${token.$value.value}ms * ${scale})`]];
             }

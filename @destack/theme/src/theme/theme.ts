@@ -2,7 +2,7 @@ import { PackageVersion, PackageError } from "@destack/package";
 import { present, schema } from "@destack/schema";
 import { HexColor, Palette, Seed, type ColorScheme, Srgb } from "../palette/index.ts";
 import { ACCENT_PRESETS } from "@destack/color";
-import { MOTION_VARIABLE, TOKENS, VARIABLE_PREFIX, type Variable } from "../token/index.ts";
+import { MOTION_SCALE, TOKENS, VARIABLE_PREFIX, type Variable } from "../token/index.ts";
 import { DENSITY_SCALES, Density, TEXT_SCALES, type Contrast, type Display } from "./display.ts";
 import {
     BACKGROUND_LIGHTNESS,
@@ -531,7 +531,7 @@ export class Theme {
 
         // set the motion scale the stylesheet otherwise reads from the device
         if (display.motion !== "system") {
-            style[MOTION_VARIABLE] = display.motion === "full" ? "1" : "0";
+            style[MOTION_SCALE] = display.motion === "full" ? "1" : "0";
         }
     }
 }
