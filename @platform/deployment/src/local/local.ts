@@ -13,8 +13,8 @@ import {
     type HostCapability,
     untilAborted,
     waitAborted,
-    LOG_LEVEL_VARIABLE,
 } from "@destack/environment";
+import { LOG_LEVEL_VARIABLE } from "@destack/environment/line";
 import { type Keychain, KeyPair, LocalKeyring, MemoryKeychain } from "@destack/identity";
 import { BunKeychain } from "@destack/identity/bun";
 import {
