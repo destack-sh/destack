@@ -1,6 +1,7 @@
+import { blobTable, eq } from "@destack/db";
 import { dirname, join } from "node:path";
 import { LocalBlobStorage } from "@destack/bucket/bun";
-import { BlobStore, eq } from "@destack/db";
+import { BlobStore } from "@destack/db/database";
 import { connectBunSqlite } from "@destack/db/bun";
 import { type Environment, type FileSystem, FileSystemError } from "@destack/environment";
 import { type PackageFile, PackagePath } from "@destack/package/file";
@@ -14,8 +15,11 @@ import {
     USE_MILLISECONDS,
 } from "./store.ts";
 import { BuildError } from "../error/index.ts";
-import { BuildReader, BuildImage, MANIFEST_PATH, PackageManifest } from "@destack/package/manifest";
 import {
+    BuildReader,
+    BuildImage,
+    MANIFEST_PATH,
+    PackageManifest,
     BuildLayer,
     LAYER_BLOBS,
     LAYER_FORMAT,
@@ -305,9 +309,9 @@ export class LocalBuildStore
         else {
             const now = this.environment.clock.now();
             const [leased] = await this.database
-                .select({ until: BlobStore.table.leasedUntil })
-                .from(BlobStore.table)
-                .where(eq(BlobStore.table.digest, digest));
+                .select({ until: blobTable.leasedUntil })
+                .from(blobTable)
+                .where(eq(blobTable.digest, digest));
             const isDue =
                 leased !== undefined && leased.until - CACHE_MILLISECONDS <= now - USE_MILLISECONDS;
             if (isDue) {

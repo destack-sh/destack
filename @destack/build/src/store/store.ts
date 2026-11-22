@@ -4,10 +4,6 @@ import type { BlobStorage } from "@destack/resource";
 import {
     and,
     asc,
-    BLOB_TABLES,
-    type BlobStore,
-    type Controller,
-    type DatabaseConnection,
     defineDatabase,
     eq,
     inArray,
@@ -16,7 +12,9 @@ import {
     Now,
     or,
     type SQLWrapper,
+    BLOB_TABLES,
 } from "@destack/db";
+import type { BlobStore, Controller, DatabaseConnection } from "@destack/db/database";
 import { DependencyName, type DependencyRelease, graph, type PackageId } from "@destack/package";
 import { PackageFile } from "@destack/package/file";
 import {

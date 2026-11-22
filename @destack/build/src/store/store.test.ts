@@ -1,11 +1,10 @@
 import { Tarball, TarballEntry } from "@destack/package/archive";
 import { testSimulation } from "../test/world.ts";
-import type { Crypto } from "@destack/environment";
+import type { Crypto, Environment, FileSystem } from "@destack/environment";
 import { expect, refusal, test } from "@destack/test";
-import type { Environment, FileSystem } from "@destack/environment";
 import { join } from "node:path";
 import { LocalBlobStorage } from "@destack/bucket/bun";
-import { BlobStore } from "@destack/db";
+import { BlobStore } from "@destack/db/database";
 import { connectBunSqlite } from "@destack/db/bun";
 import { graph, PackageId } from "@destack/package";
 import { PackageFile } from "@destack/package/file";

@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { LocalBlobStorage } from "@destack/bucket/bun";
-import { BlobStore } from "@destack/db";
+import { BlobStore } from "@destack/db/database";
 import { type BlobStorage, MemoryBlobStorage } from "@destack/resource";
 import { connectBunSqlite } from "@destack/db/bun";
 import type { SqliteDatabase } from "@destack/db/sqlite";
