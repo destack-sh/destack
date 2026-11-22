@@ -1,6 +1,7 @@
 import { argument, LocaleTag, Localization, t } from "@destack/locale";
 import type { Select } from "@destack/db";
-import { type Environment, Telemetry } from "@destack/environment";
+import type { Environment } from "@destack/environment";
+import { LineExporter } from "@destack/environment/line";
 import { TelemetryScope } from "@destack/telemetry";
 import type { SpaceAddress } from "@destack/account/address";
 import { currentLogin, type Login } from "@destack/account/native";
@@ -110,9 +111,8 @@ export class Desktop implements AsyncDisposable {
         this.environment = environment;
         this.local = TelemetryScope.of(
             import.meta.destack.package,
-            Telemetry.local(
+            new LineExporter((line) => environment.process.stderr.writeSync(line)).telemetry(
                 environment.clock,
-                (line) => environment.process.stderr.writeSync(line),
                 environment.telemetry.context,
             ),
         );

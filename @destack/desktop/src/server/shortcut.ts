@@ -1,4 +1,3 @@
-import { Snapshot } from "@destack/db";
 import type { Identifier } from "@destack/schema";
 import type { ObjectClient } from "@destack/object/client";
 import { type setting, SettingValue } from "@destack/setting/object";
@@ -33,7 +32,7 @@ export class GlobalShortcut {
 
         // register the keys the values along the person's chain resolve to, at each change
         for await (const values of watched) {
-            const chain = await SettingValue.chain(Snapshot.live(settings.database), person);
+            const chain = await SettingValue.chain(settings.database.snapshot(), person);
             await this.register(shortcut.resolve(selection, values, chain).value);
         }
     }
