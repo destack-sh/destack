@@ -66,7 +66,7 @@ test("write each info span as one line once it ends with its trace, a failed one
         "notes.start",
         { "notes.count": 2 },
         async () => {
-            SpanPath.add(telemetry.context.active(), "notes.reads", 1);
+            SpanPath.add(telemetry.context.active(), { "notes.reads": 1 });
             await span("notes.open", {}, () => undefined, { level: "info" });
         },
         { level: "info" },

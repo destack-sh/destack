@@ -57,10 +57,13 @@ export const SpanPath = {
         return innermost(context)?.path;
     },
 
-    /** Add to a total, such as statements run, of every span running in a context. */
-    add(context: Context, key: string, value: number): void {
+    /** Add to totals, such as statements run, of every span running in a context, in one walk. */
+    add(context: Context, totals: Readonly<Record<string, number>>): void {
+        const added = Object.entries(totals);
         for (let entry = innermost(context); entry !== undefined; entry = entry.parent) {
-            entry.totals.set(key, (entry.totals.get(key) ?? 0) + value);
+            for (const [key, value] of added) {
+                entry.totals.set(key, (entry.totals.get(key) ?? 0) + value);
+            }
         }
     },
 

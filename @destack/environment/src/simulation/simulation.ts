@@ -839,81 +839,96 @@ export class Simulation {
         const stallTimeout = this.#options.stallTimeout ?? STALL_TIMEOUT;
         const longStallTimeout = this.#options.longStallTimeout ?? LONG_STALL_TIMEOUT;
         const livelockTurns = this.#options.livelockTurns ?? LIVELOCK_TURNS;
-        for (;;) {
-            // yield one turn while work moves or no real work is in flight
-            const { clock, scheduler } = this;
-            if (isMoving || scheduler.real === 0) {
-                await yieldToEventLoop();
-            }
-            // complete the short operations as one batch once all of them settled, in the order they began
-            else if (scheduler.isShortSettled) {
-                const at = clock.now();
-                for (const order of scheduler.completeShort()) {
-                    this.record({ kind: "completion", at, order, length: "short" });
+
+        // arm one watchdog at the shorter limit for the waits on real work, re-armed once it fires
+        const watchdog = new AbortController();
+        let isStallDue = false;
+        const arm = () =>
+            Clock.system.sleep(Math.min(stallTimeout, longStallTimeout), watchdog.signal).then(
+                () => {
+                    isStallDue = true;
+                },
+                () => undefined,
+            );
+        let stall = arm();
+        try {
+            for (;;) {
+                // yield one turn while work moves or no real work is in flight
+                const { clock, scheduler } = this;
+                if (isMoving || scheduler.real === 0) {
+                    await yieldToEventLoop();
                 }
-                busy = 0;
-                await yieldToEventLoop();
-            }
-            // complete the settled long operations once idle, every short one completed
-            else if (scheduler.settledLong > 0 && scheduler.isShortCompleted) {
-                const at = clock.now();
-                for (const order of scheduler.completeLong()) {
-                    this.record({ kind: "completion", at, order, length: "long" });
+                // complete the short operations as one batch once all of them settled, in the order they began
+                else if (scheduler.isShortSettled) {
+                    const at = clock.now();
+                    for (const order of scheduler.completeShort()) {
+                        this.record({ kind: "completion", at, order, length: "short" });
+                    }
+                    busy = 0;
+                    await yieldToEventLoop();
                 }
-                busy = 0;
-                await yieldToEventLoop();
-            }
-            // wait for real work to begin or settle, checking for a stall at the shorter limit
-            else {
-                const watchdog = new AbortController();
-                const stall = Clock.system
-                    .sleep(Math.min(stallTimeout, longStallTimeout), watchdog.signal)
-                    .catch(() => undefined);
-                await Promise.race([scheduler.nextActivity(), stall]);
-                watchdog.abort();
-            }
+                // complete the settled long operations once idle, every short one completed
+                else if (scheduler.settledLong > 0 && scheduler.isShortCompleted) {
+                    const at = clock.now();
+                    for (const order of scheduler.completeLong()) {
+                        this.record({ kind: "completion", at, order, length: "long" });
+                    }
+                    busy = 0;
+                    await yieldToEventLoop();
+                }
+                // wait for real work to begin or settle, or for the watchdog, re-arming it once it fired
+                else {
+                    await Promise.race([scheduler.nextActivity(), stall]);
+                    if (isStallDue) {
+                        isStallDue = false;
+                        stall = arm();
+                    }
+                }
 
-            // fail with a failure the world's work reported, then stop once a turn made no progress and no work is in flight
-            this.#requireRunning();
-            const next = this.#progress();
-            if (next === progress && scheduler.inFlight === 0) {
-                return;
-            }
-            isMoving = next !== progress;
-            progress = next;
-            movedAt = isMoving ? Clock.system.now() : movedAt;
+                // fail with a failure the world's work reported, then stop once a turn made no progress and no work is in flight
+                this.#requireRunning();
+                const next = this.#progress();
+                if (next === progress && scheduler.inFlight === 0) {
+                    return;
+                }
+                isMoving = next !== progress;
+                progress = next;
+                movedAt = isMoving ? Clock.system.now() : movedAt;
 
-            // refuse a short operation stalled past its limit, and other real work past the far longer one, listing the work in flight
-            const stalled = Clock.system.now() - movedAt;
-            const isShortStalled = scheduler.running.short > 0 && stalled >= stallTimeout;
-            const isLongStalled = scheduler.real > 0 && stalled >= longStallTimeout;
-            if (isShortStalled || isLongStalled) {
-                // name the counts of the work in flight, then list it
-                const runningCount = scheduler.running.all;
-                const realCount = scheduler.real;
-                const shortCount = scheduler.running.short;
-                throw new Error(
-                    `work stayed in flight for ${stalled} ms without settling, ${runningCount} of ${realCount} real work running (${shortCount} short):\n${this.scheduler.pending().join("\n")}`,
-                );
-            }
+                // refuse a short operation stalled past its limit, and other real work past the far longer one, listing the work in flight
+                const stalled = Clock.system.now() - movedAt;
+                const isShortStalled = scheduler.running.short > 0 && stalled >= stallTimeout;
+                const isLongStalled = scheduler.real > 0 && stalled >= longStallTimeout;
+                if (isShortStalled || isLongStalled) {
+                    // name the counts of the work in flight, then list it
+                    const runningCount = scheduler.running.all;
+                    const realCount = scheduler.real;
+                    const shortCount = scheduler.running.short;
+                    throw new Error(
+                        `work stayed in flight for ${stalled} ms without settling, ${runningCount} of ${realCount} real work running (${shortCount} short):\n${this.scheduler.pending().join("\n")}`,
+                    );
+                }
 
-            // refuse world work waiting on a pending timer past the short limit, as untracked host work may settle
-            const isWaitingOnTime =
-                scheduler.inFlight > 0 && scheduler.real === 0 && clock.next !== undefined;
-            if (isWaitingOnTime && stalled >= stallTimeout) {
-                throw new Error(
-                    `the world's work waits on simulated time, which cannot move while it is in flight:\n${this.scheduler.pending().join("\n")}`,
-                );
-            }
+                // refuse world work waiting on a pending timer past the short limit, as untracked host work may settle
+                const isWaitingOnTime =
+                    scheduler.inFlight > 0 && scheduler.real === 0 && clock.next !== undefined;
+                if (isWaitingOnTime && stalled >= stallTimeout) {
+                    throw new Error(
+                        `the world's work waits on simulated time, which cannot move while it is in flight:\n${this.scheduler.pending().join("\n")}`,
+                    );
+                }
 
-            // refuse the world's own work spinning between completions without moving time, listing its call sites
-            busy += scheduler.real === 0 ? 1 : 0;
-            if (busy >= livelockTurns) {
-                const sites = [...(await this.#busy()), ...this.scheduler.pending()];
-                throw new Error(
-                    `the simulation kept busy for ${busy} turns without moving time:\n${sites.join("\n")}`,
-                );
+                // refuse the world's own work spinning between completions without moving time, listing its call sites
+                busy += scheduler.real === 0 ? 1 : 0;
+                if (busy >= livelockTurns) {
+                    const sites = [...(await this.#busy()), ...this.scheduler.pending()];
+                    throw new Error(
+                        `the simulation kept busy for ${busy} turns without moving time:\n${sites.join("\n")}`,
+                    );
+                }
             }
+        } finally {
+            watchdog.abort();
         }
     }
 

@@ -42,7 +42,7 @@ export class InstrumentedFileSystem implements FileSystem {
 
     /** Count a quick verb in the running spans' totals. */
     #count<Value>(total: string, run: () => Promise<Value>): Promise<Value> {
-        SpanPath.add(this.#telemetry.context.active(), total, 1);
+        SpanPath.add(this.#telemetry.context.active(), { [total]: 1 });
 
         return run();
     }
