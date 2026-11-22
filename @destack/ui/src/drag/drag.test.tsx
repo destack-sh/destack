@@ -6,9 +6,11 @@ import {
     Draggable,
     DragManager,
     type DragOperation,
+    DragProvider,
     Droppable,
     type DragStep,
     type DragTarget,
+    useDragManager,
 } from "./index.ts";
 
 /** The milliseconds a finger holds an item before it lifts. */
@@ -55,11 +57,7 @@ function drawMonth(): {
     let event: HTMLElement | undefined;
     const Month = () => {
         // drag events between days, a cell per day
-        const manager = new DragManager(
-            { onDrop: (operation) => drops.push(operation) },
-            useLocale(),
-            useEnvironment(),
-        );
+        const manager = new DragManager(useLocale(), useEnvironment());
         created = manager;
         void new Droppable(
             {
@@ -82,6 +80,7 @@ function drawMonth(): {
                     kind: "label",
                     label: target.kind === "cell" ? target.key : "",
                 }),
+                drop: (operation) => drops.push(operation),
             },
             manager,
         );
@@ -239,4 +238,93 @@ test("take an event by the day the pointer pressed, however far its first step g
         { kind: "cell", droppable: "month", key: "2026-11-22" },
         { kind: "cell", droppable: "month", key: "2026-11-29" },
     ]);
+});
+
+/** Render a shelf that takes any item from a provider's drags, a book on the left one. */
+function Shelf(properties: {
+    readonly id: string;
+    readonly left: number;
+    readonly drops: string[];
+    readonly elements: Map<string, HTMLElement>;
+}) {
+    // take any item, landing at the shelf, and record each drop by the shelf it lands on
+    const drags = useDragManager();
+    let element: HTMLElement | undefined;
+    const target: DragTarget = { kind: "cell", droppable: properties.id, key: properties.id };
+    void new Droppable(
+        {
+            id: properties.id,
+            group: properties.id,
+            axis: "both",
+            element: () => element,
+            accepts: () => true,
+            measure: () => undefined,
+            targetAt: () => target,
+            step: () => undefined,
+            enter: () => target,
+            describe: () => ({ kind: "label", label: properties.id }),
+            drop: (operation) => properties.drops.push(`${operation.item} on ${properties.id}`),
+        },
+        drags.manager,
+    );
+    const item =
+        properties.id === "left"
+            ? new Draggable(
+                  {
+                      id: "book",
+                      type: "book",
+                      kind: "move",
+                      label: () => "Book",
+                      element: () => properties.elements.get("book"),
+                      home: () => target,
+                  },
+                  drags.manager,
+              ).attributes([" "])
+            : undefined;
+
+    return (
+        <div
+            ref={(created: HTMLElement) => {
+                element = created;
+                created.getBoundingClientRect = () => new DOMRect(properties.left, 0, 100, 100);
+                properties.elements.set(properties.id, created);
+            }}
+        >
+            {item === undefined ? null : (
+                <div
+                    ref={(created: HTMLElement) => properties.elements.set("book", created)}
+                    {...item}
+                >
+                    Book
+                </div>
+            )}
+        </div>
+    );
+}
+
+test("move an item between two components that share a provider's drags, announcing once", () => {
+    // drag the book from the left shelf onto the right one, each shelf its own component
+    const drops: string[] = [];
+    const elements = new Map<string, HTMLElement>();
+    const { container } = render(() => (
+        <DragProvider>
+            <Shelf id="left" left={0} drops={drops} elements={elements} />
+            <Shelf id="right" left={100} drops={drops} elements={elements} />
+        </DragProvider>
+    ));
+    const book = elements.get("book");
+    if (book === undefined) {
+        throw new TypeError("the left shelf did not render its book");
+    }
+    pointer(book, "pointerdown", 50, 50);
+    pointer(book, "pointermove", 100, 50);
+    pointer(book, "pointermove", 150, 50);
+    pointer(book, "pointerup", 150, 50);
+
+    // the right shelf takes the drop, and the provider's one live region announced it
+    expect({
+        drops,
+        announcers: container.querySelectorAll("[data-slot=drag-announcer]").length,
+        announced: announced(container),
+    }).toEqual({ drops: ["book on right"], announcers: 1, announced: "Book dropped at right." });
 });

@@ -2,6 +2,7 @@ import type { Environment } from "@destack/environment";
 import { type Direction, type Localization, type Message, t } from "@destack/locale";
 import {
     type Accessor,
+    createMemo,
     createSignal,
     createUniqueId,
     flush,
@@ -46,6 +47,8 @@ export type DragTarget =
           readonly droppable: string;
           /** The cell's key, such as a date. */
           readonly key: string;
+          /** The resource it lands on, such as a person's column. */
+          readonly resource?: string;
       }
     | {
           /** A time on an axis. */
@@ -54,8 +57,8 @@ export type DragTarget =
           readonly droppable: string;
           /** The time, in milliseconds since the epoch. */
           readonly at: number;
-          /** The key of the row it lands on, where the axis runs along several rows. */
-          readonly row?: string;
+          /** The resource it lands on, such as a person's row or column. */
+          readonly resource?: string;
       }
     | {
           /** An edge of an item, which a link starts or ends at. */
@@ -80,13 +83,17 @@ export const DragTarget = {
                 right.kind === "list" && left.index === right.index && left.depth === right.depth
             );
         } else if (left.kind === "cell") {
-            return right.kind === "cell" && left.key === right.key;
+            return (
+                right.kind === "cell" && left.key === right.key && left.resource === right.resource
+            );
         } else if (left.kind === "edge") {
             return right.kind === "edge" && left.key === right.key && left.edge === right.edge;
         }
         // compare a time and its row
         else {
-            return right.kind === "time" && left.at === right.at && left.row === right.row;
+            return (
+                right.kind === "time" && left.at === right.at && left.resource === right.resource
+            );
         }
     },
 };
@@ -110,14 +117,21 @@ export type DragPlace =
           readonly label: string;
       };
 
+/** What a drop does to the dragged item, after the platform's dropEffect: move or copy it. */
+export type DragEffect = "move" | "copy";
+
 /** A drag under way. */
 export interface DragOperation {
     /** The dragged item. */
     readonly item: string;
     /** The draggable that lifted it. */
     readonly draggable: string;
+    /** The kind of item, such as an event or a card, which droppables of other views tell apart. */
+    readonly type: string;
     /** What the drag does to it. */
     readonly kind: DragKind;
+    /** Whether a drop moves the item or copies it, a copy while Alt is held. */
+    readonly effect: DragEffect;
     /** What moves it: a mouse, a pen, a finger or the keyboard. */
     readonly pointer: PointerType;
     /** Where the item stood. */
@@ -172,12 +186,8 @@ export interface DroppableOptions {
     readonly enter: (from: DragTarget) => DragTarget;
     /** Describe a target for announcements. */
     readonly describe: (target: DragTarget, operation: DragOperation) => DragPlace;
-}
-
-/** The handlers of a drag manager. */
-export interface DragOptions {
-    /** Handle a drop at a target other than where the item stood. */
-    readonly onDrop: (operation: DragOperation & { readonly target: DragTarget }) => void;
+    /** Handle a drop on one of its targets other than where the item stood. */
+    readonly drop: (operation: DragOperation & { readonly target: DragTarget }) => void;
 }
 
 /** An item a person drags. */
@@ -228,8 +238,17 @@ export class Draggable {
                 keys: [],
                 onMoveStart: (event) => manager.lift(this.id, this.kind, event.pointerType),
                 onMove: (event) =>
-                    manager.follow(event.clientX, event.clientY, event.offsetX, event.offsetY),
-                onMoveEnd: (event) => (event.isCancelled ? manager.cancel() : manager.drop()),
+                    manager.follow(
+                        event.clientX,
+                        event.clientY,
+                        event.offsetX,
+                        event.offsetY,
+                        event.altKey ? "copy" : "move",
+                    ),
+                onMoveEnd: (event) =>
+                    event.isCancelled
+                        ? manager.cancel()
+                        : manager.drop(event.altKey ? "copy" : "move"),
             },
             manager.environment.clock,
         );
@@ -290,6 +309,8 @@ export class Droppable {
     readonly enter: DroppableOptions["enter"];
     /** Describe a target for announcements. */
     readonly describe: DroppableOptions["describe"];
+    /** Handle a drop on one of its targets. */
+    readonly drop: DroppableOptions["drop"];
 
     /** Create a droppable and add it to a manager until its owner goes. */
     constructor(options: DroppableOptions, manager: DragManager) {
@@ -304,6 +325,7 @@ export class Droppable {
         this.step = options.step;
         this.enter = options.enter;
         this.describe = options.describe;
+        this.drop = options.drop;
         manager.addDroppable(this);
     }
 }
@@ -324,14 +346,14 @@ export class DragManager {
     readonly instructionsId: string;
     /** The drag under way. */
     readonly operation: Accessor<DragOperation | undefined>;
+    /** The item the drag takes, which changes once per lift, not once per move. */
+    readonly #item: Accessor<string | undefined>;
     /** The last announcement. */
     readonly announcement: Accessor<string>;
     /** The draggables by id. */
     readonly #draggables = new Map<string, Draggable>();
     /** The droppables by id. */
     readonly #droppables = new Map<string, Droppable>();
-    /** The handlers. */
-    readonly #options: DragOptions;
     /** The reader's locale. */
     readonly locale: Localization;
     /** The clock a finger's lift waits on and the display autoscroll steps with. */
@@ -350,7 +372,7 @@ export class DragManager {
     #frame: AbortController | undefined = undefined;
 
     /** Create the drags of a view. */
-    constructor(options: DragOptions, locale: Localization, environment: Environment<"display">) {
+    constructor(locale: Localization, environment: Environment<"display">) {
         // start with nothing dragged and nothing announced
         const [operation, setOperation] = createSignal<DragOperation | undefined>(undefined, {
             ownedWrite: true,
@@ -358,8 +380,8 @@ export class DragManager {
         const [announcement, setAnnouncement] = createSignal("", { ownedWrite: true });
         this.instructionsId = createUniqueId();
         this.operation = operation;
+        this.#item = createMemo(() => operation()?.item);
         this.announcement = announcement;
-        this.#options = options;
         this.locale = locale;
         this.environment = environment;
         this.#setOperation = setOperation;
@@ -371,6 +393,7 @@ export class DragManager {
 
     /** Add a draggable until its owner goes. */
     addDraggable(draggable: Draggable): void {
+        // replace one under the same id as a list mounts its new items before the old ones go
         this.#draggables.set(draggable.id, draggable);
         onCleanup(() => {
             if (this.#draggables.get(draggable.id) === draggable) {
@@ -381,6 +404,7 @@ export class DragManager {
 
     /** Add a droppable until its owner goes. */
     addDroppable(droppable: Droppable): void {
+        // replace one under the same id as a list mounts its new items before the old ones go
         this.#droppables.set(droppable.id, droppable);
         onCleanup(() => {
             if (this.#droppables.get(droppable.id) === droppable) {
@@ -396,7 +420,7 @@ export class DragManager {
 
     /** Read whether an item is dragged. */
     isDragging(item: string): boolean {
-        return this.operation()?.item === item;
+        return this.#item() === item;
     }
 
     /** Read the target the drag aims at inside a droppable. */
@@ -421,7 +445,9 @@ export class DragManager {
         const operation = {
             item: draggable.item,
             draggable: id,
+            type: draggable.type,
             kind,
+            effect: "move" as const,
             pointer,
             from,
             grab: from,
@@ -435,13 +461,13 @@ export class DragManager {
     }
 
     /** Follow a pointer to the target under it and scroll near a scroller's edge. */
-    follow(x: number, y: number, offsetX: number, offsetY: number): void {
+    follow(x: number, y: number, offsetX: number, offsetY: number, effect: DragEffect): void {
         // aim at the innermost droppable under the pointer
         const operation = this.#current;
         if (operation === undefined || operation.pointer === "keyboard") {
             return;
         }
-        const next = { ...operation, offsetX, offsetY };
+        const next = { ...operation, offsetX, offsetY, effect };
         const under = this.#measured.find((each) => contains(each.bounds, x, y));
         const target = under?.droppable.targetAt(x, y, next);
 
@@ -502,9 +528,9 @@ export class DragManager {
         if (this.#current === undefined) {
             return false;
         }
-        // drop on Space or Enter
+        // drop on Space or Enter, copying with Alt
         else if (event.key === " " || event.key === "Enter") {
-            this.drop();
+            this.drop(event.altKey ? "copy" : "move");
         }
         // cancel on Escape
         else if (event.key === "Escape") {
@@ -519,21 +545,31 @@ export class DragManager {
         return true;
     }
 
-    /** Drop the dragged item. */
-    drop(): void {
+    /** Drop the dragged item, moving it or copying it. */
+    drop(effect: DragEffect): void {
         // announce where the item landed
-        const operation = this.#current;
-        if (operation === undefined) {
+        const current = this.#current;
+        if (current === undefined) {
             return;
         }
+        const operation = { ...current, effect };
         this.#announce(operation.target === undefined ? "cancel" : "drop", operation);
 
-        // hand on a drop at another target while the drag still stands
+        // hand on a drop at another target while the drag stands, as HTML's drop precedes dragend
         const target = operation.target;
-        if (target !== undefined && !DragTarget.isSame(target, operation.from)) {
-            this.#options.onDrop({ ...operation, target });
+        try {
+            if (target !== undefined && !DragTarget.isSame(target, operation.from)) {
+                const droppable = this.#droppables.get(target.droppable);
+                if (droppable === undefined) {
+                    throw new TypeError(`drag target's droppable '${target.droppable}' is gone`);
+                }
+                droppable.drop({ ...operation, target });
+            }
         }
-        this.#end();
+        // end the drag even when the drop fails
+        finally {
+            this.#end();
+        }
 
         // render the owner's move, then give the focus back to the moved item
         if (operation.pointer === "keyboard") {
@@ -663,7 +699,7 @@ export class DragManager {
             const latest = this.#pointer;
             if (draggable !== undefined && current !== undefined && latest !== undefined) {
                 this.#measure(draggable, current);
-                this.follow(latest.x, latest.y, current.offsetX, current.offsetY);
+                this.follow(latest.x, latest.y, current.offsetX, current.offsetY, current.effect);
             }
         };
 

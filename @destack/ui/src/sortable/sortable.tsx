@@ -2,7 +2,7 @@ import { state } from "@destack/theme/state";
 import { isMotionReduced } from "@destack/view/motion";
 import type { Axis } from "../position/index.ts";
 import { Icon } from "@destack/ui/icon";
-import { type Localization, t } from "@destack/locale";
+import { t } from "@destack/locale";
 import * as style from "@destack/style";
 import { color, motion, radius, space, stroke, swatch } from "@destack/theme/tokens.stylex";
 import {
@@ -12,6 +12,7 @@ import {
     type JSX,
     omit,
     onCleanup,
+    Show,
     untrack,
     useContext,
     useEnvironment,
@@ -21,7 +22,7 @@ import type { Environment } from "@destack/environment";
 import {
     DragAnnouncer,
     Draggable,
-    DragManager,
+    type DragManager,
     type DragOperation,
     DragPreview,
     type DragPlace,
@@ -29,6 +30,7 @@ import {
     type DragTarget,
     Droppable,
     type DroppableOptions,
+    useDragManager,
 } from "../drag/index.ts";
 import { mergeProperties } from "../part/index.ts";
 
@@ -215,22 +217,13 @@ export class SortableControl {
     /** Create the state of a sortable from its root's properties. */
     constructor(
         properties: SortableProperties,
-        locale: Localization,
+        manager: DragManager,
         environment: Environment<"display">,
     ) {
-        // glide every move the drags drop
+        // glide every move the drags drop on the lists
         this.properties = properties;
         this.#environment = environment;
-        this.manager = new DragManager(
-            {
-                onDrop: (operation) => {
-                    const move = this.moveOf(operation);
-                    this.glide(() => properties.onMove?.(move));
-                },
-            },
-            locale,
-            environment,
-        );
+        this.manager = manager;
         this.#marked = createMemo(() => this.#markedOf());
     }
 
@@ -379,6 +372,10 @@ export class SortableControl {
                 ),
             }),
             describe: (target) => this.#describe(list, target),
+            drop: (operation) => {
+                const move = this.moveOf(operation);
+                this.glide(() => this.properties.onMove?.(move));
+            },
         };
     }
 
@@ -563,7 +560,8 @@ export type SortableHandleProperties = SortableElementProperties<
 /** Render a sortable around its containers, announcing each move in a live region. */
 export function Sortable(properties: SortableProperties): JSX.Element {
     // move the items by drags that report each drop as a move
-    const control = new SortableControl(properties, useLocale(), useEnvironment());
+    const drags = useDragManager();
+    const control = new SortableControl(properties, drags.manager, useEnvironment());
     const manager = control.manager;
     const rest = omit(properties, "onMove", "nesting", "xstyle", "style", "children");
 
@@ -577,7 +575,9 @@ export function Sortable(properties: SortableProperties): JSX.Element {
             >
                 {properties.children}
                 <DragPreview manager={manager} element={(id) => control.elementOf(id)} />
-                <DragAnnouncer manager={manager} />
+                <Show when={!drags.isShared}>
+                    <DragAnnouncer manager={manager} />
+                </Show>
             </div>
         </SortableContext>
     );
