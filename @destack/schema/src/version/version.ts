@@ -1,8 +1,7 @@
 import { z } from "zod";
-import { Text } from "../text/text.ts";
 
-/** A calendar version, and a dev build's UTC time and key, as in Go's pseudo-versions. */
-const VERSION = /^(\d{4})\.([1-9]|1[0-2])\.(0|[1-9]\d*)(?:-dev\.(\d{14})\.([0-9a-f]{12}))?$/u;
+/** A calendar version, marked dev for a build of unreleased source. */
+const VERSION = /^(\d{4})\.([1-9]|1[0-2])\.(0|[1-9]\d*)(-dev)?$/u;
 
 /** The digits of a version's year. */
 const YEAR_DIGITS = 4;
@@ -10,8 +9,11 @@ const YEAR_DIGITS = 4;
 /** The version of a package no build released: the highest one, after every release. */
 const DEVELOPMENT = "9999.12.0";
 
-/** A package release version, such as 2026.9.0 or 2026.9.0-dev.20260912103000.0123456789ab. */
-export const Version = Object.assign(z.string().regex(VERSION), {
+/** The schema of a package version, which the version's verbs write through. */
+const versionSchema = z.string().regex(VERSION);
+
+/** A package version: a release such as 2026.9.0, or a dev build's such as 2026.9.0-dev. */
+export const Version = Object.assign(versionSchema, {
     /** The version of code no build released, such as code run from source: after every release. */
     development: DEVELOPMENT,
 
@@ -25,8 +27,6 @@ export const Version = Object.assign(z.string().regex(VERSION), {
             first.month - second.month,
             first.release - second.release,
             first.stage - second.stage,
-            Text.compare(first.time, second.time),
-            Text.compare(first.key, second.key),
         ];
 
         return Math.sign(differences.find((difference) => difference !== 0) ?? 0);
@@ -44,11 +44,9 @@ export const Version = Object.assign(z.string().regex(VERSION), {
         return write(year, month, release);
     },
 
-    /** Write a dev build's version from its release, UTC time and build key. */
-    dev(release: string, at: number, key: string): Version {
-        const time = new Date(at).toISOString().replaceAll(/[-:T]/gu, "").slice(0, 14);
-
-        return Version.parse(`${Version.release(release)}-dev.${time}.${key.slice(0, 12)}`);
+    /** Write a dev build's version, the same for every unreleased build, as Go's (devel). */
+    dev(release: string): z.infer<typeof versionSchema> {
+        return versionSchema.parse(`${Version.release(release)}-dev`);
     },
 
     /** Write the first release of the UTC month a time lies in. */
@@ -82,22 +80,20 @@ export interface VersionRange {
     readonly newest: Version;
 }
 
-/** Read a version's numbers, stage and dev time and key, in comparison order. */
+/** Read a version's numbers and stage, in comparison order. */
 function components(version: string) {
-    // read the calendar numbers and the dev build's time and key
+    // read the calendar numbers and the dev mark
     const match = VERSION.exec(version);
     if (match === null) {
         throw new TypeError(`invalid version: '${version}'`);
     }
-    const [, year, month, release, time, key] = match;
+    const [, year, month, release, dev] = match;
 
     // sort a dev build before the release it leads to
     return {
         year: Number(year),
         month: Number(month),
         release: Number(release),
-        stage: time === undefined ? 1 : 0,
-        time: time ?? "",
-        key: key ?? "",
+        stage: dev === undefined ? 1 : 0,
     };
 }
