@@ -72,8 +72,8 @@ export function implementEndpoint(keys: Pick<Deriver, "derivePrivateKey">) {
         controllers: [
             {
                 name: "deliver",
-                pending: { status: "enabled", deletedAt: { isNull: true } },
-                watches: [
+                when: { status: "enabled", deletedAt: { isNull: true } },
+                reads: [
                     // wake the endpoint of a sent message
                     {
                         table: message.table,
@@ -82,10 +82,16 @@ export function implementEndpoint(keys: Pick<Deriver, "derivePrivateKey">) {
                             sourceType: endpoint.name,
                             status: { ne: "pending" },
                         },
+                        fields: ["status"],
                         on: { id: "sourceId" },
                     },
                     // wake the endpoints of the scope with a succeeded call
-                    { table: call.table, where: { outcome: "success" }, on: { scope: "scope" } },
+                    {
+                        table: call.table,
+                        where: { outcome: "success" },
+                        fields: ["outcome"],
+                        on: { scope: "scope" },
+                    },
                 ],
                 reconcile: async (reconciliation) => {
                     // deliver the endpoint's calls page by page until a page comes back short

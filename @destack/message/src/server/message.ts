@@ -114,7 +114,7 @@ export function implementMessage(options: MessageOptions) {
             // send pending messages, and each refused one again once its next try is due
             {
                 name: "send",
-                pending: {
+                when: {
                     status: "pending",
                     OR: [{ retryAt: { isNull: true } }, { retryAt: { lte: now } }],
                 },
