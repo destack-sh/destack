@@ -1,8 +1,7 @@
 import { TelemetryScope } from "@destack/telemetry";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { TokenCache } from "@destack/access/token";
-import { Issuer, MachineKey, Session, TokenSet, UserIdentity } from "@destack/account/client";
+import { MachineKey } from "@destack/account/client";
 import { LocalBucket } from "@destack/bucket/bun";
 import { S3Server } from "@destack/bucket/s3";
 import { Toolchain } from "@destack/check/toolchain";
@@ -28,17 +27,11 @@ import {
 } from "@destack/machine/computer";
 import { Device, type MachineEnrollment } from "@destack/machine/device";
 import { PrintTransport } from "@destack/mail/print";
-import { createClient } from "@destack/object/client";
-import objectPackage from "@destack/object/package";
-import { Bookmark } from "@destack/object/client";
-import { PackageMount } from "@destack/object";
 import type { HostListening } from "@destack/object/workload";
 import { DISTRIBUTION_LAYER, DistributionManifest, DistributionPlatform } from "@destack/package";
 import { BunDistribution } from "@destack/package/bun";
 import { BuildLayer } from "@destack/package/manifest";
-import { LATEST_TAG } from "@destack/registry/object";
-import { Identifier, present, schema } from "@destack/schema";
-import { RequestId } from "@destack/sync";
+import { present, schema } from "@destack/schema";
 import type { UniverseDefinition } from "@destack/universe";
 import { BunUniverse } from "@destack/universe/bun";
 import { Profile } from "@destack/update/release";
@@ -290,7 +283,7 @@ export class LocalUniverse {
         const custody = await this.custody();
         await using stack = new AsyncDisposableStack();
         const build = stack.use(
-            await PlatformBuild.build(CHECKOUT, environment, { isPrerelease: true }),
+            await PlatformBuild.build(CHECKOUT, environment, { isUnreleased: true }),
         );
 
         // declare the universe, and write the distribution its machines ship
@@ -299,22 +292,14 @@ export class LocalUniverse {
         await build.writeLayer(this.distribution);
         this.scope.log.info("platform.distribution.written", { "file.path": this.distribution });
 
-        // start the universe and its cloud machines, then publish the releases as the operator, until a signal
+        // start the universe and its cloud machines, the platform residency's at the universe's port, until a signal
         const mail = new PrintedMail();
-        const started = async () => {
-            // start the universe and its cloud machines, the platform residency's at the universe's port
+        const started = async () =>
             stack.use(
                 this.runtime === "bun"
                     ? await this.#startBun(build, definition, custody, mail)
                     : await this.#startWorkerd(build, definition, custody, mail),
             );
-
-            // sign the operator in, and publish the checkout's releases
-            const operator = await this.#signIn(mail);
-            await build.publish(operator, deployment.universe.origin, deployment.tag, {
-                tags: [LATEST_TAG],
-            });
-        };
         await untilAborted(started(), signal);
         if (signal.aborted) {
             return;
@@ -688,69 +673,6 @@ export class LocalUniverse {
             },
             { level: "info" },
         );
-    }
-
-    /** Sign the operator in by a mailed code, accepting their pending invitations, as a session. */
-    async #signIn(mail: PrintedMail): Promise<Session> {
-        // mail a code and redeem it, signing the operator up in a new universe
-        const { deployment, environment } = this;
-        const send = (request: Request) => environment.network.fetch(request);
-        const issuer = new Issuer(deployment.universe.issuer, send, environment, new Bookmark());
-        const printed = mail.lines.length;
-        await issuer.sendCode(OPERATOR);
-        const code = await mail.code(printed, environment.clock);
-        const clientId = Identifier.create("client", environment);
-        const { tokens, userId } = await issuer.redeemCode(clientId, OPERATOR, code, {
-            name: "Operator",
-            handle: "local-operator",
-            residencyId: PLATFORM.residencyId,
-            timeZone: "UTC",
-            locale: "en",
-        });
-
-        // act as the operator through the account token, refreshed as it lapses
-        let refreshToken = TokenSet.refreshToken(tokens);
-        const identity = new UserIdentity(
-            userId,
-            issuer,
-            {
-                cache: new TokenCache(),
-                issue: async () => {
-                    const refreshed = await issuer.refresh(clientId, refreshToken);
-                    refreshToken = TokenSet.refreshToken(refreshed);
-
-                    return refreshed.accessToken;
-                },
-            },
-            environment,
-        );
-        const session = new Session(identity, {
-            universe: deployment.universe.origin,
-            send,
-            bookmark: new Bookmark(),
-            environment,
-        });
-
-        // accept each pending invitation, the platform organization's ownership among them
-        const { items } = await session.accounts().user.invited({ id: userId });
-        const objects = createClient(
-            objectPackage,
-            {
-                url: PackageMount.url(deployment.universe.origin, objectPackage.id),
-                fetch: session.fetch(objectPackage.id),
-            },
-            environment,
-        );
-        for (const invitation of items) {
-            const { object } = invitation.relationship;
-            await objects.invitation.accept({
-                scope: object.scope,
-                requestId: RequestId.create(environment),
-                id: invitation.id,
-            });
-        }
-
-        return session;
     }
 
     /** Start this computer's machine on loopback against the universe, until it answers. */
