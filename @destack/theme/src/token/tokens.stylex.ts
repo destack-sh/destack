@@ -22,6 +22,10 @@ export const color = defineConsts({
     primaryForeground: "var(--destack-color-primary-foreground)",
     /** Text in the primary color on the background, such as links. */
     primaryText: "var(--destack-color-primary-text)",
+    /** The subtle tint of the accent, such as a tag's background. */
+    primaryTint: "var(--destack-color-primary-tint)",
+    /** The text on the accent's tint. */
+    primaryTintForeground: "var(--destack-color-primary-tint-foreground)",
     /** The background of secondary actions. */
     secondary: "var(--destack-color-secondary)",
     /** Text on secondary actions. */

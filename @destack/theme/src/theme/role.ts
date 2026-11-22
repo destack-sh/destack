@@ -43,6 +43,9 @@ const TEXT_LIGHTNESS: Lightness = { light: 0.242, dark: 0.948 };
 /** The OKLCH lightness secondary text starts its search from in each appearance. */
 const MUTED_LIGHTNESS: Lightness = { light: 0.502, dark: 0.768 };
 
+/** The OKLCH lightness text on the accent's tint starts its search from in each appearance. */
+const TINT_TEXT_LIGHTNESS: Lightness = { light: 0.335, dark: 0.915 };
+
 /** The OKLCH lightness of subtle fills relative to the background in each appearance. */
 const SUBTLE_OFFSET: Lightness = { light: -0.034, dark: 0.077 };
 
@@ -51,6 +54,12 @@ const WHITE = Srgb.parse("#ffffff");
 
 /** The halvings of the opacity search, enough for a step below one 8-bit alpha level. */
 const OPACITY_STEPS = 9;
+
+/** No lightness offset: another role's own color. */
+const SAME: Lightness = { light: 0, dark: 0 };
+
+/** The opacity of the text color over hovered and selected items, after Material's state layers. */
+const STATE_ALPHA = 0.06;
 
 /** The opacity of the scrim behind modal surfaces: half strength. */
 const SCRIM_ALPHA = 0.5;
@@ -66,6 +75,8 @@ export const ROLE_NAMES = [
     "primary",
     "primaryForeground",
     "primaryText",
+    "primaryTint",
+    "primaryTintForeground",
     "secondary",
     "secondaryForeground",
     "muted",
@@ -486,12 +497,14 @@ export const COLOR_ROLES: Roles = {
     primary: solid("accent"),
     primaryForeground: label("primary"),
     primaryText: readable("accent", MUTED_LIGHTNESS, "background", CONTENT_CONTRAST),
+    primaryTint: tone("accent", SUBTLE_OFFSET, { from: "background" }),
+    primaryTintForeground: readable("accent", TINT_TEXT_LIGHTNESS, "primaryTint", BODY_CONTRAST),
     secondary: shift("background", SUBTLE_OFFSET),
     secondaryForeground: readable("base", TEXT_LIGHTNESS, "secondary", BODY_CONTRAST),
     muted: shift("background", SUBTLE_OFFSET),
     mutedForeground: readable("base", MUTED_LIGHTNESS, "background", CONTENT_CONTRAST),
-    accent: tone("accent", SUBTLE_OFFSET, { from: "background" }),
-    accentForeground: readable("accent", { light: 0.335, dark: 0.915 }, "accent", BODY_CONTRAST),
+    accent: shift("foreground", SAME, STATE_ALPHA),
+    accentForeground: shift("foreground", SAME),
 
     // statuses
     destructive: solid("destructive"),
@@ -542,9 +555,9 @@ export const SWATCH_ROLES = {
     /** The label reading on the solid fill. */
     label: "primaryForeground",
     /** The preset's subtle tint, such as a tag's background. */
-    tint: "accent",
+    tint: "primaryTint",
     /** The text reading on the tint. */
-    text: "accentForeground",
+    text: "primaryTintForeground",
 } as const satisfies Readonly<Record<string, RoleName>>;
 
 /** A color of a swatch. */
@@ -558,9 +571,13 @@ export const SWATCH_COLORS = [
     "text",
 ] as const satisfies readonly SwatchColor[];
 
-/** A role moving another role's color in lightness. */
-function shift(from: RoleName, lightness: Lightness): Role {
-    return new Role({ kind: "shift", from, lightness });
+/** A role moving another role's color in lightness, at an opacity when given. */
+function shift(from: RoleName, lightness: Lightness, alpha?: number): Role {
+    return new Role(
+        alpha === undefined
+            ? { kind: "shift", from, lightness }
+            : { kind: "shift", from, lightness, alpha },
+    );
 }
 
 /** A role reading a palette's tone at a lightness. */

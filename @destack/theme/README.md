@@ -47,19 +47,19 @@ const variables = theme.variables({ ...DEFAULT_DISPLAY, appearance: "dark", cont
 `defineTheme(definition)` declares a theme, refusing text below its APCA contrast and labels on fills below WCAG's 4.5 to 1.
 `destackTheme` is the theme of packages that declare none.
 
-| Field     | What it sets                                                                                       |
-| --------- | -------------------------------------------------------------------------------------------------- |
-| `name`    | the theme's name within the package                                                                |
-| `base`    | the seed of surfaces, text and lines, `"slate"` by default                                         |
-| `accent`  | the seed of primary actions, selection, focus and the first chart series, `"indigo"` by default    |
-| `status`  | the seeds of `destructive`, `success`, `warning` and `info`, red, green, amber and blue by default |
-| `chart`   | up to four seeds of the chart series after the accent, picked far apart in hue by default          |
-| `radius`  | `"none"`, `"small"`, `"medium"`, the default, `"large"` or `"full"`                                |
-| `scaling` | `"90%"`, `"95%"`, `"100%"`, the default, `"105%"` or `"110%"`                                      |
-| `density` | `"compact"`, `"regular"`, the default, or `"spacious"`                                             |
-| `fonts`   | the `text` and `code` font stacks, as CSS `font-family` values                                     |
-| `text`    | the `size`, `weight`, `tracking` and `font` of text styles, sizes fixed or fluid                   |
-| `roles`   | the theme's colors for roles, by `RoleName`                                                        |
+| Field     | What it sets                                                                                           |
+| --------- | ------------------------------------------------------------------------------------------------------ |
+| `name`    | the theme's name within the package                                                                    |
+| `base`    | the seed of surfaces, text and lines, `"slate"` by default                                             |
+| `accent`  | the seed of primary actions, checked controls, focus and the first chart series, `"indigo"` by default |
+| `status`  | the seeds of `destructive`, `success`, `warning` and `info`, red, green, amber and blue by default     |
+| `chart`   | up to four seeds of the chart series after the accent, picked far apart in hue by default              |
+| `radius`  | `"none"`, `"small"`, `"medium"`, the default, `"large"` or `"full"`                                    |
+| `scaling` | `"90%"`, `"95%"`, `"100%"`, the default, `"105%"` or `"110%"`                                          |
+| `density` | `"compact"`, `"regular"`, the default, or `"spacious"`                                                 |
+| `fonts`   | the `text` and `code` font stacks, as CSS `font-family` values                                         |
+| `text`    | the `size`, `weight`, `tracking` and `font` of text styles, sizes fixed or fluid                       |
+| `roles`   | the theme's colors for roles, by `RoleName`                                                            |
 
 A theme answers its colors and custom properties:
 
@@ -73,17 +73,18 @@ A theme answers its colors and custom properties:
 
 The roles follow shadcn's, each solved for its contrast.
 
-| Roles                                                                    | What they color                                              |
-| ------------------------------------------------------------------------ | ------------------------------------------------------------ |
-| `background`, `foreground`                                               | the page, and body text on it                                |
-| `card`, `cardForeground`, `popover`, `popoverForeground`                 | raised and floating surfaces, and text on them               |
-| `primary`, `primaryForeground`, `primaryText`                            | primary actions in the accent, their labels, accent text     |
-| `secondary`, `secondaryForeground`, `muted`, `mutedForeground`           | quiet fills, and quieter text                                |
-| `accent`, `accentForeground`                                             | a tint of the accent, such as a hovered item, and text on it |
-| `destructive`, `success`, `warning`, `info`, each `…Foreground`, `…Text` | statuses, their labels, and status text on the background    |
-| `border`, `input`, `ring`                                                | lines, field borders and focus rings                         |
-| `scrim`                                                                  | the shade behind a dialog                                    |
-| `chart1` to `chart5`                                                     | chart series, the accent first                               |
+| Roles                                                                    | What they color                                                         |
+| ------------------------------------------------------------------------ | ----------------------------------------------------------------------- |
+| `background`, `foreground`                                               | the page, and body text on it                                           |
+| `card`, `cardForeground`, `popover`, `popoverForeground`                 | raised and floating surfaces, and text on them                          |
+| `primary`, `primaryForeground`, `primaryText`                            | primary actions in the accent, their labels, accent text                |
+| `primaryTint`, `primaryTintForeground`                                   | a tint of the accent, such as a tag, and text on it                     |
+| `secondary`, `secondaryForeground`, `muted`, `mutedForeground`           | quiet fills, and quieter text                                           |
+| `accent`, `accentForeground`                                             | a hovered or selected item as a layer of the text color, and text on it |
+| `destructive`, `success`, `warning`, `info`, each `…Foreground`, `…Text` | statuses, their labels, and status text on the background               |
+| `border`, `input`, `ring`                                                | lines, field borders and focus rings                                    |
+| `scrim`                                                                  | the shade behind a dialog                                               |
+| `chart1` to `chart5`                                                     | chart series, the accent first                                          |
 
 A `RoleOverride` takes one of four forms, each with an optional `alpha` but the second.
 A palette is `base`, `accent`, `destructive`, `success`, `warning`, `info` or `chart2` to `chart5`.

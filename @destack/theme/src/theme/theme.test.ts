@@ -432,8 +432,10 @@ test("emit the default theme's custom properties for the system appearance", () 
         "--destack-color-muted": "light-dark(#f1f2f3, #252527)",
         "--destack-color-muted-foreground":
             "light-dark(color-mix(in oklab, #62636c, #46474e calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #b1b3bc, #e4e5ea calc(var(--destack-contrast, 0) * 100%)))",
-        "--destack-color-accent": "light-dark(#ecf2ff, #112051)",
-        "--destack-color-accent-foreground":
+        "--destack-color-accent": "light-dark(#1f1f220f, #ededf20f)",
+        "--destack-color-accent-foreground": "light-dark(#1f1f22, #ededf2)",
+        "--destack-color-primary-tint": "light-dark(#ecf2ff, #112051)",
+        "--destack-color-primary-tint-foreground":
             "light-dark(color-mix(in oklab, #192e77, #192d76 calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #d7e3ff, #dfe9ff calc(var(--destack-contrast, 0) * 100%)))",
         "--destack-color-destructive": "#d73c43",
         "--destack-color-destructive-text":
@@ -602,8 +604,8 @@ test("resolve a seed accent's roles from the palette grown from it", () => {
         [
             "primary",
             "primaryText",
-            "accent",
-            "accentForeground",
+            "primaryTint",
+            "primaryTintForeground",
             "ring",
             "chart1",
             "chart2",

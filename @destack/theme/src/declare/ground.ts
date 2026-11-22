@@ -6,7 +6,7 @@ export interface Ground {
     readonly background: string;
     /** The text on it. */
     readonly foreground: string;
-    /** The muted areas on it. */
+    /** The quiet fills on it: muted and secondary areas. */
     readonly muted: string;
 }
 
@@ -25,6 +25,8 @@ export function groundRoles(day: Ground, night: Ground): NonNullable<ThemeDefini
         foreground: { light: day.foreground, dark: night.foreground },
         cardForeground: text,
         popoverForeground: text,
+        secondary: { light: day.muted, dark: night.muted },
+        secondaryForeground: text,
         muted: { light: day.muted, dark: night.muted },
         border: { from: "foreground", lightness: { light: 0, dark: 0 }, alpha: LINE_ALPHA },
     };
