@@ -2,14 +2,15 @@ import { PackageVersion } from "@destack/package";
 import { expect, refusal, test } from "@destack/test";
 import { defineTheme } from "../declare/index.ts";
 import { Oklch, Srgb } from "../palette/index.ts";
-import { GRAY_PRESETS, PRESET_NAMES, PRESETS } from "@destack/color";
+import { ACCENT_PRESETS, GRAY_PRESETS, PRESET_NAMES, PRESETS } from "@destack/color";
+import { present } from "@destack/schema";
 import {
     DEFAULT_DISPLAY,
     GRAPHIC_CONTRAST,
+    NEUTRAL_NAMES,
     ROLE_NAMES,
     RoleName,
-    SURFACE_ROLES,
-    SurfaceLevel,
+    SWATCH_COLORS,
     Theme,
     type ThemeStyle,
 } from "../theme/index.ts";
@@ -113,14 +114,15 @@ function scaled(family: string, lengths: readonly number[], factor: number): [st
 test("give every preset accent on every base five chart series of hues apart, standing out in both appearances", () => {
     const failures = GRAY_PRESETS.flatMap((base) =>
         PRESET_NAMES.flatMap((accent) => {
-            // resolve the series and the background in both appearances
+            // resolve the series' marks and the background in both appearances
             const theme = new Theme(notes, { name: "preset", base, accent });
-            const series = (["chart1", "chart2", "chart3", "chart4", "chart5"] as const).map(
-                (name) => ({
-                    light: theme.resolve("light", 0).color(name),
-                    dark: theme.resolve("dark", 0).color(name),
-                }),
-            );
+            const series = theme
+                .hues()
+                .filter(([name]) => name.startsWith("series"))
+                .map(([, seed]) => ({
+                    light: theme.resolve("light", 0, seed).color("mark"),
+                    dark: theme.resolve("dark", 0, seed).color("mark"),
+                }));
             const background = {
                 light: theme.resolve("light", 0).color("background"),
                 dark: theme.resolve("dark", 0).color("background"),
@@ -175,7 +177,7 @@ test("shift a seed in lightness alone until its best label reads at Lc 60 and at
     for (const seed of ["#ff8800", "#22c55e", "#0ea5e9"]) {
         const theme = defineTheme({ name: "seeded", accent: seed }, { package: notes });
         const resolution = theme.resolve("light", 0);
-        const solid = resolution.color("primary");
+        const solid = resolution.color("solid");
         const before = Oklch.parse(seed);
         const after = Oklch.parse(solid);
 
@@ -183,8 +185,8 @@ test("shift a seed in lightness alone until its best label reads at Lc 60 and at
         const shift = Math.abs(after.lightness - before.lightness);
         expect(shift).toBeGreaterThan(0);
         expect(Math.abs(after.hue - before.hue)).toBeLessThan(1);
-        expect(resolution.contrast("primaryForeground", "apca")).toBeGreaterThanOrEqual(60);
-        expect(resolution.contrast("primaryForeground", "wcag")).toBeGreaterThanOrEqual(4.5);
+        expect(resolution.contrast("label", "apca")).toBeGreaterThanOrEqual(60);
+        expect(resolution.contrast("label", "wcag")).toBeGreaterThanOrEqual(4.5);
     }
 });
 
@@ -192,7 +194,7 @@ test("keep a legible preset's seed and label it with the darkest text that reads
     const amber = defineTheme({ name: "amber", accent: "amber" }, { package: notes });
     const resolution = amber.resolve("light", 0);
 
-    expect([resolution.color("primary"), resolution.color("primaryForeground")]).toEqual([
+    expect([resolution.color("solid"), resolution.color("label")]).toEqual([
         PRESETS.amber,
         standard.resolve("light", 0).color("foreground"),
     ]);
@@ -205,11 +207,12 @@ test("read every text, line and graphic role against a nested surface's backgrou
         const resolution = row.resolve(scheme, 0);
         const unread = ROLE_NAMES.filter((name) => {
             const reading = row.roles[name].reading;
+            if (reading === undefined) {
+                return false;
+            }
+            const floor = resolution.floor(reading.contrast);
 
-            return (
-                reading !== undefined &&
-                resolution.contrast(name, "apca") < resolution.floor(reading.contrast)
-            );
+            return reading.on.some((on) => resolution.contrast(name, "apca", on) < floor);
         });
         expect([resolution.color("background"), unread]).toEqual([
             scheme === "light" ? "#c9d8ff" : "#1d2f66",
@@ -230,11 +233,12 @@ test("raise every reading role's contrast continuously with the person's level",
 
         return ROLE_NAMES.filter((name) => {
             const reading = standard.roles[name].reading;
+            if (reading === undefined) {
+                return false;
+            }
+            const floor = resolution.floor(reading.contrast);
 
-            return (
-                reading !== undefined &&
-                resolution.contrast(name, "apca") < resolution.floor(reading.contrast)
-            );
+            return reading.on.some((on) => resolution.contrast(name, "apca", on) < floor);
         });
     });
     const muted = levels.map((level) =>
@@ -252,34 +256,37 @@ test("raise every reading role's contrast continuously with the person's level",
     );
 });
 
-test("grow the status roles and the first chart series from the theme's declared seeds", () => {
+test("grow the status swatches and the second chart series from the theme's declared seeds", () => {
     const declared = defineTheme(
-        { name: "declared", status: { destructive: "tomato" }, chart: ["#d946ef"] },
+        { name: "declared", status: { destructive: "tomato" }, series: ["#d946ef"] },
         { package: notes },
     );
-    const resolution = declared.resolve("light", 0);
+    const hues = new Map(declared.hues());
+    const destructive = present(hues.get("destructive"), "the destructive hue");
+    const series = present(hues.get("series2"), "the second series");
 
     // the declared tomato deepens until its white label reads at 4.5 to 1
-    expect([resolution.color("destructive"), resolution.color("chart2")]).toEqual([
-        "#d64121",
-        "#d946ef",
-    ]);
+    expect([
+        destructive,
+        declared.resolve("light", 0, destructive).color("solid"),
+        declared.resolve("light", 0, series).color("mark"),
+    ]).toEqual(["tomato", "#d64121", "#d946ef"]);
 });
 
-test("apply a replaced primary under the theme's own accent alone", () => {
+test("apply a replaced solid under the theme's own accent alone", () => {
     const branded = defineTheme(
-        { name: "branded", roles: { primary: { light: "#c54e0d", dark: "#c54e0d" } } },
+        { name: "branded", roles: { solid: { light: "#c54e0d", dark: "#c54e0d" } } },
         { package: notes },
     );
 
-    // another accent and every swatch take the solid their palette grows
+    // another accent and every other hue's swatch take the solid their palette grows
     expect([
-        branded.resolve("light", 0).color("primary"),
-        branded.resolve("light", 0, "teal").color("primary"),
+        branded.resolve("light", 0).color("solid"),
+        branded.resolve("light", 0, "teal").color("solid"),
         branded.variables(DEFAULT_DISPLAY)["--destack-swatch-teal-solid"],
     ]).toEqual([
         "#c54e0d",
-        standard.resolve("light", 0, "teal").color("primary"),
+        standard.resolve("light", 0, "teal").color("solid"),
         standard.variables(DEFAULT_DISPLAY)["--destack-swatch-teal-solid"],
     ]);
 });
@@ -298,13 +305,8 @@ test("check the roles a theme replaces like every other role", async () => {
     const style = replaced.variables(DEFAULT_DISPLAY);
     expect([
         style["--destack-color-background"],
-        style["--destack-surface-base"],
         style["--destack-color-muted-foreground"],
-    ]).toEqual([
-        "light-dark(#f8f5ee, #0b2029)",
-        "light-dark(#f8f5ee, #0b2029)",
-        "light-dark(#1f1f22, #ededf2)",
-    ]);
+    ]).toEqual(["light-dark(#f8f5ee, #0b2029)", "light-dark(#1f1f22, #ededf2)"]);
 
     // a background too close to its text is refused
     const illegible = Promise.resolve().then(() =>
@@ -346,44 +348,37 @@ test("raise a translucent role's opacity until its blend reads, keeping the decl
     ]);
 });
 
-test("label an overridden primary with the candidate that reads best on it", () => {
+test("label an overridden solid with the candidate that reads best on it", () => {
     const theme = defineTheme(
-        { name: "signal", roles: { primary: { palette: "warning" } } },
+        { name: "signal", roles: { solid: { light: PRESETS.amber, dark: PRESETS.amber } } },
         { package: notes },
     );
     const resolution = theme.resolve("light", 0);
 
     // the base's darkest text reads on amber, where the indigo accent's white label would not
-    expect([resolution.color("primary"), resolution.color("primaryForeground")]).toEqual([
+    expect([resolution.color("solid"), resolution.color("label")]).toEqual([
         PRESETS.amber,
         standard.resolve("light", 0).color("foreground"),
     ]);
 });
 
-test("resolve the default theme to the color values tokens.json shows", () => {
-    for (const family of ["color", "surface"] as const) {
-        // compare each role's standard light and dark color with its token
-        const shown = TOKENS.family(family).entries.map((entry) => [
-            entry.key,
-            entry.token.$type === "color" ? hex(entry.token.$value) : entry.token.$type,
-            entry.token.$type === "color" ? hex(entry.token.$extensions["app.destack"].dark) : "",
-        ]);
-        const resolved = shown.map(([key = ""]) => {
-            const name =
-                family === "color" ? RoleName.parse(key) : SURFACE_ROLES[SurfaceLevel.parse(key)];
+test("resolve the default theme's neutral roles to the color values tokens.json shows", () => {
+    // compare each role's standard light and dark color with its token
+    const shown = TOKENS.family("color").entries.map((entry) => [
+        entry.key,
+        entry.token.$type === "color" ? hex(entry.token.$value) : entry.token.$type,
+        entry.token.$type === "color" ? hex(entry.token.$extensions["app.destack"].dark) : "",
+    ]);
+    const resolved = shown.map(([key = ""]) => [
+        key,
+        standard.resolve("light", 0).color(RoleName.parse(key)),
+        standard.resolve("dark", 0).color(RoleName.parse(key)),
+    ]);
 
-            return [
-                key,
-                standard.resolve("light", 0).color(name),
-                standard.resolve("dark", 0).color(name),
-            ];
-        });
-
-        expect(resolved).toEqual(shown);
-    }
+    expect(resolved).toEqual(shown);
 });
 
-test("emit one swatch per colorful preset as the roles it takes as accent, at the values tokens.json shows", () => {
+test("emit one swatch per hue as the roles it takes, at the values tokens.json shows", () => {
     // read each swatch token's light and dark value and the theme's property at the standard contrast
     const style = standard.variables({ ...DEFAULT_DISPLAY, contrast: 0 });
     const swatches = TOKENS.family("swatch").entries.map((entry) => {
@@ -398,17 +393,19 @@ test("emit one swatch per colorful preset as the roles it takes as accent, at th
     });
 
     expect({
-        presets: swatches.length / 4,
+        hues: swatches.length / SWATCH_COLORS.length,
         teal: swatches.filter(([name]) => String(name).includes("-teal-")).map(([name]) => name),
         matching: swatches.every(([, isMatching]) => isMatching === true),
-        solid: standard.resolve("light", 0, "teal").color("primary"),
+        solid: standard.resolve("light", 0, "teal").color("solid"),
     }).toEqual({
-        presets: 25,
+        hues: 35,
         teal: [
             "--destack-swatch-teal-solid",
             "--destack-swatch-teal-label",
             "--destack-swatch-teal-tint",
+            "--destack-swatch-teal-tint-text",
             "--destack-swatch-teal-text",
+            "--destack-swatch-teal-mark",
         ],
         matching: true,
         solid: "#008577",
@@ -420,41 +417,14 @@ test("emit the default theme's custom properties for the system appearance", () 
     expect(withoutSwatches(standard.variables(DEFAULT_DISPLAY))).toEqual({
         "color-scheme": "light dark",
         "--destack-color-background": "light-dark(#fcfdfe, #131315)",
-        "--destack-color-foreground": "light-dark(#1f1f22, #ededf2)",
         "--destack-color-card": "light-dark(#f8f9fa, #19191b)",
-        "--destack-color-card-foreground": "light-dark(#1f1f22, #ededf2)",
         "--destack-color-popover": "light-dark(#fcfdfe, #242426)",
-        "--destack-color-popover-foreground": "light-dark(#1f1f22, #ededf2)",
-        "--destack-color-primary": "#3e63dd",
-        "--destack-color-primary-foreground": "#ffffff",
-        "--destack-color-secondary": "light-dark(#f1f2f3, #252527)",
-        "--destack-color-secondary-foreground": "light-dark(#1f1f22, #ededf2)",
-        "--destack-color-muted": "light-dark(#f1f2f3, #252527)",
+        "--destack-color-foreground": "light-dark(#1f1f22, #ededf2)",
         "--destack-color-muted-foreground":
-            "light-dark(color-mix(in oklab, #62636c, #46474e calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #b1b3bc, #e4e5ea calc(var(--destack-contrast, 0) * 100%)))",
-        "--destack-color-accent": "light-dark(#1f1f220f, #ededf20f)",
-        "--destack-color-accent-foreground": "light-dark(#1f1f22, #ededf2)",
-        "--destack-color-primary-tint": "light-dark(#ecf2ff, #112051)",
-        "--destack-color-primary-tint-foreground":
-            "light-dark(color-mix(in oklab, #192e77, #192d76 calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #d7e3ff, #dfe9ff calc(var(--destack-contrast, 0) * 100%)))",
-        "--destack-color-destructive": "#d73c43",
-        "--destack-color-destructive-text":
-            "light-dark(color-mix(in oklab, #b22731, #831c22 calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #ff948f, #ffddda calc(var(--destack-contrast, 0) * 100%)))",
-        "--destack-color-info-text":
-            "light-dark(color-mix(in oklab, #0065b5, #004682 calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #78b8ff, #d1e7ff calc(var(--destack-contrast, 0) * 100%)))",
-        "--destack-color-primary-text":
-            "light-dark(color-mix(in oklab, #3456cd, #223c9c calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #92b1ff, #d9e5ff calc(var(--destack-contrast, 0) * 100%)))",
-        "--destack-color-success-text":
-            "light-dark(color-mix(in oklab, #047749, #085131 calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #75c899, #bef0d1 calc(var(--destack-contrast, 0) * 100%)))",
-        "--destack-color-warning-text":
-            "light-dark(color-mix(in oklab, #7e5e0b, #594413 calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #e1aa19, #ffe1a6 calc(var(--destack-contrast, 0) * 100%)))",
-        "--destack-color-destructive-foreground": "#ffffff",
-        "--destack-color-success": "#0f8754",
-        "--destack-color-success-foreground": "#ffffff",
-        "--destack-color-warning": "#ffc53d",
-        "--destack-color-warning-foreground": "#1f1f22",
-        "--destack-color-info": "#0078d6",
-        "--destack-color-info-foreground": "#ffffff",
+            "light-dark(color-mix(in oklab, #62636c, #3f4046 calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #b4b6bf, #e7e8ed calc(var(--destack-contrast, 0) * 100%)))",
+        "--destack-color-muted": "light-dark(#f1f2f3, #252527)",
+        "--destack-color-hover": "light-dark(#1f1f220a, #ededf20a)",
+        "--destack-color-selected": "light-dark(#1f1f220f, #ededf20f)",
         "--destack-color-border":
             "light-dark(color-mix(in oklab, #d8d9e0, #c3c4cd calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #393a3f, #757781 calc(var(--destack-contrast, 0) * 100%)))",
         "--destack-color-input":
@@ -462,19 +432,6 @@ test("emit the default theme's custom properties for the system appearance", () 
         "--destack-color-ring":
             "light-dark(color-mix(in oklab, #83a6ff, #5f85f3 calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #6b92fa, #91b1ff calc(var(--destack-contrast, 0) * 100%)))",
         "--destack-color-scrim": "light-dark(#1f1f2280, #00000080)",
-        "--destack-color-chart1":
-            "light-dark(#3e63dd, color-mix(in oklab, #6b92fa, #91b1ff calc(var(--destack-contrast, 0) * 100%)))",
-        "--destack-color-chart2":
-            "light-dark(#978365, color-mix(in oklab, #a69477, #c1b098 calc(var(--destack-contrast, 0) * 100%)))",
-        "--destack-color-chart3":
-            "light-dark(color-mix(in oklab, #29a383, #1f9c7d calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #35a888, #6ac2a6 calc(var(--destack-contrast, 0) * 100%)))",
-        "--destack-color-chart4":
-            "light-dark(#d6409f, color-mix(in oklab, #ea65b4, #fe8ccd calc(var(--destack-contrast, 0) * 100%)))",
-        "--destack-color-chart5":
-            "light-dark(color-mix(in oklab, #00a2c7, #0096b9 calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #00a2c7, #5abede calc(var(--destack-contrast, 0) * 100%)))",
-        "--destack-surface-base": "light-dark(#fcfdfe, #131315)",
-        "--destack-surface-raised": "light-dark(#f8f9fa, #19191b)",
-        "--destack-surface-overlay": "light-dark(#fcfdfe, #242426)",
         "--destack-font-text":
             '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji"',
         "--destack-font-code":
@@ -598,27 +555,18 @@ test("emit the default theme's custom properties for the system appearance", () 
 test("resolve a seed accent's roles from the palette grown from it", () => {
     const seeded = defineTheme({ name: "violet", accent: "#7c3aed" }, { package: notes });
 
-    // only the accent roles and the chart series picked around the accent change against the default theme
+    // only the ring, the accent's swatch and the chart series picked around it change, its white label staying
     const changed = changes(seeded.variables(DEFAULT_DISPLAY), standard.variables(DEFAULT_DISPLAY));
-    expect(Object.keys(changed)).toEqual(
-        [
-            "primary",
-            "primaryText",
-            "primaryTint",
-            "primaryTintForeground",
-            "ring",
-            "chart1",
-            "chart2",
-            "chart3",
-            "chart4",
-            "chart5",
-        ].flatMap((name) => {
-            const variable = TOKENS.entry(["color", name]).variable;
-
-            return variable in changed ? [variable] : [];
-        }),
-    );
-    expect(changed["--destack-color-primary"]).toBe("#7c3aed");
+    const hues = ["accent", "series1", "series2", "series3", "series4", "series5"];
+    expect(Object.keys(changed)).toEqual([
+        "--destack-color-ring",
+        ...hues.flatMap((hue) =>
+            ["solid", "tint", "tint-text", "text", "mark"].map(
+                (color) => `--destack-swatch-${hue}-${color}`,
+            ),
+        ),
+    ]);
+    expect(changed["--destack-swatch-accent-solid"]).toBe("#7c3aed");
 });
 
 test("override the theme with the person's accent, density, text size, contrast and motion", () => {
@@ -643,7 +591,9 @@ test("override the theme with the person's accent, density, text size, contrast 
         return light === dark ? light : `light-dark(${light}, ${dark})`;
     };
     expect(
-        ROLE_NAMES.filter((name) => style[TOKENS.entry(["color", name]).variable] !== color(name)),
+        NEUTRAL_NAMES.filter(
+            (name) => style[TOKENS.entry(["color", name]).variable] !== color(name),
+        ),
     ).toEqual([]);
     const changed = changes(withoutSwatches(style), standard.variables(DEFAULT_DISPLAY));
     expect(
@@ -658,7 +608,7 @@ test("override the theme with the person's accent, density, text size, contrast 
         ...Object.fromEntries(widths(1.125)),
         "--destack-motion-scale": "0",
     });
-    expect(style["--destack-color-primary"]).toBe(color("primary"));
+    expect(style["--destack-swatch-accent-solid"]).toBe(color("solid"));
 });
 
 test("apply the theme's radius, scaling and fonts", () => {
@@ -700,11 +650,17 @@ test("apply the theme's radius, scaling and fonts", () => {
     });
 });
 
-test("cover every color and surface token with exactly one role", () => {
-    expect(TOKENS.family("color").entries.map((entry) => entry.key)).toEqual([...ROLE_NAMES]);
-    expect(TOKENS.family("surface").entries.map((entry) => entry.key)).toEqual(
-        Object.keys(SURFACE_ROLES),
-    );
+test("cover every color token with one neutral role and every swatch token with one hue's role", () => {
+    const hues = [...standard.hues().map(([name]) => name), ...ACCENT_PRESETS];
+    expect([
+        TOKENS.family("color").entries.map((entry) => entry.key),
+        TOKENS.family("swatch").entries.map((entry) => entry.key),
+    ]).toEqual([
+        [...NEUTRAL_NAMES],
+        hues.flatMap((hue) =>
+            SWATCH_COLORS.map((color) => `${hue}${color.charAt(0).toUpperCase()}${color.slice(1)}`),
+        ),
+    ]);
 });
 
 /** Write a token color as hex, with two more digits for its opacity when translucent. */

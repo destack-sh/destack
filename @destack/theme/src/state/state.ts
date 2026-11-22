@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
-import { color, stroke, weight } from "../token/tokens.stylex.ts";
+import { color, stroke, swatch, weight } from "../token/tokens.stylex.ts";
 
 /** The scale of a pressed control: subtle, between 0.95 and 0.98. */
 const PRESS_SCALE = "scale(0.97)";
@@ -38,33 +38,32 @@ export const state = style.create({
     },
     /** A field whose value is refused. */
     invalid: {
-        borderColor: color.destructive,
-        outlineColor: `color-mix(in oklab, ${color.destructive} 20%, transparent)`,
+        borderColor: swatch.destructiveMark,
+        outlineColor: `color-mix(in oklab, ${swatch.destructiveMark} 20%, transparent)`,
     },
-    /** An element that is clear at rest and fills under a mouse or pen. */
+    /** An element that is clear at rest and takes the hover layer under a mouse or pen. */
     hover: {
         backgroundColor: {
             default: "transparent",
-            ":hover": { default: null, [media.hover]: color.muted },
+            ":hover": { default: null, [media.hover]: color.hover },
         },
     },
     /** An item that is highlighted, open or selected among others. */
     selected: {
-        backgroundColor: color.accent,
-        color: color.accentForeground,
+        backgroundColor: color.selected,
     },
     /** A place a dragged item would land on. */
     target: {
-        backgroundColor: `color-mix(in oklab, ${color.primary} 10%, transparent)`,
+        backgroundColor: swatch.accentTint,
     },
     /** A control that is checked, a chosen date, or today. */
     checked: {
-        backgroundColor: color.primary,
-        color: color.primaryForeground,
+        backgroundColor: swatch.accentSolid,
+        color: swatch.accentLabel,
     },
     /** The page or item the person is on, among its siblings. */
     current: {
-        backgroundColor: `color-mix(in oklab, ${color.foreground} 10%, transparent)`,
+        backgroundColor: color.selected,
         fontWeight: weight.medium,
     },
 });

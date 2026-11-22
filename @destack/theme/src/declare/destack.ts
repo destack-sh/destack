@@ -1,4 +1,3 @@
-import { groundRoles } from "./ground.ts";
 import { defineTheme } from "./theme.ts";
 
 /** Destack's type: IBM Plex for interface and code text. */
@@ -30,10 +29,10 @@ export const destackTheme = defineTheme({
     base: "#8d8d89",
     accent: "#ff792e",
     radius: "medium",
-    roles: groundRoles(
-        { background: "#fbfaf7", foreground: "#12313c", muted: "#f2efe9" },
-        { background: "#0b2029", foreground: "#eeeae1", muted: "#122a33" },
-    ),
+    ground: {
+        light: { background: "#fbfaf7", foreground: "#12313c", muted: "#f2efe9" },
+        dark: { background: "#0b2029", foreground: "#eeeae1", muted: "#122a33" },
+    },
     fonts: DESTACK_FONTS,
     text: DESTACK_TEXT,
 });

@@ -3,7 +3,7 @@ import {
     Oklch,
     type ContrastMeasure,
     HexColor,
-    type Palette,
+    Palette,
     type ColorScheme,
     Srgb,
 } from "../palette/index.ts";
@@ -28,7 +28,7 @@ export const LABEL_CONTRAST: Floor = { standard: 60, more: 75 };
 /** The WCAG 2.2 AA contrast ratio of normal text, the least a label on a solid fill takes. */
 export const LABEL_RATIO = 4.5;
 
-/** The contrast of solid graphics such as chart series and focus rings. */
+/** The contrast of graphics such as chart marks and focus rings. */
 export const GRAPHIC_CONTRAST: Floor = { standard: 45, more: 60 };
 
 /** The contrast of borders and dividers, free at the standard contrast and Lc 30 at the most. */
@@ -43,7 +43,7 @@ const TEXT_LIGHTNESS: Lightness = { light: 0.242, dark: 0.948 };
 /** The OKLCH lightness secondary text starts its search from in each appearance. */
 const MUTED_LIGHTNESS: Lightness = { light: 0.502, dark: 0.768 };
 
-/** The OKLCH lightness text on the accent's tint starts its search from in each appearance. */
+/** The OKLCH lightness text on a hue's tint starts its search from in each appearance. */
 const TINT_TEXT_LIGHTNESS: Lightness = { light: 0.335, dark: 0.915 };
 
 /** The OKLCH lightness of subtle fills relative to the background in each appearance. */
@@ -55,70 +55,56 @@ const WHITE = Srgb.parse("#ffffff");
 /** The halvings of the opacity search, enough for a step below one 8-bit alpha level. */
 const OPACITY_STEPS = 9;
 
+/** The OKLCH lightness of a card relative to the background in each appearance. */
+const CARD_OFFSET: Lightness = { light: -0.011, dark: 0.026 };
+
+/** The OKLCH lightness of a popover relative to the background in each appearance. */
+const POPOVER_OFFSET: Lightness = { light: 0, dark: 0.073 };
+
 /** No lightness offset: another role's own color. */
 const SAME: Lightness = { light: 0, dark: 0 };
 
-/** The opacity of the text color over hovered and selected items, after Material's state layers. */
-const STATE_ALPHA = 0.06;
+/** The opacity of the text color over a hovered item, after Material's state layers. */
+const HOVER_ALPHA = 0.04;
+
+/** The opacity of the text color over a selected item, after Material's state layers. */
+const SELECTED_ALPHA = 0.06;
 
 /** The opacity of the scrim behind modal surfaces: half strength. */
 const SCRIM_ALPHA = 0.5;
 
-/** The color role names, with status roles. */
-export const ROLE_NAMES = [
+/** The neutral role names, which the color tokens list in order. */
+export const NEUTRAL_NAMES = [
     "background",
-    "foreground",
     "card",
-    "cardForeground",
     "popover",
-    "popoverForeground",
-    "primary",
-    "primaryForeground",
-    "primaryText",
-    "primaryTint",
-    "primaryTintForeground",
-    "secondary",
-    "secondaryForeground",
-    "muted",
+    "foreground",
     "mutedForeground",
-    "accent",
-    "accentForeground",
-    "destructive",
-    "destructiveForeground",
-    "destructiveText",
-    "success",
-    "successForeground",
-    "successText",
-    "warning",
-    "warningForeground",
-    "warningText",
-    "info",
-    "infoForeground",
-    "infoText",
+    "muted",
+    "hover",
+    "selected",
     "border",
     "input",
     "ring",
     "scrim",
-    "chart1",
-    "chart2",
-    "chart3",
-    "chart4",
-    "chart5",
 ] as const;
 
-/** The palette names of a theme. */
-export const PALETTE_NAMES = [
-    "base",
-    "accent",
-    "destructive",
-    "success",
-    "warning",
-    "info",
-    "chart2",
-    "chart3",
-    "chart4",
-    "chart5",
-] as const;
+/** The swatch role names, which every hue resolves and the swatch tokens list per hue in order. */
+export const SWATCH_COLORS = ["solid", "label", "tint", "tintText", "text", "mark"] as const;
+
+/** A color of a swatch. */
+export type SwatchColor = (typeof SWATCH_COLORS)[number];
+
+/** Report whether a role is a swatch role. */
+export function isSwatchColor(name: string): name is SwatchColor {
+    return SWATCH_COLORS.some((color) => color === name);
+}
+
+/** The color role names: the neutral roles, then the swatch roles. */
+export const ROLE_NAMES = [...NEUTRAL_NAMES, ...SWATCH_COLORS] as const;
+
+/** The palette names of a resolution: the base, and the hue its swatch roles grow from. */
+export const PALETTE_NAMES = ["base", "hue"] as const;
 
 /** A palette name of a theme. */
 export const PaletteName = schema.enum(PALETTE_NAMES);
@@ -136,10 +122,13 @@ export interface Lightness {
     readonly dark: number;
 }
 
-/** The role a role reads on and the contrast it needs there. */
+/** The roles a role reads on, at least one. */
+type Grounds = readonly [RoleName, ...RoleName[]];
+
+/** The roles a role reads on and the contrast it needs on each. */
 export interface Reading {
-    /** The role it reads on. */
-    readonly on: RoleName;
+    /** The roles it reads on, the first the one it blends over. */
+    readonly on: Grounds;
     /** The contrast it needs. */
     readonly contrast: Floor;
 }
@@ -329,19 +318,20 @@ export class Resolution {
         return color;
     }
 
-    /** Measure a role's contrast on the role it reads on, APCA's as a magnitude. */
-    contrast(name: RoleName, measure: ContrastMeasure): number {
+    /** Measure a role's contrast on a role it reads on, the first by default, as a magnitude. */
+    contrast(name: RoleName, measure: ContrastMeasure, on?: RoleName): number {
         // require the role it reads on
         const reading = this.#roles[name].reading;
-        if (reading === undefined) {
+        const ground = on ?? reading?.on[0];
+        if (ground === undefined) {
             throw new RangeError(`role '${name}' has no background role`);
         }
 
         // measure a translucent role blended over the role it reads on
-        const ground = this.color(reading.on);
-        const blended = Srgb.parse(Srgb.composite(this.color(name), ground));
+        const under = this.color(ground);
+        const blended = Srgb.parse(Srgb.composite(this.color(name), under));
 
-        return Math.abs(blended.contrast(Srgb.parse(ground), measure));
+        return Math.abs(blended.contrast(Srgb.parse(under), measure));
     }
 
     /** Read a floor at the level. */
@@ -403,13 +393,24 @@ export class Resolution {
                 if (reading === undefined) {
                     throw new RangeError("a label role needs the role it reads on");
                 }
-                const under = this.#roles[reading.on].source;
+                const [on] = reading.on;
+                const under = this.#roles[on].source;
                 const palette = this.#palettes["palette" in under ? under.palette : "base"];
 
-                return this.label(palette, Srgb.parse(this.color(reading.on))).hex;
+                return this.label(palette, Srgb.parse(this.color(on))).hex;
             }
-            case "color":
-                return this.#translucent(source[this.scheme], source.alpha, role);
+            case "color": {
+                // keep a declared color at the standard level, raising its contrast above it
+                const declared = source[this.scheme];
+                if (source.alpha !== undefined) {
+                    return this.#translucent(declared, source.alpha, role);
+                } else if (this.level === 0) {
+                    return declared;
+                }
+                const palette = Palette.of(declared);
+
+                return palette.tone(this.#settle(palette, palette.lightness, role)).hex;
+            }
         }
     }
 
@@ -423,15 +424,15 @@ export class Resolution {
             return Srgb.translucent(color, alpha);
         }
 
-        // find the least opacity at or above the declared one whose blend reads at the floor
-        const ground = this.color(reading.on);
-        const under = Srgb.parse(ground);
+        // find the least opacity at or above the declared one whose blend reads at the floor on every ground
+        const grounds = reading.on.map((on) => this.color(on));
         const floor = this.floor(reading.contrast);
-        const reads = (opacity: number) => {
-            const blended = Srgb.parse(Srgb.composite(Srgb.translucent(color, opacity), ground));
+        const reads = (opacity: number) =>
+            grounds.every((ground) => {
+                const blended = Srgb.composite(Srgb.translucent(color, opacity), ground);
 
-            return Math.abs(blended.contrast(under, "apca")) >= floor;
-        };
+                return Math.abs(Srgb.parse(blended).contrast(Srgb.parse(ground), "apca")) >= floor;
+            });
         let low = alpha;
         let high = 1;
         if (reads(low) || !reads(high)) {
@@ -447,13 +448,16 @@ export class Resolution {
 
     /** Find the lightness nearest a start at which a role and its label read. */
     #settle(palette: Palette, start: number, role: Role): number {
-        // require the role's reading and its label's at the level
+        // require the role's reading on every ground and its label's at the level
         const { reading, labelled } = role;
-        const background = reading === undefined ? undefined : Srgb.parse(this.color(reading.on));
+        const grounds = (reading?.on ?? []).map((on) => Srgb.parse(this.color(on)));
+        const [background] = grounds;
         const passes = (color: Srgb) =>
             (reading === undefined ||
-                background === undefined ||
-                Math.abs(color.contrast(background, "apca")) >= this.floor(reading.contrast)) &&
+                grounds.every(
+                    (ground) =>
+                        Math.abs(color.contrast(ground, "apca")) >= this.floor(reading.contrast),
+                )) &&
             (labelled === undefined ||
                 (Math.abs(this.label(palette, color).contrast(color, "apca")) >=
                     this.floor(labelled) &&
@@ -483,93 +487,41 @@ export class Resolution {
     }
 }
 
+/** The surfaces text reads on, from the page up. */
+const SURFACES = ["background", "card", "popover"] as const satisfies readonly RoleName[];
+
 /** The color roles every theme starts from. */
 export const COLOR_ROLES: Roles = {
-    // surfaces and their text
+    // surfaces from the page up
     background: tone("base", BACKGROUND_LIGHTNESS),
-    foreground: readable("base", TEXT_LIGHTNESS, "background", BODY_CONTRAST),
-    card: shift("background", { light: -0.011, dark: 0.026 }),
-    cardForeground: readable("base", TEXT_LIGHTNESS, "card", BODY_CONTRAST),
-    popover: shift("background", { light: 0, dark: 0.073 }),
-    popoverForeground: readable("base", TEXT_LIGHTNESS, "popover", BODY_CONTRAST),
+    card: shift("background", CARD_OFFSET),
+    popover: shift("background", POPOVER_OFFSET),
 
-    // actions
-    primary: solid("accent"),
-    primaryForeground: label("primary"),
-    primaryText: readable("accent", MUTED_LIGHTNESS, "background", CONTENT_CONTRAST),
-    primaryTint: tone("accent", SUBTLE_OFFSET, { from: "background" }),
-    primaryTintForeground: readable("accent", TINT_TEXT_LIGHTNESS, "primaryTint", BODY_CONTRAST),
-    secondary: shift("background", SUBTLE_OFFSET),
-    secondaryForeground: readable("base", TEXT_LIGHTNESS, "secondary", BODY_CONTRAST),
+    // text on every surface
+    foreground: readable("base", TEXT_LIGHTNESS, SURFACES, BODY_CONTRAST),
+    mutedForeground: readable("base", MUTED_LIGHTNESS, SURFACES, CONTENT_CONTRAST),
+
+    // quiet fills, and the state layers of the text color over hovered and selected items
     muted: shift("background", SUBTLE_OFFSET),
-    mutedForeground: readable("base", MUTED_LIGHTNESS, "background", CONTENT_CONTRAST),
-    accent: shift("foreground", SAME, STATE_ALPHA),
-    accentForeground: shift("foreground", SAME),
-
-    // statuses
-    destructive: solid("destructive"),
-    destructiveForeground: label("destructive"),
-    destructiveText: readable("destructive", MUTED_LIGHTNESS, "background", CONTENT_CONTRAST),
-    success: solid("success"),
-    successForeground: label("success"),
-    successText: readable("success", MUTED_LIGHTNESS, "background", CONTENT_CONTRAST),
-    warning: solid("warning"),
-    warningForeground: label("warning"),
-    warningText: readable("warning", MUTED_LIGHTNESS, "background", CONTENT_CONTRAST),
-    info: solid("info"),
-    infoForeground: label("info"),
-    infoText: readable("info", MUTED_LIGHTNESS, "background", CONTENT_CONTRAST),
+    hover: shift("foreground", SAME, HOVER_ALPHA),
+    selected: shift("foreground", SAME, SELECTED_ALPHA),
 
     // lines
-    border: readable("base", { light: 0.886, dark: 0.348 }, "background", LINE_CONTRAST),
-    input: readable("base", { light: 0.852, dark: 0.4 }, "background", LINE_CONTRAST),
-    ring: readable("accent", { light: 0.736, dark: 0.532 }, "background", GRAPHIC_CONTRAST),
+    border: readable("base", { light: 0.886, dark: 0.348 }, ["background"], LINE_CONTRAST),
+    input: readable("base", { light: 0.852, dark: 0.4 }, ["background"], LINE_CONTRAST),
+    ring: readable("hue", { light: 0.736, dark: 0.532 }, ["background"], GRAPHIC_CONTRAST),
 
     // overlays
     scrim: tone("base", { light: TEXT_LIGHTNESS.light, dark: 0 }, { alpha: SCRIM_ALPHA }),
 
-    // chart series: the accent, then four hues apart from it and from each other
-    chart1: graphic("accent"),
-    chart2: graphic("chart2"),
-    chart3: graphic("chart3"),
-    chart4: graphic("chart4"),
-    chart5: graphic("chart5"),
+    // the hue as a solid fill with its label, as a tint with its text, and as text and marks on the page
+    solid: solid("hue"),
+    label: label("solid"),
+    tint: tone("hue", SUBTLE_OFFSET, { from: "background" }),
+    tintText: readable("hue", TINT_TEXT_LIGHTNESS, ["tint"], BODY_CONTRAST),
+    text: readable("hue", MUTED_LIGHTNESS, SURFACES, CONTENT_CONTRAST),
+    mark: mark("hue"),
 };
-
-/** The surface levels from the page up. */
-export const SurfaceLevel = schema.enum(["base", "raised", "overlay"]);
-/** A surface level. */
-export type SurfaceLevel = schema.Infer<typeof SurfaceLevel>;
-
-/** The color role each surface level shares its color with. */
-export const SURFACE_ROLES: Readonly<Record<SurfaceLevel, RoleName>> = {
-    base: "background",
-    raised: "card",
-    overlay: "popover",
-};
-
-/** The colors of a swatch: the ones a preset gives an object marked with it. */
-export const SWATCH_ROLES = {
-    /** The preset's solid fill, such as a tag's dot. */
-    solid: "primary",
-    /** The label reading on the solid fill. */
-    label: "primaryForeground",
-    /** The preset's subtle tint, such as a tag's background. */
-    tint: "primaryTint",
-    /** The text reading on the tint. */
-    text: "primaryTintForeground",
-} as const satisfies Readonly<Record<string, RoleName>>;
-
-/** A color of a swatch. */
-export type SwatchColor = keyof typeof SWATCH_ROLES;
-
-/** The colors of a swatch, in token order. */
-export const SWATCH_COLORS = [
-    "solid",
-    "label",
-    "tint",
-    "text",
-] as const satisfies readonly SwatchColor[];
 
 /** A role moving another role's color in lightness, at an opacity when given. */
 function shift(from: RoleName, lightness: Lightness, alpha?: number): Role {
@@ -589,8 +541,8 @@ function tone(
     return new Role({ kind: "tone", palette, lightness, ...placement });
 }
 
-/** A role reading a palette's tone that reads on a role at a contrast. */
-function readable(palette: PaletteName, lightness: Lightness, on: RoleName, contrast: Floor): Role {
+/** A role reading a palette's tone that reads on roles at a contrast. */
+function readable(palette: PaletteName, lightness: Lightness, on: Grounds, contrast: Floor): Role {
     return new Role({ kind: "tone", palette, lightness }, { on, contrast });
 }
 
@@ -601,10 +553,10 @@ function solid(palette: PaletteName): Role {
 
 /** A label role on a solid role, needing label contrast. */
 function label(on: RoleName): Role {
-    return new Role({ kind: "label" }, { on, contrast: LABEL_CONTRAST });
+    return new Role({ kind: "label" }, { on: [on], contrast: LABEL_CONTRAST });
 }
 
-/** A solid graphic role standing out from the background. */
-function graphic(palette: PaletteName): Role {
-    return new Role({ kind: "solid", palette }, { on: "background", contrast: GRAPHIC_CONTRAST });
+/** A palette's seed as a graphic standing out from the background, such as a chart's line. */
+function mark(palette: PaletteName): Role {
+    return new Role({ kind: "solid", palette }, { on: ["background"], contrast: GRAPHIC_CONTRAST });
 }

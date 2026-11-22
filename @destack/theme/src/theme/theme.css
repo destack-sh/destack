@@ -12,6 +12,12 @@
     }
 }
 
+/* keep the page from scrolling under every open modal, keeping its scrollbar's room */
+:root:has(dialog:modal) {
+    overflow: hidden;
+    scrollbar-gutter: stable;
+}
+
 /* set the theme's element defaults in the base layer below every component style */
 @layer base {
     /* paint the page in the theme's background, text color and body text, scaled by the person's text size */
@@ -21,7 +27,7 @@
         font-family: var(--destack-font-text);
         font-size: var(--destack-text-base-font-size);
         line-height: var(--destack-text-base-line-height);
-        accent-color: var(--destack-color-primary);
+        accent-color: var(--destack-swatch-accent-solid);
     }
 
     /* set code in the theme's code font */
@@ -39,7 +45,7 @@
 
     /* select text in the theme's accent */
     ::selection {
-        background-color: color-mix(in oklab, var(--destack-color-primary) 30%, transparent);
+        background-color: color-mix(in oklab, var(--destack-swatch-accent-solid) 30%, transparent);
     }
 
     /* ring the focused element in the theme's ring color, off its edge by a border's width */
@@ -81,7 +87,7 @@
         border: var(--destack-stroke-border) solid var(--destack-color-border);
         border-radius: var(--destack-radius-3);
         background-color: var(--destack-color-popover);
-        color: var(--destack-color-popover-foreground);
+        color: var(--destack-color-foreground);
         box-shadow: var(--destack-shadow-overlay);
     }
 }

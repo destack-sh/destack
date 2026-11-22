@@ -4,15 +4,15 @@ Theme views with an accent, a base and roles solved for contrast, in light and d
 
 ## Overview
 
-`@destack/theme` is Radix Themes' settings over shadcn's color roles: themes, roles solved for contrast, display settings and StyleX tokens.
+`@destack/theme` is Radix Themes' settings over shadcn's neutral roles and one swatch per hue: themes, roles solved for contrast, display settings and StyleX tokens.
 
 Packages declare a theme:
 
 - `Theme`: an accent, a base gray, a radius, a scaling and a density, declared with `defineTheme`.
 - `Seed`: a palette's source color: a preset such as `"orange"`, or a hex color.
-- `RoleName`: a color the views use, such as `background`, `primary` or `mutedForeground`.
+- `RoleName`: a neutral role such as `background` or `mutedForeground`, or a swatch role such as `solid`.
 - `RoleOverride`: a theme's color for a role.
-- `groundRoles(day, night)`: the roles of a theme that sets its page, text and muted colors by day and by night.
+- `Ground`: a theme's page, text and quiet fill at one time of day.
 - `THEMES`: Destack's themes, the brand and one per planet.
 
 People see it under their display settings:
@@ -22,9 +22,9 @@ People see it under their display settings:
 
 Components use tokens:
 
-- `@destack/theme/tokens.stylex`: the roles, surfaces, swatches, spacing, sizes, radii, shadows and motion as StyleX constants.
+- `@destack/theme/tokens.stylex`: the neutral roles, every hue's swatch, spacing, sizes, radii, shadows and motion as StyleX constants.
 - `@destack/theme/mark`: Destack's mark as SVG markup, `MARK`.
-- `text` and `transition`: text styles and enter and exit transitions.
+- `text` and `transition`: text styles and the overlays' enter and exit transitions.
 - `@destack/theme/state`: `state`, the styles of focus, hover, pressed, disabled, selected, checked and other states, the same in every component.
 
 Declare a theme, then compute a view's custom properties in dark mode at more contrast:
@@ -52,42 +52,50 @@ const variables = theme.variables({ ...DEFAULT_DISPLAY, appearance: "dark", cont
 | `name`    | the theme's name within the package                                                                    |
 | `base`    | the seed of surfaces, text and lines, `"slate"` by default                                             |
 | `accent`  | the seed of primary actions, checked controls, focus and the first chart series, `"indigo"` by default |
+| `ground`  | the `light` and `dark` `Ground`: page, text and quiet fill as hex colors, which lines follow           |
 | `status`  | the seeds of `destructive`, `success`, `warning` and `info`, red, green, amber and blue by default     |
-| `chart`   | up to four seeds of the chart series after the accent, picked far apart in hue by default              |
+| `series`  | up to four seeds of the chart series after the accent, picked far apart in hue by default              |
 | `radius`  | `"none"`, `"small"`, `"medium"`, the default, `"large"` or `"full"`                                    |
 | `scaling` | `"90%"`, `"95%"`, `"100%"`, the default, `"105%"` or `"110%"`                                          |
 | `density` | `"compact"`, `"regular"`, the default, or `"spacious"`                                                 |
 | `fonts`   | the `text` and `code` font stacks, as CSS `font-family` values                                         |
 | `text`    | the `size`, `weight`, `tracking` and `font` of text styles, sizes fixed or fluid                       |
-| `roles`   | the theme's colors for roles, by `RoleName`                                                            |
+| `roles`   | the theme's colors for roles after its ground, by `RoleName`                                           |
 
 A theme answers its colors and custom properties:
 
-| Verb                             | What it does                                                                                       |
-| -------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `variables(display)`             | computes the custom properties of a view's root, with `color-scheme`                               |
-| `resolve(scheme, level, accent)` | resolves the roles in `"light"` or `"dark"` at a contrast from 0 to 1, and `color(name)` reads one |
-| `rebase(background)`             | derives the theme over another background, such as a selected row's                                |
+| Verb                          | What it does                                                                                       |
+| ----------------------------- | -------------------------------------------------------------------------------------------------- |
+| `variables(display)`          | computes the custom properties of a view's root, with `color-scheme`                               |
+| `resolve(scheme, level, hue)` | resolves the roles in `"light"` or `"dark"` at a contrast from 0 to 1, and `color(name)` reads one |
+| `hues(accent)`                | lists the theme's hues by token name: the accent, the statuses and the chart series                |
+| `rebase(background)`          | derives the theme over another background, such as a selected row's                                |
 
 ### Roles
 
-The roles follow shadcn's, each solved for its contrast.
+The neutral roles follow shadcn's names, each solved for its contrast on every surface it reads on.
 
-| Roles                                                                    | What they color                                                         |
-| ------------------------------------------------------------------------ | ----------------------------------------------------------------------- |
-| `background`, `foreground`                                               | the page, and body text on it                                           |
-| `card`, `cardForeground`, `popover`, `popoverForeground`                 | raised and floating surfaces, and text on them                          |
-| `primary`, `primaryForeground`, `primaryText`                            | primary actions in the accent, their labels, accent text                |
-| `primaryTint`, `primaryTintForeground`                                   | a tint of the accent, such as a tag, and text on it                     |
-| `secondary`, `secondaryForeground`, `muted`, `mutedForeground`           | quiet fills, and quieter text                                           |
-| `accent`, `accentForeground`                                             | a hovered or selected item as a layer of the text color, and text on it |
-| `destructive`, `success`, `warning`, `info`, each `…Foreground`, `…Text` | statuses, their labels, and status text on the background               |
-| `border`, `input`, `ring`                                                | lines, field borders and focus rings                                    |
-| `scrim`                                                                  | the shade behind a dialog                                               |
-| `chart1` to `chart5`                                                     | chart series, the accent first                                          |
+| Neutral roles                   | What they color                                         |
+| ------------------------------- | ------------------------------------------------------- |
+| `background`, `card`, `popover` | the page, and raised and floating surfaces              |
+| `foreground`, `mutedForeground` | body text and quieter text on every surface             |
+| `muted`                         | quiet fills                                             |
+| `hover`, `selected`             | hovered and selected items, as layers of the text color |
+| `border`, `input`, `ring`       | lines, field borders and focus rings                    |
+| `scrim`                         | the shade behind a dialog                               |
+
+Every hue takes the same swatch, after Primer's functional colors: the accent, the statuses, the five chart series and every colorful preset.
+
+| Swatch roles       | What they color                                                   |
+| ------------------ | ----------------------------------------------------------------- |
+| `solid`, `label`   | a filled control such as a button, and its label                  |
+| `tint`, `tintText` | a tinted area such as a tag, and text on it                       |
+| `text`             | the hue as text on every surface, such as a link or an error      |
+| `mark`             | the hue as a graphic on the page, such as a chart's line or a dot |
 
 A `RoleOverride` takes one of four forms, each with an optional `alpha` but the second.
-A palette is `base`, `accent`, `destructive`, `success`, `warning`, `info` or `chart2` to `chart5`.
+A palette is `base`, or `hue`, the hue a swatch grows from.
+A theme's swatch overrides apply under its own accent alone.
 
 | Override                                        | Color                                                                                       |
 | ----------------------------------------------- | ------------------------------------------------------------------------------------------- |
@@ -101,10 +109,10 @@ A palette is `base`, `accent`, `destructive`, `success`, `warning`, `info` or `c
 Text must reach its APCA lightness contrast Lc, and a label on a fill must also reach WCAG's 4.5 to 1.
 APCA judges light text on dark backgrounds correctly, and accessibility audits measure WCAG's ratio.
 
-| Verb                                 | What it does                                                   |
-| ------------------------------------ | -------------------------------------------------------------- |
-| `Srgb.contrast(background, measure)` | measures a color as text on a background, `"apca"` or `"wcag"` |
-| `Resolution.contrast(name, measure)` | measures a resolved role on the role it reads on               |
+| Verb                                     | What it does                                                         |
+| ---------------------------------------- | -------------------------------------------------------------------- |
+| `Srgb.contrast(background, measure)`     | measures a color as text on a background, `"apca"` or `"wcag"`       |
+| `Resolution.contrast(name, measure, on)` | measures a resolved role on a role it reads on, the first by default |
 
 `Srgb` is a color in sRGB, the screen's color space, and `Oklch` a color in OKLCH, the space palettes grow in.
 
@@ -112,7 +120,7 @@ APCA judges light text on dark backgrounds correctly, and accessibility audits m
 import { Srgb } from "@destack/theme";
 import { destackTheme } from "@destack/theme/declare";
 
-// measure white on the brand's primary, and the muted text of dark mode
+// measure white on the brand's solid accent, and the muted text of dark mode
 Srgb.parse("#ffffff").contrast(Srgb.parse("#c75300"), "wcag");
 destackTheme.resolve("dark", 0).contrast("mutedForeground", "apca");
 ```
@@ -138,22 +146,21 @@ destackTheme.resolve("dark", 0).contrast("mutedForeground", "apca");
 `@destack/theme/tokens.json` has the same tokens in the Design Tokens format, with the default theme's values.
 `text` and `transition` are StyleX styles, from `@destack/theme/text` and `@destack/theme/motion`.
 
-| Constant     | Tokens                                                                                                                           |
-| ------------ | -------------------------------------------------------------------------------------------------------------------------------- |
-| `color`      | every role, such as `color.mutedForeground`                                                                                      |
-| `surface`    | `base`, `raised` and `overlay`, the background, card and popover                                                                 |
-| `swatch`     | each preset's `Solid`, `Label`, `Tint` and `Text`, such as `swatch.tealTint`                                                     |
-| `font`       | `text` and `code`                                                                                                                |
-| `weight`     | `regular`, `medium`, `semibold` and `bold`                                                                                       |
-| `space`      | steps `1` to `9`, scaled by scaling and density                                                                                  |
-| `size`       | steps `1` to `4`, scaled by scaling and density                                                                                  |
-| `width`      | `popover`, `hoverCard`, `sidebar`, `sidebarIcon`, `toast`, `prose`, `tile` and `row`                                             |
-| `radius`     | steps `1` to `6`, scaled by the theme's radius, and `full`                                                                       |
-| `stroke`     | `border` and `ring`                                                                                                              |
-| `shadow`     | `edge`, `cast`, `raised` and `overlay`                                                                                           |
-| `motion`     | `durationShort`, `durationMedium`, `durationLong`, `easingStandard`, `easingEmphasised` and `easingSpring`                       |
-| `text`       | the text styles after Tailwind's type scale: `xs`, `sm`, `base`, `lg`, `xl` and `2xl` to `9xl`, each a size with its line height |
-| `transition` | `enter` and `exit`, which scale with the person's motion                                                                         |
+| Constant     | Tokens                                                                                                                             |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `color`      | every neutral role, such as `color.mutedForeground`                                                                                |
+| `swatch`     | every hue's `Solid`, `Label`, `Tint`, `TintText`, `Text` and `Mark`, such as `swatch.accentSolid` or `swatch.series2Mark`          |
+| `font`       | `text` and `code`                                                                                                                  |
+| `weight`     | `regular`, `medium`, `semibold` and `bold`                                                                                         |
+| `space`      | steps `1` to `9`, scaled by scaling and density                                                                                    |
+| `size`       | steps `1` to `4`, scaled by scaling and density                                                                                    |
+| `width`      | `popover`, `hoverCard`, `sidebar`, `sidebarIcon`, `toast`, `prose`, `tile` and `row`                                               |
+| `radius`     | steps `1` to `6`, scaled by the theme's radius, and `full`                                                                         |
+| `stroke`     | `border` and `ring`                                                                                                                |
+| `shadow`     | `edge`, `cast`, `raised` and `overlay`                                                                                             |
+| `motion`     | `durationShort`, `durationMedium`, `durationLong`, `easingStandard`, `easingEmphasised` and `easingSpring`                         |
+| `text`       | the text styles after Tailwind's type scale: `xs`, `sm`, `base`, `lg`, `xl` and `2xl` to `9xl`, each a size with its line height   |
+| `transition` | `popover`, `modalPopover` and `dialog`, which grow and fade, `sheet`, `notice` and `noticeLeaving`; reduced motion keeps the fades |
 
 ## Examples
 
@@ -203,7 +210,7 @@ import { color, space, swatch } from "@destack/theme/tokens.stylex";
 
 // style a teal tag and a muted caption
 export const styles = style.create({
-    tag: { backgroundColor: swatch.tealTint, color: swatch.tealText, padding: space[1] },
+    tag: { backgroundColor: swatch.tealTint, color: swatch.tealTintText, padding: space[1] },
     muted: { color: color.mutedForeground },
 });
 export const caption = [text.xs, styles.muted];
@@ -240,10 +247,13 @@ Roles are solved for contrast instead of twelve fixed steps, and a theme is CSS 
 
 ### shadcn/ui
 
-Color roles follow shadcn/ui's CSS variables, and charts its `chart-1` to `chart-5`.
+Neutral roles follow shadcn/ui's CSS variables; its colored roles become swatches.
 
-| shadcn/ui                      | `@destack/theme`                | Difference                                                     |
-| ------------------------------ | ------------------------------- | -------------------------------------------------------------- |
-| `--background`, `--primary`, … | `--destack-color-background`, … | The same roles, plus `success`, `warning`, `info` and `scrim`. |
-| hand-picked colors per theme   | roles solved for contrast       | A theme gives seeds, and each role is solved to read.          |
-| `.dark` class                  | `light-dark()` in one value     | Both appearances in each property, mixed toward more contrast. |
+| shadcn/ui                              | `@destack/theme`                                    | Difference                                                     |
+| -------------------------------------- | --------------------------------------------------- | -------------------------------------------------------------- |
+| `--background`, `--card`, `--muted`, … | `--destack-color-background`, …                     | The same neutral roles; text tiers serve every surface.        |
+| `--primary`, `--primary-foreground`    | `--destack-swatch-accent-solid`, `…-accent-label`   | One swatch shape for the accent, statuses, series, presets.    |
+| `--accent`                             | `--destack-color-hover`, `--destack-color-selected` | State layers of the text color, after Material.                |
+| `--chart-1` to `--chart-5`             | `--destack-swatch-series1-mark`, …                  | Full swatches, so charts fill, label and tint from the theme.  |
+| hand-picked colors per theme           | roles solved for contrast                           | A theme gives seeds, and each role is solved to read.          |
+| `.dark` class                          | `light-dark()` in one value                         | Both appearances in each property, mixed toward more contrast. |
