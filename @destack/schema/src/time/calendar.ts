@@ -1,5 +1,5 @@
 import { nth } from "../collection/index.ts";
-import { PlainDate, WEEK_DAYS, type Weekday } from "./plain.ts";
+import { PlainDate, PlainTime, type Weekday } from "./plain.ts";
 import type { TimeScale } from "./scale.ts";
 import type { ScheduleEdge } from "./schedule.ts";
 import { TimeZone } from "./zone.ts";
@@ -10,25 +10,75 @@ const CALENDAR_BLOCK = 28 * 86_400_000;
 /** The most blocks a calendar keeps listed, about forty years in some 250 KB at 500 bytes each. */
 const CALENDAR_BLOCKS = 512;
 
-/** The working time of a zone, its weekend days left out, as lags, lengths and tracks count it. */
+/** The minutes of a day, which "24:00" ends at. */
+const DAY_MINUTES = 24 * 60;
+
+/** The weekdays from Monday to Sunday, as ISO numbers them. */
+const WEEKDAYS: readonly Weekday[] = [1, 2, 3, 4, 5, 6, 7];
+
+/** A span of a day's working time, after FullCalendar's business hours. */
+export interface WorkHours {
+    /** The time it starts. */
+    readonly start: PlainTime;
+    /** The time it ends, after its start, 24:00 for the day's end. */
+    readonly end: PlainTime;
+}
+
+/** The working hours of each day of a week, in order, a day it lacks working not at all. */
+export type WorkWeek = Readonly<Partial<Record<Weekday, readonly WorkHours[]>>>;
+
+/** The verbs of working weeks. */
+export const WorkWeek = {
+    /** Read the week whose days work whole but its weekend days, every day working with none. */
+    of(weekend: readonly Weekday[]): WorkWeek {
+        const whole: readonly WorkHours[] = [{ start: "00:00", end: "24:00" }];
+
+        return Object.fromEntries(
+            WEEKDAYS.filter((day) => !weekend.includes(day)).map((day) => [day, whole]),
+        );
+    },
+
+    /** Report whether a weekday has working hours. */
+    isWorkingDay(week: WorkWeek, day: Weekday): boolean {
+        return (week[day] ?? []).length > 0;
+    },
+};
+
+/** The working time of a zone by a working week, as lags, lengths and tracks count it. */
 export class WorkCalendar {
     /** The zone the days start and end in. */
     readonly timeZone: TimeZone;
-    /** The days of the week that do not count, none to count every millisecond. */
-    readonly weekend: readonly Weekday[];
+    /** The working hours of each weekday. */
+    readonly week: WorkWeek;
     /** The blocks listed most recently, by their index from the epoch, the least recent first. */
     readonly #blocks = new Map<number, CalendarBlock>();
 
-    /** Count working time in a zone without its weekend days, refusing a week without work. */
-    constructor(timeZone: TimeZone, weekend: readonly Weekday[]) {
-        if (new Set(weekend).size >= WEEK_DAYS) {
+    /** Count working time in a zone by a week, refusing hours out of order or no work at all. */
+    constructor(timeZone: TimeZone, week: WorkWeek) {
+        // refuse each day's hours that run backward or overlap
+        for (const day of WEEKDAYS) {
+            const hours = week[day] ?? [];
+            const isOrdered = hours.every(
+                (each, index) =>
+                    minutesOf(each.start) < minutesOf(each.end) &&
+                    (index === 0 || minutesOf(nth(hours, index - 1).end) <= minutesOf(each.start)),
+            );
+            if (!isOrdered) {
+                throw new RangeError(
+                    `work calendar is invalid: the hours of day '${String(day)}' overlap or run backward`,
+                );
+            }
+        }
+
+        // refuse a week without working time
+        if (!WEEKDAYS.some((day) => WorkWeek.isWorkingDay(week, day))) {
             throw new RangeError("work calendar is invalid: its week has no working day");
         }
         this.timeZone = timeZone;
-        this.weekend = weekend;
+        this.week = week;
     }
 
-    /** Report whether an instant falls on a working day. */
+    /** Report whether an instant falls in working time: within a working day's hours. */
     isWorking(at: number): boolean {
         return this.#spanAt(at, "start") === undefined;
     }
@@ -148,30 +198,29 @@ class CalendarBlock {
     /** The working time in the whole block. */
     readonly working: number;
 
-    /** List the non-working days of a calendar from a block's first instant. */
+    /** List the non-working time of a calendar from a block's first instant. */
     constructor(start: number, calendar: WorkCalendar) {
-        // step through the block's days, reading each midnight once, none without a weekend
-        const { timeZone, weekend } = calendar;
+        // step through the block's days, reading the zone only for days with time off
+        const { timeZone, week } = calendar;
         const end = start + CALENDAR_BLOCK;
         const last = TimeZone.date(timeZone, end - 1);
         const spans: TimeScale[] = [];
-        let day = TimeZone.date(timeZone, start);
-        let midnight = TimeZone.instant(timeZone, day, "00:00");
-        while (weekend.length > 0 && day <= last) {
-            const next = PlainDate.add(day, { days: 1 });
-            const nextMidnight = TimeZone.instant(timeZone, next, "00:00");
-            const from = Math.max(midnight, start);
-            const to = Math.min(nextMidnight, end);
-            const previous = spans.at(-1);
-
-            // join a non-working day to the span before it, or open a span
-            if (weekend.includes(PlainDate.dayOfWeek(day)) && previous?.end === from) {
-                spans[spans.length - 1] = { start: previous.start, end: to };
-            } else if (weekend.includes(PlainDate.dayOfWeek(day)) && to > from) {
-                spans.push({ start: from, end: to });
+        for (
+            let day = TimeZone.date(timeZone, start);
+            day <= last;
+            day = PlainDate.add(day, { days: 1 })
+        ) {
+            for (const gap of gapsOf(day, week[PlainDate.dayOfWeek(day)] ?? [], timeZone)) {
+                // cut the gap to the block, then join it to the span before it or open a span
+                const from = Math.max(gap.start, start);
+                const to = Math.min(gap.end, end);
+                const previous = spans.at(-1);
+                if (previous?.end === from && to > from) {
+                    spans[spans.length - 1] = { start: previous.start, end: to };
+                } else if (to > from) {
+                    spans.push({ start: from, end: to });
+                }
             }
-            day = next;
-            midnight = nextMidnight;
         }
 
         // sum the non-working time before each span, and the working time left
@@ -223,4 +272,39 @@ class CalendarBlock {
                 : span.start < at && at <= span.end,
         );
     }
+}
+
+/** Read the minutes after midnight of a working time, "24:00" a whole day's. */
+function minutesOf(time: PlainTime): number {
+    return time === "24:00" ? DAY_MINUTES : PlainTime.minutes(time);
+}
+
+/** List the time off a day has around its working hours, none for a day working whole. */
+function gapsOf(day: PlainDate, hours: readonly WorkHours[], timeZone: TimeZone): TimeScale[] {
+    // skip a day working from midnight to midnight
+    const [first] = hours;
+    if (hours.length === 1 && first?.start === "00:00" && first.end === "24:00") {
+        return [];
+    }
+
+    // read each boundary in the zone, then pair the time off between the working hours
+    const next = PlainDate.add(day, { days: 1 });
+    const instantOf = (time: PlainTime) =>
+        time === "24:00"
+            ? TimeZone.instant(timeZone, next, "00:00")
+            : TimeZone.instant(timeZone, day, time);
+    const edges = [
+        TimeZone.instant(timeZone, day, "00:00"),
+        ...hours.flatMap((each) => [instantOf(each.start), instantOf(each.end)]),
+        TimeZone.instant(timeZone, next, "00:00"),
+    ];
+    const gaps: TimeScale[] = [];
+    for (let index = 0; index < edges.length; index += 2) {
+        const gap = { start: nth(edges, index), end: nth(edges, index + 1) };
+        if (gap.end > gap.start) {
+            gaps.push(gap);
+        }
+    }
+
+    return gaps;
 }

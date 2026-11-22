@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { WorkCalendar } from "./calendar.ts";
+import { WorkCalendar, WorkWeek } from "./calendar.ts";
 import { Schedule, type ScheduleLink, type ScheduleTask } from "./schedule.ts";
 import type { Weekday } from "./plain.ts";
 
@@ -163,7 +163,7 @@ test("start a task waiting on one that ends on Friday on Monday, and end it at a
         { from: "design", to: "build", type: "finish-to-start", lag: 0 },
         { from: "build", to: "test", type: "finish-to-start", lag: 0 },
     ];
-    const calendar = new WorkCalendar("UTC", WEEKEND);
+    const calendar = new WorkCalendar("UTC", WorkWeek.of(WEEKEND));
     const moved = new Schedule(tasks, links, { calendar }).move([
         { key: "design", start: at(3), end: at(7) },
     ]);
@@ -184,7 +184,7 @@ test("push a task in working time over the weekend, keeping its working length",
     const links: readonly ScheduleLink[] = [
         { from: "design", to: "build", type: "finish-to-start", lag: 0 },
     ];
-    const calendar = new WorkCalendar("UTC", WEEKEND);
+    const calendar = new WorkCalendar("UTC", WorkWeek.of(WEEKEND));
     const moved = new Schedule(tasks, links, { calendar }).move([
         { key: "design", start: at(3), end: at(6) },
     ]);
@@ -268,7 +268,7 @@ test("start a milestone after a task ending on Friday on Monday, its end on its 
     const links: readonly ScheduleLink[] = [
         { from: "design", to: "review", type: "finish-to-start", lag: 0 },
     ];
-    const calendar = new WorkCalendar("UTC", WEEKEND);
+    const calendar = new WorkCalendar("UTC", WorkWeek.of(WEEKEND));
     const moved = new Schedule(tasks, links, { calendar }).move([
         { key: "design", start: at(3), end: at(7) },
     ]);

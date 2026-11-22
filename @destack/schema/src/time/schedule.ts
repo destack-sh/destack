@@ -1,6 +1,6 @@
 import { nth } from "../collection/index.ts";
 import * as schema from "../validate/index.ts";
-import { WorkCalendar } from "./calendar.ts";
+import { WorkCalendar, WorkWeek } from "./calendar.ts";
 
 /** Which edges a link joins, after MS Project's four dependency types. */
 export const ScheduleLinkType = schema.enum([
@@ -136,7 +136,7 @@ export class Schedule<Task extends ScheduleTask> {
         // order the tasks, then index them and their links in that order
         this.tasks = ordered(tasks, links);
         this.links = links;
-        this.#calendar = options.calendar ?? new WorkCalendar("UTC", []);
+        this.#calendar = options.calendar ?? new WorkCalendar("UTC", WorkWeek.of([]));
         this.#indexes = new Map(this.tasks.map((task, index) => [task.key, index]));
         this.#nodes = this.tasks.map((task) => ({ task, incoming: [], outgoing: [], latest: 0 }));
         for (const link of links) {
