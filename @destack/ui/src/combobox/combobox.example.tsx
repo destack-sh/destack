@@ -33,8 +33,11 @@ export const comboboxMoveNoteOpen = defineExample({
     of: Combobox,
     name: "move-note-open",
     description: "the notebook combobox with its list of options open",
-    render: () => (
-        <Combobox defaultOpen>
+    properties: {
+        defaultOpen: true,
+    },
+    render: (properties) => (
+        <Combobox {...properties}>
             <ComboboxInput aria-label="Notebook" placeholder="Move to notebook" />
             <ComboboxContent>
                 <ComboboxEmpty>No notebook found</ComboboxEmpty>
@@ -71,8 +74,12 @@ export const comboboxFindPersonLoading = defineExample({
     of: Combobox,
     name: "find-person-loading",
     description: "a combobox that searches people while their matches load",
-    render: () => (
-        <Combobox shouldFilter={false} defaultOpen>
+    properties: {
+        filter: null,
+        defaultOpen: true,
+    },
+    render: (properties) => (
+        <Combobox {...properties}>
             <ComboboxInput aria-label="Person" placeholder="Find a person" />
             <ComboboxContent>
                 <ComboboxLoading>Searching…</ComboboxLoading>
@@ -96,6 +103,21 @@ export const comboboxMoveNoteInvalid = defineExample({
             <ComboboxContent>
                 <ComboboxItem value="Trips">Trips</ComboboxItem>
                 <ComboboxItem value="Work">Work</ComboboxItem>
+            </ComboboxContent>
+        </Combobox>
+    ),
+});
+
+/** The notebook combobox unavailable. */
+export const comboboxMoveNoteDisabled = defineExample({
+    of: Combobox,
+    name: "move-note-disabled",
+    description: "the notebook combobox unavailable",
+    render: () => (
+        <Combobox>
+            <ComboboxInput aria-label="Notebook" placeholder="Move to notebook" disabled />
+            <ComboboxContent>
+                <ComboboxItem value="Trips">Trips</ComboboxItem>
             </ComboboxContent>
         </Combobox>
     ),

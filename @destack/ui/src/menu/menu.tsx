@@ -1,8 +1,18 @@
+import { state } from "@destack/theme/state";
 import { Icon } from "@destack/ui/icon";
 import caretLeft from "@destack/icon/phosphor/caret-left";
 import caretRight from "@destack/icon/phosphor/caret-right";
 import * as style from "@destack/style";
-import { color, radius, shadow, space, stroke, weight } from "@destack/theme/tokens.stylex";
+import {
+    color,
+    radius,
+    shadow,
+    space,
+    stroke,
+    weight,
+    size,
+    swatch,
+} from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import {
     type Accessor,
@@ -11,6 +21,7 @@ import {
     createEffect,
     createSignal,
     createUniqueId,
+    onCleanup,
     type JSX,
     merge,
     omit,
@@ -59,33 +70,30 @@ const styles = style.create({
         borderColor: color.border,
         borderRadius: radius[3],
         backgroundColor: color.popover,
-        color: color.popoverForeground,
+        color: color.foreground,
         boxShadow: shadow.overlay,
     },
     item: {
         position: "relative",
         display: "flex",
         alignItems: "center",
+        minHeight: size[2],
         gap: space[2],
         paddingBlock: space[1],
         paddingInline: space[2],
         borderRadius: radius[2],
         outlineStyle: "none",
-        backgroundColor: { default: "transparent", ":focus": color.accent },
-        color: { default: "inherit", ":focus": color.accentForeground },
+        backgroundColor: { default: "transparent", ":focus": color.selected },
+        color: { default: "inherit", ":focus": color.foreground },
         cursor: "default",
         userSelect: "none",
     },
     destructive: {
-        color: { default: color.destructive, ":focus": color.destructive },
+        color: { default: swatch.destructiveText, ":focus": swatch.destructiveText },
         backgroundColor: {
             default: "transparent",
-            ":focus": `color-mix(in oklab, ${color.destructive} 10%, transparent)`,
+            ":focus": swatch.destructiveTint,
         },
-    },
-    disabled: {
-        opacity: 0.5,
-        pointerEvents: "none",
     },
     inset: {
         paddingInlineStart: space[6],
@@ -180,6 +188,9 @@ export class MenuControl {
         this.#children = new Set();
         this.#setOpen = setOpen;
         this.#setPoint = setPoint;
+
+        // stop placing the overlay and drop its anchor once its owner goes away
+        onCleanup(() => this.#unplace());
     }
 
     /** Set the element that opens the menu and anchors it. */
@@ -443,7 +454,7 @@ export function MenuContent(properties: MenuContentProperties): JSX.Element {
                 onFocusOut={(event) => control.list.focus.focusOut(event)}
                 {...style.attributes(
                     [
-                        text.xs,
+                        text.sm,
                         styles.content,
                         Position.beside(content.side, content.align),
                         Position.offset(content.sideOffset),
@@ -500,7 +511,7 @@ export function MenuItem(properties: MenuItemProperties): JSX.Element {
                     styles.item,
                     properties.variant === "destructive" && styles.destructive,
                     properties.inset === true && styles.inset,
-                    properties.disabled === true && styles.disabled,
+                    properties.disabled === true && state.inert,
                     properties.xstyle,
                 ],
                 properties.style,
@@ -540,7 +551,8 @@ export function MenuCheckboxItem(properties: MenuCheckboxItemProperties): JSX.El
             tabindex={-1}
             aria-checked={properties.checked ? "true" : "false"}
             aria-disabled={properties.disabled === true ? "true" : undefined}
-            data-state={properties.checked ? "checked" : "unchecked"}
+            data-checked={properties.checked ? "" : undefined}
+            data-unchecked={properties.checked ? undefined : ""}
             data-disabled={properties.disabled === true ? "" : undefined}
             data-menu-item=""
             data-slot="menu-checkbox-item"
@@ -560,7 +572,7 @@ export function MenuCheckboxItem(properties: MenuCheckboxItemProperties): JSX.El
                 [
                     styles.item,
                     styles.inset,
-                    properties.disabled === true && styles.disabled,
+                    properties.disabled === true && state.inert,
                     properties.xstyle,
                 ],
                 properties.style,
@@ -625,7 +637,8 @@ export function MenuRadioItem(properties: MenuRadioItemProperties): JSX.Element 
             tabindex={-1}
             aria-checked={isChecked() ? "true" : "false"}
             aria-disabled={properties.disabled === true ? "true" : undefined}
-            data-state={isChecked() ? "checked" : "unchecked"}
+            data-checked={isChecked() ? "" : undefined}
+            data-unchecked={isChecked() ? undefined : ""}
             data-disabled={properties.disabled === true ? "" : undefined}
             data-menu-item=""
             data-slot="menu-radio-item"
@@ -645,7 +658,7 @@ export function MenuRadioItem(properties: MenuRadioItemProperties): JSX.Element 
                 [
                     styles.item,
                     styles.inset,
-                    properties.disabled === true && styles.disabled,
+                    properties.disabled === true && state.inert,
                     properties.xstyle,
                 ],
                 properties.style,
@@ -752,7 +765,7 @@ export function MenuSubTrigger(
                 [
                     styles.item,
                     properties.inset === true && styles.inset,
-                    properties.disabled === true && styles.disabled,
+                    properties.disabled === true && state.inert,
                     properties.xstyle,
                 ],
                 properties.style,

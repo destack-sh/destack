@@ -17,7 +17,6 @@ import {
     untrack,
     useContext,
 } from "@destack/view";
-import { Button, type ButtonProperties } from "../button/index.ts";
 import { transition } from "@destack/theme/motion";
 import { LayerStack, TopLayer } from "../layer/index.ts";
 import { Timeout } from "@destack/view/primitives/timer";
@@ -121,6 +120,12 @@ export class PopoverControl {
         this.#isShown = false;
         this.#unplace = () => undefined;
         this.#detach = () => undefined;
+
+        // stop placing the popover and drop its anchor once its owner goes away
+        onCleanup(() => {
+            this.#unplace();
+            this.#detach();
+        });
     }
 
     /** Set the button that opens the popover. */
@@ -254,7 +259,7 @@ export class PopoverControl {
 /** A popover that opens while its trigger is hovered or focused. */
 export class HoverPopover extends PopoverControl {
     /** The wait before a hovered trigger opens the popover, in milliseconds. */
-    readonly openDelay: Accessor<number>;
+    readonly delay: Accessor<number>;
     /** The wait before a trigger the pointer left closes the popover, in milliseconds. */
     readonly closeDelay: Accessor<number>;
     /** The pending open or close. */
@@ -263,19 +268,19 @@ export class HoverPopover extends PopoverControl {
     /** Create a popover that waits the given delays and cancels them when its owner disposes. */
     constructor(
         properties: HoverPopoverProperties,
-        openDelay: Accessor<number>,
+        delay: Accessor<number>,
         closeDelay: Accessor<number>,
     ) {
-        // keep the delays, cancelling a pending change on disposal
+        // set the delays, cancelling a pending change on disposal
         super(properties);
-        this.openDelay = openDelay;
+        this.delay = delay;
         this.closeDelay = closeDelay;
         this.#timer = new Timeout();
     }
 
     /** Open the popover after the open delay. */
     openLater(): void {
-        this.#timer.set(() => this.open(), this.openDelay());
+        this.#timer.set(() => this.open(), this.delay());
     }
 
     /** Close the popover after the close delay. */
@@ -313,11 +318,9 @@ export interface PopoverProperties {
 /** The properties of a popover that opens on hover, which is never modal. */
 export type HoverPopoverProperties = Omit<PopoverProperties, "modal">;
 
-/** The properties of a popover's trigger, a button's properties included. */
-export type PopoverTriggerProperties = Omit<ButtonProperties, "ref" | "onClick"> & {
-    /** Handle a click before the button opens a modal popover. */
-    readonly onClick?: (event: MouseEvent) => void;
-};
+/** The properties of a popover's trigger, a native button's attributes included. */
+export type PopoverTriggerProperties = ElementPartProperties &
+    Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, "class" | "style" | "ref">;
 
 /** The properties of a popover's content. */
 export interface PopoverContentProperties extends Omit<
@@ -355,43 +358,32 @@ export function Popover(properties: PopoverProperties): JSX.Element {
     );
 }
 
-/** Render a button that toggles its popover, which anchors to the button. */
+/** Render the element that toggles its popover and anchors it, a button by default. */
 export function PopoverTrigger(properties: PopoverTriggerProperties): JSX.Element {
+    // open a modal popover by script, else through the platform's popover target
     const popover = usePopover();
 
-    return (
-        <Show
-            when={popover.isModal()}
-            fallback={
-                <Button
-                    id={`${popover.id}-trigger`}
-                    data-slot="popover-trigger"
-                    data-state={popover.isOpen() ? "open" : "closed"}
-                    popovertarget={popover.id}
-                    aria-haspopup="dialog"
-                    aria-controls={popover.id}
-                    {...properties}
-                    ref={(element) => popover.setTrigger(element)}
-                />
+    return renderPart("button", "popover-trigger", properties, [], {
+        type: "button",
+        id: `${popover.id}-trigger`,
+        get "data-popup-open"() {
+            return popover.isOpen() ? "" : undefined;
+        },
+        get popovertarget() {
+            return popover.isModal() ? undefined : popover.id;
+        },
+        "aria-haspopup": "dialog",
+        get "aria-expanded"() {
+            return popover.isModal() ? (popover.isOpen() ? "true" : "false") : undefined;
+        },
+        "aria-controls": popover.id,
+        ref: (element: HTMLElement) => popover.setTrigger(element),
+        onClick: () => {
+            if (popover.isModal()) {
+                popover.open();
             }
-        >
-            <Button
-                id={`${popover.id}-trigger`}
-                data-slot="popover-trigger"
-                data-state={popover.isOpen() ? "open" : "closed"}
-                aria-haspopup="dialog"
-                aria-expanded={popover.isOpen() ? "true" : "false"}
-                aria-controls={popover.id}
-                {...properties}
-                ref={(element) => popover.setTrigger(element)}
-                onClick={(event) => {
-                    // run the caller's handler before opening the modal popover
-                    properties.onClick?.(event);
-                    popover.open();
-                }}
-            />
-        </Show>
-    );
+        },
+    });
 }
 
 /** Render content in the top layer beside its trigger, labelled by the trigger. */
@@ -419,7 +411,8 @@ export function PopoverContent(properties: PopoverContentProperties): JSX.Elemen
                             popover.isDescribed() ? `${popover.id}-description` : undefined
                         }
                         data-slot="popover-content"
-                        data-state={popover.isOpen() ? "open" : "closed"}
+                        data-open={popover.isOpen() ? "" : undefined}
+                        data-closed={popover.isOpen() ? undefined : ""}
                         data-side={content.side}
                         data-align={content.align}
                         {...rest}
@@ -450,7 +443,8 @@ export function PopoverContent(properties: PopoverContentProperties): JSX.Elemen
                         popover.isDescribed() ? `${popover.id}-description` : undefined
                     }
                     data-slot="popover-content"
-                    data-state={popover.isOpen() ? "open" : "closed"}
+                    data-open={popover.isOpen() ? "" : undefined}
+                    data-closed={popover.isOpen() ? undefined : ""}
                     data-side={content.side}
                     data-align={content.align}
                     {...modalRest}
@@ -489,24 +483,17 @@ export function PopoverAnchor(properties: PopoverElementProperties<HTMLDivElemen
     });
 }
 
-/** Render a button that closes its popover. */
+/** Render the element that closes its popover, a button by default. */
 export function PopoverClose(properties: PopoverTriggerProperties): JSX.Element {
     const popover = usePopover();
 
-    return (
-        <Button
-            data-slot="popover-close"
-            {...properties}
-            onClick={(event) => {
-                // run the caller's handler before closing the popover
-                properties.onClick?.(event);
-                popover.close();
-            }}
-        />
-    );
+    return renderPart("button", "popover-close", properties, [], {
+        type: "button",
+        onClick: () => popover.close(),
+    });
 }
 
-/** Render the top of a popover that holds its title and description. */
+/** Render the top of a popover with its title and description. */
 export function PopoverHeader(properties: PopoverElementProperties<HTMLDivElement>): JSX.Element {
     return renderPart("div", "popover-header", properties, styles.header);
 }

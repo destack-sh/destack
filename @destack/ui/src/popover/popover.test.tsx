@@ -15,21 +15,40 @@ import { markup, render } from "@destack/view/test";
 test("toggle a popover from its trigger through the platform's popover target, anchored to the trigger by name", () => {
     const { container } = render(() => (
         <Popover>
-            <PopoverTrigger variant="outline">Share</PopoverTrigger>
+            <PopoverTrigger>Share</PopoverTrigger>
             <PopoverContent align="start">Anyone with the link can view.</PopoverContent>
         </Popover>
     ));
     expect(markup(container)).toBe(
-        '<button data-slot="popover-trigger" data-variant="outline" data-size="default" id="id-1-trigger" data-state="closed" popovertarget="id-1" aria-haspopup="dialog" aria-controls="id-1" style="anchor-name: --id-1;">Share</button>' +
-            '<div style="position-anchor: --id-1;" id="id-1" popover="auto" role="dialog" aria-labelledby="id-1-trigger" data-slot="popover-content" data-state="closed" data-side="bottom" data-align="start">Anyone with the link can view.</div>',
+        '<button data-slot="popover-trigger" type="button" id="id-1-trigger" popovertarget="id-1" aria-haspopup="dialog" aria-controls="id-1" data-anchor-name="--id-1">Share</button>' +
+            '<div data-position-anchor="--id-1" id="id-1" popover="auto" role="dialog" aria-labelledby="id-1-trigger" data-slot="popover-content" data-closed="" data-side="bottom" data-align="start">Anyone with the link can view.</div>',
     );
+});
+
+test("drop a popover's anchor and its rule once the popover unmounts", () => {
+    // render a popover, read its rule, then unmount it
+    const { container, unmount } = render(() => (
+        <Popover>
+            <PopoverTrigger>Share</PopoverTrigger>
+            <PopoverContent align="start">Anyone with the link can view.</PopoverContent>
+        </Popover>
+    ));
+    const name = container
+        .querySelector("[data-slot=popover-trigger]")
+        ?.getAttribute("data-anchor-name");
+    const rules = () =>
+        document.head.querySelectorAll(`style[data-anchor-rule="${String(name)}"]`).length;
+    const mounted = rules();
+    unmount();
+
+    expect({ mounted, unmounted: rules() }).toEqual({ mounted: 1, unmounted: 0 });
 });
 
 test("open a modal popover as a modal dialog anchored by name on top of the stack, and refocus its trigger once the platform closes it", () => {
     const changes: boolean[] = [];
     const { container } = render(() => (
         <Popover modal onOpenChange={(open) => changes.push(open)}>
-            <PopoverTrigger variant="outline">Share</PopoverTrigger>
+            <PopoverTrigger>Share</PopoverTrigger>
             <PopoverContent align="start">
                 <button type="button">Copy link</button>
             </PopoverContent>
@@ -54,13 +73,13 @@ test("open a modal popover as a modal dialog anchored by name on top of the stac
         document.activeElement === trigger,
         changes,
     ]).toEqual([
-        '<button data-slot="popover-trigger" data-variant="outline" data-size="default" id="id-1-trigger" data-state="closed" aria-haspopup="dialog" aria-expanded="false" aria-controls="id-1">Share</button>' +
-            '<dialog id="id-1" closedby="any" aria-labelledby="id-1-trigger" data-slot="popover-content" data-state="closed" data-side="bottom" data-align="start"><button type="button">Copy link</button></dialog>',
+        '<button data-slot="popover-trigger" type="button" id="id-1-trigger" aria-haspopup="dialog" aria-expanded="false" aria-controls="id-1">Share</button>' +
+            '<dialog id="id-1" closedby="any" aria-labelledby="id-1-trigger" data-slot="popover-content" data-closed="" data-side="bottom" data-align="start"><button type="button">Copy link</button></dialog>',
         [
             true,
             true,
-            '<button data-slot="popover-trigger" data-variant="outline" data-size="default" id="id-1-trigger" data-state="open" aria-haspopup="dialog" aria-expanded="true" aria-controls="id-1" style="anchor-name: --id-1;">Share</button>' +
-                '<dialog id="id-1" closedby="any" aria-labelledby="id-1-trigger" data-slot="popover-content" data-state="open" data-side="bottom" data-align="start" open="" style="position-anchor: --id-1;"><button type="button">Copy link</button></dialog>',
+            '<button data-slot="popover-trigger" type="button" id="id-1-trigger" aria-haspopup="dialog" aria-expanded="true" aria-controls="id-1" data-popup-open="" data-anchor-name="--id-1">Share</button>' +
+                '<dialog id="id-1" closedby="any" aria-labelledby="id-1-trigger" data-slot="popover-content" data-side="bottom" data-align="start" data-open="" open="" data-position-anchor="--id-1"><button type="button">Copy link</button></dialog>',
         ],
         false,
         undefined,
@@ -73,7 +92,7 @@ test("place a modal popover beside its anchor, name it by its title, and close i
     const { container } = render(() => (
         <Popover modal>
             <PopoverAnchor>Row</PopoverAnchor>
-            <PopoverTrigger variant="outline">Edit</PopoverTrigger>
+            <PopoverTrigger>Edit</PopoverTrigger>
             <PopoverContent>
                 <PopoverTitle>Rename</PopoverTitle>
                 <PopoverDescription>Names show in every list.</PopoverDescription>
@@ -85,7 +104,7 @@ test("place a modal popover beside its anchor, name it by its title, and close i
     flush();
     const content = container.querySelector("dialog");
     const anchored = [
-        container.querySelector("[data-slot=popover-anchor]")?.getAttribute("style"),
+        container.querySelector("[data-slot=popover-anchor]")?.getAttribute("data-anchor-name"),
         content?.getAttribute("aria-labelledby"),
         content?.getAttribute("aria-describedby"),
     ];
@@ -94,7 +113,7 @@ test("place a modal popover beside its anchor, name it by its title, and close i
 
     const id = content?.id ?? "";
     expect([anchored, content?.open]).toEqual([
-        [`anchor-name: --${id};`, `${id}-title`, `${id}-description`],
+        [`--${id}`, `${id}-title`, `${id}-description`],
         false,
     ]);
 });

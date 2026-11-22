@@ -1,4 +1,5 @@
 import { defineExample } from "@destack/package/declare";
+import { Button } from "../button/index.ts";
 import { Field, FieldLabel } from "../field/index.ts";
 import { Input } from "../input/index.ts";
 import {
@@ -18,7 +19,9 @@ export const popoverImageSize = defineExample({
     description: "a popover that edits the size of an image in a note",
     render: () => (
         <Popover>
-            <PopoverTrigger variant="outline">Size</PopoverTrigger>
+            <PopoverTrigger render={(attributes) => <Button {...attributes} variant="outline" />}>
+                Size
+            </PopoverTrigger>
             <PopoverContent align="start">
                 <Field orientation="horizontal">
                     <FieldLabel>Width</FieldLabel>
@@ -39,7 +42,9 @@ export const popoverImageSizeOpen = defineExample({
     },
     render: (properties) => (
         <Popover {...properties}>
-            <PopoverTrigger variant="outline">Size</PopoverTrigger>
+            <PopoverTrigger render={(attributes) => <Button {...attributes} variant="outline" />}>
+                Size
+            </PopoverTrigger>
             <PopoverContent align="start">
                 <Field orientation="horizontal">
                     <FieldLabel>Width</FieldLabel>
@@ -61,13 +66,17 @@ export const popoverRenameModal = defineExample({
     },
     render: (properties) => (
         <Popover {...properties}>
-            <PopoverTrigger variant="outline">Rename</PopoverTrigger>
+            <PopoverTrigger render={(attributes) => <Button {...attributes} variant="outline" />}>
+                Rename
+            </PopoverTrigger>
             <PopoverContent align="start">
                 <Field>
                     <FieldLabel>Title</FieldLabel>
                     <Input name="title" value="Groceries" />
                 </Field>
-                <PopoverClose>Save</PopoverClose>
+                <PopoverClose render={(attributes) => <Button {...attributes} />}>
+                    Save
+                </PopoverClose>
             </PopoverContent>
         </Popover>
     ),
@@ -84,7 +93,9 @@ export const popoverLinkSharing = defineExample({
     },
     render: (properties) => (
         <Popover {...properties}>
-            <PopoverTrigger variant="outline">Share</PopoverTrigger>
+            <PopoverTrigger render={(attributes) => <Button {...attributes} variant="outline" />}>
+                Share
+            </PopoverTrigger>
             <PopoverContent align="end">
                 <PopoverHeader>
                     <PopoverTitle>Link sharing</PopoverTitle>
@@ -92,7 +103,9 @@ export const popoverLinkSharing = defineExample({
                         Anyone with the link can view this note.
                     </PopoverDescription>
                 </PopoverHeader>
-                <PopoverClose variant="outline">Done</PopoverClose>
+                <PopoverClose render={(attributes) => <Button {...attributes} variant="outline" />}>
+                    Done
+                </PopoverClose>
             </PopoverContent>
         </Popover>
     ),

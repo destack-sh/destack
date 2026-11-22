@@ -168,13 +168,13 @@ export const comboboxCloseAndClearOnEscape = defineScenario({
     ],
 });
 
-/** Choose several tags, keeping the list open, and drop the last with Backspace. */
+/** Choose several tags with the list open, and drop the last with Backspace. */
 export const comboboxChooseSeveralAndDropLast = defineScenario({
     of: Combobox,
     interaction: viewInteraction,
     name: "choose-several-and-drop-last",
     description:
-        "add tags to a multiple combobox with Enter, keeping its list open, and drop the last chip with Backspace from the empty input",
+        "add tags to a multiple combobox with Enter, its list open, and drop the last chip with Backspace from the empty input",
     given: { examples: [comboboxTagNote] },
     parameters: {},
     when: [

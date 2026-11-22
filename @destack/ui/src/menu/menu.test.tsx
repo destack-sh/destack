@@ -132,7 +132,7 @@ test("run a chosen item's action and close every menu, returning the focus to th
     });
 });
 
-test("ignore a disabled item and keep the menu open for an action that prevents the default", () => {
+test("ignore a disabled item and leave the menu open for an action that prevents the default", () => {
     const chosen: string[] = [];
     const [container, menu] = drawMenu(() => (
         <>

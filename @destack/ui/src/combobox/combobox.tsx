@@ -12,6 +12,7 @@ import {
     type JSX,
     merge,
     omit,
+    onCleanup,
     Show,
     untrack,
     useContext,
@@ -59,7 +60,7 @@ const styles = style.create({
     },
     input: {
         width: "100%",
-        height: size[3],
+        height: size[2],
         cursor: { default: "text", ":disabled": "not-allowed" },
     },
     content: {
@@ -73,7 +74,7 @@ const styles = style.create({
         borderColor: color.border,
         borderRadius: radius[3],
         backgroundColor: color.popover,
-        color: color.popoverForeground,
+        color: color.foreground,
         boxShadow: shadow.overlay,
     },
 });
@@ -113,16 +114,16 @@ export class ComboboxControl {
             onChange: (isNext) => properties.onOpenChange?.(isNext),
         });
         this.autocomplete = new AutocompleteControl({
-            get shouldFilter() {
-                return properties.shouldFilter;
+            get filter() {
+                return properties.filter;
             },
-            get search() {
+            get value() {
                 return properties.inputValue;
             },
-            get defaultSearch() {
+            get defaultValue() {
                 return properties.defaultInputValue;
             },
-            onSearchChange: (search) => properties.onInputValueChange?.(search),
+            onValueChange: (typed) => properties.onInputValueChange?.(typed),
         });
 
         // choose an option's value with its text from the list box
@@ -139,6 +140,9 @@ export class ComboboxControl {
         this.#input = undefined;
         this.#content = undefined;
         this.#unplace = () => undefined;
+
+        // stop placing the overlay and drop its anchor once its owner goes away
+        onCleanup(() => this.#unplace());
     }
 
     /** Return the text of a chosen value, the value itself when it was chosen elsewhere. */
@@ -195,7 +199,7 @@ export class ComboboxControl {
             return;
         }
 
-        // keep a single combobox's value and close the list on its text
+        // set a single combobox's value and close the list on its text
         this.selection.add(value);
         this.autocomplete.type(label);
         this.open(false);
@@ -221,8 +225,10 @@ export type ComboboxProperties = {
     readonly inputValue?: string;
     /** The text in the input at first while uncontrolled, empty by default. */
     readonly defaultInputValue?: string;
-    /** Whether the list filters its options by the typed text, or its owner does. */
-    readonly shouldFilter?: boolean;
+    /** Report whether an option matches the typed text, null where the owner filters. */
+    readonly filter?:
+        | ((value: string, text: string, keywords: readonly string[]) => boolean)
+        | null;
     /** Handle the person typing, such as to load the options that match. */
     readonly onInputValueChange?: (text: string) => void;
     /** Handle the person creating an option from the typed text through `ComboboxCreate`. */
@@ -294,7 +300,7 @@ export function ComboboxInput(
             autocomplete: "off",
             ref: (element: HTMLInputElement) => control.setInput(element),
             get value() {
-                return control.autocomplete.search();
+                return control.autocomplete.value();
             },
             onInput: (event: InputEvent & { readonly currentTarget: HTMLInputElement }) => {
                 // filter by the typed text and show the matches
@@ -328,7 +334,7 @@ export function ComboboxContent(
                 {...properties}
                 ref={(element) => control.setContent(element)}
                 xstyle={[
-                    text.xs,
+                    text.sm,
                     styles.content,
                     Position.beside("bottom", "start"),
                     properties.xstyle,
@@ -353,7 +359,7 @@ export function ComboboxItem(properties: ListBoxItemProperties): JSX.Element {
         <ComboboxItemContext value={isChosen}>
             <ListBoxItem
                 data-slot="combobox-item"
-                data-state={isChosen() ? "checked" : "unchecked"}
+                data-selected={isChosen() ? "" : undefined}
                 {...properties}
             />
         </ComboboxItemContext>
@@ -368,7 +374,7 @@ export interface ComboboxItemIndicatorProperties extends ComboboxElementProperti
     JSX.HTMLAttributes<HTMLSpanElement>
 > {
     /** Whether the indicator stays rendered while its item is not chosen, for animating it. */
-    readonly forceMount?: boolean;
+    readonly keepMounted?: boolean;
 }
 
 /** Render the check of the nearest combobox item, shown while its value is chosen. */
@@ -378,13 +384,13 @@ export function ComboboxItemIndicator(properties: ComboboxItemIndicatorPropertie
     if (isChosen === null) {
         throw new TypeError("a combobox item indicator needs a combobox item around it");
     }
-    const rest = omit(properties, "forceMount", "xstyle", "style", "children");
+    const rest = omit(properties, "keepMounted", "xstyle", "style", "children");
 
     return (
-        <Show when={properties.forceMount === true || isChosen()}>
+        <Show when={properties.keepMounted === true || isChosen()}>
             <span
                 data-slot="combobox-item-indicator"
-                data-state={isChosen() ? "checked" : "unchecked"}
+                data-selected={isChosen() ? "" : undefined}
                 {...rest}
                 {...style.attributes([styles.indicator, properties.xstyle], properties.style)}
             >
@@ -443,7 +449,7 @@ function steer(event: KeyboardEvent, control: ComboboxControl, direction: Direct
     else if (
         event.key === "Backspace" &&
         control.properties.multiple === true &&
-        control.autocomplete.search() === ""
+        control.autocomplete.value() === ""
     ) {
         const last = control.selection.values().at(-1);
         if (last !== undefined) {
@@ -548,7 +554,7 @@ export function ComboboxCreate(properties: {
     // offer the option while the typed text matches no item
     const control = useCombobox();
     const locale = useLocale();
-    const typed = (): string => control.autocomplete.search().trim();
+    const typed = (): string => control.autocomplete.value().trim();
 
     return (
         <Show when={control.isNew(typed())}>

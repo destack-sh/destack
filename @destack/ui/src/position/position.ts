@@ -98,6 +98,18 @@ const areas = style.create({
     },
 });
 
+/** The attribute that names an anchor, which a rule turns into its anchor name. */
+const ANCHOR_ATTRIBUTE = "data-anchor-name";
+
+/** The attribute that names an overlay's anchor, which a rule turns into its position anchor. */
+const ANCHORED_ATTRIBUTE = "data-position-anchor";
+
+/** The attribute that marks the rule of an anchor's name. */
+const RULE_ATTRIBUTE = "data-anchor-rule";
+
+/** The attribute that counts the overlays sharing an anchor's rule. */
+const USES_ATTRIBUTE = "data-anchor-uses";
+
 /** The placement of an overlay beside an anchor or at a point. */
 export const Position = {
     /** Return the StyleX styles that place an overlay beside its anchor on a side and alignment. */
@@ -127,14 +139,32 @@ export const Position = {
             return () => undefined;
         }
 
-        // set the anchor's name explicitly, as an implicit anchor reaches no further than Chrome
-        const name = `--${id}`;
-        anchor.style.setProperty("anchor-name", name);
-        content.style.setProperty("position-anchor", name);
+        // name the anchor explicitly, as an implicit anchor reaches no further than Chrome
+        const name = anchor.getAttribute(ANCHOR_ATTRIBUTE) ?? `--${id}`;
+        anchor.setAttribute(ANCHOR_ATTRIBUTE, name);
+        content.setAttribute(ANCHORED_ATTRIBUTE, name);
+
+        // join them by one rule per anchor in the page, counting the overlays that share it
+        const selector = `style[${RULE_ATTRIBUTE}="${name}"]`;
+        const rule = document.head.querySelector<HTMLStyleElement>(selector) ?? ruleOf(name);
+        rule.setAttribute(USES_ATTRIBUTE, String(usesOf(rule) + 1));
+        let isAttached = true;
 
         return () => {
-            anchor.style.removeProperty("anchor-name");
-            content.style.removeProperty("position-anchor");
+            // detach once, however often the owner asks
+            if (!isAttached) {
+                return;
+            }
+            isAttached = false;
+
+            // drop the overlay, and the anchor's name and rule with its last overlay
+            content.removeAttribute(ANCHORED_ATTRIBUTE);
+            const uses = usesOf(rule) - 1;
+            rule.setAttribute(USES_ATTRIBUTE, String(uses));
+            if (uses === 0) {
+                rule.remove();
+                anchor.removeAttribute(ANCHOR_ATTRIBUTE);
+            }
         };
     },
 
@@ -239,4 +269,26 @@ function physicalSide(side: string, isRightToLeft: boolean): PhysicalSide {
 /** Keep a coordinate between the viewport's start and the largest one that fits. */
 function clamp(value: number, largest: number): number {
     return Math.max(0, Math.min(value, largest));
+}
+
+/** Add the rule that turns an anchor's name into its anchor name and its overlays' anchor. */
+function ruleOf(name: string): HTMLStyleElement {
+    // mark the rule by the name, no overlay sharing it yet
+    const rule = document.createElement("style");
+    rule.setAttribute(RULE_ATTRIBUTE, name);
+    rule.setAttribute(USES_ATTRIBUTE, "0");
+    rule.textContent = `[${ANCHOR_ATTRIBUTE}="${name}"] { anchor-name: ${name}; } [${ANCHORED_ATTRIBUTE}="${name}"] { position-anchor: ${name}; }`;
+    document.head.append(rule);
+
+    return rule;
+}
+
+/** Count the overlays sharing an anchor's rule. */
+function usesOf(rule: HTMLStyleElement): number {
+    const uses = rule.getAttribute(USES_ATTRIBUTE);
+    if (uses === null) {
+        throw new TypeError("anchor rule is invalid: it counts no overlays");
+    }
+
+    return Number(uses);
 }
