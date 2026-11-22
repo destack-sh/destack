@@ -1,5 +1,5 @@
 import { DeclarationReference } from "@destack/package/declare";
-import { type Accessor, onCleanup, useContext } from "solid-js";
+import { type Accessor, createSignal, onCleanup, type Setter, useContext } from "solid-js";
 import type { ObjectReference } from "@destack/sync";
 import { t } from "@destack/locale";
 import { type Action, defineAction } from "@destack/object";
@@ -31,8 +31,8 @@ export const palette = defineAction({
 
 /** What runs an action, and when: while focus is within an element, and while it is enabled. */
 export interface ActionHandler {
-    /** Run the action. */
-    readonly run: () => Promise<void> | void;
+    /** Run the action where the focus was. */
+    readonly run: (focus: Element | null) => Promise<void> | void;
     /** The element focus is within for the handler to run, as the responder chain picks it. */
     readonly within?: Accessor<Element | undefined>;
     /** Whether the handler runs now, read reactively, as a menu item validates. */
@@ -47,6 +47,17 @@ export class ActionRegistry {
     readonly #handlers = new Map<string, ActionHandler[]>();
     /** Read the objects the person selected in the page, absent while no component tracks them. */
     #selection: (() => readonly ObjectReference[]) | undefined;
+    /** Count the changes to the handlers, which readers of the actions follow. */
+    readonly #revision: Accessor<number>;
+    /** Replace the count of changes. */
+    readonly #setRevision: Setter<number>;
+
+    /** Create a page's registry without handlers. */
+    constructor() {
+        const [revision, setRevision] = createSignal(0, { ownedWrite: true });
+        this.#revision = revision;
+        this.#setRevision = setRevision;
+    }
 
     /** Handle an action while focus and its enablement allow, and return what stops handling it. */
     handle(action: Action, handler: ActionHandler): () => void {
@@ -54,6 +65,7 @@ export class ActionRegistry {
         const key = DeclarationReference.key(action.reference);
         this.#actions.set(key, action);
         this.#handlers.set(key, [...(this.#handlers.get(key) ?? []), handler]);
+        this.#changed();
 
         return () => {
             const left = (this.#handlers.get(key) ?? []).filter((each) => each !== handler);
@@ -63,32 +75,33 @@ export class ActionRegistry {
             } else {
                 this.#handlers.set(key, left);
             }
+            this.#changed();
         };
     }
 
     /** Report whether an action runs now: an enabled handler of it applies to the focus. */
-    has(reference: DeclarationReference): boolean {
-        return this.#chosen(DeclarationReference.key(reference)) !== undefined;
+    has(reference: DeclarationReference, focus: Element | null): boolean {
+        return this.#chosen(DeclarationReference.key(reference), focus) !== undefined;
     }
 
-    /** List the actions that run now. */
-    actions(): Action[] {
+    /** List the actions that run for a focus, as handlers come and go. */
+    actions(focus: Element | null): Action[] {
         return [...this.#actions].flatMap(([key, action]) =>
-            this.#chosen(key) === undefined ? [] : [action],
+            this.#chosen(key, focus) === undefined ? [] : [action],
         );
     }
 
-    /** Run an action by the handler the focus chooses. */
-    async run(reference: DeclarationReference): Promise<void> {
+    /** Run an action by the handler a focus chooses, handing it the focus. */
+    async run(reference: DeclarationReference, focus: Element | null): Promise<void> {
         // find the handler the focus chooses
         const key = DeclarationReference.key(reference);
-        const handler = this.#chosen(key);
+        const handler = this.#chosen(key, focus);
         if (handler === undefined) {
             throw new TypeError(`the page runs no action '${key}' now`);
         }
 
-        // run it
-        await handler.run();
+        // run it where the focus was
+        await handler.run(focus);
     }
 
     /** Track the objects the person selects, refusing a second component tracking them. */
@@ -111,10 +124,17 @@ export class ActionRegistry {
         return [...(this.#selection?.() ?? [])];
     }
 
+    /** Tell readers of the actions that the handlers changed. */
+    #changed(): void {
+        this.#setRevision((count) => count + 1);
+    }
+
     /** Choose an action's handler: the innermost around the focus, else the page's latest. */
-    #chosen(key: string): ActionHandler | undefined {
+    #chosen(key: string, focus: Element | null): ActionHandler | undefined {
+        // follow the handlers as they come and go
+        this.#revision();
+
         // take the enabled handlers, and the elements around the focus of those within one
-        const focus = document.activeElement;
         const enabled = (this.#handlers.get(key) ?? []).filter(
             (handler) => handler.isEnabled?.() ?? true,
         );
@@ -133,6 +153,11 @@ export class ActionRegistry {
 
         return innermost?.handler ?? enabled.findLast((handler) => handler.within === undefined);
     }
+}
+
+/** Read the actions the running page's components handle. */
+export function useActions(): ActionRegistry {
+    return useContext(ViewMountContext).actions;
 }
 
 /** Handle an action of the running page while the calling component is mounted. */

@@ -187,7 +187,7 @@ export async function mount(
         },
         isEnabled: pageUndo.canRedo,
     });
-    actions.handle(palette, { run: () => overlay.open() });
+    actions.handle(palette, { run: (focus) => overlay.open(focus) });
 
     // restyle on each change, render again in a new language and follow the keybindings
     void (async () => {

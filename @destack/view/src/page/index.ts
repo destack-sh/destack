@@ -16,4 +16,5 @@ export {
     redo,
     registerSelection,
     undo,
+    useActions,
 } from "./action.ts";

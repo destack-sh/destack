@@ -2,7 +2,7 @@ import { InstallationOrigin } from "@destack/account/address";
 import { DeclarationName, OriginPath, PackageId } from "@destack/package";
 import { type Identifier, schema } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
-import { Shortcut } from "@destack/object";
+import { Shortcut } from "@destack/locale";
 import { OBJECT_PARAMETER, TARGET_PARAMETER } from "../declare/context.ts";
 
 /** How strongly a title matching the query from its start ranks. */

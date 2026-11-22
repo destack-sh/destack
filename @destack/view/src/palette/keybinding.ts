@@ -1,10 +1,7 @@
 import { DeclarationReference } from "@destack/package/declare";
-import { Shortcut } from "@destack/object";
+import { Shortcut } from "@destack/locale";
 import { schema } from "@destack/schema";
 import { ActionFocus } from "@destack/object";
-
-/** The user agents of platforms whose `mod` key is Command. */
-const COMMAND_PLATFORM = /Mac|iPhone|iPad/u;
 
 /** A key combination running an action, outside form fields or anywhere. */
 const keybinding = schema.object({
@@ -42,8 +39,3 @@ export const ActionDeclaration = DeclarationReference.extend({
 });
 /** An action calling a method that a package declares, with its key combination. */
 export type ActionDeclaration = schema.Infer<typeof ActionDeclaration>;
-
-/** Report whether the browser runs on a platform whose `mod` key is Command. */
-export function isCommandPlatform(): boolean {
-    return COMMAND_PLATFORM.test(navigator.userAgent);
-}

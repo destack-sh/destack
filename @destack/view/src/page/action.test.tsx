@@ -1,6 +1,6 @@
 import { t } from "@destack/locale";
 import { expect, onTestFinished, test } from "@destack/test";
-import { createSignal, flush } from "solid-js";
+import { createMemo, createSignal, flush } from "solid-js";
 import { defineAction } from "@destack/object";
 import { ActionRegistry } from "./action.ts";
 
@@ -36,8 +36,7 @@ test("run an action by the handler around the focus, else the page's, and only w
 
     // run with focus outside both, in the inner editor without and with a selection, then once it stops
     const press = async (focused: HTMLElement) => {
-        focused.focus();
-        await actions.run(bold.reference);
+        await actions.run(bold.reference, focused);
     };
     await press(other);
     await press(inner);
@@ -57,20 +56,58 @@ test("list and offer only the actions that run now, refusing one none runs", asy
     actions.handle(bold, { run: () => {}, isEnabled });
 
     // read it enabled, then disabled
-    const listed = actions.actions().map((action) => action.name);
+    const listed = actions.actions(null).map((action) => action.name);
     setEnabled(false);
     flush();
-    const refused = await actions.run(bold.reference).catch((error: unknown) => String(error));
+    const refused = await actions
+        .run(bold.reference, null)
+        .catch((error: unknown) => String(error));
 
     expect({
         listed,
-        has: actions.has(bold.reference),
-        after: actions.actions(),
+        has: actions.has(bold.reference, null),
+        after: actions.actions(null),
         refused,
     }).toEqual({
         listed: ["bold"],
         has: false,
         after: [],
         refused: `TypeError: the page runs no action '${bold.package.id}/bold' now`,
+    });
+});
+
+test("list the actions for a focus as handlers come and go, and hand the focus to the one that runs", async () => {
+    // handle bold within an editor while it stays handled
+    const ran: (Element | null)[] = [];
+    const editor = document.createElement("textarea");
+    document.body.append(editor);
+    onTestFinished(() => editor.remove());
+    const actions = new ActionRegistry();
+    const listed = createMemo(() => actions.actions(editor).map((action) => action.name));
+    const before = listed();
+    const stop = actions.handle(bold, {
+        run: (focus) => void ran.push(focus),
+        within: () => editor,
+    });
+    flush();
+    const during = listed();
+
+    // run it in the editor, then stop handling it
+    await actions.run(bold.reference, editor);
+    stop();
+    flush();
+
+    expect({
+        before,
+        during,
+        after: listed(),
+        ran,
+        handled: actions.has(bold.reference, editor),
+    }).toEqual({
+        before: [],
+        during: ["bold"],
+        after: [],
+        ran: [editor],
+        handled: false,
     });
 });

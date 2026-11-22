@@ -1,9 +1,8 @@
 import { DeclarationKey } from "@destack/package/declare";
 import { schema } from "@destack/schema";
 import { defineSetting } from "@destack/setting/declare";
-import { Shortcut } from "@destack/object";
 import { PaletteSource } from "./entry.ts";
-import { t } from "@destack/locale";
+import { Shortcut, t } from "@destack/locale";
 
 /** The key combination that opens the command palette from anywhere. */
 export const shortcut = defineSetting({

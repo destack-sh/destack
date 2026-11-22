@@ -1,10 +1,9 @@
-import type { LocaleTag } from "@destack/locale";
+import type { LocaleTag, Shortcut } from "@destack/locale";
 import type { PackageId } from "@destack/package";
 import { principal } from "@destack/access";
 import { schema } from "@destack/schema";
 import type { DeviceSettingValue, SettingValue } from "@destack/setting/object";
 import { type Theme } from "@destack/theme";
-import type { Shortcut } from "@destack/object";
 import type { ViewContext } from "../declare/context.ts";
 import { keybindings, sources } from "../palette/index.ts";
 import { DISPLAY_SETTINGS, resolveDisplay } from "../setting/display.ts";

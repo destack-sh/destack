@@ -1,14 +1,13 @@
 import { OriginPath } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
 import { present } from "@destack/schema";
-import { Shortcut } from "@destack/object";
-import { type ActionDeclaration, isCommandPlatform, Keybinding } from "./keybinding.ts";
+import { type ActionDeclaration, Keybinding } from "./keybinding.ts";
 import type { ActionEntry } from "./entry.ts";
 import { PaletteMessage } from "./message.ts";
 import { type ActionRegistry, redo, undo } from "../page/action.ts";
 import type { Presentation } from "../browser/presentation.ts";
 import { ACTION_PARAMETER, FOCUS_PARAMETER } from "../declare/context.ts";
-import { type Localization, t } from "@destack/locale";
+import { type Localization, Shortcut, t } from "@destack/locale";
 import * as style from "@destack/style";
 import { color, radius, shadow } from "@destack/theme/tokens.stylex";
 import type { Navigation } from "@destack/environment/browser";
@@ -78,28 +77,30 @@ export class PaletteOverlay {
     /** Run what the person's keys bind until aborted: a handled action, else the palette at it. */
     listen(signal: AbortSignal): void {
         // run each press the person's key combinations bind
-        const isCommand = isCommandPlatform();
+        const isCommand = Shortcut.isCommand(navigator.userAgent);
         const listener = (event: KeyboardEvent) => {
-            // find the binding the keys run, leaving any other press to the page
-            const binding = PaletteOverlay.#find(this.keybindings(), event, isCommand);
+            // find the binding the keys run where they were pressed, leaving any other press to the page
+            const focus = event.target instanceof Element ? event.target : null;
+            const binding = PaletteOverlay.#find(this.keybindings(focus), event, isCommand);
             if (binding === undefined) {
                 return;
             }
             event.preventDefault();
 
-            // run a handled action in the page, else open the palette at the action
-            if (this.#actions.has(binding.action)) {
+            // run a handled action there, else open the palette at the action
+            if (this.#actions.has(binding.action, focus)) {
                 void this.#actions
-                    .run(binding.action)
+                    .run(binding.action, focus)
                     .catch((error: unknown) => globalThis.reportError(error));
             } else {
-                this.open(binding.action);
+                this.open(focus, binding.action);
             }
         };
         window.addEventListener("keydown", listener, { signal });
 
-        // run the Edit menu's undo or redo: the focused field's, else the page's
+        // run the Edit menu's undo or redo where the platform's focus is: the field's, else the page's
         const perform = (event: Event) => {
+            const focus = document.activeElement;
             const action = EDIT_ACTIONS.find(
                 (each) => event instanceof CustomEvent && each.name === event.detail,
             );
@@ -108,25 +109,25 @@ export class PaletteOverlay {
                 throw new TypeError("the desktop chose an action outside the Edit menu");
             }
             // run the focused field's
-            else if (PaletteOverlay.#isField(document.activeElement)) {
+            else if (PaletteOverlay.#isField(focus)) {
                 PaletteOverlay.#edit(action.name);
             }
             // run the page's, leaving a disabled one to nothing as a greyed menu item does
-            else if (this.#actions.has(action.reference)) {
+            else if (this.#actions.has(action.reference, focus)) {
                 void this.#actions
-                    .run(action.reference)
+                    .run(action.reference, focus)
                     .catch((error: unknown) => globalThis.reportError(error));
             }
         };
         window.addEventListener(ACTION_EVENT, perform, { signal });
     }
 
-    /** List the page's key combinations: its handled actions', then its package's offered ones'. */
-    keybindings(): Keybinding[] {
+    /** List the key combinations at a focus: its handled actions', then the package's offered. */
+    keybindings(focus: Element | null): Keybinding[] {
         // bind each handled action, and each declared one while the person offers them
         const { keybindings: overrides, isOffered } = this.#presentation();
         const actions = this.#actions
-            .actions()
+            .actions(focus)
             .map((action) =>
                 Keybinding.of(
                     action.reference,
@@ -143,8 +144,8 @@ export class PaletteOverlay {
         return [...actions, ...declared].filter((binding) => binding !== undefined);
     }
 
-    /** Open the palette over the page in a modal dialog framing its space's origin. */
-    open(action?: DeclarationReference): void {
+    /** Open the palette over a focus in a modal dialog framing its space's origin. */
+    open(focus: Element | null, action?: DeclarationReference): void {
         // open the palette over this page through the open path, at an action when one is asked for
         const query = new URLSearchParams({ [FOCUS_PARAMETER]: this.#navigation.currentEntry.url });
         if (action !== undefined) {
@@ -177,7 +178,7 @@ export class PaletteOverlay {
             "message",
             (event) => {
                 if (event.source === frame.contentWindow) {
-                    void this.#answer(event.data, frame, dialog).catch((error: unknown) =>
+                    void this.#answer(event.data, frame, dialog, focus).catch((error: unknown) =>
                         globalThis.reportError(error),
                     );
                 }
@@ -197,6 +198,7 @@ export class PaletteOverlay {
         data: unknown,
         frame: HTMLIFrameElement,
         dialog: HTMLDialogElement,
+        focus: Element | null,
     ): Promise<void> {
         // close the palette
         const message = PaletteMessage.parse(data);
@@ -207,16 +209,16 @@ export class PaletteOverlay {
         else if (message.action === "actions.list") {
             const listed: PaletteMessage = {
                 action: "actions.listed",
-                actions: this.#entries(),
+                actions: this.#entries(focus),
                 selection: this.#actions.selection(),
             };
             const target = present(frame.contentWindow, "the palette's frame window");
             target.postMessage(listed, new URL(frame.src).origin);
         }
-        // run an action once the palette closes, in the page the person acted on
+        // run an action once the palette closes, where the person was when it opened
         else if (message.action === "action.run") {
             dialog.close();
-            await this.#actions.run(message.reference);
+            await this.#actions.run(message.reference, focus);
         }
         // refuse a message only the page sends
         else {
@@ -255,17 +257,17 @@ export class PaletteOverlay {
         document.execCommand(command);
     }
 
-    /** List the handled actions as the palette offers them, with the person's key combinations. */
-    #entries(): ActionEntry[] {
+    /** List the actions handled at a focus as the palette offers them, with their keys. */
+    #entries(focus: Element | null): ActionEntry[] {
         const localization = this.#localization();
         const bound = new Map(
-            this.keybindings().map((binding) => [
+            this.keybindings(focus).map((binding) => [
                 DeclarationReference.key(binding.action),
                 binding.key,
             ]),
         );
 
-        return this.#actions.actions().map((action) => ({
+        return this.#actions.actions(focus).map((action) => ({
             kind: "action",
             packageId: action.package.id,
             name: action.reference.name,

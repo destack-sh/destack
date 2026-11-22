@@ -1,10 +1,9 @@
-import { Localization, SOURCE_LOCALE, t } from "@destack/locale";
+import { Localization, Shortcut, SOURCE_LOCALE, t } from "@destack/locale";
 import { PackageId } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
 import { expect, onTestFinished, test } from "@destack/test";
 import { defineAction } from "@destack/object";
 import { ActionRegistry, undo } from "../page/action.ts";
-import { isCommandPlatform } from "./keybinding.ts";
 import type { PaletteMessage } from "./message.ts";
 import { PaletteOverlay } from "./overlay.ts";
 
@@ -42,6 +41,9 @@ const send = defineAction({
     focus: "any",
 });
 
+/** Bold the text of an editor. */
+const bold = defineAction({ name: "bold", title: t`Bold` });
+
 /** Open a palette over a page with a selected note, three handled actions and an archive. */
 function palette(overrides: Readonly<Record<string, string | null>> = {}) {
     // handle the actions and listen on the page
@@ -68,7 +70,7 @@ function palette(overrides: Readonly<Record<string, string | null>> = {}) {
     onTestFinished(() => stopping.abort());
     overlay.listen(stopping.signal);
 
-    return { overlay, ran, stop: () => stopping.abort() };
+    return { overlay, actions, ran, stop: () => stopping.abort() };
 }
 
 /** Read the palette's dialog and frame from the document. */
@@ -88,6 +90,13 @@ function run(action: typeof copyLink): PaletteMessage {
     return { action: "action.run", reference: action.reference };
 }
 
+/** Read the names of the actions the page listed to a palette's frame. */
+function listedNames(sent: readonly PaletteMessage[]): string[] {
+    return sent.flatMap((message) =>
+        message.action === "actions.listed" ? message.actions.map((action) => action.name) : [],
+    );
+}
+
 /** Choose undo in the desktop's Edit menu, which dispatches it to the focused page. */
 function chooseUndo(): void {
     window.dispatchEvent(new CustomEvent("destack:action", { detail: "undo" }));
@@ -103,7 +112,7 @@ function post(data: PaletteMessage, source: unknown): void {
 test("list the page's actions and its selection to the palette's frame, run the ones it chooses, and ignore other windows", () => {
     // open the palette and answer its frame's list request, recording what the page sends it
     const { overlay, ran } = palette();
-    overlay.open();
+    overlay.open(null);
     const { dialog, frame } = opened();
     const sent: unknown[] = [];
     const target = frame.contentWindow;
@@ -119,7 +128,7 @@ test("list the page's actions and its selection to the palette's frame, run the 
     post(run(copyLink), target);
 
     // open the palette again and run the zoom action from its new frame
-    overlay.open();
+    overlay.open(null);
     const again = opened();
     post(run(zoom), again.frame.contentWindow);
 
@@ -151,9 +160,45 @@ test("list the page's actions and its selection to the palette's frame, run the 
     });
 });
 
+test("list and run the actions handled where the person was when the palette opened", () => {
+    // handle bold in an editor, and record what the page sends each palette's frame
+    const { overlay, actions, ran } = palette();
+    const editor = document.createElement("textarea");
+    document.body.append(editor);
+    onTestFinished(() => editor.remove());
+    actions.handle(bold, { run: () => void ran.push("bold"), within: () => editor });
+    const list = (focus: Element | null) => {
+        const sent: PaletteMessage[] = [];
+        overlay.open(focus);
+        const { dialog, frame } = opened();
+        const target = frame.contentWindow;
+        if (target === null) {
+            throw new TypeError("the palette's frame has no window");
+        }
+        target.postMessage = (message: PaletteMessage) => void sent.push(message);
+        post({ action: "actions.list" }, target);
+
+        return { sent, target, dialog };
+    };
+
+    // list from the page and close that palette, then list from the editor and run bold from it
+    const atPage = list(null);
+    atPage.dialog.close();
+    const atEditor = list(editor);
+    post(run(bold), atEditor.target);
+
+    expect({ atPage: listedNames(atPage.sent), atEditor: listedNames(atEditor.sent), ran }).toEqual(
+        {
+            atPage: ["copy-link", "zoom", "send"],
+            atEditor: ["copy-link", "zoom", "send", "bold"],
+            ran: ["bold"],
+        },
+    );
+});
+
 test("run an action on its keys, on the person's keys once rebound, from a field or editable text only when bound anywhere, and open the palette at a declared action", () => {
     // press keys on a target as the platform's mod key
-    const isCommand = isCommandPlatform();
+    const isCommand = Shortcut.isCommand(navigator.userAgent);
     const press = (key: string, target: EventTarget = window) =>
         target.dispatchEvent(
             new KeyboardEvent("keydown", {
