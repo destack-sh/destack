@@ -1,5 +1,10 @@
-import { type Attributes, SeverityNumber, SpanStatusCode } from "@opentelemetry/api";
-import type { ReadableSpan, SpanProcessor } from "@opentelemetry/sdk-trace";
+import {
+    type Attributes,
+    type ContextManager,
+    SeverityNumber,
+    SpanStatusCode,
+} from "@opentelemetry/api";
+import { type ReadableSpan, type SpanProcessor, TracerProvider } from "@opentelemetry/sdk-trace";
 import {
     SPAN_ELAPSED_ATTRIBUTE,
     SPAN_LEVEL_ATTRIBUTE,
@@ -11,9 +16,12 @@ import { type ExportResult, ExportResultCode } from "@opentelemetry/core";
 import {
     type LogRecordExporter,
     type LogRecordProcessor,
+    LoggerProvider,
     type ReadableLogRecord,
     SimpleLogRecordProcessor,
 } from "@opentelemetry/sdk-logs";
+import type { Clock } from "../clock/clock.ts";
+import { Telemetry } from "./telemetry.ts";
 
 /** The variable naming the lowest level a process prints locally, info when absent. */
 export const LOG_LEVEL_VARIABLE = "DESTACK_LOG_LEVEL";
@@ -74,6 +82,21 @@ export class LineExporter {
             onEnd: (span) => this.#end(span),
             forceFlush: () => Promise.resolve(),
             shutdown: () => Promise.resolve(),
+        };
+    }
+
+    /** Make telemetry writing log records and info spans as lines through this exporter. */
+    telemetry(clock: Clock, context: ContextManager): Telemetry {
+        return {
+            ...Telemetry.none(clock, context),
+            tracers: new TracerProvider({ spanProcessors: [this.spans] }),
+            loggers: new LoggerProvider({ processors: [this.processor] }),
+            // write the spans another process ended, such as a compiler's, as lines too
+            ingest: (spans) => {
+                for (const span of spans) {
+                    this.spans.onEnd(span);
+                }
+            },
         };
     }
 

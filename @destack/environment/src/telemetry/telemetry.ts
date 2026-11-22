@@ -2,10 +2,16 @@ import { Clock } from "../clock/clock.ts";
 import {
     type Context,
     type ContextManager,
+    createNoopLogger,
+    createNoopMeter,
     type Link,
+    INVALID_SPAN_CONTEXT,
     type LoggerProvider,
     type MeterProvider,
     ROOT_CONTEXT,
+    type Span,
+    type SpanOptions,
+    type Tracer,
     type TextMapGetter,
     type TextMapPropagator,
     type TextMapSetter,
@@ -17,10 +23,7 @@ import {
     W3CBaggagePropagator,
     W3CTraceContextPropagator,
 } from "@opentelemetry/core";
-import * as logs from "@opentelemetry/sdk-logs";
-import * as metrics from "@opentelemetry/sdk-metrics";
-import * as traces from "@opentelemetry/sdk-trace";
-import { LineExporter, type LineExporterOptions } from "./line.ts";
+import type { ReadableSpan } from "@opentelemetry/sdk-trace";
 
 /** The setter writing trace fields into HTTP headers. */
 const HEADERS_SETTER: TextMapSetter<Headers> = {
@@ -55,45 +58,23 @@ export interface Telemetry {
     /** The clock durations are measured on: the host's, also in a simulated world. */
     readonly monotonic: Pick<Clock, "now">;
     /** Take spans another process ended, such as a sandboxed worker's, into this pipeline. */
-    readonly ingest: (spans: readonly traces.ReadableSpan[]) => void;
+    readonly ingest: (spans: readonly ReadableSpan[]) => void;
 }
 
 /** Telemetry sources, and the trace context HTTP headers carry between processes. */
 export const Telemetry = {
-    /** Export nothing, until an entry point gives an environment providers that export. */
+    /** Record nothing, until an entry point gives an environment providers that export. */
     none(clock: Clock, context: ContextManager = new RootContextManager()): Telemetry {
         return {
-            tracers: new traces.TracerProvider(),
-            meters: new metrics.MeterProvider(),
-            loggers: new logs.LoggerProvider(),
+            tracers: { getTracer: () => new NoopTracer() },
+            meters: { getMeter: () => createNoopMeter() },
+            loggers: { getLogger: () => createNoopLogger() },
             propagator: W3C_PROPAGATOR,
             context,
             clock,
             monotonic: Clock.monotonic,
             // drop another process's spans, as this telemetry exports nothing
             ingest: () => {},
-        };
-    },
-
-    /** Write log records and info spans as lines to the runtime's own log, exporting nothing. */
-    local(
-        clock: Clock,
-        write: ConstructorParameters<typeof LineExporter>[0],
-        context: ContextManager,
-        options: LineExporterOptions = LineExporter.options({}),
-    ): Telemetry {
-        const exporter = new LineExporter(write, options);
-
-        return {
-            ...Telemetry.none(clock, context),
-            tracers: new traces.TracerProvider({ spanProcessors: [exporter.spans] }),
-            loggers: new logs.LoggerProvider({ processors: [exporter.processor] }),
-            // write the spans another process ended, such as a compiler's, as lines too
-            ingest: (spans) => {
-                for (const span of spans) {
-                    exporter.spans.onEnd(span);
-                }
-            },
         };
     },
 
@@ -119,6 +100,45 @@ export const Telemetry = {
         return telemetry.propagator.extract(ROOT_CONTEXT, headers, HEADERS_GETTER);
     },
 };
+
+/** A tracer recording nothing, every span it starts being the invalid, non-recording one. */
+class NoopTracer implements Tracer {
+    /** Start the non-recording span. */
+    startSpan(): Span {
+        return trace.wrapSpanContext(INVALID_SPAN_CONTEXT);
+    }
+
+    /** Run a function with the non-recording span. */
+    startActiveSpan<Run extends (span: Span) => unknown>(name: string, run: Run): ReturnType<Run>;
+    /** Run a function with the non-recording span, ignoring its options. */
+    startActiveSpan<Run extends (span: Span) => unknown>(
+        name: string,
+        options: SpanOptions,
+        run: Run,
+    ): ReturnType<Run>;
+    /** Run a function with the non-recording span, ignoring its options and context. */
+    startActiveSpan<Run extends (span: Span) => unknown>(
+        name: string,
+        options: SpanOptions,
+        context: Context,
+        run: Run,
+    ): ReturnType<Run>;
+    /** Run the last argument with the non-recording span. */
+    startActiveSpan<Run extends (span: Span) => ReturnType<Run>>(
+        _name: string,
+        ...rest: [Run] | [SpanOptions, Run] | [SpanOptions, Context, Run]
+    ): ReturnType<Run> {
+        // run the function alone, after its options, or after its options and context
+        const span = this.startSpan();
+        if (rest.length === 1) {
+            return rest[0](span);
+        } else if (rest.length === 2) {
+            return rest[1](span);
+        } else {
+            return rest[2](span);
+        }
+    }
+}
 
 /** A context manager keeping no context active, for an environment that traces nothing. */
 class RootContextManager implements ContextManager {

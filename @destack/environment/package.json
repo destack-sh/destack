@@ -9,6 +9,7 @@
     "exports": {
         ".": "./src/index.ts",
         "./bun": "./src/bun.ts",
+        "./line": "./src/telemetry/line.ts",
         "./browser": "./src/browser/index.ts",
         "./baseline": "./src/browser/baseline/install.ts",
         "./simulation": "./src/simulation/index.ts",

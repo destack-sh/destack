@@ -2,7 +2,6 @@ import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-ho
 import { SeverityNumber } from "@opentelemetry/api";
 import { expect, test } from "@destack/test";
 import { Clock } from "../clock/clock.ts";
-import { Telemetry } from "./telemetry.ts";
 import { LineExporter } from "./line.ts";
 import { SpanRunner } from "./runner.ts";
 import { SpanPath } from "./span.ts";
@@ -10,9 +9,8 @@ import { SpanPath } from "./span.ts";
 test("write each record to the runtime's log as one line with its time, severity and attributes, an exception with its type, message and stack", async () => {
     // log an event and an exception to a runtime's log
     const lines: [string, SeverityNumber][] = [];
-    const telemetry = Telemetry.local(
+    const telemetry = new LineExporter((line, severity) => lines.push([line, severity])).telemetry(
         Clock.system,
-        (line, severity) => lines.push([line, severity]),
         new AsyncLocalStorageContextManager().enable(),
     );
     const logger = telemetry.loggers.getLogger("@example/notes");
@@ -52,9 +50,8 @@ test("write each record to the runtime's log as one line with its time, severity
 test("write each info span as one line once it ends with its trace, a failed one as an error, and leave debug spans out", async () => {
     // run an info span, a failing info span and a debug span on a runtime's log
     const lines: string[] = [];
-    const telemetry = Telemetry.local(
+    const telemetry = new LineExporter((line) => lines.push(line)).telemetry(
         Clock.system,
-        (line) => lines.push(line),
         new AsyncLocalStorageContextManager().enable(),
     );
     const span = SpanRunner.of(
@@ -103,12 +100,10 @@ test("write each info span as one line once it ends with its trace, a failed one
 test("write each record as one JSON object when the options ask for json", () => {
     // log an event through a JSON line exporter
     const lines: string[] = [];
-    const telemetry = Telemetry.local(
-        Clock.system,
+    const telemetry = new LineExporter(
         (line) => lines.push(line),
-        new AsyncLocalStorageContextManager().enable(),
         LineExporter.options({ DESTACK_LOG_FORMAT: "json" }),
-    );
+    ).telemetry(Clock.system, new AsyncLocalStorageContextManager().enable());
     telemetry.loggers.getLogger("@example/notes").emit({
         eventName: "note.saved",
         timestamp: Date.UTC(2026, 10, 18, 12, 4, 31),

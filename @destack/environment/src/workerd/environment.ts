@@ -2,7 +2,6 @@ import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-ho
 import { Clock } from "../clock/clock.ts";
 import { Environment } from "../environment/environment.ts";
 import { Network } from "../network/network.ts";
-import { Telemetry } from "../telemetry/telemetry.ts";
 import { LineExporter } from "../telemetry/line.ts";
 
 /** The system's environment on workerd, built on its first read. */
@@ -17,11 +16,13 @@ export const WorkerdEnvironment = {
     get system(): WorkerdEnvironment {
         // build the isolate's base once: logging to its console, writing errors as errors
         if (system === undefined) {
-            const telemetry = Telemetry.local(
-                Clock.system,
+            const exporter = new LineExporter(
                 (line, severity) => LineExporter.console(line, severity),
-                new AsyncLocalStorageContextManager().enable(),
                 LineExporter.options(process.env),
+            );
+            const telemetry = exporter.telemetry(
+                Clock.system,
+                new AsyncLocalStorageContextManager().enable(),
             );
             const base = { ...Environment.system, network: Network.workerd };
             system = Environment.instrument(base, telemetry);
