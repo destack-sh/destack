@@ -6,7 +6,7 @@ import type { Given, SetStep } from "@destack/package/declare";
 import { type JsonValue, present, schema } from "@destack/schema";
 import { type Driver, expect, inject } from "@destack/test";
 import type { JSX } from "@solidjs/web";
-import { type Browser, chromium, type Page } from "playwright";
+import { type Browser, chromium, type Page, type Response } from "playwright";
 import { STAGE } from "../example/stage.ts";
 import {
     type Globals,
@@ -99,8 +99,32 @@ export class BrowserDriver implements Driver<Step, Observation> {
         const query = new URLSearchParams({ scenario: `/${relative(root, path)}`, name });
         const now = testBrowser().clock.now();
         await page.clock.install({ time: now });
-        await page.goto(`${origin}${OriginPath.examples}?${query.toString()}`);
-        await page.waitForFunction((exposed) => exposed in globalThis, STAGE);
+
+        // fail at the page's first error or failed script while it loads, naming it
+        const { promise: failed, reject: refuse } = Promise.withResolvers<never>();
+        const onError = (error: Error) => {
+            refuse(new TypeError(`scenario page threw while loading: ${error.message}`));
+        };
+        const onResponse = (response: Response) => {
+            if (response.request().resourceType() === "script" && response.status() >= 400) {
+                const status = String(response.status());
+                refuse(new TypeError(`scenario script '${response.url()}' answered ${status}`));
+            }
+        };
+        page.on("pageerror", onError);
+        page.on("response", onResponse);
+
+        // wait for the stage, then leave later errors to the driver
+        const load = async () => {
+            await page.goto(`${origin}${OriginPath.examples}?${query.toString()}`);
+            await page.waitForFunction((exposed) => exposed in globalThis, STAGE);
+        };
+        try {
+            await Promise.race([load(), failed]);
+        } finally {
+            page.off("pageerror", onError);
+            page.off("response", onResponse);
+        }
 
         // stop the page's time until the scenario pauses
         await page.clock.pauseAt(now + LOAD_TIME);
