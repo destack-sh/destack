@@ -6,7 +6,7 @@ import { RequestId, Page, Scope } from "@destack/sync";
 import { type ObjectRemote, createClient } from "@destack/object/client";
 import { AccessContext, Caller, principal } from "@destack/access";
 import { Digest, type Identifier, present, schema } from "@destack/schema";
-import type { BuildObject, BuildStore } from "@destack/build/store";
+import type { BuildStore } from "@destack/build/store";
 import type { IdentityKeystore } from "@destack/account/identity";
 import type { MethodContext } from "@destack/object";
 import type { MountFetch } from "@destack/object/server";
@@ -335,6 +335,7 @@ export function handoffMount(options: HandoffOptions): MountFetch {
             for (const digest of digests) {
                 await content.requireBlob(record, digest);
             }
+            await content.copyUp(digests);
             const entries = (async function* () {
                 for await (const blob of options.blobs.batch(digests)) {
                     yield { path: blob.digest, size: blob.size, body: blob.body };
@@ -367,6 +368,17 @@ class HandoffContent {
         this.#builds = builds;
     }
 
+    /** Copy up the asked builds only this machine's layer holds, as a target lacking them asks. */
+    async copyUp(digests: readonly Digest[]): Promise<void> {
+        await this.#builds.copyUp(
+            digests.flatMap((digest) => {
+                const layered = this.#builds.layer.object(digest);
+
+                return layered === undefined ? [] : [layered];
+            }),
+        );
+    }
+
     /** Refuse a blob no row of the space references, or one this machine lacks. */
     async requireBlob(record: Transfer, digest: Digest): Promise<void> {
         // take what the transfer read before, else read it again
@@ -380,24 +392,18 @@ class HandoffContent {
         }
     }
 
-    /** List the blobs the space's rows reference that this machine stores, and remember them. */
+    /** List the blobs the space's rows reference that this machine stores or its layer holds. */
     async blobs(record: Transfer): Promise<ReadonlySet<string>> {
-        // copy up the referenced builds only this machine's layer holds
+        // read the referenced blobs this machine can serve: stored, or held by its layer
         const referenced = await this.#blobs.list();
-        const { layer } = this.#builds;
-        await this.#builds.copyUp(
-            referenced.flatMap((digest): Pick<BuildObject, "kind" | "digest">[] =>
-                layer.hasBuild(digest)
-                    ? [{ kind: "manifest" as const, digest }]
-                    : layer.image(digest) === undefined
-                      ? []
-                      : [{ kind: "image" as const, digest }],
+        const missing = new Set<string>(await this.#blobs.missing(referenced));
+        const digests = new Set<string>(
+            referenced.filter(
+                (digest) =>
+                    !missing.has(digest) ||
+                    this.#builds.layer.object(Digest.parse(digest)) !== undefined,
             ),
         );
-
-        // read the referenced blobs this machine stores
-        const missing = new Set<string>(await this.#blobs.missing(referenced));
-        const digests = new Set<string>(referenced.filter((digest) => !missing.has(digest)));
 
         // remember them for the transfer
         this.#read.set(record.scope, { transfer: record.id, digests });

@@ -573,7 +573,7 @@ export class SpaceTransfer {
 
                 // capture the space's rows, copy the blobs they reference and index the builds among them
                 await this.#captureRows(source, fenced, options);
-                await this.#copyBlobs(source, options.blobs, signal);
+                await this.#copyBlobs(source, options, signal);
                 await this.#indexBuilds(options.builds);
 
                 // catch each resource up on what changed since its snapshot
@@ -615,7 +615,7 @@ export class SpaceTransfer {
             // copy the rows' blobs once the replica took its first complete run, index the builds among them, then restore each resource
             await untilAborted(isSynced.promise, following);
             following.throwIfAborted();
-            await this.#copyBlobs(source, options.blobs, signal);
+            await this.#copyBlobs(source, options, signal);
             await this.#indexBuilds(options.builds);
             await this.#prepare(signal, options, store);
 
@@ -652,9 +652,17 @@ export class SpaceTransfer {
         }
     }
 
-    /** Copy the blobs the space's rows reference that the source stores and this machine lacks. */
-    async #copyBlobs(source: Handoff, blobs: BlobStore, signal: AbortSignal): Promise<void> {
-        await blobs.fetch(await source.blobs(this.spaceId, { signal }), {
+    /** Copy the referenced blobs that neither this machine's store nor its layer holds. */
+    async #copyBlobs(
+        source: Handoff,
+        options: TransferOptions,
+        signal: AbortSignal,
+    ): Promise<void> {
+        const referenced = await source.blobs(this.spaceId, { signal });
+        const unresolved = referenced.filter(
+            (digest) => options.builds.layer.object(digest) === undefined,
+        );
+        await options.blobs.fetch(unresolved, {
             batch: (digests) => source.batch(this.spaceId, digests, { signal }),
         });
     }
