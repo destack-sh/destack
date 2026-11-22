@@ -227,6 +227,37 @@ export class PlatformBuild implements AsyncDisposable {
                             ),
                         );
                     }
+
+                    // point the tags at the images released before, as a push of a pushed image moves its tag
+                    const pointing = [tag, ...(options.tags ?? [])];
+                    const { items: tagged } = await registry.tag.list({
+                        spaceId: home,
+                        where: { parentId: { in: items.map((item) => item.parentId) } },
+                    });
+                    const points = items.flatMap((item) =>
+                        pointing
+                            .filter(
+                                (name) =>
+                                    !tagged.some(
+                                        (each) =>
+                                            each.parentId === item.parentId &&
+                                            each.name === name &&
+                                            each.version === item.version,
+                                    ),
+                            )
+                            .map((name) => ({ item, name })),
+                    );
+                    await Promise.all(
+                        points.map(({ item, name }) =>
+                            registry.package.point({
+                                spaceId: home,
+                                id: item.parentId,
+                                requestId: RequestId.create(this.store.environment),
+                                name,
+                                version: item.version,
+                            }),
+                        ),
+                    );
                 }
             },
             { level: "info" },
