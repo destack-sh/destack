@@ -23,7 +23,6 @@ test("list a package's releases in release order with their install fields, and 
                 bin: { notes: "./src/main.ts" },
             }),
             { ...release("2026.9.0"), deprecation: "use 2026.11" },
-            release("2026.11.3-dev.20261103090000.0a0b0c0d0e0f"),
         ],
     );
     expect(packument).toEqual({
@@ -36,14 +35,6 @@ test("list a package's releases in release order with their install fields, and 
                 dist: { tarball: tarball("2026.9.0"), integrity: "sha512-2026.9.0" },
                 deprecated: "use 2026.11",
             },
-            "2026.11.3-dev.20261103090000.0a0b0c0d0e0f": {
-                name: "@acme/notes",
-                version: "2026.11.3-dev.20261103090000.0a0b0c0d0e0f",
-                dist: {
-                    tarball: tarball("2026.11.3-dev.20261103090000.0a0b0c0d0e0f"),
-                    integrity: "sha512-2026.11.3-dev.20261103090000.0a0b0c0d0e0f",
-                },
-            },
             "2026.11.3": {
                 name: "@acme/notes",
                 version: "2026.11.3",
@@ -53,9 +44,5 @@ test("list a package's releases in release order with their install fields, and 
             },
         },
     });
-    expect(Object.keys(packument["versions"] ?? {})).toEqual([
-        "2026.9.0",
-        "2026.11.3-dev.20261103090000.0a0b0c0d0e0f",
-        "2026.11.3",
-    ]);
+    expect(Object.keys(packument["versions"] ?? {})).toEqual(["2026.9.0", "2026.11.3"]);
 });

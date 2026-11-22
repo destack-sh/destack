@@ -33,8 +33,8 @@ export const release = defineObject(
             npm: field.json(NpmRelease),
             /** The stored tarball npm clients download: the release's sources. */
             tarball: field.blob(),
-            /** The full Git SHA-1 or SHA-256 commit identifier, absent for some prereleases. */
-            commit: field.string().optional(),
+            /** The full Git SHA-1 or SHA-256 commit identifier the release was built from. */
+            commit: field.string(),
             /** The warning installers show for the release, absent while it is not deprecated. */
             deprecation: field.string(DeprecationMessage).optional(),
             /** When the release was yanked: new installs skip it, exact pins still resolve it. */
@@ -87,8 +87,6 @@ export const release = defineObject(
                 release: schema.string().min(1),
             }),
         }),
-        /** Delete a prerelease, refusing a stable release, which stays immutable and only yanks. */
-        delete: method.delete("publish"),
         deprecate: method.mutation({
             title: t`Deprecate`,
             permission: "publish",

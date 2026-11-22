@@ -56,8 +56,8 @@ export const TagName = Object.assign(tagName, {
 export const Candidate = schema.object({
     /** The digest of the image. */
     image: Digest,
-    /** The commit its root compiled, absent for a prerelease of uncommitted changes. */
-    commit: schema.string().exactOptional(),
+    /** The commit its root compiled. */
+    commit: schema.string(),
     /** The version its root build declares. */
     version: schema.string(),
     /** The role its root build declares: an app, a library or a builtin. */
@@ -158,8 +158,8 @@ export const packageObject = defineObject(
                 visibility: schema.enum(VISIBILITIES).exactOptional(),
                 /** The digest of the pushed image. */
                 image: Digest,
-                /** The commit its root compiled, absent for a prerelease of uncommitted changes. */
-                commit: schema.string().exactOptional(),
+                /** The commit its root compiled, which every release is built from. */
+                commit: schema.string(),
                 /** The distribution tag pointing at each release, latest when absent. */
                 tag: TagName.exactOptional(),
                 /** The further distribution tags to point at each release, as npm dist-tag add. */
