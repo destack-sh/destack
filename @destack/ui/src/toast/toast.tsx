@@ -7,7 +7,17 @@ import warning from "@destack/icon/phosphor/warning";
 import xCircle from "@destack/icon/phosphor/x-circle";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
-import { color, radius, shadow, space, stroke, weight, width } from "@destack/theme/tokens.stylex";
+import {
+    color,
+    radius,
+    shadow,
+    space,
+    stroke,
+    weight,
+    width,
+    swatch,
+} from "@destack/theme/tokens.stylex";
+import { transition } from "@destack/theme/motion";
 import { text } from "@destack/theme/text";
 import {
     type Accessor,
@@ -16,16 +26,20 @@ import {
     For,
     type JSX,
     merge,
+    onCleanup,
     onSettled,
     type Setter,
     Show,
+    untrack,
     useEnvironment,
     useLocale,
 } from "@destack/view";
+import { usePageVisibility } from "@destack/view/primitives/page-visibility";
 import { Timeout } from "@destack/view/primitives/timer";
 import { Button } from "../button/index.ts";
 import { Spinner } from "../spinner/index.ts";
 import { Hover, Swipe } from "../interaction/index.ts";
+import { LayerStack } from "../layer/index.ts";
 import type { Side } from "../position/index.ts";
 
 /** The time a toast shows before it leaves on its own, in milliseconds. */
@@ -33,6 +47,9 @@ const DURATION = 4000;
 
 /** The most toasts a toaster shows at once. */
 const VISIBLE_TOASTS = 3;
+
+/** The time a dismissed toast slides out before it unmounts, in milliseconds, as in Sonner. */
+const LEAVING_TIME = 200;
 
 /** The position and limits of a toaster that sets none. */
 const DEFAULTS: Required<Pick<ToasterProperties, "position" | "duration" | "visibleToasts">> = {
@@ -74,7 +91,7 @@ const styles = style.create({
         borderColor: color.border,
         borderRadius: radius[4],
         backgroundColor: color.popover,
-        color: color.popoverForeground,
+        color: color.foreground,
         boxShadow: shadow.overlay,
     },
     body: {
@@ -89,29 +106,29 @@ const styles = style.create({
     description: {
         color: color.mutedForeground,
     },
-    success: { color: color.success },
-    error: { color: color.destructive },
-    warning: { color: color.warning },
-    info: { color: color.info },
+    success: { color: swatch.successMark },
+    error: { color: swatch.destructiveMark },
+    warning: { color: swatch.warningMark },
+    info: { color: swatch.infoMark },
 });
 
 /** The surface of each kind of toast with rich colors. */
 const riches = style.create({
     success: {
-        borderColor: `color-mix(in oklab, ${color.success} 40%, transparent)`,
-        backgroundColor: `color-mix(in oklab, ${color.success} 12%, ${color.popover})`,
+        borderColor: `color-mix(in oklab, ${swatch.successMark} 40%, transparent)`,
+        backgroundColor: swatch.successTint,
     },
     error: {
-        borderColor: `color-mix(in oklab, ${color.destructive} 40%, transparent)`,
-        backgroundColor: `color-mix(in oklab, ${color.destructive} 12%, ${color.popover})`,
+        borderColor: `color-mix(in oklab, ${swatch.destructiveMark} 40%, transparent)`,
+        backgroundColor: swatch.destructiveTint,
     },
     warning: {
-        borderColor: `color-mix(in oklab, ${color.warning} 40%, transparent)`,
-        backgroundColor: `color-mix(in oklab, ${color.warning} 12%, ${color.popover})`,
+        borderColor: `color-mix(in oklab, ${swatch.warningMark} 40%, transparent)`,
+        backgroundColor: swatch.warningTint,
     },
     info: {
-        borderColor: `color-mix(in oklab, ${color.info} 40%, transparent)`,
-        backgroundColor: `color-mix(in oklab, ${color.info} 12%, ${color.popover})`,
+        borderColor: `color-mix(in oklab, ${swatch.infoMark} 40%, transparent)`,
+        backgroundColor: swatch.infoTint,
     },
 });
 
@@ -132,6 +149,30 @@ function swipeOf(position: ToasterPosition): Side {
 
     return position.startsWith("top") ? "top" : "bottom";
 }
+
+/** The slide of a toast entering from the side it is swiped away toward, after Sonner. */
+const slides = style.create({
+    top: {
+        transform: { default: "none", "@starting-style": "translateY(-100%)" },
+    },
+    right: {
+        transform: { default: "none", "@starting-style": "translateX(100%)" },
+    },
+    bottom: {
+        transform: { default: "none", "@starting-style": "translateY(100%)" },
+    },
+    left: {
+        transform: { default: "none", "@starting-style": "translateX(-100%)" },
+    },
+});
+
+/** The slide of a dismissed toast back out toward the side it came from. */
+const exits = style.create({
+    top: { transform: "translateY(-100%)" },
+    right: { transform: "translateX(100%)" },
+    bottom: { transform: "translateY(100%)" },
+    left: { transform: "translateX(-100%)" },
+});
 
 /** The corner of the viewport each position stacks toasts in. */
 const positions = style.create({
@@ -201,10 +242,14 @@ export interface ToastPromiseMessages<Value> {
 
 /** The toasts every toaster on the page shows, newest first. */
 export class ToastStore {
-    /** The toasts, newest first. */
+    /** The toasts, newest first, the dismissed ones until they have slid out. */
     readonly toasts: Accessor<readonly Toast[]>;
+    /** The ids of the dismissed toasts still sliding out. */
+    readonly leaving: Accessor<ReadonlySet<string>>;
     /** Replace the toasts. */
     readonly #setToasts: Setter<readonly Toast[]>;
+    /** Replace the ids of the toasts sliding out. */
+    readonly #setLeaving: Setter<ReadonlySet<string>>;
     /** The number of toasts shown so far, which numbers the next toast without an id. */
     #count: number;
 
@@ -212,8 +257,11 @@ export class ToastStore {
     constructor() {
         // start without toasts
         const [toasts, setToasts] = createSignal<readonly Toast[]>([]);
+        const [leaving, setLeaving] = createSignal<ReadonlySet<string>>(new Set());
         this.toasts = toasts;
+        this.leaving = leaving;
         this.#setToasts = setToasts;
+        this.#setLeaving = setLeaving;
         this.#count = 0;
     }
 
@@ -223,6 +271,7 @@ export class ToastStore {
         this.#count += 1;
         const id = options.id ?? `toast-${this.#count}`;
         const shown: Toast = { ...options, id, type, title };
+        this.#setLeaving((ids) => new Set([...ids].filter((each) => each !== id)));
         this.#setToasts((toasts) =>
             toasts.some((entry) => entry.id === id)
                 ? toasts.map((entry) => (entry.id === id ? shown : entry))
@@ -232,13 +281,22 @@ export class ToastStore {
         return id;
     }
 
-    /** Remove a toast, or every toast without an id, telling each its dismissal. */
+    /** Dismiss a toast, or every toast without an id, sliding each out and telling it. */
     dismiss(id?: string): void {
         const leaving = this.toasts().filter((entry) => id === undefined || entry.id === id);
-        this.#setToasts((toasts) => toasts.filter((entry) => !leaving.includes(entry)));
+        this.#setLeaving((ids) => new Set([...ids, ...leaving.map((entry) => entry.id)]));
         for (const entry of leaving) {
             entry.onDismiss?.();
         }
+    }
+
+    /** Remove a dismissed toast once it has slid out, unless it was shown again meanwhile. */
+    remove(id: string): void {
+        if (!this.leaving().has(id)) {
+            return;
+        }
+        this.#setLeaving((ids) => new Set([...ids].filter((each) => each !== id)));
+        this.#setToasts((toasts) => toasts.filter((entry) => entry.id !== id));
     }
 }
 
@@ -316,22 +374,69 @@ export function Toaster(properties: ToasterProperties): JSX.Element {
     // move the focus to the toasts on Alt+T
     focusOnShortcut(() => region);
 
-    // keep the stack in the top layer while toasts exist, raising it above anything opened since
+    // drop the toasts dismissed before this toaster showed them, which have no exit to play
+    onSettled(() => {
+        for (const id of store.leaving()) {
+            store.remove(id);
+        }
+    });
+
+    // unmount each dismissed toast once it has slid out
+    const { clock } = useEnvironment();
+    createEffect(store.leaving, (ids, before) => {
+        for (const id of ids) {
+            if (before?.has(id) !== true) {
+                clock.setTimeout(() => store.remove(id), LEAVING_TIME);
+            }
+        }
+    });
+
+    // show the stack in the top layer while toasts exist, inside the topmost modal while one is open
     let isShown = false;
+    let home: Comment | undefined;
+    const raise = (top: HTMLElement | undefined) => {
+        // take the stack out of the top layer before moving it
+        if (region === undefined || stack === undefined) {
+            return;
+        }
+        if (isShown) {
+            stack.hidePopover();
+        }
+
+        // keep the region where a modal leaves it interactive and announced, else where it rendered
+        if (top !== undefined && region.parentElement !== top) {
+            top.append(region);
+        } else if (top === undefined && home !== undefined && region.nextSibling !== home) {
+            home.before(region);
+        }
+
+        // raise the stack above anything opened since
+        isShown = untrack(store.toasts).length > 0;
+        if (isShown) {
+            stack.showPopover();
+        }
+    };
+    let stop: (() => void) | undefined;
+    onSettled(() => {
+        // mark where the region rendered, and follow the document's modal stack
+        if (region === undefined) {
+            return;
+        }
+        const modals = LayerStack.of(region);
+        home = region.ownerDocument.createComment("toaster");
+        region.after(home);
+        stop = modals.subscribe(raise);
+        raise(modals.top());
+    });
+    onCleanup(() => {
+        // stop following, and take the region out of any modal it moved into
+        stop?.();
+        home?.remove();
+        region?.remove();
+    });
     createEffect(
         () => store.toasts()[0]?.id,
-        (newest) => {
-            if (stack === undefined) {
-                return;
-            }
-            if (isShown) {
-                stack.hidePopover();
-            }
-            isShown = newest !== undefined;
-            if (isShown) {
-                stack.showPopover();
-            }
-        },
+        () => raise(region === undefined ? undefined : LayerStack.of(region).top()),
     );
 
     return (
@@ -394,8 +499,8 @@ class ToastTimer {
     readonly #clock: Clock = useEnvironment().clock;
     /** The pending end of the countdown. */
     readonly #timer = new Timeout();
-    /** The pointer and the focus resting on the toast, each holding the countdown. */
-    #holds = 0;
+    /** The pointer, the focus and a hidden page, each pausing the countdown. */
+    #pauses = 0;
     /** End the toast once its time runs out. */
     readonly #onEnd: () => void;
 
@@ -409,8 +514,8 @@ class ToastTimer {
 
     /** Pause the countdown while the pointer or the focus rests on the toast. */
     pause(): void {
-        this.#holds += 1;
-        if (this.#holds === 1) {
+        this.#pauses += 1;
+        if (this.#pauses === 1) {
             this.#timer.clear();
             this.#remaining -= this.#clock.now() - this.#started;
         }
@@ -418,8 +523,8 @@ class ToastTimer {
 
     /** Release a pause. */
     resume(): void {
-        this.#holds -= 1;
-        if (this.#holds === 0) {
+        this.#pauses -= 1;
+        if (this.#pauses === 0) {
             this.#run();
         }
     }
@@ -451,6 +556,16 @@ function ToastItem(properties: {
         entry.type === "loading" ? Number.POSITIVE_INFINITY : properties.duration,
         () => store.dismiss(entry.id),
     );
+
+    // pause the countdown while the page is hidden, as Sonner does
+    const isVisible = usePageVisibility();
+    createEffect(isVisible, (isShown, wasShown) => {
+        if (!isShown) {
+            timer.pause();
+        } else if (wasShown === false) {
+            timer.resume();
+        }
+    });
     const swipe = new Swipe(
         {
             side: () => properties.swipe,
@@ -472,6 +587,7 @@ function ToastItem(properties: {
         <li
             data-slot="toast"
             data-type={entry.type}
+            data-leaving={store.leaving().has(entry.id) ? "" : undefined}
             {...hover.attributes()}
             onFocusIn={() => timer.pause()}
             onFocusOut={() => timer.resume()}
@@ -479,7 +595,13 @@ function ToastItem(properties: {
             {...style.attrs(
                 text.xs,
                 styles.toast,
+                transition.notice,
+                slides[properties.swipe],
                 properties.isRich && richOf(entry.type),
+                store.leaving().has(entry.id) && [
+                    transition.noticeLeaving,
+                    exits[properties.swipe],
+                ],
                 swipe.style(),
             )}
         >
@@ -499,7 +621,7 @@ function ToastItem(properties: {
             <ToastButtons toast={entry} />
             <Button
                 variant="ghost"
-                size="icon-xs"
+                size="icon-sm"
                 aria-label={locale.render(t`Close`)}
                 data-slot="toast-close"
                 onClick={() => store.dismiss(entry.id)}
@@ -536,7 +658,7 @@ function ToastButtons(properties: { readonly toast: Toast }): JSX.Element {
                 {(cancel) => (
                     <Button
                         variant="outline"
-                        size="xs"
+                        size="sm"
                         data-slot="toast-cancel"
                         onClick={(event) => {
                             cancel().onClick(event);
@@ -550,7 +672,7 @@ function ToastButtons(properties: { readonly toast: Toast }): JSX.Element {
             <Show when={entry.action}>
                 {(action) => (
                     <Button
-                        size="xs"
+                        size="sm"
                         data-slot="toast-action"
                         onClick={(event) => {
                             action().onClick(event);

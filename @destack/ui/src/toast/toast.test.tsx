@@ -1,7 +1,13 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { flush } from "@destack/view";
 import { toast, Toaster } from "./index.ts";
-import { render, stubPopovers, wait } from "@destack/view/test";
+import { render, stubPopovers, testWorld, wait } from "@destack/view/test";
+
+/** The milliseconds past a 30 ms toast's end, which the simulated clock sleeps. */
+const PAST_DURATION = 60;
+
+/** The milliseconds past a dismissed toast's slide out, Sonner's 200 and some. */
+const PAST_LEAVING = 250;
 
 /** Render a toaster that clears the page's toasts after the test. */
 function drawToaster(duration: number): HTMLElement {
@@ -20,7 +26,7 @@ function pointer(type: string, position: number): PointerEvent {
 
 /** Read each shown toast as its kind and title, newest first. */
 function shown(container: Element): string[] {
-    return [...container.querySelectorAll("[data-slot=toast]")].map(
+    return [...container.querySelectorAll("[data-slot=toast]:not([data-leaving])")].map(
         (entry) =>
             `${entry.getAttribute("data-type")}: ${entry.querySelector("[data-slot=toast-title]")?.textContent}`,
     );
@@ -48,7 +54,7 @@ test("dismiss a toast after its duration, or at once from its close button", asy
     toast("Archived", { onDismiss: () => dismissed.push("Archived") });
     toast.success("Copied", { duration: Number.POSITIVE_INFINITY });
     flush();
-    await wait(60);
+    await testWorld().simulation.sleep(PAST_DURATION);
     flush();
     const afterDuration = shown(container);
     container.querySelector<HTMLElement>("[data-slot=toast-close]")?.click();
@@ -68,11 +74,11 @@ test("keep a toast while the focus rests on it after the pointer left, dismissin
     item?.dispatchEvent(new PointerEvent("pointerenter"));
     item?.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
     item?.dispatchEvent(new PointerEvent("pointerleave"));
-    await wait(60);
+    await testWorld().simulation.sleep(PAST_DURATION);
     flush();
     const held = shown(container);
     item?.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
-    await wait(60);
+    await testWorld().simulation.sleep(PAST_DURATION);
     flush();
     expect([held, shown(container)]).toEqual([["default: Archived"], []]);
 });
@@ -121,7 +127,7 @@ test("show the newest toasts up to the toaster's limit", () => {
     expect(shown(container)).toEqual(["default: four", "default: three", "default: two"]);
 });
 
-test("keep the live region in the document and show the stack in the top layer only while toasts exist", () => {
+test("keep the live region in the document and show the stack in the top layer only while toasts exist", async () => {
     const container = drawToaster(1000);
     const region = container.querySelector("section");
     const stack = container.querySelector("[data-slot=toaster-stack]");
@@ -135,9 +141,18 @@ test("keep the live region in the document and show the stack in the top layer o
     ];
     toast.dismiss(id);
     flush();
-    expect([empty, isShown, region?.isConnected, stack?.hasAttribute("data-popover-open")]).toEqual(
-        [["polite", false], ["manual", true, true], true, false],
-    );
+    const leaving = stack?.hasAttribute("data-popover-open");
+
+    // the stack stays while the toast slides out, and leaves the top layer once it unmounted
+    await testWorld().simulation.sleep(PAST_LEAVING);
+    flush();
+    expect([
+        empty,
+        isShown,
+        leaving,
+        region?.isConnected,
+        stack?.hasAttribute("data-popover-open"),
+    ]).toEqual([["polite", false], ["manual", true, true], true, true, false]);
 });
 
 test("dismiss a toast swiped off the toaster's side, keeping one swiped a little", () => {

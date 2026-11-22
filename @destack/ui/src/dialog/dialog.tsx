@@ -2,15 +2,7 @@ import { Icon } from "@destack/ui/icon";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
 import { transition } from "@destack/theme/motion";
-import {
-    color,
-    radius,
-    shadow,
-    space,
-    stroke,
-    surface,
-    weight,
-} from "@destack/theme/tokens.stylex";
+import { color, radius, shadow, space, stroke, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import {
     type Accessor,
@@ -24,11 +16,12 @@ import {
     onCleanup,
     type Setter,
     Show,
+    untrack,
     useContext,
     useLocale,
 } from "@destack/view";
 import { Button, type ButtonProperties } from "../button/index.ts";
-import { TopLayer } from "../layer/index.ts";
+import { LayerStack, TopLayer } from "../layer/index.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
 
 /** The widest a dialog grows. */
@@ -46,7 +39,7 @@ const styles = style.create({
         borderWidth: stroke.border,
         borderColor: color.border,
         borderRadius: radius[4],
-        backgroundColor: surface.overlay,
+        backgroundColor: color.popover,
         color: color.foreground,
         boxShadow: shadow.overlay,
         "::backdrop": {
@@ -107,7 +100,7 @@ export class DialogControl {
         const [isOpen, setOpen] = createControllableSignal({
             isControlled: () => properties.open !== undefined,
             value: () => properties.open === true,
-            defaultValue: properties.defaultOpen === true,
+            defaultValue: untrack(() => properties.defaultOpen === true),
             onChange: (isNext) => properties.onOpenChange?.(isNext),
         });
         const [isDescribed, setDescribed] = createSignal(false, { ownedWrite: true });
@@ -237,6 +230,12 @@ export function DialogContent(properties: DialogContentProperties): JSX.Element 
     const locale = useLocale();
     const rest = omit(properties, "showCloseButton", "xstyle", "style", "children");
     let element: HTMLDialogElement | undefined;
+    onCleanup(() => {
+        // leave the stack when the dialog unmounts open
+        if (element !== undefined) {
+            LayerStack.of(element).close(element);
+        }
+    });
 
     // show or close the dialog element as the state changes
     createEffect(control.isOpen, (isOpen) => {
@@ -245,9 +244,10 @@ export function DialogContent(properties: DialogContentProperties): JSX.Element 
             return;
         }
 
-        // open it modally, beside the page, or close it
+        // open it modally on top of the document's stack, beside the page, or close it
         if (isOpen && !element.open && control.isModal()) {
             element.showModal();
+            LayerStack.of(element).open(element);
         } else if (isOpen && !element.open) {
             element.show();
         } else if (!isOpen && element.open) {
@@ -266,18 +266,15 @@ export function DialogContent(properties: DialogContentProperties): JSX.Element 
                 aria-describedby={control.isDescribed() ? control.descriptionId : undefined}
                 {...rest}
                 ref={(dialog) => (element = dialog)}
-                onClose={() => {
-                    // follow the platform closing the dialog, such as on Escape
+                onClose={(event) => {
+                    // follow the platform closing the dialog, such as on Escape, leaving the stack
+                    LayerStack.of(event.currentTarget).close(event.currentTarget);
                     if (control.isOpen()) {
                         control.close();
                     }
                 }}
                 {...style.attributes(
-                    [
-                        styles.content,
-                        control.isOpen() ? transition.enter : transition.exit,
-                        properties.xstyle,
-                    ],
+                    [styles.content, transition.dialog, properties.xstyle],
                     properties.style,
                 )}
             >
@@ -285,7 +282,7 @@ export function DialogContent(properties: DialogContentProperties): JSX.Element 
                 <Show when={properties.showCloseButton !== false}>
                     <Button
                         variant="ghost"
-                        size="icon-sm"
+                        size="icon"
                         data-slot="dialog-close"
                         aria-label={locale.render(t`Close`)}
                         onClick={() => control.close()}
@@ -299,12 +296,12 @@ export function DialogContent(properties: DialogContentProperties): JSX.Element 
     );
 }
 
-/** Render the top of a dialog that holds its title and description. */
+/** Render the top of a dialog with its title and description. */
 export function DialogHeader(properties: DialogElementProperties<HTMLDivElement>): JSX.Element {
     return renderPart("div", "dialog-header", properties, styles.header);
 }
 
-/** Render the bottom row of a dialog that holds its actions. */
+/** Render the bottom row of a dialog with its actions. */
 export function DialogFooter(properties: DialogElementProperties<HTMLDivElement>): JSX.Element {
     return renderPart("div", "dialog-footer", properties, styles.footer);
 }

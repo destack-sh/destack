@@ -32,7 +32,7 @@ function dialogOf(container: Element): HTMLDialogElement {
 
 /** The close button every dialog shows by default, its icon body left out. */
 const CLOSE_BUTTON =
-    '<button data-slot="dialog-close" data-variant="ghost" data-size="icon-sm" aria-label="Close">' +
+    '<button data-slot="dialog-close" data-variant="ghost" data-size="icon" aria-label="Close">' +
     '<svg viewBox="0 0 256 256" fill="currentColor" width="1em" height="1em" aria-hidden="true" data-slot="icon"></svg></button>';
 
 test("open a modal dialog from its trigger, named by its title and described by its description", () => {

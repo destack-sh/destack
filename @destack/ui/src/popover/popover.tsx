@@ -1,14 +1,5 @@
 import * as style from "@destack/style";
-import {
-    color,
-    motion,
-    radius,
-    shadow,
-    space,
-    stroke,
-    weight,
-    width,
-} from "@destack/theme/tokens.stylex";
+import { color, radius, shadow, space, stroke, weight, width } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import {
     type Accessor,
@@ -27,7 +18,8 @@ import {
     useContext,
 } from "@destack/view";
 import { Button, type ButtonProperties } from "../button/index.ts";
-import { TopLayer } from "../layer/index.ts";
+import { transition } from "@destack/theme/motion";
+import { LayerStack, TopLayer } from "../layer/index.ts";
 import { Timeout } from "@destack/view/primitives/timer";
 import { type Align, Position, type Side } from "../position/index.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
@@ -52,19 +44,10 @@ const styles = style.create({
         borderColor: color.border,
         borderRadius: radius[3],
         backgroundColor: color.popover,
-        color: color.popoverForeground,
+        color: color.foreground,
         boxShadow: shadow.overlay,
     },
     modal: {
-        opacity: { default: 0, ":modal": { default: 1, "@starting-style": 0 } },
-        transform: {
-            default: "scale(0.96)",
-            ":modal": { default: "none", "@starting-style": "scale(0.96)" },
-        },
-        transitionProperty: "opacity, transform, display, overlay",
-        transitionDuration: motion.durationShort,
-        transitionTimingFunction: motion.easingStandard,
-        transitionBehavior: "allow-discrete",
         "::backdrop": {
             backgroundColor: "transparent",
         },
@@ -233,6 +216,7 @@ export class PopoverControl {
         const content = this.#content;
         if (isOpen && content instanceof HTMLDialogElement) {
             content.showModal();
+            LayerStack.of(content).open(content);
             this.#unplace = this.#holdModal(content);
         } else if (isOpen) {
             content.showPopover(
@@ -251,20 +235,17 @@ export class PopoverControl {
         this.#isShown = isOpen;
     }
 
-    /** Anchor a modal popover and lock the page's scroll. */
+    /** Anchor a modal popover until it closes, leaving the stack and focusing the trigger then. */
     #holdModal(content: HTMLDialogElement): () => void {
-        // anchor to the trigger and keep the page from scrolling
+        // anchor to the trigger, or to the anchor set in its place
         const trigger = this.#trigger;
         const anchor = this.#anchor ?? trigger;
         const unplace = anchor === undefined ? () => undefined : Position.anchor(content, anchor);
-        const root = content.ownerDocument.documentElement;
-        const overflow = root.style.overflow;
-        root.style.overflow = "hidden";
 
         return () => {
-            // release the page and hand the focus back to the trigger
+            // release the anchor and the layer, and hand the focus back to the trigger
             unplace();
-            root.style.overflow = overflow;
+            LayerStack.of(content).close(content);
             trigger?.focus();
         };
     }
@@ -479,6 +460,7 @@ export function PopoverContent(properties: PopoverContentProperties): JSX.Elemen
                         [
                             text.sm,
                             styles.content,
+                            transition.modalPopover,
                             styles.modal,
                             Position.area(content.side, content.align),
                             content.xstyle,

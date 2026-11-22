@@ -45,8 +45,11 @@ export const dialogRenameNoteOpen = defineExample({
     of: Dialog,
     name: "rename-note-open",
     description: "the rename dialog open over the page",
-    render: () => (
-        <Dialog defaultOpen>
+    properties: {
+        defaultOpen: true,
+    },
+    render: (properties) => (
+        <Dialog {...properties}>
             <DialogTrigger variant="outline">Rename</DialogTrigger>
             <DialogContent>
                 <DialogHeader>

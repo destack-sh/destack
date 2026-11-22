@@ -34,8 +34,11 @@ export const popoverImageSizeOpen = defineExample({
     of: Popover,
     name: "image-size-open",
     description: "the image size popover open beside its trigger",
-    render: () => (
-        <Popover defaultOpen>
+    properties: {
+        defaultOpen: true,
+    },
+    render: (properties) => (
+        <Popover {...properties}>
             <PopoverTrigger variant="outline">Size</PopoverTrigger>
             <PopoverContent align="start">
                 <Field orientation="horizontal">
@@ -52,15 +55,19 @@ export const popoverRenameModal = defineExample({
     of: Popover,
     name: "rename-modal",
     description: "a modal popover that renames a note, the page behind it inert while it is open",
-    render: () => (
-        <Popover modal defaultOpen>
+    properties: {
+        modal: true,
+        defaultOpen: true,
+    },
+    render: (properties) => (
+        <Popover {...properties}>
             <PopoverTrigger variant="outline">Rename</PopoverTrigger>
             <PopoverContent align="start">
                 <Field>
                     <FieldLabel>Title</FieldLabel>
                     <Input name="title" value="Groceries" />
                 </Field>
-                <PopoverClose size="sm">Save</PopoverClose>
+                <PopoverClose>Save</PopoverClose>
             </PopoverContent>
         </Popover>
     ),
@@ -72,8 +79,11 @@ export const popoverLinkSharing = defineExample({
     name: "link-sharing",
     description:
         "a popover titled and described for assistive technology, with a button that closes it",
-    render: () => (
-        <Popover defaultOpen>
+    properties: {
+        defaultOpen: true,
+    },
+    render: (properties) => (
+        <Popover {...properties}>
             <PopoverTrigger variant="outline">Share</PopoverTrigger>
             <PopoverContent align="end">
                 <PopoverHeader>
@@ -82,9 +92,7 @@ export const popoverLinkSharing = defineExample({
                         Anyone with the link can view this note.
                     </PopoverDescription>
                 </PopoverHeader>
-                <PopoverClose variant="outline" size="sm">
-                    Done
-                </PopoverClose>
+                <PopoverClose variant="outline">Done</PopoverClose>
             </PopoverContent>
         </Popover>
     ),

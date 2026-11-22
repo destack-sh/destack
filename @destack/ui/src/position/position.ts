@@ -1,8 +1,11 @@
 import * as style from "@destack/style";
-import { motion } from "@destack/theme/tokens.stylex";
+import { transition } from "@destack/theme/motion";
 
 /** The CSS anchor positioning property whose support places popovers without script. */
 const ANCHOR_PROPERTY = "position-area";
+
+/** An axis things run along. */
+export type Axis = "horizontal" | "vertical";
 
 /** The side of its anchor an overlay opens on. */
 export type Side = "top" | "right" | "bottom" | "left";
@@ -21,19 +24,8 @@ export interface Point {
 /** The physical side an overlay opens on, after the writing direction. */
 type PhysicalSide = "top" | "right" | "bottom" | "left";
 
-/** The styles that fade an overlay in and out and place it at a point. */
+/** The styles that place an overlay at a point. */
 const styles = style.create({
-    motion: {
-        opacity: { default: 0, ":popover-open": { default: 1, "@starting-style": 0 } },
-        transform: {
-            default: "scale(0.96)",
-            ":popover-open": { default: "none", "@starting-style": "scale(0.96)" },
-        },
-        transitionProperty: "opacity, transform, display, overlay",
-        transitionDuration: motion.durationShort,
-        transitionTimingFunction: motion.easingStandard,
-        transitionBehavior: "allow-discrete",
-    },
     point: {
         margin: 0,
         positionArea: "none",
@@ -42,43 +34,67 @@ const styles = style.create({
     offset: (margin: string) => ({ margin }),
 });
 
-/** The area beside the anchor each side and alignment places an overlay in. */
+/** The area each side and alignment places an overlay in, growing from its anchor either way. */
 const areas = style.create({
     "top-start": {
         positionArea: "block-start span-inline-end",
         positionTryFallbacks: "flip-block",
+        transformOrigin: { default: "bottom left", ":dir(rtl)": "bottom right" },
     },
-    "top-center": { positionArea: "block-start", positionTryFallbacks: "flip-block" },
+    "top-center": {
+        positionArea: "block-start",
+        positionTryFallbacks: "flip-block",
+        transformOrigin: "bottom center",
+    },
     "top-end": {
         positionArea: "block-start span-inline-start",
         positionTryFallbacks: "flip-block",
+        transformOrigin: { default: "bottom right", ":dir(rtl)": "bottom left" },
     },
     "right-start": {
         positionArea: "inline-end span-block-end",
         positionTryFallbacks: "flip-inline",
+        transformOrigin: { default: "left top", ":dir(rtl)": "right top" },
     },
-    "right-center": { positionArea: "inline-end", positionTryFallbacks: "flip-inline" },
+    "right-center": {
+        positionArea: "inline-end",
+        positionTryFallbacks: "flip-inline",
+        transformOrigin: { default: "left center", ":dir(rtl)": "right center" },
+    },
     "right-end": {
         positionArea: "inline-end span-block-start",
         positionTryFallbacks: "flip-inline",
+        transformOrigin: { default: "left bottom", ":dir(rtl)": "right bottom" },
     },
     "bottom-start": {
         positionArea: "block-end span-inline-end",
         positionTryFallbacks: "flip-block",
+        transformOrigin: { default: "top left", ":dir(rtl)": "top right" },
     },
-    "bottom-center": { positionArea: "block-end", positionTryFallbacks: "flip-block" },
+    "bottom-center": {
+        positionArea: "block-end",
+        positionTryFallbacks: "flip-block",
+        transformOrigin: "top center",
+    },
     "bottom-end": {
         positionArea: "block-end span-inline-start",
         positionTryFallbacks: "flip-block",
+        transformOrigin: { default: "top right", ":dir(rtl)": "top left" },
     },
     "left-start": {
         positionArea: "inline-start span-block-end",
         positionTryFallbacks: "flip-inline",
+        transformOrigin: { default: "right top", ":dir(rtl)": "left top" },
     },
-    "left-center": { positionArea: "inline-start", positionTryFallbacks: "flip-inline" },
+    "left-center": {
+        positionArea: "inline-start",
+        positionTryFallbacks: "flip-inline",
+        transformOrigin: { default: "right center", ":dir(rtl)": "left center" },
+    },
     "left-end": {
         positionArea: "inline-start span-block-start",
         positionTryFallbacks: "flip-inline",
+        transformOrigin: { default: "right bottom", ":dir(rtl)": "left bottom" },
     },
 });
 
@@ -86,10 +102,10 @@ const areas = style.create({
 export const Position = {
     /** Return the StyleX styles that place an overlay beside its anchor on a side and alignment. */
     beside(side: Side, align: Align): readonly style.CompiledStyles[] {
-        return [styles.motion, Position.area(side, align)];
+        return [transition.popover, Position.area(side, align)];
     },
 
-    /** Return the StyleX styles that place an overlay beside its anchor on a side and alignment. */
+    /** Return the StyleX styles of an overlay's area beside its anchor, without its motion. */
     area(side: Side, align: Align): style.CompiledStyles {
         return areas[`${side}-${align}`];
     },
@@ -129,7 +145,7 @@ export const Position = {
             return () => undefined;
         }
 
-        // keep the overlay's margin as its gap from the anchor
+        // read the overlay's margin as its gap from the anchor
         const gap = Number.parseFloat(getComputedStyle(content).marginTop);
         const place = (): void => {
             // write the position over the margin as inline styles

@@ -1,3 +1,4 @@
+import { LayerStack } from "../layer/index.ts";
 import { expect, test } from "@destack/test";
 import {
     Popover,
@@ -24,7 +25,7 @@ test("toggle a popover from its trigger through the platform's popover target, a
     );
 });
 
-test("open a modal popover as a modal dialog anchored by name that locks the page's scroll, and refocus its trigger once the platform closes it", () => {
+test("open a modal popover as a modal dialog anchored by name on top of the stack, and refocus its trigger once the platform closes it", () => {
     const changes: boolean[] = [];
     const { container } = render(() => (
         <Popover modal onOpenChange={(open) => changes.push(open)}>
@@ -39,7 +40,8 @@ test("open a modal popover as a modal dialog anchored by name that locks the pag
     const content = container.querySelector("dialog");
     trigger?.click();
     flush();
-    const opened = [content?.open, document.documentElement.style.overflow, markup(container)];
+    const stack = LayerStack.of(document.body);
+    const opened = [content?.open, stack.top() === content, markup(container)];
 
     // close the dialog as Escape or a click outside does
     content?.close();
@@ -48,7 +50,7 @@ test("open a modal popover as a modal dialog anchored by name that locks the pag
         closed,
         opened,
         content?.open,
-        document.documentElement.style.overflow,
+        stack.top(),
         document.activeElement === trigger,
         changes,
     ]).toEqual([
@@ -56,12 +58,12 @@ test("open a modal popover as a modal dialog anchored by name that locks the pag
             '<dialog id="id-1" closedby="any" aria-labelledby="id-1-trigger" data-slot="popover-content" data-state="closed" data-side="bottom" data-align="start"><button type="button">Copy link</button></dialog>',
         [
             true,
-            "hidden",
+            true,
             '<button data-slot="popover-trigger" data-variant="outline" data-size="default" id="id-1-trigger" data-state="open" aria-haspopup="dialog" aria-expanded="true" aria-controls="id-1" style="anchor-name: --id-1;">Share</button>' +
                 '<dialog id="id-1" closedby="any" aria-labelledby="id-1-trigger" data-slot="popover-content" data-state="open" data-side="bottom" data-align="start" open="" style="position-anchor: --id-1;"><button type="button">Copy link</button></dialog>',
         ],
         false,
-        "",
+        undefined,
         true,
         [true, false],
     ]);

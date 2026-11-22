@@ -37,8 +37,11 @@ export const drawerShareNoteOpen = defineExample({
     of: Drawer,
     name: "share-note-open",
     description: "the sharing drawer of a note open from the bottom",
-    render: () => (
-        <Drawer defaultOpen>
+    properties: {
+        defaultOpen: true,
+    },
+    render: (properties) => (
+        <Drawer {...properties}>
             <DrawerTrigger variant="outline">Share</DrawerTrigger>
             <DrawerContent>
                 <DrawerHeader>

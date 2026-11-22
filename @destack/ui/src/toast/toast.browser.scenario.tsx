@@ -1,10 +1,10 @@
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
-import { toasterArchiveUndo } from "./toast.example.tsx";
+import { toasterArchiveUndo, toasterMembersDialog } from "./toast.example.tsx";
 import { Toaster } from "./toast.tsx";
 
 /** The one toast shown. */
-const toast = { css: "[data-slot=toast]" };
+const toast = { css: "[data-slot=toast]:not([data-leaving])" };
 
 /** Swipe a toast away with a finger. */
 export const toasterSwipeAway = defineScenario({
@@ -28,6 +28,39 @@ export const toasterSwipeAway = defineScenario({
         {
             step: { action: "pointerUp" },
             then: [{ observe: { kind: "count", target: toast }, is: 0 }],
+        },
+    ],
+});
+
+/** Undo a removal from a toast while the dialog that removed it stays open. */
+export const toasterUndoInDialog = defineScenario({
+    of: Toaster,
+    interaction: viewInteraction,
+    name: "undo-in-dialog",
+    description: "remove a member in an open dialog, then undo it from the toast above the dialog",
+    given: { examples: [toasterMembersDialog] },
+    parameters: {},
+    when: [
+        {
+            step: { action: "click", target: { role: "button", name: "Members" } },
+            then: [{ observe: { kind: "count", target: { css: "[data-slot=member]" } }, is: 3 }],
+        },
+        {
+            step: { action: "click", target: { css: "[data-slot=member]:first-child button" } },
+            then: [
+                { observe: { kind: "count", target: { css: "[data-slot=member]" } }, is: 2 },
+                { observe: { kind: "count", target: toast }, is: 1 },
+            ],
+        },
+        {
+            step: { action: "click", target: { role: "button", name: "Undo" } },
+            then: [
+                { observe: { kind: "count", target: { css: "[data-slot=member]" } }, is: 3 },
+                {
+                    observe: { kind: "visible", target: { role: "dialog", name: "Members" } },
+                    is: true,
+                },
+            ],
         },
     ],
 });

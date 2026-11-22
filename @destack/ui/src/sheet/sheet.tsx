@@ -1,5 +1,6 @@
 import * as style from "@destack/style";
-import { color, motion, stroke } from "@destack/theme/tokens.stylex";
+import { transition } from "@destack/theme/motion";
+import { color, stroke } from "@destack/theme/tokens.stylex";
 import { type JSX, merge, omit } from "@destack/view";
 import type { Side } from "../position/index.ts";
 import {
@@ -32,10 +33,6 @@ const styles = style.create({
         maxWidth: "none",
         maxHeight: "none",
         borderRadius: 0,
-        transitionProperty: "transform, display, overlay",
-        transitionDuration: motion.durationMedium,
-        transitionTimingFunction: motion.easingEmphasised,
-        transitionBehavior: "allow-discrete",
     },
     footer: {
         marginTop: "auto",
@@ -92,18 +89,18 @@ const sides = style.create({
 
 /** The slide of a sheet entering from each side. */
 const enters = style.create({
-    top: { opacity: 1, transform: { default: "none", "@starting-style": "translateY(-100%)" } },
-    right: { opacity: 1, transform: { default: "none", "@starting-style": "translateX(100%)" } },
-    bottom: { opacity: 1, transform: { default: "none", "@starting-style": "translateY(100%)" } },
-    left: { opacity: 1, transform: { default: "none", "@starting-style": "translateX(-100%)" } },
+    top: { transform: { default: "none", "@starting-style": "translateY(-100%)" } },
+    right: { transform: { default: "none", "@starting-style": "translateX(100%)" } },
+    bottom: { transform: { default: "none", "@starting-style": "translateY(100%)" } },
+    left: { transform: { default: "none", "@starting-style": "translateX(-100%)" } },
 });
 
 /** The slide of a sheet leaving to each side. */
 const exits = style.create({
-    top: { opacity: 1, transform: "translateY(-100%)" },
-    right: { opacity: 1, transform: "translateX(100%)" },
-    bottom: { opacity: 1, transform: "translateY(100%)" },
-    left: { opacity: 1, transform: "translateX(-100%)" },
+    top: { transform: "translateY(-100%)" },
+    right: { transform: "translateX(100%)" },
+    bottom: { transform: "translateY(100%)" },
+    left: { transform: "translateX(-100%)" },
 });
 
 /** The properties of a sheet's content. */
@@ -140,6 +137,7 @@ export function SheetContent(properties: SheetContentProperties): JSX.Element {
             data-side={sheet.side}
             {...rest}
             xstyle={[
+                transition.sheet,
                 styles.sheet,
                 sides[sheet.side],
                 control.isOpen() ? enters[sheet.side] : exits[sheet.side],
