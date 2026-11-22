@@ -1924,7 +1924,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
     async describeRevision(
         target: Pick<Installation, "name" | "capabilities" | "allowed">,
         reader: BuildReader,
-    ): Promise<Pick<object.InstallationRevision, "dependencies" | "states">> {
+    ): Promise<object.RevisionDescription> {
         // read the options a submission describes with
         const space = await this.space;
         const options = { space, blobs: space.blobs, known: KNOWN_TYPES };
@@ -2035,19 +2035,28 @@ export class TestSpace implements AsyncDisposable, TestScope {
     async release(
         packageId: PackageId,
         version: string,
-    ): Promise<{ readonly id: Identifier<"build">; readonly image: Digest }> {
+    ): Promise<{
+        readonly id: Identifier<"build">;
+        readonly image: Digest;
+        readonly recorded: Pick<object.InstallationRevision, "release" | "declarations">;
+    }> {
         // replicate the forge's release into the build store, and record it as the space's build
         const image = await this.machine.resolve(packageId, version);
-        const reader = await (await this.space).root(packageId, image);
+        const space = await this.space;
+        const reader = await space.root(packageId, image);
         const release = { package: packageId, version, image };
-
-        return insertRelease(
+        const inserted = await insertRelease(
             this.database,
             this.id,
             release,
             Object.keys(reader.manifest.outputs),
             this.machine.environment,
         );
+
+        // record the release and declarations a revision of it plans its upgrade from
+        const declarations = await space.blobs.writeJson(await reader.declarations());
+
+        return { ...inserted, recorded: { release: version, declarations } };
     }
 
     /** The space's socket registry, which its starts share. */

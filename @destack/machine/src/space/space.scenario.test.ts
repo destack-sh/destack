@@ -183,6 +183,7 @@ test("serve an installation only once it is bound and main applied its tables", 
         fixture.machine.environment,
     );
     const state = await space.blobs.writeJson(STATE);
+    const declarations = await space.blobs.writeJson([]);
     await connection.transaction(
         async (transaction) =>
             await transaction.insert(installationRevision.table).values({
@@ -192,6 +193,8 @@ test("serve an installation only once it is bound and main applied its tables", 
                 buildId: pulled.id,
                 dependencies: [],
                 states: { main: state },
+                release: release.version,
+                declarations,
                 generation: 1,
                 bindings: [],
                 digest: Digest.parse("e".repeat(64)),

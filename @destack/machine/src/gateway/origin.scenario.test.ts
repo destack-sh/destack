@@ -49,21 +49,21 @@ const MEMBER_EMAIL = "member@example.test";
 const GREETING = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000d2",
     name: "@acme/greeting",
-    version: "2026.9.0-dev.20260912100001.0123456789ab",
+    version: "2026.9.0",
 });
 
 /** The widget library the greeting package requires as a release, with catalogs of its own. */
 const WIDGETS = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000d3",
     name: "@acme/widgets",
-    version: "2026.9.0-dev.20260912100001.0123456789ab",
+    version: "2026.9.0",
 });
 
 /** The notes package whose views the launches open. */
 const notes = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000e1",
     name: "@acme/notes",
-    version: "2026.9.0-dev.20260912100001.0123456789ab",
+    version: "2026.9.0",
 });
 
 /** The notes package: it reads the person's settings, writes them once asked, and scans notes. */
@@ -87,7 +87,7 @@ const notesPackage = definePackage(
 const tasks = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000c4",
     name: "@acme/tasks",
-    version: "2026.10.0-dev.20260912100001.0123456789ab",
+    version: "2026.10.0",
 });
 
 /** A task its owner completes. */
@@ -232,7 +232,7 @@ function tasksBuild(crypto: Crypto): Promise<BuildReader> {
 const articles = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000c5",
     name: "@acme/articles",
-    version: "2026.10.0-dev.20260912100001.0123456789ab",
+    version: "2026.10.0",
 });
 
 /** An article its owner shares, publicly through a link. */
@@ -1605,7 +1605,7 @@ function siteBuild(crypto: Crypto): Promise<BuildReader> {
     const site = PackageVersion.parse({
         id: "package-01996ab0-0000-7000-8000-0000000000d1",
         name: "@acme/site",
-        version: "2026.9.0-dev.20260912100001.0123456789ab",
+        version: "2026.9.0",
     });
 
     return TestViewBuild.of(

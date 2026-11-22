@@ -695,7 +695,7 @@ test("collect stray and expired snapshot blobs after a grace", async () => {
             }),
     );
 
-    // collect the stray blob a grace past its lease, then the snapshot's blob a grace after the snapshot expires, leaving the states main refers to
+    // collect the stray blob a grace past its lease, then the snapshot's blob a grace after the snapshot expires, leaving the blobs main and the revisions refer to
     await fixture.simulation.jump(start + blobs.leaseMilliseconds + 1);
     await fixture.simulation.jump(fixture.simulation.clock.now() + GRACE_MILLISECONDS);
     const leased = await Array.fromAsync(blobs.storage.packs());
@@ -705,14 +705,20 @@ test("collect stray and expired snapshot blobs after a grace", async () => {
         .select({ states: object.database.table.states })
         .from(object.database.table)
         .where(eq(object.database.table.name, MAIN_DATABASE));
-    const states = present(main, "the main database").states;
+    const revisions = await database
+        .select({ declarations: object.installationRevision.table.declarations })
+        .from(object.installationRevision.table);
+    const kept = [
+        ...present(main, "the main database").states,
+        ...revisions.map((revision) => revision.declarations),
+    ];
     expect({
         leased: leased.toSorted(),
         expired: (await Array.fromAsync(blobs.storage.packs())).toSorted(),
         snapshots: await database.select().from(object.snapshot.table),
     }).toEqual({
-        leased: [taken, ...states].toSorted(),
-        expired: [...states].toSorted(),
+        leased: [taken, ...kept].toSorted(),
+        expired: [...kept].toSorted(),
         snapshots: [],
     });
 });

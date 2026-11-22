@@ -1,6 +1,6 @@
 import { checkout } from "../computer/checkout/object/index.ts";
 import { Failure } from "@destack/error";
-import { Identifier, schema, Digest } from "@destack/schema";
+import { Identifier, schema, Digest, Version } from "@destack/schema";
 import { expect, Recording, test } from "@destack/test";
 import { TestDatabase } from "@destack/db/test";
 import { Build, build, installationRevision } from "@destack/stack/object";
@@ -77,6 +77,8 @@ test("retain each source's latest builds and every build a revision applies", as
                 buildId: oldest,
                 dependencies: [],
                 states: {},
+                release: Version.development,
+                declarations: Digest.parse("f".repeat(64)),
                 generation: 1,
                 bindings: [],
                 digest: Digest.parse("f".repeat(64)),

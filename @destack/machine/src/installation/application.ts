@@ -6,6 +6,7 @@ import {
     deployment,
     InstallationRevision,
     installationRevision,
+    type RevisionDescription,
     instance,
     Installation,
     type BuildSource,
@@ -61,7 +62,8 @@ import {
 } from "@destack/resource";
 import {
     canonicalize,
-    type Digest,
+    Digest,
+    type DigestCrypto,
     type Identifier,
     present,
     schema,
@@ -312,6 +314,8 @@ export class ApplicationInstallation {
                     build: built,
                     dependencies: chosen.dependencies,
                     states: chosen.states,
+                    release: chosen.release,
+                    declarations: chosen.declarations,
                 }),
             );
             if (revision.id !== target.targetRevisionId) {
@@ -435,10 +439,8 @@ export class ApplicationInstallation {
     /** Revise the installation: a build at its bindings, retaining each revision once. */
     async revise(
         call: MethodContext,
-        input: {
+        input: RevisionDescription & {
             readonly build: Identifier<"build">;
-            readonly dependencies: InstallationRevision["dependencies"];
-            readonly states: InstallationRevision["states"];
             readonly evaluation?: StackEvaluation | undefined;
         },
     ): Promise<InstallationRevision> {
@@ -1112,15 +1114,16 @@ export class ApplicationInstallation {
             return false;
         }
 
-        // read the applied build and the upgrade from it, the access the build asks beyond it among its steps
+        // plan the upgrade from the applied revision, with the access the build asks beyond it
         const applied = await call
             .read(installationRevision)
             .findFirst({ where: { id: target.appliedRevisionId } });
-        const previous = await this.#open(
-            call,
+        const plan = await this.#planUpgrade(
             present(applied, `revision ${target.appliedRevisionId}`),
+            build,
+            image,
+            call.environment.crypto,
         );
-        const plan = await this.#planUpgrade(previous, build, image);
 
         // observe the upgrade waiting for approval
         const waiting = await Approval.waiting(call, target, plan, call.environment.crypto);
@@ -1219,17 +1222,29 @@ export class ApplicationInstallation {
         return InstallationRevision.reader(call, revision.id, packageId, this.#options.space);
     }
 
-    /** Plan the upgrade steps from an applied build to the next by its kinds' comparisons. */
-    async #planUpgrade(previous: BuildReader, next: BuildReader, image: Digest): Promise<Plan> {
-        // skip rollbacks and rebuilds of the same release, as every build stamps its own version
-        const from = previous.manifest.package.version;
+    /** Plan the upgrade steps from an applied revision to the next build, kind by kind. */
+    async #planUpgrade(
+        previous: Pick<InstallationRevision, "release" | "declarations">,
+        next: BuildReader,
+        image: Digest,
+        crypto: DigestCrypto,
+    ): Promise<Plan> {
+        // skip rollbacks, and rebuilds of the applied release declaring what it declared
+        const from = previous.release;
         const release = next.manifest.package.version;
-        if (Version.compare(release, from) <= 0) {
+        const order = Version.compare(release, from);
+        const isRebuilt =
+            order === 0 &&
+            (await Digest.json(await next.declarations(), crypto)) === previous.declarations;
+        if (order < 0 || isRebuilt) {
             return { steps: [] };
         }
 
         // compare each kept declaration its kind compares, then plan the rest from the applied release
-        const declarations = await previous.declarations();
+        const declarations = await this.#options.blobs.readJson(
+            previous.declarations,
+            schema.array(graph.Declaration),
+        );
         const history = {
             release: from,
             declarations,

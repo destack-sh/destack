@@ -8,6 +8,7 @@ import {
     Binding,
     InstallationRevision,
     installationRevision,
+    type RevisionDescription,
 } from "@destack/stack/object";
 import type { Machine } from "../machine/machine.ts";
 import { callRegistry, findPublisherHome } from "../machine/registry.ts";
@@ -75,13 +76,8 @@ export interface RevisionOptions {
     readonly trusted: ReadonlySet<Digest>;
 }
 
-/** A build chosen for an installation, with what its revision requires. */
-export interface ChosenBuild extends SelectedBuild {
-    /** The installable packages the build depends on, at the builds its image has. */
-    readonly dependencies: InstallationRevision["dependencies"];
-    /** The state each declaration of the build requires of its target, as a blob. */
-    readonly states: InstallationRevision["states"];
-}
+/** A build chosen for an installation, with what its revision records of it. */
+export interface ChosenBuild extends SelectedBuild, RevisionDescription {}
 
 /** The build a selection resolves to: the space's build, its image and source. */
 export interface SelectedBuild {
@@ -372,7 +368,12 @@ export const InstallationTarget = {
         const image = await options.space.builds.image(chosen.image);
         const described =
             revision !== undefined && revision.buildId === chosen.build
-                ? { dependencies: revision.dependencies, states: revision.states }
+                ? {
+                      dependencies: revision.dependencies,
+                      states: revision.states,
+                      release: revision.release,
+                      declarations: revision.declarations,
+                  }
                 : await scope.span("destack.installation.describe", attributes, () =>
                       InstallationTarget.describe(image, options),
                   );
@@ -598,7 +599,7 @@ export const InstallationTarget = {
     async describe(
         image: BuildImage,
         options: Pick<RevisionOptions, "space" | "blobs" | "known">,
-    ): Promise<Pick<InstallationRevision, "dependencies" | "states">> {
+    ): Promise<RevisionDescription> {
         // read the image's root and the builds of the installable packages the image has
         const { blobs } = options;
         const { scope } = options.space.machine;
@@ -638,14 +639,22 @@ export const InstallationTarget = {
             ),
         );
 
-        return { dependencies, states: Object.fromEntries(states) };
+        // record the release and declarations the next upgrade plans from
+        const declarations = await blobs.writeJson(await reader.declarations());
+
+        return {
+            dependencies,
+            states: Object.fromEntries(states),
+            release: reader.manifest.package.version,
+            declarations,
+        };
     },
 
     /** Describe the call that records a space's build and its stack evaluation as a revision. */
     async create(
         target: Pick<Installation, "id" | "scope" | "packageId" | "generation">,
         evaluated: { readonly id: Identifier<"build">; readonly image: Digest },
-        described: Pick<InstallationRevision, "dependencies" | "states">,
+        described: RevisionDescription,
         evaluation: StackEvaluation | undefined,
         bindings: readonly Binding[],
         crypto: DigestCrypto,
@@ -657,6 +666,8 @@ export const InstallationTarget = {
             buildId: evaluated.id,
             dependencies: described.dependencies,
             states: described.states,
+            release: described.release,
+            declarations: described.declarations,
             ...(evaluation === undefined ? {} : { definition: evaluation.definition }),
             bindings: [...bindings],
             generation: target.generation,

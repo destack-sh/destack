@@ -57,7 +57,7 @@ const MOVE_STEP_UP = StepUp.schema.parse({ assurance: 2, maxAge: 900_000 });
 const echo = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000a4",
     name: "@acme/echo",
-    version: "2026.10.0-dev.20260912100001.0123456789ab",
+    version: "2026.10.0",
 });
 
 /** The echo package's handle. */
@@ -95,7 +95,7 @@ const echoWorkload = defineWorkload(
 const visitor = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000a5",
     name: "@acme/visitor",
-    version: "2026.10.0-dev.20260912100001.0123456789ab",
+    version: "2026.10.0",
 });
 
 /** The visitor's binding of an echo installation, which a space binds across spaces. */

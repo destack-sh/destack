@@ -232,6 +232,8 @@ test("find and list only the enabled installations not being deleted, as a machi
                     buildId: pulled.id,
                     dependencies: [],
                     states: {},
+                    release: release.version,
+                    declarations: Digest.parse("e".repeat(64)),
                     generation: 1,
                     bindings: [],
                     digest: Digest.parse("e".repeat(64)),

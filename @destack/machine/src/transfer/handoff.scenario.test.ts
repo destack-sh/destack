@@ -72,13 +72,20 @@ test("serve a moving space's target only the blobs the space's rows reference an
         .select({ states: object.database.table.states })
         .from(object.database.table)
         .where(eq(object.database.table.name, MAIN_DATABASE));
+    const revisions = await fixture.database
+        .select({ declarations: object.installationRevision.table.declarations })
+        .from(object.installationRevision.table);
+    const referenced = [
+        ...present(main, "the main database").states,
+        ...revisions.map((revision) => revision.declarations),
+    ];
     expect([
         listed.toSorted(),
         await read(target.id, taken),
         await refusal(read(target.id, other)),
         await refusal(read(ids.machine, taken)),
     ]).toEqual([
-        [taken, ...present(main, "the main database").states].toSorted(),
+        [taken, ...referenced].toSorted(),
         "taken",
         [
             "NOT_FOUND",
@@ -144,12 +151,19 @@ test("copy up a shipped release a moving space's rows reference, for a target th
         .select({ states: object.database.table.states })
         .from(object.database.table)
         .where(eq(object.database.table.name, MAIN_DATABASE));
+    const revisions = await fixture.database
+        .select({ declarations: object.installationRevision.table.declarations })
+        .from(object.installationRevision.table);
+    const referenced = [
+        ...present(main, "the main database").states,
+        ...revisions.map((revision) => revision.declarations),
+    ];
     expect({
         listed: listed.toSorted(),
         root: served.root,
         missing: await (await fixture.space).blobs.missing([image]),
     }).toEqual({
-        listed: [image, ...present(main, "the main database").states].toSorted(),
+        listed: [image, ...referenced].toSorted(),
         root: shipped.layer.image(image)?.root,
         missing: [],
     });

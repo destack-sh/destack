@@ -47,7 +47,7 @@ export interface BuildOptions {
         image: Digest,
         account: Identifier<"account">,
         tag: string,
-        commit: string | undefined,
+        commit: string,
         caller: Caller,
         requested: GrantRequest,
     ) => Promise<readonly PackageRelease[]>;
@@ -245,20 +245,31 @@ export function implementBuild(options: BuildOptions) {
             cancel,
             start,
             publish: {
-                // publish a succeeded build and its account's unpublished dependencies for the caller before the transaction, asking their person for the account's publish
-                prepare: async (context) => ({
-                    releases: [
-                        ...(await options.publish(
-                            options.space.builds,
-                            Build.image(context.target),
-                            context.input.account,
-                            context.input.tag ?? LATEST_TAG,
-                            Build.commit(context.target),
-                            context.caller,
-                            await publishRequest(context),
-                        )),
-                    ],
-                }),
+                // publish a succeeded build of a commit and its account's unpublished dependencies before the transaction
+                prepare: async (context) => {
+                    // refuse a build of uncommitted changes, as every release is built from a commit
+                    const commit = Build.commit(context.target);
+                    if (commit === undefined) {
+                        throw StackError.of(
+                            "RELEASE_BLOCKED",
+                            `cannot publish build '${context.target.id}': it has uncommitted changes, commit them first`,
+                        );
+                    }
+
+                    return {
+                        releases: [
+                            ...(await options.publish(
+                                options.space.builds,
+                                Build.image(context.target),
+                                context.input.account,
+                                context.input.tag ?? LATEST_TAG,
+                                commit,
+                                context.caller,
+                                await publishRequest(context),
+                            )),
+                        ],
+                    };
+                },
                 handle: async (context) => context.prepared,
             },
             push: {

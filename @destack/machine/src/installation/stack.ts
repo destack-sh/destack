@@ -175,6 +175,8 @@ export class StackInstallation {
             build: built,
             dependencies: chosen.dependencies,
             states: chosen.states,
+            release: chosen.release,
+            declarations: chosen.declarations,
             evaluation,
         });
         if (revision.id !== target.targetRevisionId) {

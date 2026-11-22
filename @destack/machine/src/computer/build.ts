@@ -290,12 +290,12 @@ export class BuildRunner {
         built: { readonly outputs: readonly string[]; readonly version: Version | null },
         signal: AbortSignal,
     ): Promise<BuildReader> {
-        // release the package at the build's version, and stamp uncommitted source as a prerelease
+        // release the package at the build's version, marking uncommitted source a dev build of it
         const { name, packageJson } = workspacePackage.root;
         const request = {
             outputs: outputsOf(packageJson, built.outputs),
             ...(built.version === null ? {} : { versions: { [name]: built.version } }),
-            isPrerelease: opened.commit === undefined,
+            isUnreleased: opened.commit === undefined,
             signal,
         };
 

@@ -2936,7 +2936,7 @@ export class Space {
         image: Digest,
         account: Identifier<"account">,
         tag: string,
-        commit: string | undefined,
+        commit: string,
         caller: Caller,
         requested: GrantRequest,
     ): Promise<readonly PackageRelease[]> {
@@ -2963,7 +2963,7 @@ export class Space {
             accountId: account,
             image,
             tag,
-            ...(commit === undefined ? {} : { commit }),
+            commit,
         });
 
         return published.releases;

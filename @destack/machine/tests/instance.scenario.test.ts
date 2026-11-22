@@ -766,7 +766,7 @@ test("replace a deployment only once the next revision runs", async () => {
     // run the first revision of notes with its applied database
     const fixture = await TestSpace.open();
     const { database } = fixture;
-    await serveControllers(fixture);
+    const { approve } = await serveControllers(fixture);
     const notes = await installNotes(fixture);
     await fixture.simulation.idle();
     const first = nth(await database.select().from(object.deployment.table), 0);
@@ -780,6 +780,10 @@ test("replace a deployment only once the next revision runs", async () => {
         notes.id,
         await notesBuild([titled], fixture.environment.crypto),
     );
+    await fixture.simulation.idle();
+
+    // approve the plan the title's wider outputs ask, as earlier readers stay on their release
+    await approve(notes.id);
     await fixture.simulation.idle();
     const replacement = nth(
         await database
@@ -1484,16 +1488,20 @@ test("drop a draining release's columns once it retires", async () => {
     // run the first revision of notes whose notes have a color
     const fixture = await TestSpace.open();
     const { database } = fixture;
-    await serveControllers(fixture);
+    const { approve } = await serveControllers(fixture);
     let declared: readonly Declaration[] = [
         noteType({ body: field.string().optional(), color: field.string().optional() }),
     ];
     await installNotes(fixture, ids.notes, await notesBuild(declared, fixture.environment.crypto));
     await fixture.simulation.idle();
 
-    // deploy a second revision that drops the color next to the first, and plan while the first drains
-    declared = [main];
+    // deploy a second revision that drops the color in a new edition next to the first, and plan while the first drains
+    declared = [noteType({ body: field.string().optional() }, { convert: { 2: {} } })];
     await recordBuild(fixture, await notesBuild(declared, fixture.environment.crypto));
+    await fixture.simulation.idle();
+
+    // approve the installation's upgrade, which converts callers' inputs to the new edition
+    await approve(ids.notes);
     await fixture.simulation.idle();
     const [stored] = await database.select().from(object.database.table);
     const [first] = await database

@@ -5,6 +5,7 @@ import {
     installationRevision,
     instance,
     Installation,
+    type InstallationRevision,
 } from "@destack/stack/object";
 import type { Environment } from "@destack/environment";
 import { type DatabaseConnection, eq, isNotNull, Table } from "@destack/db";
@@ -227,7 +228,10 @@ export const NOTES_INSTANCE = schema
 /** Install the notes release in the space and run one instance of it, answering the instance. */
 export async function runNotes(
     database: DatabaseConnection,
-    released: { readonly id: Identifier<"build"> },
+    released: {
+        readonly id: Identifier<"build">;
+        readonly recorded: Pick<InstallationRevision, "release" | "declarations">;
+    },
     follows: ObjectReference,
     installer: Subject,
     environment: Environment,
@@ -242,7 +246,10 @@ export async function runNotes(
 /** Install the notes package in the space, following its release's revision. */
 async function installNotes(
     database: DatabaseConnection,
-    released: { readonly id: Identifier<"build"> },
+    released: {
+        readonly id: Identifier<"build">;
+        readonly recorded: Pick<InstallationRevision, "release" | "declarations">;
+    },
     follows: ObjectReference,
     installer: Subject,
     environment: Environment,
@@ -265,6 +272,7 @@ async function installNotes(
                 buildId: released.id,
                 dependencies: [],
                 states: {},
+                ...released.recorded,
                 generation: 1,
                 bindings: [],
                 digest: Digest.parse("e".repeat(64)),

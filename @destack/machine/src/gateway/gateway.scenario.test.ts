@@ -312,9 +312,9 @@ test("route each call to the newest deployment serving the caller's release, and
         await call("2026.8.0"),
         await call("2026.9.0"),
         await call("2026.10.0"),
-        await call("2026.10.0-dev.20260912100002.0123456789ab"),
+        await call("2026.10.0-dev"),
         await call("2026.11.0"),
-        await call("2026.11.0-dev.20260912100001.0123456789ab"),
+        await call("2026.11.0-dev"),
         await call(),
         await call("next"),
     ]).toEqual([
