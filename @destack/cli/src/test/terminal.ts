@@ -9,7 +9,6 @@ import {
     TestComputer,
     TestDistribution,
 } from "@destack/machine/computer/test";
-import { Snapshot } from "@destack/db";
 import type { ObjectType } from "@destack/object";
 import { Installation, installation } from "@destack/stack/object";
 import { type Identifier, type JsonObject, present, schema } from "@destack/schema";
@@ -206,7 +205,7 @@ export class TerminalFixture {
         const { home } = this.computer.world.owner;
         const { database } = await this.computer.machine.space(home);
         const read = () =>
-            Snapshot.live(database).read(installation.table).findFirst({ where: { id } });
+            database.snapshot().read(installation.table).findFirst({ where: { id } });
         await this.computer.waitUntil(
             database,
             async () => {

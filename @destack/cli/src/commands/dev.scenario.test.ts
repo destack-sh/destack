@@ -1,7 +1,6 @@
 import { PUBLISHER } from "@destack/machine/computer/test";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Snapshot } from "@destack/db";
 import { preview } from "@destack/machine/checkout";
 import { schema, Version } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
@@ -20,7 +19,6 @@ const FIXTURES = fileURLToPath(new URL("../../tests/fixture/", import.meta.url))
 /** Write a setting of the content's language taking the given values. */
 function languageSetting(values: readonly string[]): string {
     return `import { defineSetting } from "@destack/setting/declare";
-import { schema } from "@destack/schema";
 import { t } from "@destack/locale";
 
 /** The language of generated content. */
@@ -77,7 +75,7 @@ test("build a checkout's package in the space through each phase, and start a pr
     });
     const started = Previewed.parse(JSON.parse(previewed.output));
     const { database } = terminal.computer.machine;
-    const rows = await Snapshot.live(database).read(preview.table).findMany();
+    const rows = await database.snapshot().read(preview.table).findMany();
 
     // show the build's phases to its summary, and keep the preview running past the command line
     const { home } = terminal.computer.world.owner;
