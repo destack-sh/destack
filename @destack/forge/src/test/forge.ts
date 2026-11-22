@@ -415,7 +415,7 @@ export class TestForge {
             readonly accountId?: Identifier<"account">;
             readonly image: Digest;
             readonly requestId?: string;
-            readonly commit?: string;
+            readonly commit: string;
             readonly tag?: string;
         },
         person: TestPerson = this.owner,
@@ -427,7 +427,7 @@ export class TestForge {
             requestId: input.requestId ?? RequestId.create(this.environment),
             accountId: input.accountId ?? ACCOUNT_ID,
             image: input.image,
-            ...(input.commit === undefined ? {} : { commit: input.commit }),
+            commit: input.commit,
             ...(input.tag === undefined ? {} : { tag: input.tag }),
         });
 
@@ -443,7 +443,8 @@ export class TestForge {
         store: BuildStore,
         image: Digest,
         tag: string,
-        options: Pick<MethodInput<typeof packageObject, "publish">, "commit" | "tags"> = {},
+        options: Pick<MethodInput<typeof packageObject, "publish">, "commit"> &
+            Partial<Pick<MethodInput<typeof packageObject, "publish">, "tags">>,
     ): Promise<readonly PackageRelease[]> {
         // push the image's objects below the account's handle, then publish once
         await this.builds(ACCOUNT_HANDLE).push(store, [image]);

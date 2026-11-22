@@ -2,9 +2,7 @@ import { type BuildStore } from "@destack/build/store";
 import { BuildImage, PackageManifest } from "@destack/package/manifest";
 import { type DependencyRelease, type PackageId, PackageName } from "@destack/package";
 import type { MethodContextOf, ResultOf } from "@destack/object";
-import type { ObjectStore } from "@destack/object/server";
-import { Snapshot } from "@destack/db";
-import { type Digest, type Identifier, present, schema, Version } from "@destack/schema";
+import { type Digest, present, schema, Version } from "@destack/schema";
 import { type ObjectReference, RequestId } from "@destack/sync";
 import { NpmTarball } from "@destack/registry/npm";
 import {
@@ -15,8 +13,6 @@ import {
     tag,
     TagName,
 } from "@destack/registry/object";
-import { setting, SettingValue } from "@destack/setting/object";
-import { buildRetention } from "@destack/stack/setting";
 import { ForgeError } from "../error/index.ts";
 import { Forge } from "./forge.ts";
 
@@ -58,24 +54,6 @@ export function implementPackageObject(store: BuildStore): typeof packageObject 
             next,
             point,
         },
-        controllers: [
-            {
-                // delete a package's prereleases past the space's retention
-                name: "expire",
-                reads: [
-                    { table: release.table, fields: [], on: { id: "parentId" } },
-                    { table: tag.table, fields: ["version"], on: { id: "parentId" } },
-                    {
-                        table: setting.table,
-                        where: { name: buildRetention.name },
-                        fields: ["value"],
-                        isListing: true,
-                    },
-                ],
-                reconcile: ({ key, store: objects }) =>
-                    expire(objects, schema.identifier("package").parse(key)),
-            },
-        ],
     });
 }
 
@@ -155,17 +133,17 @@ async function check(
         );
     }
 
-    // refuse a release of uncommitted changes that is no prerelease
-    if (commit === undefined && !Version.isPrerelease(contents.manifest.package.version)) {
+    // refuse a dev build, as every release is built from a commit at a release version
+    const released = PackageManifest.package(contents.manifest);
+    const { id, name, version } = released;
+    if (Version.isPrerelease(version)) {
         throw ForgeError.of(
             "BUILD_INVALID",
-            `image '${image}' is invalid: a release of uncommitted changes must be a prerelease`,
+            `image '${image}' is invalid: its root is dev build '${version}', not a release`,
         );
     }
 
     // require the package's name to be the publishing account's, and not another package's
-    const released = PackageManifest.package(contents.manifest);
-    const { id, name, version } = released;
     const home = schema.identifier("space").parse(context.scope);
     const named = await Forge.find(name, context, home);
     if (named.accountId !== accountId) {
@@ -221,7 +199,7 @@ async function check(
         ...(access === undefined ? {} : { visibility: NPM_ACCESS[access] }),
         release: {
             image: isRepeated ? taken.image : image,
-            ...(commit === undefined ? {} : { commit }),
+            commit,
             version,
             role: contents.manifest.role,
             declarations: await contents.declarations(),
@@ -375,45 +353,4 @@ async function point(
     }
 
     return context.target;
-}
-/** Delete a package's prereleases past the build retention, keeping the newest and tagged. */
-async function expire(store: ObjectStore, packageId: Identifier<"package">): Promise<void> {
-    // read how many prereleases of each package the space keeps
-    const { database, scope } = store;
-    const snapshot = Snapshot.live(database);
-    const kept = await SettingValue.resolve(snapshot, buildRetention, { scope });
-    const space = schema.identifier("space").parse(scope);
-    const releases = await snapshot
-        .read(release.table)
-        .findMany({ where: { scope: space, parentId: packageId } });
-    const tagged = new Set(
-        (
-            await snapshot
-                .read(tag.table)
-                .findMany({ where: { scope: space, parentId: packageId } })
-        ).map((each) => `${each.parentId} ${each.version}`),
-    );
-
-    // drop each package's untagged prereleases past the newest it keeps
-    const prereleases = releases
-        .filter((each) => Version.isPrerelease(each.version))
-        .toSorted((left, right) => right.createdAt - left.createdAt);
-    const dropped = [...Map.groupBy(prereleases, (each) => each.parentId).values()].flatMap(
-        (newestFirst) =>
-            newestFirst
-                .slice(kept)
-                .filter((each) => !tagged.has(`${each.parentId} ${each.version}`)),
-    );
-
-    // delete them
-    if (dropped.length > 0) {
-        await store.mutate(
-            store.as(release),
-            {
-                id: RequestId.create(store.environment),
-                calls: dropped.map((each) => release.call("delete", release.target(each))),
-            },
-            { component: "retention" },
-        );
-    }
 }

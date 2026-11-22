@@ -322,7 +322,7 @@ export class Forge {
         return found;
     }
 
-    /** Find the version of a package's newest release, leaving its dev builds. */
+    /** Find the version of a package's newest release. */
     static async newest(
         packageId: Identifier<"package">,
         context: Pick<MethodContext, "read">,
@@ -330,7 +330,6 @@ export class Forge {
         const published = await context.read(release).findMany({ where: { parentId: packageId } });
         const [newest] = published
             .map((each) => each.version)
-            .filter((version) => !Version.isPrerelease(version))
             .toSorted((left, right) => Version.compare(right, left));
 
         return newest;

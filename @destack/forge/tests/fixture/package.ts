@@ -14,11 +14,8 @@ export const FIXTURE_VERSION = "2026.9.0";
 /** The versions of the answer package the setup builds, in release order. */
 export const ANSWER_VERSIONS = [FIXTURE_VERSION, "2026.9.1", "2026.10.0"];
 
-/** The dev prerelease of the answer package after its releases. */
-export const PRERELEASE_VERSION = "2026.9.2-dev.20260912100000.0123456789ab";
-
-/** A dev prerelease of the answer package built the day before the other. */
-export const EARLIER_PRERELEASE_VERSION = "2026.9.2-dev.20260911100000.0123456789aa";
+/** A version of the answer package after its releases, which the setup builds no release of. */
+export const UNRELEASED_VERSION = "2026.9.2";
 
 /** The workspace's lockfile, which fixture copies link to beside them. */
 const WORKSPACE_LOCKFILE = fileURLToPath(new URL("../../../../bun.lock", import.meta.url));
@@ -34,8 +31,6 @@ export class FixtureSource {
     readonly directory: string;
     /** The compilers building the copy into the store. */
     readonly #compilers: CompilerPool;
-    /** The outputs and dependencies the last build compiled. */
-    #compiled: Pick<PackageBuildOptions, "outputs" | "dependencies"> | undefined;
 
     /** Take a copy and the compilers building it. */
     private constructor(name: FixturePackage, directory: string, compilers: CompilerPool) {
@@ -84,29 +79,8 @@ export class FixtureSource {
             const given = { [name]: Version.parse(version) };
             builds.push(await this.#build({ outputs, dependencies, links: {}, versions: given }));
         }
-        this.#compiled = { outputs, dependencies };
 
         return builds;
-    }
-
-    /** Build the package at a prerelease. */
-    async prerelease(prerelease: Version): Promise<BuildReader> {
-        if (this.#compiled === undefined) {
-            throw new TypeError(`fixture '${this.name}' has not been built`);
-        }
-
-        // build the package at the prerelease
-        const { outputs, dependencies } = this.#compiled;
-        const path = join(this.directory, "package.json");
-        const declaration = schema.jsonObject().parse(await readJson(path));
-        const name = schema.string().parse(declaration["name"]);
-
-        return await this.#build({
-            outputs,
-            dependencies,
-            links: {},
-            versions: { [name]: prerelease },
-        });
     }
 
     /** Build the copy with a warm compiler of the pool. */

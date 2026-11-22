@@ -2,7 +2,7 @@ import { auditedCalls } from "@destack/object/test";
 import type { TestPerson } from "@destack/account/test";
 import { ACCOUNT_ID, TEST_COMMIT, TestForge } from "../src/test/index.ts";
 import { expect, refusal, test } from "@destack/test";
-import { Digest, found, Identifier, present } from "@destack/schema";
+import { Digest, found, Identifier, present, Version } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { PackageVersion, PackageId } from "@destack/package";
 import { BuildImage, PackageManifest } from "@destack/package/manifest";
@@ -11,8 +11,8 @@ import { MemoryBuild } from "@destack/package/test";
 import { RemoteBuildStore } from "@destack/build/store";
 import registryPackage from "@destack/registry/package";
 import { LATEST_TAG, packageObject } from "@destack/registry/object";
-import { fixtureBuild, prereleaseBuild } from "./fixture/build.ts";
-import { EARLIER_PRERELEASE_VERSION, PRERELEASE_VERSION } from "./fixture/package.ts";
+import { fixtureBuild } from "./fixture/build.ts";
+import { UNRELEASED_VERSION } from "./fixture/package.ts";
 import { Claim } from "@destack/object";
 import { Account, account } from "@destack/account/object";
 import { OPERATOR_EMAIL } from "@destack/account/test";
@@ -32,13 +32,13 @@ test("publish pushed images as releases", async () => {
     const owner = forge.client(forge.owner);
 
     // publish the next version under a tag
-    const uncommitted = {
+    const created = {
         requestId: RequestId.create(forge.environment),
         parentId: answer.packageId,
         image: await forge.push((await fixtureBuild("answer", "2026.9.1")).reader),
         tag: "next",
+        commit: TEST_COMMIT,
     };
-    const created = { ...uncommitted, commit: TEST_COMMIT };
     const next = await forge.release(created);
 
     // record each pushed image, and answer the release again for a replayed or repeated request
@@ -58,7 +58,7 @@ test("publish pushed images as releases", async () => {
         ]),
     ]).toEqual([
         ["2026.9.0", TEST_COMMIT, answer.image],
-        ["2026.9.1", TEST_COMMIT, uncommitted.image],
+        ["2026.9.1", TEST_COMMIT, created.image],
         next.id,
         next.id,
         [
@@ -69,7 +69,7 @@ test("publish pushed images as releases", async () => {
 
     // refuse a tag a range reads
     const missing = Digest.parse("f".repeat(64));
-    const attempt = (input: typeof uncommitted, user = forge.owner) =>
+    const attempt = (input: typeof created, user = forge.owner) =>
         refusal(
             forge.release(
                 {
@@ -82,7 +82,6 @@ test("publish pushed images as releases", async () => {
     expect([
         await attempt({ ...created, tag: "x" }),
         await attempt({ ...created, image: missing }),
-        await attempt(uncommitted),
         await attempt(created, forge.stranger()),
     ]).toEqual([
         [
@@ -91,22 +90,8 @@ test("publish pushed images as releases", async () => {
             "distribution tag 'x' is invalid: it must not be a version range",
         ],
         ["NOT_FOUND", "BUILD_NOT_FOUND", `image '${missing}' not found`],
-        [
-            "BAD_REQUEST",
-            "BUILD_INVALID",
-            `image '${created.image}' is invalid: a release of uncommitted changes must be a prerelease`,
-        ],
         ["FORBIDDEN", "PERMISSION_DENIED", "permission 'publish' is forbidden: it is not granted"],
     ]);
-
-    // publish a dev prerelease without a commit
-    const prerelease = await forge.release({
-        ...uncommitted,
-        requestId: RequestId.create(forge.environment),
-        image: await forge.push((await prereleaseBuild()).reader),
-        tag: "dev",
-    });
-    expect([prerelease.version, prerelease.commit]).toEqual([PRERELEASE_VERSION, null]);
 });
 
 test("find a published release by version, tag, digest and id, and refuse its name to another package", async () => {
@@ -174,12 +159,12 @@ test("find a published release by version, tag, digest and id, and refuse its na
 });
 
 test("release one image of a version under each tag, refusing another image of it", async () => {
-    // store two prerelease builds of answer at one version with other files
+    // store two builds of answer at one unreleased version with other files
     const forge = await TestForge.open();
     const owner = forge.client(forge.owner);
     const { crypto } = forge.environment;
     const { id, name } = PackageManifest.package((await fixtureBuild("answer")).reader.manifest);
-    const version = PackageVersion.parse({ id, name, version: PRERELEASE_VERSION });
+    const version = PackageVersion.parse({ id, name, version: UNRELEASED_VERSION });
     await using store = await TestBuildStore.create(forge.environment);
     const pushImage = async (notes: string) => {
         const build = await MemoryBuild.of(version, [], crypto, {
@@ -192,9 +177,11 @@ test("release one image of a version under each tag, refusing another image of i
     const other = await pushImage("other");
 
     // release under next, then the same image under latest, and refuse the other image under next
-    await forge.publishImage(store, released, "next");
-    await forge.publishImage(store, released, LATEST_TAG);
-    const refused = await refusal(forge.publishImage(store, other, "next"));
+    await forge.publishImage(store, released, "next", { commit: TEST_COMMIT });
+    await forge.publishImage(store, released, LATEST_TAG, { commit: TEST_COMMIT });
+    const refused = await refusal(
+        forge.publishImage(store, other, "next", { commit: TEST_COMMIT }),
+    );
     const resolve = async (release: string) =>
         (await owner.release.resolve({ spaceId: forge.space, parentId: id, release })).image;
 
@@ -209,20 +196,41 @@ test("release one image of a version under each tag, refusing another image of i
         (await owner.tag.list({ spaceId: forge.space })).items
             .map((entry) => `${entry.name} ${entry.version}`)
             .toSorted(),
-        await resolve(PRERELEASE_VERSION),
+        await resolve(UNRELEASED_VERSION),
         await resolve("next"),
         await resolve(LATEST_TAG),
     ]).toEqual([
         [
             "CONFLICT",
             "RELEASE_EXISTS",
-            `release '${PRERELEASE_VERSION}' of '${id}' already exists: another image published it`,
+            `release '${UNRELEASED_VERSION}' of '${id}' already exists: another image published it`,
         ],
-        [[id, PRERELEASE_VERSION, released]],
-        [`${LATEST_TAG} ${PRERELEASE_VERSION}`, `next ${PRERELEASE_VERSION}`],
+        [[id, UNRELEASED_VERSION, released]],
+        [`${LATEST_TAG} ${UNRELEASED_VERSION}`, `next ${UNRELEASED_VERSION}`],
         released,
         released,
         released,
+    ]);
+});
+
+test("refuse publishing a dev build as a release, even from a commit", async () => {
+    // store a dev build of answer
+    const forge = await TestForge.open();
+    const { crypto } = forge.environment;
+    const { id, name } = PackageManifest.package((await fixtureBuild("answer")).reader.manifest);
+    const version = PackageVersion.parse({ id, name, version: Version.dev(UNRELEASED_VERSION) });
+    await using store = await TestBuildStore.create(forge.environment);
+    const image = await store.putImage(
+        BuildImage.of(await store.putIndexed(await MemoryBuild.of(version, [], crypto))),
+    );
+
+    // refuse it, which no release of the version follows
+    expect(
+        await refusal(forge.publishImage(store, image, LATEST_TAG, { commit: TEST_COMMIT })),
+    ).toEqual([
+        "BAD_REQUEST",
+        "BUILD_INVALID",
+        `image '${image}' is invalid: its root is dev build '${UNRELEASED_VERSION}-dev', not a release`,
     ]);
 });
 
@@ -232,7 +240,7 @@ test("keep a version's first release when another image of its build publishes",
     const owner = forge.client(forge.owner);
     const { crypto } = forge.environment;
     const { id, name } = PackageManifest.package((await fixtureBuild("answer")).reader.manifest);
-    const version = PackageVersion.parse({ id, name, version: PRERELEASE_VERSION });
+    const version = PackageVersion.parse({ id, name, version: UNRELEASED_VERSION });
     const library = PackageVersion.parse({
         id: "package-01996ab0-0000-7000-8000-0000000000f1",
         name: "@example/library",
@@ -264,10 +272,10 @@ test("keep a version's first release when another image of its build publishes",
             await owner.release.resolve({
                 spaceId: forge.space,
                 parentId: id,
-                release: PRERELEASE_VERSION,
+                release: UNRELEASED_VERSION,
             })
         ).image,
-    ]).toEqual([[[id, PRERELEASE_VERSION, first]], first]);
+    ]).toEqual([[[id, UNRELEASED_VERSION, first]], first]);
 });
 
 test("publish an image's builds in dependency order", async () => {
@@ -458,27 +466,6 @@ test("refuse an image pinning an unreleased version of another account's hosted 
         "PRECONDITION_FAILED",
         "DEPENDENCY_BLOCKED",
         "cannot release with dependency '@tenant-1/library@2026.9.0': it is not published",
-    ]);
-});
-
-test("publish a dev build after a later dev build, and refuse one before the newest release", async () => {
-    // publish the later dev build, then the earlier one, as a reverted source builds
-    const forge = await TestForge.open();
-    const later = await forge.publish((await prereleaseBuild()).reader);
-    const earlier = await forge.publish((await prereleaseBuild(EARLIER_PRERELEASE_VERSION)).reader);
-    expect([later.release.version, earlier.release.version]).toEqual([
-        PRERELEASE_VERSION,
-        EARLIER_PRERELEASE_VERSION,
-    ]);
-
-    // refuse a dev build of a version before the newest release
-    const other = await TestForge.open();
-    await other.publish((await fixtureBuild("answer", "2026.10.0")).reader);
-    const refused = await refusal(other.publish((await prereleaseBuild()).reader));
-    expect(refused).toEqual([
-        "PRECONDITION_FAILED",
-        "VERSION_BLOCKED",
-        `cannot publish release '${PRERELEASE_VERSION}': it precedes '2026.10.0', and releases publish in version order`,
     ]);
 });
 

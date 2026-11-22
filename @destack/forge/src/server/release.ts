@@ -15,7 +15,7 @@ import {
 /** Implement releases. */
 export function implementRelease(): typeof release {
     return release.implement({
-        methods: { create, resolve, deprecate, yank, delete: remove },
+        methods: { create, resolve, deprecate, yank },
     });
 }
 
@@ -78,20 +78,6 @@ async function existing(
     }
 
     return taken;
-}
-/** Delete a prerelease, refusing a stable release, which stays immutable and only yanks. */
-async function remove(
-    call: MethodContextOf<typeof release, "delete">,
-    next: NextOf<typeof release, "delete">,
-): Promise<ResultOf<typeof release, "delete">> {
-    if (!Version.isPrerelease(call.target.version)) {
-        throw ForgeError.of(
-            "RELEASE_INVALID",
-            `release '${call.target.version}' is invalid: a stable release cannot be deleted, only yanked`,
-        );
-    }
-
-    return await next(call);
 }
 /** Find a package's published release of a version, or of the version a tag points at. */
 async function resolve(
