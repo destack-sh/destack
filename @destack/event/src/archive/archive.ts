@@ -9,12 +9,13 @@ import {
     inArray,
     lt,
     lte,
-    type DatabaseConnection,
     listed,
     sql,
+    SearchText,
+    TABLE,
 } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { present, Digest } from "@destack/schema";
-import { SearchText, TABLE } from "@destack/db";
 import type { AsyncBuffer } from "hyparquet";
 import {
     BloomFilter,
@@ -24,7 +25,7 @@ import {
     segmentDeletion,
 } from "./catalog.ts";
 import { type Event, type EventKind, EventTime, type SettingRetention } from "../kind/kind.ts";
-import { EventCursor, EventFilter, type EventOrder } from "../store/filter.ts";
+import { EventCursor, EventFilter, type EventOrder } from "../query/filter.ts";
 import { SegmentFile } from "./segment.ts";
 import type {} from "@destack/package/import-meta";
 import { TelemetryScope } from "@destack/telemetry";

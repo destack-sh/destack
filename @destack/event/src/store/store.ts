@@ -4,7 +4,6 @@ import {
     and,
     asc,
     desc,
-    Change,
     Condition,
     count,
     eq,
@@ -16,17 +15,18 @@ import {
     or,
     sql,
     sum,
-    type DatabaseConnection,
     type SQL,
     type SQLWrapper,
     TABLE,
     listed,
+    Change,
+    now,
 } from "@destack/db";
+import type { DatabaseConnection, Controller } from "@destack/db/database";
 import { canonicalize, type JsonValue, nth, schema } from "@destack/schema";
 import { EventError } from "../error/index.ts";
 import { TelemetryScope } from "@destack/telemetry";
 import type { Bucket } from "@destack/bucket";
-import { type Controller, now } from "@destack/db";
 import { eventSegment, segmentDeletion } from "../archive/catalog.ts";
 import { EventArchive } from "../archive/archive.ts";
 import {
@@ -38,8 +38,14 @@ import {
     type SettingRetention,
 } from "../kind/kind.ts";
 import { type PersonalKeyring, PersonalSeal } from "./personal-keyring.ts";
-import { EventCursor, EventFilter, type EventOrder } from "./filter.ts";
-import { Fold, type Series, SeriesFold, type SeriesRequest, type StepFold } from "./series.ts";
+import { EventCursor, EventFilter, type EventOrder } from "../query/filter.ts";
+import {
+    Fold,
+    type Series,
+    SeriesFold,
+    type SeriesRequest,
+    type StepFold,
+} from "../query/series.ts";
 import type { Clock, Environment } from "@destack/environment";
 
 /** The bucket key prefix segments are written under unless a host sets another. */

@@ -1,8 +1,10 @@
 import type { Crypto, Environment } from "@destack/environment";
-import { and, defineTable, desc, eq, integer, text, type DatabaseConnection } from "@destack/db";
+import { and, desc, eq } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { Ciphertext, type Keyring, type Label } from "@destack/identity";
 import { JsonValue, present, schema, Uuid } from "@destack/schema";
 import type { EventKind } from "../kind/kind.ts";
+import { personalKey } from "./table.ts";
 
 /** The keys sealing people's personal values, gone once a person is forgotten. */
 export interface PersonalKeyring {
@@ -18,18 +20,6 @@ export interface PersonalKeyring {
     /** The WebCrypto and randomness sealing the people's values. */
     readonly environment: Pick<Environment, "crypto" | "random">;
 }
-
-/** The keys of the people in a database's events, each encrypted under the host's keyring. */
-export const personalKey = defineTable("personal_key", {
-    /** The person. */
-    subject: text("subject").primaryKey(),
-    /** The key's identity. */
-    id: text("id").primaryKey(),
-    /** The AES-256 key's bytes, encrypted under the host's keyring. */
-    sealed: text("sealed").notNull(),
-    /** When the key was created, in Unix milliseconds. */
-    createdAt: integer("created_at").notNull(),
-});
 
 /** People's keys in a database, encrypted under the host's keyring, for stores sharing it. */
 export class DatabasePersonalKeyring implements PersonalKeyring {

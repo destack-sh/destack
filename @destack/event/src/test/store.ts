@@ -1,6 +1,5 @@
-import { TestTelemetry } from "@destack/telemetry/test";
 import {
-    ControlLoop,
+    CONTROL_TABLES,
     type ColumnBuilder,
     defineTable,
     index,
@@ -9,6 +8,8 @@ import {
     real,
     text,
 } from "@destack/db";
+import { TestTelemetry } from "@destack/telemetry/test";
+import { ControlLoop } from "@destack/db/database";
 import { present, schema, toJsonSchema, type JsonValue } from "@destack/schema";
 import { TestDatabase } from "@destack/db/test";
 import { LocalKeyring } from "@destack/identity";
@@ -137,7 +138,7 @@ export class TestEventStore implements AsyncDisposable {
         settings?: SettingRetention,
     ): Promise<TestEventStore> {
         // migrate the kinds' tables and the control loop's on the fixture's clock
-        const tables = [...eventTables(kinds), ...ControlLoop.tables];
+        const tables = [...eventTables(kinds), ...CONTROL_TABLES];
         const simulation = new Simulation({ world: testWorldOptions(), seed: 1, start: START });
         const environment = simulation.environment("events");
         const database = await TestDatabase.create(tables, { environment });

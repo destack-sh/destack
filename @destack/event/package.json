@@ -7,6 +7,7 @@
     "exports": {
         ".": "./src/index.ts",
         "./error": "./src/error/index.ts",
+        "./store": "./src/store/index.ts",
         "./destack.json": "./destack.json",
         "./stack": "./src/stack/index.ts",
         "./test": "./src/test/index.ts"

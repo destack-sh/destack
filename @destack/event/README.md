@@ -22,9 +22,11 @@ Declare a kind of sensor readings, then append and read them through a store:
 
 ```ts
 import type { Bucket } from "@destack/bucket";
-import { type DatabaseConnection, defineTable, text } from "@destack/db";
+import { defineTable, text } from "@destack/db";
+import { type DatabaseConnection } from "@destack/db/database";
 import { BunEnvironment } from "@destack/environment/bun";
-import { EventKind, EventStore, eventColumns } from "@destack/event";
+import { EventKind, eventColumns } from "@destack/event";
+import { EventStore } from "@destack/event/store";
 import { schema } from "@destack/schema";
 
 // declare readings by sensor, flushed hourly and kept a day
@@ -122,7 +124,8 @@ Each step is `{ start, value, events }`.
 `series` counts a day's calls per hour and method.
 
 ```ts
-import type { EventKind, EventStore } from "@destack/event";
+import type { EventKind } from "@destack/event";
+import type { EventStore } from "@destack/event/store";
 
 /** Count a scope's calls of the last day, per hour and method. */
 export async function callsPerHour(store: EventStore, kind: EventKind, scope: string, now: number) {
@@ -139,7 +142,8 @@ export async function callsPerHour(store: EventStore, kind: EventKind, scope: st
 `changes` reads the events after a log sequence.
 
 ```ts
-import type { Event, EventKind, EventStore } from "@destack/event";
+import type { Event, EventKind } from "@destack/event";
+import type { EventStore } from "@destack/event/store";
 
 /** Read the next events a scope appended, answering where to continue. */
 export async function readNext(
