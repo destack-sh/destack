@@ -30,6 +30,7 @@
         "./combobox": "./src/combobox/index.ts",
         "./color-swatch-picker": "./src/color-swatch-picker/index.ts",
         "./command": "./src/command/index.ts",
+        "./palette": "./src/palette/index.ts",
         "./context-menu": "./src/context-menu/index.ts",
         "./data-table": "./src/data-table/index.ts",
         "./date-field": "./src/date-field/index.ts",
@@ -85,6 +86,9 @@
         "./tooltip": "./src/tooltip/index.ts",
         "./tree": "./src/tree/index.ts",
         "./virtualizer": "./src/virtualizer/index.ts",
+        "./virtual-list": "./src/virtual-list/index.ts",
+        "./load-more": "./src/load-more/index.ts",
+        "./feed": "./src/feed/index.ts",
         "./visually-hidden": "./src/visually-hidden/index.ts",
         "./stack": "./src/stack/index.ts",
         "./stack.css": "./src/stack/stack.css",
@@ -99,7 +103,10 @@
         "./icon": "./src/icon/index.ts",
         "./build": "./src/build/index.ts",
         "./interaction": "./src/interaction/index.ts",
-        "./drag": "./src/drag/index.ts"
+        "./drag": "./src/drag/index.ts",
+        "./board": "./src/board/index.ts",
+        "./event-calendar": "./src/event-calendar/index.ts",
+        "./timeline": "./src/timeline/index.ts"
     },
     "scripts": {
         "generate": "bun run src/chart/generate.ts",
@@ -118,7 +125,7 @@
         "@destack/view": "workspace:*",
         "@tanstack/charts": "1.0.0",
         "@tanstack/table-core": "9.2.6",
-        "@tanstack/virtual-core": "3.17.11",
+        "@tanstack/virtual-core": "3.19.11",
         "@types/hast": "3.0.5",
         "emojibase-data": "17.0.0",
         "property-information": "7.2.0"
