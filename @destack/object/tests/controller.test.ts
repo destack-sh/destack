@@ -50,8 +50,8 @@ const reminder = defineObject(
     controllers: [
         {
             name: "send",
-            pending: { sentAt: { isNull: true }, dueAt: { lte: now } },
-            key: ["topic"],
+            when: { sentAt: { isNull: true }, dueAt: { lte: now } },
+            by: ["topic"],
             // send the due reminders of a topic together
             reconcile: async ({ rows, mutate }) => {
                 await mutate(rows.map((row) => reminder.call("send", reminder.target(row))));
@@ -94,7 +94,7 @@ const gate = defineObject(
     controllers: [
         {
             name: "sync",
-            pending: { generation: { gt: { field: "syncedGeneration" } } },
+            when: { generation: { gt: { field: "syncedGeneration" } } },
             // refuse, fail or hold each gate as its outcome says
             reconcile: async ({ rows, signal }) => {
                 for (const row of rows) {
@@ -144,12 +144,12 @@ const latch = defineObject(
         update: method.update("write", { fields: ["outcome"] }),
     }),
 ).implement({
-    projections: [
+    controllers: [
         {
             name: "derive",
-            watches: [],
+            reads: [],
             // refuse a latch whose outcome says so
-            project: async (_id, { rows }) => {
+            reconcile: async ({ rows }) => {
                 if (rows.some((row) => row.outcome === "refused")) {
                     throw Failure.error({
                         code: "FORBIDDEN",
@@ -200,13 +200,13 @@ const lever = defineObject(
         update: method.update("write", { fields: ["outcome"] }),
     }),
 ).implement({
-    projections: [
+    controllers: [
         {
             name: "derive",
-            watches: [],
+            reads: [],
             reports: { object: toggle, identifiers: (rows) => rows.map((row) => row.toggleId) },
             // refuse a lever whose outcome says so
-            project: async (_id, { rows }) => {
+            reconcile: async ({ rows }) => {
                 if (rows.some((row) => row.outcome === "refused")) {
                     throw Failure.error({
                         code: "FORBIDDEN",
@@ -313,10 +313,11 @@ test("reconcile a pending object again as a gate naming its topic changes", asyn
         controllers: [
             {
                 name: "send",
-                pending: { sentAt: { isNull: true } },
-                watches: [
+                when: { sentAt: { isNull: true } },
+                reads: [
                     {
                         table: gate.table,
+                        fields: ["outcome"],
                         on: { topic: "outcome" },
                     },
                 ],
@@ -783,12 +784,13 @@ test("project a type's objects at the first start, then each one its own or a wa
     // project each reminder again as it changes, or as a gate naming its topic changes
     const projected: string[] = [];
     const projectedReminder = reminder.implement({
-        projections: [
+        controllers: [
             {
                 name: "derive",
-                watches: [
+                reads: [
                     {
                         table: gate.table,
+                        fields: ["outcome"],
                         path: [
                             {
                                 table: reminder.table,
@@ -798,7 +800,7 @@ test("project a type's objects at the first start, then each one its own or a wa
                         ],
                     },
                 ],
-                project: async (_id, { rows }) => {
+                reconcile: async ({ rows }) => {
                     projected.push(...rows.map((row) => row.topic));
                 },
             },

@@ -4,7 +4,7 @@ import { TABLE, Condition, Now } from "@destack/db";
 import { t } from "@destack/locale";
 import { defineMethod } from "../method/method.ts";
 import { Empty } from "../method/procedure.ts";
-import { ObjectKey, type ObjectType } from "../object/object.ts";
+import type { ObjectType } from "../object/object.ts";
 import { type TraitBehavior, callableTrait } from "./trait.ts";
 
 /** The most objects one expiry mutation removes: about a millisecond of deletes. */
@@ -33,23 +33,13 @@ const expiringTrait: TraitBehavior<readonly ExpiryRule[]> = {
     methods: () => ({ expire: Expiring.expire }),
     validate: (rules, object) => Expiring.requireRules(object, rules),
     // expire each scope's objects once a rule's window passed
-    controllers: (rules, object) =>
+    controllers: (rules) =>
         rules.map((rule, index) => ({
             name: rules.length === 1 ? "expire" : `expire.${String(index)}`,
-            pending: { ...rule.where, [rule.from]: { lte: new Now().minus(rule.after) } },
-            key: ["scope"],
-            reconcile: async ({ rows, mutate }) => {
-                const keys = rows.map((row) => ObjectKey.parse(row));
-
-                // expire them a batch per mutation
-                for (let start = 0; start < keys.length; start += EXPIRE_ROWS) {
-                    await mutate(
-                        keys
-                            .slice(start, start + EXPIRE_ROWS)
-                            .map((key) => object.call("expire", object.target(key))),
-                    );
-                }
-            },
+            when: { ...rule.where, [rule.from]: { lte: new Now().minus(rule.after) } },
+            by: ["scope"],
+            call: "expire",
+            batch: EXPIRE_ROWS,
         })),
 };
 

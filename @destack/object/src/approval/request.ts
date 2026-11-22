@@ -207,15 +207,16 @@ export const changeRequest = defineObject(
     controllers: [
         {
             name: "decide",
-            pending: { state: "open" },
+            when: { state: "open" },
             // decide a change again as each of its approvals changes
-            watches: [
+            reads: [
                 {
                     table: approval.table,
                     where: {
                         parentPackageId: import.meta.destack.package.id,
                         parentType: CHANGE_REQUEST,
                     },
+                    fields: ["state"],
                     on: { id: "parentId" },
                 },
             ],

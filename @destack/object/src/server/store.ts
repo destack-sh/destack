@@ -2929,22 +2929,26 @@ export class ObjectStore {
               };
     }
 
-    /** List the controllers and projections of the types a filter selects by their package's id. */
+    /** List the controllers of the types a filter selects by their package's id. */
     #objectControl(isSelected: (packageId: PackageId) => boolean): ControllerSet {
         const selected = [...this.objects, ...this.#catalog.provisioned].filter((object) =>
             isSelected(object.package.id),
         );
 
+        // work the controllers with a condition by their rows, the ones without by key
+        const declared = selected.flatMap((object) =>
+            [...object.controllers, ...object.traitControllers()].map((each) => ({
+                object,
+                controller: each,
+            })),
+        );
+
         return {
-            controllers: selected.flatMap((object) =>
-                [...object.controllers, ...object.traitControllers()].map((declared) =>
-                    ObjectController.control(this, object, declared),
-                ),
+            controllers: declared.flatMap(({ object, controller }) =>
+                "when" in controller ? [ObjectController.control(this, object, controller)] : [],
             ),
-            projections: selected.flatMap((object) =>
-                object.projections.map((declared) =>
-                    ObjectController.project(this, object, declared),
-                ),
+            projections: declared.flatMap(({ object, controller }) =>
+                "when" in controller ? [] : [ObjectController.project(this, object, controller)],
             ),
             cursors: selected.flatMap((object) => object.cursors.map((cursor) => cursor(this))),
         };

@@ -115,13 +115,16 @@ export class BranchType {
     }
 
     /** Rebuild open branches whose rows a main-line write may have changed. */
-    controller(objects: readonly ObjectType[]): ObjectController {
+    controller(
+        objects: readonly ObjectType[],
+    ): Extract<ObjectController, { readonly when: unknown }> {
         return {
             name: "rebuild",
-            pending: { state: "open" },
+            when: { state: "open" },
             // decide the open branches of a changed row's scope again
-            watches: [...this.tables(objects).values()].map((table) => ({
+            reads: [...this.tables(objects).values()].map((table) => ({
                 table,
+                fields: Object.keys(table[TABLE].logged),
                 on: { scope: "scope" },
             })),
             reconcile: async (reconciliation) => {

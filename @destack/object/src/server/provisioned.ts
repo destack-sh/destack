@@ -109,6 +109,7 @@ export class ResourceController {
             {
                 table: accessRelationship,
                 where: { objectPackageId: packageId, objectType: object.name, relation: CONSUMER },
+                fields: [],
                 on: { id: "objectId" },
             },
         ];
@@ -122,11 +123,11 @@ export class ResourceController {
         return [
             {
                 name: "provision",
-                pending: { generation: { gt: { field: "syncedGeneration" } } },
-                watches: this.#watches,
+                when: { generation: { gt: { field: "syncedGeneration" } } },
+                reads: this.#watches,
                 reconcile,
             },
-            { name: "retention", pending: { retainedUntil: { lte: now } }, reconcile },
+            { name: "retention", when: { retainedUntil: { lte: now } }, reconcile },
         ];
     }
 

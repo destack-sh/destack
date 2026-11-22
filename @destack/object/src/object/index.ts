@@ -43,7 +43,6 @@ export {
 export {
     type KeyFields,
     ObjectController,
-    type ObjectProjection,
     type ObjectWatch,
     type ObjectReport,
     type ObjectReconciliation,

@@ -375,8 +375,8 @@ export class Reservation implements Participant {
         return {
             name: "destack.claim_reservation.expire",
             table: claimReservation,
-            pending: { expiresAt: { lte: now } },
-            key: [],
+            when: { expiresAt: { lte: now } },
+            by: [],
             reconcile: async (rows) => {
                 // read each object's names as its row has them now, under the reservation's owner once gone
                 const { database, environment } = store;

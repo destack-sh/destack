@@ -174,7 +174,7 @@ import type {
 } from "../trait/trait.ts";
 import { SYSTEM_TABLES } from "../stack/db.ts";
 import { eventTables } from "@destack/event/stack";
-import type { ObjectController, ObjectProjection } from "./controller.ts";
+import type { ObjectController } from "./controller.ts";
 import { type CursorRead, ObjectCursor, type CursorOptions } from "./cursor.ts";
 import type { ObjectStore } from "../server/store.ts";
 
@@ -603,10 +603,8 @@ export interface ObjectImplementation<Self extends ObjectType = ObjectType> {
             TypesOf<Self["methods"][Name], Self["table"]>
         >;
     };
-    /** Reconcile or follow the objects with work waiting as the store's principal. */
+    /** Call, reconcile or follow the objects meeting each condition, as the store's principal. */
     readonly controllers?: readonly ObjectController<Self>[];
-    /** Project the objects from input tables again as their changes touch them. */
-    readonly projections?: readonly ObjectProjection<Self>[];
     /** Fold other types' events into the objects, each event once, over the store. */
     readonly cursors?: readonly ((store: ObjectStore) => Cursor)[];
     /** How a stack's declarations of the objects become their managed records. */
@@ -751,8 +749,6 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     readonly permissions: readonly string[];
     /** The controllers the type's code implements, none until implemented with some. */
     readonly controllers: readonly ObjectController[];
-    /** The projections the type's code implements, none until implemented with some. */
-    readonly projections: readonly ObjectProjection[];
     /** The cursors folding events into the type, none until implemented with some. */
     readonly cursors: readonly ((store: ObjectStore) => Cursor)[];
     /** How stack declarations become managed records, absent for types they cannot declare. */
@@ -818,7 +814,6 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         ObjectType.#requireConversions(definition);
         this.declaration = ObjectType.#declarationOf(definition);
         this.controllers = [];
-        this.projections = [];
         this.cursors = [];
 
         // compute the scopes, nesting, sharing, presentation, ordering, numbering, search and the event kind once
@@ -2243,12 +2238,11 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         }
 
         // leave ephemeral and external objects off the controllers
-        const { controllers, projections, cursors, declaration } = implementation;
-        const isReactive =
-            controllers !== undefined || projections !== undefined || cursors !== undefined;
+        const { controllers, cursors, declaration } = implementation;
+        const isReactive = controllers !== undefined || cursors !== undefined;
         if (isReactive && this.storage !== "durable") {
             throw new TypeError(
-                `${this.storage} object '${this.name}' cannot have controllers, projections or cursors`,
+                `${this.storage} object '${this.name}' cannot have controllers or cursors`,
             );
         }
 
@@ -2258,7 +2252,6 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             {
                 methods,
                 ...(controllers === undefined ? {} : { controllers }),
-                ...(projections === undefined ? {} : { projections }),
                 ...(cursors === undefined ? {} : { cursors }),
                 ...(declaration === undefined ? {} : { declaration }),
             },
@@ -2289,10 +2282,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     with<Self extends ObjectType>(
         this: Self,
         changes: Partial<
-            Pick<
-                Self,
-                "methods" | "controllers" | "projections" | "cursors" | "declaration" | "definition"
-            >
+            Pick<Self, "methods" | "controllers" | "cursors" | "declaration" | "definition">
         >,
     ): Self {
         // replicate the members, building the changed type's schemas and procedures afresh
@@ -2303,10 +2293,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     static #copy<Type extends ObjectType>(
         type: Type,
         changes: Partial<
-            Pick<
-                Type,
-                "methods" | "controllers" | "projections" | "cursors" | "declaration" | "definition"
-            >
+            Pick<Type, "methods" | "controllers" | "cursors" | "declaration" | "definition">
         >,
         derived: Derived,
     ): Type {

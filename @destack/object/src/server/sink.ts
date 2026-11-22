@@ -296,8 +296,8 @@ export class ObjectSink {
         return {
             name: "destack.follow_key.lapse",
             table: followKey,
-            pending: { expiresAt: { lte: now } },
-            key: [],
+            when: { expiresAt: { lte: now } },
+            by: [],
             reconcile: async () => {
                 const { database, clock } = this.store;
                 await database.delete(followKey).where(lte(followKey.expiresAt, clock.now()));
@@ -310,7 +310,7 @@ export class ObjectSink {
         return {
             name: "destack.replica.follow",
             table: replicaRequest,
-            pending: {},
+            when: {},
             concurrency: Infinity,
             follow: async (rows, following) => {
                 const key = present(rows[0], "a requested replica").key;

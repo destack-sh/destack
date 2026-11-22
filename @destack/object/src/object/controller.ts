@@ -21,7 +21,8 @@ import { Failure } from "@destack/error";
 import { found, schema } from "@destack/schema";
 import { waitAborted } from "@destack/environment";
 import { PackageName } from "@destack/package";
-import type { ObjectType } from "./object.ts";
+import { ObjectKey, type ObjectType } from "./object.ts";
+import type { MethodName } from "../method/procedure.ts";
 import {
     ConditionMap,
     SYNCED,
@@ -54,30 +55,53 @@ const RELEASING_FIELDS = ["movedTo", "suspendedAt"] as const;
 /** The fields grouping objects a controller reconciles together, in JSON form. */
 export type { KeyFields };
 
-/** What a type's controller does with its pending objects: converge them, or hold work. */
+/** What a type's controller does while objects meet its condition: call, converge or follow. */
 type ObjectWork<Object extends ObjectType> =
     | {
-          /** Converge one key's pending objects, or report them waiting for a change. */
+          /** The type's method called on each object of a key, in one mutation as the store. */
+          readonly call: MethodName<Object>;
+          /** What the controller does, the called method's name by default. */
+          readonly name?: string;
+          /** The most objects called in one mutation, every object of the key by default. */
+          readonly batch?: number;
+      }
+    | {
+          /** What the controller does to its type's objects, a verb such as `run`. */
+          readonly name: string;
+          /** Converge one key's objects, or report them waiting for a change. */
           reconcile(reconciliation: ObjectReconciliation<Object>): Promise<void | "waiting">;
       }
     | {
-          /** Hold one key's work in the process while its objects stay pending, until stopped. */
+          /** What the controller does to its type's objects, a verb such as `run`. */
+          readonly name: string;
+          /** Keep one key's work running in the process while its objects meet the condition. */
           follow(following: ObjectFollowing<Object>): Promise<void>;
       };
 
 /** A type's reactive behavior beside its methods: the objects with work, and the work. */
 export type ObjectController<Object extends ObjectType = ObjectType> = {
-    /** What the controller does to its type's objects, a verb such as `run`. */
-    readonly name: string;
-    /** The objects with work now, which may compare time fields to `now`. */
-    readonly pending: Condition<RowImage<Object["table"]>>;
-    /** The fields grouping objects reconciled together, the identifier by default. */
-    readonly key?: readonly (keyof RowImage<Object["table"]> & string)[];
-    /** The tables whose changed rows wake the keys they reference. */
-    readonly watches?: readonly ObjectWatch[];
+    /** The other rows the work reads, whose changed fields wake the objects they relate to. */
+    readonly reads?: readonly ObjectWatch[];
     /** The keys worked on at once, one by default. */
     readonly concurrency?: number;
-} & ObjectWork<Object>;
+} & ObjectTrigger<Object>;
+
+/** What selects a controller's keys and what it does: by a condition, or each changed key. */
+type ObjectTrigger<Object extends ObjectType> =
+    | ({
+          /** The condition of the objects with work now, which may compare time fields to `now`. */
+          readonly when: Condition<RowImage<Object["table"]>>;
+          /** The fields grouping objects worked on together, the identifier by default. */
+          readonly by?: readonly (keyof RowImage<Object["table"]> & string)[];
+      } & ObjectWork<Object>)
+    | ({
+          /** The one field keying the objects worked on, the type's key field by default. */
+          readonly by?: readonly [keyof RowImage<Object["table"]> & string];
+          /** The other table whose column lists every key, the type's own by default. */
+          readonly for?: Projection["all"];
+          /** The controlled objects a pass reports Synced on, its own by default. */
+          readonly reports?: ObjectReport<Object>;
+      } & Exclude<ObjectWork<Object>, { follow: unknown }>);
 
 /** Another table whose changed rows wake the keys its relations reach, by name or as a relation. */
 export type ObjectWatch = Omit<Watch, "path"> & {
@@ -85,23 +109,7 @@ export type ObjectWatch = Omit<Watch, "path"> & {
     readonly path?: readonly (string | Relation)[];
 };
 
-/** Objects a type projects from input tables, projected again as the inputs' changes touch them. */
-export interface ObjectProjection<Object extends ObjectType = ObjectType> {
-    /** What the projection does to its type's objects, a verb such as `resume`. */
-    readonly name: string;
-    /** The type's field holding the key, its key field by default. */
-    readonly key?: string;
-    /** The inputs whose changed rows touch keys, beside the type's own rows. */
-    readonly watches: readonly ObjectWatch[];
-    /** Every key: one input's column, the type's own key column by default. */
-    readonly all?: Projection["all"];
-    /** The controlled objects each pass reports Synced on, the projected objects by default. */
-    readonly reports?: ObjectReport<Object>;
-    /** Project the object of one key again from its inputs as they are now, absent or not. */
-    project(key: string, reconciliation: ObjectReconciliation<Object>): Promise<void>;
-}
-
-/** The controlled objects a projection reports Synced on, as Crossplane's managed resource. */
+/** The controlled objects a controller reports Synced on, as Crossplane's managed resource. */
 export interface ObjectReport<Object extends ObjectType = ObjectType> {
     /** The controlled type reported on. */
     readonly object: ObjectType;
@@ -109,11 +117,13 @@ export interface ObjectReport<Object extends ObjectType = ObjectType> {
     identifiers(rows: readonly RowImage<Object["table"]>[]): readonly string[];
 }
 
-/** One key's reconciliation: pending objects, and methods reconciling them as the store. */
+/** One key's reconciliation: its objects, and methods reconciling them as the store. */
 export interface ObjectReconciliation<
     Object extends ObjectType = ObjectType,
 > extends Reconciliation {
-    /** The pending objects of the key. */
+    /** The key worked on: the keying field's value, else the grouping fields as canonical JSON. */
+    readonly key: string;
+    /** The objects of the key, matching the condition where the controller has one. */
     readonly rows: readonly RowImage<Object["table"]>[];
     /** The reconcile time, in UTC epoch milliseconds. */
     readonly now: number;
@@ -136,7 +146,7 @@ export interface ObjectReconciliation<
     ) => Promise<unknown>;
 }
 
-/** One key's follow: its pending objects, held while pending, reporting once caught up. */
+/** One key's follow: its matching objects, followed while they match, reporting once caught up. */
 export interface ObjectFollowing<
     Object extends ObjectType = ObjectType,
 > extends ObjectReconciliation<Object> {
@@ -153,24 +163,57 @@ export const ObjectController = {
         return `${handle}.${object.name.replaceAll("-", "_")}.${verb}`;
     },
 
+    /** Read a declared controller's work, a called method as a reconcile calling it per object. */
+    work(
+        object: ObjectType,
+        declared: Exclude<ObjectWork<ObjectType>, { follow: unknown }>,
+    ): Extract<ObjectWork<ObjectType>, { reconcile: unknown }> {
+        // take a reconcile as declared
+        if (!("call" in declared)) {
+            return declared;
+        }
+
+        // call the method on each object of the key, a batch per mutation
+        const { call } = declared;
+
+        return {
+            name: declared.name ?? call,
+            reconcile: async ({ rows, mutate }) => {
+                const size = declared.batch ?? rows.length;
+                for (let start = 0; start < rows.length; start += size) {
+                    await mutate(
+                        rows
+                            .slice(start, start + size)
+                            .map((row) => object.call(call, object.target(ObjectKey.parse(row)))),
+                    );
+                }
+            },
+        };
+    },
+
     /** Build a type's declared controller over its table, as the store's principal. */
-    control(store: ObjectStore, object: ObjectType, declared: ObjectController): Controller {
+    control(
+        store: ObjectStore,
+        object: ObjectType,
+        declared: Extract<ObjectController, { readonly when: unknown }>,
+    ): Controller {
         // list the type again once a scope's fence or suspension changes, which releases its rows
-        const key = declared.key ?? ["id"];
+        const key = declared.by ?? ["id"];
+        const work = "follow" in declared ? declared : ObjectController.work(object, declared);
         const shape = {
-            name: ObjectController.job(object, declared.name),
+            name: ObjectController.job(object, work.name),
             table: object.table,
-            pending: declared.pending,
-            key,
-            watches: [
-                ...(declared.watches ?? []).map((watch) => ObjectController.watch(store, watch)),
+            when: declared.when,
+            by: key,
+            reads: [
+                ...(declared.reads ?? []).map((watch) => ObjectController.watch(store, watch)),
                 ObjectController.released(),
             ],
             ...(declared.concurrency === undefined ? {} : { concurrency: declared.concurrency }),
         };
 
-        // hold a follow's work while its objects stay pending, else converge them
-        return "follow" in declared
+        // follow a key's objects while they match, else converge them
+        return "follow" in work
             ? {
                   ...shape,
                   follow: async (rows, following) => {
@@ -190,7 +233,7 @@ export const ObjectController = {
                           originated,
                           following,
                       );
-                      await declared.follow({ ...context, synced: following.synced });
+                      await work.follow({ ...context, synced: following.synced });
                   },
               }
             : {
@@ -202,7 +245,7 @@ export const ObjectController = {
                           await ObjectController.reconcileRows(
                               store,
                               object,
-                              declared,
+                              work,
                               originated,
                               reconciliation,
                           );
@@ -211,23 +254,33 @@ export const ObjectController = {
               };
     },
 
-    /** Build a type's projection over its own rows and its inputs, keyed by its key field. */
-    project(store: ObjectStore, object: ObjectType, declared: ObjectProjection): Projection {
-        // key the projection by its field, listing every key from its input
-        const field = declared.key ?? object.keyed ?? "id";
+    /** Build a controller without a condition over its rows and reads, keyed by one field. */
+    project(
+        store: ObjectStore,
+        object: ObjectType,
+        declared: Exclude<ObjectController, { readonly when: unknown }>,
+    ): Projection {
+        // key it by its one grouping field, listing every key from the table it is for
+        const work = ObjectController.work(object, declared);
+        const field = declared.by?.[0] ?? object.keyed ?? "id";
         const keyColumn = object.table[TABLE].column(field);
-        const all = declared.all ?? { table: object.table, column: field };
+        const all = declared.for ?? { table: object.table, column: field };
+        const reads = declared.reads ?? [];
 
         // watch the type's own changed rows by the field, unless a declared watch reads them
-        const isOwnWatched = declared.watches.some((watch) => watch.table === object.table);
-        const own: Watch = { table: object.table, on: { [all.column]: field } };
+        const isOwnWatched = reads.some((watch) => watch.table === object.table);
+        const own: Watch = {
+            table: object.table,
+            fields: Object.keys(object.table[TABLE].logged),
+            on: { [all.column]: field },
+        };
 
         return {
-            name: ObjectController.job(object, declared.name),
+            name: ObjectController.job(object, work.name),
             key: field,
-            watches: [
+            reads: [
                 ...(isOwnWatched ? [] : [own]),
-                ...declared.watches.map((watch) => ObjectController.watch(store, watch)),
+                ...reads.map((watch) => ObjectController.watch(store, watch)),
                 ObjectController.released(),
             ],
             all,
@@ -246,7 +299,7 @@ export const ObjectController = {
                         originated,
                         reconciliation,
                     );
-                    await ObjectController.projectKey(store, object, declared, key, context);
+                    await ObjectController.projectKey(store, object, declared, work, context);
                 }
             },
         };
@@ -348,6 +401,7 @@ export const ObjectController = {
         };
 
         return {
+            key: reconciliation.key,
             rows,
             now,
             database: store.database,
@@ -360,11 +414,11 @@ export const ObjectController = {
         };
     },
 
-    /** Reconcile one key's pending objects as the type's serving principal. */
+    /** Reconcile one key's objects as the type's serving principal. */
     async reconcileRows(
         store: ObjectStore,
         object: ObjectType,
-        declared: Extract<ObjectController, { readonly reconcile: unknown }>,
+        declared: Extract<ObjectWork<ObjectType>, { readonly reconcile: unknown }>,
         rows: readonly Row[],
         reconciliation: Reconciliation,
     ): Promise<void> {
@@ -424,8 +478,8 @@ export const ObjectController = {
     async projectKey(
         store: ObjectStore,
         object: ObjectType,
-        declared: ObjectProjection,
-        key: string,
+        declared: Exclude<ObjectController, { readonly when: unknown }>,
+        work: Extract<ObjectWork<ObjectType>, { readonly reconcile: unknown }>,
         context: ObjectReconciliation,
     ): Promise<void> {
         // record a condition on each reported object of a controlled type that lacks it
@@ -455,8 +509,10 @@ export const ObjectController = {
 
         // project, recording the objects synced, or failed for a declared failure no retry resolves
         try {
-            await declared.project(key, context);
-            await record(SYNCED_CONDITION);
+            const outcome = await work.reconcile(context);
+            if (outcome !== "waiting") {
+                await record(SYNCED_CONDITION);
+            }
         } catch (error) {
             // hold a pass a suspension refused midway, until the resume projects it again
             const failure = Failure.of(error);

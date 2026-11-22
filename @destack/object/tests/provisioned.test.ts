@@ -739,7 +739,7 @@ function conditions(row: { readonly conditions: Resource["conditions"] }) {
 test("leave an external kind's resources to their own type's controller, and refuse one for an internal kind's", async () => {
     // serve sockets controlled by their own type, and boxes given a controller of their own
     const world = testSimulation().environment("provisioned");
-    const own = { name: "provision", pending: {}, reconcile: async () => {} };
+    const own = { name: "provision", when: {}, reconcile: async () => {} };
     const sockets = socket.implement({ controllers: [own] });
     const implemented = box.implement({ controllers: [own] });
     const { store } = await serve(world, new Boxes(), [box, link, sockets]);

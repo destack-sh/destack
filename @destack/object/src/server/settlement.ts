@@ -177,7 +177,7 @@ export const Settlement = {
         return {
             name: "destack.settlement.recover",
             table: settlement,
-            pending: { settleAt: { lte: now } },
+            when: { settleAt: { lte: now } },
             reconcile: async (rows) => Settlement.recover(store, rows),
         };
     },

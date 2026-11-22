@@ -479,7 +479,7 @@ test("run one start's controllers at a time, stopping the previous start's befor
                 const controller: Controller<typeof marker> = {
                     name: "follower",
                     table: marker,
-                    pending: {},
+                    when: {},
                     follow: async (_rows, { signal, synced }) => {
                         events.push(`run ${start}`);
                         synced();

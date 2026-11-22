@@ -32,7 +32,7 @@ export async function followReplicas(
     // follow the selected requests
     const follow: Controller<typeof replicaRequest> = {
         ...store.sink.controller(subscriber),
-        pending: { key: { in: [...keys] } },
+        when: { key: { in: [...keys] } },
     };
     const controller = new AbortController();
     const loop = new ControlLoop(store.database, [
