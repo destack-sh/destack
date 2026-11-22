@@ -108,7 +108,7 @@ export class PlatformBuild implements AsyncDisposable {
     static async build(
         root: string,
         host: Environment<"files" | "process" | "host">,
-        options: Pick<WorkspaceUnitOptions, "isPrerelease"> = {},
+        options: Pick<WorkspaceUnitOptions, "isUnreleased"> = {},
     ): Promise<PlatformBuild> {
         // build in a span, which records the build once it succeeds
         return await TelemetryScope.of(import.meta.destack.package, host.telemetry).span(
@@ -123,7 +123,7 @@ export class PlatformBuild implements AsyncDisposable {
     static async #build(
         root: string,
         host: Environment<"files" | "process" | "host">,
-        options: Pick<WorkspaceUnitOptions, "isPrerelease">,
+        options: Pick<WorkspaceUnitOptions, "isUnreleased">,
     ): Promise<PlatformBuild> {
         // open the store and the compilers, closing the store when a build fails
         await using opened = new AsyncDisposableStack();
@@ -159,7 +159,7 @@ export class PlatformBuild implements AsyncDisposable {
         session: Session,
         universe: string,
         tag: string,
-        options: PublishOptions = {},
+        options: PublishOptions,
     ): Promise<void> {
         // publish in a span, which records the releases once they succeed
         const { telemetry, clock, network } = this.store.environment;

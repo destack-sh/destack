@@ -43,3 +43,17 @@ export async function readCommit(
 ): Promise<string> {
     return (await read("git", ["rev-parse", "--verify", "HEAD"], environment, root)).trim();
 }
+
+/** Read the commit a release builds from, refusing a checkout with uncommitted changes. */
+export async function readReleaseCommit(
+    root: string,
+    environment: Environment<"process">,
+): Promise<string> {
+    // refuse uncommitted changes, as every release is built from a commit
+    const changed = await read("git", ["status", "--porcelain"], environment, root);
+    if (changed.trim() !== "") {
+        throw new Error(`cannot release '${root}': it has uncommitted changes, commit them first`);
+    }
+
+    return await readCommit(root, environment);
+}
