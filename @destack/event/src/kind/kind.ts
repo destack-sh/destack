@@ -188,16 +188,19 @@ export class EventKind<
     readonly keyTypes: Readonly<Record<string, EventKeyType>>;
     /** The names of the keys with maps of entries. */
     readonly mapKeys: readonly string[];
+    /** The sensitive values the data marks, which sealing and search text map. */
+    readonly #redaction: schema.Redaction;
 
     /** Register a kind, refusing keys, a subject or a distribution the engine cannot store. */
     constructor(definition: EventKindDescription<Fields, Data>) {
         // check the policy, the subject and the distribution
         EventKind.#require(definition);
 
-        // read the keys and their column types once
+        // read the keys, their column types and the sensitive data values once
         this.package = definition.package;
         this.#definition = definition;
         this.table = definition.table;
+        this.#redaction = new schema.Redaction(definition.data);
         this.keys = Object.keys(definition.keys.shape);
         const types = this.keys.map((name): [string, EventKeyType] => [
             name,
@@ -243,7 +246,7 @@ export class EventKind<
         data: JsonValue,
         map: (value: JsonValue, sensitivity: schema.Sensitivity) => JsonValue | undefined,
     ): JsonValue {
-        return schema.mapSensitive(this.#definition.data, data, map) ?? null;
+        return this.#redaction.map(data, map) ?? null;
     }
 
     /** The data entry recording a distribution of values, absent for a kind recording none. */
