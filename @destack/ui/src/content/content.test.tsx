@@ -62,7 +62,7 @@ const PAGE: Root = {
     ],
 };
 
-/** A listing that frames its code under the title its element carries. */
+/** A listing that frames its code under its element's title. */
 function Listing(properties: ContentElementProperties) {
     return (
         <figure data-listing={String(properties["data-title"])}>
@@ -95,6 +95,6 @@ test("refuse raw HTML a builder left unparsed in the tree", () => {
 
     // a raw node means the tree was built without parsing its HTML, which the renderer cannot trust
     expect(unmarked(container)).toBe(
-        "TypeError: content tree holds raw HTML its builder left unparsed",
+        "TypeError: content tree is invalid: it has raw HTML its builder left unparsed",
     );
 });

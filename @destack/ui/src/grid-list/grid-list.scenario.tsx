@@ -9,15 +9,15 @@ export const gridListMoveAndPick = defineScenario({
     interaction: viewInteraction,
     name: "move-and-pick",
     description:
-        "move the focused cell along a row, down a column across a section's heading and to the row's end, and pick it with Enter",
+        "focus a cell and move along its row, down a column across a section's heading and to the row's end, and pick it with Enter",
     given: { examples: [gridListSymbols] },
     parameters: {},
     when: [
         {
-            step: { action: "focus", target: { role: "grid", name: "Symbols" } },
+            step: { action: "focus", target: { role: "gridcell", name: "plus-minus" } },
             then: [
                 {
-                    observe: { kind: "name", target: { role: "gridcell", selected: true } },
+                    observe: { kind: "focused" },
                     is: "plus-minus",
                 },
                 { observe: { kind: "text", target: { role: "status" } }, is: "" },
@@ -27,7 +27,7 @@ export const gridListMoveAndPick = defineScenario({
             step: { action: "press", key: "ArrowRight" },
             then: [
                 {
-                    observe: { kind: "name", target: { role: "gridcell", selected: true } },
+                    observe: { kind: "focused" },
                     is: "multiplication",
                 },
                 { observe: { kind: "text", target: { role: "status" } }, is: "" },
@@ -37,7 +37,7 @@ export const gridListMoveAndPick = defineScenario({
             step: { action: "press", key: "ArrowDown" },
             then: [
                 {
-                    observe: { kind: "name", target: { role: "gridcell", selected: true } },
+                    observe: { kind: "focused" },
                     is: "almost equal",
                 },
                 { observe: { kind: "text", target: { role: "status" } }, is: "" },
@@ -47,7 +47,7 @@ export const gridListMoveAndPick = defineScenario({
             step: { action: "press", key: "ArrowDown" },
             then: [
                 {
-                    observe: { kind: "name", target: { role: "gridcell", selected: true } },
+                    observe: { kind: "focused" },
                     is: "summation",
                 },
                 { observe: { kind: "text", target: { role: "status" } }, is: "" },
@@ -57,7 +57,7 @@ export const gridListMoveAndPick = defineScenario({
             step: { action: "press", key: "End" },
             then: [
                 {
-                    observe: { kind: "name", target: { role: "gridcell", selected: true } },
+                    observe: { kind: "focused" },
                     is: "square root",
                 },
                 { observe: { kind: "text", target: { role: "status" } }, is: "" },
@@ -67,7 +67,7 @@ export const gridListMoveAndPick = defineScenario({
             step: { action: "press", key: "Enter" },
             then: [
                 {
-                    observe: { kind: "name", target: { role: "gridcell", selected: true } },
+                    observe: { kind: "focused" },
                     is: "square root",
                 },
                 { observe: { kind: "text", target: { role: "status" } }, is: "square root" },

@@ -24,8 +24,11 @@ export const clusterToolbar = defineExample({
     of: Cluster,
     name: "toolbar",
     description: "a toolbar with a title on one end and actions on the other",
-    render: () => (
-        <Cluster justify="between">
+    properties: {
+        justify: "between",
+    },
+    render: (properties) => (
+        <Cluster {...properties}>
             <h2>Notes</h2>
             <Cluster space="2">
                 <Button variant="ghost">Import</Button>

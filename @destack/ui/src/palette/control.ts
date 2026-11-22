@@ -49,7 +49,7 @@ export interface PaletteAction {
     /** Whether the action destroys something, which the panel colors. */
     readonly isDestructive?: boolean;
     /** Whether the palette stays open after the action runs, closing by default. */
-    readonly isKeepingOpen?: boolean;
+    readonly isStayingOpen?: boolean;
     /** Do the action. */
     readonly run: () => Promise<void> | void;
 }
@@ -216,7 +216,7 @@ export class PaletteControl {
         this.#setActing(item);
     }
 
-    /** Run an entry's action, its first by default, remembering the use and closing unless kept. */
+    /** Run an entry's action, its first by default, remembering the use and closing the palette. */
     async run(
         item: PaletteItem,
         action: PaletteAction | undefined = item.actions[0],
@@ -229,7 +229,7 @@ export class PaletteControl {
         // remember the use, then close and run
         this.#remember(item.id);
         this.#setActing(undefined);
-        if (action.isKeepingOpen !== true) {
+        if (action.isStayingOpen !== true) {
             this.#close();
         }
         await action.run();
@@ -238,7 +238,7 @@ export class PaletteControl {
     /** Rank the shown page's entries for the search: the recent first on an empty root search. */
     results(): PaletteResults {
         // rank each group's matching entries, lifting the frecent ones
-        const query = this.command.search.search().trim().toLowerCase();
+        const query = this.command.search.value().trim().toLowerCase();
         const page = this.page();
         const ranked = page.groups.map((group) => ({
             group,
@@ -296,7 +296,7 @@ export class PaletteControl {
         return FRECENCY_WEIGHT * (1 - 1 / (1 + weight));
     }
 
-    /** Count a use of an entry and save the uses, keeping the most frecent. */
+    /** Count a use of an entry and save the uses, saving the most frecent. */
     #remember(id: string): void {
         // put the entry's use first with one more count, then the others by frecency up to the limit
         const now = this.#now();

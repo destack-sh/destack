@@ -63,7 +63,7 @@ test("collapse the sidebar from its trigger, reporting the change", () => {
     const sidebar = container.querySelector("[data-slot=sidebar]");
     const trigger = container.querySelector<HTMLElement>("[data-slot=sidebar-trigger]");
     const expanded = [
-        sidebar?.getAttribute("data-state"),
+        sidebar?.hasAttribute("data-open"),
         trigger?.getAttribute("aria-expanded"),
         trigger?.getAttribute("aria-controls") === sidebar?.id,
     ];
@@ -71,14 +71,14 @@ test("collapse the sidebar from its trigger, reporting the change", () => {
     trigger?.click();
     flush();
     const collapsed = [
-        sidebar?.getAttribute("data-state"),
+        sidebar?.hasAttribute("data-open"),
         sidebar?.getAttribute("data-collapsible"),
         trigger?.getAttribute("aria-expanded"),
     ];
     const isNarrower = classes(sidebar?.parentElement ?? container)[0] !== width;
     expect([expanded, collapsed, isNarrower, changes]).toEqual([
-        ["expanded", "true", true],
-        ["collapsed", "icon", "false"],
+        [true, "true", true],
+        [false, "icon", "false"],
         true,
         [false],
     ]);
@@ -91,10 +91,10 @@ test("render a menu button as a link to the current page with href, else as a bu
             [
                 button.tagName,
                 button.getAttribute("aria-current"),
-                button.getAttribute("data-active"),
+                button.hasAttribute("data-active"),
             ].join(" "),
     );
-    expect(buttons).toEqual(["A page true", "BUTTON  "]);
+    expect(buttons).toEqual(["A page true", "BUTTON  false"]);
 });
 
 test("start as the viewer left the sidebar, remembering each change", () => {
@@ -102,10 +102,10 @@ test("start as the viewer left the sidebar, remembering each change", () => {
     tab.storage.setItem("destack-sidebar-open", "false");
     const container = drawPage([], tab);
     const sidebar = container.querySelector("[data-slot=sidebar]");
-    const started = sidebar?.getAttribute("data-state");
+    const started = sidebar?.hasAttribute("data-open");
     container.querySelector<HTMLElement>("[data-slot=sidebar-trigger]")?.click();
     flush();
-    expect([started, tab.storage.getItem("destack-sidebar-open")]).toEqual(["collapsed", "true"]);
+    expect([started, tab.storage.getItem("destack-sidebar-open")]).toEqual([false, "true"]);
 });
 
 test("label a menu button with a tooltip only while the sidebar shows its icons", () => {
@@ -144,7 +144,7 @@ test("show placeholder rows through the shared skeleton while entries load", () 
     ).toEqual(["menu-skeleton-icon", "menu-skeleton-text"]);
 });
 
-test("keep a sidebar that cannot collapse as a column on narrow screens, where others turn into sheets", async () => {
+test("leave a sidebar that cannot collapse as a column on narrow screens, where others turn into sheets", async () => {
     // render in a tab whose display matches the phone's narrow screen query
     await using simulation = testSimulation();
     const browsers = new BrowserSimulation(simulation, {

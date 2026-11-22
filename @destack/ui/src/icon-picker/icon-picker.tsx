@@ -9,6 +9,8 @@ import {
     AutocompleteControl,
     AutocompleteInput,
     type AutocompleteInputProperties,
+    type AutocompleteValueProperties,
+    useAutocomplete,
 } from "../autocomplete/index.ts";
 import { type CollectionSection, Load } from "../collection/index.ts";
 import {
@@ -26,7 +28,7 @@ import {
 /** The icons in each row of a picker's grid by default. */
 const COLUMNS = 9;
 
-/** The categories icons are grouped under, by the first one each belongs to, with their names. */
+/** The categories icons are grouped under, by the first one each belongs to, with their labels. */
 const CATEGORIES = [
     { key: "arrows", label: t`Arrows` },
     { key: "brands", label: t`Brands` },
@@ -88,7 +90,7 @@ const styles = style.create({
 });
 
 /** The grid an icon picker's parts share. */
-interface IconPickerControl {
+export interface IconPickerControl {
     /** The grid of the icons the search finds. */
     readonly grid: GridListControl<IconName>;
     /** Render a cell of the grid. */
@@ -106,12 +108,6 @@ export interface IconPickerProperties extends GridListElementProperties<
 > {
     /** Report the icon a person picked with a click or Enter. */
     readonly onIconSelect: (icon: IconName) => void;
-    /** The search, which makes it controlled. */
-    readonly search?: string;
-    /** The search at first while uncontrolled, empty by default. */
-    readonly defaultSearch?: string;
-    /** Handle each change of the search. */
-    readonly onSearchChange?: (search: string) => void;
     /** The icons in each row of the grid, nine by default. */
     readonly columns?: number;
     /** Render an icon of the grid, the picker's own by default. */
@@ -127,21 +123,18 @@ export function IconPicker(properties: IconPickerProperties): JSX.Element {
     const rest = omit(
         properties,
         "onIconSelect",
-        "search",
-        "defaultSearch",
-        "onSearchChange",
         "columns",
         "cell",
         "activeCell",
         "xstyle",
         "style",
     );
-    const autocomplete = new AutocompleteControl(properties);
+    const autocomplete = new AutocompleteControl({});
     const icons = new Load(loadIcons());
     const grid = new GridListControl<IconName>({
         load: icons,
         sections: () =>
-            layOutIcons(icons.value(), autocomplete.search().trim().toLowerCase(), locale),
+            layOutIcons(icons.value(), autocomplete.value().trim().toLowerCase(), locale),
         key: (icon) => icon,
         text: (icon) => icon,
         columns: () => properties.columns ?? COLUMNS,
@@ -175,8 +168,13 @@ export function IconPicker(properties: IconPickerProperties): JSX.Element {
 }
 
 /** Render the search of the nearest icon picker. */
-export function IconPickerSearch(properties: AutocompleteInputProperties): JSX.Element {
+export function IconPickerSearch(
+    properties: AutocompleteInputProperties & AutocompleteValueProperties,
+): JSX.Element {
+    // set the picker's search from the field, as frimousse's search does
     const locale = useLocale();
+    useAutocomplete().follow(properties);
+    const rest = omit(properties, "value", "defaultValue", "onValueChange");
 
     return (
         <AutocompleteInput
@@ -184,7 +182,7 @@ export function IconPickerSearch(properties: AutocompleteInputProperties): JSX.E
             data-slot="icon-picker-search"
             placeholder={locale.render(t`Search icons`)}
             aria-label={locale.render(t`Search icons`)}
-            {...properties}
+            {...rest}
         />
     );
 }
@@ -209,8 +207,9 @@ export function IconPickerContent(
                 aria-label={locale.render(t`Icons`)}
                 data-slot="icon-picker-list"
                 label={(icon) => icon}
-                components={{ Cell: picker.cell }}
-            />
+            >
+                {picker.cell}
+            </GridList>
         </GridListViewport>
     );
 }
@@ -273,13 +272,13 @@ function ActiveIcon(properties: {
     );
 }
 
-/** Lay out the icons whose name or words hold a search by the first category each belongs to. */
+/** Lay out the icons whose name or words match a search by the first category each belongs to. */
 function layOutIcons(
     all: readonly IconData[],
     search: string,
     locale: Localization,
 ): CollectionSection<IconName>[] {
-    // find the icons whose name or words hold the search
+    // find the icons whose name or words match the search
     const found = all.filter(
         (icon) => search === "" || [icon.name, ...icon.tags].some((word) => word.includes(search)),
     );
@@ -293,7 +292,7 @@ function layOutIcons(
 }
 
 /** Read the nearest icon picker, refusing a part outside one. */
-function useIconPicker(): IconPickerControl {
+export function useIconPicker(): IconPickerControl {
     const picker = useContext(IconPickerContext);
     if (picker === null) {
         throw new TypeError("an icon picker part needs an icon picker around it");

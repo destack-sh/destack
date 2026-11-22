@@ -54,8 +54,12 @@ export const treeLisbonSelected = defineExample({
     of: Tree,
     name: "lisbon-selected",
     description: "notebooks as a tree with the Lisbon note selected inside its expanded notebook",
-    render: () => (
-        <Tree aria-label="Notebooks" defaultValue="lisbon">
+    properties: {
+        "aria-label": "Notebooks",
+        defaultValue: "lisbon",
+    },
+    render: (properties) => (
+        <Tree {...properties}>
             <TreeItem value="trips" label="Trips" defaultExpanded>
                 <TreeItem value="lisbon" label="Lisbon" />
                 <TreeItem value="porto" label="Porto" />

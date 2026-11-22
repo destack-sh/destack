@@ -67,7 +67,7 @@ test("show each digit in its slot, dropping other characters, and report the com
     ]);
 });
 
-test("mark the slot holding the caret while the input has the focus", () => {
+test("mark the slot with the caret while the input has the focus", () => {
     const container = drawCode([], []);
     const input = container.querySelector("input");
     input?.focus();
@@ -76,7 +76,7 @@ test("mark the slot holding the caret while the input has the focus", () => {
         enter(input, "7");
     }
     const active = [...container.querySelectorAll("[data-slot=input-otp-slot]")].map((slot) =>
-        slot.getAttribute("data-active"),
+        slot.hasAttribute("data-active"),
     );
-    expect(active).toEqual(["false", "true", "false", "false"]);
+    expect(active).toEqual([false, true, false, false]);
 });

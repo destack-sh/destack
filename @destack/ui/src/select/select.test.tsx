@@ -102,7 +102,7 @@ test("choose several options of a multiple select as a list box", () => {
     ]);
 });
 
-test("hold a controlled select at its owner's value", () => {
+test("leave a controlled select at its owner's value", () => {
     const { container } = render(() => (
         <Select aria-label="Sort by" value="created">
             <SelectItem value="created">Created</SelectItem>

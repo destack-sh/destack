@@ -67,13 +67,13 @@
     /* underline links in the accent */
     [data-slot="prose"] :where(a) {
         text-decoration-line: underline;
-        text-decoration-color: var(--destack-color-primary);
+        text-decoration-color: var(--destack-swatch-accent-solid);
         text-decoration-thickness: 1px;
         text-underline-offset: 0.2em;
     }
 
     [data-slot="prose"] :where(a:hover) {
-        color: var(--destack-color-primary);
+        color: var(--destack-swatch-accent-text);
     }
 
     /* indent lists with muted markers */
@@ -107,7 +107,7 @@
     /* check task list items in the accent */
     [data-slot="prose"] :where(li > input[type="checkbox"]) {
         margin-inline-end: var(--destack-space-2);
-        accent-color: var(--destack-color-primary);
+        accent-color: var(--destack-swatch-accent-solid);
     }
 
     /* set inline code in the code font on a muted ground */
@@ -140,7 +140,7 @@
     [data-slot="prose"] :where(blockquote) {
         margin-inline: 0;
         padding-inline-start: var(--destack-space-5);
-        border-inline-start: 2px solid var(--destack-color-primary);
+        border-inline-start: 2px solid var(--destack-swatch-accent-solid);
     }
 
     [data-slot="prose"] :where(blockquote > * + *) {
@@ -200,7 +200,7 @@
     }
 
     [data-slot="prose"] :where(a[data-footnote-ref]) {
-        color: var(--destack-color-primary);
+        color: var(--destack-swatch-accent-text);
         text-decoration-line: none;
     }
 
@@ -212,12 +212,13 @@
     }
 
     [data-slot="prose"] :where(section[data-footnotes] li:target) {
-        color: var(--destack-color-primary);
+        color: var(--destack-swatch-accent-text);
     }
 
     /* set GitHub alerts off by their kind's status color */
     [data-slot="prose"] :where(.markdown-alert) {
-        --prose-alert: var(--destack-color-info);
+        --prose-alert: var(--destack-swatch-info-solid);
+        --prose-alert-text: var(--destack-swatch-info-text);
         padding: var(--destack-space-3) var(--destack-space-4);
         border-inline-start: 3px solid var(--prose-alert);
         border-radius: var(--destack-radius-2);
@@ -232,23 +233,27 @@
         display: flex;
         align-items: center;
         gap: var(--destack-space-2);
-        color: var(--prose-alert);
+        color: var(--prose-alert-text);
         font-weight: var(--destack-weight-semibold);
     }
 
     [data-slot="prose"] :where(.markdown-alert-tip) {
-        --prose-alert: var(--destack-color-success);
+        --prose-alert: var(--destack-swatch-success-solid);
+        --prose-alert-text: var(--destack-swatch-success-text);
     }
 
     [data-slot="prose"] :where(.markdown-alert-important) {
-        --prose-alert: var(--destack-color-primary);
+        --prose-alert: var(--destack-swatch-accent-solid);
+        --prose-alert-text: var(--destack-swatch-accent-text);
     }
 
     [data-slot="prose"] :where(.markdown-alert-warning) {
-        --prose-alert: var(--destack-color-warning);
+        --prose-alert: var(--destack-swatch-warning-solid);
+        --prose-alert-text: var(--destack-swatch-warning-text);
     }
 
     [data-slot="prose"] :where(.markdown-alert-caution) {
-        --prose-alert: var(--destack-color-destructive);
+        --prose-alert: var(--destack-swatch-destructive-solid);
+        --prose-alert-text: var(--destack-swatch-destructive-text);
     }
 }

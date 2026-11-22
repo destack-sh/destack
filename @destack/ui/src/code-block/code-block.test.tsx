@@ -16,7 +16,7 @@ test("render the lines of a code block in a labelled region, numbered when asked
     // the region names the code, and each line is a row, the second rendered as a mark
     expect(markup(container)).toBe(
         '<figure data-slot="code-block"><figcaption data-slot="code-block-title">export.ts</figcaption>' +
-            '<pre data-slot="code-block-content" tabindex="0" aria-label="export.ts"><code>' +
+            '<pre data-slot="code-block-content" tabindex="0" data-code="" aria-label="export.ts"><code>' +
             '<span data-slot="code-block-line">const notes = 1;</span>' +
             '<mark data-slot="code-block-line">write(notes);</mark>' +
             "</code></pre></figure>",

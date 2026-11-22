@@ -47,7 +47,7 @@ function renderNode(
     } else if (node.type === "comment" || node.type === "doctype") {
         return undefined;
     } else if (node.type !== "element") {
-        throw new TypeError("content tree holds raw HTML its builder left unparsed");
+        throw new TypeError("content tree is invalid: it has raw HTML its builder left unparsed");
     }
 
     // read the element's attributes in its space, and render its children in the space they open

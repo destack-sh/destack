@@ -13,8 +13,18 @@ import { type ElementPartProperties, renderPart } from "../part/index.ts";
 /** The nearest collapsible, null outside one. */
 const CollapsibleContext = createContext<CollapsibleControl | null>(null);
 
+/** Read the nearest collapsible, refusing a part outside one. */
+export function useCollapsible(): CollapsibleControl {
+    const control = useContext(CollapsibleContext);
+    if (control === null) {
+        throw new TypeError("a collapsible part needs a collapsible around it");
+    }
+
+    return control;
+}
+
 /** The open state and availability of a collapsible, which its trigger and content read. */
-interface CollapsibleControl {
+export interface CollapsibleControl {
     /** Whether the content shows. */
     readonly isOpen: Accessor<boolean>;
     /** Whether the trigger ignores the person. */
@@ -71,7 +81,8 @@ export function Collapsible(properties: CollapsibleProperties): JSX.Element {
         <CollapsibleContext value={{ isOpen, isDisabled: () => properties.disabled === true }}>
             <details
                 data-slot="collapsible"
-                data-state={isOpen() ? "open" : "closed"}
+                data-open={isOpen() ? "" : undefined}
+                data-closed={isOpen() ? undefined : ""}
                 data-disabled={properties.disabled === true ? "" : undefined}
                 open={isOpen()}
                 {...rest}
@@ -89,12 +100,12 @@ export function CollapsibleTrigger(
     properties: CollapsibleElementProperties<Omit<JSX.HTMLAttributes<HTMLElement>, "ref">>,
 ): JSX.Element {
     // read the collapsible's state and availability
-    const control = useContext(CollapsibleContext);
-    const isDisabled = (): boolean => control?.isDisabled() === true;
+    const control = useCollapsible();
+    const isDisabled = (): boolean => control.isDisabled();
 
     return renderPart("summary", "collapsible-trigger", properties, styles.trigger, {
-        get "data-state"() {
-            return control?.isOpen() === true ? "open" : "closed";
+        get "data-panel-open"() {
+            return control.isOpen() ? "" : undefined;
         },
         get "data-disabled"() {
             return isDisabled() ? "" : undefined;
@@ -110,11 +121,14 @@ export function CollapsibleTrigger(
 export function CollapsibleContent(
     properties: CollapsibleElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
-    const control = useContext(CollapsibleContext);
+    const control = useCollapsible();
 
     return renderPart("div", "collapsible-content", properties, null, {
-        get "data-state"() {
-            return control?.isOpen() === true ? "open" : "closed";
+        get "data-open"() {
+            return control.isOpen() ? "" : undefined;
+        },
+        get "data-closed"() {
+            return control.isOpen() ? undefined : "";
         },
     });
 }

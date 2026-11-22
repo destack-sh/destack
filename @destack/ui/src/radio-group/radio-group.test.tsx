@@ -10,14 +10,14 @@ function checked(container: Element): string[] {
     );
 }
 
-/** Press a key on the radio that holds the focus. */
+/** Press a key on the focused radio. */
 function press(container: Element, key: string): void {
     const focused = container.ownerDocument.activeElement ?? container;
     focused.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
     flush();
 }
 
-test("check one radio at a time on click, showing its indicator and holding the tab stop", () => {
+test("check one radio at a time on click, showing its indicator and moving the tab stop", () => {
     const changes: string[] = [];
     const { container } = render(() => (
         <RadioGroup
@@ -35,8 +35,8 @@ test("check one radio at a time on click, showing its indicator and holding the 
     flush();
     expect(markup(container)).toBe(
         '<div role="radiogroup" data-slot="radio-group" aria-label="Density">' +
-            '<button type="button" role="radio" aria-checked="false" tabindex="-1" data-slot="radio-group-item" data-state="unchecked" data-value="compact" aria-label="Compact"></button>' +
-            '<button type="button" role="radio" aria-checked="true" tabindex="0" data-slot="radio-group-item" data-state="checked" data-value="regular" aria-label="Regular"><span data-slot="radio-group-indicator" data-state="checked"></span></button></div>',
+            '<button type="button" role="radio" aria-checked="false" tabindex="-1" data-slot="radio-group-item" data-value="compact" aria-label="Compact" data-unchecked=""></button>' +
+            '<button type="button" role="radio" aria-checked="true" tabindex="0" data-slot="radio-group-item" data-value="regular" aria-label="Regular" data-checked=""><span data-slot="radio-group-indicator" data-checked=""></span></button></div>',
     );
     expect(changes).toEqual(["regular"]);
 });
@@ -60,7 +60,7 @@ test("move to and check the next enabled radio on an arrow key, wrapping at the 
     ]);
 });
 
-test("hold a controlled radio group at its owner's value, and submit and reset a named one through hidden radios", () => {
+test("leave a controlled radio group at its owner's value, and submit and reset a named one through hidden radios", () => {
     const { container: controlled } = render(() => (
         <RadioGroup aria-label="Density" value="compact">
             <RadioGroupItem value="compact" aria-label="Compact" />

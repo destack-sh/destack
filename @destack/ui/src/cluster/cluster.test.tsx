@@ -11,7 +11,7 @@ test("wrap elements in rows with a gap, justification and alignment, centered at
     ));
     const clusters = [...container.querySelectorAll("[data-slot=cluster]")];
 
-    // each cluster carries its layout for its styles to read
+    // each cluster marks its layout for its styles to read
     expect(clusters.map((cluster) => cluster.getAttribute("style"))).toEqual([
         "--x-gap: var(--destack-space-3); --x-justifyContent: flex-start; --x-alignItems: center;",
         "--x-gap: var(--destack-space-1); --x-justifyContent: space-between; --x-alignItems: baseline;",

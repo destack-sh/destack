@@ -1,3 +1,5 @@
+import { state } from "@destack/theme/state";
+import type { Axis } from "../position/index.ts";
 import { Icon } from "@destack/ui/icon";
 import arrowDown from "@destack/icon/phosphor/arrow-down";
 import arrowLeft from "@destack/icon/phosphor/arrow-left";
@@ -5,9 +7,9 @@ import arrowRight from "@destack/icon/phosphor/arrow-right";
 import arrowUp from "@destack/icon/phosphor/arrow-up";
 import pause from "@destack/icon/phosphor/pause";
 import play from "@destack/icon/phosphor/play";
-import { t } from "@destack/locale";
+import { t, type Direction } from "@destack/locale";
 import * as style from "@destack/style";
-import { color, radius, space } from "@destack/theme/tokens.stylex";
+import { color, radius, space, swatch } from "@destack/theme/tokens.stylex";
 import {
     type Accessor,
     createContext,
@@ -55,7 +57,7 @@ const styles = style.create({
         cursor: "pointer",
     },
     current: {
-        backgroundColor: color.primary,
+        backgroundColor: swatch.accentMark,
     },
     viewport: {
         position: "relative",
@@ -123,7 +125,7 @@ export interface CarouselApi {
 /** The slide shown and the slides of a carousel, which its viewport, slides and buttons share. */
 export class CarouselControl {
     /** The direction the slides line up in. */
-    readonly orientation: () => "horizontal" | "vertical";
+    readonly orientation: () => Axis;
     /** The number of slides. */
     readonly count: Accessor<number>;
     /** The properties of the carousel, read for its controlled index and change handler. */
@@ -146,7 +148,7 @@ export class CarouselControl {
     #isFollowing: boolean;
 
     /** Create a carousel without slides on its first or controlled slide. */
-    constructor(properties: CarouselProperties, orientation: () => "horizontal" | "vertical") {
+    constructor(properties: CarouselProperties, orientation: () => Axis) {
         // start on the default slide and play when autoplay is set
         const [index, setIndex] = createControllableSignal({
             isControlled: () => properties.index !== undefined,
@@ -268,7 +270,7 @@ export interface CarouselProperties extends Omit<
     "class" | "onKeyDown"
 > {
     /** The direction the slides line up in, horizontal by default. */
-    readonly orientation?: "horizontal" | "vertical";
+    readonly orientation?: Axis;
     /** The index of the slide shown, which makes it controlled. */
     readonly index?: number;
     /** The index of the slide shown at first while uncontrolled, the first by default. */
@@ -290,7 +292,7 @@ export type CarouselElementProperties<Attributes> = Omit<Attributes, "class"> &
     ElementPartProperties;
 
 /** Read the carousel around an element, refusing elements outside one. */
-function useCarousel(): CarouselControl {
+export function useCarousel(): CarouselControl {
     const control = useContext(CarouselContext);
     if (control === null) {
         throw new TypeError("carousel elements need a carousel around them");
@@ -360,7 +362,7 @@ export function Carousel(properties: CarouselProperties): JSX.Element {
     );
 }
 
-/** Render the scrolling viewport that holds the slides. */
+/** Render the viewport the slides scroll in. */
 export function CarouselContent(
     properties: CarouselElementProperties<
         Omit<JSX.HTMLAttributes<HTMLDivElement>, "ref" | "onScroll">
@@ -372,8 +374,9 @@ export function CarouselContent(
         "div",
         "carousel-content",
         properties,
-        () => [styles.viewport, viewports[control.orientation()]],
+        () => [state.focusInset, styles.viewport, viewports[control.orientation()]],
         {
+            tabindex: 0,
             get "aria-live"() {
                 return control.isPlaying() ? "off" : "polite";
             },
@@ -417,7 +420,7 @@ export function CarouselPrevious(
     return (
         <Button
             variant="outline"
-            size="icon-sm"
+            size="icon"
             aria-label={locale.render(t`Previous slide`)}
             disabled={!control.isLooping() && control.index() === 0}
             data-slot="carousel-previous"
@@ -444,7 +447,7 @@ export function CarouselNext(
     return (
         <Button
             variant="outline"
-            size="icon-sm"
+            size="icon"
             aria-label={locale.render(t`Next slide`)}
             disabled={!control.isLooping() && control.index() >= control.count() - 1}
             data-slot="carousel-next"
@@ -467,12 +470,13 @@ export function CarouselPlay(
     return (
         <Button
             variant="outline"
-            size="icon-sm"
+            size="icon"
             aria-label={locale.render(
                 control.isPlaying() ? t`Stop slide rotation` : t`Start slide rotation`,
             )}
             data-slot="carousel-play"
-            data-state={control.isPlaying() ? "playing" : "paused"}
+            data-playing={control.isPlaying() ? "" : undefined}
+            data-paused={control.isPlaying() ? undefined : ""}
             {...properties}
             onClick={() => control.play(!control.isPlaying())}
         >
@@ -519,11 +523,7 @@ export function CarouselDots(
 }
 
 /** Read the slides a key moves by, mirroring left and right in right-to-left text. */
-function stepOf(
-    key: string,
-    orientation: "horizontal" | "vertical",
-    direction: "ltr" | "rtl",
-): number {
+function stepOf(key: string, orientation: Axis, direction: Direction): number {
     const forward =
         orientation === "vertical" ? "ArrowDown" : direction === "rtl" ? "ArrowLeft" : "ArrowRight";
     const backward =

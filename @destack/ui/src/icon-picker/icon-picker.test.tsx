@@ -21,8 +21,8 @@ test("pick an icon a search finds by one of its words, under its category's head
     // search savings, which finds the acorn among others
     const picked: string[] = [];
     const { container } = render(() => (
-        <IconPicker search="savings" onIconSelect={(icon) => picked.push(icon)}>
-            <IconPickerSearch />
+        <IconPicker onIconSelect={(icon) => picked.push(icon)}>
+            <IconPickerSearch value="savings" />
             <IconPickerContent />
         </IconPicker>
     ));

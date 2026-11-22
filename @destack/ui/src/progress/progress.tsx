@@ -1,5 +1,5 @@
 import * as style from "@destack/style";
-import { color, motion, radius, space } from "@destack/theme/tokens.stylex";
+import { motion, radius, space, swatch } from "@destack/theme/tokens.stylex";
 import { type Accessor, createContext, type JSX, omit, useContext } from "@destack/view";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
 
@@ -21,13 +21,13 @@ const styles = style.create({
         height: space[2],
         overflow: "hidden",
         borderRadius: radius.full,
-        backgroundColor: `color-mix(in oklab, ${color.primary} 20%, transparent)`,
+        backgroundColor: `color-mix(in oklab, ${swatch.accentMark} 20%, transparent)`,
     },
     indicator: {
         display: "block",
         width: "100%",
         height: "100%",
-        backgroundColor: color.primary,
+        backgroundColor: swatch.accentMark,
         transitionProperty: "transform",
         transitionDuration: motion.durationShort,
         transitionTimingFunction: motion.easingStandard,
@@ -80,7 +80,7 @@ export type ProgressIndicatorProperties = Omit<JSX.HTMLAttributes<HTMLDivElement
 
 /** Render a progress bar around its indicator, indeterminate without a value. */
 export function Progress(properties: ProgressProperties): JSX.Element {
-    // keep the value within the range and read the state it puts the bar in
+    // clamp the value to the range and read the state it puts the bar in
     const rest = omit(properties, "value", "max", "getValueLabel", "xstyle", "style", "children");
     const max = (): number => maximumOf(properties.max);
     const value = (): number | undefined =>
@@ -111,7 +111,9 @@ export function Progress(properties: ProgressProperties): JSX.Element {
                 aria-valuenow={value()}
                 aria-valuetext={label()}
                 data-slot="progress"
-                data-state={state()}
+                data-indeterminate={state() === "indeterminate" ? "" : undefined}
+                data-progressing={state() === "loading" ? "" : undefined}
+                data-complete={state() === "complete" ? "" : undefined}
                 data-value={value()}
                 data-max={max()}
                 {...rest}
@@ -145,8 +147,14 @@ export function ProgressIndicator(properties: ProgressIndicatorProperties): JSX.
             share() === undefined ? styles.indeterminate : fills.fill(share() ?? 0),
         ],
         {
-            get "data-state"() {
-                return progress.state();
+            get "data-indeterminate"() {
+                return progress.state() === "indeterminate" ? "" : undefined;
+            },
+            get "data-progressing"() {
+                return progress.state() === "loading" ? "" : undefined;
+            },
+            get "data-complete"() {
+                return progress.state() === "complete" ? "" : undefined;
             },
             get "data-value"() {
                 return progress.value();

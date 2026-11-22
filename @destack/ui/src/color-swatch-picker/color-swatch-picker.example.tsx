@@ -6,7 +6,11 @@ export const colorSwatchPickerProjectColor = defineExample({
     of: ColorSwatchPicker,
     name: "project-color",
     description: "a project's color chosen from every swatch, teal checked",
-    render: () => <ColorSwatchPicker defaultValue="teal" aria-label="Project color" />,
+    properties: {
+        defaultValue: "teal",
+        "aria-label": "Project color",
+    },
+    render: (properties) => <ColorSwatchPicker {...properties} />,
 });
 
 /** A label's color chosen from three swatches the caller lays out. */
@@ -14,8 +18,13 @@ export const colorSwatchPickerLabelColor = defineExample({
     of: ColorSwatchPicker,
     name: "label-color",
     description: "a label's color chosen from three swatches the caller lays out",
-    render: () => (
-        <ColorSwatchPicker name="color" defaultValue="plum" aria-label="Label color">
+    properties: {
+        name: "color",
+        defaultValue: "plum",
+        "aria-label": "Label color",
+    },
+    render: (properties) => (
+        <ColorSwatchPicker {...properties}>
             <ColorSwatchPickerItem value="teal" />
             <ColorSwatchPickerItem value="orange" />
             <ColorSwatchPickerItem value="plum" />
@@ -28,5 +37,8 @@ export const colorSwatchPickerProjectColorUnset = defineExample({
     of: ColorSwatchPicker,
     name: "project-color-unset",
     description: "a project's color before one is chosen",
-    render: () => <ColorSwatchPicker aria-label="Project color" />,
+    properties: {
+        "aria-label": "Project color",
+    },
+    render: (properties) => <ColorSwatchPicker {...properties} />,
 });

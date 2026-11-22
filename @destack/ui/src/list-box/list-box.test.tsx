@@ -3,7 +3,7 @@ import { flush } from "@destack/view";
 import { render } from "@destack/view/test";
 import { ListBox, ListBoxItem, ListBoxSection } from "./index.ts";
 
-test("expose a single selection's options with the selected one holding the tab stop, and select another on click", () => {
+test("expose a single selection's options with the selected one having the tab stop, and select another on click", () => {
     // render two sections of notebooks and click the third
     const chosen: (string | undefined)[] = [];
     const actions: string[] = [];

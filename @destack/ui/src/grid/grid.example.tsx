@@ -7,8 +7,38 @@ export const gridApps = defineExample({
     of: Grid,
     name: "apps",
     description: "a space's apps as cards in as many columns as fit",
-    render: () => (
-        <Grid min="12rem">
+    properties: {
+        min: "12rem",
+    },
+    render: (properties) => (
+        <Grid {...properties}>
+            {[
+                ["Notes", "142 notes"],
+                ["Tasks", "18 open"],
+                ["Pages", "6 published"],
+                ["Calendar", "3 events today"],
+            ].map(([title, description]) => (
+                <Card>
+                    <CardHeader>
+                        <CardTitle>{title}</CardTitle>
+                        <CardDescription>{description}</CardDescription>
+                    </CardHeader>
+                </Card>
+            ))}
+        </Grid>
+    ),
+});
+
+/** A space's apps in wider columns. */
+export const gridAppsWide = defineExample({
+    of: Grid,
+    name: "apps-wide",
+    description: "a space's apps in wider columns",
+    properties: {
+        min: "16rem",
+    },
+    render: (properties) => (
+        <Grid {...properties}>
             {[
                 ["Notes", "142 notes"],
                 ["Tasks", "18 open"],

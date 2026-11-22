@@ -15,8 +15,11 @@ export const emojiPickerReaction = defineExample({
     name: "reaction",
     description:
         "a reaction picked from every emoji by category, with a search, the skin tones and a note while nothing matches",
-    render: () => (
-        <EmojiPicker onEmojiSelect={() => undefined}>
+    properties: {
+        columns: 9,
+    },
+    render: (properties) => (
+        <EmojiPicker {...properties} onEmojiSelect={() => undefined}>
             <EmojiPickerSearch />
             <EmojiPickerSkinTone />
             <EmojiPickerContent />
@@ -69,8 +72,8 @@ export const emojiPickerEmpty = defineExample({
     name: "empty",
     description: "a picker whose search finds no emoji, showing its note",
     render: () => (
-        <EmojiPicker defaultSearch="qqqqq" onEmojiSelect={() => undefined}>
-            <EmojiPickerSearch />
+        <EmojiPicker onEmojiSelect={() => undefined}>
+            <EmojiPickerSearch defaultValue="qqqqq" />
             <EmojiPickerContent />
         </EmojiPicker>
     ),

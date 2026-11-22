@@ -30,3 +30,26 @@ export const codeBlockExportScript = defineExample({
         </CodeBlock>
     ),
 });
+
+/** The lines of a note's export script without line numbers. */
+export const codeBlockExportScriptPlain = defineExample({
+    of: CodeBlock,
+    name: "export-script-plain",
+    description: "the lines of a note's export script without line numbers",
+    render: () => (
+        <CodeBlock>
+            <CodeBlockHeader>
+                <CodeBlockTitle>export.ts</CodeBlockTitle>
+            </CodeBlockHeader>
+            <CodeBlockContent>
+                <CodeBlockLine>
+                    <span class="hljs-keyword">const</span> notes = await space.find("note");
+                </CodeBlockLine>
+                <CodeBlockLine>
+                    <span class="hljs-keyword">await</span> write(
+                    <span class="hljs-string">"notes.json"</span>, notes);
+                </CodeBlockLine>
+            </CodeBlockContent>
+        </CodeBlock>
+    ),
+});

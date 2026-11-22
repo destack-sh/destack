@@ -1,12 +1,6 @@
-/* space a stack's elements in the base layer below every component style */
+/* space a recursive stack's nested elements and split a stack, below every component style */
 @layer base {
-    /* space the stacked elements, or every nested element of a recursive stack */
-    [data-slot="stack"] {
-        gap: var(--stack-space);
-    }
-    [data-slot="stack"][data-recursive] {
-        gap: 0;
-    }
+    /* space every nested element of a recursive stack */
     [data-slot="stack"][data-recursive] * + * {
         margin-block-start: var(--stack-space);
     }

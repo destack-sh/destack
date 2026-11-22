@@ -12,8 +12,11 @@ export const iconPickerProjectIcon = defineExample({
     name: "project-icon",
     description:
         "a project's icon picked from the icon set by category, with a search, the active icon's name and a note while nothing matches",
-    render: () => (
-        <IconPicker onIconSelect={() => undefined}>
+    properties: {
+        columns: 9,
+    },
+    render: (properties) => (
+        <IconPicker {...properties} onIconSelect={() => undefined}>
             <IconPickerSearch />
             <IconPickerContent />
             <IconPickerFooter />
@@ -27,8 +30,8 @@ export const iconPickerEmpty = defineExample({
     name: "empty",
     description: "a picker whose search finds no icon, showing its note",
     render: () => (
-        <IconPicker defaultSearch="qqqqq" onIconSelect={() => undefined}>
-            <IconPickerSearch />
+        <IconPicker onIconSelect={() => undefined}>
+            <IconPickerSearch defaultValue="qqqqq" />
             <IconPickerContent />
         </IconPicker>
     ),

@@ -1,6 +1,7 @@
+import type { Axis } from "../position/index.ts";
 import * as style from "@destack/style";
 import { groupMarker } from "./marker.stylex.ts";
-import { color, radius, shadow, space, stroke, weight } from "@destack/theme/tokens.stylex";
+import { color, radius, space, stroke, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import { type JSX, merge, omit } from "@destack/view";
 import { JoinContext, useJoin } from "../join/index.ts";
@@ -29,7 +30,6 @@ const styles = style.create({
         borderColor: color.border,
         borderRadius: radius[3],
         backgroundColor: color.muted,
-        boxShadow: shadow.raised,
         fontWeight: weight.medium,
     },
     separator: {
@@ -49,9 +49,6 @@ const orientations = style.create({
     },
 });
 
-/** The direction a button group lines its buttons up in. */
-export type ButtonGroupOrientation = "horizontal" | "vertical";
-
 /** The properties of an element of a button group, the native element's attributes included. */
 export type ButtonGroupElementProperties = Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> &
     ElementPartProperties;
@@ -59,7 +56,7 @@ export type ButtonGroupElementProperties = Omit<JSX.HTMLAttributes<HTMLDivElemen
 /** The properties of a button group, the native element's attributes included. */
 export interface ButtonGroupProperties extends ButtonGroupElementProperties {
     /** The direction, horizontal by default. */
-    readonly orientation?: ButtonGroupOrientation;
+    readonly orientation?: Axis;
 }
 
 /** Render buttons, inputs and selects joined into one control, or groups of them spaced apart. */

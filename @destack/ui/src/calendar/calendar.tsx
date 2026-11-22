@@ -1,3 +1,4 @@
+import { state } from "@destack/theme/state";
 import { Icon } from "@destack/ui/icon";
 import caretLeft from "@destack/icon/phosphor/caret-left";
 import caretRight from "@destack/icon/phosphor/caret-right";
@@ -37,7 +38,7 @@ import {
     type CalendarValue,
     type DayState,
 } from "./selection.ts";
-import { visuallyHiddenStyle } from "../visually-hidden/index.ts";
+import { VisuallyHidden, visuallyHiddenStyle } from "../visually-hidden/index.ts";
 
 /** The styles of a calendar and its days. */
 const styles = style.create({
@@ -100,18 +101,10 @@ const styles = style.create({
     outside: {
         color: color.mutedForeground,
     },
-    today: {
-        backgroundColor: color.accent,
-        color: color.accentForeground,
-    },
-    selected: {
-        backgroundColor: color.primary,
-        color: color.primaryForeground,
-    },
     middle: {
         borderRadius: 0,
-        backgroundColor: color.accent,
-        color: color.accentForeground,
+        backgroundColor: color.selected,
+        color: color.foreground,
     },
 });
 
@@ -182,7 +175,7 @@ export type CalendarProperties = Omit<
 } & CalendarSelection;
 
 /** The selection, focused day and months shown of a calendar, which its months and grids share. */
-class CalendarControl {
+export class CalendarControl {
     /** The calendar's properties, read for its mode, limits and change handler. */
     readonly properties: CalendarProperties;
     /** The selection. */
@@ -320,7 +313,7 @@ class CalendarDelegate implements KeyboardDelegate<PlainDate> {
         this.#start = start;
     }
 
-    /** Read the day a key moves the focus to, kept within the allowed days. */
+    /** Read the day a key moves the focus to, within the allowed days. */
     target(event: KeyboardEvent, from: PlainDate, direction: Direction): PlainDate | undefined {
         const next = moveOf(event, from, this.#week(), direction);
 
@@ -355,7 +348,7 @@ export function Calendar(properties: CalendarProperties): JSX.Element {
         return time === undefined ? undefined : TimeZone.date(environment.timeZone, time);
     });
 
-    // keep the first start: the given month, the selection's, or today's once known
+    // take the first start: the given month, the selection's, or today's once known
     const given = untrack(
         () =>
             properties.defaultMonth ??
@@ -500,7 +493,7 @@ function CalendarMonth(properties: {
                 id={captionId}
                 aria-live="polite"
                 data-slot="calendar-caption"
-                {...style.attrs(text.xs, styles.caption)}
+                {...style.attrs(text.sm, styles.caption)}
             >
                 <Show
                     when={properties.layout === "dropdown"}
@@ -555,7 +548,7 @@ function CalendarMonth(properties: {
     );
 }
 
-/** The month a calendar's grid shows, the day holding the focus and how each day stands. */
+/** The month a calendar's grid shows, the focused day and how each day stands. */
 interface CalendarGridProperties {
     /** The id of the caption naming the month. */
     readonly captionId: string;
@@ -638,7 +631,7 @@ function CalendarGrid(properties: CalendarGridProperties): JSX.Element {
     );
 }
 
-/** Render the header row of weekday names, abbreviated with their full names. */
+/** Render the header row of weekdays, abbreviated and labelled in full. */
 function CalendarWeekdays(properties: {
     /** A week of the month, whose days name the columns. */
     readonly week: readonly PlainDate[];
@@ -651,11 +644,9 @@ function CalendarWeekdays(properties: {
         <thead>
             <tr>
                 <Show when={properties.weekNumbers}>
-                    <th
-                        scope="col"
-                        aria-label={locale.render(t`Week`)}
-                        {...style.attrs(text.xs, styles.weekday)}
-                    />
+                    <th scope="col" {...style.attrs(text.xs, styles.weekday)}>
+                        <VisuallyHidden>{locale.render(t`Week`)}</VisuallyHidden>
+                    </th>
                 </Show>
                 <For each={properties.week}>
                     {(day) => (
@@ -694,7 +685,7 @@ function CalendarHeader(properties: {
                 disabled={!properties.canMove(-1)}
                 onClick={() => properties.onMove(-1)}
                 {...style.attrs(
-                    buttonVariants({ variant: "ghost", size: "icon-sm" }),
+                    buttonVariants({ variant: "ghost", size: "icon" }),
                     styles.navigation,
                 )}
             >
@@ -707,7 +698,7 @@ function CalendarHeader(properties: {
                 disabled={!properties.canMove(1)}
                 onClick={() => properties.onMove(1)}
                 {...style.attrs(
-                    buttonVariants({ variant: "ghost", size: "icon-sm" }),
+                    buttonVariants({ variant: "ghost", size: "icon" }),
                     styles.navigation,
                 )}
             >
@@ -752,7 +743,7 @@ function CalendarCell(properties: {
                 data-range={
                     isSelected() && properties.state !== "selected" ? properties.state : undefined
                 }
-                data-outside={isOutside() ? "true" : undefined}
+                data-outside={isOutside() ? "" : undefined}
                 ref={(button) => (element = button)}
                 onFocus={() => properties.focus.focusIn(properties.day)}
                 onClick={() => properties.onSelect(properties.day)}
@@ -760,8 +751,8 @@ function CalendarCell(properties: {
                     buttonVariants({ variant: "ghost", size: "icon" }),
                     styles.day,
                     isOutside() && styles.outside,
-                    properties.isToday && styles.today,
-                    isSolid() && styles.selected,
+                    properties.isToday && state.selected,
+                    isSolid() && state.checked,
                     isMiddle() && styles.middle,
                 )}
             >

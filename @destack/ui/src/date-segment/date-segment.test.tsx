@@ -30,7 +30,7 @@ interface Step {
     readonly values: DateSegmentValues;
     /** Whether the focused segment still takes more digits. */
     readonly isTyping: boolean;
-    /** The segment that holds the focus after the key. */
+    /** The segment with the focus after the key. */
     readonly focused: string | undefined;
 }
 

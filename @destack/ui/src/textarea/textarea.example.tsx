@@ -6,7 +6,12 @@ export const textareaComment = defineExample({
     of: Textarea,
     name: "comment",
     description: "a comment box that grows with what the person writes",
-    render: () => <Textarea name="comment" placeholder="Add a comment" aria-label="Comment" />,
+    properties: {
+        name: "comment",
+        placeholder: "Add a comment",
+        "aria-label": "Comment",
+    },
+    render: (properties) => <Textarea {...properties} />,
 });
 
 /** The comment box unavailable. */
@@ -14,9 +19,13 @@ export const textareaCommentDisabled = defineExample({
     of: Textarea,
     name: "comment-disabled",
     description: "the comment box unavailable",
-    render: () => (
-        <Textarea name="comment" placeholder="Add a comment" aria-label="Comment" disabled />
-    ),
+    properties: {
+        name: "comment",
+        placeholder: "Add a comment",
+        "aria-label": "Comment",
+        disabled: true,
+    },
+    render: (properties) => <Textarea {...properties} />,
 });
 
 /** The comment box marked invalid. */
@@ -24,12 +33,11 @@ export const textareaCommentInvalid = defineExample({
     of: Textarea,
     name: "comment-invalid",
     description: "the comment box marked invalid",
-    render: () => (
-        <Textarea
-            name="comment"
-            placeholder="Add a comment"
-            aria-label="Comment"
-            aria-invalid="true"
-        />
-    ),
+    properties: {
+        name: "comment",
+        placeholder: "Add a comment",
+        "aria-label": "Comment",
+        "aria-invalid": "true",
+    },
+    render: (properties) => <Textarea {...properties} />,
 });

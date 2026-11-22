@@ -5,6 +5,7 @@ import {
     TableBody,
     TableCaption,
     TableCell,
+    TableFooter,
     TableHead,
     TableHeader,
     TableRow,
@@ -22,6 +23,7 @@ export const tableInvoices = defineExample({
     of: Table,
     name: "invoices",
     description: "this month's invoices with amounts in the reader's locale",
+    layout: "padded",
     render: () => {
         const locale = useLocale();
 
@@ -44,6 +46,45 @@ export const tableInvoices = defineExample({
                         )}
                     </For>
                 </TableBody>
+            </Table>
+        );
+    },
+});
+
+/** The invoices with their total in the table's footer. */
+export const tableInvoiceTotal = defineExample({
+    of: Table,
+    name: "invoice-total",
+    description: "the invoices with their total in the table's footer",
+    layout: "padded",
+    render: () => {
+        const locale = useLocale();
+        const total = INVOICES.reduce((sum, invoice) => sum + invoice.amount, 0);
+
+        return (
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead scope="col">Invoice</TableHead>
+                        <TableHead scope="col">Amount</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    <For each={INVOICES}>
+                        {(invoice) => (
+                            <TableRow>
+                                <TableCell>{invoice.id}</TableCell>
+                                <TableCell>{locale.money(invoice.amount, "EUR")}</TableCell>
+                            </TableRow>
+                        )}
+                    </For>
+                </TableBody>
+                <TableFooter>
+                    <TableRow>
+                        <TableHead scope="row">Total</TableHead>
+                        <TableCell>{locale.money(total, "EUR")}</TableCell>
+                    </TableRow>
+                </TableFooter>
             </Table>
         );
     },

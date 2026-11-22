@@ -66,7 +66,7 @@ test("dismiss a toast after its duration, or at once from its close button", asy
     ]);
 });
 
-test("keep a toast while the focus rests on it after the pointer left, dismissing it once both left", async () => {
+test("show a toast while the focus rests on it after the pointer left, dismissing it once both left", async () => {
     const container = drawToaster(30);
     toast("Archived");
     flush();
@@ -76,11 +76,11 @@ test("keep a toast while the focus rests on it after the pointer left, dismissin
     item?.dispatchEvent(new PointerEvent("pointerleave"));
     await testWorld().simulation.sleep(PAST_DURATION);
     flush();
-    const held = shown(container);
+    const shownFirst = shown(container);
     item?.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
     await testWorld().simulation.sleep(PAST_DURATION);
     flush();
-    expect([held, shown(container)]).toEqual([["default: Archived"], []]);
+    expect([shownFirst, shown(container)]).toEqual([["default: Archived"], []]);
 });
 
 test("run a toast's action and dismiss it, and replace a toast by its id", () => {
@@ -127,7 +127,7 @@ test("show the newest toasts up to the toaster's limit", () => {
     expect(shown(container)).toEqual(["default: four", "default: three", "default: two"]);
 });
 
-test("keep the live region in the document and show the stack in the top layer only while toasts exist", async () => {
+test("leave the live region in the document and show the stack in the top layer only while toasts exist", async () => {
     const container = drawToaster(1000);
     const region = container.querySelector("section");
     const stack = container.querySelector("[data-slot=toaster-stack]");
@@ -155,7 +155,7 @@ test("keep the live region in the document and show the stack in the top layer o
     ]).toEqual([["polite", false], ["manual", true, true], true, true, false]);
 });
 
-test("dismiss a toast swiped off the toaster's side, keeping one swiped a little", () => {
+test("dismiss a toast swiped off the toaster's side, leaving one swiped a little", () => {
     const container = drawToaster(10_000);
     toast("Note saved", { id: "saved" });
     flush();
@@ -168,7 +168,7 @@ test("dismiss a toast swiped off the toaster's side, keeping one swiped a little
         flush();
     };
     swipeRight(4);
-    const kept = shown(container);
+    const remaining = shown(container);
     swipeRight(300);
-    expect([kept, shown(container)]).toEqual([["default: Note saved"], []]);
+    expect([remaining, shown(container)]).toEqual([["default: Note saved"], []]);
 });

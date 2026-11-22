@@ -7,8 +7,11 @@ export const tabsEditorPreview = defineExample({
     of: Tabs,
     name: "editor-preview",
     description: "a note's editor and preview as tabs",
-    render: () => (
-        <Tabs defaultValue="edit">
+    properties: {
+        defaultValue: "edit",
+    },
+    render: (properties) => (
+        <Tabs {...properties}>
             <TabsList aria-label="Note">
                 <TabsTrigger value="edit">Edit</TabsTrigger>
                 <TabsTrigger value="preview">Preview</TabsTrigger>

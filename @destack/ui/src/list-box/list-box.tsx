@@ -262,7 +262,7 @@ export class ListBoxControl {
     /** Report whether a search filters the options. */
     isSearching(): boolean {
         return (
-            this.#options.autocomplete !== undefined && this.#options.autocomplete.search() !== ""
+            this.#options.autocomplete !== undefined && this.#options.autocomplete.value() !== ""
         );
     }
 
@@ -509,7 +509,7 @@ export function ListBoxItem(properties: ListBoxItemProperties): JSX.Element {
             {...rest}
             ref={(item) => (element = item)}
             onPointerDown={(event) => {
-                // keep the focus in the search field of a virtual list box
+                // leave the focus in the search field of a virtual list box
                 if (isVirtual) {
                     event.preventDefault();
                 }
@@ -614,7 +614,7 @@ function sectioned(
 ): CollectionSection<ListBoxOption>[] {
     const sections = new Map<string, ListBoxOption[]>();
     for (const option of options) {
-        // keep a forced option, else one the search matches
+        // show a forced option, else one the search matches
         if (
             autocomplete !== undefined &&
             !option.isForced() &&

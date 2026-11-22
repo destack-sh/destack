@@ -1,10 +1,11 @@
+import { state } from "@destack/theme/state";
 import { Icon } from "@destack/ui/icon";
 import caretLeft from "@destack/icon/phosphor/caret-left";
 import caretRight from "@destack/icon/phosphor/caret-right";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
-import { color, motion, space, stroke } from "@destack/theme/tokens.stylex";
+import { color, motion, space } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import { type JSX, merge, omit, Show, useLocale } from "@destack/view";
 import { type PartAttributes, type Render, useRender, renderPart } from "../part/index.ts";
@@ -29,9 +30,6 @@ const styles = style.create({
         color: { default: "inherit", ":hover": { default: null, [media.hover]: color.foreground } },
         transitionProperty: "color",
         transitionDuration: motion.durationShort,
-        outlineStyle: { default: "none", ":focus-visible": "solid" },
-        outlineWidth: stroke.ring,
-        outlineColor: `color-mix(in oklab, ${color.ring} 50%, transparent)`,
     },
     page: {
         color: color.foreground,
@@ -68,7 +66,7 @@ export function Breadcrumb(
 export function BreadcrumbList(
     properties: BreadcrumbElementProperties<JSX.OlHTMLAttributes<HTMLOListElement>>,
 ): JSX.Element {
-    return renderPart("ol", "breadcrumb-list", properties, [text.xs, styles.list]);
+    return renderPart("ol", "breadcrumb-list", properties, [text.sm, styles.list]);
 }
 
 /** Render one step of the trail. */
@@ -90,7 +88,7 @@ export type BreadcrumbLinkProperties = BreadcrumbElementProperties<
 export function BreadcrumbLink(properties: BreadcrumbLinkProperties): JSX.Element {
     const rest = omit(properties, "xstyle", "style", "render");
     const part: PartAttributes = merge({ "data-slot": "breadcrumb-link" }, () =>
-        style.attributes([styles.link, properties.xstyle], properties.style),
+        style.attributes([state.focus, styles.link, properties.xstyle], properties.style),
     );
 
     return useRender({

@@ -3,7 +3,7 @@ import { createSignal, flush } from "@destack/view";
 import { markup, render, wait } from "@destack/view/test";
 import { isSubmitted, ToggleInput, ToggleState } from "./toggle-state.tsx";
 
-test("keep an uncontrolled toggle's own state, report each change and reset to the default", () => {
+test("store an uncontrolled toggle's own state, report each change and reset to the default", () => {
     // start checked and uncheck, check and reset
     const reported: boolean[] = [];
     const toggle = new ToggleState({
@@ -22,8 +22,8 @@ test("keep an uncontrolled toggle's own state, report each change and reset to t
     expect({ states, reported }).toEqual({ states: [true, false, true], reported: [false, true] });
 });
 
-test("hold a controlled toggle at its owner's state and report the change it asks for", () => {
-    // ask to check while the owner keeps the toggle unchecked, then let the owner check it
+test("leave a controlled toggle at its owner's state and report the change it asks for", () => {
+    // ask to check while the owner has the toggle unchecked, then let the owner check it
     const [isOwned, setOwned] = createSignal(false);
     const reported: boolean[] = [];
     const toggle = new ToggleState({
@@ -34,13 +34,13 @@ test("hold a controlled toggle at its owner's state and report the change it ask
     });
     toggle.set(true);
     flush();
-    const held = toggle.isChecked();
+    const controlled = toggle.isChecked();
     setOwned(true);
     flush();
 
     // the toggle reads the owner's state at each step
-    expect({ held, followed: toggle.isChecked(), reported }).toEqual({
-        held: false,
+    expect({ controlled, followed: toggle.isChecked(), reported }).toEqual({
+        controlled: false,
         followed: true,
         reported: [true],
     });
@@ -90,7 +90,7 @@ test("reflect the toggle's state in the hidden input and restore it when its own
     const after = [terms?.checked, plan?.checked];
     container.querySelector<HTMLFormElement>("#settings")?.reset();
 
-    // the inputs carry their state, and a reset reaches only its own form's input
+    // the inputs submit their state, and a reset reaches only its own form's input
     expect({ markup: markup(container), before, after, resets }).toEqual({
         markup:
             '<form id="settings"><input type="checkbox" aria-hidden="true" tabindex="-1" name="terms" value="on"></form>' +
@@ -102,9 +102,9 @@ test("reflect the toggle's state in the hidden input and restore it when its own
 });
 
 test("leave the hidden input agreeing with its control after its form resets", async () => {
-    // keep one control at its checked default and hold another checked by its owner
+    // leave one control at its checked default and another checked by its owner
     const own = new ToggleState({ defaultChecked: true });
-    const held = new ToggleState({ checked: true, defaultChecked: false });
+    const controlled = new ToggleState({ checked: true, defaultChecked: false });
     const { container } = render(() => (
         <form>
             <ToggleInput
@@ -115,9 +115,9 @@ test("leave the hidden input agreeing with its control after its form resets", a
             />
             <ToggleInput
                 name="news"
-                checked={held.isChecked()}
+                checked={controlled.isChecked()}
                 disabled={false}
-                onReset={() => held.reset()}
+                onReset={() => controlled.reset()}
             />
         </form>
     ));
@@ -127,7 +127,7 @@ test("leave the hidden input agreeing with its control after its form resets", a
 
     // the browser restores each input to its markup, and each then follows its control again
     expect({
-        controls: [own.isChecked(), held.isChecked()],
+        controls: [own.isChecked(), controlled.isChecked()],
         inputs: [...container.querySelectorAll("input")].map((input) => input.checked),
     }).toEqual({ controls: [true, true], inputs: [true, true] });
 });

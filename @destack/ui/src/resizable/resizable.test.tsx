@@ -57,10 +57,10 @@ test("collapse a collapsible panel on Enter and restore it to its smallest share
     press(container, "Enter");
     const collapsed = container
         .querySelector("[data-slot=resizable-panel]")
-        ?.getAttribute("data-state");
+        ?.hasAttribute("data-collapsed");
     press(container, "Enter");
     expect([collapsed, layouts]).toEqual([
-        "collapsed",
+        true,
         [
             [0, 100],
             [20, 80],

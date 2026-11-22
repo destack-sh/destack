@@ -26,8 +26,8 @@ export const sidebarResizeWithRail = defineScenario({
             step: { action: "pointerUp" },
             then: [
                 {
-                    observe: { kind: "attribute", target: sidebar, name: "data-state" },
-                    is: "expanded",
+                    observe: { kind: "attribute", target: sidebar, name: "data-open" },
+                    is: "",
                 },
             ],
         },
@@ -38,8 +38,8 @@ export const sidebarResizeWithRail = defineScenario({
             step: { action: "pointerUp" },
             then: [
                 {
-                    observe: { kind: "attribute", target: sidebar, name: "data-state" },
-                    is: "collapsed",
+                    observe: { kind: "attribute", target: sidebar, name: "data-closed" },
+                    is: "",
                 },
             ],
         },
@@ -47,8 +47,8 @@ export const sidebarResizeWithRail = defineScenario({
             step: { action: "click", target: rail },
             then: [
                 {
-                    observe: { kind: "attribute", target: sidebar, name: "data-state" },
-                    is: "expanded",
+                    observe: { kind: "attribute", target: sidebar, name: "data-open" },
+                    is: "",
                 },
             ],
         },

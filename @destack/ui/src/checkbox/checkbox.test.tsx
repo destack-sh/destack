@@ -26,13 +26,13 @@ test("toggle a checkbox and its indicator on click, report an indeterminate one 
     flush();
 
     expect(markup(container)).toBe(
-        '<button type="button" role="checkbox" aria-checked="true" data-slot="checkbox" data-state="checked" aria-label="Terms"><span data-slot="checkbox-indicator" data-state="checked"><svg viewBox="0 0 256 256" fill="currentColor" width="1em" height="1em" aria-hidden="true" data-slot="icon"></svg></span></button>' +
-            '<button type="button" role="checkbox" aria-checked="mixed" data-slot="checkbox" data-state="indeterminate" aria-label="Select all"><span data-slot="checkbox-indicator" data-state="indeterminate"><svg viewBox="0 0 256 256" fill="currentColor" width="1em" height="1em" aria-hidden="true" data-slot="icon"></svg></span></button>' +
-            '<button type="button" role="checkbox" aria-checked="false" data-slot="checkbox" data-state="unchecked" data-disabled="" disabled="" aria-label="Locked"></button>',
+        '<button type="button" role="checkbox" aria-checked="true" data-slot="checkbox" aria-label="Terms" data-checked=""><span data-slot="checkbox-indicator" data-checked=""><svg viewBox="0 0 256 256" fill="currentColor" width="1em" height="1em" aria-hidden="true" data-slot="icon"></svg></span></button>' +
+            '<button type="button" role="checkbox" aria-checked="mixed" data-slot="checkbox" data-indeterminate="" aria-label="Select all"><span data-slot="checkbox-indicator" data-indeterminate=""><svg viewBox="0 0 256 256" fill="currentColor" width="1em" height="1em" aria-hidden="true" data-slot="icon"></svg></span></button>' +
+            '<button type="button" role="checkbox" aria-checked="false" data-slot="checkbox" data-unchecked="" data-disabled="" disabled="" aria-label="Locked"></button>',
     );
 });
 
-test("hold a controlled checkbox at its owner's state, submit it under its name, and restore it on a form reset", () => {
+test("leave a controlled checkbox at its owner's state, submit it under its name, and restore it on a form reset", () => {
     const [isChosen, setChosen] = createSignal(false);
     const { container } = render(() => (
         <form>

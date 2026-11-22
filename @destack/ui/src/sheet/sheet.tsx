@@ -147,12 +147,12 @@ export function SheetContent(properties: SheetContentProperties): JSX.Element {
     );
 }
 
-/** Render the top of a sheet that holds its title and description. */
+/** Render the top of a sheet with its title and description. */
 export function SheetHeader(properties: DialogElementProperties<HTMLDivElement>): JSX.Element {
     return <DialogHeader data-slot="sheet-header" {...properties} />;
 }
 
-/** Render the bottom of a sheet that holds its actions. */
+/** Render the bottom of a sheet with its actions. */
 export function SheetFooter(properties: DialogElementProperties<HTMLDivElement>): JSX.Element {
     const rest = omit(properties, "xstyle", "style");
 

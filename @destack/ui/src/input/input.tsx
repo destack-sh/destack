@@ -1,13 +1,14 @@
+import { state } from "@destack/theme/state";
 import * as style from "@destack/style";
 import {
     color,
     motion,
     radius,
-    shadow,
     size,
     space,
     stroke,
     weight,
+    swatch,
 } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import { type JSX, merge } from "@destack/view";
@@ -22,28 +23,19 @@ const styles = style.create({
         borderWidth: stroke.border,
         borderColor: { default: color.input, ":focus-visible": color.ring },
         borderRadius: radius[3],
-        boxShadow: shadow.inset,
         color: color.foreground,
         transitionProperty: "border-color, outline-color",
         transitionDuration: motion.durationShort,
         transitionTimingFunction: motion.easingStandard,
-        outlineStyle: { default: "none", ":focus-visible": "solid" },
-        outlineWidth: stroke.ring,
-        outlineColor: `color-mix(in oklab, ${color.ring} 50%, transparent)`,
-        opacity: { default: 1, ":disabled": 0.5 },
         "::placeholder": { color: color.mutedForeground },
-    },
-    invalid: {
-        borderColor: color.destructive,
-        outlineColor: `color-mix(in oklab, ${color.destructive} 20%, transparent)`,
     },
     input: {
         width: "100%",
         minWidth: 0,
-        height: size[3],
+        height: size[2],
         paddingBlock: space[1],
         cursor: { default: "text", ":disabled": "not-allowed" },
-        "::selection": { backgroundColor: color.primary, color: color.primaryForeground },
+        "::selection": { backgroundColor: swatch.accentSolid, color: swatch.accentLabel },
         "::file-selector-button": {
             height: "100%",
             marginInlineEnd: space[2],
@@ -61,7 +53,13 @@ export interface InputStyleOptions {
 
 /** Return the StyleX styles of an input's box. */
 export function inputStyle(options: InputStyleOptions = {}): style.Styles {
-    return [text.sm, styles.box, options.invalid === true && styles.invalid];
+    return [
+        text.sm,
+        state.focus,
+        state.disabled,
+        styles.box,
+        options.invalid === true && state.invalid,
+    ];
 }
 
 /** The properties of an input, the native input's attributes included. */

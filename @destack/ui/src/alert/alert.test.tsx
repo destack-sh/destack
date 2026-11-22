@@ -16,7 +16,7 @@ test("announce an alert with its title and description", () => {
     );
 });
 
-test("color a destructive alert's description apart from a default alert's", () => {
+test("mark each alert with its variant, which its colors follow", () => {
     const { container } = render(() => (
         <>
             <Alert>
@@ -27,6 +27,11 @@ test("color a destructive alert's description apart from a default alert's", () 
             </Alert>
         </>
     ));
-    const [saved, failed] = [...container.querySelectorAll("[data-slot=alert-description]")];
-    expect(saved?.className).not.toBe(failed?.className);
+    const [saved, failed] = [...container.querySelectorAll<HTMLElement>("[data-slot=alert]")];
+
+    // each alert marks its variant
+    expect([saved?.dataset["variant"], failed?.dataset["variant"]]).toEqual([
+        "default",
+        "destructive",
+    ]);
 });

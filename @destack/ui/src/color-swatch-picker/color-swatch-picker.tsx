@@ -141,7 +141,7 @@ export function ColorSwatchPickerItem(properties: ColorSwatchPickerItemPropertie
     );
 }
 
-/** Render the hidden input that carries the nearest swatch picker's chosen swatch into its form. */
+/** Render the hidden input that submits the nearest swatch picker's chosen swatch with its form. */
 function ColorSwatchPickerInput(properties: {
     /** The form field name. */
     readonly name: string | undefined;

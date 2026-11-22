@@ -3,7 +3,7 @@ import * as style from "@destack/style";
 import { visuallyHiddenStyle } from "../visually-hidden/index.ts";
 import { type Accessor, createControllableSignal, type JSX, onSettled } from "@destack/view";
 
-/** The styles of the hidden native input that carries a control's state into its form. */
+/** The styles of the hidden native input that submits a control's state with its form. */
 const styles = style.create({
     input: {
         opacity: 0,
@@ -88,7 +88,7 @@ export function isSubmitted(properties: ToggleFormProperties): boolean {
     );
 }
 
-/** Render the hidden native input that carries a control's state into its form. */
+/** Render the hidden native input that submits a control's state with its form. */
 export function ToggleInput(properties: ToggleInputProperties): JSX.Element {
     // restore the first state when the input's form resets, a task later on the page's clock
     let element: HTMLInputElement | undefined;

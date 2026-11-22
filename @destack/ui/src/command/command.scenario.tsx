@@ -81,7 +81,7 @@ export const commandMoveHighlightWithArrowKeys = defineScenario({
     ],
 });
 
-/** Follow a highlight its owner holds. */
+/** Follow a highlight its owner controls. */
 export const commandFollowControlledHighlight = defineScenario({
     of: Command,
     interaction: viewInteraction,

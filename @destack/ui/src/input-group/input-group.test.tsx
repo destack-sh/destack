@@ -46,12 +46,12 @@ test("label a group's input by its field", () => {
     ]);
 });
 
-test("give a group's button the ghost variant and extra small size and keep it from submitting", () => {
+test("give a group's button the ghost variant and small size and stop it submitting", () => {
     const { container } = render(() => <InputGroupButton>Clear</InputGroupButton>);
     const button = container.querySelector("button");
     expect([button?.type, button?.dataset["variant"], button?.dataset["size"]]).toEqual([
         "button",
         "ghost",
-        "xs",
+        "sm",
     ]);
 });

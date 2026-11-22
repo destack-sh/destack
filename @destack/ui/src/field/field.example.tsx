@@ -45,3 +45,40 @@ export const fieldNotebookForm = defineExample({
         );
     },
 });
+
+/** A notebook form unavailable while it saves. */
+export const fieldNotebookFormDisabled = defineExample({
+    of: Field,
+    name: "notebook-form-disabled",
+    description: "a notebook form unavailable while it saves",
+    properties: {
+        disabled: true,
+    },
+    render: (properties) => {
+        const [name, setName] = createSignal("");
+        const error = (): string | undefined => (name() === "" ? "enter a name" : undefined);
+
+        return (
+            <FieldSet>
+                <FieldLegend>Notebook</FieldLegend>
+                <FieldGroup>
+                    <Field {...properties}>
+                        <FieldLabel>Name</FieldLabel>
+                        <Input
+                            value={name()}
+                            onInput={(event) => setName(event.currentTarget.value)}
+                        />
+                        <FieldError errors={[{ message: error() }]} />
+                    </Field>
+                    <Field disabled>
+                        <FieldLabel>Description</FieldLabel>
+                        <Textarea />
+                        <FieldDescription>
+                            Shown to everyone you share the notebook with.
+                        </FieldDescription>
+                    </Field>
+                </FieldGroup>
+            </FieldSet>
+        );
+    },
+});

@@ -29,16 +29,37 @@ export const timeFieldReminder = defineExample({
     },
 });
 
+/** The reminder time unavailable. */
+export const timeFieldReminderDisabled = defineExample({
+    of: TimeField,
+    name: "reminder-disabled",
+    description: "the reminder time unavailable",
+    render: () => {
+        const [time, setTime] = createSignal<PlainTime>("08:30");
+
+        return (
+            <Field disabled>
+                <FieldLabel>Reminder</FieldLabel>
+                <TimeField value={time()} onValueChange={setTime} />
+            </Field>
+        );
+    },
+});
+
 /** A date picker beside a time field that schedule a note's reminder at a day and time. */
 export const timeFieldBesideDatePicker = defineExample({
     of: TimeField,
     name: "beside-date-picker",
     description:
         "a date picker beside a time field that schedule a note's reminder at a day and time",
-    render: () => (
+    properties: {
+        "aria-label": "Remind at",
+        defaultValue: "09:00",
+    },
+    render: (properties) => (
         <div {...style.attrs(styles.row)}>
             <DatePicker aria-label="Remind on" defaultSelected={"2026-10-09"} />
-            <TimeField aria-label="Remind at" defaultValue="09:00" />
+            <TimeField {...properties} />
         </div>
     ),
 });

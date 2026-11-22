@@ -139,7 +139,7 @@ test("move a card into the next column with Space and the arrow keys, leaving En
     });
 });
 
-test("drag a card with the pointer into an empty column, and keep it where it is short of the lift distance", () => {
+test("drag a card with the pointer into an empty column, and leave it where it is short of the lift distance", () => {
     stubPopovers();
     // lay out three columns side by side, each card forty pixels high
     const { container, items } = drawBoard();
@@ -287,12 +287,16 @@ test("skip a column a card may not enter, which the drag marks as refusing it", 
     press(container, " ");
     const states = [
         ...container.querySelectorAll<HTMLElement>("[data-slot=board-column-content]"),
-    ].map((content) => content.dataset["state"]);
+    ].map((content) => [content.hasAttribute("data-over"), content.hasAttribute("data-refused")]);
     press(container, "ArrowRight");
     press(container, " ");
 
     expect({ states, items }).toEqual({
-        states: ["over", "refused", "idle"],
+        states: [
+            [true, false],
+            [false, true],
+            [false, false],
+        ],
         items: [{ id: "write-the-post", container: "done", previous: undefined, next: undefined }],
     });
 });

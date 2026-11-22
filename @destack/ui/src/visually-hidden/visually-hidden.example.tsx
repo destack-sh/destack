@@ -1,5 +1,6 @@
 import { defineExample } from "@destack/package/declare";
 import { Icon } from "@destack/ui/icon";
+import { Badge } from "../badge/index.ts";
 import { Button } from "../button/index.ts";
 import { VisuallyHidden } from "./visually-hidden.tsx";
 
@@ -13,5 +14,20 @@ export const visuallyHiddenIconButton = defineExample({
             <Icon name="trash" />
             <VisuallyHidden>Delete note</VisuallyHidden>
         </Button>
+    ),
+});
+
+/** An unread count whose unit only assistive technology reads. */
+export const visuallyHiddenUnreadCount = defineExample({
+    of: VisuallyHidden,
+    name: "unread-count",
+    description: "an unread count whose unit only assistive technology reads",
+    render: () => (
+        <p>
+            Inbox{" "}
+            <Badge>
+                4<VisuallyHidden> unread messages</VisuallyHidden>
+            </Badge>
+        </p>
     ),
 });

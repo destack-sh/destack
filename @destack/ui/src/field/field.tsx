@@ -1,5 +1,6 @@
+import { state } from "@destack/theme/state";
 import * as style from "@destack/style";
-import { color, space, weight } from "@destack/theme/tokens.stylex";
+import { color, space, weight, swatch } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import { children, createUniqueId, For, type JSX, merge, omit, Show } from "@destack/view";
 import { Label, type LabelProperties } from "../label/index.ts";
@@ -24,7 +25,7 @@ const styles = style.create({
         gap: space[3],
     },
     invalid: {
-        color: color.destructive,
+        color: swatch.destructiveText,
     },
     set: {
         display: "flex",
@@ -57,14 +58,11 @@ const styles = style.create({
         width: "fit-content",
         fontWeight: weight.medium,
     },
-    disabled: {
-        opacity: 0.5,
-    },
     description: {
         color: color.mutedForeground,
     },
     error: {
-        color: color.destructive,
+        color: swatch.destructiveText,
     },
     errors: {
         display: "flex",
@@ -162,8 +160,8 @@ export function Field(properties: FieldProperties): JSX.Element {
                 role="group"
                 data-slot="field"
                 data-orientation={field.orientation}
-                data-invalid={control.isInvalid() ? "true" : undefined}
-                data-disabled={control.isDisabled() ? "true" : undefined}
+                data-invalid={control.isInvalid() ? "" : undefined}
+                data-disabled={control.isDisabled() ? "" : undefined}
                 {...rest}
                 {...style.attributes(
                     [
@@ -192,7 +190,7 @@ export function FieldLabel(properties: LabelProperties): JSX.Element {
             data-slot="field-label"
             for={control?.isGrouped() === true ? undefined : control?.id}
             {...rest}
-            xstyle={[control?.isDisabled() === true && styles.disabled, properties.xstyle]}
+            xstyle={[control?.isDisabled() === true && state.inert, properties.xstyle]}
         />
     );
 }
@@ -273,7 +271,7 @@ export function FieldGroup(properties: FieldElementProperties<HTMLDivElement>): 
     return renderPart("div", "field-group", properties, styles.group);
 }
 
-/** Render a column beside a control that holds its label and description. */
+/** Render a column beside a control with its label and description. */
 export function FieldContent(properties: FieldElementProperties<HTMLDivElement>): JSX.Element {
     return renderPart("div", "field-content", properties, styles.content);
 }
@@ -285,7 +283,7 @@ export function FieldTitle(properties: FieldElementProperties<HTMLDivElement>): 
     return renderPart("div", "field-label", properties, () => [
         text.sm,
         styles.title,
-        control?.isDisabled() === true && styles.disabled,
+        control?.isDisabled() === true && state.inert,
     ]);
 }
 
@@ -297,7 +295,7 @@ export function FieldSeparator(properties: FieldElementProperties<HTMLDivElement
     return (
         <div
             data-slot="field-separator"
-            data-content={content.toArray().length > 0 ? "true" : "false"}
+            data-content={content.toArray().length > 0 ? "" : undefined}
             {...rest}
             {...style.attributes([text.xs, styles.separator, properties.xstyle], properties.style)}
         >

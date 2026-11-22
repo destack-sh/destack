@@ -1,6 +1,6 @@
 import { defineExample } from "@destack/package/declare";
 import { PlainDate } from "@destack/schema";
-import { createSignal } from "@destack/view";
+import { createSignal, omit } from "@destack/view";
 import { Calendar } from "./calendar.tsx";
 import type { DateRange } from "./selection.ts";
 
@@ -17,11 +17,16 @@ export const calendarTripDays = defineExample({
     of: Calendar,
     name: "trip-days",
     description: "a calendar that picks the days of a trip, past days disabled",
-    render: () => {
+    properties: {
+        numberOfMonths: 1,
+        showWeekNumber: false,
+    },
+    render: (properties) => {
         const [trip, setTrip] = createSignal<DateRange | undefined>(undefined);
 
         return (
             <Calendar
+                {...omit(properties, "mode", "selected", "defaultSelected", "onSelect")}
                 mode="range"
                 selected={trip()}
                 onSelect={setTrip}

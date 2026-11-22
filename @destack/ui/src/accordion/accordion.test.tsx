@@ -8,7 +8,7 @@ function opened(container: Element): boolean[] {
     return [...container.querySelectorAll("details")].map((item) => item.open);
 }
 
-test("name a single accordion's items alike so the platform keeps one open", () => {
+test("give a single accordion's items one shared name so the platform has one open", () => {
     const { container } = render(() => (
         <Accordion defaultValue="styled">
             <AccordionItem value="accessible">
@@ -25,12 +25,12 @@ test("name a single accordion's items alike so the platform keeps one open", () 
         '<span><svg viewBox="0 0 256 256" fill="currentColor" width="1em" height="1em" aria-hidden="true" data-slot="icon"></svg></span>';
     expect(markup(container)).toBe(
         '<div data-slot="accordion" data-orientation="vertical">' +
-            '<details name="id-1" data-slot="accordion-item" data-state="closed">' +
-            `<summary data-slot="accordion-trigger" data-state="closed">Is it accessible?${chevron}</summary>` +
-            '<div data-slot="accordion-content" data-state="closed">Yes.</div></details>' +
-            '<details name="id-1" data-slot="accordion-item" data-state="open" open="">' +
-            `<summary data-slot="accordion-trigger" data-state="open">Is it styled?${chevron}</summary>` +
-            '<div data-slot="accordion-content" data-state="open">Yes.</div></details></div>',
+            '<details name="id-1" data-slot="accordion-item" data-closed="">' +
+            `<summary data-slot="accordion-trigger">Is it accessible?${chevron}</summary>` +
+            '<div data-slot="accordion-content" data-closed="">Yes.</div></details>' +
+            '<details name="id-1" data-slot="accordion-item" data-open="" open="">' +
+            `<summary data-slot="accordion-trigger" data-panel-open="">Is it styled?${chevron}</summary>` +
+            '<div data-slot="accordion-content" data-open="">Yes.</div></details></div>',
     );
 });
 
@@ -66,7 +66,7 @@ test("open the items a controlled accordion's owner names", () => {
     ]);
 });
 
-test("keep a disabled item closed when its trigger is clicked", () => {
+test("leave a disabled item closed when its trigger is clicked", () => {
     const { container } = render(() => (
         <Accordion>
             <AccordionItem value="billing" disabled>

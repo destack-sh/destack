@@ -43,5 +43,8 @@ export const buttonSaveLoading = defineExample({
     of: Button,
     name: "save-loading",
     description: "a save button while the note saves",
-    render: () => <Button loading>Save</Button>,
+    properties: {
+        loading: true,
+    },
+    render: (properties) => <Button {...properties}>Save</Button>,
 });

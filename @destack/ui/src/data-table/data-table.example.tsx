@@ -379,7 +379,7 @@ const PRIORITY_LABELS: Readonly<Record<LaunchTask["priority"], string>> = {
 
 /** Render the launch's tasks with faceted filters, editable titles and row actions. */
 function LaunchTasksTable(): JSX.Element {
-    // keep the tasks, renaming one in place
+    // store the tasks, renaming one in place
     const [tasks, setTasks] = createSignal(LAUNCH_TASKS);
     const rename = (id: string, title: string) =>
         setTasks((current) => current.map((task) => (task.id === id ? { ...task, title } : task)));

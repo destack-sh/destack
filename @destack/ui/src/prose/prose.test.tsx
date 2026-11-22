@@ -19,6 +19,6 @@ test("style prose through custom properties the theme's tokens define alone", as
         ),
     );
 
-    // keep none the tokens leave undefined
+    // leave no token undefined
     expect(used.filter((name) => !defined.has(name))).toEqual([]);
 });

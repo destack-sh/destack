@@ -6,8 +6,33 @@ export const toggleGroupParagraphAlignment = defineExample({
     of: ToggleGroup,
     name: "paragraph-alignment",
     description: "the alignment of a paragraph as a single toggle group",
-    render: () => (
-        <ToggleGroup defaultValue="left" variant="outline" aria-label="Alignment">
+    properties: {
+        defaultValue: "left",
+        variant: "outline",
+        "aria-label": "Alignment",
+    },
+    render: (properties) => (
+        <ToggleGroup {...properties}>
+            <ToggleGroupItem value="left">Left</ToggleGroupItem>
+            <ToggleGroupItem value="center">Center</ToggleGroupItem>
+            <ToggleGroupItem value="right">Right</ToggleGroupItem>
+        </ToggleGroup>
+    ),
+});
+
+/** The paragraph alignment unavailable. */
+export const toggleGroupParagraphAlignmentDisabled = defineExample({
+    of: ToggleGroup,
+    name: "paragraph-alignment-disabled",
+    description: "the paragraph alignment unavailable",
+    properties: {
+        disabled: true,
+        defaultValue: "left",
+        variant: "outline",
+        "aria-label": "Alignment",
+    },
+    render: (properties) => (
+        <ToggleGroup {...properties}>
             <ToggleGroupItem value="left">Left</ToggleGroupItem>
             <ToggleGroupItem value="center">Center</ToggleGroupItem>
             <ToggleGroupItem value="right">Right</ToggleGroupItem>
@@ -21,8 +46,11 @@ export const toggleGroupUnaligned = defineExample({
     name: "unaligned",
     description:
         "the alignment of a paragraph with none chosen yet and right alignment unavailable",
-    render: () => (
-        <ToggleGroup aria-label="Alignment">
+    properties: {
+        "aria-label": "Alignment",
+    },
+    render: (properties) => (
+        <ToggleGroup {...properties}>
             <ToggleGroupItem value="left">Left</ToggleGroupItem>
             <ToggleGroupItem value="center">Center</ToggleGroupItem>
             <ToggleGroupItem value="right" disabled>

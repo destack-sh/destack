@@ -137,7 +137,7 @@ function DatePickerPanel(properties: DatePickerProperties): JSX.Element {
         onChange: (next) => report(properties, next),
     });
 
-    // keep and report a choice, closing the popover once it is complete
+    // store and report a choice, closing the popover once it is complete
     const change = (next: CalendarValue, isComplete: boolean) => {
         setValue(next);
         if (isComplete) {
@@ -171,7 +171,6 @@ function DatePickerPanel(properties: DatePickerProperties): JSX.Element {
                                 {(preset) => (
                                     <Button
                                         variant="ghost"
-                                        size="sm"
                                         xstyle={styles.preset}
                                         onClick={() => change(preset.value, true)}
                                     >
@@ -212,7 +211,7 @@ function DatePickerFields(properties: {
         isRange(properties.value) ? properties.value : undefined;
     field?.group();
 
-    // keep the end typed last, which the range takes once a start before it is typed
+    // store the end typed last, which the range takes once a start before it is typed
     let end: PlainDate | undefined;
 
     return (
@@ -256,7 +255,7 @@ function DatePickerFields(properties: {
                         aria-label={locale.render(t`End date`)}
                         value={range()?.to}
                         onValueChange={(to) => {
-                            // keep the typed end, reporting it once the range has a start
+                            // store the typed end, reporting it once the range has a start
                             const from = range()?.from;
                             end = to;
                             if (from !== undefined) {
@@ -270,11 +269,11 @@ function DatePickerFields(properties: {
 
             {/* Calendar button */}
             <PopoverTrigger
-                variant="ghost"
-                size="icon-sm"
+                render={(attributes) => (
+                    <Button {...attributes} variant="ghost" size="icon" xstyle={styles.button} />
+                )}
                 aria-label={locale.render(t`Pick a date`)}
                 data-slot="date-picker-trigger"
-                xstyle={styles.button}
             >
                 <Icon name="calendar-blank" />
             </PopoverTrigger>
@@ -295,13 +294,18 @@ function DatePickerTrigger(properties: {
 
     return (
         <PopoverTrigger
-            variant={picker.variant ?? "outline"}
+            render={(attributes) => (
+                <Button
+                    {...attributes}
+                    variant={picker.variant ?? "outline"}
+                    xstyle={[styles.trigger, properties.value === undefined && styles.placeholder]}
+                />
+            )}
             aria-labelledby={
                 picker["aria-label"] === undefined ? undefined : `${labelId} ${valueId}`
             }
             aria-haspopup="dialog"
             data-slot="date-picker-trigger"
-            xstyle={[styles.trigger, properties.value === undefined && styles.placeholder]}
         >
             {/* Name and chosen days */}
             <Icon name="calendar-blank" />

@@ -74,7 +74,7 @@ class TimeFormat implements DateSegmentFormat {
             timeZone: "UTC",
         });
 
-        // keep the segments and the literals
+        // list the segments and the literals
         this.layout = format
             .formatToParts(SAMPLE_TIME)
             .filter((part) => isDateSegment(part) || part.type === "literal");
@@ -118,7 +118,7 @@ class TimeFormat implements DateSegmentFormat {
         return this.text(kind, value);
     }
 
-    /** Label a segment by the part of the time it holds. */
+    /** Label a segment by the part of the time it shows. */
     name(kind: DateSegmentKind): string {
         // the hour
         if (kind === "hour") {
@@ -203,10 +203,10 @@ export function TimeField(properties: TimeFieldProperties): JSX.Element {
     createEffect(
         value,
         (next, previous) => {
-            const held = format.timeOf(untrack(values));
-            if (next !== undefined && next !== held) {
+            const current = format.timeOf(untrack(values));
+            if (next !== undefined && next !== current) {
                 setValues(format.valuesOf(next));
-            } else if (next === undefined && previous !== undefined && previous === held) {
+            } else if (next === undefined && previous !== undefined && previous === current) {
                 setValues({});
             }
         },
@@ -220,7 +220,7 @@ export function TimeField(properties: TimeFieldProperties): JSX.Element {
             format={format}
             values={values()}
             onValuesChange={(next, isTyping) => {
-                // keep the segments and report the time once it is complete or gone, typing done
+                // set the segments and report the time once it is complete or gone, typing done
                 setValues(next);
                 const time = format.timeOf(next);
                 if (!isTyping && time !== value()) {

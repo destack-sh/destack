@@ -1,6 +1,16 @@
+import type { Axis } from "../position/index.ts";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
-import { color, motion, radius, shadow, size, space, stroke } from "@destack/theme/tokens.stylex";
+import {
+    color,
+    motion,
+    radius,
+    shadow,
+    size,
+    space,
+    stroke,
+    swatch,
+} from "@destack/theme/tokens.stylex";
 import {
     type Accessor,
     createContext,
@@ -24,7 +34,7 @@ import { type ElementPartProperties, renderPart } from "../part/index.ts";
 const RANGE = { min: 0, max: 100 };
 
 /** The ring a focused thumb shows. */
-const FOCUS_RING = `0 0 0 ${stroke.ring} color-mix(in oklab, ${color.ring} 50%, transparent)`;
+const FOCUS_RING = `0 0 0 ${stroke.ring} ${color.ring}`;
 
 /** The look of a thumb in every engine. */
 const THUMB = {
@@ -33,7 +43,7 @@ const THUMB = {
     height: space[4],
     borderStyle: "solid",
     borderWidth: stroke.border,
-    borderColor: color.primary,
+    borderColor: swatch.accentMark,
     borderRadius: radius.full,
     backgroundColor: color.background,
     pointerEvents: "auto",
@@ -73,7 +83,7 @@ const styles = style.create({
     },
     range: {
         position: "absolute",
-        backgroundColor: color.primary,
+        backgroundColor: swatch.accentMark,
     },
     span: (from: string, to: string) => ({
         insetBlock: 0,
@@ -132,7 +142,7 @@ const styles = style.create({
 });
 
 /** The values, range and thumbs of a slider, which its track, range and thumbs share. */
-class SliderControl {
+export class SliderControl {
     /** The slider's properties, read for its range, step, form and handlers. */
     readonly properties: SliderProperties;
     /** The field the slider's first thumb belongs to, null outside one. */
@@ -232,7 +242,7 @@ export interface SliderProperties extends Omit<
     /** Handle each change of the values while a thumb moves. */
     readonly onValueChange?: (value: readonly number[]) => void;
     /** Handle the values the person settles on when a thumb is released. */
-    readonly onValueCommit?: (value: readonly number[]) => void;
+    readonly onValueCommitted?: (value: readonly number[]) => void;
     /** The lowest value, 0 by default. */
     readonly min?: number;
     /** The highest value, 100 by default. */
@@ -242,7 +252,7 @@ export interface SliderProperties extends Omit<
     /** The values marked along the track. */
     readonly marks?: readonly number[];
     /** The direction the track runs along, horizontal by default. */
-    readonly orientation?: "horizontal" | "vertical";
+    readonly orientation?: Axis;
     /** Whether the thumbs ignore the person. */
     readonly disabled?: boolean;
     /** The form field name each thumb submits its value under. */
@@ -276,7 +286,7 @@ export function Slider(properties: SliderProperties): JSX.Element {
         "value",
         "defaultValue",
         "onValueChange",
-        "onValueCommit",
+        "onValueCommitted",
         "min",
         "max",
         "step",
@@ -306,7 +316,7 @@ export function Slider(properties: SliderProperties): JSX.Element {
                 {properties.children ?? (
                     <>
                         <SliderTrack>
-                            <SliderRange />
+                            <SliderIndicator />
                         </SliderTrack>
                         <Repeat count={control.values().length}>
                             {(index) => <SliderThumb index={index} />}
@@ -340,7 +350,7 @@ export function Slider(properties: SliderProperties): JSX.Element {
     );
 }
 
-/** Render the track of the nearest slider, which holds its range. */
+/** Render the track of the nearest slider, around its range. */
 export function SliderTrack(
     properties: SliderElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
@@ -363,7 +373,7 @@ export function SliderTrack(
 }
 
 /** Render the filled span of the nearest slider's track. */
-export function SliderRange(
+export function SliderIndicator(
     properties: SliderElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
     // span from the lower thumb or the start up to the highest thumb
@@ -377,7 +387,7 @@ export function SliderRange(
 
     return renderPart(
         "div",
-        "slider-range",
+        "slider-indicator",
         properties,
         () => [
             styles.range,
@@ -394,18 +404,15 @@ export function SliderRange(
     );
 }
 
-/** Render a thumb of the nearest slider as a native range input, kept between its neighbours. */
+/** Render a thumb of the nearest slider as a native range input, between its neighbours. */
 export function SliderThumb(properties: SliderThumbProperties): JSX.Element {
-    // take the thumb's place and label a range's thumbs by the end they set
+    // take the thumb's place, label a range's thumbs by the end they set and one thumb as its slider
     const control = useSlider();
     const locale = useLocale();
     const place = control.join();
     const index = (): number => properties.index ?? place();
     const rest = omit(properties, "index", "xstyle", "style");
-    const label = (): string | undefined =>
-        control.values().length === 2
-            ? locale.render(index() === 0 ? t`Minimum` : t`Maximum`)
-            : undefined;
+    const isRange = () => control.values().length === 2;
 
     return (
         <input
@@ -419,13 +426,18 @@ export function SliderThumb(properties: SliderThumbProperties): JSX.Element {
             name={control.properties.name}
             form={control.properties.form}
             disabled={control.properties.disabled}
-            aria-label={label()}
+            aria-label={
+                isRange()
+                    ? locale.render(index() === 0 ? t`Minimum` : t`Maximum`)
+                    : control.properties["aria-label"]
+            }
+            aria-labelledby={isRange() ? undefined : control.properties["aria-labelledby"]}
             aria-orientation={control.properties.orientation}
             {...(index() === 0 ? control.field?.attributes() : undefined)}
             {...rest}
             value={control.valueAt(index())}
             onInput={(event) => control.move(index(), event.currentTarget)}
-            onChange={() => control.properties.onValueCommit?.(control.values())}
+            onChange={() => control.properties.onValueCommitted?.(control.values())}
             {...style.attributes(
                 [styles.thumb, control.isVertical() && styles.verticalThumb, properties.xstyle],
                 properties.style,
@@ -435,7 +447,7 @@ export function SliderThumb(properties: SliderThumbProperties): JSX.Element {
 }
 
 /** Read the nearest slider, refusing a part outside one. */
-function useSlider(): SliderControl {
+export function useSlider(): SliderControl {
     const control = useContext(SliderContext);
     if (control === null) {
         throw new TypeError("a slider part needs a slider around it");

@@ -7,9 +7,13 @@ export const switchNotifications = defineExample({
     of: Switch,
     name: "notifications",
     description: "a switch that turns notifications on and off",
-    render: () => (
+    properties: {
+        name: "notifications",
+        defaultChecked: true,
+    },
+    render: (properties) => (
         <Label>
-            <Switch name="notifications" defaultChecked /> Notifications
+            <Switch {...properties} /> Notifications
         </Label>
     ),
 });
@@ -19,9 +23,14 @@ export const switchNotificationsDisabled = defineExample({
     of: Switch,
     name: "notifications-disabled",
     description: "the notifications switch unavailable",
-    render: () => (
+    properties: {
+        name: "notifications",
+        checked: true,
+        disabled: true,
+    },
+    render: (properties) => (
         <Label>
-            <Switch name="notifications" checked disabled /> Notifications
+            <Switch {...properties} /> Notifications
         </Label>
     ),
 });
@@ -31,9 +40,12 @@ export const switchComposed = defineExample({
     of: Switch,
     name: "composed",
     description: "a switch composed from its root and thumb parts",
-    render: () => (
+    properties: {
+        name: "airplane-mode",
+    },
+    render: (properties) => (
         <Label>
-            <Switch name="airplane-mode">
+            <Switch {...properties}>
                 <SwitchThumb />
             </Switch>{" "}
             Airplane mode

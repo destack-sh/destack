@@ -1,3 +1,5 @@
+import { state } from "@destack/theme/state";
+import type { Axis } from "../position/index.ts";
 import { Icon } from "@destack/ui/icon";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
@@ -12,7 +14,7 @@ import {
     useContext,
     useLocale,
 } from "@destack/view";
-import { Selection, type SelectionProperties } from "../selection/index.ts";
+import { SELECTION_OPTIONS, Selection, type SelectionProperties } from "../selection/index.ts";
 import { followToggle, refuseDisabled } from "../disclosure/index.ts";
 import { ListState } from "../focus/index.ts";
 import { renderPart } from "../part/index.ts";
@@ -20,8 +22,28 @@ import { renderPart } from "../part/index.ts";
 /** The open items of the nearest accordion, null outside one. */
 const AccordionContext = createContext<AccordionControl | null>(null);
 
+/** Read the nearest accordion, refusing a part outside one. */
+export function useAccordion(): AccordionControl {
+    const accordion = useContext(AccordionContext);
+    if (accordion === null) {
+        throw new TypeError("an accordion part needs an accordion around it");
+    }
+
+    return accordion;
+}
+
 /** The item of the nearest accordion item, null outside one. */
 const AccordionItemContext = createContext<AccordionItemControl | null>(null);
+
+/** Read the nearest accordion item, refusing a part outside one. */
+export function useAccordionItem(): AccordionItemControl {
+    const item = useContext(AccordionItemContext);
+    if (item === null) {
+        throw new TypeError("an accordion part needs an accordion item around it");
+    }
+
+    return item;
+}
 
 /** The styles of an accordion and its items. */
 const styles = style.create({
@@ -54,9 +76,6 @@ const styles = style.create({
             default: "none",
             ":hover": { default: null, [media.hover]: "underline" },
         },
-        outlineStyle: { default: "none", ":focus-visible": "solid" },
-        outlineWidth: stroke.ring,
-        outlineColor: `color-mix(in oklab, ${color.ring} 50%, transparent)`,
         "::-webkit-details-marker": { display: "none" },
     },
     chevron: {
@@ -79,7 +98,7 @@ export type AccordionProperties = Omit<
     "class" | "onKeyDown"
 > & {
     /** The direction the arrow keys move between triggers along, vertical by default. */
-    readonly orientation?: "horizontal" | "vertical";
+    readonly orientation?: Axis;
     /** Whether every trigger ignores the person. */
     readonly disabled?: boolean;
     /** The StyleX styles applied after the accordion's styles. */
@@ -106,7 +125,7 @@ export type AccordionElementProperties<Attributes> = Omit<Attributes, "class"> &
 export class AccordionControl {
     /** The properties of the accordion root, read for its controlled state. */
     readonly properties: AccordionProperties;
-    /** The name a single accordion's items share, so the platform keeps one open. */
+    /** The name a single accordion's items share, so the platform has one open at a time. */
     readonly name: string | undefined;
     /** The open values, controlled or the accordion's own. */
     readonly selection: Selection;
@@ -151,7 +170,7 @@ export class AccordionControl {
 }
 
 /** The value and availability of an accordion item, which its trigger reads. */
-interface AccordionItemControl {
+export interface AccordionItemControl {
     /** The value the item stands for. */
     readonly value: string;
     /** Whether the item's trigger ignores the person. */
@@ -167,10 +186,7 @@ export function Accordion(properties: AccordionProperties): JSX.Element {
     const locale = useLocale();
     const rest = omit(
         properties,
-        "multiple",
-        "value",
-        "defaultValue",
-        "onValueChange",
+        ...SELECTION_OPTIONS,
         "orientation",
         "disabled",
         "xstyle",
@@ -202,10 +218,7 @@ export function Accordion(properties: AccordionProperties): JSX.Element {
 /** Render one native disclosure of the nearest accordion, open while its value is. */
 export function AccordionItem(properties: AccordionItemProperties): JSX.Element {
     // read the accordion, refusing an item outside one
-    const accordion = useContext(AccordionContext);
-    if (accordion === null) {
-        throw new TypeError("an accordion item needs an accordion around it");
-    }
+    const accordion = useAccordion();
     const rest = omit(properties, "value", "disabled", "xstyle", "style");
     const isDisabled = (): boolean =>
         properties.disabled === true || accordion.properties.disabled === true;
@@ -221,7 +234,8 @@ export function AccordionItem(properties: AccordionItemProperties): JSX.Element 
             <details
                 name={accordion.name}
                 data-slot="accordion-item"
-                data-state={accordion.isOpen(properties.value) ? "open" : "closed"}
+                data-open={accordion.isOpen(properties.value) ? "" : undefined}
+                data-closed={accordion.isOpen(properties.value) ? undefined : ""}
                 data-disabled={isDisabled() ? "" : undefined}
                 open={accordion.isOpen(properties.value)}
                 {...rest}
@@ -250,11 +264,8 @@ export function AccordionTrigger(
     >,
 ): JSX.Element {
     // read the item, refusing a trigger outside one, and join the accordion's triggers
-    const accordion = useContext(AccordionContext);
-    const item = useContext(AccordionItemContext);
-    if (accordion === null || item === null) {
-        throw new TypeError("an accordion trigger needs an accordion item around it");
-    }
+    const accordion = useAccordion();
+    const item = useAccordionItem();
     const isDisabled = (): boolean => item.isDisabled();
     const rest = omit(properties, "xstyle", "style", "children");
     let element: HTMLElement | undefined;
@@ -268,7 +279,7 @@ export function AccordionTrigger(
     return (
         <summary
             data-slot="accordion-trigger"
-            data-state={item.isOpen() ? "open" : "closed"}
+            data-panel-open={item.isOpen() ? "" : undefined}
             data-disabled={isDisabled() ? "" : undefined}
             aria-disabled={isDisabled() ? "true" : undefined}
             {...rest}
@@ -277,7 +288,10 @@ export function AccordionTrigger(
                 refuseDisabled(summary, isDisabled);
             }}
             onFocus={() => accordion.list.focus.focusIn(item.value)}
-            {...style.attributes([text.sm, styles.trigger, properties.xstyle], properties.style)}
+            {...style.attributes(
+                [text.sm, state.focus, styles.trigger, properties.xstyle],
+                properties.style,
+            )}
         >
             {properties.children}
             <span {...style.attrs(styles.chevron)}>
@@ -290,11 +304,14 @@ export function AccordionTrigger(
 export function AccordionContent(
     properties: AccordionElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
-    const item = useContext(AccordionItemContext);
+    const item = useAccordionItem();
 
-    return renderPart("div", "accordion-content", properties, [text.xs, styles.content], {
-        get "data-state"() {
-            return item?.isOpen() === true ? "open" : "closed";
+    return renderPart("div", "accordion-content", properties, [text.sm, styles.content], {
+        get "data-open"() {
+            return item.isOpen() ? "" : undefined;
+        },
+        get "data-closed"() {
+            return item.isOpen() ? undefined : "";
         },
     });
 }

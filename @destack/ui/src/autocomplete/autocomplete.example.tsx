@@ -34,8 +34,11 @@ export const autocompleteNoFruit = defineExample({
     of: Autocomplete,
     name: "no-fruit",
     description: "a search that finds no fruit, showing the list box's empty note",
-    render: () => (
-        <Autocomplete defaultSearch="kiwi">
+    properties: {
+        defaultValue: "kiwi",
+    },
+    render: (properties) => (
+        <Autocomplete {...properties}>
             <AutocompleteInput aria-label="Fruit" />
             <ListBox aria-label="Fruits">
                 <ListBoxEmpty>No fruit found</ListBoxEmpty>

@@ -66,7 +66,7 @@ const WIDTH_KEY = "destack-sidebar-width";
 /** A width the viewer left the sidebar at, in pixels. */
 const StoredWidth = schema.number().positive();
 
-/** The narrowest a dragged sidebar gets in pixels, 13rem, which keeps a project's name readable. */
+/** The narrowest a dragged sidebar gets in pixels, 13rem, wide enough to read a project's name. */
 const MIN_WIDTH = 208;
 
 /** The widest a dragged sidebar gets in pixels, 25rem, which leaves the page most of the screen. */
@@ -327,7 +327,7 @@ export class SidebarControl {
         });
         const [isResizing, setResizing] = createSignal(false, { ownedWrite: true });
 
-        // keep the state
+        // store the state
         this.id = createUniqueId();
         this.isOpen = isOpen;
         this.isMobile = isMobile;
@@ -553,7 +553,6 @@ export function Sidebar(properties: SidebarProperties): JSX.Element {
     const locale = useLocale();
     const sidebar = merge(DEFAULTS, properties);
     const rest = omit(sidebar, "side", "variant", "collapsible", "xstyle", "style", "children");
-    const expansion = (): "expanded" | "collapsed" => (control.isOpen() ? "expanded" : "collapsed");
     const dragged = () => {
         const pixels = control.width();
 
@@ -589,11 +588,12 @@ export function Sidebar(properties: SidebarProperties): JSX.Element {
             <div
                 id={control.id}
                 data-slot="sidebar"
-                data-state={expansion()}
-                data-collapsible={expansion() === "collapsed" ? sidebar.collapsible : undefined}
+                data-open={control.isOpen() ? "" : undefined}
+                data-closed={control.isOpen() ? undefined : ""}
+                data-collapsible={control.isOpen() ? undefined : sidebar.collapsible}
                 data-variant={sidebar.variant}
                 data-side={sidebar.side}
-                inert={expansion() === "collapsed" && sidebar.collapsible === "offcanvas"}
+                inert={!control.isOpen() && sidebar.collapsible === "offcanvas"}
                 {...rest}
                 {...style.attributes(
                     [
@@ -814,7 +814,7 @@ export function SidebarMenuButton(properties: SidebarMenuButtonProperties): JSX.
     return (
         <Show when={properties.tooltip} fallback={<SidebarMenuButtonElement {...rest} />}>
             {(tooltip) => (
-                <Tooltip delayDuration={0}>
+                <Tooltip delay={0}>
                     <SidebarMenuButtonElement {...rest} />
                     <TooltipContent side="right">{tooltip()}</TooltipContent>
                 </Tooltip>
@@ -848,7 +848,7 @@ function SidebarMenuButtonElement(
         {
             "data-slot": "sidebar-menu-button",
             get "data-active"() {
-                return properties.active === true ? "true" : undefined;
+                return properties.active === true ? "" : undefined;
             },
             get "aria-current"() {
                 return properties.active === true ? "page" : undefined;
@@ -957,7 +957,7 @@ export function SidebarMenuSubButton(properties: SidebarMenuSubButtonProperties)
             },
             "data-slot": "sidebar-menu-sub-button",
             get "data-active"() {
-                return properties.active === true ? "true" : undefined;
+                return properties.active === true ? "" : undefined;
             },
         },
         () =>

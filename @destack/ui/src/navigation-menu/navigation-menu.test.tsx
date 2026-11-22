@@ -14,7 +14,7 @@ import { render, wait } from "@destack/view/test";
 /** Render a navigation with two panels, an indicator and short hover delays. */
 function drawPanels(): HTMLElement {
     return render(() => (
-        <NavigationMenu aria-label="Main" delayDuration={20} skipDelayDuration={60}>
+        <NavigationMenu aria-label="Main" delay={20} timeout={60}>
             <NavigationMenuList>
                 <NavigationMenuItem>
                     <NavigationMenuTrigger>Products</NavigationMenuTrigger>

@@ -138,3 +138,21 @@ test("advance an autoplaying carousel until its play button stops it, pausing it
         "polite",
     ]);
 });
+
+test("let the keyboard reach a carousel's scrolling content, which announces slides while it rests", () => {
+    // a resting carousel of two slides
+    const { container } = render(() => (
+        <Carousel aria-label="Photos">
+            <CarouselContent>
+                <CarouselItem>Lisbon</CarouselItem>
+                <CarouselItem>Porto</CarouselItem>
+            </CarouselContent>
+        </Carousel>
+    ));
+    const content = container.querySelector("[data-slot=carousel-content]");
+
+    expect([content?.getAttribute("tabindex"), content?.getAttribute("aria-live")]).toEqual([
+        "0",
+        "polite",
+    ]);
+});

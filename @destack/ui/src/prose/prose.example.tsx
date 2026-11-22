@@ -6,7 +6,7 @@ import "./prose.css";
 const ARTICLE = `<h1>Release notes</h1>
 <p>This release brings <a href="#sync">live sync</a> to every space and a faster <code>destack build</code>.</p>
 <h2>What changed</h2>
-<ul><li>Spaces sync their objects as they change.</li><li>Builds reuse unchanged packages.</li><li><input type="checkbox" checked disabled> Docs updated</li></ul>
+<ul><li>Spaces sync their objects as they change.</li><li>Builds reuse unchanged packages.</li><li><label><input type="checkbox" checked disabled> Docs updated</label></li></ul>
 <blockquote><p>The fastest build is the one you skip.</p></blockquote>
 <pre><code>destack build --watch</code></pre>
 <table><thead><tr><th>Command</th><th>Before</th><th>After</th></tr></thead>

@@ -1,6 +1,7 @@
 import { PlainDate } from "@destack/schema";
 import { defineExample } from "@destack/package/declare";
-import { createSignal } from "@destack/view";
+import { createSignal, omit } from "@destack/view";
+import { Field, FieldError, FieldLabel } from "../field/index.ts";
 import { DatePicker } from "./date-picker.tsx";
 
 /** The day the examples count as today, fixed so their renders stay the same. */
@@ -11,13 +12,17 @@ export const datePickerDueDay = defineExample({
     of: DatePicker,
     name: "due-day",
     description: "a date picker that sets a task's due day",
-    render: () => {
+    properties: {
+        placeholder: "Pick a date",
+        "aria-label": "Due date",
+    },
+    render: (properties) => {
         const [due, setDue] = createSignal<PlainDate>();
 
         return (
             <DatePicker
+                {...omit(properties, "mode", "selected", "defaultSelected", "onSelect")}
                 today={EXAMPLE_TODAY}
-                aria-label="Due date"
                 selected={due()}
                 onSelect={setDue}
             />
@@ -95,5 +100,32 @@ export const datePickerDueDayOpen = defineExample({
             defaultSelected={"2026-10-12"}
             defaultOpen
         />
+    ),
+});
+
+/** A due day in a field that reports the day is missing. */
+export const datePickerDueDayInvalid = defineExample({
+    of: DatePicker,
+    name: "due-day-invalid",
+    description: "a due day in a field that reports the day is missing",
+    render: () => (
+        <Field invalid>
+            <FieldLabel>Due date</FieldLabel>
+            <DatePicker today={EXAMPLE_TODAY} />
+            <FieldError errors={[{ message: "pick a due date" }]} />
+        </Field>
+    ),
+});
+
+/** A due day in a field that takes no input while its form saves. */
+export const datePickerDueDayDisabled = defineExample({
+    of: DatePicker,
+    name: "due-day-disabled",
+    description: "a due day in a field that takes no input while its form saves",
+    render: () => (
+        <Field disabled>
+            <FieldLabel>Due date</FieldLabel>
+            <DatePicker today={EXAMPLE_TODAY} />
+        </Field>
     ),
 });

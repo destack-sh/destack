@@ -1,5 +1,5 @@
 import type { JSX } from "@destack/view";
-import { Button, type ButtonProperties } from "../button/index.ts";
+import { type ElementPartProperties, renderPart } from "../part/index.ts";
 import {
     Menu,
     MenuCheckboxItem,
@@ -23,37 +23,37 @@ import {
     type MenuRootProperties,
 } from "../menu/index.ts";
 
-/** The properties of a dropdown menu's trigger, a button's properties included. */
-export type DropdownMenuTriggerProperties = Omit<ButtonProperties, "ref" | "onClick" | "onKeyDown">;
+/** The properties of a dropdown menu's trigger, a native button's attributes included. */
+export type DropdownMenuTriggerProperties = ElementPartProperties &
+    Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, "class" | "style" | "ref">;
 
 /** Hold the open state of a menu that a button opens. */
 export function DropdownMenu(properties: MenuRootProperties): JSX.Element {
     return <Menu control={new MenuControl(null, properties)}>{properties.children}</Menu>;
 }
 
-/** Render the button that opens its menu on click, Enter, Space and the up and down arrow keys. */
+/** Render the element that opens its menu on click, Enter, Space and the arrows. */
 export function DropdownMenuTrigger(properties: DropdownMenuTriggerProperties): JSX.Element {
     const control = useMenu();
 
-    return (
-        <Button
-            id={control.triggerId}
-            data-slot="dropdown-menu-trigger"
-            aria-haspopup="menu"
-            aria-expanded={control.isOpen() ? "true" : "false"}
-            aria-controls={control.id}
-            {...properties}
-            ref={(element) => control.setTrigger(element)}
-            onClick={() => (control.isOpen() ? control.close(true) : control.open("first"))}
-            onKeyDown={(event) => {
-                // open on the arrow keys, focusing the first or the last item
-                if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-                    event.preventDefault();
-                    control.open(event.key === "ArrowDown" ? "first" : "last");
-                }
-            }}
-        />
-    );
+    return renderPart("button", "dropdown-menu-trigger", properties, [], {
+        type: "button",
+        id: control.triggerId,
+        "aria-haspopup": "menu",
+        get "aria-expanded"() {
+            return control.isOpen() ? "true" : "false";
+        },
+        "aria-controls": control.id,
+        ref: (element: HTMLElement) => control.setTrigger(element),
+        onClick: () => (control.isOpen() ? control.close(true) : control.open("first")),
+        onKeyDown: (event) => {
+            // open on the arrow keys, focusing the first or the last item
+            if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+                event.preventDefault();
+                control.open(event.key === "ArrowDown" ? "first" : "last");
+            }
+        },
+    });
 }
 
 /** Render the menu beside its trigger. */

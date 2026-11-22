@@ -375,7 +375,7 @@ export interface ResizableHandleProperties extends Omit<
 }
 
 /** Read the panel group around an element, refusing elements outside one. */
-function useResizable(): ResizableControl {
+export function useResizable(): ResizableControl {
     const control = useContext(ResizableContext);
     if (control === null) {
         throw new TypeError("resizable panels and handles need a panel group around them");
@@ -436,17 +436,18 @@ export function ResizablePanel(properties: ResizablePanelProperties): JSX.Elemen
         "style",
     );
 
+    // read whether a panel that can collapse is collapsed
+    const isCollapsible = (): boolean =>
+        panel.collapsible && control.isShareable(panel.collapsedSize);
+    const isCollapsed = (): boolean =>
+        isCollapsible() && control.sizeOf(panel) <= control.share(panel.collapsedSize);
+
     return (
         <div
             id={panel.id}
             data-slot="resizable-panel"
-            data-state={
-                panel.collapsible && control.isShareable(panel.collapsedSize)
-                    ? control.sizeOf(panel) <= control.share(panel.collapsedSize)
-                        ? "collapsed"
-                        : "expanded"
-                    : undefined
-            }
+            data-collapsed={isCollapsed() ? "" : undefined}
+            data-expanded={isCollapsible() && !isCollapsed() ? "" : undefined}
             {...rest}
             {...style.attributes(
                 [styles.panel, styles.share(control.sizeOf(panel)), properties.xstyle],

@@ -512,7 +512,7 @@ export const dropdownMenuStayOpenUntilOwnerCloses = defineScenario({
     interaction: viewInteraction,
     name: "stay-open-until-owner-closes",
     description:
-        "ask to close a controlled dropdown menu on Escape, keeping the focus inside until its owner closes it",
+        "ask to close a controlled dropdown menu on Escape, with the focus inside until its owner closes it",
     given: { examples: [dropdownMenuControlled] },
     parameters: {},
     when: [

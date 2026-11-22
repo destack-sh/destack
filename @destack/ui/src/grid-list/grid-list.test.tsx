@@ -26,7 +26,7 @@ const SYMBOLS: readonly (readonly [string, string])[] = [
     ["√", "square root"],
 ];
 
-test("render every row without a viewport, headings and cells numbered for assistive technology and picked on click", () => {
+test("render every row without a viewport: headings, and cells numbered, tabbed to one at a time and opened on a press", () => {
     // render the digits three to a row and click the second
     const picked: string[] = [];
     const { container } = render(() => {
@@ -42,14 +42,10 @@ test("render every row without a viewport, headings and cells numbered for assis
             <GridList
                 control={grid}
                 label={(digit) => `digit ${digit}`}
-                components={{
-                    SectionHeader: (heading) => (
-                        <div {...omit(heading, "label")}>{heading.label}</div>
-                    ),
-                    Row: (row) => <div {...row} />,
-                    Cell: (cell) => <div {...omit(cell, "item", "isActive")}>{cell.item}</div>,
-                }}
-            />
+                sectionHeader={(heading) => <div {...omit(heading, "label")}>{heading.label}</div>}
+            >
+                {(cell) => <div {...omit(cell, "item", "isActive", "isSelected")}>{cell.item}</div>}
+            </GridList>
         );
     });
     flush();
@@ -57,17 +53,48 @@ test("render every row without a viewport, headings and cells numbered for assis
 
     expect({ markup: markup(container), picked }).toEqual({
         markup:
-            '<div id="id-1" role="grid" tabindex="0" aria-rowcount="3" aria-colcount="3" aria-activedescendant="id-2-1" data-slot="grid-list">' +
+            '<div id="id-1" role="grid" aria-rowcount="3" aria-colcount="3" data-slot="grid-list">' +
             '<div aria-hidden="true" style="--x-height: 0px;"></div>' +
-            '<div role="row" aria-rowindex="1" data-index="0">Digits</div>' +
-            '<div role="row" aria-rowindex="2" data-index="1">' +
-            '<div id="id-2-1" role="gridcell" aria-colindex="1" aria-selected="true" aria-label="digit 1">1</div>' +
-            '<div id="id-2-2" role="gridcell" aria-colindex="2" aria-selected="false" aria-label="digit 2">2</div>' +
-            '<div id="id-2-3" role="gridcell" aria-colindex="3" aria-selected="false" aria-label="digit 3">3</div></div>' +
-            '<div role="row" aria-rowindex="3" data-index="2">' +
-            '<div id="id-2-4" role="gridcell" aria-colindex="1" aria-selected="false" aria-label="digit 4">4</div></div>' +
+            '<div data-index="0" role="row" aria-rowindex="1">Digits</div>' +
+            '<div data-index="1" data-slot="grid-list-row" role="row" aria-rowindex="2">' +
+            '<div style="touch-action: pan-x pan-y pinch-zoom;" id="id-2-1" role="gridcell" aria-colindex="1" aria-label="digit 1" tabindex="0">1</div>' +
+            '<div style="touch-action: pan-x pan-y pinch-zoom;" id="id-2-2" role="gridcell" aria-colindex="2" aria-label="digit 2" tabindex="-1">2</div>' +
+            '<div style="touch-action: pan-x pan-y pinch-zoom;" id="id-2-3" role="gridcell" aria-colindex="3" aria-label="digit 3" tabindex="-1">3</div></div>' +
+            '<div data-index="2" data-slot="grid-list-row" role="row" aria-rowindex="3">' +
+            '<div style="touch-action: pan-x pan-y pinch-zoom;" id="id-2-4" role="gridcell" aria-colindex="1" aria-label="digit 4" tabindex="-1">4</div></div>' +
             '<div aria-hidden="true" style="--x-height: 0px;"></div></div>',
         picked: ["2"],
+    });
+});
+
+test("mark a disabled cell and refuse to open it", () => {
+    // render the digits with the second disabled, and click the first two
+    const picked: string[] = [];
+    const { container } = render(() => {
+        const grid = new GridListControl<string>({
+            sections: () => DIGITS,
+            key: (digit) => digit,
+            text: (digit) => digit,
+            columns: () => 3,
+            isDisabled: (digit) => digit === "2",
+            onAction: (digit) => picked.push(digit),
+        });
+
+        return <GridList control={grid} label={(digit) => `digit ${digit}`} />;
+    });
+    flush();
+    const cells = [...container.querySelectorAll<HTMLElement>("[role=gridcell]")];
+    cells[0]?.click();
+    cells[1]?.click();
+
+    expect({
+        disabled: cells.map((cell) => cell.getAttribute("aria-disabled")),
+        marked: cells.map((cell) => cell.dataset["disabled"]),
+        picked,
+    }).toEqual({
+        disabled: [null, "true", null, null],
+        marked: [undefined, "", undefined, undefined],
+        picked: ["1"],
     });
 });
 
@@ -80,7 +107,7 @@ test("move the focused cell through the grid's rows and columns from a search fi
             sections: () => [
                 {
                     key: "math",
-                    items: SYMBOLS.filter(([, name]) => name.includes(autocomplete.search())),
+                    items: SYMBOLS.filter(([, name]) => name.includes(autocomplete.value())),
                 },
             ],
             key: ([symbol]) => symbol,
@@ -191,4 +218,109 @@ test("throw a failed load to the nearest error boundary", async () => {
     expect(container.querySelector("[role=alert]")?.textContent).toBe(
         "TypeError: the digits are offline",
     );
+});
+
+/** Press and release a key on the focused element. */
+function pressKey(key: string, options: KeyboardEventInit = {}): void {
+    for (const type of ["keydown", "keyup"]) {
+        document.activeElement?.dispatchEvent(
+            new KeyboardEvent(type, { key, bubbles: true, cancelable: true, ...options }),
+        );
+    }
+    flush();
+}
+
+test("move through three columns of cards by row, select with Space and shift, and open with Enter", () => {
+    // seven cards in rows of three that select several, opened ones collected
+    const opened: string[] = [];
+    const { container } = render(() => {
+        const grid = new GridListControl<string>({
+            sections: () => [{ key: "cards", items: ["a", "b", "c", "d", "e", "f", "g"] }],
+            key: (card) => card,
+            text: (card) => card,
+            columns: () => 3,
+            selection: { multiple: true, behavior: "replace" },
+            onAction: (card) => opened.push(card),
+        });
+
+        return <GridList control={grid} label={(card) => card} />;
+    });
+    flush();
+    const cards = [...container.querySelectorAll<HTMLElement>("[role=gridcell]")];
+    const selected = () =>
+        cards
+            .filter((card) => card.getAttribute("aria-selected") === "true")
+            .map((card) => card.textContent);
+    cards[0]?.focus();
+
+    // step down a row and right, select it, extend down a row, then open the focused card
+    const visits: (string | null | undefined)[] = [];
+    for (const key of ["ArrowDown", "ArrowRight"]) {
+        pressKey(key);
+        visits.push(document.activeElement?.textContent);
+    }
+    pressKey(" ");
+    pressKey("ArrowDown", { shiftKey: true });
+    const extended = selected();
+    pressKey("Enter");
+    const grid = container.querySelector("[role=grid]");
+
+    expect({
+        visits,
+        extended,
+        opened,
+        isMultiple: grid?.getAttribute("aria-multiselectable"),
+    }).toEqual({
+        visits: ["d", "e"],
+        extended: ["e", "f", "g"],
+        opened: ["g"],
+        isMultiple: "true",
+    });
+});
+
+/** Send a mouse's pointer event to a card. */
+function point(card: HTMLElement | undefined, type: string, options: PointerEventInit = {}): void {
+    card?.dispatchEvent(
+        new PointerEvent(type, {
+            bubbles: true,
+            cancelable: true,
+            pointerId: 1,
+            pointerType: "mouse",
+            width: 1,
+            height: 1,
+            ...options,
+        }),
+    );
+}
+
+test("select a card on a press with a modifier, and open it on a plain press", () => {
+    // press the second card with command held, then the third plainly
+    const opened: string[] = [];
+    const { container } = render(() => {
+        const grid = new GridListControl<string>({
+            sections: () => [{ key: "cards", items: ["a", "b", "c"] }],
+            key: (card) => card,
+            text: (card) => card,
+            selection: { multiple: true, behavior: "replace" },
+            onAction: (card) => opened.push(card),
+        });
+
+        return <GridList control={grid} label={(card) => card} />;
+    });
+    flush();
+    const cards = [...container.querySelectorAll<HTMLElement>("[role=gridcell]")];
+    for (const [card, options] of [
+        [cards[1], { metaKey: true }],
+        [cards[2], {}],
+    ] as const) {
+        point(card, "pointerdown", options);
+        point(card, "pointerup", options);
+    }
+    flush();
+
+    expect({
+        selected: cards.map((card) => card.getAttribute("aria-selected")),
+        opened,
+        columns: container.querySelector("[role=grid]")?.getAttribute("aria-colcount"),
+    }).toEqual({ selected: ["false", "true", "false"], opened: ["c"], columns: "1" });
 });

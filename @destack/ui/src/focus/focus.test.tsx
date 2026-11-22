@@ -185,8 +185,8 @@ test("move nothing in an empty list", () => {
 });
 
 test("start on the initial key, follow a controlled key, and return to the initial key on reset", () => {
-    // start on the initial key, then let an owner hold the focus
-    const [held, setHeld] = createSignal<string | undefined>(undefined);
+    // start on the initial key, then let an owner control the focus
+    const [ownerKey, setOwnerKey] = createSignal<string | undefined>(undefined);
     const changes: string[] = [];
     const focus = rooted(() => {
         const tools = new Collection<Tool>({
@@ -205,7 +205,7 @@ test("start on the initial key, follow a controlled key, and return to the initi
             delegate,
             mode: "virtual",
             initial: () => "Link",
-            controlled: held,
+            controlled: ownerKey,
             onChange: (next) => changes.push(next),
         });
     });
@@ -213,12 +213,12 @@ test("start on the initial key, follow a controlled key, and return to the initi
     focus.focus("Italic");
     flush();
     const focused = focus.active();
-    setHeld("Bold");
+    setOwnerKey("Bold");
     flush();
     focus.focus("Italic");
     flush();
     const controlled = focus.active();
-    setHeld(undefined);
+    setOwnerKey(undefined);
     focus.reset();
     flush();
     const reset = focus.active();
@@ -266,7 +266,7 @@ test("rerun only the readers of the keys a move leaves and lands on", () => {
     expect(runs).toEqual({ Bold: 2, Italic: 3, Strike: 1, Code: 1, Link: 2 });
 });
 
-test("give the DOM focus to the focused key's element while the collection holds the focus", () => {
+test("give the DOM focus to the focused key's element while the collection has the focus", () => {
     // render a toolbar whose buttons bind to the focus
     const focus = createToolbar("horizontal");
     const { container } = render(() => (
@@ -291,7 +291,7 @@ test("give the DOM focus to the focused key's element while the collection holds
     ));
     const outside = render(() => <input />).container.querySelector("input");
 
-    // a move outside the collection leaves the DOM focus, one inside carries it along
+    // a move outside the collection leaves the DOM focus, one inside moves it along
     focus.focus("Italic");
     flush();
     const isAway = document.activeElement === document.body;

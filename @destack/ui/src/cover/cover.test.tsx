@@ -14,7 +14,7 @@ test("fill a cover's least height and center the element a caller marks", () => 
     const cover = container.querySelector("[data-slot=cover]");
     const center = container.querySelector("[data-slot=cover-center]");
 
-    // the cover carries its height and its space between and around, the centered element renders as the heading
+    // the cover marks its height and its space between and around, the centered element renders as the heading
     expect([cover?.getAttribute("style"), center?.tagName, center?.textContent]).toEqual([
         "--x-minBlockSize: 32rem; --x-gap: var(--destack-space-6); --x-padding: var(--destack-space-6);",
         "H1",

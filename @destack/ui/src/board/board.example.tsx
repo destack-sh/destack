@@ -1,7 +1,7 @@
 import { defineExample } from "@destack/package/declare";
 import { createSignal, For, omit } from "@destack/view";
 import { present } from "@destack/schema";
-import type { SortableMove } from "../sortable/index.ts";
+import { SortableMove } from "../sortable/index.ts";
 import {
     Board,
     BoardColumn,
@@ -23,41 +23,6 @@ const COLUMNS = [
     { id: "done", label: "Done", cards: ["Pick the launch date"] },
 ];
 
-/** Place an item before its next neighbour, at the end without one, as a board's move lands it. */
-function placed<Item>(
-    items: readonly Item[],
-    item: Item,
-    next: string | undefined,
-    idOf: (item: Item) => string,
-): Item[] {
-    const at = next === undefined ? items.length : items.findIndex((each) => idOf(each) === next);
-
-    return items.toSpliced(at, 0, item);
-}
-
-/** Move an item between lists, before its next neighbour in the list it lands in. */
-function moved<Item>(
-    lists: Readonly<Record<string, readonly Item[]>>,
-    move: SortableMove,
-    idOf: (item: Item) => string,
-): Record<string, readonly Item[]> {
-    // take the item out of its list
-    const item = present(
-        Object.values(lists)
-            .flat()
-            .find((each) => idOf(each) === move.id),
-        `the moved item ${move.id}`,
-    );
-    const rest = Object.fromEntries(
-        Object.entries(lists).map(([id, items]) => [id, items.filter((each) => each !== item)]),
-    );
-
-    // place it in the list it lands in
-    const target = present(rest[move.container], `the list ${move.container}`);
-
-    return { ...rest, [move.container]: placed(target, item, move.next, idOf) };
-}
-
 /** Render the launch board, its cards and columns moving where people leave them. */
 function LaunchBoard(properties: Pick<BoardProperties, "label"> & { readonly isFixed: boolean }) {
     // follow the cards of each column and the order of the columns
@@ -76,16 +41,11 @@ function LaunchBoard(properties: Pick<BoardProperties, "label"> & { readonly isF
     return (
         <Board
             {...omit(properties, "isFixed")}
-            onItemMove={(move) => setCards((current) => moved(current, move, (card) => card))}
+            onItemMove={(move) =>
+                setCards((current) => SortableMove.apply(current, move, (card) => card))
+            }
             onColumnMove={(move) =>
-                setOrder((current) =>
-                    placed(
-                        current.filter((id) => id !== move.id),
-                        move.id,
-                        move.next,
-                        (id) => id,
-                    ),
-                )
+                setOrder((current) => SortableMove.place(current, move.id, move, (id) => id))
             }
         >
             <For each={columns()}>

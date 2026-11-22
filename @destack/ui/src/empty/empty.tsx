@@ -85,7 +85,7 @@ export function Empty(properties: EmptyElementProperties): JSX.Element {
     return renderPart("div", "empty", properties, styles.empty);
 }
 
-/** Render the top of an empty state that holds its media, title and description. */
+/** Render the top of an empty state with its media, title and description. */
 export function EmptyHeader(properties: EmptyElementProperties): JSX.Element {
     return renderPart("div", "empty-header", properties, styles.header);
 }

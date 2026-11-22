@@ -64,7 +64,7 @@ test("mark an invalid field's control and describe it by its error", () => {
 
     // with an error the field, control and alert change together
     expect(markup(container)).toBe(
-        '<div role="group" data-slot="field" data-orientation="vertical" data-invalid="true">' +
+        '<div role="group" data-slot="field" data-orientation="vertical" data-invalid="">' +
             '<label data-slot="field-label" for="id-1">Title</label>' +
             '<textarea data-slot="textarea" id="id-1" aria-invalid="true" aria-describedby="id-2"></textarea>' +
             '<div id="id-2" role="alert" data-slot="field-error">enter a title</div></div>',
@@ -120,7 +120,7 @@ test("disable a disabled field's control", () => {
         </Field>
     ));
     expect(markup(container)).toBe(
-        '<div role="group" data-slot="field" data-orientation="vertical" data-disabled="true">' +
+        '<div role="group" data-slot="field" data-orientation="vertical" data-disabled="">' +
             '<label data-slot="field-label" for="id-1">Name</label>' +
             '<input data-slot="input" id="id-1" disabled=""></div>',
     );
@@ -187,10 +187,10 @@ test("render a fieldset of grouped fields with a legend, title and separator", (
             '<div data-slot="field-group">' +
             '<div role="group" data-slot="field" data-orientation="horizontal"><div data-slot="field-content">' +
             '<div data-slot="field-label">Mentions</div></div></div>' +
-            '<div data-slot="field-separator" data-content="true">' +
+            '<div data-slot="field-separator" data-content="">' +
             '<div data-slot="separator" data-orientation="horizontal" role="none"></div>' +
             '<span data-slot="field-separator-content">or</span></div>' +
-            '<div data-slot="field-separator" data-content="false">' +
+            '<div data-slot="field-separator">' +
             '<div data-slot="separator" data-orientation="horizontal" role="none"></div></div>' +
             "</div></fieldset>",
     );

@@ -3,7 +3,7 @@ import { flush } from "@destack/view";
 import { ToggleGroup, ToggleGroupItem } from "./index.ts";
 import { markup, render } from "@destack/view/test";
 
-test("keep one item of a single toggle group on, exposed as radios", () => {
+test("leave one item of a single toggle group on, exposed as radios", () => {
     const changes: (string | undefined)[] = [];
     const { container } = render(() => (
         <ToggleGroup
@@ -18,16 +18,16 @@ test("keep one item of a single toggle group on, exposed as radios", () => {
     container.querySelectorAll("button")[1]?.click();
     flush();
 
-    // the clicked item replaces the pressed one, and the pressed one holds the tab stop
+    // the clicked item replaces the pressed one, and the pressed one has the tab stop
     expect(markup(container)).toBe(
         '<div role="radiogroup" data-slot="toggle-group" aria-orientation="horizontal" aria-label="Alignment">' +
-            '<button type="button" role="radio" aria-checked="false" data-slot="toggle-group-item" data-state="off" data-value="left" tabindex="-1">Left</button>' +
-            '<button type="button" role="radio" aria-checked="true" data-slot="toggle-group-item" data-state="on" data-value="center" tabindex="0">Center</button></div>',
+            '<button type="button" role="radio" aria-checked="false" data-slot="toggle-group-item" data-value="left" tabindex="-1">Left</button>' +
+            '<button type="button" role="radio" aria-checked="true" data-slot="toggle-group-item" data-value="center" tabindex="0" data-pressed="">Center</button></div>',
     );
     expect(changes).toEqual(["center"]);
 });
 
-test("report none once a single group's pressed item turns off, and keep a controlled group's value", () => {
+test("report none once a single group's pressed item turns off, and follow a controlled group's value", () => {
     const changes: (string | undefined)[] = [];
     const { container } = render(() => (
         <>
@@ -72,4 +72,28 @@ test("press several items of a multiple toggle group", () => {
             button.getAttribute("aria-pressed"),
         ),
     ).toEqual(["true", "true"]);
+});
+
+test("make every item of a disabled toggle group unavailable and report the group as disabled", () => {
+    const changes: (string | undefined)[] = [];
+    const { container } = render(() => (
+        <ToggleGroup disabled aria-label="Alignment" onValueChange={(value) => changes.push(value)}>
+            <ToggleGroupItem value="left">Left</ToggleGroupItem>
+            <ToggleGroupItem value="center">Center</ToggleGroupItem>
+        </ToggleGroup>
+    ));
+    container.querySelectorAll("button")[1]?.click();
+    flush();
+
+    // a click turns nothing on, and the group and both items say they are unavailable
+    expect(changes).toEqual([]);
+    const group = container.querySelector("[data-slot=toggle-group]");
+    expect([group?.getAttribute("aria-disabled"), group?.getAttribute("data-disabled")]).toEqual([
+        "true",
+        "",
+    ]);
+    expect([...container.querySelectorAll("button")].map((item) => item.disabled)).toEqual([
+        true,
+        true,
+    ]);
 });

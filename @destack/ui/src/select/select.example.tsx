@@ -15,8 +15,12 @@ export const selectSortOrder = defineExample({
     of: Select,
     name: "sort-order",
     description: "the sort order of a note list",
-    render: () => (
-        <Select name="sort" aria-label="Sort by">
+    properties: {
+        name: "sort",
+        "aria-label": "Sort by",
+    },
+    render: (properties) => (
+        <Select {...properties}>
             <SelectTrigger>
                 <SelectValue />
             </SelectTrigger>
@@ -38,8 +42,13 @@ export const selectSortOrderDisabled = defineExample({
     of: Select,
     name: "sort-order-disabled",
     description: "the sort order of a note list unavailable",
-    render: () => (
-        <Select name="sort" aria-label="Sort by" disabled>
+    properties: {
+        name: "sort",
+        "aria-label": "Sort by",
+        disabled: true,
+    },
+    render: (properties) => (
+        <Select {...properties}>
             <SelectTrigger>
                 <SelectValue />
             </SelectTrigger>
@@ -61,8 +70,13 @@ export const selectSortOrderPlaceholder = defineExample({
     of: Select,
     name: "sort-order-placeholder",
     description: "the sort order of a note list before one is chosen",
-    render: () => (
-        <Select name="sort" aria-label="Sort by" placeholder="Sort by…">
+    properties: {
+        name: "sort",
+        "aria-label": "Sort by",
+        placeholder: "Sort by…",
+    },
+    render: (properties) => (
+        <Select {...properties}>
             <SelectTrigger>
                 <SelectValue />
             </SelectTrigger>
@@ -93,8 +107,14 @@ export const selectSortOrderInvalid = defineExample({
     of: Select,
     name: "sort-order-invalid",
     description: "the sort order of a note list marked invalid",
-    render: () => (
-        <Select name="sort" aria-label="Sort by" placeholder="Sort by…" aria-invalid="true">
+    properties: {
+        name: "sort",
+        "aria-label": "Sort by",
+        placeholder: "Sort by…",
+        "aria-invalid": "true",
+    },
+    render: (properties) => (
+        <Select {...properties}>
             <SelectTrigger>
                 <SelectValue />
             </SelectTrigger>

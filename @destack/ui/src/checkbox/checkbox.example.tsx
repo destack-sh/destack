@@ -7,9 +7,13 @@ export const checkboxAcceptTerms = defineExample({
     of: Checkbox,
     name: "accept-terms",
     description: "a checkbox that accepts the terms",
-    render: () => (
+    properties: {
+        name: "terms",
+        required: true,
+    },
+    render: (properties) => (
         <Label>
-            <Checkbox name="terms" required /> Accept the terms
+            <Checkbox {...properties} /> Accept the terms
         </Label>
     ),
 });
@@ -19,9 +23,14 @@ export const checkboxAcceptTermsChecked = defineExample({
     of: Checkbox,
     name: "accept-terms-checked",
     description: "the terms checkbox checked",
-    render: () => (
+    properties: {
+        name: "terms",
+        required: true,
+        checked: true,
+    },
+    render: (properties) => (
         <Label>
-            <Checkbox name="terms" required checked /> Accept the terms
+            <Checkbox {...properties} /> Accept the terms
         </Label>
     ),
 });
@@ -31,9 +40,14 @@ export const checkboxAcceptTermsDisabled = defineExample({
     of: Checkbox,
     name: "accept-terms-disabled",
     description: "the terms checkbox unavailable",
-    render: () => (
+    properties: {
+        name: "terms",
+        required: true,
+        disabled: true,
+    },
+    render: (properties) => (
         <Label>
-            <Checkbox name="terms" required disabled /> Accept the terms
+            <Checkbox {...properties} /> Accept the terms
         </Label>
     ),
 });
@@ -44,9 +58,12 @@ export const checkboxSelectAll = defineExample({
     name: "select-all",
     description:
         "a select-all box composed from its root and indicator, showing a partial selection",
-    render: () => (
+    properties: {
+        indeterminate: true,
+    },
+    render: (properties) => (
         <Label>
-            <Checkbox indeterminate>
+            <Checkbox {...properties}>
                 <CheckboxIndicator />
             </Checkbox>{" "}
             Select all
@@ -60,9 +77,14 @@ export const checkboxAcceptTermsInvalid = defineExample({
     name: "accept-terms-invalid",
     description:
         "the terms checkbox marked invalid, as a form shows it before the terms are accepted",
-    render: () => (
+    properties: {
+        name: "terms",
+        required: true,
+        "aria-invalid": "true",
+    },
+    render: (properties) => (
         <Label>
-            <Checkbox name="terms" required aria-invalid="true" /> Accept the terms
+            <Checkbox {...properties} /> Accept the terms
         </Label>
     ),
 });

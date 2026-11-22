@@ -1,5 +1,7 @@
+import { state } from "@destack/theme/state";
+import type { Axis } from "../position/index.ts";
 import * as style from "@destack/style";
-import { color, stroke } from "@destack/theme/tokens.stylex";
+import { color } from "@destack/theme/tokens.stylex";
 import { type JSX, merge, omit } from "@destack/view";
 
 /** The orientation of a scroll area that sets none. */
@@ -12,9 +14,6 @@ const styles = style.create({
         scrollbarWidth: "thin",
         scrollbarColor: `${color.border} transparent`,
         overscrollBehavior: "contain",
-        outlineStyle: { default: "none", ":focus-visible": "solid" },
-        outlineWidth: stroke.ring,
-        outlineColor: `color-mix(in oklab, ${color.ring} 50%, transparent)`,
     },
 });
 
@@ -25,13 +24,10 @@ const orientations = style.create({
     both: { overflow: "auto" },
 });
 
-/** The axes a scroll area scrolls along. */
-export type ScrollAreaOrientation = "vertical" | "horizontal" | "both";
-
 /** The properties of a scroll area, the native element's attributes included. */
 export interface ScrollAreaProperties extends Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> {
     /** The axes it scrolls along, vertical by default. */
-    readonly orientation?: ScrollAreaOrientation;
+    readonly orientation?: Axis | "both";
     /** The StyleX styles applied after the scroll area's styles, usually its size. */
     readonly xstyle?: style.Styles;
 }
@@ -48,7 +44,7 @@ export function ScrollArea(properties: ScrollAreaProperties): JSX.Element {
             data-orientation={area.orientation}
             {...rest}
             {...style.attributes(
-                [styles.area, orientations[area.orientation], area.xstyle],
+                [state.focusInset, styles.area, orientations[area.orientation], area.xstyle],
                 area.style,
             )}
         />

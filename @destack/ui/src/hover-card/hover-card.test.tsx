@@ -19,10 +19,10 @@ function fire(element: Element, type: string): void {
     );
 }
 
-test("keep a hover card open while the pointer moves from its link onto it", async () => {
+test("leave a hover card open while the pointer moves from its link onto it", async () => {
     stubPopovers();
     const { container } = render(() => (
-        <HoverCard openDelay={10} closeDelay={20}>
+        <HoverCard delay={10} closeDelay={20}>
             <HoverCardTrigger href="/people/ada">@ada</HoverCardTrigger>
             <HoverCardContent>Ada Lovelace, mathematician</HoverCardContent>
         </HoverCard>
@@ -35,12 +35,12 @@ test("keep a hover card open while the pointer moves from its link onto it", asy
     fire(link, "pointerleave");
     fire(card, "pointerenter");
     await wait(40);
-    const kept = card.hasAttribute("data-popover-open");
+    const isOnCard = card.hasAttribute("data-popover-open");
     fire(card, "pointerleave");
     await wait(40);
 
     // the card anchors to the link, stays while hovered and closes after the pointer leaves it
-    expect([opened, kept, card.hasAttribute("data-popover-open")]).toEqual([
+    expect([opened, isOnCard, card.hasAttribute("data-popover-open")]).toEqual([
         "hover-card-trigger",
         true,
         false,

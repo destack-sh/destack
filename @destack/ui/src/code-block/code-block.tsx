@@ -1,3 +1,4 @@
+import { state } from "@destack/theme/state";
 import * as style from "@destack/style";
 import { text } from "@destack/theme/text";
 import { color, font, radius, space, stroke } from "@destack/theme/tokens.stylex";
@@ -38,10 +39,6 @@ const styles = style.create({
         overflowX: "auto",
         fontFamily: font.code,
         paddingBlock: space[3],
-        outlineStyle: { default: "none", ":focus-visible": "solid" },
-        outlineWidth: stroke.ring,
-        outlineOffset: `calc(-1 * ${stroke.ring})`,
-        outlineColor: color.ring,
     },
     code: {
         display: "grid",
@@ -78,7 +75,7 @@ export function CodeBlock(
     return renderPart("figure", "code-block", properties, styles.block);
 }
 
-/** Render the bar above the code that holds its title and actions, such as a copy button. */
+/** Render the bar above the code with its title and actions, such as a copy button. */
 export function CodeBlockHeader(
     properties: CodeBlockElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
@@ -109,21 +106,28 @@ export type CodeBlockContentProperties = CodeBlockElementProperties<
 export function CodeBlockContent(properties: CodeBlockContentProperties): JSX.Element {
     const rest = omit(properties, "isNumbered", "label", "children");
 
-    return renderPart("pre", "code-block-content", rest, [text.sm, styles.content], {
-        tabindex: 0,
-        get "aria-label"() {
-            return properties.label ?? "Code";
+    return renderPart(
+        "pre",
+        "code-block-content",
+        rest,
+        [text.sm, state.focusInset, styles.content],
+        {
+            tabindex: 0,
+            "data-code": "",
+            get "aria-label"() {
+                return properties.label ?? "Code";
+            },
+            get children() {
+                return (
+                    <code {...style.attrs(styles.code)}>
+                        <NumberingContext value={properties.isNumbered === true}>
+                            {properties.children}
+                        </NumberingContext>
+                    </code>
+                );
+            },
         },
-        get children() {
-            return (
-                <code {...style.attrs(styles.code)}>
-                    <NumberingContext value={properties.isNumbered === true}>
-                        {properties.children}
-                    </NumberingContext>
-                </code>
-            );
-        },
-    });
+    );
 }
 
 /** The properties of one line of a code block, the native element's attributes included. */

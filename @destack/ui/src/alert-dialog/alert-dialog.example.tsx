@@ -1,4 +1,5 @@
 import { defineExample } from "@destack/package/declare";
+import { Button } from "../button/index.ts";
 import { createSignal, Show } from "@destack/view";
 import {
     AlertDialog,
@@ -23,7 +24,11 @@ export const alertDialogDeleteNotebook = defineExample({
         return (
             <Show when={!isDeleted()} fallback={<p role="status">Trips deleted</p>}>
                 <AlertDialog>
-                    <AlertDialogTrigger variant="destructive">Delete notebook</AlertDialogTrigger>
+                    <AlertDialogTrigger
+                        render={(attributes) => <Button {...attributes} variant="destructive" />}
+                    >
+                        Delete notebook
+                    </AlertDialogTrigger>
                     <AlertDialogContent>
                         <AlertDialogHeader>
                             <AlertDialogTitle>Delete Trips?</AlertDialogTitle>
@@ -52,9 +57,16 @@ export const alertDialogDeleteNotebookOpen = defineExample({
     of: AlertDialog,
     name: "delete-notebook-open",
     description: "the confirmation to delete a notebook open over the page",
-    render: () => (
-        <AlertDialog defaultOpen>
-            <AlertDialogTrigger variant="destructive">Delete notebook</AlertDialogTrigger>
+    properties: {
+        defaultOpen: true,
+    },
+    render: (properties) => (
+        <AlertDialog {...properties}>
+            <AlertDialogTrigger
+                render={(attributes) => <Button {...attributes} variant="destructive" />}
+            >
+                Delete notebook
+            </AlertDialogTrigger>
             <AlertDialogContent>
                 <AlertDialogHeader>
                     <AlertDialogTitle>Delete Trips?</AlertDialogTitle>

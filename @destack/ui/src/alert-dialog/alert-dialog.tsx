@@ -1,7 +1,8 @@
 import type { JSX } from "@destack/view";
+import { Button, type ButtonProperties } from "../button/index.ts";
+import { mergeProperties } from "../part/index.ts";
 import {
     Dialog,
-    DialogClose,
     DialogContent,
     DialogDescription,
     DialogFooter,
@@ -12,6 +13,7 @@ import {
     type DialogContentProperties,
     type DialogElementProperties,
     type DialogProperties,
+    useDialog,
 } from "../dialog/index.ts";
 
 /** Hold the open state of a dialog that asks to confirm an action. */
@@ -39,14 +41,14 @@ export function AlertDialogContent(
     );
 }
 
-/** Render the top of an alert dialog that holds its title and description. */
+/** Render the top of an alert dialog with its title and description. */
 export function AlertDialogHeader(
     properties: DialogElementProperties<HTMLDivElement>,
 ): JSX.Element {
     return <DialogHeader data-slot="alert-dialog-header" {...properties} />;
 }
 
-/** Render the bottom row of an alert dialog that holds its action and cancel buttons. */
+/** Render the bottom row of an alert dialog with its action and cancel buttons. */
 export function AlertDialogFooter(
     properties: DialogElementProperties<HTMLDivElement>,
 ): JSX.Element {
@@ -68,13 +70,27 @@ export function AlertDialogDescription(
 }
 
 /** Render the button that confirms the action and closes its alert dialog. */
-export function AlertDialogAction(properties: DialogButtonProperties): JSX.Element {
-    return <DialogClose data-slot="alert-dialog-action" {...properties} />;
+export function AlertDialogAction(properties: ButtonProperties): JSX.Element {
+    const control = useDialog();
+
+    return (
+        <Button
+            data-slot="alert-dialog-action"
+            {...mergeProperties({ onClick: () => control.close() }, properties)}
+        />
+    );
 }
 
 /** Render the button that cancels the action, focused when the alert dialog opens. */
-export function AlertDialogCancel(properties: DialogButtonProperties): JSX.Element {
+export function AlertDialogCancel(properties: ButtonProperties): JSX.Element {
+    const control = useDialog();
+
     return (
-        <DialogClose data-slot="alert-dialog-cancel" variant="outline" autofocus {...properties} />
+        <Button
+            data-slot="alert-dialog-cancel"
+            variant="outline"
+            autofocus
+            {...mergeProperties({ onClick: () => control.close() }, properties)}
+        />
     );
 }

@@ -1,7 +1,8 @@
+import { media } from "@destack/style/media.stylex";
+import { state } from "@destack/theme/state";
 import type { Clock } from "@destack/environment";
 import { Icon } from "@destack/ui/icon";
 import * as style from "@destack/style";
-import { media } from "@destack/style/media.stylex";
 import {
     color,
     motion,
@@ -32,23 +33,19 @@ import {
 import { Timeout } from "@destack/view/primitives/timer";
 import { Hover } from "../interaction/index.ts";
 import { type PartAttributes, type Render, useRender, renderPart } from "../part/index.ts";
-import { ListState } from "../focus/index.ts";
+import { ListState, tabbablesIn } from "../focus/index.ts";
 
 /** The selector of the links and triggers at the top level of a navigation menu. */
 const TOP = "[data-navigation-top]";
-
-/** The selector of the elements that take the focus with Tab. */
-const TABBABLE =
-    "a[href], button:not(:disabled), input:not(:disabled), [tabindex]:not([tabindex='-1'])";
 
 /** The anchor name of the open trigger, scoped to each navigation menu. */
 const ACTIVE_ANCHOR = "--destack-navigation-menu-active";
 
 /** The wait before a resting pointer opens a panel, in milliseconds. */
-const DELAY_DURATION = 200;
+const DELAY = 200;
 
 /** The time after the pointer leaves a trigger within which the next one opens at once. */
-const SKIP_DELAY_DURATION = 300;
+const TIMEOUT = 300;
 
 /** The navigation menu around an element, null outside one. */
 const NavigationMenuContext = createContext<NavigationMenuControl | null>(null);
@@ -79,28 +76,19 @@ const styles = style.create({
         alignItems: "center",
         justifyContent: "center",
         gap: space[1],
-        height: size[3],
+        height: size[2],
         paddingInline: space[4],
         borderRadius: radius[3],
         backgroundColor: {
             default: color.background,
-            ":hover": { default: null, [media.hover]: color.accent },
-            ":focus-visible": color.accent,
+            ":hover": { default: null, [media.hover]: color.hover },
+            ":focus-visible": color.selected,
         },
-        color: {
-            default: color.foreground,
-            ":hover": { default: null, [media.hover]: color.accentForeground },
-        },
+        color: color.foreground,
         fontWeight: weight.medium,
         cursor: "pointer",
         transitionProperty: "color, background-color",
         transitionDuration: motion.durationShort,
-        outlineStyle: { default: "none", ":focus-visible": "solid" },
-        outlineWidth: stroke.ring,
-        outlineColor: `color-mix(in oklab, ${color.ring} 50%, transparent)`,
-    },
-    open: {
-        backgroundColor: `color-mix(in oklab, ${color.accent} 50%, transparent)`,
     },
     turned: {
         transform: "rotate(180deg)",
@@ -127,7 +115,7 @@ const styles = style.create({
         borderColor: color.border,
         borderRadius: radius[3],
         backgroundColor: color.popover,
-        color: color.popoverForeground,
+        color: color.foreground,
         boxShadow: shadow.overlay,
     },
     content: {
@@ -157,12 +145,9 @@ const styles = style.create({
         borderRadius: radius[2],
         backgroundColor: {
             default: "transparent",
-            ":hover": { default: null, [media.hover]: color.accent },
-            ":focus-visible": color.accent,
+            ":hover": { default: null, [media.hover]: color.hover },
+            ":focus-visible": color.selected,
         },
-        outlineStyle: { default: "none", ":focus-visible": "solid" },
-        outlineWidth: stroke.ring,
-        outlineColor: `color-mix(in oklab, ${color.ring} 50%, transparent)`,
     },
 });
 
@@ -232,15 +217,12 @@ export class NavigationMenuControl {
     /** Open a hovered item after the delay. */
     enter(item: string): void {
         // skip the delay while a panel is open or right after one closed
-        const skip = this.#properties.skipDelayDuration ?? SKIP_DELAY_DURATION;
+        const skip = this.#properties.timeout ?? TIMEOUT;
         const isSkipping = this.open() !== undefined || this.#clock.now() - this.#leftAt < skip;
         if (isSkipping) {
             this.show(item);
         } else {
-            this.#timer.set(
-                () => this.show(item),
-                this.#properties.delayDuration ?? DELAY_DURATION,
-            );
+            this.#timer.set(() => this.show(item), this.#properties.delay ?? DELAY);
         }
     }
 
@@ -303,18 +285,18 @@ export type NavigationMenuProperties = NavigationMenuElementProperties<
     /** Whether open panels render into one viewport below the list, true by default. */
     readonly viewport?: boolean;
     /** The wait before a resting pointer opens a panel in milliseconds, 200 by default. */
-    readonly delayDuration?: number;
+    readonly delay?: number;
     /** The time after leaving a trigger within which the next opens at once. */
-    readonly skipDelayDuration?: number;
+    readonly timeout?: number;
 };
 
 /** Return the StyleX styles of a navigation menu's trigger, for its top-level links. */
 export function navigationMenuTriggerStyle(): style.Styles {
-    return [text.xs, styles.trigger];
+    return [text.sm, state.focus, styles.trigger];
 }
 
 /** Read the navigation menu around an element, refusing elements outside one. */
-function useNavigationMenu(): NavigationMenuControl {
+export function useNavigationMenu(): NavigationMenuControl {
     const control = useContext(NavigationMenuContext);
     if (control === null) {
         throw new TypeError("navigation menu elements need a navigation menu around them");
@@ -324,7 +306,7 @@ function useNavigationMenu(): NavigationMenuControl {
 }
 
 /** Read the item around an element, refusing elements outside one. */
-function useItem(): string {
+export function useNavigationMenuItem(): string {
     const item = useContext(NavigationMenuItemContext);
     if (item === null) {
         throw new TypeError("a navigation menu trigger or content needs an item around it");
@@ -343,8 +325,8 @@ export function NavigationMenu(properties: NavigationMenuProperties): JSX.Elemen
         "defaultValue",
         "onValueChange",
         "viewport",
-        "delayDuration",
-        "skipDelayDuration",
+        "delay",
+        "timeout",
         "xstyle",
         "style",
         "children",
@@ -355,7 +337,7 @@ export function NavigationMenu(properties: NavigationMenuProperties): JSX.Elemen
         <NavigationMenuContext value={control}>
             <nav
                 data-slot="navigation-menu"
-                data-viewport={properties.viewport === false ? "false" : "true"}
+                data-viewport={properties.viewport === false ? undefined : ""}
                 {...rest}
                 onFocusOut={(event) => {
                     // close once the focus leaves the navigation
@@ -372,7 +354,9 @@ export function NavigationMenu(properties: NavigationMenuProperties): JSX.Elemen
                     const item = control.open();
                     if (event.key === "Escape" && item !== undefined) {
                         control.hide();
-                        document.getElementById(control.triggerId(item))?.focus();
+                        event.currentTarget.ownerDocument
+                            .getElementById(control.triggerId(item))
+                            ?.focus();
                     }
                 }}
                 {...style.attributes(
@@ -445,7 +429,7 @@ export function NavigationMenuTrigger(
 ): JSX.Element {
     // read the menu and the item the trigger opens
     const control = useNavigationMenu();
-    const item = useItem();
+    const item = useNavigationMenuItem();
     const rest = omit(properties, "xstyle", "style", "children");
     const isOpen = (): boolean => control.open() === item;
     let element: HTMLButtonElement | undefined;
@@ -463,17 +447,18 @@ export function NavigationMenuTrigger(
             aria-controls={control.contentId(item)}
             data-navigation-top=""
             data-slot="navigation-menu-trigger"
-            data-state={isOpen() ? "open" : "closed"}
+            data-popup-open={isOpen() ? "" : undefined}
             {...rest}
             ref={(button) => (element = button)}
             onFocus={() => control.list.focus.focusIn(item)}
             onClick={() => (isOpen() ? control.hide() : control.show(item))}
             {...hover.attributes()}
             onKeyDown={(event) => {
-                // carry Tab from an open trigger into its panel, wherever the panel renders
-                const first = document
-                    .getElementById(control.contentId(item))
-                    ?.querySelector<HTMLElement>(TABBABLE);
+                // move Tab from an open trigger into its panel, wherever the panel renders
+                const panel = event.currentTarget.ownerDocument.getElementById(
+                    control.contentId(item),
+                );
+                const first = panel === null ? undefined : tabbablesIn(panel)[0];
                 if (
                     event.key === "Tab" &&
                     !event.shiftKey &&
@@ -487,9 +472,10 @@ export function NavigationMenuTrigger(
             }}
             {...style.attributes(
                 [
-                    text.xs,
+                    text.sm,
+                    state.focus,
                     styles.trigger,
-                    isOpen() && styles.open,
+                    isOpen() && state.selected,
                     isOpen() && styles.anchor,
                     properties.xstyle,
                 ],
@@ -512,7 +498,7 @@ export function NavigationMenuContent(
 ): JSX.Element {
     // read the menu and the item the panel belongs to
     const control = useNavigationMenu();
-    const item = useItem();
+    const item = useNavigationMenuItem();
     const rest = omit(properties, "xstyle", "style", "children");
 
     // build the panel, framed on its own without a viewport
@@ -582,11 +568,11 @@ export type NavigationMenuLinkProperties = NavigationMenuElementProperties<
 /** Render a link of a navigation menu, marked as the current page when active. */
 export function NavigationMenuLink(properties: NavigationMenuLinkProperties): JSX.Element {
     // join a top-level link to the menu's entries, and mark it and the current page over its styles
-    const menu = useContext(NavigationMenuContext);
+    const menu = useNavigationMenu();
     const isTop = !useContext(NavigationMenuContentContext);
     const key = createUniqueId();
     let element: HTMLElement | undefined;
-    if (isTop && menu !== null) {
+    if (isTop) {
         menu.join(key, () => element);
     }
     const rest = omit(properties, "active", "xstyle", "style", "render");
@@ -596,7 +582,7 @@ export function NavigationMenuLink(properties: NavigationMenuLinkProperties): JS
                 return properties.active === true ? "page" : undefined;
             },
             get "data-active"() {
-                return properties.active === true ? "true" : undefined;
+                return properties.active === true ? "" : undefined;
             },
             "data-navigation-top": isTop ? "" : undefined,
             "data-slot": "navigation-menu-link",
@@ -606,11 +592,15 @@ export function NavigationMenuLink(properties: NavigationMenuLinkProperties): JS
             onFocus: () => {
                 // follow the focus onto a top-level link
                 if (isTop) {
-                    menu?.list.focus.focusIn(key);
+                    menu.list.focus.focusIn(key);
                 }
             },
         },
-        () => style.attributes([text.xs, styles.link, properties.xstyle], properties.style),
+        () =>
+            style.attributes(
+                [text.sm, state.focus, styles.link, properties.xstyle],
+                properties.style,
+            ),
     );
 
     return useRender({
@@ -628,8 +618,8 @@ function leavePanel(
     item: string,
 ): void {
     // read the panel's ends and the trigger it belongs to
-    const tabbable = [...event.currentTarget.querySelectorAll<HTMLElement>(TABBABLE)];
-    const trigger = document.getElementById(control.triggerId(item));
+    const tabbable = tabbablesIn(event.currentTarget);
+    const trigger = event.currentTarget.ownerDocument.getElementById(control.triggerId(item));
     if (event.key !== "Tab" || trigger === null) {
         return;
     }

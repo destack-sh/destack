@@ -2,7 +2,7 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { createEffect, createRoot, createSignal, flush } from "@destack/view";
 import { Collection, CollectionBuilder, type CollectionSection, Load } from "./collection.ts";
 
-/** A note a test collection holds. */
+/** A note of a test collection. */
 interface Note {
     /** The note's id. */
     readonly id: string;
@@ -165,7 +165,7 @@ test("list no items while their load runs, then the loaded ones, and throw a fai
     });
 });
 
-test("keep the items child components add in mount order, dropping each as it unmounts", () => {
+test("list the items child components add in mount order, dropping each as it unmounts", () => {
     // add three items, the second inside a root that disposes
     const builder = rooted(() => new CollectionBuilder<string>());
     const disposeSecond = rooted(() =>
@@ -184,9 +184,9 @@ test("keep the items child components add in mount order, dropping each as it un
     disposeSecond();
     flush();
 
-    expect({ mounted, kept: builder.items() }).toEqual({
+    expect({ mounted, listed: builder.items() }).toEqual({
         mounted: ["second", "first", "third"],
-        kept: ["first", "third"],
+        listed: ["first", "third"],
     });
 });
 

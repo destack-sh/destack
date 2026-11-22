@@ -1,4 +1,5 @@
 import { defineExample } from "@destack/package/declare";
+import { Button } from "../button/index.ts";
 import { Field, FieldLabel } from "../field/index.ts";
 import { Input } from "../input/index.ts";
 import {
@@ -19,7 +20,9 @@ export const dialogRenameNote = defineExample({
     description: "a dialog that renames a note from a form",
     render: () => (
         <Dialog>
-            <DialogTrigger variant="outline">Rename</DialogTrigger>
+            <DialogTrigger render={(attributes) => <Button {...attributes} variant="outline" />}>
+                Rename
+            </DialogTrigger>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Rename note</DialogTitle>
@@ -32,8 +35,14 @@ export const dialogRenameNote = defineExample({
                     <Input name="title" value="Groceries" />
                 </Field>
                 <DialogFooter>
-                    <DialogClose variant="outline">Cancel</DialogClose>
-                    <DialogClose type="submit">Save</DialogClose>
+                    <DialogClose
+                        render={(attributes) => <Button {...attributes} variant="outline" />}
+                    >
+                        Cancel
+                    </DialogClose>
+                    <DialogClose render={(attributes) => <Button {...attributes} type="submit" />}>
+                        Save
+                    </DialogClose>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
@@ -50,7 +59,9 @@ export const dialogRenameNoteOpen = defineExample({
     },
     render: (properties) => (
         <Dialog {...properties}>
-            <DialogTrigger variant="outline">Rename</DialogTrigger>
+            <DialogTrigger render={(attributes) => <Button {...attributes} variant="outline" />}>
+                Rename
+            </DialogTrigger>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Rename note</DialogTitle>
@@ -63,8 +74,14 @@ export const dialogRenameNoteOpen = defineExample({
                     <Input name="title" value="Groceries" />
                 </Field>
                 <DialogFooter>
-                    <DialogClose variant="outline">Cancel</DialogClose>
-                    <DialogClose type="submit">Save</DialogClose>
+                    <DialogClose
+                        render={(attributes) => <Button {...attributes} variant="outline" />}
+                    >
+                        Cancel
+                    </DialogClose>
+                    <DialogClose render={(attributes) => <Button {...attributes} type="submit" />}>
+                        Save
+                    </DialogClose>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

@@ -16,7 +16,7 @@ test("turn a toggle on and off, reporting its state", () => {
 
     // the pressed toggle styles differently and reports it
     expect(markup(container)).toBe(
-        '<button type="button" data-slot="toggle" data-state="on" aria-pressed="true" aria-label="Bold">B</button>',
+        '<button type="button" data-slot="toggle" aria-pressed="true" aria-label="Bold" data-pressed="">B</button>',
     );
     expect(classes(container)).not.toEqual(before);
     container.querySelector("button")?.click();

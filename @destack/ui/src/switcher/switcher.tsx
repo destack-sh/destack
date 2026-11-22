@@ -25,7 +25,7 @@ export interface SwitcherProperties
     readonly threshold?: string;
     /** The space between the elements, a spacing step. */
     readonly space?: keyof typeof space;
-    /** The most elements kept in one row, above which they always stack, 4 by default. */
+    /** The most elements in one row, above which they always stack, 4 by default. */
     readonly limit?: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 }
 

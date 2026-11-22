@@ -3,11 +3,11 @@ import {
     color,
     motion,
     radius,
-    shadow,
     size,
     space,
     stroke,
     weight,
+    swatch,
 } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import { type JSX, merge, omit } from "@destack/view";
@@ -26,7 +26,7 @@ const ADDON_DEFAULTS: Required<Pick<InputGroupAddonProperties, "align">> = {
 /** The variant, size and type of a group's button that sets none. */
 const BUTTON_DEFAULTS: Required<Pick<InputGroupButtonProperties, "variant" | "size" | "type">> = {
     variant: "ghost",
-    size: "xs",
+    size: "sm",
     type: "button",
 };
 
@@ -48,7 +48,7 @@ const styles = style.create({
         width: "100%",
         minWidth: 0,
         height: {
-            default: size[3],
+            default: size[2],
             [style.when.descendant('[data-slot="input-group-control"]', multilineMarker)]: "auto",
             [style.when.descendant('[data-align="block-start"]', addonMarker)]: "auto",
             [style.when.descendant('[data-align="block-end"]', addonMarker)]: "auto",
@@ -57,10 +57,9 @@ const styles = style.create({
         borderColor: {
             default: color.input,
             [style.when.descendant(":focus-visible", controlMarker)]: color.ring,
-            [style.when.descendant('[aria-invalid="true"]', controlMarker)]: color.destructive,
+            [style.when.descendant('[aria-invalid="true"]', controlMarker)]: swatch.destructiveMark,
         },
         borderRadius: radius[3],
-        boxShadow: shadow.inset,
         transitionProperty: "border-color, outline-color",
         transitionDuration: motion.durationShort,
         transitionTimingFunction: motion.easingStandard,
@@ -70,9 +69,9 @@ const styles = style.create({
         },
         outlineWidth: stroke.ring,
         outlineColor: {
-            default: `color-mix(in oklab, ${color.ring} 50%, transparent)`,
+            default: color.ring,
             [style.when.descendant('[aria-invalid="true"]', controlMarker)]:
-                `color-mix(in oklab, ${color.destructive} 20%, transparent)`,
+                `color-mix(in oklab, ${swatch.destructiveMark} 20%, transparent)`,
         },
     },
     control: {

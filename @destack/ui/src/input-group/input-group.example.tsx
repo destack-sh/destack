@@ -24,7 +24,7 @@ export const inputGroupNoteSearch = defineExample({
             </InputGroupAddon>
             <InputGroupAddon align="inline-end">
                 <Kbd>⌘K</Kbd>
-                <InputGroupButton size="icon-xs" aria-label="Clear search">
+                <InputGroupButton size="icon-sm" aria-label="Clear search">
                     <Icon name="x" />
                 </InputGroupButton>
             </InputGroupAddon>

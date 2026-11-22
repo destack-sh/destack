@@ -22,8 +22,8 @@ await using compilers = await CompilerPool.open(store, async () => Toolchain.wor
 /** The package's workspace, whose root declares the examples. */
 const workspace = await (await Workspace.open(directory, compilers)).package();
 
-/** The examples server, listening until the process receives a shutdown signal. */
-await using server = await DevelopmentServer.examples({
+/** The development server of the package's examples, listening until a shutdown signal. */
+await using server = await DevelopmentServer.start({
     workspace,
     environment,
     server: { port: PORT, strictPort: true },

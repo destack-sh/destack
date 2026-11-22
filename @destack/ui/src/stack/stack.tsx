@@ -14,7 +14,8 @@ const styles = style.create({
         justifyContent: "flex-start",
         minWidth: 0,
     },
-    space: (value: string) => ({ "--stack-space": value }),
+    space: (value: string) => ({ "--stack-space": value, gap: value }),
+    recursive: (value: string) => ({ "--stack-space": value, gap: 0 }),
 });
 
 /** The properties of a stack, the native element's attributes included. */
@@ -36,7 +37,12 @@ export function Stack(properties: StackProperties): JSX.Element {
         "div",
         "stack",
         omit(stack, "space", "recursive", "splitAfter"),
-        () => [styles.stack, styles.space(space[stack.space])],
+        () => [
+            styles.stack,
+            stack.recursive
+                ? styles.recursive(space[stack.space])
+                : styles.space(space[stack.space]),
+        ],
         {
             get "data-recursive"() {
                 return stack.recursive ? "" : undefined;

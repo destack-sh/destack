@@ -9,24 +9,27 @@ export const dateFieldBirthday = defineExample({
     of: DateField,
     name: "birthday",
     description: "a date field that types a person's birthday, labelled and described by its field",
-    render: () => {
+    properties: {
+        disabled: false,
+    },
+    render: (properties) => {
         const [birthday, setBirthday] = createSignal<PlainDate>();
 
         return (
             <Field>
                 <FieldLabel>Birthday</FieldLabel>
-                <DateField value={birthday()} onValueChange={setBirthday} />
+                <DateField {...properties} value={birthday()} onValueChange={setBirthday} />
                 <FieldDescription>Shown to the people you share notes with.</FieldDescription>
             </Field>
         );
     },
 });
 
-/** A date field holding the day a note was archived. */
+/** A date field with the day a note was archived. */
 export const dateFieldArchived = defineExample({
     of: DateField,
     name: "archived",
-    description: "a date field holding the day a note was archived",
+    description: "a date field with the day a note was archived",
     render: () => <DateField aria-label="Archived" defaultValue={"2026-10-07"} />,
 });
 

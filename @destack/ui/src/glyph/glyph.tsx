@@ -54,7 +54,7 @@ const sizes = style.create({
 
 /** Render an emoji, an icon or an image at one size. */
 export function Glyph(properties: GlyphProperties): JSX.Element {
-    // keep the native attributes apart from the glyph's own
+    // split the native attributes from the glyph's own
     const rest = omit(properties, "glyph", "size", "label", "xstyle", "style");
 
     // draw the emoji, the icon or the image

@@ -11,7 +11,7 @@ function checked(container: Element): string[] {
     );
 }
 
-test("offer the given swatches as options, holding a controlled choice and reporting a person's", () => {
+test("offer the given swatches as options, following a controlled choice and reporting a person's", () => {
     const chosen: AccentPreset[] = [];
     const { container } = render(() => (
         <ColorSwatchPicker

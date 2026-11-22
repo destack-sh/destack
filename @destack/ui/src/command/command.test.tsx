@@ -78,12 +78,8 @@ function press(input: HTMLInputElement, key: string): void {
 test("follow a controlled search, reporting what the person types, and match by the owner's filter", () => {
     const [search, setSearch] = createSignal("cal");
     const { container } = render(() => (
-        <Command
-            search={search()}
-            onSearchChange={setSearch}
-            filter={(value, typed) => value.toLowerCase().startsWith(typed.toLowerCase())}
-        >
-            <CommandInput />
+        <Command filter={(value, typed) => value.toLowerCase().startsWith(typed.toLowerCase())}>
+            <CommandInput value={search()} onValueChange={setSearch} />
             <CommandList>
                 <CommandItem>Calendar</CommandItem>
                 <CommandItem>Local time</CommandItem>

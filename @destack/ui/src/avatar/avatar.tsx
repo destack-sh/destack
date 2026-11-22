@@ -1,5 +1,6 @@
+import type { SwatchName } from "@destack/color";
 import * as style from "@destack/style";
-import { color, size, space, stroke } from "@destack/theme/tokens.stylex";
+import { color, size, space, stroke, swatch, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import {
     type Accessor,
@@ -46,6 +47,11 @@ const styles = style.create({
         backgroundColor: color.muted,
         color: color.mutedForeground,
     },
+    tinted: (background: string, foreground: string) => ({
+        backgroundColor: background,
+        color: foreground,
+        fontWeight: weight.medium,
+    }),
     badge: {
         position: "absolute",
         insetInlineEnd: 0,
@@ -56,8 +62,8 @@ const styles = style.create({
         width: "30%",
         height: "30%",
         borderRadius: "50%",
-        backgroundColor: color.primary,
-        color: color.primaryForeground,
+        backgroundColor: swatch.accentSolid,
+        color: swatch.accentLabel,
         boxShadow: `0 0 0 ${stroke.ring} ${color.background}`,
     },
     group: {
@@ -73,8 +79,6 @@ const styles = style.create({
         flexShrink: 0,
         alignItems: "center",
         justifyContent: "center",
-        width: size[3],
-        height: size[3],
         marginInlineStart: `calc(-1 * ${space[2]})`,
         borderRadius: "50%",
         backgroundColor: color.muted,
@@ -83,28 +87,36 @@ const styles = style.create({
     },
 });
 
-/** The width and height of each avatar size. */
+/** The width and height of each avatar size: 24, 32 and 40 pixels, after shadcn/ui. */
 const sizes = style.create({
-    sm: { width: size[2], height: size[2] },
-    default: { width: size[3], height: size[3] },
-    lg: { width: size[4], height: size[4] },
+    sm: { width: size[1], height: size[1] },
+    default: { width: size[2], height: size[2] },
+    lg: { width: size[3], height: size[3] },
 });
 
 /** Whether an avatar sits in a group, overlapping the one before it. */
-const AvatarGroupContext = createContext(false);
+const AvatarGroupContext = createContext<AvatarGroupControl | null>(null);
+
+/** The size a group gives the avatars in it and its count. */
+export interface AvatarGroupControl {
+    /** The size of the group's avatars and count. */
+    readonly size: AvatarSize;
+}
 
 /** The loading state of the nearest avatar's image, null outside an avatar. */
-const AvatarContext = createContext<AvatarImageState | null>(null);
+const AvatarContext = createContext<AvatarControl | null>(null);
 
 /** Whether an avatar's image is loading, shown, or failed and replaced by the fallback. */
 export type AvatarImageStatus = "loading" | "loaded" | "error";
 
 /** The loading state an avatar's image reports and its fallback reads. */
-interface AvatarImageState {
+export interface AvatarControl {
     /** The status of the image. */
     readonly status: Accessor<AvatarImageStatus>;
     /** Replace the status of the image. */
     readonly setStatus: Setter<AvatarImageStatus>;
+    /** The swatch the fallback fills with, the muted colors when absent. */
+    readonly color: Accessor<SwatchName | undefined>;
 }
 
 /** The size of an avatar, from smallest to largest. */
@@ -119,6 +131,8 @@ export interface AvatarProperties extends AvatarElementProperties<
 > {
     /** The width and height, default by default. */
     readonly size?: AvatarSize;
+    /** The swatch its fallback fills with, such as a person's, the muted colors when absent. */
+    readonly color?: SwatchName;
 }
 
 /** The properties of an avatar's image, the native image's attributes included. */
@@ -131,17 +145,19 @@ export interface AvatarImageProperties extends AvatarElementProperties<
 
 /** Render a round picture of a person or organization. */
 export function Avatar(properties: AvatarProperties): JSX.Element {
-    // overlap the avatar in a group and start with its image loading
-    const avatar = merge(DEFAULTS, properties);
-    const rest = omit(avatar, "size", "xstyle", "style");
-    const isGrouped = useContext(AvatarGroupContext);
+    // overlap the avatar in a group at the group's size, and start with its image loading
+    const group = useContext(AvatarGroupContext);
+    const avatar = merge(DEFAULTS, group ?? {}, properties);
+    const rest = omit(avatar, "size", "color", "xstyle", "style");
+    const isGrouped = group !== null;
     const [status, setStatus] = createSignal<AvatarImageStatus>("loading", { ownedWrite: true });
 
     return (
-        <AvatarContext value={{ status, setStatus }}>
+        <AvatarContext value={{ status, setStatus, color: () => avatar.color }}>
             <span
                 data-slot="avatar"
                 data-size={avatar.size}
+                data-color={avatar.color}
                 {...rest}
                 {...style.attributes(
                     [styles.avatar, sizes[avatar.size], isGrouped && styles.grouped, avatar.xstyle],
@@ -192,7 +208,17 @@ export function AvatarFallback(
 
     return (
         <Show when={state.status() !== "loaded"}>
-            {renderPart("span", "avatar-fallback", properties, [text.xs, styles.fallback])}
+            {renderPart("span", "avatar-fallback", properties, () => {
+                // tint the fallback in its color, as a badge tints itself
+                const tint = state.color();
+
+                return [
+                    text.xs,
+                    styles.fallback,
+                    tint !== undefined &&
+                        styles.tinted(swatch[`${tint}Solid`], swatch[`${tint}Label`]),
+                ];
+            })}
         </Show>
     );
 }
@@ -204,13 +230,25 @@ export function AvatarBadge(
     return renderPart("span", "avatar-badge", properties, styles.badge);
 }
 
-/** Render avatars overlapping in a row. */
-export function AvatarGroup(
-    properties: AvatarElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
-): JSX.Element {
+/** The properties of an avatar group, the native element's attributes included. */
+export type AvatarGroupProperties = AvatarElementProperties<JSX.HTMLAttributes<HTMLDivElement>> & {
+    /** The size of the avatars and the count, default by default. */
+    readonly size?: AvatarSize;
+};
+
+/** Render avatars overlapping in a row, at one size. */
+export function AvatarGroup(properties: AvatarGroupProperties): JSX.Element {
+    const group = merge(DEFAULTS, properties);
+
     return (
-        <AvatarGroupContext value={true}>
-            {renderPart("div", "avatar-group", properties, styles.group)}
+        <AvatarGroupContext
+            value={{
+                get size() {
+                    return group.size;
+                },
+            }}
+        >
+            {renderPart("div", "avatar-group", omit(properties, "size"), styles.group)}
         </AvatarGroupContext>
     );
 }
@@ -219,11 +257,34 @@ export function AvatarGroup(
 export function AvatarGroupCount(
     properties: AvatarElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
-    return renderPart("div", "avatar-group-count", properties, [text.xs, styles.count]);
+    // size the count as the group's avatars
+    const group = useAvatarGroup();
+
+    return renderPart(
+        "div",
+        "avatar-group-count",
+        properties,
+        () => [text.xs, styles.count, sizes[group.size]],
+        {
+            get "data-size"() {
+                return group.size;
+            },
+        },
+    );
 }
 
-/** Read the image state of the nearest avatar. */
-function useAvatar(): AvatarImageState {
+/** Read the nearest avatar group, refusing a part outside one. */
+export function useAvatarGroup(): AvatarGroupControl {
+    const group = useContext(AvatarGroupContext);
+    if (group === null) {
+        throw new TypeError("an avatar group count needs an avatar group around it");
+    }
+
+    return group;
+}
+
+/** Read the nearest avatar, refusing a part outside one. */
+export function useAvatar(): AvatarControl {
     const state = useContext(AvatarContext);
     if (state === null) {
         throw new TypeError("avatar elements need an avatar around them");

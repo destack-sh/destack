@@ -87,7 +87,7 @@ test("type a day into a date picker's field, then pick another from its calendar
     ]);
 });
 
-test("type a range's start and end, then pick a range from the calendar, keeping the popover open until it closes", () => {
+test("type a range's start and end, then pick a range from the calendar, with the popover open until it closes", () => {
     stubPopovers();
     const changes: (DateRange | undefined)[] = [];
     const container = drawIn("en-US", () => (
@@ -176,7 +176,7 @@ test("choose several days from a multiple date picker's trigger, named by the pi
     ]);
 });
 
-test("name a date picker's group by its field's label", () => {
+test("label a date picker's group by its field's label", () => {
     const container = drawIn("en-US", () => (
         <Field>
             <FieldLabel>Due</FieldLabel>

@@ -54,3 +54,41 @@ export const contentNote = defineExample({
         </Prose>
     ),
 });
+
+/** The steps of a setup guide as remark and rehype build them from Markdown. */
+const STEPS: Root = {
+    type: "root",
+    children: [
+        {
+            type: "element",
+            tagName: "h2",
+            properties: { id: "setup" },
+            children: [{ type: "text", value: "Set up a space" }],
+        },
+        {
+            type: "element",
+            tagName: "ol",
+            properties: {},
+            children: ["Create the space.", "Invite your team.", "Install the first app."].map(
+                (step) => ({
+                    type: "element",
+                    tagName: "li",
+                    properties: {},
+                    children: [{ type: "text", value: step }],
+                }),
+            ),
+        },
+    ],
+};
+
+/** A setup guide rendered from its tree with the elements the tree has. */
+export const contentSetupSteps = defineExample({
+    of: Content,
+    name: "setup-steps",
+    description: "a setup guide rendered from its tree with the elements the tree has",
+    render: () => (
+        <Prose>
+            <Content tree={STEPS} />
+        </Prose>
+    ),
+});

@@ -1,4 +1,5 @@
 import { defineExample } from "@destack/package/declare";
+import { Button } from "../button/index.ts";
 import {
     Drawer,
     DrawerClose,
@@ -17,15 +18,23 @@ export const drawerShareNote = defineExample({
     description: "the sharing options of a note in a drawer from the bottom",
     render: () => (
         <Drawer>
-            <DrawerTrigger variant="outline">Share</DrawerTrigger>
+            <DrawerTrigger render={(attributes) => <Button {...attributes} variant="outline" />}>
+                Share
+            </DrawerTrigger>
             <DrawerContent>
                 <DrawerHeader>
                     <DrawerTitle>Share Groceries</DrawerTitle>
                     <DrawerDescription>People with the link can view the note.</DrawerDescription>
                 </DrawerHeader>
                 <DrawerFooter>
-                    <DrawerClose>Copy link</DrawerClose>
-                    <DrawerClose variant="outline">Cancel</DrawerClose>
+                    <DrawerClose render={(attributes) => <Button {...attributes} />}>
+                        Copy link
+                    </DrawerClose>
+                    <DrawerClose
+                        render={(attributes) => <Button {...attributes} variant="outline" />}
+                    >
+                        Cancel
+                    </DrawerClose>
                 </DrawerFooter>
             </DrawerContent>
         </Drawer>
@@ -42,15 +51,23 @@ export const drawerShareNoteOpen = defineExample({
     },
     render: (properties) => (
         <Drawer {...properties}>
-            <DrawerTrigger variant="outline">Share</DrawerTrigger>
+            <DrawerTrigger render={(attributes) => <Button {...attributes} variant="outline" />}>
+                Share
+            </DrawerTrigger>
             <DrawerContent>
                 <DrawerHeader>
                     <DrawerTitle>Share Groceries</DrawerTitle>
                     <DrawerDescription>People with the link can view the note.</DrawerDescription>
                 </DrawerHeader>
                 <DrawerFooter>
-                    <DrawerClose>Copy link</DrawerClose>
-                    <DrawerClose variant="outline">Cancel</DrawerClose>
+                    <DrawerClose render={(attributes) => <Button {...attributes} />}>
+                        Copy link
+                    </DrawerClose>
+                    <DrawerClose
+                        render={(attributes) => <Button {...attributes} variant="outline" />}
+                    >
+                        Cancel
+                    </DrawerClose>
                 </DrawerFooter>
             </DrawerContent>
         </Drawer>
@@ -64,7 +81,9 @@ export const drawerNoteComments = defineExample({
     description: "the comments of a note in a drawer that rests at half the screen or all of it",
     render: () => (
         <Drawer defaultOpen snapPoints={[0.5, 1]} defaultActiveSnapPoint={0.5}>
-            <DrawerTrigger variant="outline">Comments</DrawerTrigger>
+            <DrawerTrigger render={(attributes) => <Button {...attributes} variant="outline" />}>
+                Comments
+            </DrawerTrigger>
             <DrawerContent>
                 <DrawerHeader>
                     <DrawerTitle>Comments</DrawerTitle>

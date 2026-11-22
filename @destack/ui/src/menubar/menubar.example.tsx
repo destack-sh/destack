@@ -14,8 +14,11 @@ export const menubarEditorMenus = defineExample({
     of: Menubar,
     name: "editor-menus",
     description: "an editor's File and Edit menus",
-    render: () => (
-        <Menubar aria-label="Editor">
+    properties: {
+        "aria-label": "Editor",
+    },
+    render: (properties) => (
+        <Menubar {...properties}>
             <MenubarMenu>
                 <MenubarTrigger>File</MenubarTrigger>
                 <MenubarContent>
@@ -45,8 +48,11 @@ export const menubarEditorMenusOpen = defineExample({
     of: Menubar,
     name: "editor-menus-open",
     description: "the editor's File menu open below its trigger",
-    render: () => (
-        <Menubar aria-label="Editor">
+    properties: {
+        "aria-label": "Editor",
+    },
+    render: (properties) => (
+        <Menubar {...properties}>
             <MenubarMenu defaultOpen>
                 <MenubarTrigger>File</MenubarTrigger>
                 <MenubarContent>
@@ -56,6 +62,7 @@ export const menubarEditorMenusOpen = defineExample({
                     </MenubarItem>
                     <MenubarSeparator />
                     <MenubarItem>Export</MenubarItem>
+                    <MenubarItem disabled>Print</MenubarItem>
                 </MenubarContent>
             </MenubarMenu>
             <MenubarMenu>

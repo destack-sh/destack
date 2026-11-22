@@ -16,3 +16,20 @@ export const stackNote = defineExample({
         </Stack>
     ),
 });
+
+/** A note with more space between its parts. */
+export const stackNoteLoose = defineExample({
+    of: Stack,
+    name: "note-loose",
+    description: "a note with more space between its parts",
+    properties: {
+        space: "6",
+    },
+    render: (properties) => (
+        <Stack {...properties} render={(attributes) => <article {...attributes} />}>
+            <h2>Launch plan</h2>
+            <p>Ship to the waitlist on Thursday, then open signups on Friday.</p>
+            <Button variant="outline">Open note</Button>
+        </Stack>
+    ),
+});

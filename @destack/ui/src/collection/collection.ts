@@ -20,7 +20,7 @@ export interface CollectionSection<Item> {
 /** Whether a collection's items are still loading, loaded, or failed to load. */
 export type CollectionState = "loading" | "loaded" | "failed";
 
-/** The sections a collection holds and how it reads the key, text and availability of each item. */
+/** The sections of a collection and how it reads the key, text and availability of each item. */
 export interface CollectionOptions<Item> {
     /** The sections in order, read once the load the items wait for has finished. */
     readonly sections: Accessor<readonly CollectionSection<Item>[]>;
@@ -57,13 +57,13 @@ export class Collection<Item> {
     /** Whether each key has an item, which only the keys that come or go read anew. */
     readonly #members: Readonly<Record<string, boolean>>;
 
-    /** Lay out the sections a collection holds once their load finishes. */
+    /** Lay out a collection's sections once their load finishes. */
     constructor(options: CollectionOptions<Item>) {
         // lay the items out by key and place once their load finishes
         this.#options = options;
         this.state = options.load?.state ?? (() => "loaded");
         this.#index = createMemo(() => {
-            // throw a failed load to the nearest error boundary and hold no items while loading
+            // throw a failed load to the nearest error boundary and list no items while loading
             options.load?.check();
             if (this.state() === "loading") {
                 return layOut([], options.key);
@@ -150,7 +150,7 @@ export class Load<Value> {
 
     /** Follow a promise until it settles. */
     constructor(promise: Promise<Value>) {
-        // start loading and keep the outcome the promise settles with
+        // start loading and store the outcome the promise settles with
         const [outcome, setOutcome] = createSignal<LoadOutcome<Value>>({ kind: "loading" });
         this.#outcome = outcome;
         this.state = () => this.#outcome().kind;
@@ -253,9 +253,9 @@ export class CollectionBuilder<Item> {
     }
 }
 
-/** Compare two elements by their place in the document, keeping the order of a missing one. */
+/** Compare two elements by their place in the document, leaving a missing one in its order. */
 function documentOrder(left: Element | undefined, right: Element | undefined): number {
-    // keep the order of an item without an element in the document
+    // leave an item without an element in the document in its order
     if (left === undefined || right === undefined || !left.isConnected || !right.isConnected) {
         return 0;
     }

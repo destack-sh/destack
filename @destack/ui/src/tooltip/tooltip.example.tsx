@@ -1,3 +1,4 @@
+import { Button } from "../button/index.ts";
 import { defineExample } from "@destack/package/declare";
 import { Icon } from "@destack/ui/icon";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip.tsx";
@@ -9,7 +10,10 @@ export const tooltipArchiveButton = defineExample({
     description: "what an icon-only archive button does",
     render: () => (
         <Tooltip>
-            <TooltipTrigger variant="ghost" size="icon" aria-label="Archive">
+            <TooltipTrigger
+                render={(attributes) => <Button {...attributes} variant="ghost" size="icon" />}
+                aria-label="Archive"
+            >
                 <Icon name="archive" />
             </TooltipTrigger>
             <TooltipContent>Archive note</TooltipContent>
@@ -22,9 +26,15 @@ export const tooltipArchiveButtonOpen = defineExample({
     of: Tooltip,
     name: "archive-button-open",
     description: "the archive button's tooltip shown above it",
-    render: () => (
-        <Tooltip defaultOpen>
-            <TooltipTrigger variant="ghost" size="icon" aria-label="Archive">
+    properties: {
+        defaultOpen: true,
+    },
+    render: (properties) => (
+        <Tooltip {...properties}>
+            <TooltipTrigger
+                render={(attributes) => <Button {...attributes} variant="ghost" size="icon" />}
+                aria-label="Archive"
+            >
                 <Icon name="archive" />
             </TooltipTrigger>
             <TooltipContent>Archive note</TooltipContent>

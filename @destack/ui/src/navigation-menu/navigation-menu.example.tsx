@@ -15,8 +15,11 @@ export const navigationMenuSiteNavigation = defineExample({
     of: NavigationMenu,
     name: "site-navigation",
     description: "a site's main navigation with a products panel, on its pricing page",
-    render: () => (
-        <NavigationMenu aria-label="Main">
+    properties: {
+        "aria-label": "Main",
+    },
+    render: (properties) => (
+        <NavigationMenu {...properties}>
             <NavigationMenuList>
                 <NavigationMenuItem>
                     <NavigationMenuTrigger>Products</NavigationMenuTrigger>
@@ -44,8 +47,11 @@ export const navigationMenuTwoPanels = defineExample({
     of: NavigationMenu,
     name: "two-panels",
     description: "a site's main navigation with a products panel and a company panel",
-    render: () => (
-        <NavigationMenu aria-label="Main">
+    properties: {
+        "aria-label": "Main",
+    },
+    render: (properties) => (
+        <NavigationMenu {...properties}>
             <NavigationMenuList>
                 <NavigationMenuItem>
                     <NavigationMenuTrigger>Products</NavigationMenuTrigger>
@@ -71,8 +77,12 @@ export const navigationMenuProductsOpen = defineExample({
     of: NavigationMenu,
     name: "products-open",
     description: "the site's main navigation with its products panel open",
-    render: () => (
-        <NavigationMenu aria-label="Main" defaultValue="products">
+    properties: {
+        "aria-label": "Main",
+        defaultValue: "products",
+    },
+    render: (properties) => (
+        <NavigationMenu {...properties}>
             <NavigationMenuList>
                 <NavigationMenuItem value="products">
                     <NavigationMenuTrigger>Products</NavigationMenuTrigger>

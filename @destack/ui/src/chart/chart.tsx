@@ -1,5 +1,5 @@
 import * as style from "@destack/style";
-import { color, radius, shadow, space, stroke } from "@destack/theme/tokens.stylex";
+import { color, radius, shadow, space, stroke, swatch } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import { createEffect, createUniqueId, For, type JSX, omit, onSettled, Show } from "@destack/view";
 import type { ChartPoint, ChartTheme, ChartValue, DomChartDefinition } from "@tanstack/charts";
@@ -18,7 +18,13 @@ const THEME: ChartTheme = {
     muted: color.foreground,
     grid: color.foreground,
     background: "transparent",
-    palette: [color.chart1, color.chart2, color.chart3, color.chart4, color.chart5],
+    palette: [
+        swatch.series1Mark,
+        swatch.series2Mark,
+        swatch.series3Mark,
+        swatch.series4Mark,
+        swatch.series5Mark,
+    ],
 };
 
 /** The styles of a chart, its surface, its tooltip and its table. */
@@ -28,7 +34,7 @@ const styles = style.create({
         width: "100%",
         color: color.foreground,
         "--ts-chart-tooltip-background": color.popover,
-        "--ts-chart-tooltip-color": color.popoverForeground,
+        "--ts-chart-tooltip-color": color.foreground,
         "--ts-chart-tooltip-border": `${stroke.border} solid ${color.border}`,
         "--ts-chart-tooltip-border-radius": radius[3],
         "--ts-chart-tooltip-shadow": shadow.overlay,

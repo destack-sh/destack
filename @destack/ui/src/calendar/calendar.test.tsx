@@ -66,8 +66,8 @@ test("mark today and the selected day, naming each day by its full date", () => 
         selected(container),
         cell("2026-10-12")?.getAttribute("aria-label"),
         cell("2026-10-12")?.getAttribute("tabindex"),
-        cell("2026-09-27")?.getAttribute("data-outside"),
-    ]).toEqual(["date", ["2026-10-12 selected"], "Monday, October 12, 2026", "0", "true"]);
+        cell("2026-09-27")?.hasAttribute("data-outside"),
+    ]).toEqual(["date", ["2026-10-12 selected"], "Monday, October 12, 2026", "0", true]);
 });
 
 test("select a day on click, ignoring disabled days, and report it", () => {

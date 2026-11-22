@@ -80,7 +80,7 @@ interface BuildFailure {
     }[];
 }
 
-/** Report whether a thrown value is a failed build carrying its errors. */
+/** Report whether a thrown value is a failed build with its errors. */
 function isBuildFailure(error: unknown): error is BuildFailure {
     return error instanceof Error && "errors" in error && Array.isArray(error.errors);
 }
@@ -180,12 +180,12 @@ test("leave icons with passed bodies as written, with or without spread properti
         "/package/src/drawn.tsx",
     ]);
 
-    // return no transformation, keeping the module as written
+    // return no transformation, leaving the module as written
     expect(transformed).toBeUndefined();
 });
 
 test("refuse an icon with spread properties and no bodies, whose name the build cannot read", async () => {
-    // transform a module drawing an icon whose properties may carry its name
+    // transform a module drawing an icon whose properties may include its name
     const source = [
         'import { Icon, type IconProperties } from "@destack/ui/icon";',
         "",

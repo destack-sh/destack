@@ -110,8 +110,8 @@ export function Toggle(properties: ToggleProperties): JSX.Element {
     const part: PartAttributes = merge(
         {
             "data-slot": "toggle",
-            get "data-state"() {
-                return isPressed() ? "on" : "off";
+            get "data-pressed"() {
+                return isPressed() ? "" : undefined;
             },
             get "aria-pressed"() {
                 return isPressed() ? "true" : "false";

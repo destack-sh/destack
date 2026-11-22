@@ -30,17 +30,51 @@ export const itemRecentNotes = defineExample({
                     <ItemDescription>Oat milk, lemons, rye bread</ItemDescription>
                 </ItemContent>
                 <ItemActions>
-                    <Button variant="outline" size="sm">
-                        Archive
-                    </Button>
+                    <Button variant="outline">Archive</Button>
                 </ItemActions>
             </Item>
             <ItemSeparator />
-            <a href="/notes/trip" role="listitem" {...style.attrs(itemVariants({ size: "sm" }))}>
+            <div role="listitem">
+                <a href="/notes/trip" {...style.attrs(itemVariants({ size: "sm" }))}>
+                    <ItemContent>
+                        <ItemTitle>Trip to Lisbon</ItemTitle>
+                    </ItemContent>
+                </a>
+            </div>
+        </ItemGroup>
+    ),
+});
+
+/** Recent notes as outlined items. */
+export const itemRecentNotesOutlined = defineExample({
+    of: Item,
+    name: "recent-notes-outlined",
+    description: "recent notes as outlined items",
+    properties: {
+        variant: "outline",
+    },
+    render: (properties) => (
+        <ItemGroup aria-label="Recent notes">
+            <Item {...properties}>
+                <ItemMedia variant="icon">
+                    <Icon name="notebook" />
+                </ItemMedia>
                 <ItemContent>
-                    <ItemTitle>Trip to Lisbon</ItemTitle>
+                    <ItemTitle>Groceries</ItemTitle>
+                    <ItemDescription>Oat milk, lemons, rye bread</ItemDescription>
                 </ItemContent>
-            </a>
+                <ItemActions>
+                    <Button variant="outline">Archive</Button>
+                </ItemActions>
+            </Item>
+            <ItemSeparator />
+            <div role="listitem">
+                <a href="/notes/trip" {...style.attrs(itemVariants({ size: "sm" }))}>
+                    <ItemContent>
+                        <ItemTitle>Trip to Lisbon</ItemTitle>
+                    </ItemContent>
+                </a>
+            </div>
         </ItemGroup>
     ),
 });

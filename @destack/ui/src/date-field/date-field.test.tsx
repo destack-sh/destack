@@ -123,7 +123,7 @@ test("move between segments along the writing direction, right to left in Hebrew
     expect([order, left, focusedSegment()]).toEqual([["day", "month", "year"], "month", "day"]);
 });
 
-test("name the group by its field's label and describe it by the field's description", () => {
+test("label the group by its field's label and describe it by the field's description", () => {
     const container = drawIn("en-US", () => (
         <Field invalid>
             <FieldLabel>Due</FieldLabel>

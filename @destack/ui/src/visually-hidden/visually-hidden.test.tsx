@@ -3,7 +3,7 @@ import { markup, render } from "@destack/view/test";
 import { visuallyHiddenIconButton } from "./visually-hidden.example.tsx";
 import { VisuallyHidden } from "./index.ts";
 
-test("render content in a span that keeps the element's own attributes", () => {
+test("render content in a span with the element's own attributes", () => {
     const { container } = render(() => <VisuallyHidden id="name">Delete note</VisuallyHidden>);
 
     expect(markup(container)).toBe(
@@ -11,7 +11,7 @@ test("render content in a span that keeps the element's own attributes", () => {
     );
 });
 
-test("name an icon button by its visually hidden text", () => {
+test("label an icon button with its visually hidden text", () => {
     const { container } = render(visuallyHiddenIconButton);
 
     expect(container.querySelector("button")?.textContent).toBe("Delete note");

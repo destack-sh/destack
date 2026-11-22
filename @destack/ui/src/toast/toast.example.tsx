@@ -115,7 +115,11 @@ export const toasterMembersDialog = defineExample({
         return (
             <>
                 <Dialog>
-                    <DialogTrigger variant="outline">Members</DialogTrigger>
+                    <DialogTrigger
+                        render={(attributes) => <Button {...attributes} variant="outline" />}
+                    >
+                        Members
+                    </DialogTrigger>
                     <DialogContent>
                         <DialogHeader>
                             <DialogTitle>Members</DialogTitle>

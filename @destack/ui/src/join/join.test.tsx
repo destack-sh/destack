@@ -1,12 +1,13 @@
+import type { Axis } from "../position/index.ts";
 import * as style from "@destack/style";
 import { expect, test } from "@destack/test";
 import { render } from "@destack/view/test";
-import { JoinContext, type JoinOrientation, useJoin } from "./index.ts";
+import { JoinContext, useJoin } from "./index.ts";
 
 /** Read the styles that join a control in the nearest group. */
-function joinedStyles(): Record<"outside" | JoinOrientation, style.Styles> {
-    const read: Partial<Record<"outside" | JoinOrientation, style.Styles>> = {};
-    const Probe = (properties: { readonly name: "outside" | JoinOrientation }) => {
+function joinedStyles(): Record<"outside" | Axis, style.Styles> {
+    const read: Partial<Record<"outside" | Axis, style.Styles>> = {};
+    const Probe = (properties: { readonly name: "outside" | Axis }) => {
         read[properties.name] = useJoin()();
 
         return undefined;
@@ -36,7 +37,7 @@ test("join a control to its neighbours only inside a group, by the group's orien
     const first = joinedStyles();
     const second = joinedStyles();
 
-    // a control outside a group keeps its corners, and each orientation joins its own way
+    // a control outside a group has its own corners, and each orientation joins its own way
     expect({
         outside: first.outside,
         isHorizontalJoined: classOf(first.horizontal) !== "",

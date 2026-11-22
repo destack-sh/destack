@@ -99,7 +99,7 @@ class DateFormat implements DateSegmentFormat {
             : this.#locale.number(value, { useGrouping: false });
     }
 
-    /** Label a segment by the part of the date it holds. */
+    /** Label a segment by the part of the date it shows. */
     name(kind: DateSegmentKind): string {
         // the year
         if (kind === "year") {
@@ -146,10 +146,10 @@ export function DateField(properties: DateFieldProperties): JSX.Element {
     createEffect(
         value,
         (next, previous) => {
-            const held = dateOf(untrack(values));
-            if (next !== undefined && !isSame(next, held)) {
+            const current = dateOf(untrack(values));
+            if (next !== undefined && !isSame(next, current)) {
                 setValues(valuesOf(next));
-            } else if (next === undefined && previous !== undefined && isSame(previous, held)) {
+            } else if (next === undefined && previous !== undefined && isSame(previous, current)) {
                 setValues({});
             }
         },
@@ -163,7 +163,7 @@ export function DateField(properties: DateFieldProperties): JSX.Element {
             format={format}
             values={values()}
             onValuesChange={(next, isTyping) => {
-                // keep the segments and report the date once it is complete or gone, typing done
+                // set the segments and report the date once it is complete or gone, typing done
                 setValues(next);
                 const date = dateOf(next);
                 if (!isTyping && !isSame(date, value())) {

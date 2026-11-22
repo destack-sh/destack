@@ -1,8 +1,9 @@
+import { state } from "@destack/theme/state";
 import { Icon } from "@destack/ui/icon";
 import * as style from "@destack/style";
 import { inputMarker } from "./marker.stylex.ts";
 import { text } from "@destack/theme/text";
-import { color, motion, radius, shadow, size, space, stroke } from "@destack/theme/tokens.stylex";
+import { color, motion, radius, size, space, stroke } from "@destack/theme/tokens.stylex";
 import {
     type Accessor,
     createContext,
@@ -70,7 +71,6 @@ const styles = style.create({
         borderEndStartRadius: { default: 0, ":first-child": radius[3] },
         borderStartEndRadius: { default: 0, ":last-child": radius[3] },
         borderEndEndRadius: { default: 0, ":last-child": radius[3] },
-        boxShadow: shadow.inset,
         transitionProperty: "border-color, outline-color",
         transitionDuration: motion.durationShort,
         transitionTimingFunction: motion.easingStandard,
@@ -80,11 +80,7 @@ const styles = style.create({
         borderColor: color.ring,
         outlineStyle: "solid",
         outlineWidth: stroke.ring,
-        outlineColor: `color-mix(in oklab, ${color.ring} 50%, transparent)`,
-    },
-    invalid: {
-        borderColor: color.destructive,
-        outlineColor: `color-mix(in oklab, ${color.destructive} 20%, transparent)`,
+        outlineColor: color.ring,
     },
     caret: {
         width: stroke.border,
@@ -164,7 +160,7 @@ export class InputOTPControl {
 
     /** Take the text in the input. */
     input(element: HTMLInputElement): void {
-        // keep the allowed characters and put them back into the input
+        // take the allowed characters and put them back into the input
         const allowed = new RegExp(`^${this.#properties.pattern ?? DIGITS}$`, "u");
         const code = Array.from(element.value)
             .filter((character) => allowed.test(character))
@@ -173,7 +169,7 @@ export class InputOTPControl {
         element.value = code;
         this.select(element);
 
-        // keep the new code and tell the owner of it and of its completion
+        // set the new code and tell the owner of it and of its completion
         this.#setValue(code);
         if (code.length === this.maxLength) {
             this.#properties.onComplete?.(code);
@@ -288,7 +284,7 @@ export function InputOTPSlot(properties: InputOTPSlotProperties): JSX.Element {
     return (
         <div
             data-slot="input-otp-slot"
-            data-active={control.isActive(properties.index) ? "true" : "false"}
+            data-active={control.isActive(properties.index) ? "" : undefined}
             aria-hidden="true"
             {...rest}
             {...style.attributes(
@@ -296,7 +292,7 @@ export function InputOTPSlot(properties: InputOTPSlotProperties): JSX.Element {
                     text.base,
                     styles.slot,
                     control.isActive(properties.index) && styles.active,
-                    control.isInvalid() && styles.invalid,
+                    control.isInvalid() && state.invalid,
                     properties.xstyle,
                 ],
                 properties.style,
@@ -323,7 +319,7 @@ export function InputOTPSeparator(properties: InputOTPElementProperties): JSX.El
 }
 
 /** Read the control of the nearest one-time code input. */
-function useInputOTP(): InputOTPControl {
+export function useInputOTP(): InputOTPControl {
     const control = useContext(InputOTPContext);
     if (control === null) {
         throw new TypeError("one-time code slots need a one-time code input around them");

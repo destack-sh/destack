@@ -1,3 +1,4 @@
+import type { Axis } from "../position/index.ts";
 import * as style from "@destack/style";
 import { color, stroke } from "@destack/theme/tokens.stylex";
 import { type JSX, merge, omit } from "@destack/view";
@@ -27,13 +28,10 @@ const orientations = style.create({
     },
 });
 
-/** The direction a separator divides content in. */
-export type SeparatorOrientation = "horizontal" | "vertical";
-
 /** The properties of a separator, the native element's attributes included. */
 export interface SeparatorProperties extends Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> {
     /** The direction, horizontal by default. */
-    readonly orientation?: SeparatorOrientation;
+    readonly orientation?: Axis;
     /** Whether the separator only decorates, hidden from assistive technology, true by default. */
     readonly decorative?: boolean;
     /** The StyleX styles applied after the separator's styles. */

@@ -217,8 +217,8 @@ export class Focus<Key> {
     #resolve(own: FocusedKey<Key>): Key | undefined {
         // take the owner's key, else the focused or initial one, while the layout takes it
         const delegate = this.#options.delegate;
-        const held = this.#options.controlled?.();
-        const key = held ?? (own.kind === "focused" ? own.key : this.#options.initial?.());
+        const controlled = this.#options.controlled?.();
+        const key = controlled ?? (own.kind === "focused" ? own.key : this.#options.initial?.());
 
         return key !== undefined && delegate.has(key) ? key : delegate.first();
     }

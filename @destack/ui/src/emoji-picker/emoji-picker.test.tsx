@@ -66,10 +66,11 @@ test("pick the emoji a search finds in the chosen skin tone, and show the empty 
     });
 });
 
-test("name and find emoji in the reader's language, a regional locale falling back to its language", async () => {
+test("label and find emoji in the reader's language, a regional locale falling back to its language", async () => {
     const { container } = render(() => (
         <LocaleContext value={Localization.of(Locale.parse("de-AT"), [])}>
-            <EmojiPicker defaultSearch="tschüss" onEmojiSelect={() => undefined}>
+            <EmojiPicker onEmojiSelect={() => undefined}>
+                <EmojiPickerSearch defaultValue="tschüss" />
                 <EmojiPickerContent />
             </EmojiPicker>
         </LocaleContext>

@@ -7,8 +7,13 @@ export const radioGroupListDensity = defineExample({
     of: RadioGroup,
     name: "list-density",
     description: "the density choices of a list",
-    render: () => (
-        <RadioGroup name="density" aria-label="Density" defaultValue="regular">
+    properties: {
+        name: "density",
+        "aria-label": "Density",
+        defaultValue: "regular",
+    },
+    render: (properties) => (
+        <RadioGroup {...properties}>
             <Label>
                 <RadioGroupItem value="compact" /> Compact
             </Label>
@@ -24,8 +29,13 @@ export const radioGroupListDensityCompact = defineExample({
     of: RadioGroup,
     name: "list-density-compact",
     description: "the density choices of a list with compact chosen",
-    render: () => (
-        <RadioGroup name="density" aria-label="Density" defaultValue="compact">
+    properties: {
+        name: "density",
+        "aria-label": "Density",
+        defaultValue: "compact",
+    },
+    render: (properties) => (
+        <RadioGroup {...properties}>
             <Label>
                 <RadioGroupItem value="compact" /> Compact
             </Label>
@@ -41,8 +51,14 @@ export const radioGroupListDensityDisabled = defineExample({
     of: RadioGroup,
     name: "list-density-disabled",
     description: "the density choices of a list unavailable",
-    render: () => (
-        <RadioGroup name="density" aria-label="Density" defaultValue="regular" disabled>
+    properties: {
+        name: "density",
+        "aria-label": "Density",
+        defaultValue: "regular",
+        disabled: true,
+    },
+    render: (properties) => (
+        <RadioGroup {...properties}>
             <Label>
                 <RadioGroupItem value="compact" /> Compact
             </Label>
@@ -58,8 +74,13 @@ export const radioGroupListDensityComposed = defineExample({
     of: RadioGroup,
     name: "list-density-composed",
     description: "the density choices composed from each radio and its indicator",
-    render: () => (
-        <RadioGroup name="density" aria-label="Density" defaultValue="regular">
+    properties: {
+        name: "density",
+        "aria-label": "Density",
+        defaultValue: "regular",
+    },
+    render: (properties) => (
+        <RadioGroup {...properties}>
             <Label>
                 <RadioGroupItem value="compact">
                     <RadioGroupIndicator />

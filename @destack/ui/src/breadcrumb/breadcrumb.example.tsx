@@ -1,6 +1,7 @@
 import { defineExample } from "@destack/package/declare";
 import {
     Breadcrumb,
+    BreadcrumbEllipsis,
     BreadcrumbItem,
     BreadcrumbLink,
     BreadcrumbList,
@@ -26,6 +27,34 @@ export const breadcrumbNoteTrail = defineExample({
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
                     <BreadcrumbPage>Lisbon</BreadcrumbPage>
+                </BreadcrumbItem>
+            </BreadcrumbList>
+        </Breadcrumb>
+    ),
+});
+
+/** A long trail with its middle steps left out. */
+export const breadcrumbLongTrail = defineExample({
+    of: Breadcrumb,
+    name: "long-trail",
+    description: "a long trail with its middle steps left out",
+    render: () => (
+        <Breadcrumb>
+            <BreadcrumbList>
+                <BreadcrumbItem>
+                    <BreadcrumbLink href="/notebooks">Notebooks</BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                    <BreadcrumbEllipsis />
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                    <BreadcrumbLink href="/notebooks/trips/lisbon">Lisbon</BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                    <BreadcrumbPage>Day two</BreadcrumbPage>
                 </BreadcrumbItem>
             </BreadcrumbList>
         </Breadcrumb>

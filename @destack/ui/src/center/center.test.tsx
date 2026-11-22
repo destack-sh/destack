@@ -11,7 +11,7 @@ test("center a column up to its maximum with gutters, and its elements too when 
     ));
     const [plain, intrinsic] = [...container.querySelectorAll("[data-slot=center]")];
 
-    // each column carries its width and gutters for its styles to read
+    // each column marks its width and gutters for its styles to read
     expect([plain, intrinsic].map((center) => center?.getAttribute("style"))).toEqual([
         "--x-maxInlineSize: 65ch; --x-paddingInline: var(--destack-space-4);",
         "--x-maxInlineSize: 24rem; --x-paddingInline: var(--destack-space-2);",

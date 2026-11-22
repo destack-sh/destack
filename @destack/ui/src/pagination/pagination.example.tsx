@@ -51,3 +51,15 @@ export const paginationSearchPages = defineExample({
         </Pagination>
     ),
 });
+
+/** The first page of a search, with no way back. */
+export const paginationFirstPageDisabled = defineExample({
+    of: Pagination,
+    name: "first-page-disabled",
+    description: "the first page of a search, with no way back",
+    render: () => (
+        <Pagination>
+            <PaginationPages count={20} defaultPage={1} href={(page) => `?page=${page}`} />
+        </Pagination>
+    ),
+});

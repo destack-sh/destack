@@ -156,11 +156,10 @@ export const commandNoteCommandsNoResults = defineExample({
     description: "the note and settings commands whose search finds none, showing the empty note",
     properties: {
         "aria-label": "Commands",
-        defaultSearch: "export",
     },
     render: (properties) => (
         <Command {...properties}>
-            <CommandInput placeholder="Type a command" />
+            <CommandInput placeholder="Type a command" defaultValue="export" />
             <CommandList>
                 <CommandEmpty>No results</CommandEmpty>
                 <CommandGroup heading="Notes">
@@ -180,11 +179,10 @@ export const commandPeopleLoading = defineExample({
     properties: {
         "aria-label": "People",
         shouldFilter: false,
-        defaultSearch: "ada",
     },
     render: (properties) => (
         <Command {...properties}>
-            <CommandInput placeholder="Find a person" />
+            <CommandInput placeholder="Find a person" defaultValue="ada" />
             <CommandList>
                 <CommandLoading>Searching…</CommandLoading>
             </CommandList>

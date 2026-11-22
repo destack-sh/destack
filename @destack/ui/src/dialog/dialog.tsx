@@ -20,7 +20,7 @@ import {
     useContext,
     useLocale,
 } from "@destack/view";
-import { Button, type ButtonProperties } from "../button/index.ts";
+import { Button } from "../button/index.ts";
 import { LayerStack, TopLayer } from "../layer/index.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
 
@@ -146,10 +146,8 @@ export interface DialogProperties {
 }
 
 /** The properties of a dialog's trigger and close buttons, a button's properties included. */
-export type DialogButtonProperties = Omit<ButtonProperties, "onClick"> & {
-    /** Handle a click before the button opens or closes its dialog. */
-    readonly onClick?: (event: MouseEvent) => void;
-};
+export type DialogButtonProperties = ElementPartProperties &
+    Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, "class" | "style">;
 
 /** The properties of a dialog's content, the native dialog's attributes included. */
 export interface DialogContentProperties extends Omit<
@@ -186,46 +184,34 @@ export function Dialog(properties: DialogProperties): JSX.Element {
     );
 }
 
-/** Render a button that opens its dialog. */
+/** Render the element that opens its dialog, a button by default. */
 export function DialogTrigger(properties: DialogButtonProperties): JSX.Element {
     const control = useDialog();
 
-    return (
-        <Button
-            data-slot="dialog-trigger"
-            aria-haspopup="dialog"
-            aria-expanded={control.isOpen() ? "true" : "false"}
-            aria-controls={control.id}
-            {...properties}
-            onClick={(event) => {
-                // run the caller's handler before opening the dialog
-                properties.onClick?.(event);
-                control.open();
-            }}
-        />
-    );
+    return renderPart("button", "dialog-trigger", properties, [], {
+        type: "button",
+        "aria-haspopup": "dialog",
+        get "aria-expanded"() {
+            return control.isOpen() ? "true" : "false";
+        },
+        "aria-controls": control.id,
+        onClick: () => control.open(),
+    });
 }
 
-/** Render a button that closes its dialog. */
+/** Render the element that closes its dialog, a button by default. */
 export function DialogClose(properties: DialogButtonProperties): JSX.Element {
     const control = useDialog();
 
-    return (
-        <Button
-            data-slot="dialog-close"
-            {...properties}
-            onClick={(event) => {
-                // run the caller's handler before closing the dialog
-                properties.onClick?.(event);
-                control.close();
-            }}
-        />
-    );
+    return renderPart("button", "dialog-close", properties, [], {
+        type: "button",
+        onClick: () => control.close(),
+    });
 }
 
 /** Render the modal dialog, shown in the top layer with the page behind it inert while open. */
 export function DialogContent(properties: DialogContentProperties): JSX.Element {
-    // read the dialog and keep its element for the effect below
+    // read the dialog and store its element for the effect below
     const control = useDialog();
     const locale = useLocale();
     const rest = omit(properties, "showCloseButton", "xstyle", "style", "children");
@@ -260,7 +246,8 @@ export function DialogContent(properties: DialogContentProperties): JSX.Element 
             <dialog
                 id={control.id}
                 data-slot="dialog-content"
-                data-state={control.isOpen() ? "open" : "closed"}
+                data-open={control.isOpen() ? "" : undefined}
+                data-closed={control.isOpen() ? undefined : ""}
                 closedby="any"
                 aria-labelledby={control.titleId}
                 aria-describedby={control.isDescribed() ? control.descriptionId : undefined}

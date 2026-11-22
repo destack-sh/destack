@@ -403,7 +403,7 @@ export function Toaster(properties: ToasterProperties): JSX.Element {
             stack.hidePopover();
         }
 
-        // keep the region where a modal leaves it interactive and announced, else where it rendered
+        // place the region where a modal leaves it interactive and announced, else where it rendered
         if (top !== undefined && region.parentElement !== top) {
             top.append(region);
         } else if (top === undefined && home !== undefined && region.nextSibling !== home) {

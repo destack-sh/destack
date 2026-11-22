@@ -4,7 +4,7 @@ import { Tree, TreeItem } from "./index.ts";
 import { render } from "@destack/view/test";
 import { treeWorkExpanded } from "./tree.example.tsx";
 
-/** Render the selected Porto under Portugal under Trips, reading the items holding the tab stop. */
+/** Render the selected Porto under Portugal under Trips, reading the items with the tab stop. */
 function drawTabStops(isTripsExpanded: boolean, isPortugalExpanded: boolean): (string | null)[] {
     const { container } = render(() => (
         <Tree aria-label="Notebooks" defaultValue="porto">
@@ -22,7 +22,7 @@ function drawTabStops(isTripsExpanded: boolean, isPortugalExpanded: boolean): (s
     );
 }
 
-test("expose items with their level, expansion and selection, the first holding the tab stop", () => {
+test("expose items with their level, expansion and selection, the first with the tab stop", () => {
     const { container } = render(treeWorkExpanded);
     const items = [...container.querySelectorAll("[role=treeitem]")].map((item) =>
         [
@@ -43,8 +43,8 @@ test("expose items with their level, expansion and selection, the first holding 
     expect(container.querySelector("[role=group]")?.hasAttribute("hidden")).toBe(true);
 });
 
-test("hold the tab stop on the nearest visible ancestor of a selected item inside a collapsed parent", () => {
-    // the outermost collapsed ancestor shows, and a fully expanded path keeps the item itself
+test("put the tab stop on the nearest visible ancestor of a selected item inside a collapsed parent", () => {
+    // the outermost collapsed ancestor shows, and a fully expanded path shows the item itself
     expect([
         drawTabStops(true, false),
         drawTabStops(false, true),
@@ -52,7 +52,7 @@ test("hold the tab stop on the nearest visible ancestor of a selected item insid
     ]).toEqual([["portugal"], ["trips"], ["porto"]]);
 });
 
-test("hold a controlled item at its owner's expansion, reporting the person's toggle", () => {
+test("leave a controlled item at its owner's expansion, reporting the person's toggle", () => {
     // render Trips expanded only while its owner says so
     const changes: boolean[] = [];
     const [isExpanded, setExpanded] = createSignal(false);
@@ -74,8 +74,8 @@ test("hold a controlled item at its owner's expansion, reporting the person's to
     // toggle by the person, then by the owner
     trips?.querySelector<HTMLElement>("[data-slot=tree-item-row]")?.click();
     flush();
-    const held = expansion();
+    const before = expansion();
     setExpanded(true);
     flush();
-    expect([held, expansion(), changes]).toEqual(["false", "true", [true]]);
+    expect([before, expansion(), changes]).toEqual(["false", "true", [true]]);
 });

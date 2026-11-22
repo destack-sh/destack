@@ -1,9 +1,15 @@
-import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
-import { color, radius, shadow, size, space, stroke, weight } from "@destack/theme/tokens.stylex";
+import { state } from "@destack/theme/state";
+import * as style from "@destack/style";
+import { color, radius, size, space, stroke, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import { createEffect, type JSX, omit, Show } from "@destack/view";
-import { Selection, type SelectionProperties, valuesOf } from "../selection/index.ts";
+import {
+    SELECTION_OPTIONS,
+    Selection,
+    type SelectionProperties,
+    valuesOf,
+} from "../selection/index.ts";
 import { useFieldControl } from "../field/control.ts";
 import { inputStyle } from "../input/index.ts";
 import { useJoin } from "../join/index.ts";
@@ -12,30 +18,10 @@ import { type ElementPartProperties, renderPart } from "../part/index.ts";
 /** The styles of a select, its picker and its options. */
 const styles = style.create({
     select: {
-        appearance: "base-select",
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: space[2],
         width: "fit-content",
-        height: size[3],
+        height: size[2],
         whiteSpace: "nowrap",
         cursor: { default: "pointer", ":disabled": "not-allowed" },
-        "::picker-icon": {
-            color: color.mutedForeground,
-        },
-        "::picker(select)": {
-            appearance: "base-select",
-            marginBlock: space[1],
-            padding: space[1],
-            borderStyle: "solid",
-            borderWidth: stroke.border,
-            borderColor: color.border,
-            borderRadius: radius[3],
-            backgroundColor: color.popover,
-            color: color.popoverForeground,
-            boxShadow: shadow.overlay,
-        },
     },
     multiple: {
         appearance: "auto",
@@ -56,17 +42,15 @@ const styles = style.create({
         borderRadius: radius[2],
         backgroundColor: {
             default: "transparent",
-            ":hover": { default: null, [media.hover]: color.accent },
-            ":focus": color.accent,
+            ":hover": { default: null, [media.hover]: color.hover },
+            ":focus": color.selected,
         },
         color: {
             default: "inherit",
-            ":hover": { default: null, [media.hover]: color.accentForeground },
-            ":focus": color.accentForeground,
+            ":focus": color.foreground,
         },
         outlineStyle: "none",
         cursor: { default: "default", ":disabled": "not-allowed" },
-        opacity: { default: 1, ":disabled": 0.5 },
         "::checkmark": {
             order: 1,
         },
@@ -107,10 +91,7 @@ export function Select(properties: SelectProperties): JSX.Element {
     const join = useJoin();
     const rest = omit(
         properties,
-        "multiple",
-        "value",
-        "defaultValue",
-        "onValueChange",
+        ...SELECTION_OPTIONS,
         "placeholder",
         "children",
         "xstyle",
@@ -140,7 +121,7 @@ export function Select(properties: SelectProperties): JSX.Element {
                 element = created;
             }}
             onChange={(event) => {
-                // keep the person's choice and show the owner's until the owner takes it
+                // record the person's choice and show the owner's until the owner takes it
                 const select = event.currentTarget;
                 selection.replace(
                     [...select.options]
@@ -206,7 +187,7 @@ export function SelectContent(properties: { readonly children?: JSX.Element }): 
 export function SelectItem(
     properties: SelectElementProperties<JSX.OptionHTMLAttributes<HTMLOptionElement>>,
 ): JSX.Element {
-    return renderPart("option", "select-item", properties, styles.item);
+    return renderPart("option", "select-item", properties, [state.disabled, styles.item]);
 }
 
 /** Render a group of a select's options under a label. */

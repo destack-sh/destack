@@ -1,15 +1,7 @@
-import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
-import {
-    color,
-    motion,
-    radius,
-    shadow,
-    size,
-    space,
-    stroke,
-    weight,
-} from "@destack/theme/tokens.stylex";
+import { state } from "@destack/theme/state";
+import * as style from "@destack/style";
+import { color, motion, radius, size, space, stroke, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import { createContext, type JSX, onCleanup, useContext, useLocale } from "@destack/view";
 import { Hover } from "../interaction/index.ts";
@@ -51,13 +43,12 @@ const styles = style.create({
         display: "flex",
         alignItems: "center",
         gap: space[1],
-        height: size[3],
+        height: size[2],
         padding: space[1],
         borderWidth: stroke.border,
         borderColor: color.border,
         borderRadius: radius[3],
         backgroundColor: color.background,
-        boxShadow: shadow.inset,
     },
     trigger: {
         display: "flex",
@@ -67,13 +58,12 @@ const styles = style.create({
         borderRadius: radius[2],
         backgroundColor: {
             default: "transparent",
-            ":hover": { default: null, [media.hover]: color.accent },
-            ":focus": color.accent,
+            ":hover": { default: null, [media.hover]: color.hover },
+            ":focus": color.selected,
         },
         color: {
             default: "inherit",
-            ":hover": { default: null, [media.hover]: color.accentForeground },
-            ":focus": color.accentForeground,
+            ":focus": color.foreground,
         },
         fontWeight: weight.medium,
         cursor: "default",
@@ -81,13 +71,9 @@ const styles = style.create({
         transitionProperty: "background-color",
         transitionDuration: motion.durationShort,
     },
-    open: {
-        backgroundColor: color.accent,
-        color: color.accentForeground,
-    },
 });
 
-/** The menus of a menubar in order and the one whose trigger holds the tab stop. */
+/** The menus of a menubar in order and the one whose trigger has the tab stop. */
 export class MenubarControl {
     /** The triggers in document order, by their menu's id, which left and right move between. */
     readonly list: ListState;
@@ -144,7 +130,7 @@ export class MenubarControl {
 }
 
 /** Find the menubar around an element, refusing elements outside one. */
-function useMenubar(): MenubarControl {
+export function useMenubar(): MenubarControl {
     const control = useContext(MenubarContext);
     if (control === null) {
         throw new TypeError("menubar elements need a menubar around them");
@@ -218,7 +204,7 @@ export function MenubarTrigger(
         "button",
         "menubar-trigger",
         properties,
-        () => [text.xs, styles.trigger, menu.isOpen() && styles.open],
+        () => [text.sm, styles.trigger, menu.isOpen() && state.selected],
         {
             type: "button",
             id: menu.triggerId,

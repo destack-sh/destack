@@ -99,7 +99,7 @@ function findIconImport(program: ESTree.Program): IconImport {
             continue;
         }
 
-        // keep the component's local name and each namespace's
+        // record the component's local name and each namespace's
         for (const specifier of statement.specifiers) {
             if (specifier.type === "ImportNamespaceSpecifier") {
                 namespaces.add(specifier.local.name);

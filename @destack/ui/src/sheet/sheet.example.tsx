@@ -1,4 +1,5 @@
 import { defineExample } from "@destack/package/declare";
+import { Button } from "../button/index.ts";
 import { Checkbox } from "../checkbox/index.ts";
 import { Label } from "../label/index.ts";
 import {
@@ -19,7 +20,9 @@ export const sheetListFilters = defineExample({
     description: "the filters of a note list in a panel from the right",
     render: () => (
         <Sheet>
-            <SheetTrigger variant="outline">Filters</SheetTrigger>
+            <SheetTrigger render={(attributes) => <Button {...attributes} variant="outline" />}>
+                Filters
+            </SheetTrigger>
             <SheetContent side="right">
                 <SheetHeader>
                     <SheetTitle>Filters</SheetTitle>
@@ -29,7 +32,9 @@ export const sheetListFilters = defineExample({
                     <Checkbox name="shared" /> Shared with me
                 </Label>
                 <SheetFooter>
-                    <SheetClose>Apply</SheetClose>
+                    <SheetClose render={(attributes) => <Button {...attributes} />}>
+                        Apply
+                    </SheetClose>
                 </SheetFooter>
             </SheetContent>
         </Sheet>
@@ -46,7 +51,9 @@ export const sheetListFiltersOpen = defineExample({
     },
     render: (properties) => (
         <Sheet {...properties}>
-            <SheetTrigger variant="outline">Filters</SheetTrigger>
+            <SheetTrigger render={(attributes) => <Button {...attributes} variant="outline" />}>
+                Filters
+            </SheetTrigger>
             <SheetContent side="right">
                 <SheetHeader>
                     <SheetTitle>Filters</SheetTitle>
@@ -56,7 +63,9 @@ export const sheetListFiltersOpen = defineExample({
                     <Checkbox name="shared" /> Shared with me
                 </Label>
                 <SheetFooter>
-                    <SheetClose>Apply</SheetClose>
+                    <SheetClose render={(attributes) => <Button {...attributes} />}>
+                        Apply
+                    </SheetClose>
                 </SheetFooter>
             </SheetContent>
         </Sheet>

@@ -11,14 +11,14 @@ test("hand a switcher's threshold to its elements' sizes, 30rem apart by step 4 
     ));
     const switchers = [...container.querySelectorAll("[data-slot=switcher]")];
 
-    // each switcher carries its threshold for its elements' sizes to read
+    // each switcher marks its threshold for its elements' sizes to read
     expect(switchers.map((switcher) => switcher.getAttribute("style"))).toEqual([
         "--x---switcher-threshold: 30rem; --x-gap: var(--destack-space-4);",
         "--x---switcher-threshold: 40rem; --x-gap: var(--destack-space-2);",
     ]);
 });
 
-test("keep at most four elements in a switcher's row unless its limit says otherwise", () => {
+test("fit at most four elements in a switcher's row unless its limit says otherwise", () => {
     const { container } = render(() => (
         <>
             <Switcher />

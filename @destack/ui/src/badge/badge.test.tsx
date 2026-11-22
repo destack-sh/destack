@@ -20,3 +20,18 @@ test("style a link like a badge of the same variant", () => {
     const [badge, link] = classes(container);
     expect(link).toBe(badge);
 });
+
+test("tint a badge in a swatch and report the swatch, apart from an untinted badge", () => {
+    const { container } = render(() => (
+        <>
+            <Badge color="green">Site</Badge>
+            <Badge>Site</Badge>
+        </>
+    ));
+
+    // the tinted badge takes its swatch's tint and text, the plain one none
+    expect(markup(container)).toBe(
+        '<span data-slot="badge" data-variant="default" data-color="green" style="--x-backgroundColor: var(--destack-swatch-green-tint); --x-color: var(--destack-swatch-green-tint-text);">Site</span>' +
+            '<span data-slot="badge" data-variant="default">Site</span>',
+    );
+});

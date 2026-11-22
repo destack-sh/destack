@@ -11,10 +11,10 @@ test("stack elements one spacing step apart, step 4 by default, in the element a
     ));
     const stacks = [...container.querySelectorAll("[data-slot=stack]")];
 
-    // each stack carries its space for its styles to read
+    // each stack marks its space for its styles to read
     expect(stacks.map((stack) => [stack.tagName, stack.getAttribute("style")])).toEqual([
-        ["DIV", "--x---stack-space: var(--destack-space-4);"],
-        ["UL", "--x---stack-space: var(--destack-space-2);"],
+        ["DIV", "--x---stack-space: var(--destack-space-4); --x-gap: var(--destack-space-4);"],
+        ["UL", "--x---stack-space: var(--destack-space-2); --x-gap: var(--destack-space-2);"],
     ]);
 });
 

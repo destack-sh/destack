@@ -1,3 +1,4 @@
+import { type ElementPartProperties, renderPart } from "../part/index.ts";
 import * as style from "@destack/style";
 import { color, radius, shadow, space, stroke, width } from "@destack/theme/tokens.stylex";
 import { createContext, createEffect, type JSX, merge, omit, useContext } from "@destack/view";
@@ -7,7 +8,7 @@ import { type Align, Position, type Side } from "../position/index.ts";
 import { TopLayer } from "../layer/index.ts";
 
 /** The wait before a resting pointer opens a hover card, in milliseconds. */
-const OPEN_DELAY = 700;
+const DELAY = 700;
 
 /** The wait before a hover card the pointer left closes, in milliseconds. */
 const CLOSE_DELAY = 300;
@@ -32,7 +33,7 @@ const styles = style.create({
         borderColor: color.border,
         borderRadius: radius[3],
         backgroundColor: color.popover,
-        color: color.popoverForeground,
+        color: color.foreground,
         boxShadow: shadow.overlay,
     },
 });
@@ -40,16 +41,17 @@ const styles = style.create({
 /** The properties of a hover card root, its open state included. */
 export interface HoverCardProperties extends HoverPopoverProperties {
     /** The wait before a resting pointer opens the card in milliseconds, 700 by default. */
-    readonly openDelay?: number;
+    readonly delay?: number;
     /** The wait before the card closes once the pointer leaves in milliseconds, 300 by default. */
     readonly closeDelay?: number;
 }
 
 /** The properties of a hover card's trigger, the native link's attributes included. */
-export type HoverCardTriggerProperties = Omit<
-    JSX.AnchorHTMLAttributes<HTMLAnchorElement>,
-    "ref" | "onPointerEnter" | "onPointerLeave" | "onFocus" | "onBlur"
->;
+export type HoverCardTriggerProperties = ElementPartProperties &
+    Omit<
+        JSX.AnchorHTMLAttributes<HTMLAnchorElement>,
+        "class" | "style" | "ref" | "onPointerEnter" | "onPointerLeave"
+    >;
 
 /** The properties of a hover card's content, the native element's attributes included. */
 export interface HoverCardContentProperties extends Omit<
@@ -80,14 +82,14 @@ export function useHoverCard(): HoverPopover {
 export function HoverCard(properties: HoverCardProperties): JSX.Element {
     const card = new HoverPopover(
         properties,
-        () => properties.openDelay ?? OPEN_DELAY,
+        () => properties.delay ?? DELAY,
         () => properties.closeDelay ?? CLOSE_DELAY,
     );
 
     return <HoverCardContext value={card}>{properties.children}</HoverCardContext>;
 }
 
-/** Render a link that opens its hover card on hover or focus after the delay. */
+/** Render the element that opens its hover card on hover or focus after the delay. */
 export function HoverCardTrigger(properties: HoverCardTriggerProperties): JSX.Element {
     const card = useHoverCard();
     const hover = new Hover({
@@ -95,20 +97,18 @@ export function HoverCardTrigger(properties: HoverCardTriggerProperties): JSX.El
         onHoverEnd: () => card.closeLater(),
     });
 
-    return (
-        <a
-            data-slot="hover-card-trigger"
-            data-state={card.isOpen() ? "open" : "closed"}
-            {...properties}
-            ref={(element) => card.setTrigger(element)}
-            {...hover.attributes()}
-            onFocus={() => card.openLater()}
-            onBlur={() => card.closeLater()}
-        />
-    );
+    return renderPart("a", "hover-card-trigger", properties, [], {
+        ...hover.attributes(),
+        get "data-popup-open"() {
+            return card.isOpen() ? "" : undefined;
+        },
+        ref: (element: HTMLElement) => card.setTrigger(element),
+        onFocus: () => card.openLater(),
+        onBlur: () => card.closeLater(),
+    });
 }
 
-/** Render a preview in the top layer beside its link, kept open while the pointer rests on it. */
+/** Render a preview in the top layer beside its link and open while the pointer rests on it. */
 export function HoverCardContent(properties: HoverCardContentProperties): JSX.Element {
     // read the hover card and its placement
     const card = useHoverCard();
@@ -118,7 +118,7 @@ export function HoverCardContent(properties: HoverCardContentProperties): JSX.El
     // show and hide the card as it opens and closes
     createEffect(card.isOpen, (isOpen) => card.sync(isOpen));
 
-    // keep the card open while a pointer rests on it
+    // leave the card open while a pointer rests on it
     const hover = new Hover({
         onHoverStart: () => card.open(),
         onHoverEnd: () => card.closeLater(),
@@ -130,7 +130,8 @@ export function HoverCardContent(properties: HoverCardContentProperties): JSX.El
                 id={card.id}
                 popover="hint"
                 data-slot="hover-card-content"
-                data-state={card.isOpen() ? "open" : "closed"}
+                data-open={card.isOpen() ? "" : undefined}
+                data-closed={card.isOpen() ? undefined : ""}
                 data-side={content.side}
                 data-align={content.align}
                 {...rest}

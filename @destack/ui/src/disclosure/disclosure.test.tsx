@@ -64,7 +64,7 @@ test("report the platform's toggle to a controlled disclosure's owner and show t
     expect({ shown: details.open, changes }).toEqual({ shown: false, changes: [true] });
 });
 
-test("keep a disclosure as it is while its trigger is disabled", () => {
+test("leave a disclosure as it is while its trigger is disabled", () => {
     // click the trigger while disabled, then while enabled
     let isDisabled = true;
     const details = drawDetails(() => undefined);

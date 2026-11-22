@@ -1,3 +1,4 @@
+import { state } from "@destack/theme/state";
 import * as style from "@destack/style";
 import {
     color,
@@ -28,7 +29,8 @@ import {
     useRender,
     renderPart,
 } from "../part/index.ts";
-import { ListState, type Orientation } from "../focus/index.ts";
+import { ListState } from "../focus/index.ts";
+import type { Axis } from "../position/index.ts";
 
 /** The orientation and activation of tabs that set neither. */
 const DEFAULTS: Required<Pick<TabsProperties, "orientation" | "activationMode">> = {
@@ -72,11 +74,6 @@ const styles = style.create({
         transitionProperty: "color, background-color, box-shadow",
         transitionDuration: motion.durationShort,
         transitionTimingFunction: motion.easingStandard,
-        outlineStyle: { default: "none", ":focus-visible": "solid" },
-        outlineWidth: stroke.ring,
-        outlineColor: `color-mix(in oklab, ${color.ring} 50%, transparent)`,
-        opacity: { default: 1, ":disabled": 0.5 },
-        pointerEvents: { default: "auto", ":disabled": "none" },
     },
     selected: {
         backgroundColor: color.background,
@@ -85,9 +82,6 @@ const styles = style.create({
     },
     content: {
         flex: 1,
-        outlineStyle: { default: "none", ":focus-visible": "solid" },
-        outlineWidth: stroke.ring,
-        outlineColor: `color-mix(in oklab, ${color.ring} 50%, transparent)`,
     },
 });
 
@@ -113,7 +107,7 @@ export class TabsControl {
         TabsProperties;
     /** The selected value, controlled or the root's own. */
     readonly value: Accessor<string | undefined>;
-    /** The tabs in document order and the one holding the tab stop. */
+    /** The tabs in document order and the one with the tab stop. */
     readonly list: ListState;
     /** The prefix of every id of the tabs and panels. */
     readonly #prefix: string;
@@ -176,7 +170,7 @@ export interface TabsProperties extends Omit<JSX.HTMLAttributes<HTMLDivElement>,
     /** Handle another tab being selected. */
     readonly onValueChange?: (value: string) => void;
     /** The direction the tabs line up and the arrow keys move in, horizontal by default. */
-    readonly orientation?: Exclude<Orientation, "both">;
+    readonly orientation?: Axis;
     /** Whether focusing a tab selects it or Enter and Space do, automatic by default. */
     readonly activationMode?: TabsActivationMode;
     /** The StyleX styles applied after the root's styles. */
@@ -307,8 +301,8 @@ export function TabsTrigger(properties: TabsTriggerProperties): JSX.Element {
                 element = target;
             },
             "data-slot": "tabs-trigger",
-            get "data-state"() {
-                return isSelected() ? "active" : "inactive";
+            get "data-active"() {
+                return isSelected() ? "" : undefined;
             },
             get "data-value"() {
                 return properties.value;
@@ -321,7 +315,14 @@ export function TabsTrigger(properties: TabsTriggerProperties): JSX.Element {
         },
         () =>
             style.attributes(
-                [text.xs, styles.trigger, isSelected() && styles.selected, properties.xstyle],
+                [
+                    text.sm,
+                    state.focus,
+                    state.disabled,
+                    styles.trigger,
+                    isSelected() && styles.selected,
+                    properties.xstyle,
+                ],
                 properties.style,
             ),
     );
@@ -349,10 +350,13 @@ export function TabsContent(
             tabindex={0}
             hidden={control.value() !== properties.value}
             data-slot="tabs-content"
-            data-state={control.value() === properties.value ? "active" : "inactive"}
+            data-hidden={control.value() === properties.value ? undefined : ""}
             data-orientation={control.properties.orientation}
             {...rest}
-            {...style.attributes([styles.content, properties.xstyle], properties.style)}
+            {...style.attributes(
+                [state.focus, styles.content, properties.xstyle],
+                properties.style,
+            )}
         />
     );
 }

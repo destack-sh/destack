@@ -1,5 +1,7 @@
+import { state } from "@destack/theme/state";
+import type { Axis } from "../position/index.ts";
 import * as style from "@destack/style";
-import { color, motion, radius, shadow, space, stroke } from "@destack/theme/tokens.stylex";
+import { color, motion, radius, space, stroke, swatch } from "@destack/theme/tokens.stylex";
 import {
     type Accessor,
     createContext,
@@ -18,6 +20,16 @@ import { type PartAttributes, type Render, useRender } from "../part/index.ts";
 
 /** The checked value of the nearest radio group, null outside a group. */
 const RadioGroupContext = createContext<RadioGroupControl | null>(null);
+
+/** Read the nearest radio group, refusing a radio outside one. */
+export function useRadioGroup(): RadioGroupControl {
+    const group = useContext(RadioGroupContext);
+    if (group === null) {
+        throw new TypeError("a radio group item needs a radio group around it");
+    }
+
+    return group;
+}
 
 /** The checked state of the nearest radio, null outside one. */
 const RadioGroupItemContext = createContext<RadioGroupItemControl | null>(null);
@@ -42,25 +54,20 @@ const styles = style.create({
         borderWidth: stroke.border,
         borderColor: color.input,
         borderRadius: radius.full,
-        boxShadow: shadow.inset,
         cursor: { default: "pointer", ":disabled": "not-allowed" },
-        opacity: { default: 1, ":disabled": 0.5 },
         transitionProperty: "border-color, outline-color",
         transitionDuration: motion.durationShort,
         transitionTimingFunction: motion.easingStandard,
-        outlineStyle: { default: "none", ":focus-visible": "solid" },
-        outlineWidth: stroke.ring,
-        outlineColor: `color-mix(in oklab, ${color.ring} 50%, transparent)`,
     },
     checked: {
-        borderColor: color.primary,
+        borderColor: swatch.accentSolid,
     },
     indicator: {
         display: "block",
         width: "50%",
         height: "50%",
         borderRadius: radius.full,
-        backgroundColor: color.primary,
+        backgroundColor: swatch.accentSolid,
         pointerEvents: "none",
     },
 });
@@ -85,7 +92,7 @@ export interface RadioGroupProperties extends Omit<
     /** Whether a form needs a checked radio before it submits. */
     readonly required?: boolean;
     /** The direction the radios lay out along; arrow keys move both ways either way. */
-    readonly orientation?: "horizontal" | "vertical";
+    readonly orientation?: Axis;
     /** The StyleX styles applied after the group's styles. */
     readonly xstyle?: style.Styles;
 }
@@ -106,20 +113,20 @@ export interface RadioGroupItemProperties extends Omit<
 /** The properties of a radio's indicator, the native element's attributes included. */
 export type RadioGroupIndicatorProperties = Omit<JSX.HTMLAttributes<HTMLSpanElement>, "class"> & {
     /** Whether the indicator stays rendered while its radio is unchecked, for animating it. */
-    readonly forceMount?: boolean;
+    readonly keepMounted?: boolean;
     /** The StyleX styles applied after the indicator's styles. */
     readonly xstyle?: style.Styles;
 };
 
 /** The checked value and radios of a radio group, which its radios share. */
-class RadioGroupControl {
+export class RadioGroupControl {
     /** The group's properties, read for its availability and form. */
     readonly properties: RadioGroupProperties;
     /** The name the hidden native radios share, the group's or a generated one. */
     readonly name: string;
     /** The checked value, one at most. */
     readonly selection: Selection;
-    /** The radios in document order and the one holding the tab stop. */
+    /** The radios in document order and the one with the tab stop. */
     readonly list: ListState;
 
     /** Create the state of a radio group from its root's properties. */
@@ -143,7 +150,7 @@ class RadioGroupControl {
                 : { ...defaultOf(properties.defaultValue), onValueChange },
         );
 
-        // hold the tab stop on the checked radio, else the first available one, moving on every arrow
+        // put the tab stop on the checked radio, else the first available one, moving on every arrow
         this.list = new ListState({
             orientation: "both",
             isLooping: true,
@@ -235,10 +242,7 @@ export function RadioGroup(properties: RadioGroupProperties): JSX.Element {
 /** Render a radio of the nearest radio group around its indicator. */
 export function RadioGroupItem(properties: RadioGroupItemProperties): JSX.Element {
     // read the group and refuse a radio outside one
-    const group = useContext(RadioGroupContext);
-    if (group === null) {
-        throw new TypeError("a radio group item needs a radio group around it");
-    }
+    const group = useRadioGroup();
     const rest = omit(properties, "value", "disabled", "xstyle", "style", "render", "children");
     const isDisabled = (): boolean =>
         properties.disabled === true || group.properties.disabled === true;
@@ -268,8 +272,11 @@ export function RadioGroupItem(properties: RadioGroupItemProperties): JSX.Elemen
                 element = target;
             },
             "data-slot": "radio-group-item",
-            get "data-state"() {
-                return isChecked() ? "checked" : "unchecked";
+            get "data-checked"() {
+                return isChecked() ? "" : undefined;
+            },
+            get "data-unchecked"() {
+                return isChecked() ? undefined : "";
             },
             get "data-disabled"() {
                 return isDisabled() ? "" : undefined;
@@ -285,7 +292,13 @@ export function RadioGroupItem(properties: RadioGroupItemProperties): JSX.Elemen
         },
         () =>
             style.attributes(
-                [styles.item, isChecked() && styles.checked, properties.xstyle],
+                [
+                    state.focus,
+                    state.disabled,
+                    styles.item,
+                    isChecked() && styles.checked,
+                    properties.xstyle,
+                ],
                 properties.style,
             ),
     );
@@ -321,13 +334,14 @@ export function RadioGroupIndicator(properties: RadioGroupIndicatorProperties): 
     if (item === null) {
         throw new TypeError("a radio group indicator needs a radio group item around it");
     }
-    const rest = omit(properties, "forceMount", "xstyle", "style");
+    const rest = omit(properties, "keepMounted", "xstyle", "style");
 
     return (
-        <Show when={properties.forceMount === true || item.isChecked()}>
+        <Show when={properties.keepMounted === true || item.isChecked()}>
             <span
                 data-slot="radio-group-indicator"
-                data-state={item.isChecked() ? "checked" : "unchecked"}
+                data-checked={item.isChecked() ? "" : undefined}
+                data-unchecked={item.isChecked() ? undefined : ""}
                 data-disabled={item.isDisabled() ? "" : undefined}
                 {...rest}
                 {...style.attributes([styles.indicator, properties.xstyle], properties.style)}

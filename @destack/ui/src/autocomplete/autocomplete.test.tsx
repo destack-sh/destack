@@ -24,14 +24,14 @@ function matched(control: AutocompleteControl): boolean[] {
     ];
 }
 
-test("match items by their words holding the search, by the owner's filter, or all without filtering", () => {
+test("match items by their words containing the search, by the owner's filter, or all without filtering", () => {
     // search for "ma" three ways
-    const words = createAutocomplete({ defaultSearch: " MA " });
+    const words = createAutocomplete({ defaultValue: " MA " });
     const filtered = createAutocomplete({
-        defaultSearch: "ma",
+        defaultValue: "ma",
         filter: (value, search) => value.startsWith(search),
     });
-    const unfiltered = createAutocomplete({ defaultSearch: "ma", shouldFilter: false });
+    const unfiltered = createAutocomplete({ defaultValue: "ma", filter: null });
 
     expect({
         words: matched(words),
@@ -77,7 +77,7 @@ test("drive the list box inside from the search field: its id, its focused optio
     }
     flush();
 
-    // the caret keeps the left and right arrows, and a new search focuses its first match
+    // the caret takes the left and right arrows, and a new search focuses its first match
     expect({
         controls:
             input?.getAttribute("aria-controls") === container.querySelector("[role=listbox]")?.id,

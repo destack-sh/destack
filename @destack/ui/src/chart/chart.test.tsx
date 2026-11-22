@@ -58,7 +58,7 @@ test("draw a chart's series in the theme's chart colors under its name, unless i
     ]).toEqual([
         ["img", "chart", "Notes written each month", "0"],
         "Notes per month in Work and Trips.",
-        ["var(--destack-color-chart1)", "var(--destack-color-chart2)"],
+        ["var(--destack-swatch-series1-mark)", "var(--destack-swatch-series2-mark)"],
         ["#111111", "#222222"],
     ]);
 });

@@ -21,6 +21,7 @@ import {
     AutocompleteContext,
     AutocompleteControl,
     type AutocompleteProperties,
+    type AutocompleteValueProperties,
 } from "../autocomplete/index.ts";
 import {
     Dialog,
@@ -246,7 +247,7 @@ export class CommandControl {
     back(event: KeyboardEvent): boolean {
         const isBack =
             this.pages().length > 0 &&
-            (event.key === "Escape" || (event.key === "Backspace" && this.search.search() === ""));
+            (event.key === "Escape" || (event.key === "Backspace" && this.search.value() === ""));
         if (isBack) {
             event.preventDefault();
             this.pop();
@@ -261,7 +262,13 @@ const CommandContext = createContext<CommandControl | null>(null);
 
 /** The properties of a command: its search, filtering and highlight. */
 export interface CommandProperties
-    extends Omit<JSX.HTMLAttributes<HTMLDivElement>, "class">, AutocompleteProperties {
+    extends
+        Omit<JSX.HTMLAttributes<HTMLDivElement>, "class">,
+        Omit<AutocompleteProperties, "filter" | keyof AutocompleteValueProperties> {
+    /** Whether the command filters its options by the search, or its owner does, as cmdk's. */
+    readonly shouldFilter?: boolean;
+    /** Report whether an option's value or keywords match the search, as cmdk's. */
+    readonly filter?: (value: string, search: string, keywords: readonly string[]) => boolean;
     /** The highlighted option's value, which makes the highlight controlled. */
     readonly value?: string;
     /** The highlighted option's value at first while uncontrolled, the first option by default. */
@@ -315,7 +322,11 @@ export function useCommand(): CommandControl {
 /** Render a searchable list of commands. */
 export function Command(properties: CommandProperties): JSX.Element {
     // steer one list box of options from the search, with the pages over it
-    const autocomplete = new AutocompleteControl(properties);
+    const autocomplete = new AutocompleteControl({
+        get filter() {
+            return properties.shouldFilter === false ? null : properties.filter;
+        },
+    });
     const command = new CommandControl(autocomplete);
     const list = new ListBoxControl({
         autocomplete,
@@ -332,9 +343,6 @@ export function Command(properties: CommandProperties): JSX.Element {
     });
     const rest = omit(
         properties,
-        "search",
-        "defaultSearch",
-        "onSearchChange",
         "shouldFilter",
         "filter",
         "value",
@@ -366,15 +374,20 @@ export function Command(properties: CommandProperties): JSX.Element {
 /** Render the search of a command. */
 export function CommandInput(
     properties: CommandElementProperties<
-        Omit<JSX.InputHTMLAttributes<HTMLInputElement>, "value" | "onInput" | "onKeyDown">
-    > & {
-        /** Handle a key before the command goes back or steers; preventing its default keeps it. */
-        readonly onKeyDown?: (event: KeyboardEvent) => void;
-    },
+        Omit<
+            JSX.InputHTMLAttributes<HTMLInputElement>,
+            "value" | "defaultValue" | "onInput" | "onKeyDown"
+        >
+    > &
+        AutocompleteValueProperties & {
+            /** Handle a key before the command goes back or steers. */
+            readonly onKeyDown?: (event: KeyboardEvent) => void;
+        },
 ): JSX.Element {
     // take the search field's attributes from the command's search, going back before steering
     const command = useCommand();
     const locale = useLocale();
+    command.search.follow(properties);
     const search = command.search.input(() => locale.direction);
     const back = {
         onKeyDown: (event: KeyboardEvent) => {
@@ -398,7 +411,7 @@ export function CommandInput(
             {renderPart(
                 "input",
                 "command-input",
-                omit(properties, "onKeyDown"),
+                omit(properties, "onKeyDown", "value", "defaultValue", "onValueChange"),
                 [text.sm, styles.input],
                 merge(mergeProperties(omit(search, "onKeyDown"), back)),
             )}

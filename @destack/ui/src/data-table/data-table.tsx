@@ -410,7 +410,7 @@ function DataTableRow<Features extends TableFeatures, Data extends RowData>(prop
 
     return (
         <TableRow
-            data-state={follow(tracked, () => (isSelectedRow(row) ? "selected" : undefined))}
+            data-selected={follow(tracked, () => (isSelectedRow(row) ? "" : undefined))}
             aria-selected={follow(tracked, () => selectionOf(row))}
             aria-level={levelOf(row)}
             aria-expanded={follow(tracked, () => expansionOf(row))}
@@ -789,10 +789,10 @@ export function DataTableFacetedFilter<Features extends TableFeatures, Row exten
     return (
         <Popover>
             <PopoverTrigger
-                variant="outline"
-                size="sm"
+                render={(attributes) => (
+                    <Button {...attributes} variant="outline" size="sm" xstyle={styles.facet} />
+                )}
                 data-slot="data-table-faceted-filter"
-                xstyle={styles.facet}
             >
                 <Icon name="plus-circle" />
                 {properties.title}
@@ -864,8 +864,7 @@ export function DataTableRowActions(properties: DataTableRowActionsProperties): 
     return (
         <DropdownMenu>
             <DropdownMenuTrigger
-                variant="ghost"
-                size="icon-sm"
+                render={(attributes) => <Button {...attributes} variant="ghost" size="icon-sm" />}
                 aria-label={locale.render(t`Open row actions`)}
                 data-slot="data-table-row-actions"
             >
@@ -952,7 +951,7 @@ function EditField(properties: {
             aria-label={properties.label}
             value={properties.value}
             onKeyDown={(event) => {
-                // commit on Enter and cancel on Escape, keeping the keys from the table
+                // commit on Enter and cancel on Escape, stopping the keys reaching the table
                 if (event.key === "Enter") {
                     event.preventDefault();
                     properties.onFinish(event.currentTarget.value);
@@ -990,7 +989,10 @@ export function DataTableViewOptions<Features extends TableFeatures, Row extends
 
     return (
         <DropdownMenu>
-            <DropdownMenuTrigger variant="outline" data-slot="data-table-view-options">
+            <DropdownMenuTrigger
+                render={(attributes) => <Button {...attributes} variant="outline" />}
+                data-slot="data-table-view-options"
+            >
                 <Icon icon={slidersHorizontal} />
                 {locale.render(t`View`)}
             </DropdownMenuTrigger>

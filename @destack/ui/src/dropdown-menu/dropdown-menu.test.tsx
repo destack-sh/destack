@@ -49,7 +49,7 @@ test("check items and select radio items, reporting their state", () => {
     expect(states).toEqual(["true", "false", "true"]);
 });
 
-test("name each menu by the trigger that opens it", () => {
+test("label each menu by the trigger that opens it", () => {
     stubPopovers();
     const { container } = render(dropdownMenuNoteMenu);
     const named = [...container.querySelectorAll("[role=menu]")].map(
@@ -58,7 +58,7 @@ test("name each menu by the trigger that opens it", () => {
     expect(named).toEqual(["Note", "Move to"]);
 });
 
-test("render an item as a link that keeps the item's role and closes the menu when followed", () => {
+test("render an item as a link with the item's role, closing the menu when followed", () => {
     stubPopovers();
     const { container } = render(() => (
         <DropdownMenu defaultOpen>

@@ -1,6 +1,7 @@
+import { media } from "@destack/style/media.stylex";
+import { state } from "@destack/theme/state";
 import { Locale, type LocaleTag, type Localization, t } from "@destack/locale";
 import * as style from "@destack/style";
-import { media } from "@destack/style/media.stylex";
 import { color, radius, size, space } from "@destack/theme/tokens.stylex";
 import {
     type Accessor,
@@ -19,6 +20,8 @@ import {
     AutocompleteControl,
     AutocompleteInput,
     type AutocompleteInputProperties,
+    type AutocompleteValueProperties,
+    useAutocomplete,
 } from "../autocomplete/index.ts";
 import { type CollectionSection, Load } from "../collection/index.ts";
 import {
@@ -70,7 +73,7 @@ const TONE_NAMES = {
     dark: t`Dark skin tone`,
 } as const;
 
-/** The groups of the emoji data people pick from, in order, with their names. */
+/** The groups of the emoji data people pick from, in order, with their labels. */
 const CATEGORIES = [
     { group: 0, label: t`Smileys and emotion` },
     { group: 1, label: t`People and body` },
@@ -148,7 +151,7 @@ interface EmojiData {
 type PickableEmoji = EmojiData & { readonly group: number; readonly order: number };
 
 /** The skin tone and grid an emoji picker's parts share. */
-interface EmojiPickerControl {
+export interface EmojiPickerControl {
     /** The chosen skin tone. */
     readonly skinTone: Accessor<SkinTone>;
     /** Choose a skin tone. */
@@ -191,8 +194,8 @@ const styles = style.create({
         fontSize: `calc(${size[2]} * 0.6)`,
         backgroundColor: {
             default: "transparent",
-            ":hover": { default: null, [media.hover]: color.muted },
-            ":is([aria-checked=true])": color.accent,
+            ":hover": { default: null, [media.hover]: color.hover },
+            ":is([aria-checked=true])": color.selected,
         },
         boxShadow: "none",
     },
@@ -204,10 +207,6 @@ const styles = style.create({
         height: size[2],
         borderRadius: radius[1],
         fontSize: `calc(${size[2]} * 0.6)`,
-        backgroundColor: {
-            default: "transparent",
-            ":hover": { default: null, [media.hover]: color.muted },
-        },
         cursor: "pointer",
     },
 });
@@ -218,12 +217,6 @@ export interface EmojiPickerProperties extends GridListElementProperties<
 > {
     /** Report the emoji a person picked with a click or Enter. */
     readonly onEmojiSelect: (entry: EmojiEntry) => void;
-    /** The search, which makes it controlled. */
-    readonly search?: string;
-    /** The search at first while uncontrolled, empty by default. */
-    readonly defaultSearch?: string;
-    /** Handle each change of the search. */
-    readonly onSearchChange?: (search: string) => void;
     /** The emoji in each row of the grid, nine by default. */
     readonly columns?: number;
     /** Render an emoji of the grid, the picker's own by default. */
@@ -260,9 +253,6 @@ export function EmojiPicker(properties: EmojiPickerProperties): JSX.Element {
     const rest = omit(
         properties,
         "onEmojiSelect",
-        "search",
-        "defaultSearch",
-        "onSearchChange",
         "columns",
         "cell",
         "activeCell",
@@ -280,14 +270,14 @@ export function EmojiPicker(properties: EmojiPickerProperties): JSX.Element {
     });
 
     // load the emoji once and lay out the ones the search finds in the chosen tone
-    const autocomplete = new AutocompleteControl(properties);
+    const autocomplete = new AutocompleteControl({});
     const emoji = new Load(loadEmoji(untrack(() => locale.tag)));
     const grid = new GridListControl<EmojiEntry>({
         load: emoji,
         sections: () =>
             layOutEmoji(
                 emoji.value(),
-                autocomplete.search().trim().toLowerCase(),
+                autocomplete.value().trim().toLowerCase(),
                 skinTone(),
                 locale,
             ),
@@ -326,8 +316,13 @@ export function EmojiPicker(properties: EmojiPickerProperties): JSX.Element {
 }
 
 /** Render the search of the nearest emoji picker. */
-export function EmojiPickerSearch(properties: AutocompleteInputProperties): JSX.Element {
+export function EmojiPickerSearch(
+    properties: AutocompleteInputProperties & AutocompleteValueProperties,
+): JSX.Element {
+    // set the picker's search from the field, as frimousse's search does
     const locale = useLocale();
+    useAutocomplete().follow(properties);
+    const rest = omit(properties, "value", "defaultValue", "onValueChange");
 
     return (
         <AutocompleteInput
@@ -335,7 +330,7 @@ export function EmojiPickerSearch(properties: AutocompleteInputProperties): JSX.
             data-slot="emoji-picker-search"
             placeholder={locale.render(t`Search emoji`)}
             aria-label={locale.render(t`Search emoji`)}
-            {...properties}
+            {...rest}
         />
     );
 }
@@ -360,8 +355,9 @@ export function EmojiPickerContent(
                 aria-label={locale.render(t`Emoji`)}
                 data-slot="emoji-picker-list"
                 label={(entry) => entry.label}
-                components={{ Cell: picker.cell }}
-            />
+            >
+                {picker.cell}
+            </GridList>
         </GridListViewport>
     );
 }
@@ -454,7 +450,10 @@ export function EmojiPickerSkinToneSelector(
             aria-label={locale.render(t`Change the skin tone`)}
             {...rest}
             onClick={() => picker.setSkinTone(NEXT_TONES[picker.skinTone()])}
-            {...style.attributes([styles.selector, properties.xstyle], properties.style)}
+            {...style.attributes(
+                [state.hover, styles.selector, properties.xstyle],
+                properties.style,
+            )}
         >
             {properties.children ?? TONE_HANDS[picker.skinTone()]}
         </button>
@@ -488,7 +487,7 @@ function ActiveEmoji(properties: {
 }
 
 /** Read the nearest emoji picker, refusing a part outside one. */
-function useEmojiPicker(): EmojiPickerControl {
+export function useEmojiPicker(): EmojiPickerControl {
     const picker = useContext(EmojiPickerContext);
     if (picker === null) {
         throw new TypeError("an emoji picker part needs an emoji picker around it");
@@ -507,14 +506,14 @@ function skinToneOf(value: string): SkinTone {
     return tone;
 }
 
-/** Lay out the emoji whose name or words hold a search by category, each in a skin tone. */
+/** Lay out the emoji whose name or words match a search by category, each in a skin tone. */
 function layOutEmoji(
     all: readonly EmojiData[],
     search: string,
     tone: SkinTone,
     locale: Localization,
 ): CollectionSection<EmojiEntry>[] {
-    // find the emoji whose name or words hold the search
+    // find the emoji whose name or words match the search
     const found = all.filter(
         (entry) =>
             search === "" ||
@@ -537,7 +536,7 @@ function layOutEmoji(
     }));
 }
 
-/** Load the emoji people pick, with a locale's names and words, in the data's order. */
+/** Load the emoji people pick, with a locale's labels and words, in the data's order. */
 async function loadEmoji(tag: LocaleTag): Promise<readonly PickableEmoji[]> {
     // take the nearest locale the data covers, English otherwise
     const available = Object.keys(EMOJI_LOCALES).map((entry) => Locale.parse(entry));

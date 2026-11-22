@@ -1,5 +1,6 @@
+import { state } from "@destack/theme/state";
 import * as style from "@destack/style";
-import { color, motion, radius, shadow, size, space, stroke } from "@destack/theme/tokens.stylex";
+import { color, motion, radius, size, space, stroke, swatch } from "@destack/theme/tokens.stylex";
 import {
     type Accessor,
     createContext,
@@ -42,18 +43,13 @@ const styles = style.create({
         borderColor: "transparent",
         borderRadius: radius.full,
         backgroundColor: color.input,
-        boxShadow: shadow.inset,
         cursor: { default: "pointer", ":disabled": "not-allowed" },
-        opacity: { default: 1, ":disabled": 0.5 },
         transitionProperty: "background-color, outline-color",
         transitionDuration: motion.durationShort,
         transitionTimingFunction: motion.easingStandard,
-        outlineStyle: { default: "none", ":focus-visible": "solid" },
-        outlineWidth: stroke.ring,
-        outlineColor: `color-mix(in oklab, ${color.ring} 50%, transparent)`,
     },
     checked: {
-        backgroundColor: color.primary,
+        backgroundColor: swatch.accentSolid,
     },
     thumb: {
         display: "block",
@@ -139,8 +135,11 @@ export function Switch(properties: SwitchProperties): JSX.Element {
                 return properties.required === true ? "true" : undefined;
             },
             "data-slot": "switch",
-            get "data-state"() {
-                return toggle.isChecked() ? "checked" : "unchecked";
+            get "data-checked"() {
+                return toggle.isChecked() ? "" : undefined;
+            },
+            get "data-unchecked"() {
+                return toggle.isChecked() ? undefined : "";
             },
             get "data-disabled"() {
                 return isDisabled() ? "" : undefined;
@@ -153,7 +152,13 @@ export function Switch(properties: SwitchProperties): JSX.Element {
         () => ({ ...field?.attributes(), disabled: isDisabled() ? true : undefined }),
         () =>
             style.attributes(
-                [styles.switch, toggle.isChecked() && styles.checked, properties.xstyle],
+                [
+                    state.focus,
+                    state.disabled,
+                    styles.switch,
+                    toggle.isChecked() && styles.checked,
+                    properties.xstyle,
+                ],
                 properties.style,
             ),
     );
@@ -200,8 +205,11 @@ export function SwitchThumb(properties: SwitchThumbProperties): JSX.Element {
                 (locale.direction === "rtl" ? styles.thumbCheckedReversed : styles.thumbChecked),
         ],
         {
-            get "data-state"() {
-                return control.isChecked() ? "checked" : "unchecked";
+            get "data-checked"() {
+                return control.isChecked() ? "" : undefined;
+            },
+            get "data-unchecked"() {
+                return control.isChecked() ? undefined : "";
             },
             get "data-disabled"() {
                 return control.isDisabled() ? "" : undefined;

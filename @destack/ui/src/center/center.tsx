@@ -31,7 +31,7 @@ export interface CenterProperties
     extends Omit<JSX.HTMLAttributes<HTMLDivElement>, "class" | "style">, ElementPartProperties {
     /** The widest the column grows, any CSS length. */
     readonly max?: string;
-    /** The space kept on each side at narrow widths, a spacing step. */
+    /** The space on each side at narrow widths, a spacing step. */
     readonly gutters?: keyof typeof space;
     /** Whether the elements inside center at their own widths too. */
     readonly intrinsic?: boolean;

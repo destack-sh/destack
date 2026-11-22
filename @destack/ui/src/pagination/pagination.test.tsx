@@ -41,7 +41,7 @@ test("render a pagination marking the current page, with labelled steps", () => 
     expect(markup(container)).toBe(
         '<nav data-slot="pagination" aria-label="Pagination"><ul data-slot="pagination-content">' +
             `<li data-slot="pagination-item"><a data-slot="pagination-previous" aria-label="Go to the previous page" href="?page=1">${ICON}<span>Previous</span></a></li>` +
-            '<li data-slot="pagination-item"><a aria-current="page" data-slot="pagination-link" data-active="true" href="?page=2">2</a></li>' +
+            '<li data-slot="pagination-item"><a aria-current="page" data-slot="pagination-link" data-active="" href="?page=2">2</a></li>' +
             `<li data-slot="pagination-item"><span data-slot="pagination-ellipsis">${ICON}<span>More pages</span></span></li>` +
             `<li data-slot="pagination-item"><a data-slot="pagination-next" aria-label="Go to the next page" href="?page=3"><span>Next</span>${ICON}</a></li></ul></nav>`,
     );

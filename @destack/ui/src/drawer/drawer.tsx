@@ -34,7 +34,7 @@ import { renderPart } from "../part/index.ts";
 /** The share of the viewport a drawer grows to at most. */
 const DRAWER_EXTENT = "80vh";
 
-/** The time a released drag's speed carries it on, in milliseconds. */
+/** The time a released drag's speed moves it on, in milliseconds. */
 const PROJECTION_TIME = 0.998 / (1 - 0.998);
 
 /** The share of the smallest snap point a drag passes below it to close the drawer. */
@@ -163,7 +163,7 @@ export class DrawerControl {
             return;
         }
 
-        // project the extent the drag's speed carries the drawer to
+        // project how far the drag's speed moves the drawer
         const points = this.snapPoints();
         const extents = points.map((entry) => extentOf(entry, viewport));
         const projected =
@@ -270,7 +270,7 @@ export function DrawerHandle(properties: DialogElementProperties<HTMLDivElement>
     return renderPart("div", "drawer-handle", properties, styles.handle, { "aria-hidden": "true" });
 }
 
-/** Render the top of a drawer that holds its title and description. */
+/** Render the top of a drawer with its title and description. */
 export function DrawerHeader(properties: DialogElementProperties<HTMLDivElement>): JSX.Element {
     const rest = omit(properties, "xstyle", "style");
 
@@ -283,7 +283,7 @@ export function DrawerHeader(properties: DialogElementProperties<HTMLDivElement>
     );
 }
 
-/** Render the bottom of a drawer that holds its actions. */
+/** Render the bottom of a drawer with its actions. */
 export function DrawerFooter(properties: DialogElementProperties<HTMLDivElement>): JSX.Element {
     return <SheetFooter data-slot="drawer-footer" {...properties} />;
 }

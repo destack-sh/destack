@@ -1,6 +1,7 @@
+import { state } from "@destack/theme/state";
 import { Icon } from "@destack/ui/icon";
 import * as style from "@destack/style";
-import { color, motion, radius, shadow, space, stroke } from "@destack/theme/tokens.stylex";
+import { color, motion, radius, space, stroke, swatch } from "@destack/theme/tokens.stylex";
 import {
     type Accessor,
     createContext,
@@ -32,24 +33,15 @@ const styles = style.create({
         borderWidth: stroke.border,
         borderColor: color.input,
         borderRadius: radius[2],
-        color: color.primaryForeground,
-        boxShadow: shadow.inset,
+        color: swatch.accentLabel,
         cursor: { default: "pointer", ":disabled": "not-allowed" },
-        opacity: { default: 1, ":disabled": 0.5 },
         transitionProperty: "background-color, border-color, outline-color",
         transitionDuration: motion.durationShort,
         transitionTimingFunction: motion.easingStandard,
-        outlineStyle: { default: "none", ":focus-visible": "solid" },
-        outlineWidth: stroke.ring,
-        outlineColor: `color-mix(in oklab, ${color.ring} 50%, transparent)`,
     },
     checked: {
-        borderColor: color.primary,
-        backgroundColor: color.primary,
-    },
-    invalid: {
-        borderColor: color.destructive,
-        outlineColor: `color-mix(in oklab, ${color.destructive} 20%, transparent)`,
+        borderColor: swatch.accentSolid,
+        backgroundColor: swatch.accentSolid,
     },
     indicator: {
         display: "flex",
@@ -96,7 +88,7 @@ export interface CheckboxProperties
 /** The properties of a checkbox's indicator, the native element's attributes included. */
 export type CheckboxIndicatorProperties = Omit<JSX.HTMLAttributes<HTMLSpanElement>, "class"> & {
     /** Whether the indicator stays rendered while the box is unchecked, for animating it. */
-    readonly forceMount?: boolean;
+    readonly keepMounted?: boolean;
     /** The StyleX styles applied after the indicator's styles. */
     readonly xstyle?: style.Styles;
 };
@@ -125,7 +117,7 @@ export function Checkbox(properties: CheckboxProperties): JSX.Element {
     const isDisabled = (): boolean => properties.disabled === true || field?.isDisabled() === true;
     const isInvalid = (): boolean =>
         field?.isInvalid() === true || properties["aria-invalid"] === "true";
-    const state = (): CheckboxState =>
+    const value = (): CheckboxState =>
         properties.indeterminate === true
             ? "indeterminate"
             : toggle.isChecked()
@@ -137,19 +129,29 @@ export function Checkbox(properties: CheckboxProperties): JSX.Element {
         {
             role: "checkbox" as const,
             get "aria-checked"() {
-                return state() === "indeterminate" ? "mixed" : String(state() === "checked");
+                return value() === "indeterminate"
+                    ? "mixed"
+                    : value() === "checked"
+                      ? "true"
+                      : "false";
             },
             get "aria-required"() {
                 return properties.required === true ? "true" : undefined;
             },
             "data-slot": "checkbox",
-            get "data-state"() {
-                return state();
+            get "data-checked"() {
+                return value() === "checked" ? "" : undefined;
+            },
+            get "data-unchecked"() {
+                return value() === "unchecked" ? "" : undefined;
+            },
+            get "data-indeterminate"() {
+                return value() === "indeterminate" ? "" : undefined;
             },
             get "data-disabled"() {
                 return isDisabled() ? "" : undefined;
             },
-            onClick: () => toggle.set(state() !== "checked"),
+            onClick: () => toggle.set(value() !== "checked"),
             onKeyDown: (event: KeyboardEvent) => {
                 if (event.key === "Enter") {
                     event.preventDefault();
@@ -163,9 +165,11 @@ export function Checkbox(properties: CheckboxProperties): JSX.Element {
         () =>
             style.attributes(
                 [
+                    state.focus,
+                    state.disabled,
                     styles.checkbox,
-                    state() !== "unchecked" && styles.checked,
-                    isInvalid() && styles.invalid,
+                    value() !== "unchecked" && styles.checked,
+                    isInvalid() && state.invalid,
                     properties.xstyle,
                 ],
                 properties.style,
@@ -173,7 +177,7 @@ export function Checkbox(properties: CheckboxProperties): JSX.Element {
     );
 
     return (
-        <CheckboxContext value={{ state, isDisabled }}>
+        <CheckboxContext value={{ state: value, isDisabled }}>
             {useRender({
                 render: properties.render,
                 defaultTagName: "button",
@@ -202,13 +206,14 @@ export function CheckboxIndicator(properties: CheckboxIndicatorProperties): JSX.
     if (control === null) {
         throw new TypeError("a checkbox indicator needs a checkbox around it");
     }
-    const rest = omit(properties, "forceMount", "xstyle", "style", "children");
+    const rest = omit(properties, "keepMounted", "xstyle", "style", "children");
 
     return (
-        <Show when={properties.forceMount === true || control.state() !== "unchecked"}>
+        <Show when={properties.keepMounted === true || control.state() !== "unchecked"}>
             <span
                 data-slot="checkbox-indicator"
-                data-state={control.state()}
+                data-checked={control.state() === "checked" ? "" : undefined}
+                data-indeterminate={control.state() === "indeterminate" ? "" : undefined}
                 data-disabled={control.isDisabled() ? "" : undefined}
                 {...rest}
                 {...style.attributes([styles.indicator, properties.xstyle], properties.style)}

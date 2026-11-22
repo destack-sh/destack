@@ -3,7 +3,8 @@ import { Dynamic, type JSX, merge, omit, untrack } from "@destack/view";
 import { access, type MaybeAccessor } from "@destack/view/primitives/utils";
 
 /** The attributes a part gives the element it renders, and the reference that takes the element. */
-export interface PartAttributes extends Partial<Record<"ref", (element: HTMLElement) => void>> {
+export interface PartAttributes
+    extends Partial<Record<"ref", (element: HTMLElement) => void>>, JSX.AriaAttributes {
     /** The atomic class names of the part's styles. */
     readonly class?: string | undefined;
     /** The inline style: the part's dynamic values, then the caller's. */
@@ -32,10 +33,8 @@ export interface PartAttributes extends Partial<Record<"ref", (element: HTMLElem
     readonly onBlur?: (event: PartEvent<FocusEvent>) => void;
     /** The part's content. */
     readonly children?: JSX.Element;
-    /** The part's name and state for styling, such as `data-slot` and `data-state`. */
+    /** The part's name and state for styling, such as `data-slot` and `data-open`. */
     readonly [data: `data-${string}`]: string | undefined;
-    /** The part's ARIA states and relations, such as `aria-expanded` and `aria-controls`. */
-    readonly [aria: `aria-${string}`]: string | undefined;
 }
 
 /** An event on the element a part renders, whichever element its caller chose. */
@@ -93,7 +92,7 @@ export function mergeProperties<Part extends object, Caller extends object>(
     part: Part,
     caller: Caller,
 ) {
-    // chain the handlers and references both sides hold
+    // chain the handlers and references both sides set
     const chained = {};
     const keys = untrack(() =>
         Object.keys(part).filter((name) => isChained(name) && name in caller),
@@ -171,9 +170,9 @@ export function renderPart<Tag extends keyof JSX.IntrinsicElements>(
     return useRender({ render, defaultTagName: tag, part, properties: rest });
 }
 
-/** Run two handlers in sequence, or keep the one that is a function. */
+/** Run two handlers in sequence, or take the one that is a function. */
 function chain(first: unknown, second: unknown): unknown {
-    // keep a lone handler
+    // take a lone handler
     if (!isHandler(first) || !isHandler(second)) {
         return isHandler(first) ? first : second;
     }

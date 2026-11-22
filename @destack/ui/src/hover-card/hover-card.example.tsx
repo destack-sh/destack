@@ -22,8 +22,11 @@ export const hoverCardMentionOpen = defineExample({
     of: HoverCard,
     name: "mention-open",
     description: "the mention's profile card open below the mention",
-    render: () => (
-        <HoverCard defaultOpen>
+    properties: {
+        defaultOpen: true,
+    },
+    render: (properties) => (
+        <HoverCard {...properties}>
             <HoverCardTrigger href="/people/ada">@ada</HoverCardTrigger>
             <HoverCardContent>
                 <strong>Ada Lovelace</strong>

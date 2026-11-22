@@ -1,5 +1,8 @@
 import { defineExample } from "@destack/package/declare";
+import * as style from "@destack/style";
+import { radius } from "@destack/theme/tokens.stylex";
 import { For } from "@destack/view";
+import { PICTURES } from "../example/picture.ts";
 import {
     Carousel,
     CarouselContent,
@@ -12,23 +15,41 @@ import {
 
 /** The photos of a note about a trip. */
 const PHOTOS = [
-    { url: "/photos/alfama.jpg", caption: "Alfama at dusk" },
-    { url: "/photos/tram.jpg", caption: "Tram 28 on the hill" },
-    { url: "/photos/belem.jpg", caption: "Pastries in Belém" },
+    { url: PICTURES.alfama, caption: "Alfama at dusk" },
+    { url: PICTURES.tram, caption: "Tram 28 on the hill" },
+    { url: PICTURES.belem, caption: "Pastries in Belém" },
 ];
+
+/** The styles of a photo: the width of its slide, at 16 by 9. */
+const styles = style.create({
+    photo: {
+        display: "block",
+        width: "100%",
+        aspectRatio: "16 / 9",
+        borderRadius: radius[4],
+        objectFit: "cover",
+    },
+});
 
 /** The photos of a note one at a time. */
 export const carouselTripPhotos = defineExample({
     of: Carousel,
     name: "trip-photos",
     description: "the photos of a note one at a time",
-    render: () => (
-        <Carousel aria-label="Photos">
+    properties: {
+        "aria-label": "Photos",
+    },
+    render: (properties) => (
+        <Carousel {...properties}>
             <CarouselContent>
                 <For each={PHOTOS}>
                     {(photo) => (
                         <CarouselItem>
-                            <img src={photo.url} alt={photo.caption} />
+                            <img
+                                src={photo.url}
+                                alt={photo.caption}
+                                {...style.attrs(styles.photo)}
+                            />
                         </CarouselItem>
                     )}
                 </For>
@@ -45,12 +66,25 @@ export const carouselTripPhotosRotating = defineExample({
     name: "trip-photos-rotating",
     description:
         "trip photos that rotate on their own, with a button that stops them and a dot per photo",
-    render: () => (
-        <Carousel aria-label="Trip photos" loop autoplay={5000}>
+    properties: {
+        "aria-label": "Trip photos",
+        loop: true,
+        autoplay: 5000,
+    },
+    render: (properties) => (
+        <Carousel {...properties}>
             <CarouselContent>
-                <CarouselItem>Lisbon</CarouselItem>
-                <CarouselItem>Porto</CarouselItem>
-                <CarouselItem>Faro</CarouselItem>
+                <For each={PHOTOS}>
+                    {(photo) => (
+                        <CarouselItem>
+                            <img
+                                src={photo.url}
+                                alt={photo.caption}
+                                {...style.attrs(styles.photo)}
+                            />
+                        </CarouselItem>
+                    )}
+                </For>
             </CarouselContent>
             <CarouselPlay />
             <CarouselDots />

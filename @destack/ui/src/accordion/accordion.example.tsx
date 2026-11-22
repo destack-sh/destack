@@ -6,8 +6,11 @@ export const accordionHelpQuestions = defineExample({
     of: Accordion,
     name: "help-questions",
     description: "a help page's questions, one answer open at a time",
-    render: () => (
-        <Accordion defaultValue="sharing">
+    properties: {
+        defaultValue: "sharing",
+    },
+    render: (properties) => (
+        <Accordion {...properties}>
             <AccordionItem value="sharing">
                 <AccordionTrigger>Who can see my notes?</AccordionTrigger>
                 <AccordionContent>Only the people you share a notebook with.</AccordionContent>

@@ -1,4 +1,5 @@
 import { defineExample } from "@destack/package/declare";
+import { Button } from "../button/index.ts";
 import { createSignal } from "@destack/view";
 import {
     DropdownMenu,
@@ -26,7 +27,11 @@ export const dropdownMenuNoteActions = defineExample({
 
         return (
             <DropdownMenu>
-                <DropdownMenuTrigger variant="outline">Note</DropdownMenuTrigger>
+                <DropdownMenuTrigger
+                    render={(attributes) => <Button {...attributes} variant="outline" />}
+                >
+                    Note
+                </DropdownMenuTrigger>
                 <DropdownMenuContent>
                     <DropdownMenuLabel>Groceries</DropdownMenuLabel>
                     <DropdownMenuItem>
@@ -63,7 +68,9 @@ export const dropdownMenuNoteMenu = defineExample({
         return (
             <>
                 <DropdownMenu>
-                    <DropdownMenuTrigger>Note</DropdownMenuTrigger>
+                    <DropdownMenuTrigger render={(attributes) => <Button {...attributes} />}>
+                        Note
+                    </DropdownMenuTrigger>
                     <DropdownMenuContent>
                         <DropdownMenuItem onSelect={() => setAction("rename")}>
                             Rename
@@ -100,7 +107,9 @@ export const dropdownMenuUnavailableOptions = defineExample({
         return (
             <>
                 <DropdownMenu>
-                    <DropdownMenuTrigger>View</DropdownMenuTrigger>
+                    <DropdownMenuTrigger render={(attributes) => <Button {...attributes} />}>
+                        View
+                    </DropdownMenuTrigger>
                     <DropdownMenuContent>
                         <DropdownMenuCheckboxItem
                             checked={false}
@@ -140,7 +149,9 @@ export const dropdownMenuControlled = defineExample({
         return (
             <>
                 <DropdownMenu {...properties} onOpenChange={(open) => setRequested(String(open))}>
-                    <DropdownMenuTrigger>Note</DropdownMenuTrigger>
+                    <DropdownMenuTrigger render={(attributes) => <Button {...attributes} />}>
+                        Note
+                    </DropdownMenuTrigger>
                     <DropdownMenuContent>
                         <DropdownMenuItem>Rename</DropdownMenuItem>
                     </DropdownMenuContent>
@@ -156,12 +167,19 @@ export const dropdownMenuNoteActionsOpen = defineExample({
     of: DropdownMenu,
     name: "note-actions-open",
     description: "a note's actions open below their button",
-    render: () => {
+    properties: {
+        defaultOpen: true,
+    },
+    render: (properties) => {
         const [isPinned, setPinned] = createSignal(false);
 
         return (
-            <DropdownMenu defaultOpen>
-                <DropdownMenuTrigger variant="outline">Note</DropdownMenuTrigger>
+            <DropdownMenu {...properties}>
+                <DropdownMenuTrigger
+                    render={(attributes) => <Button {...attributes} variant="outline" />}
+                >
+                    Note
+                </DropdownMenuTrigger>
                 <DropdownMenuContent>
                     <DropdownMenuLabel>Groceries</DropdownMenuLabel>
                     <DropdownMenuItem>

@@ -223,7 +223,7 @@ export class BoardControl {
     /** Select or open a pressed card: open on a plain press, select with a modifier. */
     press(key: string, gesture: InteractionEvent): void {
         // select with command, control or shift, or by any press on a board that opens nothing
-        if (this.selection.selects(gesture, this.properties.onAction !== undefined)) {
+        if (this.selection.isSelecting(gesture, this.properties.onAction !== undefined)) {
             this.selection.select(key, gesture, this.collection);
         }
         // open the card
@@ -258,8 +258,8 @@ export class BoardControl {
         // move the focus across the columns, extending the selection with shift
         else {
             const target = this.focus.move(event, direction);
-            if (target !== undefined && event.shiftKey) {
-                this.selection.extend(target, this.collection);
+            if (target !== undefined && focused !== undefined && event.shiftKey) {
+                this.selection.extendFrom(focused, target, this.collection);
             }
         }
     }
@@ -436,6 +436,7 @@ export function BoardItem(properties: BoardItemProperties): JSX.Element {
     const press = new Press({
         onPress: (event) => control.press(properties.id, event),
         keys: ["Enter"],
+        shouldCancelOnMove: true,
     });
     const isSelected = (): boolean => control.selection.isSelected(properties.id);
     const card = {
@@ -488,7 +489,7 @@ export function useBoard(): BoardControl {
 }
 
 /** Read the nearest column, refusing a part outside one. */
-function useBoardColumn(): BoardColumnName {
+export function useBoardColumn(): BoardColumnName {
     const column = useContext(BoardColumnContext);
     if (column === null) {
         throw new TypeError("a board part needs a board column around it");

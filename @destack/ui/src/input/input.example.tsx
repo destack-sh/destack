@@ -6,9 +6,13 @@ export const inputSearch = defineExample({
     of: Input,
     name: "search",
     description: "a search box that names itself for assistive technology",
-    render: () => (
-        <Input type="search" name="query" placeholder="Search notes" aria-label="Search notes" />
-    ),
+    properties: {
+        type: "search",
+        name: "query",
+        placeholder: "Search notes",
+        "aria-label": "Search notes",
+    },
+    render: (properties) => <Input {...properties} />,
 });
 
 /** The search box unavailable. */
@@ -16,15 +20,14 @@ export const inputSearchDisabled = defineExample({
     of: Input,
     name: "search-disabled",
     description: "the search box unavailable",
-    render: () => (
-        <Input
-            type="search"
-            name="query"
-            placeholder="Search notes"
-            aria-label="Search notes"
-            disabled
-        />
-    ),
+    properties: {
+        type: "search",
+        name: "query",
+        placeholder: "Search notes",
+        "aria-label": "Search notes",
+        disabled: true,
+    },
+    render: (properties) => <Input {...properties} />,
 });
 
 /** The search box marked invalid. */
@@ -32,13 +35,12 @@ export const inputSearchInvalid = defineExample({
     of: Input,
     name: "search-invalid",
     description: "the search box marked invalid",
-    render: () => (
-        <Input
-            type="search"
-            name="query"
-            placeholder="Search notes"
-            aria-label="Search notes"
-            aria-invalid="true"
-        />
-    ),
+    properties: {
+        type: "search",
+        name: "query",
+        placeholder: "Search notes",
+        "aria-label": "Search notes",
+        "aria-invalid": "true",
+    },
+    render: (properties) => <Input {...properties} />,
 });

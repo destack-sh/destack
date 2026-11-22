@@ -13,6 +13,7 @@ const styles = style.create({
         overflowX: "auto",
     },
     table: {
+        fontVariantNumeric: "tabular-nums",
         width: "100%",
         borderCollapse: "collapse",
         captionSide: "bottom",
@@ -62,7 +63,7 @@ export function Table(
 ): JSX.Element {
     return (
         <div data-slot="table-container" {...style.attrs(styles.container)}>
-            {renderPart("table", "table", properties, [text.xs, styles.table])}
+            {renderPart("table", "table", properties, [text.sm, styles.table])}
         </div>
     );
 }

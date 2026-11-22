@@ -1,9 +1,9 @@
+import { state } from "@destack/theme/state";
 import { Icon } from "@destack/ui/icon";
 import caretLeft from "@destack/icon/phosphor/caret-left";
 import caretRight from "@destack/icon/phosphor/caret-right";
 import * as style from "@destack/style";
-import { media } from "@destack/style/media.stylex";
-import { color, motion, radius, space, stroke } from "@destack/theme/tokens.stylex";
+import { color, motion, radius, space, stroke, size } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import {
     type Accessor,
@@ -45,16 +45,13 @@ const styles = style.create({
     row: {
         display: "flex",
         alignItems: "center",
+        minHeight: size[2],
         gap: space[1],
         paddingBlock: space[1],
         paddingInlineEnd: space[2],
         borderRadius: radius[2],
         cursor: "default",
         userSelect: "none",
-        backgroundColor: {
-            default: "transparent",
-            ":hover": { default: null, [media.hover]: color.accent },
-        },
         transitionProperty: "background-color",
         transitionDuration: motion.durationShort,
     },
@@ -62,11 +59,7 @@ const styles = style.create({
         outlineStyle: "solid",
         outlineWidth: stroke.ring,
         outlineOffset: `calc(-1 * ${stroke.ring})`,
-        outlineColor: `color-mix(in oklab, ${color.ring} 50%, transparent)`,
-    },
-    selected: {
-        backgroundColor: color.accent,
-        color: color.accentForeground,
+        outlineColor: color.ring,
     },
     toggle: {
         display: "inline-flex",
@@ -95,7 +88,7 @@ export class TreeControl {
     readonly visible: Collection<TreeNode>;
     /** The visible items the arrow keys, Home, End and typed letters move through. */
     readonly delegate: ListDelegate<TreeNode>;
-    /** The focused item, which holds the tab stop. */
+    /** The focused item, which has the tab stop. */
     readonly focus: Focus<string>;
     /** The item of each value. */
     readonly #byValue: Accessor<ReadonlyMap<string, TreeNode>>;
@@ -119,7 +112,7 @@ export class TreeControl {
                 : { ...defaultOf(properties.defaultValue), onValueChange },
         );
 
-        // keep the items outside collapsed parents, found by value
+        // list the items outside collapsed parents, found by value
         this.nodes = new CollectionBuilder((node) => node.element());
         this.#byValue = createMemo(
             () => new Map(this.nodes.items().map((node) => [node.value, node])),
@@ -133,7 +126,7 @@ export class TreeControl {
                 node.element()?.querySelector("[data-slot=tree-item-row]")?.textContent ?? "",
         });
 
-        // move through the visible items, the selected one or its outermost collapsed ancestor holding the tab stop
+        // move through the visible items, the selected one or its outermost collapsed ancestor with the tab stop
         this.delegate = new ListDelegate(this.visible, {
             orientation: "vertical",
             isLooping: false,
@@ -246,7 +239,7 @@ export interface TreeItemProperties extends Omit<
 }
 
 /** Read the tree of the nearest tree, refusing items outside one. */
-function useTree(): TreeControl {
+export function useTree(): TreeControl {
     const control = useContext(TreeContext);
     if (control === null) {
         throw new TypeError("tree items need a tree around them");
@@ -270,7 +263,7 @@ export function Tree(properties: TreeProperties): JSX.Element {
                 {...rest}
                 onKeyDown={(event) => navigate(event, control, locale.direction)}
                 onFocusOut={(event) => control.focus.focusOut(event)}
-                {...style.attributes([text.xs, styles.tree, properties.xstyle], properties.style)}
+                {...style.attributes([text.sm, styles.tree, properties.xstyle], properties.style)}
             />
         </TreeContext>
     );
@@ -334,7 +327,8 @@ export function TreeItem(properties: TreeItemProperties): JSX.Element {
             aria-selected={isSelected() ? "true" : "false"}
             tabindex={control.focus.isActive(properties.value) ? 0 : -1}
             data-slot="tree-item"
-            data-state={isParent() ? (isExpanded() ? "open" : "closed") : undefined}
+            data-open={isParent() && isExpanded() ? "" : undefined}
+            data-closed={isParent() && !isExpanded() ? "" : undefined}
             data-value={properties.value}
             {...rest}
             ref={(item) => (element = item)}
@@ -428,10 +422,11 @@ function TreeItemRow(properties: {
             id={properties.id}
             data-slot="tree-item-row"
             {...style.attributes([
+                state.hover,
                 styles.row,
                 styles.indent(properties.level),
                 properties.isFocused && styles.focused,
-                properties.isSelected && styles.selected,
+                properties.isSelected && state.selected,
                 properties.xstyle,
             ])}
         >

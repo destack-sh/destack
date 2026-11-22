@@ -80,11 +80,11 @@ export const resizablePanelGroupNotebookCollapsed = defineExample({
     ),
 });
 
-/** An inbox beside the open message in an 800px split, its list kept between 240 and 480 pixels. */
+/** An inbox beside the open message in an 800px split, its list between 240 and 480 pixels. */
 export const resizablePanelGroupInboxSplit = defineExample({
     of: ResizablePanelGroup,
     name: "inbox-split",
-    description: "an inbox beside the open message, its list kept between 240 and 480 pixels",
+    description: "an inbox beside the open message, its list between 240 and 480 pixels",
     layout: "padded",
     properties: {
         direction: "horizontal",

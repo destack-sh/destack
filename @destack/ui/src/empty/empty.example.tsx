@@ -30,3 +30,24 @@ export const emptyNoNotebooks = defineExample({
         </Empty>
     ),
 });
+
+/** A search that found nothing, with the action that clears it. */
+export const emptySearchNoResults = defineExample({
+    of: Empty,
+    name: "search-no-results",
+    description: "a search that found nothing, with the action that clears it",
+    render: () => (
+        <Empty>
+            <EmptyHeader>
+                <EmptyMedia variant="icon">
+                    <Icon name="magnifying-glass" />
+                </EmptyMedia>
+                <EmptyTitle>No notes match</EmptyTitle>
+                <EmptyDescription>Try another word, or clear the search.</EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+                <Button variant="outline">Clear the search</Button>
+            </EmptyContent>
+        </Empty>
+    ),
+});

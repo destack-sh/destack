@@ -1,7 +1,7 @@
 import * as style from "@destack/style";
-import { color, radius, space, stroke, weight } from "@destack/theme/tokens.stylex";
+import { color, radius, space, stroke, weight, swatch } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import { createContext, type JSX, merge, omit, useContext } from "@destack/view";
+import { type JSX, merge, omit } from "@destack/view";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
 
 /** The variant of an alert that sets none. */
@@ -43,23 +43,13 @@ const styles = style.create({
 /** The colors of each variant. */
 const variants = style.create({
     default: {
-        color: color.cardForeground,
+        color: color.foreground,
     },
     destructive: {
-        color: color.destructive,
+        borderColor: `color-mix(in oklab, ${swatch.destructiveMark} 40%, ${color.border})`,
+        color: swatch.destructiveText,
     },
 });
-
-/** The colors of each variant's description. */
-const descriptions = style.create({
-    default: {},
-    destructive: {
-        color: `color-mix(in oklab, ${color.destructive} 90%, transparent)`,
-    },
-});
-
-/** The variant of the nearest alert, which its description follows. */
-const AlertContext = createContext<() => AlertVariant>(() => "default");
 
 /** The look of an alert, by how urgent it is. */
 export type AlertVariant = "default" | "destructive";
@@ -80,18 +70,16 @@ export function Alert(properties: AlertProperties): JSX.Element {
     const rest = omit(alert, "variant", "xstyle", "style");
 
     return (
-        <AlertContext value={() => alert.variant}>
-            <div
-                data-slot="alert"
-                data-variant={alert.variant}
-                role="alert"
-                {...rest}
-                {...style.attributes(
-                    [text.sm, styles.alert, variants[alert.variant], alert.xstyle],
-                    alert.style,
-                )}
-            />
-        </AlertContext>
+        <div
+            data-slot="alert"
+            data-variant={alert.variant}
+            role="alert"
+            {...rest}
+            {...style.attributes(
+                [text.sm, styles.alert, variants[alert.variant], alert.xstyle],
+                alert.style,
+            )}
+        />
     );
 }
 
@@ -102,10 +90,5 @@ export function AlertTitle(properties: AlertElementProperties): JSX.Element {
 
 /** Render the description under an alert's title. */
 export function AlertDescription(properties: AlertElementProperties): JSX.Element {
-    const variant = useContext(AlertContext);
-
-    return renderPart("div", "alert-description", properties, () => [
-        styles.description,
-        descriptions[variant()],
-    ]);
+    return renderPart("div", "alert-description", properties, styles.description);
 }

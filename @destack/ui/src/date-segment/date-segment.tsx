@@ -1,7 +1,8 @@
+import { state } from "@destack/theme/state";
 import type { Environment } from "@destack/environment";
 import { type Localization, t } from "@destack/locale";
 import * as style from "@destack/style";
-import { color, motion, radius, shadow, size, space, stroke } from "@destack/theme/tokens.stylex";
+import { color, motion, radius, size, space, stroke } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import { For, type JSX, omit, Show, untrack, useEnvironment, useLocale } from "@destack/view";
 import { type FieldControl, useFieldControl } from "../field/control.ts";
@@ -25,12 +26,11 @@ const styles = style.create({
     box: {
         display: "inline-flex",
         alignItems: "center",
-        height: size[3],
+        height: size[2],
         paddingInline: space[3],
         borderWidth: stroke.border,
         borderColor: { default: color.input, ":focus-within": color.ring },
         borderRadius: radius[3],
-        boxShadow: shadow.inset,
         color: color.foreground,
         fontVariantNumeric: "tabular-nums",
         whiteSpace: "nowrap",
@@ -39,15 +39,7 @@ const styles = style.create({
         transitionTimingFunction: motion.easingStandard,
         outlineStyle: { default: "none", ":focus-within": "solid" },
         outlineWidth: stroke.ring,
-        outlineColor: `color-mix(in oklab, ${color.ring} 50%, transparent)`,
-    },
-    invalid: {
-        borderColor: color.destructive,
-        outlineColor: `color-mix(in oklab, ${color.destructive} 20%, transparent)`,
-    },
-    disabled: {
-        opacity: 0.5,
-        cursor: "not-allowed",
+        outlineColor: color.ring,
     },
     bare: {
         height: "auto",
@@ -61,8 +53,8 @@ const styles = style.create({
         borderRadius: radius[1],
         caretColor: "transparent",
         outlineStyle: "none",
-        backgroundColor: { default: "transparent", ":focus": color.accent },
-        color: { default: "inherit", ":focus": color.accentForeground },
+        backgroundColor: { default: "transparent", ":focus": color.selected },
+        color: { default: "inherit", ":focus": color.foreground },
     },
     placeholder: {
         color: color.mutedForeground,
@@ -86,8 +78,8 @@ export function dateSegmentBoxStyle(options: DateSegmentBoxOptions = {}): style.
     return [
         text.sm,
         styles.box,
-        options.invalid === true && styles.invalid,
-        options.disabled === true && styles.disabled,
+        options.invalid === true && state.invalid,
+        options.disabled === true && state.inert,
     ];
 }
 
@@ -102,7 +94,7 @@ export type DateSegmentKind = "year" | "month" | "day" | "hour" | "minute" | "da
 /** The values of a segmented field's segments, absent while a segment is empty. */
 export type DateSegmentValues = Partial<Readonly<Record<DateSegmentKind, number>>>;
 
-/** How a segmented field lays out, bounds, writes and names its segments in a locale. */
+/** How a segmented field lays out, bounds, writes and labels its segments in a locale. */
 export interface DateSegmentFormat {
     /** The segments and the literals between them in the locale's order. */
     readonly layout: readonly Intl.DateTimeFormatPart[];
@@ -149,7 +141,7 @@ export function isDateSegment(
 }
 
 /** The digits typed into a segmented field's focused segment. */
-class DateSegmentControl {
+export class DateSegmentControl {
     /** The group's properties, read for its format, values and change handler. */
     readonly properties: DateSegmentGroupProperties;
     /** The field the group belongs to, null outside one. */
@@ -169,7 +161,7 @@ class DateSegmentControl {
         field: FieldControl | null,
         locale: Localization,
     ) {
-        // keep the properties and field, and the segments the arrow keys move between
+        // set the properties and field, and the segments the arrow keys move between
         this.properties = properties;
         this.field = field;
         this.list = new ListState({
@@ -293,7 +285,7 @@ class DateSegmentControl {
 
 /** Render a group of spinbuttons, one per part of a date or time. */
 export function DateSegmentGroup(properties: DateSegmentGroupProperties): JSX.Element {
-    // label the group by its field's label and keep the digits typed into the focused segment
+    // label the group by its field's label and collect the digits typed into the focused segment
     const field = useFieldControl();
     const locale = useLocale();
     const control = new DateSegmentControl(properties, field, locale);
@@ -365,7 +357,7 @@ function DateSegment(properties: {
     readonly list: ListState;
     /** The part of the date or time it edits. */
     readonly kind: DateSegmentKind;
-    /** How it bounds, writes and names itself. */
+    /** How it bounds, writes and labels itself. */
     readonly format: DateSegmentFormat;
     /** The values of every segment, its own included. */
     readonly values: DateSegmentValues;
@@ -426,7 +418,7 @@ function DateSegment(properties: {
             data-segment={properties.kind}
             data-placeholder={isEmpty() ? "" : undefined}
             onKeyDown={(event) => {
-                // take the key without shortcut modifiers, keeping it from the platform
+                // take the key without shortcut modifiers, before the platform does
                 const isShortcut = event.altKey || event.ctrlKey || event.metaKey;
                 if (!isShortcut && properties.onKey(event.key)) {
                     event.preventDefault();
@@ -436,7 +428,7 @@ function DateSegment(properties: {
             onFocus={() => properties.list.focus.focusIn(kind)}
             onBlur={() => properties.onBlur()}
             onBeforeInput={(event) => {
-                // keep the text as the field writes it and type a virtual keyboard's characters as keys
+                // write the text as the field does and type a virtual keyboard's characters as keys
                 event.preventDefault();
                 for (const character of event.data ?? "") {
                     properties.onKey(character);

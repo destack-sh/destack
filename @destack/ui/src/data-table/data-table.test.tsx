@@ -184,12 +184,12 @@ test("select rows and the whole page, the header box showing a partial selection
     flush();
     expect([
         partial,
-        container.querySelectorAll("tbody tr[data-state=selected]").length,
+        container.querySelectorAll("tbody tr[data-selected]").length,
         container.querySelector("[data-slot=data-table-pagination] span")?.textContent,
     ]).toEqual(["mixed", 10, "10 of 12 rows selected"]);
 });
 
-test("move the focus between cells with the arrow keys, keeping one tab stop", () => {
+test("move the focus between cells with the arrow keys, with one tab stop", () => {
     const container = drawInvoices();
     flush();
     container.querySelector<HTMLElement>("tbody td:nth-child(2)")?.focus();

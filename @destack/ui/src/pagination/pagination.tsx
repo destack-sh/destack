@@ -92,7 +92,7 @@ export function PaginationLink(properties: PaginationLinkProperties): JSX.Elemen
             },
             "data-slot": "pagination-link",
             get "data-active"() {
-                return properties.active === true ? "true" : undefined;
+                return properties.active === true ? "" : undefined;
             },
         },
         () =>
@@ -189,7 +189,7 @@ export interface PaginationPagesProperties {
     readonly page?: number;
     /** The page current at first while uncontrolled, one by default. */
     readonly defaultPage?: number;
-    /** Handle the person choosing a page, which keeps the links from navigating. */
+    /** Handle the person choosing a page, which stops the links navigating. */
     readonly onPageChange?: (page: number) => void;
     /** The address of a page. */
     readonly href: (page: number) => string;
@@ -215,7 +215,7 @@ export function paginationEntries(
     const start = pageRange(1, Math.min(boundaries, count));
     const end = pageRange(Math.max(count - boundaries + 1, boundaries + 1), count);
 
-    // keep the current page and its siblings clear of the ends
+    // clamp the current page and its siblings away from the ends
     const first = Math.max(
         Math.min(page - siblings, count - boundaries - siblings * 2 - 1),
         boundaries + 2,

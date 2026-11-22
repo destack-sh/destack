@@ -1,14 +1,20 @@
 import { defineExample } from "@destack/package/declare";
-import { Slider, SliderRange, SliderThumb, SliderTrack } from "./slider.tsx";
+import { Slider, SliderIndicator, SliderThumb, SliderTrack } from "./slider.tsx";
 
 /** A slider that sets the font size of a note. */
 export const sliderFontSize = defineExample({
     of: Slider,
     name: "font-size",
     description: "a slider that sets the font size of a note",
-    render: () => (
-        <Slider name="size" min={12} max={24} defaultValue={[16]} aria-label="Font size" />
-    ),
+    properties: {
+        name: "size",
+        min: 12,
+        max: 24,
+        step: 1,
+        defaultValue: [16],
+        "aria-label": "Font size",
+    },
+    render: (properties) => <Slider {...properties} />,
 });
 
 /** The font size slider unavailable. */
@@ -55,7 +61,7 @@ export const sliderWorkingHours = defineExample({
     render: () => (
         <Slider name="hours" min={0} max={24} defaultValue={[9, 17]} aria-label="Working hours">
             <SliderTrack>
-                <SliderRange />
+                <SliderIndicator />
             </SliderTrack>
             <SliderThumb />
             <SliderThumb />

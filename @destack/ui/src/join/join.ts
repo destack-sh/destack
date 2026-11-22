@@ -1,11 +1,9 @@
+import type { Axis } from "../position/index.ts";
 import * as style from "@destack/style";
 import { createContext, useContext } from "@destack/view";
 
 /** The orientation of the nearest group joining its controls, undefined outside one. */
-export const JoinContext = createContext<() => JoinOrientation | undefined>(() => undefined);
-
-/** The direction a group joins its controls in. */
-export type JoinOrientation = "horizontal" | "vertical";
+export const JoinContext = createContext<() => Axis | undefined>(() => undefined);
 
 /** The corners and borders a joined control drops where it meets its neighbours, popovers aside. */
 const joined = style.create({

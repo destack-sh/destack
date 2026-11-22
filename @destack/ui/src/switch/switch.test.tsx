@@ -24,12 +24,12 @@ test("flip a switch and its thumb on click, submitting its state under its name"
     const submitted = container.querySelector("input");
 
     expect(markup(container).replace(/<input[^>]*>/u, "")).toBe(
-        '<form><button type="button" role="switch" aria-checked="true" data-slot="switch" data-state="checked"><span data-slot="switch-thumb" data-state="checked"></span></button></form>',
+        '<form><button type="button" role="switch" aria-checked="true" data-slot="switch" data-checked=""><span data-slot="switch-thumb" data-checked=""></span></button></form>',
     );
     expect([changes, submitted?.name, submitted?.checked]).toEqual([[true], "notifications", true]);
 });
 
-test("hold a controlled switch at its owner's state until the owner changes it", () => {
+test("leave a controlled switch at its owner's state until the owner changes it", () => {
     const [isOn, setOn] = createSignal(true);
     const { container } = render(() => (
         <>

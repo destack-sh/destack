@@ -13,8 +13,8 @@ test("toggle a collapsible from its summary", () => {
     container.querySelector("summary")?.click();
     flush();
     expect(markup(container)).toBe(
-        '<details data-slot="collapsible" data-state="open" open="">' +
-            '<summary data-slot="collapsible-trigger" data-state="open">3 more tags</summary>' +
-            '<div data-slot="collapsible-content" data-state="open">travel, food, family</div></details>',
+        '<details data-slot="collapsible" open="" data-open="">' +
+            '<summary data-slot="collapsible-trigger" data-panel-open="">3 more tags</summary>' +
+            '<div data-slot="collapsible-content" data-open="">travel, food, family</div></details>',
     );
 });

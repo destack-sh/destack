@@ -145,12 +145,12 @@ test("press with a pointer: start, end and complete, swallowing the click it lea
     // press, read the state, let go and let the browser click
     const { element, press, calls } = drawPress();
     pointer(element, "pointerdown", 10, 10);
-    const held = [press.isPressed(), element.dataset["pressed"]];
+    const pressed = [press.isPressed(), element.dataset["pressed"]];
     pointer(element, "pointerup", 10, 10);
     element.click();
 
-    expect({ held, released: press.isPressed(), calls }).toEqual({
-        held: [true, ""],
+    expect({ pressed, released: press.isPressed(), calls }).toEqual({
+        pressed: [true, ""],
         released: false,
         calls: ["start mouse", "end mouse", "press mouse"],
     });
@@ -673,7 +673,7 @@ test("report the key that pressed, and complete no press whose key comes up off 
     });
 });
 
-test("end a key press as command comes up, which keeps other keys' releases from the page", () => {
+test("end a key press as command comes up, which stops other keys' releases reaching the page", () => {
     const { element, press, calls } = drawPress();
     key(element, "keydown", "Enter", { metaKey: true });
     key(element, "keyup", "Meta");
@@ -728,7 +728,7 @@ test("activate a button pressed from the keyboard once, as the browser would", (
     expect(clicks).toEqual(["press", "button"]);
 });
 
-test("leave the focus where it is on a press that asks so, and keep a disabled element from activating", () => {
+test("leave the focus where it is on a press that asks so, and stop a disabled element activating", () => {
     // press with a mouse, then disable and click
     let isDisabled = false;
     const { element } = drawPress({ preventFocusOnPress: true, isDisabled: () => isDisabled });
@@ -747,13 +747,13 @@ test("stop a mouse from selecting the pressed element's text, unless the press a
     const allowing = drawPress({ allowTextSelectionOnPress: true });
     pointer(stopping.element, "pointerdown", 10, 10);
     pointer(allowing.element, "pointerdown", 10, 10, { pointerId: 2 });
-    const held = [stopping.element, allowing.element].map((element) =>
+    const pressed = [stopping.element, allowing.element].map((element) =>
         element.style.getPropertyValue("user-select"),
     );
     pointer(stopping.element, "pointerup", 10, 10);
 
-    expect({ held, released: stopping.element.style.getPropertyValue("user-select") }).toEqual({
-        held: ["none", ""],
+    expect({ pressed, released: stopping.element.style.getPropertyValue("user-select") }).toEqual({
+        pressed: ["none", ""],
         released: "",
     });
 });
@@ -808,7 +808,7 @@ test("turn a hold past the threshold long, completing no press, and leave a quic
     ]);
 });
 
-test("keep the click and the menu a long press leaves behind from acting, and focus the element", () => {
+test("stop the click and the menu a long press leaves behind from acting, and focus the element", () => {
     // hold a finger past the threshold, then let the browser send its menu and click
     const { element, clock } = drawLongPress();
     const finger = { pointerType: "touch" };

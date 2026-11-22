@@ -1,3 +1,4 @@
+import { state } from "@destack/theme/state";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
 import { color, motion, radius, size, space, stroke, weight } from "@destack/theme/tokens.stylex";
@@ -24,9 +25,6 @@ const styles = style.create({
         transitionProperty: "background-color, border-color",
         transitionDuration: motion.durationShort,
         transitionTimingFunction: motion.easingStandard,
-        outlineStyle: { default: "none", ":focus-visible": "solid" },
-        outlineWidth: stroke.ring,
-        outlineColor: `color-mix(in oklab, ${color.ring} 50%, transparent)`,
     },
     group: {
         display: "flex",
@@ -95,7 +93,7 @@ const links = style.create({
             default: "transparent",
             ":hover": {
                 default: null,
-                [media.hover]: `color-mix(in oklab, ${color.accent} 50%, transparent)`,
+                [media.hover]: color.hover,
             },
         },
     },
@@ -104,7 +102,7 @@ const links = style.create({
             default: "transparent",
             ":hover": {
                 default: null,
-                [media.hover]: `color-mix(in oklab, ${color.accent} 50%, transparent)`,
+                [media.hover]: color.hover,
             },
         },
     },
@@ -113,7 +111,7 @@ const links = style.create({
             default: `color-mix(in oklab, ${color.muted} 50%, transparent)`,
             ":hover": {
                 default: null,
-                [media.hover]: `color-mix(in oklab, ${color.accent} 50%, transparent)`,
+                [media.hover]: color.hover,
             },
         },
     },
@@ -188,6 +186,7 @@ export function itemVariants(options: ItemVariantProperties): style.Styles {
 
     return [
         text.sm,
+        state.focus,
         styles.item,
         variants[variant],
         links[variant],
@@ -197,7 +196,7 @@ export function itemVariants(options: ItemVariantProperties): style.Styles {
 
 /** Render a row of media, content and actions, listed as an entry inside a group. */
 export function Item(properties: ItemProperties): JSX.Element {
-    // list the item when a group holds it
+    // list the item in its group
     const isGrouped = useContext(ItemGroupContext);
     const item = merge(DEFAULTS, properties);
     const rest = omit(item, "variant", "size", "xstyle", "style");
@@ -210,7 +209,14 @@ export function Item(properties: ItemProperties): JSX.Element {
             role={isGrouped ? "listitem" : undefined}
             {...rest}
             {...style.attributes(
-                [text.sm, styles.item, variants[item.variant], sizes[item.size], item.xstyle],
+                [
+                    text.sm,
+                    state.focus,
+                    styles.item,
+                    variants[item.variant],
+                    sizes[item.size],
+                    item.xstyle,
+                ],
                 item.style,
             )}
         />

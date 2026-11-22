@@ -13,7 +13,7 @@ const pulse = style.keyframes({
 const styles = style.create({
     skeleton: {
         borderRadius: radius[3],
-        backgroundColor: color.accent,
+        backgroundColor: `color-mix(in oklab, ${color.foreground} 10%, transparent)`,
         animationName: pulse,
         animationDuration: `calc(4 * ${motion.durationLong})`,
         animationTimingFunction: motion.easingStandard,

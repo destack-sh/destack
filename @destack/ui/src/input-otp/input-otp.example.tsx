@@ -38,10 +38,41 @@ export const inputOTPSignInCodeInvalid = defineExample({
     of: InputOTP,
     name: "sign-in-code-invalid",
     description: "the six-digit sign-in code marked invalid",
-    render: () => (
+    properties: {
+        "aria-invalid": "true",
+    },
+    render: (properties) => (
         <Field>
             <FieldLabel>Sign-in code</FieldLabel>
-            <InputOTP maxLength={6} aria-invalid="true">
+            <InputOTP {...properties} maxLength={6}>
+                <InputOTPGroup>
+                    <InputOTPSlot index={0} />
+                    <InputOTPSlot index={1} />
+                    <InputOTPSlot index={2} />
+                </InputOTPGroup>
+                <InputOTPSeparator />
+                <InputOTPGroup>
+                    <InputOTPSlot index={3} />
+                    <InputOTPSlot index={4} />
+                    <InputOTPSlot index={5} />
+                </InputOTPGroup>
+            </InputOTP>
+        </Field>
+    ),
+});
+
+/** The six-digit sign-in code unavailable. */
+export const inputOTPSignInCodeDisabled = defineExample({
+    of: InputOTP,
+    name: "sign-in-code-disabled",
+    description: "the six-digit sign-in code unavailable",
+    properties: {
+        disabled: true,
+    },
+    render: (properties) => (
+        <Field>
+            <FieldLabel>Sign-in code</FieldLabel>
+            <InputOTP {...properties} maxLength={6}>
                 <InputOTPGroup>
                     <InputOTPSlot index={0} />
                     <InputOTPSlot index={1} />

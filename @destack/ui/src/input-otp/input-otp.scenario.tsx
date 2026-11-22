@@ -8,7 +8,7 @@ export const inputOTPFillSlots = defineScenario({
     of: InputOTP,
     interaction: viewInteraction,
     name: "fill-slots",
-    description: "show each typed digit in its slot and report the code once every slot holds one",
+    description: "show each typed digit in its slot and report the code once every slot has one",
     given: { examples: [inputOTPSignInCode] },
     parameters: {},
     when: [

@@ -125,7 +125,7 @@ export const navigationMenuTabThroughPanel = defineScenario({
     interaction: viewInteraction,
     name: "tab-through-panel",
     description:
-        "carry Tab from an open trigger into its panel and from the panel's last link on to the next trigger",
+        "move Tab from an open trigger into its panel and from the panel's last link on to the next trigger",
     given: { examples: [navigationMenuTwoPanels] },
     parameters: {},
     when: [

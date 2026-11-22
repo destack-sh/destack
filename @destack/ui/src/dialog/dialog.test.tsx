@@ -50,8 +50,8 @@ test("open a modal dialog from its trigger, named by its title and described by 
 
     // the trigger reports the open dialog it controls, and the dialog is open
     expect(markup(container)).toBe(
-        '<button data-slot="dialog-trigger" data-variant="default" data-size="default" aria-haspopup="dialog" aria-expanded="true" aria-controls="id-1">Rename</button>' +
-            '<dialog id="id-1" data-slot="dialog-content" data-state="open" closedby="any" aria-labelledby="id-2" aria-describedby="id-3" open="">' +
+        '<button data-slot="dialog-trigger" type="button" aria-haspopup="dialog" aria-expanded="true" aria-controls="id-1">Rename</button>' +
+            '<dialog id="id-1" data-slot="dialog-content" closedby="any" aria-labelledby="id-2" aria-describedby="id-3" data-open="" open="">' +
             '<h2 data-slot="dialog-title" id="id-2">Rename note</h2>' +
             '<p data-slot="dialog-description" id="id-3">Pick a new title.</p>' +
             `${CLOSE_BUTTON}</dialog>`,
@@ -118,7 +118,7 @@ test("open and close a controlled dialog with its open property", () => {
     expect(states).toEqual([false, true, false]);
 });
 
-test("open a dialog from a trigger rendered as another element, which keeps the trigger's state and behaviour", () => {
+test("open a dialog from a trigger rendered as another element, with the trigger's state and behaviour", () => {
     const { container } = render(() => (
         <Dialog>
             <DialogTrigger render={(part) => <span tabindex={0} {...part} />}>Rename</DialogTrigger>
@@ -138,7 +138,7 @@ test("open a dialog from a trigger rendered as another element, which keeps the 
 });
 
 test("open a non-modal dialog beside the page, and a modal one over it", () => {
-    // record how each dialog element opens, as the test DOM keeps no top layer
+    // record how each dialog element opens, as the test DOM has no top layer
     const opened: string[] = [];
     const prototype = HTMLDialogElement.prototype;
     const original = Object.getOwnPropertyDescriptors(prototype);

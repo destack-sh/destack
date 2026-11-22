@@ -2,11 +2,11 @@ import type { Direction } from "@destack/locale";
 import {
     type Accessor,
     createContext,
-    createControllableSignal,
     createSignal,
     type JSX,
     omit,
     onCleanup,
+    untrack,
     useContext,
     useLocale,
 } from "@destack/view";
@@ -32,7 +32,7 @@ export const AutocompleteContext = createContext<AutocompleteControl | null>(nul
 export interface AutocompleteTarget {
     /** The id of the collection's element, which the search field controls. */
     readonly id: string;
-    /** The focused key, kept virtual behind the search field's `aria-activedescendant`. */
+    /** The focused key, virtual behind the search field's `aria-activedescendant`. */
     readonly focus: Focus<string>;
     /** Report whether the arrow keys move along the search field's text, as in a vertical list. */
     readonly isVertical: boolean;
@@ -40,19 +40,22 @@ export interface AutocompleteTarget {
     readonly act: (key: string) => void;
 }
 
-/** The search of an autocomplete and how it filters. */
-export interface AutocompleteProperties {
-    /** The search, which makes it controlled. */
-    readonly search?: string | undefined;
-    /** The search at first while uncontrolled, empty by default. */
-    readonly defaultSearch?: string | undefined;
-    /** Handle each change of the search. */
-    readonly onSearchChange?: ((search: string) => void) | undefined;
-    /** Whether the collection filters its items by the search, or its owner does. */
-    readonly shouldFilter?: boolean | undefined;
-    /** Report whether an item's value or keywords match the search. */
+/** The typed text of an autocomplete, on its root as Base UI's or on its field as cmdk's. */
+export interface AutocompleteValueProperties {
+    /** The typed text, which makes it controlled. */
+    readonly value?: string | undefined;
+    /** The typed text at first while uncontrolled, empty by default. */
+    readonly defaultValue?: string | undefined;
+    /** Handle each change of the typed text. */
+    readonly onValueChange?: ((value: string) => void) | undefined;
+}
+
+/** The typed text of an autocomplete and how it filters. */
+export interface AutocompleteProperties extends AutocompleteValueProperties {
+    /** Report whether an item matches the search, null where the owner filters the items. */
     readonly filter?:
         | ((value: string, search: string, keywords: readonly string[]) => boolean)
+        | null
         | undefined;
 }
 
@@ -82,34 +85,51 @@ export interface AutocompleteInputAttributes {
 
 /** The search field driving one collection's focused key. */
 export class AutocompleteControl {
-    /** The search, controlled or the autocomplete's own. */
-    readonly search: Accessor<string>;
+    /** The typed text, controlled or the autocomplete's own. */
+    readonly value: Accessor<string>;
     /** The collection the search field drives, undefined until one mounts. */
     readonly target: Accessor<AutocompleteTarget | undefined>;
     /** The properties the autocomplete follows. */
     readonly #properties: AutocompleteProperties;
-    /** Replace the search and tell the owner. */
-    readonly #setSearch: (search: string) => void;
+    /** Replace the typed text and tell the owner. */
+    readonly #setValue: (value: string) => void;
+    /** Replace the field whose properties set the typed text in place of the root's. */
+    readonly #setField: (field: AutocompleteValueProperties | undefined) => void;
     /** Replace the collection the search field drives. */
     readonly #setTarget: (target: AutocompleteTarget | undefined) => void;
 
     /** Follow the search of an autocomplete's properties. */
     constructor(properties: AutocompleteProperties) {
-        // follow the controlled search or the autocomplete's own, without a collection yet
-        const [search, setSearch] = createControllableSignal({
-            isControlled: () => properties.search !== undefined,
-            value: () => properties.search ?? "",
-            defaultValue: properties.defaultSearch ?? "",
-            onChange: (next) => properties.onSearchChange?.(next),
+        // follow the field's or the root's controlled text, else the autocomplete's own
+        const [field, setField] = createSignal<AutocompleteValueProperties | undefined>(undefined, {
+            ownedWrite: true,
         });
+        const source = (): AutocompleteValueProperties => field() ?? properties;
+        const initial = untrack(() => properties.defaultValue);
+        const [typed, setTyped] = createSignal<string | undefined>(undefined);
+        const value = (): string =>
+            source().value ?? typed() ?? source().defaultValue ?? initial ?? "";
         const [target, setTarget] = createSignal<AutocompleteTarget | undefined>(undefined, {
             ownedWrite: true,
         });
-        this.search = search;
+        this.value = value;
         this.target = target;
         this.#properties = properties;
-        this.#setSearch = setSearch;
+        this.#setValue = (next) => {
+            // store an uncontrolled text, and tell the owner either way
+            if (source().value === undefined) {
+                setTyped(next);
+            }
+            source().onValueChange?.(next);
+        };
+        this.#setField = setField;
         this.#setTarget = setTarget;
+    }
+
+    /** Take the typed text from a field's properties until the field unmounts, as cmdk's input. */
+    follow(field: AutocompleteValueProperties): void {
+        this.#setField(field);
+        onCleanup(() => this.#setField(undefined));
     }
 
     /** Drive a collection until it unmounts. */
@@ -118,22 +138,22 @@ export class AutocompleteControl {
         onCleanup(() => this.#setTarget(undefined));
     }
 
-    /** Replace the search, focusing the first match again. */
-    type(search: string): void {
-        this.#setSearch(search);
+    /** Replace the typed text, focusing the first match again. */
+    type(value: string): void {
+        this.#setValue(value);
         this.target()?.focus.reset();
     }
 
     /** Report whether an item matches the search. */
     matches(value: string, keywords: readonly string[]): boolean {
         // show every item without a search or filtering
-        const search = this.search().trim();
-        if (this.#properties.shouldFilter === false || search === "") {
+        const search = this.value().trim();
+        const filter = this.#properties.filter;
+        if (filter === null || search === "") {
             return true;
         }
 
         // match by the owner's filter, else by the item's words
-        const filter = this.#properties.filter;
         if (filter !== undefined) {
             return filter(value, search, keywords);
         }
@@ -160,12 +180,12 @@ export class AutocompleteControl {
 
             return true;
         }
-        // keep the caret's own keys in the text unless the collection moves through them
+        // leave the caret's own keys to the text unless the collection moves through them
         else if (!MOVES.has(event.key) || (target.isVertical && isCaretKey(event.key))) {
             return false;
         }
 
-        // move the focus, keeping the key from moving the caret
+        // move the focus, stopping the key from moving the caret
         event.preventDefault();
         target.focus.move(event, direction);
 
@@ -175,7 +195,7 @@ export class AutocompleteControl {
     /** Read the attributes of the search field that drives the collection. */
     input(direction: () => Direction): AutocompleteInputAttributes {
         const target = this.target;
-        const search = this.search;
+        const value = this.value;
 
         return {
             role: "combobox",
@@ -190,7 +210,7 @@ export class AutocompleteControl {
             autocomplete: "off",
             spellcheck: false,
             get value() {
-                return search();
+                return value();
             },
             onInput: (event) => this.type(event.currentTarget.value),
             onKeyDown: (event) => this.steer(event, direction()),
