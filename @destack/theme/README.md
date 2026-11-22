@@ -25,7 +25,7 @@ Components use tokens:
 - `@destack/theme/tokens.stylex`: the neutral roles, every hue's swatch, spacing, sizes, radii, shadows and motion as StyleX constants.
 - `@destack/theme/mark`: Destack's mark as SVG markup, `MARK`.
 - `text` and `transition`: text styles and the overlays' enter and exit transitions.
-- `@destack/theme/state`: `state`, the styles of focus, hover, pressed, disabled, selected, checked and other states, the same in every component.
+- `@destack/theme/state`: `state`, the styles of focus, hover, pressed, disabled, selected, on, checked and other states, the same in every component.
 
 Declare a theme, then compute a view's custom properties in dark mode at more contrast:
 

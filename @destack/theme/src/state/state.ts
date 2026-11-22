@@ -52,6 +52,11 @@ export const state = style.create({
     selected: {
         backgroundColor: color.selected,
     },
+    /** A toggle that is on, such as a chosen view or a bold button, after Google Docs. */
+    on: {
+        backgroundColor: swatch.accentTint,
+        color: swatch.accentTintText,
+    },
     /** A place a dragged item would land on. */
     target: {
         backgroundColor: swatch.accentTint,
