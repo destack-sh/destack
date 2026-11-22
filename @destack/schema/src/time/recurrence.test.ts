@@ -116,3 +116,44 @@ test("split rules at a date: ending each the day before, and going on from it wi
         after: [{ frequency: "daily", count: 6 }, { frequency: "weekly" }],
     });
 });
+
+test("move rules with a date: its weekday, month day and month become the new date's, the others stay", () => {
+    // a Monday and Wednesday meeting, the 15th of each month, and the last day of March each year
+    const rules: RecurrenceRule[] = [
+        { frequency: "weekly", byDay: [{ day: 1 }, { day: 3 }] },
+        { frequency: "monthly", byMonthDay: [1, 15] },
+        { frequency: "yearly", byMonth: [3], byMonthDay: [-1] },
+    ];
+
+    expect([
+        Recurrence.move(rules.slice(0, 2), "2026-06-15", "2026-06-16"),
+        Recurrence.move(rules.slice(2), "2026-03-31", "2026-04-30"),
+    ]).toEqual([
+        [
+            // from Monday the 15th to Tuesday the 16th
+            { frequency: "weekly", byDay: [{ day: 2 }, { day: 3 }] },
+            { frequency: "monthly", byMonthDay: [1, 16] },
+        ],
+        // the last of March to the last of April
+        [{ frequency: "yearly", byMonth: [4], byMonthDay: [-1] }],
+    ]);
+});
+
+test("move numbered weekdays with a date to its place in the new month, counted from the same end", () => {
+    // the second Tuesday a week later, the last Friday a day earlier, and Tuesday the 14th a day on
+    const second: RecurrenceRule[] = [
+        { frequency: "monthly", byDay: [{ day: 2, nthOfPeriod: 2 }] },
+    ];
+    const last: RecurrenceRule[] = [{ frequency: "monthly", byDay: [{ day: 5, nthOfPeriod: -1 }] }];
+
+    expect([
+        Recurrence.move(second, "2026-07-14", "2026-07-21"),
+        Recurrence.move(last, "2026-07-31", "2026-07-30"),
+        Recurrence.move(second, "2026-07-14", "2026-07-15"),
+    ]).toEqual([
+        [{ frequency: "monthly", byDay: [{ day: 2, nthOfPeriod: 3 }] }],
+        [{ frequency: "monthly", byDay: [{ day: 4, nthOfPeriod: -1 }] }],
+        // july starts on a Wednesday, so the 15th is its third
+        [{ frequency: "monthly", byDay: [{ day: 3, nthOfPeriod: 3 }] }],
+    ]);
+});

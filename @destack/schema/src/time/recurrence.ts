@@ -120,7 +120,77 @@ export const Recurrence = {
 
         return { before, after };
     },
+
+    /** Move rules with a date they repeat on, taking its new weekday, month day and month. */
+    move(rules: readonly RecurrenceRule[], from: PlainDate, to: PlainDate): RecurrenceRule[] {
+        // read the date's values before and after, its month day also counted from the month's end
+        const [fromWeekday, toWeekday] = [PlainDate.dayOfWeek(from), PlainDate.dayOfWeek(to)];
+        const [fromDay, toDay] = [PlainDate.day(from), PlainDate.day(to)];
+        const fromLast = fromDay - PlainDate.daysInMonth(from) - 1;
+        const toLast = toDay - PlainDate.daysInMonth(to) - 1;
+        const [fromMonth, toMonth] = [PlainDate.month(from), PlainDate.month(to)];
+
+        // replace the old values with the new ones in each rule, the others left as they are
+        return rules.map((rule) => ({
+            ...rule,
+            ...(rule.byDay === undefined
+                ? {}
+                : {
+                      byDay: rule.byDay.map((each) => {
+                          // move the date's weekday, its place in the period counted the same way
+                          const period = periodOf(rule);
+                          const nth = each.nthOfPeriod;
+                          if (each.day !== fromWeekday) {
+                              return each;
+                          } else if (nth === undefined) {
+                              return { ...each, day: toWeekday };
+                          } else if (nth === nthOf(from, period, Math.sign(nth))) {
+                              return {
+                                  day: toWeekday,
+                                  nthOfPeriod: nthOf(to, period, Math.sign(nth)),
+                              };
+                          } else {
+                              return each;
+                          }
+                      }),
+                  }),
+            ...(rule.byMonthDay === undefined
+                ? {}
+                : {
+                      byMonthDay: rule.byMonthDay.map((day) =>
+                          day === fromDay ? toDay : day === fromLast ? toLast : day,
+                      ),
+                  }),
+            ...(rule.byMonth === undefined
+                ? {}
+                : {
+                      byMonth: rule.byMonth.map((month) => (month === fromMonth ? toMonth : month)),
+                  }),
+        }));
+    },
 };
+
+/** Read the period a rule counts its nth weekdays in: a month, or a year without months. */
+function periodOf(rule: RecurrenceRule): "month" | "year" {
+    return rule.frequency === "yearly" && rule.byMonth === undefined ? "year" : "month";
+}
+
+/** Read a date's place among its weekday's dates in its period, from the start or the end. */
+function nthOf(date: PlainDate, period: "month" | "year", sign: number): number {
+    // count the days before the date and after it within the period
+    const start =
+        period === "month"
+            ? PlainDate.with(date, { day: 1 })
+            : PlainDate.with(date, { month: 1, day: 1 });
+    const end = PlainDate.add(
+        start,
+        period === "month" ? { months: 1, days: -1 } : { years: 1, days: -1 },
+    );
+    const before = PlainDate.daysUntil(start, date);
+    const after = PlainDate.daysUntil(date, end);
+
+    return sign < 0 ? -(Math.floor(after / WEEK_DAYS) + 1) : Math.floor(before / WEEK_DAYS) + 1;
+}
 
 /** List the dates one rule repeats a first date on within a range. */
 function datesOf(
