@@ -1,4 +1,4 @@
-import { Change, type ColumnValue, type Row, Condition, Predicate, type Scalar } from "@destack/db";
+import { type ColumnValue, type Row, Condition, Predicate, type Scalar, Change } from "@destack/db";
 import { canonicalize, found, zip } from "@destack/schema";
 import type { Node } from "../query/node.ts";
 import { NOWHERE, Pipeline, type Context } from "./pipeline.ts";

@@ -1,4 +1,5 @@
-import { and, eq, inArray, type DatabaseConnection } from "@destack/db";
+import { and, eq, inArray } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { nth } from "@destack/schema";
 import { comment, page, project, tag, task, taskTag } from "../../test/fixture.ts";
 import type { Random } from "./random.ts";

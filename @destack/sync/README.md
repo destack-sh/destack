@@ -24,8 +24,9 @@ Clients keep local copies:
 Watch the open tasks of a space as commits land:
 
 ```ts
-import { type DatabaseConnection, defineTable, text } from "@destack/db";
-import { Feed } from "@destack/sync";
+import { defineTable, text } from "@destack/db";
+import { type DatabaseConnection } from "@destack/db/database";
+import { Feed } from "@destack/sync/dataflow";
 
 // define a logged table of tasks
 const task = defineTable(
@@ -101,14 +102,14 @@ Its audience is `"contained"`, `"reader"` or `"caller"`.
 
 A prediction applies queued writes over the replica, and replays them as the server's pages arrive.
 
-| Verb                           | What it does                                           |
-| ------------------------------ | ------------------------------------------------------ |
+| Verb                           | What it does                                                              |
+| ------------------------------ | ------------------------------------------------------------------------- |
 | `add(…)`                       | predicts and queues a mutation, or composes it into the latest unsent one |
-| `pending(database)`            | reads the mutations waiting for the server, in order   |
-| `send(database)`               | marks the pending mutations sent and reads them, as a push sends them |
-| `acknowledge(…)`, `reject(…)`  | records the server's outcome of a mutation             |
-| `replay(transaction, settled)` | settles what a page covers and predicts the rest again |
-| `checkout(database, branch)`   | shows a branch over the main line                      |
+| `pending(database)`            | reads the mutations waiting for the server, in order                      |
+| `send(database)`               | marks the pending mutations sent and reads them, as a push sends them     |
+| `acknowledge(…)`, `reject(…)`  | records the server's outcome of a mutation                                |
+| `replay(transaction, settled)` | settles what a page covers and predicts the rest again                    |
+| `checkout(database, branch)`   | shows a branch over the main line                                         |
 
 ### RequestId
 
@@ -122,8 +123,9 @@ A request identifier is a UUIDv7, valid for retries for a week.
 `with` includes related rows through relations, each list in its own order.
 
 ```ts
-import { type DatabaseConnection, defineRelations, defineTable, integer, text } from "@destack/db";
-import { Feed, type Query } from "@destack/sync";
+import { defineRelations, defineTable, integer, text } from "@destack/db";
+import { type DatabaseConnection } from "@destack/db/database";
+import { type Query } from "@destack/sync";
 
 // define logged projects and their ranked tasks
 const project = defineTable(

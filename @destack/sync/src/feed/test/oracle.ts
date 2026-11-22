@@ -2,7 +2,6 @@ import {
     FindOptions,
     Key,
     TABLE,
-    type DatabaseConnection,
     type Table,
     Condition,
     Namespace,
@@ -18,10 +17,10 @@ import {
     type Relation,
     Relations,
 } from "@destack/db";
-import { type Measure } from "../../query/aggregate.ts";
-import type { QuerySelection } from "../../query/query.ts";
+import type { DatabaseConnection } from "@destack/db/database";
+import type { Measure } from "../../query/aggregate.ts";
+import type { QuerySelection, Query } from "../../query/query.ts";
 import { canonicalize, nth } from "@destack/schema";
-import type { Query } from "../../query/query.ts";
 import type { ConditionAudience } from "./audience.ts";
 
 /** A level of a query the oracle evaluates: the root's rows, or a relation's rows under options. */

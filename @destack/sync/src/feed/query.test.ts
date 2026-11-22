@@ -1,7 +1,7 @@
 import { Simulation } from "@destack/environment/simulation";
 import { expect, refusal, test } from "@destack/test";
 import { nth, schema } from "@destack/schema";
-import { eq, sql, type Table, Expression, type Change, type Row } from "@destack/db";
+import { eq, sql, type Table, Expression, type Row, type Change } from "@destack/db";
 import { Feed } from "./feed.ts";
 import { EVERYONE, type Audience, ALL_ROWS, NO_ROWS } from "./audience.ts";
 import type { Page } from "../query/page.ts";

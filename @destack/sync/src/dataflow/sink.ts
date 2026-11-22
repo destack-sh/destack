@@ -1,4 +1,4 @@
-import { Key, TABLE, type Row, type Table, type LogPosition, type Scalar } from "@destack/db";
+import { Key, TABLE, type Row, type Table, type Scalar, type LogPosition } from "@destack/db";
 import { nth, zip } from "@destack/schema";
 import type { Node } from "../query/node.ts";
 import type { Page, ResultChange, RowChange } from "../query/page.ts";

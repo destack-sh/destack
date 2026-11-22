@@ -1,4 +1,5 @@
-import type { ColumnValue, DatabaseConnection, Row, Change, RelationView } from "@destack/db";
+import type { ColumnValue, Row, Change } from "@destack/db";
+import type { DatabaseConnection, RelationView } from "@destack/db/database";
 import { found, zip } from "@destack/schema";
 import type { Node } from "../query/node.ts";
 import type { Audience, Watch } from "../feed/audience.ts";

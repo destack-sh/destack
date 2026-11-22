@@ -3,7 +3,6 @@ import {
     sql,
     sum,
     TABLE,
-    type DatabaseConnection,
     type Dialect,
     max,
     min,
@@ -16,6 +15,7 @@ import {
     headFields,
     latestOf,
 } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { schema } from "@destack/schema";
 import type { Visibility, Node } from "../query/node.ts";
 import type { Aggregate, Measure } from "../query/aggregate.ts";

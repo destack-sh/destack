@@ -1,4 +1,5 @@
-import type { RowImage, Select, Transaction, Snapshot } from "@destack/db";
+import type { RowImage, Select } from "@destack/db";
+import type { Transaction, Snapshot } from "@destack/db/database";
 import { found } from "@destack/schema";
 import { SyncError } from "../error/index.ts";
 import type { ObjectReference } from "./reference.ts";

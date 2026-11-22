@@ -1,5 +1,6 @@
+import { ReplicaSet } from "./set.ts";
 import { FOLLOWER_REVISION } from "../test/index.ts";
-import { expect, Recording, refusal, test } from "@destack/test";
+import { expect, Recording, refusal, test, onTestFinished } from "@destack/test";
 import {
     asc,
     binary,
@@ -11,17 +12,15 @@ import {
     type Row,
     type Relation,
     type Table,
-    type LogPosition,
-    type DatabaseConnection,
     defineDatabase,
-    Snapshot,
-    Transaction,
+    type LogPosition,
 } from "@destack/db";
+import type { DatabaseConnection, Snapshot } from "@destack/db/database";
 import { TestDatabase } from "@destack/db/test";
-import { onTestFinished } from "@destack/test";
 import { Feed } from "../feed/feed.ts";
 import { canonicalize, nth, schema } from "@destack/schema";
-import { replicaTables, Replica, replicaPosition, replicaKey } from "./replica.ts";
+import { Replica } from "./replica.ts";
+import { replicaTables, replicaPosition, replicaKey } from "./table.ts";
 import type { Resumption } from "./publication.ts";
 import { Subject } from "../call/subject.ts";
 import { SyncError } from "../error/error.ts";
@@ -103,13 +102,13 @@ test("follow a scope of another database into a local replica, then promote its 
 
     // record the replica synced, storing the scope's notes and no other table, for no reader without a subscription
     expect([
-        await Replica.isSynced(local, "notes", "inbox"),
-        await Replica.isSynced(local, "notes", "archive"),
-        await Replica.isReplicated(Snapshot.live(local), "inbox", note),
-        await Replica.isReplicated(Snapshot.live(local), "inbox", task),
-        await Replica.scopes(local, note),
-        await Replica.scopes(local, task),
-        await Replica.scopes(local, note, "inbox", undefined),
+        await new ReplicaSet(local).isSynced("notes", "inbox"),
+        await new ReplicaSet(local).isSynced("notes", "archive"),
+        await ReplicaSet.isReplicated(local.snapshot(), "inbox", note),
+        await ReplicaSet.isReplicated(local.snapshot(), "inbox", task),
+        await new ReplicaSet(local).scopes(note),
+        await new ReplicaSet(local).scopes(task),
+        await new ReplicaSet(local).scopes(note, "inbox", undefined),
     ]).toEqual([true, false, true, false, ["inbox"], [], []]);
     await source.transaction(
         async (transaction) =>
@@ -131,13 +130,13 @@ test("follow a scope of another database into a local replica, then promote its 
     const stored = async () =>
         (await local.select({ key: replicaKey.key }).from(replicaKey)).map((row) => row.key);
     const before = await stored();
-    await Replica.release(local, note, [{ id: "a" }]);
+    await new ReplicaSet(local).release(note, [{ id: "a" }]);
     expect([before, await stored()]).toEqual([[Key.name(note, { id: "a" })], []]);
 
     // retain the rows once promoted
-    await Transaction.run(local, (transaction) => notes.promote(transaction));
+    await local.commit((transaction) => notes.promote(transaction));
     expect([
-        await Replica.isReplicated(Snapshot.live(local), "inbox"),
+        await ReplicaSet.isReplicated(local.snapshot(), "inbox"),
         (await local.select().from(note)).map((row) => row.id),
     ]).toEqual([false, ["a"]]);
 });
@@ -168,7 +167,9 @@ test("delete the rows of a table a reshaped replica stopped replicating, retaini
             { synced: () => {} },
         );
         const signal = AbortSignal.timeout(5000);
-        expect(await Replica.wait(local, "inbox", await source.log.position(), signal)).toBe(true);
+        expect(await new ReplicaSet(local).wait("inbox", await source.log.position(), signal)).toBe(
+            true,
+        );
         controller.abort();
         await simulation.wait(following);
 
@@ -275,7 +276,7 @@ test("refuse publishing a replicated table back to the database it replicates fr
         { synced: () => {} },
     );
     const signal = AbortSignal.timeout(5000);
-    expect(await Replica.wait(other, "inbox", await home.log.position(), signal)).toBe(true);
+    expect(await new ReplicaSet(other).wait("inbox", await home.log.position(), signal)).toBe(true);
     controller.abort();
     await simulation.wait(following);
 
@@ -359,8 +360,8 @@ test("replicate several scopes in one replica recorded elsewhere, storing each s
     const head = await source.log.position();
     const signal = AbortSignal.timeout(5000);
     const arrived = [
-        await Replica.wait(local, "inbox", head, signal),
-        await Replica.wait(local, "archive", head, signal),
+        await new ReplicaSet(local).wait("inbox", head, signal),
+        await new ReplicaSet(local).wait("archive", head, signal),
     ];
     controller.abort();
     await simulation.wait(following);
@@ -369,12 +370,12 @@ test("replicate several scopes in one replica recorded elsewhere, storing each s
     await simulation.jump(simulation.clock.now() + LAG);
     const silent = await Promise.all(
         [...scopes, "drafts", "universe"].map((scope) =>
-            Replica.stale(local, "notes", [scope], LAG),
+            new ReplicaSet(local).stale("notes", [scope], LAG),
         ),
     );
-    const merged = nth(await Replica.including(local, "inbox"), 0);
-    Replica.mark(local, merged, head);
-    const live = await Replica.stale(local, "notes", scopes, LAG);
+    const merged = nth(await new ReplicaSet(local).including("inbox"), 0);
+    new ReplicaSet(local).mark(merged, head);
+    const live = await new ReplicaSet(local).stale("notes", scopes, LAG);
     expect([
         arrived,
         (await local.select({ id: note.id }).from(note).orderBy(asc(note.id))).map((row) => row.id),
@@ -413,7 +414,11 @@ test("promote a replica of scope rows so the transaction promoting it finds them
         controller.signal,
         { synced: () => {} },
     );
-    await Replica.wait(local, "inbox", await source.log.position(), AbortSignal.timeout(5000));
+    await new ReplicaSet(local).wait(
+        "inbox",
+        await source.log.position(),
+        AbortSignal.timeout(5000),
+    );
     controller.abort();
     await simulation.wait(following);
 
@@ -424,15 +429,15 @@ test("promote a replica of scope rows so the transaction promoting it finds them
     };
     const copied = async (snapshot: Pick<Snapshot, "read">) => [
         (await snapshot.read(replicaKey).findFirst({ where: scopeKey })) !== undefined,
-        await Replica.isReplicated(snapshot, "inbox", Scope.table),
+        await ReplicaSet.isReplicated(snapshot, "inbox", Scope.table),
     ];
-    const before = await copied(Snapshot.live(local));
-    const within = await Transaction.run(local, async (transaction) => {
+    const before = await copied(local.snapshot());
+    const within = await local.commit(async (transaction) => {
         await inbox.promote(transaction);
 
         return copied(transaction.view());
     });
-    expect({ before, within, after: await copied(Snapshot.live(local)) }).toEqual({
+    expect({ before, within, after: await copied(local.snapshot()) }).toEqual({
         before: [true, true],
         within: [false, false],
         after: [false, false],
@@ -485,7 +490,9 @@ test("replicate a whole database: follow its logged rows, then capture every col
         { synced: () => {} },
     );
     const signal = AbortSignal.timeout(5000);
-    expect(await Replica.wait(target, "database", await source.log.position(), signal)).toBe(true);
+    expect(await new ReplicaSet(target).wait("database", await source.log.position(), signal)).toBe(
+        true,
+    );
     await source.transaction(
         async (transaction) =>
             await transaction
@@ -501,7 +508,9 @@ test("replicate a whole database: follow its logged rows, then capture every col
                 .insert(machineKey)
                 .values({ id: "k", scope: "inbox", wrapped: "source:k" }),
     );
-    expect(await Replica.wait(target, "database", await source.log.position(), signal)).toBe(true);
+    expect(await new ReplicaSet(target).wait("database", await source.log.position(), signal)).toBe(
+        true,
+    );
     controller.abort();
     await simulation.wait(following);
 
@@ -514,7 +523,7 @@ test("replicate a whole database: follow its logged rows, then capture every col
     while ((await applied.next()).done !== true) {
         // apply each captured page
     }
-    await Transaction.run(target, (transaction) => replica.promote(transaction));
+    await target.commit((transaction) => replica.promote(transaction));
 
     // store exactly the source's rows with the key rewrapped for the target
     const read = async (database: typeof source) => [
@@ -527,7 +536,7 @@ test("replicate a whole database: follow its logged rows, then capture every col
         [{ id: "c", value: "cached" }],
         [{ id: "k", scope: "inbox", wrapped: "target:k" }],
     ]);
-    expect(await Replica.isReplicated(Snapshot.live(target), "database")).toBe(false);
+    expect(await ReplicaSet.isReplicated(target.snapshot(), "database")).toBe(false);
 });
 
 test("follow and wait for each commit of one row in a fixed count of statements, registering the replica once", async () => {
@@ -557,9 +566,9 @@ test("follow and wait for each commit of one row in a fixed count of statements,
                 await transaction.insert(note).values({ ...first, id: `followed-${index}` }),
         );
         const committed = await source.log.position();
-        expect(await Replica.wait(local, notes.scope, committed, AbortSignal.timeout(5000))).toBe(
-            true,
-        );
+        expect(
+            await new ReplicaSet(local).wait(notes.scope, committed, AbortSignal.timeout(5000)),
+        ).toBe(true);
         costs.push(
             (await Recording.read(simulation.telemetry))
                 .since(before)
@@ -679,7 +688,9 @@ test("keep the position of unchanged tables, and snapshot a replica gaining tabl
         { synced: () => {} },
     );
     const signal = AbortSignal.timeout(5000);
-    expect(await Replica.wait(local, "inbox", await source.log.position(), signal)).toBe(true);
+    expect(await new ReplicaSet(local).wait("inbox", await source.log.position(), signal)).toBe(
+        true,
+    );
     controller.abort();
     await simulation.wait(following);
     const work = new Replica({ name: "work", scope: "inbox", tables: [project, task] });
@@ -908,17 +919,21 @@ test("arrive at a position only through a replica that has it", async () => {
     const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
     const epoch = "01996ab0-0000-7000-8000-000000000001";
     const confirm = () =>
-        Replica.wait(local, "inbox", { log: LOG, epoch, sequence: 5 }, AbortSignal.timeout(20));
+        new ReplicaSet(local).wait(
+            "inbox",
+            { log: LOG, epoch, sequence: 5 },
+            AbortSignal.timeout(20),
+        );
 
     // read no position of an unreplicated scope
-    expect([await Replica.isReplicated(Snapshot.live(local), "inbox"), await confirm()]).toEqual([
+    expect([await ReplicaSet.isReplicated(local.snapshot(), "inbox"), await confirm()]).toEqual([
         false,
         false,
     ]);
 
     // wait until a complete page arrives at the position
     await notes.register(local);
-    expect([await Replica.isReplicated(Snapshot.live(local), "inbox"), await confirm()]).toEqual([
+    expect([await ReplicaSet.isReplicated(local.snapshot(), "inbox"), await confirm()]).toEqual([
         true,
         false,
     ]);
@@ -971,10 +986,18 @@ test("arrive at a position through the replicas of its log, skipping a required 
 
     // arrive at the inbox's position with the other replica required, which follows another log
     const required = [{ name: "notes", scope: "elsewhere" }];
-    const including = await Replica.including(local, "inbox");
+    const including = await new ReplicaSet(local).including("inbox");
     expect([
-        await Replica.isAt(local, [...including, ...required], { log: LOG, epoch, sequence: 5 }),
-        await Replica.isAt(local, [...including, ...required], { log: LOG, epoch, sequence: 6 }),
+        await new ReplicaSet(local).isAt([...including, ...required], {
+            log: LOG,
+            epoch,
+            sequence: 5,
+        }),
+        await new ReplicaSet(local).isAt([...including, ...required], {
+            log: LOG,
+            epoch,
+            sequence: 6,
+        }),
     ]).toEqual([true, false]);
 });
 
@@ -1008,10 +1031,10 @@ test("arrive at a position of a restored log only once every replica of the log 
     // wait on the other replica behind the restore, then arrive at the position once it follows
     const required = [{ name: "notes", scope: "elsewhere" }];
     const position = { log: LOG, epoch: restored, sequence: 5 };
-    const replicas = [...(await Replica.including(local, "inbox")), ...required];
-    const behind = await Replica.isAt(local, replicas, position);
+    const replicas = [...(await new ReplicaSet(local).including("inbox")), ...required];
+    const behind = await new ReplicaSet(local).isAt(replicas, position);
     await follow(other, restored);
-    expect([behind, await Replica.isAt(local, replicas, position)]).toEqual([false, true]);
+    expect([behind, await new ReplicaSet(local).isAt(replicas, position)]).toEqual([false, true]);
 });
 
 test("stage a run's pages and apply them at once when the run completes", async () => {
@@ -1126,7 +1149,11 @@ test("nest each retained row's measures, whole or per group, in the rows a repli
         { synced: () => {} },
     );
     expect(
-        await Replica.wait(local, "inbox", await source.log.position(), AbortSignal.timeout(5000)),
+        await new ReplicaSet(local).wait(
+            "inbox",
+            await source.log.position(),
+            AbortSignal.timeout(5000),
+        ),
     ).toBe(true);
     controller.abort();
     await simulation.wait(following);
@@ -1178,7 +1205,9 @@ test("replicate a table's binary column and store nothing for a required column 
         { synced: () => {} },
     );
     const signal = AbortSignal.timeout(5000);
-    expect(await Replica.wait(local, "inbox", await source.log.position(), signal)).toBe(true);
+    expect(await new ReplicaSet(local).wait("inbox", await source.log.position(), signal)).toBe(
+        true,
+    );
     controller.abort();
     await simulation.wait(following);
 
@@ -1236,7 +1265,9 @@ test("resume a stream the source ends from the replica's position at once, repor
             await transaction.update(note).set({ title: "Renamed" }).where(eq(note.id, "a")),
     );
     const signal = AbortSignal.timeout(5000);
-    expect(await Replica.wait(local, "inbox", await source.log.position(), signal)).toBe(true);
+    expect(await new ReplicaSet(local).wait("inbox", await source.log.position(), signal)).toBe(
+        true,
+    );
     controller.abort();
     await simulation.wait(following);
 
@@ -1546,7 +1577,7 @@ test("match the rows of the replicas each reader sees by audience and target, an
             await local
                 .select({ id: note.id })
                 .from(note)
-                .where(Replica.includes(note, target, reader))
+                .where(ReplicaSet.includes(note, target, reader))
                 .orderBy(asc(note.id))
         ).map((row) => row.id);
     expect([
@@ -1641,7 +1672,7 @@ test("drop a replica: delete the rows no other replica includes and forget its r
     await Replica.drop(local, left);
     expect([
         (await local.select({ id: note.id }).from(note).orderBy(asc(note.id))).map((row) => row.id),
-        await Replica.subscriptions(Snapshot.live(local)),
+        await ReplicaSet.subscriptions(local.snapshot()),
     ]).toEqual([["shared", "z"], [inboxSubscription("right")]]);
 });
 
@@ -1688,7 +1719,9 @@ test("replicate the rows in the scopes of replicated rows, and take them out wit
     );
     const signal = AbortSignal.timeout(5000);
     const tags = async () => {
-        expect(await Replica.wait(local, "inbox", await source.log.position(), signal)).toBe(true);
+        expect(await new ReplicaSet(local).wait("inbox", await source.log.position(), signal)).toBe(
+            true,
+        );
 
         return (await local.select().from(tag).orderBy(asc(tag.id))).map((row) => [
             row.id,
@@ -1996,7 +2029,7 @@ test("keep a replica live while its pages arrive within the lag, and end a strea
         controller.signal,
         { synced: () => {}, lag: 30_000 },
     );
-    const isLive = () => Replica.isLive(local, "notes", "inbox", LAG);
+    const isLive = () => new ReplicaSet(local).isLive("notes", "inbox", LAG);
 
     // receive the snapshot, stay live through a beat inside the lag, then go silent past the lag
     await simulation.waitUntil(() => isLive());
@@ -2067,7 +2100,7 @@ async function waitsLeftAfter(end: "stop" | "failure") {
             () => "stopped",
             (error: unknown) => String(error),
         );
-    await simulation.waitUntil(() => Replica.marked(local, "notes", "inbox") !== undefined);
+    await simulation.waitUntil(() => new ReplicaSet(local).marked("notes", "inbox") !== undefined);
     if (end === "stop") {
         controller.abort();
     }
@@ -2100,7 +2133,7 @@ test("keep a replica live across its follows while its pages arrive within the l
     const local = await openReplica({ simulation });
     const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
     const epoch = "01996ab0-0000-7000-8000-000000000001";
-    const isLive = () => Replica.isLive(local, "notes", "inbox", LAG);
+    const isLive = () => new ReplicaSet(local).isLive("notes", "inbox", LAG);
 
     // follow a source that sends one page, then stop the follow
     const followOnce = async (sequence: number) => {
@@ -2120,7 +2153,7 @@ test("keep a replica live across its follows while its pages arrive within the l
             { synced: () => {}, lag: 30_000 },
         );
         await simulation.waitUntil(
-            () => Replica.marked(local, "notes", "inbox")?.position.sequence === sequence,
+            () => new ReplicaSet(local).marked("notes", "inbox")?.position.sequence === sequence,
         );
         controller.abort();
         await simulation.wait(following);
@@ -2212,8 +2245,8 @@ test("report a replica current for the request it completed a run of, and for a 
     const position = { log: LOG, epoch: "01996ab0-0000-7000-8000-000000000001", sequence: 4 };
     const snapshot: Page = { reset: true, complete: true, changes: [], position };
     const current = async () => [
-        await Replica.isCurrent(local, subscription),
-        await Replica.isCurrent(local, reshaped),
+        await new ReplicaSet(local).isCurrent(subscription),
+        await new ReplicaSet(local).isCurrent(reshaped),
     ];
 
     // report neither before the first run, then only the completed request
@@ -2257,8 +2290,7 @@ async function syncLabels(
         controller.signal,
         { synced: () => {} },
     );
-    const isSynced = await Replica.wait(
-        local,
+    const isSynced = await new ReplicaSet(local).wait(
         labels.scope,
         await source.log.position(),
         AbortSignal.timeout(5000),
@@ -2342,7 +2374,7 @@ test("drop a replica without its tables, with the rows of every table its record
     expect({
         stored: await local.select().from(unit),
         held: await local.select().from(replicaPosition),
-        isReplicated: await Replica.isReplicated(Snapshot.live(local), "inbox"),
+        isReplicated: await ReplicaSet.isReplicated(local.snapshot(), "inbox"),
     }).toEqual({
         stored: [{ id: "metre", scope: "inbox", name: "Metre" }],
         held: [],
@@ -2373,7 +2405,7 @@ function followConfirmed(
         await feed.next(position.sequence - 1, waiting);
         feed.beat();
 
-        return Replica.wait(local, replica.scope, position, waiting);
+        return new ReplicaSet(local).wait(replica.scope, position, waiting);
     };
 
     return { following, confirmed };

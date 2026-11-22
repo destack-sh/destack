@@ -1,4 +1,4 @@
-import { DatabaseError, type LogPosition, TABLE, type Table } from "@destack/db";
+import { DatabaseError, TABLE, type Table, type LogPosition } from "@destack/db";
 import type { Page, ResultChange, RowChange } from "../query/page.ts";
 import { canonicalize, type JsonObject } from "@destack/schema";
 import type { Query } from "../query/query.ts";

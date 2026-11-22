@@ -1,4 +1,4 @@
-import { Change, type ColumnValue, type Row, type Scalar } from "@destack/db";
+import { type ColumnValue, type Row, type Scalar, Change } from "@destack/db";
 import { canonicalize } from "@destack/schema";
 import type { Node } from "../query/node.ts";
 import type { Watch } from "../feed/audience.ts";

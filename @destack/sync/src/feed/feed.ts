@@ -3,16 +3,16 @@ import {
     and,
     Key,
     TABLE,
-    type DatabaseConnection,
     type Table,
     Condition,
     Order,
     DatabaseError,
+    type Row,
     describeLog,
     Change,
     LogPosition,
-    type Row,
 } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { SyncError } from "../error/error.ts";
 import type { Page, RowChange } from "../query/page.ts";
 import type { Encoding } from "../dataflow/sink.ts";

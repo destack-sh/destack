@@ -1,15 +1,15 @@
 import {
-    Change,
     Key,
     TABLE,
-    type DatabaseConnection,
     type Row,
     type Table,
     type Scalar,
     type ColumnValue,
     DatabaseError,
+    Change,
     type LogPosition,
 } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { canonicalize, nth, found, zip } from "@destack/schema";
 import { type Audience, Watch } from "../feed/audience.ts";
 import { Node } from "../query/node.ts";

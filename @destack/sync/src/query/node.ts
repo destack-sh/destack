@@ -17,16 +17,15 @@ import {
     Namespace,
     type Scalar,
     Expression,
-    describeLog,
     DatabaseError,
     sql,
     type Path,
     Relations,
+    describeLog,
 } from "@destack/db";
-import { type Aggregate, type Measure } from "./aggregate.ts";
-import type { QuerySelection } from "./query.ts";
+import type { Aggregate, Measure } from "./aggregate.ts";
+import type { QuerySelection, Query } from "./query.ts";
 import { canonicalize, type JsonValue } from "@destack/schema";
-import type { Query } from "./query.ts";
 
 /** A relation a node includes or measures: its table, path, and selection of related rows. */
 interface Include extends QuerySelection {

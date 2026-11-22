@@ -1,9 +1,11 @@
 import { Simulation } from "@destack/environment/simulation";
 import { expect, test } from "@destack/test";
-import { Key, TABLE, type DatabaseConnection, type Table } from "@destack/db";
+import { Key, TABLE, type Table } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { Feed } from "../feed.ts";
 import type { Query } from "../../query/query.ts";
-import { Replica, replicaResult } from "../../replica/replica.ts";
+import { Replica } from "../../replica/replica.ts";
+import { replicaResult } from "../../replica/table.ts";
 import {
     comment,
     open,

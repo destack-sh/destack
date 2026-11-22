@@ -3,12 +3,12 @@ import {
     type SQL,
     type Table,
     Condition,
-    Change,
-    type LogPosition,
     type Match,
     Namespace,
     Predicate,
     type Row,
+    Change,
+    type LogPosition,
 } from "@destack/db";
 import type { Query } from "../query/query.ts";
 

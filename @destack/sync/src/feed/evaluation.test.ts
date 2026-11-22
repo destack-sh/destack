@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { type Change, eq, type Row, type Table } from "@destack/db";
+import { eq, type Row, type Table, type Change } from "@destack/db";
 import { View } from "../dataflow/view.ts";
 import { first, note, open, project, START } from "../test/fixture.ts";
 import { type Affected, ALL_ROWS, type Audience, NO_ROWS, Watch } from "./audience.ts";

@@ -1,6 +1,5 @@
 import {
     and,
-    type DatabaseConnection,
     defineTable,
     eq,
     integer,
@@ -8,12 +7,13 @@ import {
     json,
     lt,
     ne,
-    LogPosition,
     or,
     type Select,
     sql,
     text,
+    LogPosition,
 } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { canonicalize, Duration, type JsonObject, JsonValue, schema } from "@destack/schema";
 import { SyncError } from "../error/index.ts";
 import { Subject } from "../call/subject.ts";

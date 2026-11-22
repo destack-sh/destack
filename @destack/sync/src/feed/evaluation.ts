@@ -4,12 +4,12 @@ import type {} from "@destack/package/import-meta";
 import {
     TABLE,
     DatabaseError,
-    Change,
     type Condition,
     Key,
-    LogPosition,
     type Row,
     type Table,
+    Change,
+    LogPosition,
 } from "@destack/db";
 import { nth, present } from "@destack/schema";
 import type { Query } from "../query/query.ts";

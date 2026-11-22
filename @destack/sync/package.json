@@ -6,6 +6,7 @@
     "description": "Synchronize database rows to subscribers and local replicas, as each commit lands.",
     "exports": {
         ".": "./src/index.ts",
+        "./dataflow": "./src/dataflow.ts",
         "./error": "./src/error/index.ts",
         "./test": "./src/test/index.ts",
         "./scenario": "./src/scenario/index.ts"

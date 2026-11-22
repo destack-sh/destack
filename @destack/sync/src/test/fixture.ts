@@ -10,14 +10,15 @@ import {
     json,
     text,
     type Database,
-    type DatabaseConnection,
     type Relation,
     Relations,
     type Table,
     uniqueIndex,
 } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { TestDatabase, type TestDatabaseOptions } from "@destack/db/test";
-import { replicaTables, type Replica } from "../replica/replica.ts";
+import type { Replica } from "../replica/replica.ts";
+import { replicaTables } from "../replica/table.ts";
 import type { Prediction } from "../prediction/prediction.ts";
 import type { Page } from "../query/page.ts";
 import { schema } from "@destack/schema";

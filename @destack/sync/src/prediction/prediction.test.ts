@@ -1,12 +1,15 @@
 import { Simulation } from "@destack/environment/simulation";
 import { expect, test } from "@destack/test";
-import { asc, eq, TABLE, type DatabaseConnection, type Table } from "@destack/db";
-import { Replica, replicaTables } from "../replica/replica.ts";
+import { asc, eq, TABLE, type Table } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
+import { Replica } from "../replica/replica.ts";
+import { replicaTables } from "../replica/table.ts";
 import type { Page } from "../query/page.ts";
 import type { Query } from "../query/query.ts";
 import { first, note, open, replicate, tag, START } from "../test/fixture.ts";
-import { type Call, type Mutation } from "../call/index.ts";
-import { mutation, Prediction, predictionTables } from "./prediction.ts";
+import type { Call, Mutation } from "../call/index.ts";
+import { Prediction } from "./prediction.ts";
+import { mutation, predictionTables } from "./table.ts";
 import { schema, found, zip } from "@destack/schema";
 import { testWorldOptions } from "@destack/test/world";
 

@@ -1,11 +1,5 @@
-import {
-    type Condition,
-    type DatabaseConnection,
-    eq,
-    Expression,
-    type LogPosition,
-    type Table,
-} from "@destack/db";
+import { type Condition, eq, Expression, type Table, type LogPosition } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import type { Given, SetStep } from "@destack/package/declare";
 import { Simulation, type SimulatedTelemetry } from "@destack/environment/simulation";
 import { type JsonValue, present } from "@destack/schema";

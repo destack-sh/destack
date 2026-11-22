@@ -3,7 +3,6 @@ import {
     and,
     Key,
     TABLE,
-    type DatabaseConnection,
     type Row,
     type ColumnValue,
     type SQL,
@@ -12,12 +11,15 @@ import {
     Condition,
     Predicate,
     type Scalar,
-    Snapshot,
     type LogPosition,
-    type WindowRead,
-    type RelationView,
-    type Rewind,
 } from "@destack/db";
+import type {
+    DatabaseConnection,
+    Snapshot,
+    WindowRead,
+    RelationView,
+    Rewind,
+} from "@destack/db/database";
 import type { Node } from "../query/node.ts";
 import type { Audience } from "../feed/audience.ts";
 import type { Encoding } from "./sink.ts";
@@ -59,12 +61,7 @@ export class View {
 
     /** Show a database as its open transaction reads it now. */
     static async latest(database: DatabaseConnection): Promise<View> {
-        return new View(
-            database,
-            await database.log.position(),
-            undefined,
-            Snapshot.live(database),
-        );
+        return new View(database, await database.log.position(), undefined, database.snapshot());
     }
 
     /** Show a database as a snapshot reads it, or as its open transaction reads it now. */

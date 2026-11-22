@@ -1,13 +1,6 @@
 import { present } from "@destack/schema";
-import {
-    Key,
-    TABLE,
-    type DatabaseConnection,
-    type Row,
-    type Table,
-    type Scalar,
-    type LogPosition,
-} from "@destack/db";
+import { Key, TABLE, type Row, type Table, type Scalar, type LogPosition } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import type { Page } from "../../query/page.ts";
 import type { Query } from "../../query/query.ts";
 import type { Replica } from "../../replica/replica.ts";

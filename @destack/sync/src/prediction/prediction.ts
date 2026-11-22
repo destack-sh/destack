@@ -1,13 +1,11 @@
+import { ReplicaSet } from "../replica/set.ts";
 import {
     and,
     asc,
     count,
-    defineTable,
     desc,
     eq,
-    integer,
     inArray,
-    json,
     gte,
     not,
     lte,
@@ -15,21 +13,17 @@ import {
     ne,
     sql,
     TABLE,
-    text,
-    textEnum,
-    type DatabaseConnection,
     type SQL,
+    Table,
     type LogPosition,
     type LogId,
     Change,
-    ChangeSet,
-    Table,
-    type RowChange,
 } from "@destack/db";
+import { type DatabaseConnection, ChangeSet, type RowChange } from "@destack/db/database";
 import { present, schema } from "@destack/schema";
-import { Replica } from "../replica/replica.ts";
 import { Failure } from "@destack/error";
 import { Call, type Mutation } from "../call/index.ts";
+import { mutation, layer, checkout, MUTATION_STATES } from "./table.ts";
 
 /** A layer's predicted rows before and after, as its JSON text has them. */
 const LayerChanges = schema.array(
@@ -46,9 +40,6 @@ const LayerChanges = schema.array(
 /** The tables a layer reads or writes, as its JSON text has them. */
 const LayerTables = schema.array(schema.string());
 
-/** The states a mutation passes through in the outbox, in order. */
-export const MUTATION_STATES = ["queued", "sent", "executed", "rejected"] as const;
-
 /** The state of a mutation, settled once its replica reflects its execution and drops it. */
 export type MutationState =
     | {
@@ -61,53 +52,6 @@ export type MutationState =
           /** The failure the server recorded. */
           readonly error: Failure;
       };
-
-/** The mutations of a client's outbox, in order. */
-export const mutation = defineTable("mutation", {
-    /** The request identifier. */
-    id: text("id").primaryKey().validate(schema.uuidv7()),
-    /** The party that queued the mutation, such as a browser tab. */
-    origin: text("origin").notNull(),
-    /** The mutation's place in the outbox. */
-    position: integer("position").notNull().unique(),
-    /** The calls. */
-    calls: json("calls", schema.array(Call)).notNull(),
-    /** The identifier of the branch the calls are pushed to, absent on the main line. */
-    branch: text("branch"),
-    /** The mutation's state; its calls change only while queued. */
-    state: textEnum("state", MUTATION_STATES).notNull().default("queued"),
-    /** The server log of the executed mutation. */
-    log: text("log"),
-    /** The server log's epoch of the executed mutation. */
-    epoch: text("epoch"),
-    /** The server log sequence of the mutation's changes. */
-    sequence: integer("sequence"),
-    /** The failure the server recorded. */
-    error: json("error", Failure),
-});
-
-/** The predictions applied over a client's replica, one row per layer in the order applied. */
-export const layer = defineTable("layer", {
-    /** The layer: a queued mutation's identifier, or the checked-out branch's. */
-    key: text("key").primaryKey(),
-    /** The layer's place in the order applied. */
-    position: integer("position").notNull().unique(),
-    /** The predicted changes, as JSON text. */
-    changes: text("changes").notNull(),
-    /** The tables the prediction reads or writes, as a JSON array of SQL names. */
-    tables: text("tables").notNull(),
-});
-
-/** The branch a client's replica shows over the main line. */
-export const checkout = defineTable("checkout", {
-    /** The one row's key. */
-    id: integer("id").primaryKey(),
-    /** The identifier of the checked-out branch. */
-    branch: text("branch").notNull(),
-});
-
-/** The tables of a client's queue and predictions. */
-export const predictionTables = [mutation, layer, checkout] as const;
 
 /** The rows branches change on the server, as the client's replica has them. */
 export interface BranchSource {
@@ -724,7 +668,7 @@ export class Prediction {
             .where(eq(layer.key, id));
         const tables =
             predicted === undefined ? [] : LayerTables.parse(JSON.parse(predicted.tables));
-        const reflections = await Replica.reflections(transaction);
+        const reflections = await new ReplicaSet(transaction).reflections();
         const reflecting = reflections.find(
             (reflection) =>
                 reflection.position.log === position.log &&
@@ -824,7 +768,7 @@ export class Prediction {
     static #pending(): SQL {
         // push a queued or sent mutation, or an executed one at an epoch no replica of its log reflects
         const isUnexecuted = inArray(mutation.state, ["queued", "sent"]);
-        const isLost = sql`${eq(mutation.state, "executed")} AND ${Replica.reflects(mutation.log)} AND NOT ${Replica.reflects(mutation.log, mutation.epoch)}`;
+        const isLost = sql`${eq(mutation.state, "executed")} AND ${ReplicaSet.reflects(mutation.log)} AND NOT ${ReplicaSet.reflects(mutation.log, mutation.epoch)}`;
 
         return sql`(${isUnexecuted} OR (${isLost}))`;
     }
