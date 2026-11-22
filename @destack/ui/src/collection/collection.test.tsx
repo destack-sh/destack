@@ -120,7 +120,7 @@ test("rerun only the readers of the keys that come or go as the sections change"
     });
 });
 
-test("hold no items while their load runs, then the loaded ones, and throw a failed load's error", async () => {
+test("list no items while their load runs, then the loaded ones, and throw a failed load's error", async () => {
     // load one collection's notes and fail another's
     const loaded = new Load(Promise.resolve(SECTIONS));
     const failed = new Load<readonly CollectionSection<Note>[]>(
@@ -187,6 +187,34 @@ test("keep the items child components add in mount order, dropping each as it un
     expect({ mounted, kept: builder.items() }).toEqual({
         mounted: ["second", "first", "third"],
         kept: ["first", "third"],
+    });
+});
+
+test("replace an earlier item of a key with the one a move remounts before the earlier unmounts", () => {
+    // add a card in one column, remount it in another before the first unmounts, then unmount the first
+    const builder = rooted(
+        () =>
+            new CollectionBuilder<{ readonly key: string; readonly column: string }>(
+                undefined,
+                (card) => card.key,
+            ),
+    );
+    const disposeTodo = rooted(() =>
+        createRoot((dispose) => {
+            builder.add({ key: "post", column: "todo" });
+
+            return dispose;
+        }),
+    );
+    rooted(() => builder.add({ key: "post", column: "doing" }));
+    flush();
+    const during = builder.items();
+    disposeTodo();
+    flush();
+
+    expect({ during, after: builder.items() }).toEqual({
+        during: [{ key: "post", column: "doing" }],
+        after: [{ key: "post", column: "doing" }],
     });
 });
 

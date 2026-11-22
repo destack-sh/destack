@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { Shortcut } from "@destack/locale";
-import { flush } from "@destack/view";
+import { createSignal, flush, For } from "@destack/view";
 import { render, stubPopovers } from "@destack/view/test";
 import type { SortableMove } from "../sortable/index.ts";
 import {
@@ -295,4 +295,53 @@ test("skip a column a card may not enter, which the drag marks as refusing it", 
         states: ["over", "refused", "idle"],
         items: [{ id: "write-the-post", container: "done", previous: undefined, next: undefined }],
     });
+});
+
+test("move a card into another column and on again, its card remounting in each column it lands in", () => {
+    // render a board whose columns re-render their cards from the moves
+    const [cards, setCards] = createSignal<Record<string, readonly string[]>>({
+        todo: ["Write the post"],
+        doing: [],
+        done: [],
+    });
+    const { container } = render(() => (
+        <Board
+            label="Launch"
+            onItemMove={(move) =>
+                setCards((lists) => {
+                    const rest = Object.fromEntries(
+                        Object.entries(lists).map(([id, list]) => [
+                            id,
+                            list.filter((card) => card !== move.id),
+                        ]),
+                    );
+
+                    return {
+                        ...rest,
+                        [move.container]: [...(rest[move.container] ?? []), move.id],
+                    };
+                })
+            }
+        >
+            <For each={["todo", "doing", "done"]}>
+                {(id) => (
+                    <BoardColumn id={id} label={id}>
+                        <BoardColumnContent>
+                            <For each={cards()[id]}>
+                                {(card) => <BoardItem id={card}>{card}</BoardItem>}
+                            </For>
+                        </BoardColumnContent>
+                    </BoardColumn>
+                )}
+            </For>
+        </Board>
+    ));
+
+    // lift it with Space, step right and drop, twice
+    for (const key of [" ", "ArrowRight", " ", " ", "ArrowRight", " "]) {
+        container.querySelector<HTMLElement>("[data-slot=board-item]")?.focus();
+        press(container, key);
+    }
+
+    expect(cards()).toEqual({ todo: [], doing: [], done: ["Write the post"] });
 });

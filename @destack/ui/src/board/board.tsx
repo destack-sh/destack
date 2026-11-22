@@ -190,7 +190,10 @@ export class BoardControl {
     constructor(properties: BoardProperties) {
         // collect cards and columns in document order and group the cards by column
         this.properties = properties;
-        this.cards = new CollectionBuilder((card) => card.element());
+        this.cards = new CollectionBuilder(
+            (card) => card.element(),
+            (card) => card.key,
+        );
         this.columns = new CollectionBuilder((column) => column.element());
         this.collection = new Collection({
             sections: () =>
