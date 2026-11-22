@@ -1,12 +1,23 @@
 import { Observation } from "@destack/object";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { type JsonValue, present, schema, Version } from "@destack/schema";
 import type { Installation } from "@destack/stack/object";
-import { expect, test } from "@destack/test";
+import { expect, onTestFinished, test } from "@destack/test";
+import { testHost } from "@destack/test/host";
 import { TerminalFixture, type TerminalInput } from "../test/terminal.ts";
 
 /** The checkout Acme publishes the notebooks package from. */
 const NOTEBOOKS = fileURLToPath(new URL("../../tests/fixture/notebooks/", import.meta.url));
+
+/** The workspace packages the notebooks package requires, which a standalone checkout links. */
+const REQUIRED = ["access", "account", "locale", "object", "package", "schema"] as const;
+
+/** The release a standalone checkout requires each Destack package at. */
+const REQUIRED_RELEASE = "2026.9.0";
+
+/** The committer of a test's checkout. */
+const GIT_IDENTITY = ["-c", "user.name=Test", "-c", "user.email=test@example.test"] as const;
 
 /** The first release of the fixture clock's month, which the registry assigns a new package. */
 const NEXT_RELEASE = "2026.10.0";
@@ -70,6 +81,60 @@ async function build(terminal: TerminalFixture, target: Installation) {
     return { source: built.source, image: built.image, state: built.state };
 }
 
+/** Lay out the notebooks package as a standalone working tree, committed or with a change. */
+async function notebooksCheckout(state: "committed" | "uncommitted"): Promise<string> {
+    // copy the package into a working tree of its own, requiring Destack's packages as releases
+    const { files, process } = testHost();
+    const root = await files.realPath(await files.makeTemporaryDirectory("destack-notebooks-"));
+    onTestFinished(() => files.remove(root, { recursive: true }));
+    const directory = join(root, "notebooks");
+    await files.mkdir(join(directory, "src"), { recursive: true });
+    for (const file of ["bunfig.toml", "destack.json", "tsconfig.json", "src/package.ts"]) {
+        await files.copyFile(join(NOTEBOOKS, file), join(directory, file));
+    }
+    const required = Object.fromEntries(
+        REQUIRED.map((name) => [`@destack/${name}`, REQUIRED_RELEASE]),
+    );
+    const manifest = {
+        name: PACKAGE.name,
+        type: "module",
+        exports: { "./package": "./src/package.ts" },
+        dependencies: required,
+    };
+    await files.writeTextFile(join(directory, "package.json"), JSON.stringify(manifest));
+    const lock = {
+        lockfileVersion: 2,
+        workspaces: { "": { name: "@acme/workspace" }, notebooks: { name: PACKAGE.name } },
+        packages: {},
+    };
+    await files.writeTextFile(join(root, "bun.lock"), JSON.stringify(lock));
+    await files.writeTextFile(join(root, ".gitignore"), "node_modules/\n");
+
+    // link each required package to the workspace's, as an install would
+    await files.mkdir(join(directory, "node_modules", "@destack"), { recursive: true });
+    for (const name of REQUIRED) {
+        const installed = dirname(
+            fileURLToPath(import.meta.resolve(`@destack/${name}/package.json`)),
+        );
+        await files.symlink(installed, join(directory, "node_modules", "@destack", name));
+    }
+
+    // commit the files, leaving a change uncommitted when asked
+    const git = (...command: readonly string[]) =>
+        process.spawn(["git", "-C", root, ...GIT_IDENTITY, ...command]).exited;
+    const codes = [
+        await git("init", "--quiet"),
+        await git("add", "--all"),
+        await git("commit", "--quiet", "-m", "notebooks"),
+    ];
+    expect(codes).toEqual([0, 0, 0]);
+    if (state === "uncommitted") {
+        await files.writeTextFile(join(directory, "src/change.ts"), "export const change = 1;\n");
+    }
+
+    return directory;
+}
+
 /** Read an installation's name, what it follows and its readiness, without its change time. */
 function readiness(target: Installation) {
     const { name, followsType, conditions } = target;
@@ -89,9 +154,10 @@ test("follow a published release's tag, then pin the installation to the release
     const words = ["organization", "create", "--name", "Acme", "--handle", "acme"];
     const organized = await terminal.printed([...words, "--residency-id", "eu"]);
 
-    // publish the checkout under latest, allowing the stack to publish, then tag its version stable
+    // publish a committed checkout under latest, allowing the stack to publish, then tag its version stable
+    const directory = await notebooksCheckout("committed");
     const published = Published.parse(
-        await json(terminal, ["publish", NOTEBOOKS, "--tag", "latest"], { stdin: "yes\n" }),
+        await json(terminal, ["publish", directory, "--tag", "latest"], { stdin: "yes\n" }),
     );
     const released = present(published.releases.at(-1), "the published checkout");
     const specifier = `${PACKAGE.name}@${released.package.version}`;
@@ -114,10 +180,15 @@ test("follow a published release's tag, then pin the installation to the release
 
     // run the one release, following stable and then pinned, on the build publishing made
     const builds = [await build(terminal, converged), await build(terminal, settled)];
-    const checkout = present(builds[0], "the followed build").source["checkout"];
-    const directory = "@destack/cli/tests/fixture/notebooks";
+    const followed = present(builds[0], "the followed build").source;
     const machine = terminal.computer.machine.id;
-    const source = { kind: "checkout", checkout, directory, machine };
+    const source = {
+        kind: "checkout",
+        checkout: followed["checkout"],
+        directory: "notebooks",
+        machine,
+        commit: followed["commit"],
+    };
     const ready = {
         status: "true",
         observedGeneration: 1,
@@ -149,16 +220,33 @@ test("follow a published release's tag, then pin the installation to the release
     });
 });
 
-test("publish a checkout at the registry's next release, whatever its package file says", async () => {
+test("publish a committed checkout at the registry's next release, whatever its package file says, and refuse uncommitted changes", async () => {
     // create the acme organization as the owner
     const terminal = await TerminalFixture.open({ NO_COLOR: "1" });
     const words = ["organization", "create", "--name", "Acme", "--handle", "acme"];
     await terminal.printed([...words, "--residency-id", "eu"]);
 
-    // publish the checkout, allowing the stack to publish with --yes
-    const published = Published.parse(await json(terminal, ["publish", NOTEBOOKS, "--yes"]));
+    // publish a committed checkout, allowing the stack to publish with --yes, then one with uncommitted changes
+    const committed = await notebooksCheckout("committed");
+    const published = Published.parse(await json(terminal, ["publish", committed, "--yes"]));
     const { version } = present(published.releases.at(-1), "the published checkout").package;
+    const uncommitted = await notebooksCheckout("uncommitted");
+    const refused = await terminal.printed(["--space", "home", "publish", uncommitted, "--yes"]);
 
-    // release at the month's first, or lead a dev build of uncommitted source to it
-    expect([PACKAGE.version, Version.release(version)]).toEqual(["2026.11.0", NEXT_RELEASE]);
+    // release at the month's first, and refuse the uncommitted changes
+    expect({
+        released: [PACKAGE.version, version],
+        refused: [
+            refused.code,
+            refused.output,
+            refused.error.replace(/build-[0-9a-f-]{36}/u, "<build>"),
+        ],
+    }).toEqual({
+        released: ["2026.11.0", NEXT_RELEASE],
+        refused: [
+            1,
+            "Preparing\nBuilding\nStoring\nBuild succeeded\n",
+            "error  cannot publish build '<build>': it has uncommitted changes, commit them first\n",
+        ],
+    });
 });

@@ -11,7 +11,7 @@ import { TerminalFixture } from "../test/terminal.ts";
 /** The checkout the owner builds and previews the notebooks package from. */
 const NOTEBOOKS = fileURLToPath(new URL("../../tests/fixture/notebooks/", import.meta.url));
 
-/** A second, the step of a dev build's time, after which a build orders after an earlier one. */
+/** A second, which the second preview of a checkout waits after the first. */
 const SECOND = 1000;
 
 /** The directory of the fixtures, where a test lays out a checkout that resolves the workspace. */
@@ -168,16 +168,13 @@ test("refuse a preview whose setting takes fewer values without a conversion, wi
     await files.writeTextFile(setting, languageSetting(["en", "de"]));
     const second = await terminal.printed(["--space", "home", "dev", directory]);
 
-    // refuse the second preview with the setting's problem, which the machine captured, its dev build's version aside
-    const version = /9999\.12\.0-dev\.\d{14}\.[0-9a-f]{12}/gu;
-    const problem =
-        "cannot upgrade installation 'notebooks' to '<version>': setting/language: declare a conversion for <version>";
-    const captured = terminal.computer.world.telemetry
-        .take()
-        .map((exception) => exception.message.replaceAll(version, "<version>"));
+    // refuse the second preview with the setting's problem, which the machine captured, at the checkout's dev build version
+    const version = Version.dev(Version.development);
+    const problem = `cannot upgrade installation 'notebooks' to '${version}': setting/language: declare a conversion for ${version}`;
+    const captured = terminal.computer.world.telemetry.take().map((exception) => exception.message);
     expect({
         first: [first.code, first.error],
-        second: [second.code, second.output, second.error.replaceAll(version, "<version>")],
+        second: [second.code, second.output, second.error],
         captured: [...new Set(captured)],
     }).toEqual({
         first: [0, ""],
