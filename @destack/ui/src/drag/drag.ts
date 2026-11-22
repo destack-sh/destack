@@ -405,12 +405,13 @@ export class DragManager {
         const under = this.#measured.find((each) => contains(each.bounds, x, y));
         const target = under?.droppable.targetAt(x, y, next);
 
-        // take the target where the pointer pressed, before its first step, as where it took the item
+        // take the target at the press, before any travel, as where the drag took the item
         const [pressX, pressY] = [x - offsetX, y - offsetY];
         const pressed = this.#measured.find((each) => contains(each.bounds, pressX, pressY));
         const isFirst = operation.offsetX === 0 && operation.offsetY === 0;
+        const still = { ...next, offsetX: 0, offsetY: 0 };
         const grab =
-            (isFirst ? pressed?.droppable.targetAt(pressX, pressY, next) : undefined) ??
+            (isFirst ? pressed?.droppable.targetAt(pressX, pressY, still) : undefined) ??
             operation.grab;
         const moved = { ...next, grab, target };
         this.#set(moved);
