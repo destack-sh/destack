@@ -99,12 +99,12 @@ export function serveDistributions(host: DistributionHost | undefined) {
                 : [
                       {
                           name: "stage",
-                          pending: { checkedAt: { isNull: true } },
+                          when: { checkedAt: { isNull: true } },
                           reconcile: stage,
                       },
                       {
                           name: "daily",
-                          pending: {
+                          when: {
                               checkedAt: {
                                   lte: now.minus({ milliseconds: STAGE_INTERVAL_MILLISECONDS }),
                               },
