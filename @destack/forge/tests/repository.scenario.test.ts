@@ -1,7 +1,7 @@
 import { FOLLOWER_REVISION } from "@destack/sync/test";
 import forgePackage from "../src/package.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { and, eq, inArray, isNull, Snapshot } from "@destack/db";
+import { and, eq, inArray, isNull } from "@destack/db";
 import { secret } from "@destack/vault/object";
 import { RequestId, Scope } from "@destack/sync";
 import { principal } from "@destack/access";
@@ -670,7 +670,7 @@ async function held(
     names: readonly string[],
 ): Promise<string[]> {
     const keys = names.map((name) => Claim.key(repository, "name", [accountId, name]).key);
-    const claims = Snapshot.live(forge.home.universe.storage.database).read(claimTable);
+    const claims = forge.home.universe.storage.database.snapshot().read(claimTable);
     const taken = await Claim.claimed(claims, {
         index: Claim.index(repository, "name"),
         keys,
@@ -685,9 +685,7 @@ async function claimed(
     accountId: string,
     names: readonly string[],
 ): Promise<Record<string, string>> {
-    const claims = ClaimLookup.of(
-        Snapshot.live(forge.home.universe.storage.database).read(claimTable),
-    );
+    const claims = ClaimLookup.of(forge.home.universe.storage.database.snapshot().read(claimTable));
     const owners = await Promise.all(
         names.map(async (name) => {
             const owner = await Claim.lookup(repository, claims, "name", [accountId, name]);

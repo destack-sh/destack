@@ -2,10 +2,9 @@ import registryPackage from "@destack/registry/package";
 import { fileURLToPath } from "node:url";
 import forgePackage from "../src/package.ts";
 import { History } from "@destack/git/test";
-import { FORGE_WORLD_OPTIONS } from "../src/test/index.ts";
-import { FOLLOW_TEMPLATE } from "../src/test/index.ts";
+import { FORGE_WORLD_OPTIONS, FOLLOW_TEMPLATE } from "../src/test/index.ts";
 import { PackageId } from "@destack/package";
-import { type DatabaseConnection, Snapshot } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { reference, referenceShape } from "@destack/registry/object";
 import { Commit, present, schema } from "@destack/schema";
 import { ObjectReference, RequestId } from "@destack/sync";
@@ -171,7 +170,7 @@ test("request one replica of the references a space's installations follow", asy
 
     // request one replica of each followed reference
     const requests = await present(store.subscriber, "the subscriber").subscriptions(
-        Snapshot.live(store.database),
+        store.database.snapshot(),
     );
     const keys = [await follows(), await follows("refs/tags/v1")].map(({ id }) => ({ id }));
     expect(

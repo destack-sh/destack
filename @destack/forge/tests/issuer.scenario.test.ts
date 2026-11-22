@@ -1,8 +1,8 @@
-import { accessRelationship, principal } from "@destack/access";
+import { principal, accessRelationship } from "@destack/access";
 import { Residency, type ResidencyCode } from "@destack/account/object";
 import accountPackage from "@destack/account/package";
 import { Issuer } from "@destack/connection/object";
-import { eq, Snapshot } from "@destack/db";
+import { eq } from "@destack/db";
 import { Identifier } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { expect, refusal, test } from "@destack/test";
@@ -29,7 +29,7 @@ test("issue a claimed installation's tokens through the residency's GitHub issue
         .from(accessRelationship)
         .where(eq(accessRelationship.objectType, issuer.name));
     const id = await Issuer.declared({ id: forge.space }, "github", forge.environment.crypto);
-    const eu = await Residency.require(Snapshot.live(forge.home.universe.storage.database), "eu");
+    const eu = await Residency.require(forge.home.universe.storage.database.snapshot(), "eu");
 
     // declare the issuer at the id its home and declaration name derive, related to the residency
     expect({ issuers, related }).toEqual({

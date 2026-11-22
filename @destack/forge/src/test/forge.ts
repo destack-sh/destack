@@ -1,4 +1,9 @@
-import { BuildLayer } from "@destack/package/manifest";
+import {
+    BuildLayer,
+    type BuildReader,
+    BuildImage,
+    PackageManifest,
+} from "@destack/package/manifest";
 import { install } from "@destack/stack/declare";
 import { Account, account, type ResidencyCode } from "@destack/account/object";
 import { principal } from "@destack/access";
@@ -11,7 +16,7 @@ import type { TestPerson } from "@destack/account/test";
 import { RemoteBuildStore, BuildStore } from "@destack/build/store";
 import { TestBuildStore } from "@destack/build/test";
 import { Forge } from "../server/forge.ts";
-import { Snapshot, type Select } from "@destack/db";
+import type { Select } from "@destack/db";
 import type { Environment } from "@destack/environment";
 import type { Simulation } from "@destack/environment/simulation";
 import { ClaimLookup, claimTable, type MethodInput } from "@destack/object";
@@ -19,7 +24,6 @@ import { createClient } from "@destack/object/client";
 import registryPackage from "@destack/registry/package";
 import objectPackage from "@destack/object/package";
 import { PackageVersion, PackageName, type PackageId, type PackageRelease } from "@destack/package";
-import { type BuildReader, BuildImage, PackageManifest } from "@destack/package/manifest";
 import { type Digest, Identifier, present, schema } from "@destack/schema";
 import { join } from "node:path";
 import { installationRevision } from "@destack/stack/object";
@@ -274,7 +278,8 @@ export class TestForge {
             "github-webhook": WEBHOOK_SECRET,
         };
         for (const [name, value] of Object.entries(values)) {
-            const row = await Snapshot.live(home.database)
+            const row = await home.database
+                .snapshot()
                 .read(secret.table)
                 .findFirst({ where: { name } });
             const { id } = present(row, `the platform secret ${name}`);
@@ -340,7 +345,8 @@ export class TestForge {
 
     /** Read the forge's installation from its revision's binding of the repository storage. */
     static async #installation(home: TestSpace): Promise<Identifier<"installation">> {
-        const revisions = await Snapshot.live(home.database)
+        const revisions = await home.database
+            .snapshot()
             .read(installationRevision.table)
             .findMany({});
         const bound = revisions.find((revision) =>
@@ -688,7 +694,8 @@ export class TestForge {
     /** Open the forge's platform repositories as its bound Git storage keeps them. */
     async storage(): Promise<LocalGitStorage> {
         // take the target its revisions bind the repository storage to
-        const revisions = await Snapshot.live(this.home.database)
+        const revisions = await this.home.database
+            .snapshot()
             .read(installationRevision.table)
             .findMany({ where: { installationId: this.installation } });
         const bound = revisions.flatMap((revision) => revision.bindings);
@@ -702,7 +709,7 @@ export class TestForge {
 
     /** Look up the universe's names, such as the claims of packages' identities. */
     get claims(): ClaimLookup {
-        return ClaimLookup.of(Snapshot.live(this.home.universe.storage.database).read(claimTable));
+        return ClaimLookup.of(this.home.universe.storage.database.snapshot().read(claimTable));
     }
 
     /** The simulation running the forge's world. */

@@ -1,5 +1,5 @@
 import { auditedCalls } from "@destack/object/test";
-import type { TestPerson } from "@destack/account/test";
+import { type TestPerson, OPERATOR_EMAIL } from "@destack/account/test";
 import { ACCOUNT_ID, TEST_COMMIT, TestForge } from "../src/test/index.ts";
 import { expect, refusal, test } from "@destack/test";
 import { Digest, found, Identifier, present, Version } from "@destack/schema";
@@ -15,8 +15,6 @@ import { fixtureBuild } from "./fixture/build.ts";
 import { UNRELEASED_VERSION } from "./fixture/package.ts";
 import { Claim } from "@destack/object";
 import { Account, account } from "@destack/account/object";
-import { OPERATOR_EMAIL } from "@destack/account/test";
-import { Snapshot } from "@destack/db";
 
 /** Read the code a refused call fails with, or accepted. */
 async function code(attempt: Promise<unknown>): Promise<string> {
@@ -805,7 +803,8 @@ test("publish builtins under the platform's account alone", async () => {
     const forge = await TestForge.open();
     const { crypto } = forge.environment;
     const platformId = Account.ofHome(forge.space);
-    const platformAccount = await Snapshot.live(forge.home.database)
+    const platformAccount = await forge.home.database
+        .snapshot()
         .read(account.table)
         .findFirst({ where: { id: platformId } });
     const platformHandle = present(platformAccount, "the platform account").handle;

@@ -1,13 +1,11 @@
-import { type Select, Snapshot } from "@destack/db";
-import { BATCH_LIMIT, type MethodContextOf } from "@destack/object";
+import type { Select } from "@destack/db";
+import { BATCH_LIMIT, type MethodContextOf, type Fetch } from "@destack/object";
 import { connection } from "@destack/connection";
 import { present } from "@destack/schema";
 import type { Runner } from "@destack/connection/server";
-import type { Lease, LeaseMode } from "@destack/resource";
-import type { Fetch } from "@destack/object";
+import { type Lease, type LeaseMode, SecretReading } from "@destack/resource";
 import { ForgeError } from "../error/index.ts";
 
-import { SecretReading } from "@destack/resource";
 import { secret, vault } from "@destack/vault/object";
 import { type Call, ObjectReference } from "@destack/sync";
 import type { GitHubHosting } from "../github/index.ts";
@@ -177,7 +175,7 @@ export function implementRepository(hosting: RepositoryHosting): typeof reposito
                           reconcile: async (reconciliation) => {
                               for (const row of reconciliation.rows) {
                                   // identify the repository once its connection's replica names an installation
-                                  const reader = Snapshot.live(reconciliation.database);
+                                  const reader = reconciliation.database.snapshot();
                                   const connectionId = present(
                                       row.connectionId,
                                       `the connection of GitHub repository ${row.id}`,

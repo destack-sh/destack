@@ -1,4 +1,4 @@
-import type { DatabaseConnection } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { type BuildReader, BuildImage, PackageManifest } from "@destack/package/manifest";
 import type { Environment } from "@destack/environment";
 import { Digest, Identifier } from "@destack/schema";

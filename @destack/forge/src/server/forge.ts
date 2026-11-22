@@ -3,9 +3,11 @@ import { connectionShape, Runner } from "@destack/connection/server";
 import { BuildStore } from "@destack/build/store";
 import type { BuildLayer } from "@destack/package/manifest";
 import type { Environment } from "@destack/environment";
-import { type BlobStore, inArray, type Select, Snapshot, TABLE, Transaction } from "@destack/db";
+import { inArray, type Select, TABLE } from "@destack/db";
+import { type BlobStore, type Snapshot, Transaction } from "@destack/db/database";
 import { Lease } from "@destack/resource";
-import { Directory, UniverseOrigin } from "@destack/account/address";
+import { UniverseOrigin } from "@destack/account/address";
+import { Directory } from "@destack/account/client";
 import { Account, account, claimShape, spaceRecordShape } from "@destack/account/object";
 import {
     Claim,
@@ -374,7 +376,7 @@ export class Forge {
         objects: ObjectStore,
     ): Promise<ObjectReference> {
         // read the package as the caller, concealing a refusal
-        const view = Snapshot.live(objects.database);
+        const view = objects.database.snapshot();
         const reader: ClaimReader = {
             acquire: (follow, at) => objects.acquire(follow, at, context.signal),
             read: (table) => view.read(table),
@@ -438,7 +440,7 @@ export class Forge {
         }
 
         // find the package of the name, and read it as the caller, concealing each refusal
-        const snapshot = Snapshot.live(objects.database);
+        const snapshot = objects.database.snapshot();
         const reader: ClaimReader = {
             acquire: (follow, at) => objects.acquire(follow, at),
             read: (table) => snapshot.read(table),
@@ -513,7 +515,7 @@ export class Forge {
         }
 
         // find the repository, and open it as the caller, concealing each refusal
-        const snapshot = Snapshot.live(objects.database);
+        const snapshot = objects.database.snapshot();
         const reader: ClaimReader = {
             acquire: (follow, at) => objects.acquire(follow, at, context.signal),
             read: (table) => snapshot.read(table),
@@ -588,7 +590,7 @@ export class Forge {
     ): Promise<boolean> {
         // find the account claiming the handle
         const keyed = Claim.key(account, "handle", [handle]);
-        const snapshot = Snapshot.live(objects.database);
+        const snapshot = objects.database.snapshot();
         const reader: ClaimReader = {
             acquire: (follow, at) => objects.acquire(follow, at),
             read: (table) => snapshot.read(table),
