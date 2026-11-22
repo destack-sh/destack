@@ -117,13 +117,19 @@ export class TriggerServer<Input> {
                     )
                     .map((declared) => ({
                         name: `start.${declared.name}`,
-                        pending: {
+                        when: {
                             state: "active" as const,
                             kind: "change" as const,
                             name: declared.name,
                         },
-                        key: ["name" as const],
-                        watches: [{ table: TriggerServer.#table(declared), isListing: true }],
+                        by: ["name" as const],
+                        reads: [
+                            {
+                                table: TriggerServer.#table(declared),
+                                fields: Object.keys(TriggerServer.#table(declared)[TABLE].logged),
+                                isListing: true,
+                            },
+                        ],
                         reconcile: async (reconciliation: ObjectReconciliation<typeof trigger>) => {
                             await this.#follow(reconciliation.store, declared);
                         },
@@ -131,7 +137,7 @@ export class TriggerServer<Input> {
                 {
                     name: "fire",
                     // fire a schedule once declared and each time its next occurrence comes due
-                    pending: {
+                    when: {
                         state: "active",
                         kind: "schedule",
                         OR: [

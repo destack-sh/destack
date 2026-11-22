@@ -1,6 +1,6 @@
 import { none, relation, through } from "@destack/access";
 import { space } from "@destack/account/object";
-import { Condition, now } from "@destack/db";
+import { Condition, now, TABLE } from "@destack/db";
 import {
     defineObject,
     field,
@@ -271,9 +271,10 @@ export function defineWorkflow<
                         {
                             // advance a pending run, and a waiting one once a type it waits for changes
                             name: "advance",
-                            pending: { state: { in: ["pending", "waiting"] } },
-                            watches: waits.map((type) => ({
+                            when: { state: { in: ["pending", "waiting"] } },
+                            reads: waits.map((type) => ({
                                 table: type.table,
+                                fields: Object.keys(type.table[TABLE].logged),
                                 matches: {
                                     column: "waitCondition",
                                     where: {
@@ -287,7 +288,7 @@ export function defineWorkflow<
                         {
                             // wake a run once its sleep, retry, limit or deadline comes, which its controller then advances
                             name: "wake",
-                            pending: {
+                            when: {
                                 state: { in: ["pending", "waiting"] },
                                 wakeAt: { lte: now },
                             },
