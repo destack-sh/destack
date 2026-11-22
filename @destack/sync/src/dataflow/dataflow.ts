@@ -44,6 +44,18 @@ export class Dataflow implements Arrangement {
     readonly nodes: readonly Node[];
     /** What the subscriber has. */
     readonly sink: Sink;
+    /** Describe queries canonically, as a dataflow of them names them. */
+    static describe(queries: Readonly<Record<string, Query>>): string {
+        return Dataflow.#described(
+            Object.entries(queries).map(([name, query]) => new Node(name, query, query.scopes)),
+        );
+    }
+
+    /** Describe query trees canonically. */
+    static #described(roots: readonly Node[]): string {
+        return canonicalize(roots.map((root) => [root.name, Dataflow.#describe(root)]));
+    }
+
     /** The current log position, absent before the first hydration. */
     #position: LogPosition | undefined;
     /** What the pipelines share. */
@@ -110,9 +122,7 @@ export class Dataflow implements Arrangement {
         this.roots = Object.entries(queries).map(
             ([name, query]) => new Node(name, query, query.scopes),
         );
-        this.#queries = canonicalize(
-            this.roots.map((root) => [root.name, Dataflow.#describe(root)]),
-        );
+        this.#queries = Dataflow.#described(this.roots);
         this.#capacity = options.capacity;
         this.nodes = this.roots.flatMap((root) => root.nodes());
         this.#trace = upstream === undefined ? undefined : new Trace(upstream);

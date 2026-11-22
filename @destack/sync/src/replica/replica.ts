@@ -27,6 +27,8 @@ import {
     type Dialect,
     type SQL,
     type SQLWrapper,
+    Statement,
+    listed,
     Condition,
     Namespace,
     Predicate,
@@ -68,6 +70,18 @@ import { Trace, type Group, type Upstream } from "../dataflow/upstream.ts";
 import { View } from "../dataflow/view.ts";
 import { scopeTable } from "../scope/table.ts";
 import { RetryPolicy, Telemetry, untilAborted } from "@destack/environment";
+
+/** A calling principal's fields as values or bound operands. */
+interface SubjectOperands {
+    /** The principal's package. */
+    readonly packageId: Subject["packageId"] | SQLWrapper;
+    /** The principal's type. */
+    readonly type: string | SQLWrapper;
+    /** The principal's scope. */
+    readonly scope: string | SQLWrapper;
+    /** The principal's identifier. */
+    readonly id: string | SQLWrapper;
+}
 
 /** The staged pages a run's completion reads at once. */
 const STAGED_BATCH = 16;
@@ -616,32 +630,21 @@ export class Replica {
         target: string,
         caller: Subject | undefined,
     ): Promise<ReadonlySet<string>> {
-        const included = await database
-            .select({ key: replicaKey.key })
-            .from(replicaKey)
-            .innerJoin(
-                replicaSubscription,
-                and(
-                    eq(replicaSubscription.name, replicaKey.name),
-                    eq(replicaSubscription.scope, replicaKey.scope),
-                ),
-            )
-            .where(
-                and(
-                    eq(replicaKey.table, table[TABLE].sqlName),
-                    inArray(
-                        replicaKey.key,
-                        rows.map((row) => Key.name(table, row)),
-                    ),
-                    Replica.#seen(target, caller),
-                ),
-            );
+        const values = {
+            table: table[TABLE].sqlName,
+            keys: JSON.stringify(rows.map((row) => Key.name(table, row))),
+            target,
+            ...Replica.#subject(caller),
+        };
+        const included = await (
+            caller === undefined ? REPLICA_KEYS.readers : REPLICA_KEYS.callers
+        ).select(database, values);
 
         return new Set(included.map((row) => row.key));
     }
 
     /** Match the replicas a reader of a scope sees: decided for its readers, or the caller. */
-    static #seen(target: string, caller: Subject | undefined): SQL {
+    static #seen(target: string | SQLWrapper, caller: SubjectOperands | undefined): SQL {
         // match the replicas decided for the scope's readers, and those decided for the calling principal anywhere
         const isTarget = eq(replicaSubscription.target, target);
         const isReader = and(isTarget, eq(replicaSubscription.audience, "reader"));
@@ -657,6 +660,33 @@ export class Replica {
                   );
 
         return or(isReader, isCaller);
+    }
+
+    /** Bind a calling principal's fields by name, none for a reader alone. */
+    static #subject(caller: Subject | undefined): Readonly<Record<string, string>> {
+        return caller === undefined
+            ? {}
+            : {
+                  packageId: caller.packageId,
+                  type: caller.type,
+                  scope: caller.scope,
+                  id: caller.id,
+              };
+    }
+
+    /** Match the replicas a reader or a calling principal sees, its operands bound by name. */
+    static seen(value: (name: string) => SQLWrapper, isCaller: boolean): SQL {
+        return Replica.#seen(
+            value("target"),
+            isCaller
+                ? {
+                      packageId: value("packageId"),
+                      type: value("type"),
+                      scope: value("scope"),
+                      id: value("id"),
+                  }
+                : undefined,
+        );
     }
 
     /** Take rows a database pruned out of every replica including them. */
@@ -693,41 +723,24 @@ export class Replica {
         }
 
         // read what every replica stores, or those a reader sees by their subscriptions
-        const stored = {
-            name: replicaScope.name,
-            scope: replicaScope.scope,
-            table: replicaScope.table,
-            living: replicaScope.living,
-        };
+        const [target, caller] = reader;
         const rows =
-            reader.length === 0
-                ? await database
-                      .select(stored)
-                      .from(replicaScope)
-                      .orderBy(...Object.values(stored))
-                : await database
-                      .select(stored)
-                      .from(replicaScope)
-                      .innerJoin(
-                          replicaSubscription,
-                          and(
-                              eq(replicaSubscription.name, replicaScope.name),
-                              eq(replicaSubscription.scope, replicaScope.scope),
-                          ),
-                      )
-                      .where(Replica.#seen(...reader))
-                      .orderBy(...Object.values(stored));
+            target === undefined
+                ? await REPLICA_TABLES.every.select(database)
+                : await (
+                      caller === undefined ? REPLICA_TABLES.readers : REPLICA_TABLES.callers
+                  ).select(database, { target, ...Replica.#subject(caller) });
 
         // list each replica's tables by the scopes their rows live in
-        const listed = new Map<string, { scope: string; tables: string[] }>();
+        const byReplica = new Map<string, { scope: string; tables: string[] }>();
         for (const row of rows) {
             const key = `${row.name} ${row.scope} ${row.living}`;
-            const entry = listed.get(key) ?? { scope: row.living, tables: [] };
+            const entry = byReplica.get(key) ?? { scope: row.living, tables: [] };
             entry.tables.push(row.table);
-            listed.set(key, entry);
+            byReplica.set(key, entry);
         }
 
-        return [...listed.values()];
+        return [...byReplica.values()];
     }
 
     /** List the scopes whose rows of a table the replicas have, or those a reader sees. */
@@ -1198,14 +1211,9 @@ export class Replica {
         return `replica/${name}/${scope}`;
     }
 
-    /** Read the records of the replicas including some scopes, once per scope and replica. */
-    static async #recordsIncluding(
-        database: DatabaseConnection,
-        scopes: readonly string[],
-    ): Promise<{ readonly scope: string; readonly record: ReplicaRecord }[]> {
-        // read every replica with the scopes' rows it includes, a database having a few replicas
-        const keys = new Map(scopes.map((scope) => [Key.name(scopeTable, { scope }), scope]));
-        const rows = await database
+    /** The read of every replica with the rows of some scopes it includes. */
+    static readonly #including = new Statement((value, database) =>
+        database
             .select({
                 replica,
                 replica_position: replicaPosition,
@@ -1222,9 +1230,21 @@ export class Replica {
                     eq(replicaKey.name, replica.name),
                     eq(replicaKey.scope, replica.scope),
                     eq(replicaKey.table, scopeTable[TABLE].sqlName),
-                    inArray(replicaKey.key, [...keys.keys()]),
+                    listed(replicaKey.key, value("keys")),
                 ),
-            );
+            ),
+    );
+
+    /** Read the records of the replicas including some scopes, once per scope and replica. */
+    static async #recordsIncluding(
+        database: DatabaseConnection,
+        scopes: readonly string[],
+    ): Promise<{ readonly scope: string; readonly record: ReplicaRecord }[]> {
+        // read every replica with the scopes' rows it includes, a database having a few replicas
+        const keys = new Map(scopes.map((scope) => [Key.name(scopeTable, { scope }), scope]));
+        const rows = await Replica.#including.select(database, {
+            keys: JSON.stringify([...keys.keys()]),
+        });
 
         // pair each replica with the scopes it replicates and the scopes whose rows it includes
         const pairs = new Map<string, { scope: string; record: ReplicaRecord }>();
@@ -1241,11 +1261,11 @@ export class Replica {
                 subscription,
                 Replica.#readLiving(living),
             );
-            const listed = [
+            const kept = [
                 ...Replica.#livingScopes(record).filter((scope) => scopes.includes(scope)),
                 ...(included === null ? [] : [found(keys, included.key)]),
             ];
-            for (const scope of listed) {
+            for (const scope of kept) {
                 pairs.set(`${scope} ${record.name} ${record.scope}`, { scope, record });
             }
         }
@@ -1303,11 +1323,11 @@ export class Replica {
     }
 
     /** Read a replica's living scopes from their JSON text, each table's scopes sorted. */
-    static #readLiving(listed: string): ReplicaLiving {
+    static #readLiving(stored: string): ReplicaLiving {
         // read the pairs, then list each table's scopes in order
         const pairs = schema
             .array(schema.tuple([schema.string(), schema.string()]))
-            .parse(JSON.parse(listed));
+            .parse(JSON.parse(stored));
         const living: ReplicaLiving = {};
         for (const [table, scope] of pairs.toSorted(([, left], [, right]) =>
             left.localeCompare(right),
@@ -3252,3 +3272,70 @@ export interface ReplicaInspection {
     /** The aggregate groups it retains. */
     readonly results: number;
 }
+
+/** The columns a replica's table listing reads. */
+const STORED = {
+    name: replicaScope.name,
+    scope: replicaScope.scope,
+    table: replicaScope.table,
+    living: replicaScope.living,
+};
+
+/** Build the listing of replicas' tables: every replica's, or those a reader or principal sees. */
+function tablesRead(seen: "every" | "readers" | "callers") {
+    return new Statement((value, database) => {
+        // read every replica's tables in a stable order
+        const query = database.select(STORED).from(replicaScope);
+        if (seen === "every") {
+            return query.orderBy(...Object.values(STORED));
+        }
+
+        // read those the reader or the principal sees by their subscriptions
+        return query
+            .innerJoin(
+                replicaSubscription,
+                and(
+                    eq(replicaSubscription.name, replicaScope.name),
+                    eq(replicaSubscription.scope, replicaScope.scope),
+                ),
+            )
+            .where(Replica.seen(value, seen === "callers"))
+            .orderBy(...Object.values(STORED));
+    });
+}
+
+/** The listings of replicas' tables. */
+const REPLICA_TABLES = {
+    every: tablesRead("every"),
+    readers: tablesRead("readers"),
+    callers: tablesRead("callers"),
+};
+
+/** Build the read of a table's keys the replicas a reader or a principal sees include. */
+function keysRead(isCaller: boolean) {
+    return new Statement((value, database) =>
+        database
+            .select({ key: replicaKey.key })
+            .from(replicaKey)
+            .innerJoin(
+                replicaSubscription,
+                and(
+                    eq(replicaSubscription.name, replicaKey.name),
+                    eq(replicaSubscription.scope, replicaKey.scope),
+                ),
+            )
+            .where(
+                and(
+                    eq(replicaKey.table, value("table")),
+                    listed(replicaKey.key, value("keys")),
+                    Replica.seen(value, isCaller),
+                ),
+            ),
+    );
+}
+
+/** The reads of the keys replicas include. */
+const REPLICA_KEYS = {
+    readers: keysRead(false),
+    callers: keysRead(true),
+};

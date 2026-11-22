@@ -1,4 +1,4 @@
-import { nth, found } from "@destack/schema";
+import { nth, found, present } from "@destack/schema";
 import {
     and,
     Key,
@@ -49,6 +49,12 @@ const MEMO_SEQUENCES = 8;
 
 /** The default wait before a caught-up stream repeats its position, in milliseconds. */
 const HEARTBEAT_MILLISECONDS = 10_000;
+
+/** The materialized dataflows reads share: one per active query and audience. */
+const SHARED_DATAFLOWS = 256;
+
+/** How long a shared dataflow outlives its last read, as Zero keeps a query: five minutes. */
+const SHARED_MILLISECONDS = 300_000;
 
 /** The rows of one capture page across tables: 500 rows of about 500 B make a page near 250 KB. */
 const CAPTURE_ROWS = 500;
@@ -103,6 +109,10 @@ export class Feed implements Cache {
     readonly #evaluations: Map<string, Evaluation>;
     /** Each shared evaluation's key and the streams sharing it. */
     readonly #shares: Map<Evaluation, { key: string; streams: number }>;
+    /** The materialized dataflows reads share, by key, least recently read first. */
+    readonly #shared = new Map<string, SharedDataflow>();
+    /** The last use of each shared dataflow, which the next use waits for. */
+    readonly #uses = new Map<string, Promise<void>>();
     /** The shared reads of rows by sequence and key. */
     readonly rows: Memo<Promise<readonly Row[]>>;
     /** The shared ordered windows by sequence and key. */
@@ -364,6 +374,149 @@ export class Feed implements Cache {
         } while (last !== undefined);
     }
 
+    /** Use the shared materialized dataflow of queries for an audience at the log's head, alone. */
+    read<Value>(
+        queries: Readonly<Record<string, Query>>,
+        audience: Audience,
+        start: { readonly row: Row; readonly cursor: string } | undefined,
+        use: (dataflow: Dataflow) => Promise<Value>,
+    ): Promise<Value> {
+        return this.#useShared(queries, audience, start, async (shared) => use(shared.dataflow));
+    }
+
+    /** Use the shared dataflow of queries for an audience at the head, one use of it at a time. */
+    #useShared<Value>(
+        queries: Readonly<Record<string, Query>>,
+        audience: Audience,
+        start: { readonly row: Row; readonly cursor: string } | undefined,
+        use: (shared: SharedDataflow) => Promise<Value>,
+    ): Promise<Value> {
+        // run after the earlier uses of the same dataflow, as stepping and reading change it
+        const key = `${Dataflow.describe(queries)}\n${audience.key}\n${start?.cursor ?? ""}`;
+        const earlier = this.#uses.get(key) ?? Promise.resolve();
+        const running = earlier.then(async () =>
+            use(await this.#readShared(key, queries, audience, start)),
+        );
+        const settled = running.then(
+            () => undefined,
+            () => undefined,
+        );
+        this.#uses.set(key, settled);
+        void settled.then(() => {
+            if (this.#uses.get(key) === settled) {
+                this.#uses.delete(key);
+            }
+        });
+
+        return running;
+    }
+
+    /** Take the shared dataflow under a key at the log's head, loading it once. */
+    async #readShared(
+        key: string,
+        queries: Readonly<Record<string, Query>>,
+        audience: Audience,
+        start: { readonly row: Row; readonly cursor: string } | undefined,
+    ): Promise<SharedDataflow> {
+        // take the shared dataflow while its audience's decisions stand, else load one at the head
+        const now = this.clock.now();
+        const known = this.#shared.get(key);
+        this.#shared.delete(key);
+        const isStanding = known !== undefined && (known.until === undefined || now < known.until);
+        const shared =
+            known !== undefined && isStanding && (await this.#stepShared(known))
+                ? known
+                : await this.#loadShared(queries, audience, start?.row);
+
+        // keep it as the most recently read, dropping the oldest past the bound or the time to live
+        shared.readAt = now;
+        this.#shared.set(key, shared);
+        for (const [oldest, entry] of this.#shared) {
+            if (this.#shared.size <= SHARED_DATAFLOWS && now - entry.readAt < SHARED_MILLISECONDS) {
+                break;
+            }
+            this.#shared.delete(oldest);
+        }
+
+        return shared;
+    }
+
+    /** Load a materialized dataflow of queries for an audience at the log's head. */
+    async #loadShared(
+        queries: Readonly<Record<string, Query>>,
+        audience: Audience,
+        start: Row | undefined,
+    ): Promise<SharedDataflow> {
+        // compile the queries, then select their rows at the head
+        const dataflow = new Dataflow(queries, {
+            audience,
+            database: this.database,
+            ...(this.upstream === undefined ? {} : { upstream: this.upstream }),
+            changesThrough: (watches, after, through, reader) =>
+                this.changesThrough(watches, after, through, reader),
+            isMaterialized: true,
+            capacity: this.capacity,
+            pageSize: this.pageSize,
+        });
+        const head = await this.#head();
+        await dataflow.load(new View(this.database, head, this), start);
+
+        return {
+            dataflow,
+            audience,
+            until: await audience.until(),
+            changed: head.sequence,
+            readAt: 0,
+        };
+    }
+
+    /** Step a shared dataflow through the watched changes up to the head, false once compacted. */
+    async #stepShared(shared: SharedDataflow): Promise<boolean> {
+        // require a position of the head's log and epoch
+        const { dataflow, audience } = shared;
+        const position = dataflow.position;
+        const head = await this.#head();
+        if (position === undefined || position.log !== head.log || position.epoch !== head.epoch) {
+            return false;
+        }
+
+        // read the watched changes since: the dataflow's rows and its audience's deciding rows
+        const changes = await this.changesThrough(
+            dataflow.watches(),
+            position.sequence,
+            head.sequence,
+            this.database,
+        );
+        if (changes === undefined) {
+            return false;
+        }
+        // load again after a change of a row its decisions read beyond its own rows, which it decides as it steps
+        const own = new Set(dataflow.nodes.map((node) => node.table));
+        const isDeciding = (change: Change) =>
+            !own.has(change.table) && Watch.matches(audience.watches, change);
+        if (changes.some(isDeciding)) {
+            return false;
+        }
+        // step through the rows' changes, noting when they changed the selected rows or groups
+        else if (changes.length > 0) {
+            const run = new Run(new View(this.database, head, this), audience, undefined, changes);
+            await dataflow.step(run);
+            if (run.patch.rows.size > 0 || run.patch.results.size > 0) {
+                shared.changed = head.sequence;
+            }
+        }
+
+        // move to the head
+        dataflow.advance(head);
+
+        return true;
+    }
+
+    /** Read the log's head: the commit watch's position, else a read of the log. */
+    async #head(): Promise<LogPosition> {
+        return this.database.state.commits.position ?? (await this.database.log.position());
+    }
+
     /** Follow one query's items until the signal aborts. */
     watch(name: string, query: Query, signal: AbortSignal): AsyncGenerator<readonly Item[]> {
         return this.#watched(name, query, signal, (dataflow) => dataflow.read(name));
@@ -378,26 +531,14 @@ export class Feed implements Cache {
         return this.#watched(name, query, signal, (dataflow) => dataflow.results(name));
     }
 
-    /** Follow one query's result, read again after each change of it, until the signal aborts. */
+    /** Follow one query's result through the shared dataflow, read again after each change. */
     async *#watched<Result>(
         name: string,
         query: Query,
         signal: AbortSignal,
         resultOf: (dataflow: Dataflow) => Promise<Result>,
     ): AsyncGenerator<Result> {
-        // compile the query
-        const dataflow = new Dataflow(
-            { [name]: query },
-            {
-                audience: EVERYONE,
-                database: this.database,
-                ...(this.upstream === undefined ? {} : { upstream: this.upstream }),
-                changesThrough: (watches, after, through, reader) =>
-                    this.changesThrough(watches, after, through, reader),
-                isMaterialized: true,
-                pageSize: this.pageSize,
-            },
-        );
+        // refuse watchers beyond the limit
         if (this.#subscribers >= this.#limit) {
             throw SyncError.of(
                 "FEED_UNAVAILABLE",
@@ -406,63 +547,34 @@ export class Feed implements Cache {
         }
         this.#join();
         try {
-            let position: LogPosition | undefined;
+            let yielded: number | undefined;
             while (!signal.aborted) {
-                // run the query and read its result
-                if (position === undefined) {
-                    position = await this.database.log.position();
-                    await dataflow.load(new View(this.database, position, this));
-                    yield await resultOf(dataflow);
-                    continue;
+                // read the result once its rows changed since the last one yielded, alone on the dataflow
+                const since = yielded;
+                const read = await this.#useShared(
+                    { [name]: query },
+                    EVERYONE,
+                    undefined,
+                    async (shared) => ({
+                        changed: shared.changed,
+                        sequence: present(shared.dataflow.position, "the dataflow's position")
+                            .sequence,
+                        result:
+                            since === undefined || shared.changed > since
+                                ? { value: await resultOf(shared.dataflow) }
+                                : undefined,
+                    }),
+                );
+                if (read.result !== undefined) {
+                    yielded = read.changed;
+                    yield read.result.value;
                 }
 
-                // apply the changes and read the result again when they changed it
-                const stepped = await this.#stepWatched(dataflow, position, signal);
-                position = stepped.position;
-                if (stepped.isChanged) {
-                    yield await resultOf(dataflow);
-                }
+                // wait for the next commit
+                await this.next(read.sequence, signal);
             }
         } finally {
             this.#leave();
-        }
-    }
-
-    /** Apply the changes after a watched query's position. */
-    async #stepWatched(
-        dataflow: Dataflow,
-        position: LogPosition,
-        signal: AbortSignal,
-    ): Promise<{ readonly position: LogPosition | undefined; readonly isChanged: boolean }> {
-        // start over once compacted
-        const read = await this.changes(dataflow.watches(), position.sequence);
-        if (read === undefined) {
-            return { position: undefined, isChanged: false };
-        }
-        // wait past a read without watched changes
-        else if (read.changes.length === 0) {
-            await this.next(read.sequence, signal);
-
-            return {
-                position: { ...position, sequence: read.sequence },
-                isChanged: false,
-            };
-        }
-        // step the dataflow through the changes
-        else {
-            const current = { ...position, sequence: read.sequence };
-            const run = new Run(
-                new View(this.database, current, this),
-                EVERYONE,
-                undefined,
-                read.changes,
-            );
-
-            // yield again only when the step changed the selected rows or groups
-            await dataflow.step(run);
-            const isChanged = run.patch.rows.size > 0 || run.patch.results.size > 0;
-
-            return { position: current, isChanged };
         }
     }
 
@@ -1040,4 +1152,18 @@ interface FollowedRequest {
     readonly key: RequestKey;
     /** The handlers of its row, one per following stream. */
     readonly handlers: Set<(row: SubscriptionRequest | undefined) => void>;
+}
+
+/** A materialized dataflow reads share, with its audience and until when its decisions stand. */
+interface SharedDataflow {
+    /** The dataflow, at its last read's position. */
+    readonly dataflow: Dataflow;
+    /** The audience deciding its rows. */
+    readonly audience: Audience;
+    /** The time its audience's decisions change by themselves, absent for never. */
+    readonly until: number | undefined;
+    /** The sequence its rows or groups last changed at, its load's at first. */
+    changed: number;
+    /** The time of its last read. */
+    readAt: number;
 }
