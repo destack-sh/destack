@@ -1,6 +1,7 @@
+import { state } from "@destack/theme/state";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
-import { color, motion, space, stroke, weight } from "@destack/theme/tokens.stylex";
+import { color, motion, space, weight, swatch } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import {
     type Accessor,
@@ -33,15 +34,12 @@ const styles = style.create({
         paddingBlock: space[1],
         color: {
             default: "inherit",
-            ":hover": { default: null, [media.hover]: color.primary },
+            ":hover": { default: null, [media.hover]: swatch.accentSolid },
             ":is([aria-current=location])": color.foreground,
         },
         fontWeight: { default: null, ":is([aria-current=location])": weight.semibold },
         transitionProperty: "color",
         transitionDuration: motion.durationShort,
-        outlineStyle: { default: "none", ":focus-visible": "solid" },
-        outlineWidth: stroke.ring,
-        outlineColor: `color-mix(in oklab, ${color.ring} 50%, transparent)`,
     },
 });
 
@@ -111,7 +109,7 @@ function SectionList(properties: {
                             aria-current={
                                 properties.current() === section.id ? "location" : undefined
                             }
-                            {...style.attrs(styles.link)}
+                            {...style.attrs(state.focus, styles.link)}
                         >
                             {section.text}
                         </a>

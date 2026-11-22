@@ -1,4 +1,4 @@
-import { color, font, motion, shadow, weight } from "@destack/theme/tokens.stylex";
+import { color, font, motion, shadow, weight, swatch } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import { createSignal, type JSX } from "@destack/view";
 
@@ -66,7 +66,7 @@ const styles = style.create({
         transition: `text-decoration-color ${motion.durationShort} ${motion.easingStandard}`,
     },
     termOpen: {
-        textDecorationColor: color.primary,
+        textDecorationColor: swatch.accentSolid,
     },
     bubble: {
         backgroundColor: palette.ink,
@@ -97,7 +97,7 @@ const styles = style.create({
         transform: "none",
     },
     mark: {
-        color: color.primary,
+        color: swatch.accentSolid,
         fontWeight: weight.semibold,
         marginInlineStart: "1px",
     },

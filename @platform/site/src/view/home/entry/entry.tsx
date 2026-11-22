@@ -1,5 +1,5 @@
 import { measure } from "../../layout/measure.stylex";
-import { color, font, motion } from "@destack/theme/tokens.stylex";
+import { color, font, motion, swatch } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import { Crossfade } from "../figure/crossfade";
 import { createSignal, type JSX, onSettled } from "@destack/view";
@@ -271,11 +271,11 @@ const styles = style.create({
     },
     balloon: {
         alignItems: "center",
-        borderColor: color.primary,
+        borderColor: swatch.accentSolid,
         borderRadius: "50%",
         borderStyle: "solid",
         borderWidth: "1.5px",
-        color: color.primary,
+        color: swatch.accentSolid,
         display: "inline-flex",
         flexShrink: 0,
         fontFamily: font.code,
@@ -286,7 +286,7 @@ const styles = style.create({
         width: "1.5rem",
     },
     leader: {
-        backgroundColor: color.primary,
+        backgroundColor: swatch.accentSolid,
         flexShrink: 0,
         height: "1px",
         marginInlineEnd: "0.75rem",
@@ -337,7 +337,7 @@ const styles = style.create({
         whiteSpace: "nowrap",
     },
     headword: {
-        color: color.primary,
+        color: swatch.accentSolid,
         gridArea: { default: "headword", [media.maxLg]: "auto" },
         justifySelf: { default: "end", [media.maxLg]: "auto" },
         fontSize: { default: typeScale.display, [media.maxLg]: typeScale.headword },
@@ -365,7 +365,7 @@ const styles = style.create({
         textWrap: "pretty",
     },
     highlight: {
-        backgroundImage: `linear-gradient(${color.primary}, ${color.primary})`,
+        backgroundImage: `linear-gradient(${swatch.accentSolid}, ${swatch.accentSolid})`,
         backgroundPosition: "left 0 bottom 0.04em",
         backgroundRepeat: "no-repeat",
         backgroundSize: { default: "100% 0.12em", [SCRIPTED]: "0% 0.12em" },

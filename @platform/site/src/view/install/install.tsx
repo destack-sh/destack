@@ -1,5 +1,5 @@
 import { media } from "@destack/style/media.stylex";
-import { color, font, stroke } from "@destack/theme/tokens.stylex";
+import { color, font, stroke, swatch } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import { type JSX, Show } from "@destack/view";
 
@@ -261,7 +261,7 @@ const styles = style.create({
         whiteSpace: "nowrap",
     },
     prompt: {
-        color: color.primary,
+        color: swatch.accentSolid,
     },
     key: {
         alignItems: "center",

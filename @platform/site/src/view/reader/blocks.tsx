@@ -4,7 +4,7 @@ import arrowDown from "@destack/icon/phosphor/arrow-down";
 import play from "@destack/icon/phosphor/play";
 import * as style from "@destack/style";
 import { text } from "@destack/theme/text";
-import { color, font, space, stroke, weight } from "@destack/theme/tokens.stylex";
+import { color, font, space, stroke, weight, swatch } from "@destack/theme/tokens.stylex";
 import {
     CodeBlock,
     CodeBlockContent,
@@ -375,7 +375,7 @@ const styles = style.create({
     },
     skip: {
         alignItems: "center",
-        color: color.primary,
+        color: swatch.accentSolid,
         columnGap: space[1],
         display: "inline-flex",
         fontFamily: font.code,
@@ -420,7 +420,7 @@ const styles = style.create({
         justifyContent: "space-between",
     },
     label: {
-        color: color.primary,
+        color: swatch.accentSolid,
         flexShrink: 0,
         fontFamily: font.code,
         fontSize: typeScale.label,
@@ -450,7 +450,7 @@ const styles = style.create({
         alignItems: "center",
         backgroundColor: {
             default: `color-mix(in srgb, ${palette.ink} 90%, transparent)`,
-            [style.when.ancestor(":hover")]: color.primary,
+            [style.when.ancestor(":hover")]: swatch.accentSolid,
         },
         borderColor: `color-mix(in srgb, ${palette.cream} 65%, transparent)`,
         borderRadius: "50%",

@@ -1,5 +1,5 @@
 import * as style from "@destack/style";
-import { color } from "@destack/theme/tokens.stylex";
+import { color, swatch } from "@destack/theme/tokens.stylex";
 import type { JSX } from "@destack/view";
 
 import { night } from "../theme.ts";
@@ -158,8 +158,8 @@ const styles = style.create({
 const tints = style.create({
     mercury: { backgroundColor: `color-mix(in srgb, ${palette.cream} 70%, ${palette.space})` },
     venus: { backgroundColor: palette.cream },
-    mars: { backgroundColor: `color-mix(in srgb, ${palette.cream} 40%, ${color.primary})` },
-    jupiter: { backgroundColor: `color-mix(in srgb, ${palette.cream} 80%, ${color.primary})` },
+    mars: { backgroundColor: `color-mix(in srgb, ${palette.cream} 40%, ${swatch.accentSolid})` },
+    jupiter: { backgroundColor: `color-mix(in srgb, ${palette.cream} 80%, ${swatch.accentSolid})` },
 });
 
 /** The plate's size in each view: 24 hours across the frame, at true scale or the band's height. */

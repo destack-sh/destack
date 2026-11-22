@@ -1,5 +1,6 @@
 import { media } from "@destack/style/media.stylex";
 import { Icon } from "@destack/ui/icon";
+import { Button } from "@destack/ui/button";
 import caretDown from "@destack/icon/phosphor/caret-down";
 import { text } from "@destack/theme/text";
 import { Popover, PopoverContent, PopoverTrigger } from "@destack/ui/popover";
@@ -12,7 +13,11 @@ export default function Contents(properties: { readonly children?: JSX.Element }
 
     return (
         <Popover open={isOpen()} onOpenChange={setIsOpen}>
-            <PopoverTrigger variant="ghost" size="sm" xstyle={styles.menu}>
+            <PopoverTrigger
+                render={(attributes) => (
+                    <Button {...attributes} variant="ghost" xstyle={styles.menu} />
+                )}
+            >
                 Contents
                 <Icon icon={caretDown} />
             </PopoverTrigger>

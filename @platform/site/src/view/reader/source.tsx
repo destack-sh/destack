@@ -1,4 +1,5 @@
 import { Icon } from "@destack/ui/icon";
+import { Button } from "@destack/ui/button";
 import caretDown from "@destack/icon/phosphor/caret-down";
 import { ButtonGroup } from "@destack/ui/button-group";
 import { CopyButton } from "../layout/copy";
@@ -112,15 +113,15 @@ export function SourceActions(properties: SourceActionsProperties) {
                 value={markdown() ?? ""}
                 disabled={markdown() === undefined}
                 variant="outline"
-                size="sm"
                 onFailure={(error) => captureException(error, { tags: { feature: "source" } })}
             >
                 Copy page
             </CopyButton>
             <DropdownMenu>
                 <DropdownMenuTrigger
-                    variant="outline"
-                    size="icon-sm"
+                    render={(attributes) => (
+                        <Button {...attributes} variant="outline" size="icon" />
+                    )}
                     aria-label="More page formats"
                 >
                     <Icon icon={caretDown} />

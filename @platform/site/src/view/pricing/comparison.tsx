@@ -1,5 +1,5 @@
 import { media } from "@destack/style/media.stylex";
-import { color, font, stroke, weight } from "@destack/theme/tokens.stylex";
+import { color, font, stroke, weight, swatch } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 
 import { FigureLabel } from "../home/entry/entry";
@@ -270,7 +270,7 @@ const styles = style.create({
         width: "1px",
     },
     check: {
-        color: color.primary,
+        color: swatch.accentSolid,
         display: "inline-flex",
         verticalAlign: "middle",
     },

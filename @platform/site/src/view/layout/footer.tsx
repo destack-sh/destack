@@ -1,6 +1,6 @@
 import { measure } from "./measure.stylex";
 import { media } from "@destack/style/media.stylex";
-import { color, font, stroke, weight } from "@destack/theme/tokens.stylex";
+import { color, font, stroke, weight, swatch } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 
 import { Sky } from "../effect/sky";
@@ -196,7 +196,7 @@ const styles = style.create({
     link: {
         color: {
             default: color.foreground,
-            ":hover": { default: null, [media.hover]: color.primary },
+            ":hover": { default: null, [media.hover]: swatch.accentSolid },
         },
         fontSize: typeScale.body,
         textDecorationLine: "none",

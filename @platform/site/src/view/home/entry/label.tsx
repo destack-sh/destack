@@ -1,4 +1,4 @@
-import { color, font } from "@destack/theme/tokens.stylex";
+import { color, font, swatch } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
 import { For, type JSX } from "@destack/view";
@@ -123,7 +123,7 @@ const styles = style.create({
         paddingInline: 0,
     },
     tabShown: {
-        borderBottomColor: color.primary,
+        borderBottomColor: swatch.accentSolid,
         color: color.foreground,
         opacity: 1,
     },

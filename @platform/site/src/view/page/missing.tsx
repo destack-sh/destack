@@ -1,7 +1,7 @@
 import { measure } from "../layout/measure.stylex";
 import { media } from "@destack/style/media.stylex";
 import { text } from "@destack/theme/text";
-import { color, font, stroke, weight } from "@destack/theme/tokens.stylex";
+import { color, font, stroke, weight, swatch } from "@destack/theme/tokens.stylex";
 
 import { httpStatus } from "@destack/view";
 import * as style from "@destack/style";
@@ -103,7 +103,7 @@ const styles = style.create({
     action: {
         color: {
             default: color.foreground,
-            ":hover": { default: null, [media.hover]: color.primary },
+            ":hover": { default: null, [media.hover]: swatch.accentSolid },
         },
         fontWeight: weight.semibold,
         width: "max-content",

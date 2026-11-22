@@ -1,7 +1,7 @@
 import { present } from "@destack/schema";
 import { media } from "@destack/style/media.stylex";
 import * as style from "@destack/style";
-import { color, font, stroke, weight } from "@destack/theme/tokens.stylex";
+import { color, font, stroke, weight, swatch } from "@destack/theme/tokens.stylex";
 
 import { machines, units } from "../content/generated/pricing";
 import { FigureLabel } from "../home/entry/entry";
@@ -208,7 +208,7 @@ const styles = style.create({
         margin: 0,
     },
     icon: {
-        color: color.primary,
+        color: swatch.accentSolid,
         display: "flex",
     },
     lead: {

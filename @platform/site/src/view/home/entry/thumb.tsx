@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
-import { color, font, motion } from "@destack/theme/tokens.stylex";
+import { font, motion, swatch } from "@destack/theme/tokens.stylex";
 
 import { measure } from "../../layout/measure.stylex";
 import { present } from "@destack/schema";
@@ -119,7 +119,7 @@ const styles = style.create({
         },
     },
     current: {
-        backgroundColor: color.primary,
+        backgroundColor: swatch.accentSolid,
         color: palette.space,
         width: { default: "3.25rem", [ROOMY]: "11rem" },
     },

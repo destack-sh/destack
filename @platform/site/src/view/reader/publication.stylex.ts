@@ -1,6 +1,6 @@
 import { measure } from "../layout/measure.stylex";
 import { media } from "@destack/style/media.stylex";
-import { color, font, stroke, weight } from "@destack/theme/tokens.stylex";
+import { color, font, stroke, weight, swatch } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 
 /** The site's reading size, 17px, a step above the theme's 16px body for long articles. */
@@ -69,14 +69,14 @@ export const publicationStyles = style.create({
     contextTitle: {
         color: {
             default: color.foreground,
-            ":hover": { default: null, [media.hover]: color.primary },
+            ":hover": { default: null, [media.hover]: swatch.accentSolid },
         },
         fontWeight: weight.semibold,
     },
     contextBack: {
         color: {
             default: color.mutedForeground,
-            ":hover": { default: null, [media.hover]: color.primary },
+            ":hover": { default: null, [media.hover]: swatch.accentSolid },
         },
     },
     collectionList: {
@@ -88,7 +88,7 @@ export const publicationStyles = style.create({
     collectionLink: {
         color: {
             default: color.mutedForeground,
-            ":hover": { default: null, [media.hover]: color.primary },
+            ":hover": { default: null, [media.hover]: swatch.accentSolid },
         },
         display: "block",
         lineHeight: 1.3,
@@ -115,7 +115,7 @@ export const publicationStyles = style.create({
     paginationLink: {
         color: {
             default: color.foreground,
-            ":hover": { default: null, [media.hover]: color.primary },
+            ":hover": { default: null, [media.hover]: swatch.accentSolid },
         },
     },
 });

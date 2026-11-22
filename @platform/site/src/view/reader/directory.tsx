@@ -2,7 +2,7 @@ import { media } from "@destack/style/media.stylex";
 import { Icon } from "@destack/ui/icon";
 import arrowRight from "@destack/icon/phosphor/arrow-right";
 import { text } from "@destack/theme/text";
-import { color, stroke, weight } from "@destack/theme/tokens.stylex";
+import { color, stroke, weight, swatch } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import { Button } from "@destack/ui/button";
 import { Empty, EmptyContent, EmptyHeader, EmptyTitle } from "@destack/ui/empty";
@@ -306,7 +306,7 @@ const styles = style.create({
         fontWeight: weight.medium,
         color: {
             default: null,
-            [style.when.ancestor(":is(:hover, :focus-visible)")]: color.primary,
+            [style.when.ancestor(":is(:hover, :focus-visible)")]: swatch.accentSolid,
         },
         textDecorationLine: {
             default: "none",
@@ -332,7 +332,7 @@ const styles = style.create({
         marginTop: "0.25rem",
         color: {
             default: color.mutedForeground,
-            [style.when.ancestor(":is(:hover, :focus-visible)")]: color.primary,
+            [style.when.ancestor(":is(:hover, :focus-visible)")]: swatch.accentSolid,
         },
     },
 });

@@ -5,9 +5,9 @@ import arrowUpRight from "@destack/icon/phosphor/arrow-up-right";
 import list from "@destack/icon/phosphor/list";
 import xIcon from "@destack/icon/phosphor/x";
 import { media } from "@destack/style/media.stylex";
-import { color, font, stroke, weight } from "@destack/theme/tokens.stylex";
+import { color, font, stroke, weight, swatch } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
-import { buttonVariants } from "@destack/ui/button";
+import { Button, buttonVariants } from "@destack/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@destack/ui/popover";
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@destack/ui/sheet";
 import { createEffect, createMemo, createSignal } from "@destack/view";
@@ -30,10 +30,10 @@ import { typeScale, tracking } from "./type.stylex";
 
 /** Render the global site navigation. */
 export function TopBar(properties: { readonly path: string }) {
-    // hold the phone menu
+    // track the phone menu
     const [isMenuOpen, setIsMenuOpen] = createSignal(false);
 
-    // hold the visitor's appearance, which the toggle and the command palette both set
+    // track the visitor's appearance, which the toggle and the command palette both set
     const appearance = createAppearance();
 
     // dismiss the phone menu when the desktop navigation becomes available
@@ -98,9 +98,13 @@ export function TopBar(properties: { readonly path: string }) {
                                 </a>
                                 <Popover>
                                     <PopoverTrigger
-                                        size="sm"
+                                        render={(attributes) => (
+                                            <Button
+                                                {...attributes}
+                                                xstyle={[press.key, styles.install]}
+                                            />
+                                        )}
                                         aria-label="Install Destack"
-                                        xstyle={[press.key, styles.install]}
                                     >
                                         Install
                                         <Icon icon={arrowDown} />
@@ -114,10 +118,15 @@ export function TopBar(properties: { readonly path: string }) {
                                     </PopoverContent>
                                 </Popover>
                                 <SheetTrigger
-                                    variant="ghost"
-                                    size="icon"
+                                    render={(attributes) => (
+                                        <Button
+                                            {...attributes}
+                                            variant="ghost"
+                                            size="icon"
+                                            xstyle={styles.menuButton}
+                                        />
+                                    )}
                                     aria-label="Menu"
-                                    xstyle={styles.menuButton}
                                 >
                                     <Icon icon={list} xstyle={styles.tool} />
                                 </SheetTrigger>
@@ -139,7 +148,12 @@ export function TopBar(properties: { readonly path: string }) {
                         >
                             Destack
                         </a>
-                        <SheetClose variant="ghost" size="icon" aria-label="Close menu">
+                        <SheetClose
+                            render={(attributes) => (
+                                <Button {...attributes} variant="ghost" size="icon" />
+                            )}
+                            aria-label="Close menu"
+                        >
                             <Icon icon={xIcon} />
                         </SheetClose>
                     </div>
@@ -250,7 +264,7 @@ const styles = style.create({
     headword: {
         color: {
             default: color.foreground,
-            ":hover": { default: null, [media.hover]: color.primary },
+            ":hover": { default: null, [media.hover]: swatch.accentSolid },
         },
         fontSize: typeScale.body,
         fontWeight: weight.semibold,
@@ -280,18 +294,18 @@ const styles = style.create({
     link: {
         color: {
             default: color.foreground,
-            ":hover": { default: null, [media.hover]: color.primary },
+            ":hover": { default: null, [media.hover]: swatch.accentSolid },
         },
-        textDecorationColor: color.primary,
+        textDecorationColor: swatch.accentSolid,
         textDecorationLine: "none",
         textDecorationSkipInk: "none",
         textDecorationThickness: "0.12em",
         textUnderlineOffset: "0.2em",
     },
     active: {
-        color: color.primary,
-        "::before": { color: color.primary, content: '"[ "' },
-        "::after": { color: color.primary, content: '" ]"' },
+        color: swatch.accentSolid,
+        "::before": { color: swatch.accentSolid, content: '"[ "' },
+        "::after": { color: swatch.accentSolid, content: '" ]"' },
     },
     tool: {
         width: "20px",
@@ -304,10 +318,10 @@ const styles = style.create({
         marginInlineStart: "auto",
     },
     install: {
-        boxShadow: { default: `2px 2px 0 ${color.primary}`, ":active": "none" },
+        boxShadow: { default: `2px 2px 0 ${swatch.accentSolid}`, ":active": "none" },
         backgroundColor: {
             default: color.foreground,
-            ":hover": { default: null, [media.hover]: color.primary },
+            ":hover": { default: null, [media.hover]: swatch.accentSolid },
         },
         color: color.background,
         marginInlineStart: { default: "0.625rem", [media.maxMd]: "0.25rem" },
@@ -378,7 +392,7 @@ const styles = style.create({
         borderBottomWidth: stroke.border,
         color: {
             default: color.foreground,
-            ":hover": { default: null, [media.hover]: color.primary },
+            ":hover": { default: null, [media.hover]: swatch.accentSolid },
         },
         display: "flex",
         fontSize: typeScale.title,

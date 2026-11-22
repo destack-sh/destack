@@ -1,4 +1,4 @@
-import { color, font, motion } from "@destack/theme/tokens.stylex";
+import { color, font, motion, swatch } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import { Icon } from "@destack/ui/icon";
 import arrowUp from "@destack/icon/phosphor/arrow-up";
@@ -242,7 +242,7 @@ const styles = style.create({
         borderColor: color.border,
     },
     thumb: {
-        backgroundColor: color.primary,
+        backgroundColor: swatch.accentSolid,
         insetBlock: 0,
         insetInlineStart: 0,
         position: "absolute",

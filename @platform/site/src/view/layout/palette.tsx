@@ -5,7 +5,7 @@ import check from "@destack/icon/phosphor/check";
 import magnifyingGlass from "@destack/icon/phosphor/magnifying-glass";
 import * as style from "@destack/style";
 import { text } from "@destack/theme/text";
-import { color, font, radius, space, stroke, weight } from "@destack/theme/tokens.stylex";
+import { color, font, radius, space, stroke, weight, swatch } from "@destack/theme/tokens.stylex";
 import { Button } from "@destack/ui/button";
 import {
     CommandDialog,
@@ -20,8 +20,7 @@ import { present, schema } from "@destack/schema";
 import { Kbd } from "@destack/ui/kbd";
 import { createMemo, createSignal, For, onSettled, Show, useEnvironment } from "@destack/view";
 import type { LocalAppearance } from "@destack/view/document";
-import { Shortcut } from "@destack/object";
-import { isCommandPlatform } from "@destack/view/palette";
+import { Shortcut } from "@destack/locale";
 import { createShortcut } from "@destack/view/primitives/keyboard";
 
 import {
@@ -139,8 +138,16 @@ export function CommandPalette(properties: { appearance: LocalAppearance }) {
 
     // open on the key combinations and on the event other parts of the site dispatch
     const shortcut = { preventDefault: true, ignoreWithinInputs: true, anyOrder: true };
-    createShortcut(Shortcut.keys("mod+k", isCommandPlatform()), () => void open(), shortcut);
-    createShortcut(Shortcut.keys("/", isCommandPlatform()), () => void open(), shortcut);
+    createShortcut(
+        Shortcut.keys("mod+k", Shortcut.isCommand(navigator.userAgent)),
+        () => void open(),
+        shortcut,
+    );
+    createShortcut(
+        Shortcut.keys("/", Shortcut.isCommand(navigator.userAgent)),
+        () => void open(),
+        shortcut,
+    );
     createEventListener(
         () => document,
         actionEvents.open,
@@ -149,7 +156,7 @@ export function CommandPalette(properties: { appearance: LocalAppearance }) {
 
     // read the platform for shortcut labels
     onSettled(() => {
-        setIsMac(isCommandPlatform());
+        setIsMac(Shortcut.isCommand(navigator.userAgent));
     });
 
     // enter a submenu with a fresh search, or go back to the root
@@ -204,8 +211,6 @@ export function CommandPalette(properties: { appearance: LocalAppearance }) {
                 onOpenChange={setIsOpen}
                 title="Search Destack"
                 description="Search pages, sections, and actions"
-                search={query()}
-                onSearchChange={setQuery}
                 shouldFilter={false}
                 loop
                 onKeyDown={(event) => {
@@ -235,6 +240,8 @@ export function CommandPalette(properties: { appearance: LocalAppearance }) {
                     )}
                 </Show>
                 <CommandInput
+                    value={query()}
+                    onValueChange={setQuery}
                     placeholder={
                         menu() === "root"
                             ? "What do you need?"
@@ -542,7 +549,7 @@ const styles = style.create({
     },
     mark: {
         backgroundColor: "transparent",
-        color: color.primary,
+        color: swatch.accentSolid,
         fontWeight: weight.medium,
     },
     end: {
@@ -558,12 +565,12 @@ const styles = style.create({
     },
     copied: {
         alignItems: "center",
-        color: color.primary,
+        color: swatch.accentSolid,
         display: "flex",
         gap: space[1],
     },
     failure: {
-        color: color.destructive,
+        color: swatch.destructiveSolid,
         padding: space[3],
     },
 

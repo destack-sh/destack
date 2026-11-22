@@ -13,7 +13,7 @@ import robot from "@destack/icon/phosphor/robot";
 import sun from "@destack/icon/phosphor/sun";
 import terminalWindow from "@destack/icon/phosphor/terminal-window";
 import type { Appearance } from "@destack/theme";
-import type { Shortcut } from "@destack/object";
+import type { Shortcut } from "@destack/locale";
 
 import { collectionAt } from "../../../content";
 import type { SearchEntry, SearchEntryKind } from "../content/search";

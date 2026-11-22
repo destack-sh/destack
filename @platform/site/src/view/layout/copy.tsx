@@ -67,7 +67,7 @@ export function CopyButton(properties: CopyButtonProperties): JSX.Element {
     return (
         <Button
             data-slot="copy-button"
-            data-state={copied.isCopied() ? "copied" : "idle"}
+            data-copied={copied.isCopied() ? "" : undefined}
             aria-label={properties.children === undefined ? "Copy" : undefined}
             {...rest}
             onClick={click}

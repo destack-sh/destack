@@ -7,7 +7,7 @@ import linkedinLogo from "@destack/icon/phosphor/linkedin-logo";
 import megaphone from "@destack/icon/phosphor/megaphone";
 import tag from "@destack/icon/phosphor/tag";
 import xLogo from "@destack/icon/phosphor/x-logo";
-import type { Shortcut } from "@destack/object";
+import type { Shortcut } from "@destack/locale";
 
 /** A site destination, with the key combination that opens it. */
 export interface Destination {

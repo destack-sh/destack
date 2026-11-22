@@ -1,6 +1,6 @@
 import { measure } from "./measure.stylex";
 import { frame } from "@destack/style/frame.stylex";
-import { color, font, stroke } from "@destack/theme/tokens.stylex";
+import { color, font, stroke, swatch } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
 import { screen } from "./screen.stylex";
@@ -18,7 +18,7 @@ const CHAIN = `repeating-linear-gradient(to bottom, ${RAIL_INK} 0 18px, transpar
 const BAND_EDGES = `linear-gradient(to bottom, ${RULE} 0 1px, transparent 0 7px, ${RULE} 0 8px, transparent 0)`;
 
 /** The ink of a mark where two rules cross: the signal orange. */
-const MARK_INK = color.primary;
+const MARK_INK = swatch.accentSolid;
 
 /** The length of each arm pair of a crossing mark, odd so it centres on a hairline. */
 const MARK = "13px";
@@ -420,7 +420,7 @@ export const lattice = style.create({
 
     /** The section number of a running head, in the signal orange. */
     number: {
-        color: color.primary,
+        color: swatch.accentSolid,
         fontWeight: 600,
     },
 
