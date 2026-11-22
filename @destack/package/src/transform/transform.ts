@@ -1,11 +1,11 @@
-import MagicString from "magic-string";
-import { parseAst } from "rolldown/parseAst";
-import { type ESTree, Visitor } from "rolldown/utils";
+import { createHash } from "node:crypto";
+import type MagicString from "magic-string";
+import type { ESTree } from "rolldown/utils";
 import { relative, sep } from "node:path";
 import type { DeclarationSite } from "../definition/declaration.ts";
 import { ModuleMetadata } from "../definition/metadata.ts";
 import type { Environment } from "@destack/environment";
-import { Digest, nth, schema, Version } from "@destack/schema";
+import { canonicalize, Digest, nth, schema, Version } from "@destack/schema";
 import type { TransformCache } from "../build/build.ts";
 import { type ModulePackage, PackageLocator, type StampedFunction } from "../locator/index.ts";
 
@@ -106,8 +106,7 @@ export class ModuleTransformer {
 
         // take the module's cache entry while what it read stays the same, one entry per transformer and path
         this.#transformer ??= this.#identify();
-        const key = [await this.#transformer, path, this.#source];
-        const slot = await Digest.json(key, this.environment.crypto);
+        const slot = ModuleTransformer.#hash([await this.#transformer, path, this.#source]);
         const inputs = await this.#inputs(code, path, owner);
         const stored = await cache.read(slot);
         const entry =
@@ -140,7 +139,7 @@ export class ModuleTransformer {
         );
 
         // digest them with the package and the text
-        return await Digest.json({ owner: owner.metadata, stamps, code }, this.environment.crypto);
+        return ModuleTransformer.#hash([canonicalize(owner.metadata), canonicalize(stamps), code]);
     }
 
     /** Digest the code of the modules that decide every stamp. */
@@ -159,7 +158,23 @@ export class ModuleTransformer {
             modules.map((url) => this.environment.files.readTextFile(url.pathname)),
         );
 
-        return await Digest.json(sources, this.environment.crypto);
+        return ModuleTransformer.#hash(sources);
+    }
+
+    /** Hash texts with SHA-256 at once, each ended by a NUL, as a host keys each module. */
+    static #hash(texts: readonly string[]): Digest {
+        // hash each text and its end
+        const hash = createHash("sha256");
+        for (const text of texts) {
+            hash.update(text);
+            hash.update("\0");
+        }
+        const digest = hash.digest("hex");
+        if (!Digest.is(digest)) {
+            throw new TypeError(`hash '${digest}' is not a digest`);
+        }
+
+        return digest;
     }
 }
 
@@ -213,8 +228,15 @@ export async function transformModule(
         return undefined;
     }
 
+    // load the parser, the visitor and the editor, which only a module needing stamps uses
+    const [parser, utilities, editor] = await Promise.all([
+        import("rolldown/parseAst"),
+        import("rolldown/utils"),
+        import("magic-string"),
+    ]);
+
     // collect the local bindings of imports from packages with stamped functions
-    const program = parseAst(code, { lang: /\.[cm]?tsx$/u.test(path) ? "tsx" : "ts" }, path);
+    const program = parser.parseAst(code, { lang: /\.[cm]?tsx$/u.test(path) ? "tsx" : "ts" }, path);
     const bindings = new Map<string, Binding>();
     for (const statement of program.body) {
         if (statement.type !== "ImportDeclaration" || statement.importKind === "type") {
@@ -241,14 +263,14 @@ export async function transformModule(
     }
 
     // replace metadata reads, pass the module to stamped calls and tags, and record declaration sites
-    const source = new MagicString(code);
+    const source = new editor.default(code);
     const lines = lineStarts(code);
     const bound = moduleBindings(program);
     const module = relative(owner.directory, path).split(sep).join("/");
     const recorded = new Set<number>();
     let isChanged = false;
     let isDeclaring = false;
-    new Visitor({
+    new utilities.Visitor({
         // replace metadata reads with the module binding
         MemberExpression(node) {
             if (isMetadataRead(node)) {
