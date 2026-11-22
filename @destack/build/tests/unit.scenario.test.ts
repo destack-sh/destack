@@ -401,8 +401,7 @@ test("trace a workspace's unit builds: compile each unit on a miss, take each fr
     const counts = Object.fromEntries(
         Object.entries(await simulation.telemetry.counts()).filter(
             ([key]) =>
-                /^destack\.(build|compiler|workspace)\./u.test(key) &&
-                !key.endsWith(".seconds"),
+                /^destack\.(build|compiler|workspace)\./u.test(key) && !key.endsWith(".seconds"),
         ),
     );
 
