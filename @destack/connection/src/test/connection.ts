@@ -1,15 +1,6 @@
 import { PackageVersion, type PackageId } from "@destack/package";
-import {
-    ControlLoop,
-    type DatabaseConnection,
-    defineDatabase,
-    defineTable,
-    eq,
-    Snapshot,
-    TABLE,
-    type Table,
-    text,
-} from "@destack/db";
+import { defineDatabase, defineTable, eq, TABLE, type Table, text } from "@destack/db";
+import { ControlLoop, type DatabaseConnection } from "@destack/db/database";
 import { MemoryBlobStorage } from "@destack/resource";
 import { TOKEN_LIFETIME_MILLISECONDS, Pkce } from "@destack/access/token";
 import { Account, account, space } from "@destack/account/object";
@@ -17,7 +8,15 @@ import { AccessContext, Authentication, Caller, principal, relation } from "@des
 import { TestAccess } from "@destack/access/test";
 import { STACKS } from "@destack/account/test";
 import { TestDatabase } from "@destack/db/test";
-import { defineObject, type ObjectType, Egress, Package, PackageMount } from "@destack/object";
+import {
+    defineObject,
+    type ObjectType,
+    Egress,
+    Package,
+    PackageMount,
+    type Fetch,
+    tablesOf,
+} from "@destack/object";
 import {
     ObjectConnectionHost,
     Health,
@@ -27,7 +26,7 @@ import {
     RequestContext,
 } from "@destack/object/server";
 import { testEvents, TestBearer, testCallKey, testServerContext } from "@destack/object/test";
-import type { EventStore } from "@destack/event";
+import type { EventStore } from "@destack/event/store";
 import { Identifier, present, schema, Uuid } from "@destack/schema";
 import { defineConnection } from "../declare/connection.ts";
 import { deployment, installationRevision, installation } from "@destack/stack/object";
@@ -46,7 +45,6 @@ import {
     type IntegrationIssuer,
 } from "../object/index.ts";
 import { ISSUING, testIssuer } from "./issuer.ts";
-import type { Fetch } from "@destack/object";
 import {
     integrationFollow,
     implementIntegration,
@@ -60,7 +58,6 @@ import type { ServerContext } from "@destack/object/workload";
 import { integrationTables, connectionTables } from "../stack/index.ts";
 import { type Environment, WebSocketUpgrade } from "@destack/environment";
 import { Simulation } from "@destack/environment/simulation";
-import { tablesOf } from "@destack/object";
 import objectPackage from "@destack/object/package";
 import { argument, plural, t } from "@destack/locale";
 import { testWorldOptions } from "@destack/test/world";
@@ -830,7 +827,7 @@ export class TestConnection {
             TestConnection.#principal(scope),
             TestConnection.#installation(scope),
         ];
-        const [container] = await Scope.read(Snapshot.live(database), [scope.scope]);
+        const [container] = await Scope.read(database.snapshot(), [scope.scope]);
         const partition =
             scope.scope === Scope.universe.id ? Scope.universe.id : container?.partition;
         const access = new TestAccess(database, environment, partition);

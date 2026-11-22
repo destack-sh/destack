@@ -1,4 +1,4 @@
-import { anyone, type Creation, InstallationId, principal } from "@destack/access";
+import { anyone, InstallationId, principal, type Creation } from "@destack/access";
 import type { MethodContextOf, ResultOf } from "@destack/object";
 import { present } from "@destack/schema";
 import { ConnectionError } from "../error/error.ts";

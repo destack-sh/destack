@@ -1,9 +1,8 @@
+import { ReplicaSet, RequestId, type ObjectReference } from "@destack/sync";
 import { principal } from "@destack/access";
 import { inArray } from "@destack/db";
 import { present, Identifier } from "@destack/schema";
-import { Replica, RequestId } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import type { ObjectReference } from "@destack/sync";
 import { journal } from "@destack/object";
 import { Credential } from "../credential/credential.ts";
 import { authorizationRequest, connection, integration } from "../object/index.ts";
@@ -45,7 +44,7 @@ async function follow(
     // follow the replicas until the test ends, moving the world until they reach the primary's head
     space.follow();
     const head = await primary.database.log.position();
-    await Replica.wait(space.database, primary.scope.id, head, signal);
+    await new ReplicaSet(space.database).wait(primary.scope.id, head, signal);
 
     return space;
 }

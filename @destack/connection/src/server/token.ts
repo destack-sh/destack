@@ -1,17 +1,32 @@
+import {
+    ReplicaSet,
+    type Call,
+    RequestId,
+    type ObjectReference,
+    type Subject,
+} from "@destack/sync";
 import type { Environment } from "@destack/environment";
-import type { Call } from "@destack/sync";
 import { type ClientOf, createClient, ObjectRemote } from "@destack/object/client";
-import { Egress, PackageMount } from "@destack/object";
+import {
+    Egress,
+    PackageMount,
+    type MethodContext,
+    type ResultsOf,
+    type Fetch,
+} from "@destack/object";
 import type { ServerContext } from "@destack/object/workload";
 import { Account, account } from "@destack/account/object";
 import connectionPackage, { CONNECTION_INSTALLATION } from "../package.ts";
-import { Snapshot } from "@destack/db";
-import type { MethodContext, ResultsOf } from "@destack/object";
+import type { Snapshot } from "@destack/db/database";
 import { Identifier, type JsonObject, type JsonValue, present, schema } from "@destack/schema";
-import { RequestId, type ObjectReference, Replica, type Subject } from "@destack/sync";
 import { Credential, Token } from "../credential/credential.ts";
 import { ConnectionError, OAuthRefusal } from "../error/error.ts";
-import type { AuthorizationClient } from "../oauth/server.ts";
+import {
+    type AuthorizationClient,
+    AuthorizationServer,
+    JWT_BEARER,
+    TOKEN_EXCHANGE,
+} from "../oauth/server.ts";
 import { AuthorizationProxy } from "./proxy.ts";
 import { type Integration, integration, IntegrationIssuer } from "../object/integration.ts";
 import { IssuedInstallation, Issuer } from "../object/issuer.ts";
@@ -24,8 +39,6 @@ import {
     DISCONNECTED,
 } from "../object/connection.ts";
 import { Assertion } from "../oauth/assertion.ts";
-import type { Fetch } from "@destack/object";
-import { AuthorizationServer, JWT_BEARER, TOKEN_EXCHANGE } from "../oauth/server.ts";
 import { SecretReading } from "@destack/resource";
 import { secret, vault } from "@destack/vault/object";
 import type { ObjectStore } from "@destack/object/server";
@@ -92,7 +105,7 @@ export const Runner = {
         store: Pick<ObjectStore, "environment" | "principal" | "database" | "query" | "mutate">,
     ): Runner {
         const now = store.environment.clock.now();
-        const live = Snapshot.live(store.database);
+        const live = store.database.snapshot();
 
         return {
             now,
@@ -212,7 +225,7 @@ export class ConnectionCredential {
     ): Promise<IntegrationClient> {
         // request a replica's tokens through its primary, which alone reads its secret
         const row = await ConnectionCredential.find(runner, reference);
-        if (await Replica.isReplicated(runner, row.scope, integration.table)) {
+        if (await ReplicaSet.isReplicated(runner, row.scope, integration.table)) {
             const primary = await this.#primary(runner, row.scope);
             return {
                 integration: row,
