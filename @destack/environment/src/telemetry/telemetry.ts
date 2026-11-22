@@ -88,6 +88,12 @@ export const Telemetry = {
             ...Telemetry.none(clock, context),
             tracers: new traces.TracerProvider({ spanProcessors: [exporter.spans] }),
             loggers: new logs.LoggerProvider({ processors: [exporter.processor] }),
+            // write the spans another process ended, such as a compiler's, as lines too
+            ingest: (spans) => {
+                for (const span of spans) {
+                    exporter.spans.onEnd(span);
+                }
+            },
         };
     },
 
