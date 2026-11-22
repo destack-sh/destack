@@ -3,7 +3,6 @@ import { TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
 import { principal } from "@destack/access";
 import { copyRequest } from "@destack/environment";
-import { Snapshot } from "@destack/db";
 import { MemoryBlobStorage } from "@destack/resource";
 import { UniverseOrigin } from "@destack/account/address";
 import {
@@ -107,7 +106,7 @@ async function serveRoot(
         origin: origin.read(server.settings),
         universe: address,
         itself: server.at(Egress.address(server.name, server.scope)),
-        view: Snapshot.live(store.database),
+        view: store.database.snapshot(),
         fetch: (request) => server.fetch(request),
         environment: context.environment,
         synced: async () => {
@@ -150,7 +149,7 @@ async function servePartition(
         url: new URL(TUNNEL_PATH, origin.read(server.settings)).href,
         tokens: new TunnelToken(
             UniverseOrigin.of(universe.read(server.settings)).issuer,
-            Snapshot.live(store.database),
+            store.database.snapshot(),
             context.environment,
         ),
         identities: async () => {

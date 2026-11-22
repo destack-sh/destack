@@ -4,7 +4,6 @@ import { CallError } from "@destack/object";
 import { S3Origin } from "@destack/account/address";
 import { TEST_UNIVERSE } from "@destack/universe/test";
 import accountPackage from "@destack/account/package";
-import { Snapshot } from "@destack/db";
 import { RequestId } from "@destack/sync";
 import { expect, refusal, test } from "@destack/test";
 import relayPackage from "../src/package.ts";
@@ -234,7 +233,7 @@ test("refuse a handshake with a person's token, of a machine left keyless, and o
         origin: relay.origin,
         universe: host.universe,
         itself: { url: relay.origin, fetch: async () => new Response(null) },
-        view: Snapshot.live(computer.universe.storage.database),
+        view: computer.universe.storage.database.snapshot(),
         fetch: async () => new Response(null),
         synced: async () => {},
         environment: computer.environment,
@@ -303,7 +302,7 @@ test("refuse a machine's handshake at a relay of another residency than its acco
         origin: us.origin,
         universe: host.universe,
         itself: { url: us.origin, fetch: async () => new Response(null) },
-        view: Snapshot.live(await us.memory()),
+        view: (await us.memory()).snapshot(),
         fetch: async () => new Response(null),
         synced: async () => {},
         environment: computer.environment,
@@ -753,7 +752,7 @@ test("close a machine's tunnel as moved at a relay its endpoint no longer leads 
                 return new Response(null);
             },
         },
-        view: Snapshot.live(computer.universe.storage.database),
+        view: computer.universe.storage.database.snapshot(),
         fetch: async () => new Response(null),
         synced: async () => {},
         environment: computer.environment,

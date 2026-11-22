@@ -1,12 +1,14 @@
+import { ReplicaSet, Scope, type Subject } from "@destack/sync";
 import { Caller } from "@destack/access";
 import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
 import { machine, Residency } from "@destack/account/object";
 import accountPackage from "@destack/account/package";
-import { type DatabaseConnection, Snapshot } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { connectBunSqlite } from "@destack/db/bun";
-import { type Environment, LineExporter, type Listener } from "@destack/environment";
+import type { Environment, Listener } from "@destack/environment";
+import { LineExporter } from "@destack/environment/line";
 import { Egress, PackageMount } from "@destack/object";
-import { ObjectConnection } from "@destack/object/client";
+import { ObjectConnection, type ObjectRemote } from "@destack/object/client";
 import {
     type EphemeralHost,
     CLIENT_HEAD_HEADER,
@@ -23,8 +25,6 @@ import { PackageVersion } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
 import { MemoryBuild } from "@destack/package/test";
 import { Identifier, present, schema, Uuid } from "@destack/schema";
-import { Replica, Scope, type Subject } from "@destack/sync";
-import type { ObjectRemote } from "@destack/object/client";
 import { TelemetryScope } from "@destack/telemetry";
 import type { TestMachine, TestUniverse } from "@destack/universe/test";
 import relayPackage from "../package.ts";
@@ -122,7 +122,7 @@ export class TestRelay implements AsyncDisposable {
     static async open(options: TestRelayOptions): Promise<TestRelay> {
         // take the installation in the home of the host's residency
         const { universe, host, environment, hostname } = options;
-        const directory = Snapshot.live(universe.storage.database);
+        const directory = universe.storage.database.snapshot();
         const hosted = present(
             await directory.read(machine.table).findFirst({ where: { id: host.id } }),
             `the machine ${host.id}`,
@@ -373,9 +373,9 @@ export class TestRelay implements AsyncDisposable {
         // read the universe's head and the root's replicas of the universe
         const position = await this.#universe.storage.database.log.position();
         const root = await this.memory();
-        const replicas = await Replica.including(root, Scope.universe.id);
+        const replicas = await new ReplicaSet(root).including(Scope.universe.id);
 
-        return await Replica.isAt(root, replicas, position);
+        return await new ReplicaSet(root).isAt(replicas, position);
     }
 
     /** Wait until the root's replicas reach the universe's log as of now. */
@@ -384,7 +384,7 @@ export class TestRelay implements AsyncDisposable {
         const position = await this.#universe.storage.database.log.position();
         const root = await this.memory();
 
-        return await Replica.wait(root, Scope.universe.id, position, signal);
+        return await new ReplicaSet(root).wait(Scope.universe.id, position, signal);
     }
 
     /** Stop the instances, take a step meanwhile, then start them again as their host does. */

@@ -7,7 +7,6 @@ import { endpoint, type Endpoint, machine, type ResidencyCode } from "@destack/a
 import { PackageMount } from "@destack/object";
 import accountPackage from "@destack/account/package";
 import type { TestPerson } from "@destack/account/test";
-import { Snapshot } from "@destack/db";
 import { Simulation, type SimulatedClock } from "@destack/environment/simulation";
 import { createClient } from "@destack/object/client";
 import { Identifier, present } from "@destack/schema";
@@ -239,14 +238,16 @@ export class TestTunnelMachine implements AsyncDisposable {
 
     /** Read the computer's endpoint as the universe stores it, absent before it publishes. */
     async endpoint(): Promise<Endpoint | undefined> {
-        return Snapshot.live(this.universe.storage.database)
+        return this.universe.storage.database
+            .snapshot()
             .read(endpoint.table)
             .findFirst({ where: { parentId: this.machine.id } });
     }
 
     /** Read the computer's address, its name within its account under the account's handle. */
     async address(): Promise<string> {
-        const enrolled = await Snapshot.live(this.universe.storage.database)
+        const enrolled = await this.universe.storage.database
+            .snapshot()
             .read(machine.table)
             .findFirst({ where: { id: this.machine.id } });
         const name = present(enrolled, `machine ${this.machine.id}`).name;

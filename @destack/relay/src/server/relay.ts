@@ -5,13 +5,13 @@ import {
     TunnelProtocol,
 } from "@destack/tunnel";
 import {
-    Directory,
     type UniverseOrigin,
     InstallationOrigin,
     MachineAddress,
     S3Origin,
     SpaceAddress,
 } from "@destack/account/address";
+import { Directory } from "@destack/account/client";
 import {
     account,
     endpoint,
@@ -21,12 +21,11 @@ import {
     Placement,
     space,
 } from "@destack/account/object";
-import { type Projection, type Snapshot } from "@destack/db";
+import type { Projection, Snapshot } from "@destack/db/database";
 import { type Clock, type Environment, Forwarded, WebSocketUpgrade } from "@destack/environment";
 import { Failure } from "@destack/error";
 import { type Identifier, schema } from "@destack/schema";
-import type { Fetch } from "@destack/object";
-import { PackageMount, refusal } from "@destack/object";
+import { type Fetch, PackageMount, refusal } from "@destack/object";
 import { CLIENT_HEAD_HEADER, ClientHead, PARTITION_HEADER } from "@destack/object/workload";
 import { RelayError } from "../error/index.ts";
 import { PackageId } from "@destack/package";

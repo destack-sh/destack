@@ -1,7 +1,7 @@
 import { principal } from "@destack/access";
 import { TokenVerifier } from "@destack/access/token";
 import { Identity } from "@destack/account/object";
-import type { Snapshot } from "@destack/db";
+import type { Snapshot } from "@destack/db/database";
 import type { Environment } from "@destack/environment";
 import { Jws } from "@destack/identity";
 import { schema } from "@destack/schema";
