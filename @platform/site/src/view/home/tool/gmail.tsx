@@ -1,7 +1,7 @@
 import * as style from "@destack/style";
 import type { JSX } from "@destack/view";
 
-import { type Mail, mails } from "../verb/corner";
+import { HANDOVER_DAY, type Mail, useStory } from "../verb/story";
 import { Favicon, Glyph } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { palette } from "../../palette.stylex";
@@ -18,8 +18,11 @@ const folders: readonly (readonly [folder: string, count: string])[] = [
 
 /** Draw your inbox as a rented mailbox, your reply to Ines open over it. */
 export function Gmail() {
+    // read the story the page tells
+    const story = useStory();
+
     return (
-        <GmailOf folder="Inbox" mails={mails}>
+        <GmailOf folder="Inbox" mails={story().mails}>
             <Compose />
         </GmailOf>
     );
@@ -93,6 +96,9 @@ export function GmailOf(properties: {
 
 /** Draw your reply to Ines, the estimate attached. */
 function Compose() {
+    // read the story the page tells
+    const story = useStory();
+
     return (
         <div data-component="ComposeWindow" {...style.attrs(styles.gmWindow)}>
             <span {...style.attrs(styles.gmWindowHead)}>Re: Phase 2</span>
@@ -103,7 +109,7 @@ function Compose() {
             <span {...style.attrs(styles.gmField)}>Re: Phase 2</span>
             <p {...style.attrs(styles.gmBody)}>
                 Hi Ines, here's the estimate for phase 2: card payments at booking, and the app on
-                your own domain. Both ship before December.
+                your own domain. Both ship before {story().monthName(HANDOVER_DAY, 1)}.
             </p>
             <span {...style.attrs(styles.gmTools)}>
                 <span {...style.attrs(styles.gmSend)}>Send</span>

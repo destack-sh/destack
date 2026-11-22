@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { board, tasks } from "../verb/corner";
+import { board, useStory } from "../verb/story";
 import { site } from "../figure/site.stylex";
 import { miro } from "./miro.stylex";
 
@@ -51,6 +51,9 @@ const frameStickies: readonly ("yellow" | "green" | "blue")[] = ["yellow", "gree
 
 /** Draw your week's board as a whiteboard of frames and sticky notes, your agent's cursor on it. */
 export function Miro() {
+    // read the story the page tells
+    const story = useStory();
+
     return (
         <div data-component="MiroPage" {...style.attrs(styles.page)}>
             {/* frames of sticky notes */}
@@ -60,7 +63,7 @@ export function Miro() {
                         <span {...style.attrs(styles.frameName)}>{column}</span>
                         <div {...style.attrs(styles.notes)}>
                             {notes.map((note) => {
-                                const task = tasks.find(([id]) => id === note);
+                                const task = story().tasks.find(([id]) => id === note);
 
                                 return (
                                     <span

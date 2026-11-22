@@ -22,6 +22,7 @@ import {
     WORDS_PER_BEAT,
 } from "./scene";
 import { Cast } from "../figure/cast";
+import { useStory } from "../verb/story";
 
 /** The sans the assistants' chrome and your messages set in. */
 const SANS = 'ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif';
@@ -756,6 +757,9 @@ function serverOf(server: string): { readonly name: string; readonly mark: Optio
  * Its note lands once it is built: who it is shared with, and as whom it acts.
  */
 function AppCard(properties: { item: Extract<Item, { kind: "app" }>; isBuilding: boolean }) {
+    // read the story the page tells
+    const story = useStory();
+
     return (
         <span data-component="AppCard" {...style.attrs(styles.app)}>
             <span {...style.attrs(styles.appHead)}>
@@ -765,7 +769,7 @@ function AppCard(properties: { item: Extract<Item, { kind: "app" }>; isBuilding:
                     {properties.item.badge}
                 </span>
             </span>
-            {properties.item.rows.map(([name, asked, state]) => (
+            {properties.item.rows(story()).map(([name, asked, state]) => (
                 <span {...style.attrs(styles.appRow)}>
                     <span {...style.attrs(styles.appTitle)}>{name}</span>
                     <span {...style.attrs(styles.appMeta, styles.appAsked)}>{asked}</span>
@@ -787,6 +791,9 @@ function ArtifactCard(properties: {
     kind: string;
     isBuilding: boolean;
 }) {
+    // read the story the page tells
+    const story = useStory();
+
     return (
         <span data-component="ArtifactCard" {...style.attrs(styles.app)}>
             {/* the artifact's bar: its mark, title and kind, its tabs, and publishing */}
@@ -808,7 +815,7 @@ function ArtifactCard(properties: {
             </span>
 
             {/* the preview */}
-            {properties.item.rows.map(([name, asked, state]) => (
+            {properties.item.rows(story()).map(([name, asked, state]) => (
                 <span {...style.attrs(styles.appRow)}>
                     <span {...style.attrs(styles.appTitle)}>{name}</span>
                     <span {...style.attrs(styles.appMeta, styles.appAsked)}>{asked}</span>

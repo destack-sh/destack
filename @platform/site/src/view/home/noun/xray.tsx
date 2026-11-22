@@ -62,7 +62,7 @@ const apps: readonly (readonly [
     ["documents", "pages", "Ines Ferreira", "notes", "/notes/ines"],
     ["tables", "table", "People", "people", "/people"],
     ["tasks", "tasks", "Tasks", "tasks", "/tasks"],
-    ["calendar", "calendar", "October 20 – 24", "calendar", "/book"],
+    ["calendar", "calendar", "Calendar", "calendar", "/book"],
     ["chat", "chat", "# booking-app", "chat", "/chat"],
     ["mail", "mail", "Re: Phase 2", "mail", "/mail"],
     ["canvas", "canvas", "This week", "board", "/board"],

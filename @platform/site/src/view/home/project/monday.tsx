@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { commitments } from "../verb/corner";
+import { useStory } from "../verb/story";
 import { monday } from "./monday.stylex";
 
 /** The free slots the page finds in your week. */
@@ -15,13 +15,16 @@ const figures: readonly (readonly [value: string, label: string])[] = [
 
 /** Draw the Monday page an agent made on its own: its stock look, on sample data. */
 export function MadeMonday() {
+    // read the story the page tells
+    const story = useStory();
+
     return (
         <div data-component="MadeMondayPage" {...style.attrs(styles.page)}>
             {/* header */}
             <header {...style.attrs(styles.header)}>
                 <span {...style.attrs(styles.stack)}>
                     <b {...style.attrs(styles.title)}>📅 My Monday</b>
-                    <span {...style.attrs(styles.muted)}>Week of Oct 20</span>
+                    <span {...style.attrs(styles.muted)}>Week of {story().label(0)}</span>
                 </span>
                 <span data-xray="Identity" {...style.attrs(styles.button)}>
                     Sign in with Google
@@ -41,10 +44,10 @@ export function MadeMonday() {
             {/* promises */}
             <section data-xray="Database" {...style.attrs(styles.card)}>
                 <b {...style.attrs(styles.heading)}>✉️ Promises from email</b>
-                {commitments
-                    .filter(([, , , state]) => state !== "kept")
+                {story()
+                    .commitments.filter(([, , , , state]) => state !== "kept")
                     .slice(0, 3)
-                    .map(([person, what, , state]) => (
+                    .map(([person, what, , , state]) => (
                         <span {...style.attrs(styles.row)}>
                             <span {...style.attrs(styles.box)} />
                             <span {...style.attrs(styles.stack)}>

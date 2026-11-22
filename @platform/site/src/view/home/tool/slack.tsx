@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { type Message, messages } from "../verb/corner";
+import { type Message, messages } from "../verb/story";
 import { Glyph } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { palette } from "../../palette.stylex";

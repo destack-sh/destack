@@ -1,12 +1,15 @@
 import * as style from "@destack/style";
 
-import { overview, owed } from "../verb/corner";
+import { overview, owed, useStory } from "../verb/story";
 import { Favicon } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { replit } from "./replit.stylex";
 
 /** Draw your Monday page as an app built by prompt and hosted on the builder's own domain. */
 export function Replit() {
+    // read the story the page tells
+    const story = useStory();
+
     return (
         <div data-component="ReplitPage" {...style.attrs(styles.replit)}>
             <nav {...style.attrs(styles.replitNav)}>
@@ -21,7 +24,9 @@ export function Replit() {
                 </span>
             </nav>
             <div {...style.attrs(styles.replitHero)}>
-                <span {...style.attrs(styles.replitPill)}>📅 Week of October 20</span>
+                <span {...style.attrs(styles.replitPill)}>
+                    📅 Week of {story().label(0, { month: "long", day: "numeric" })}
+                </span>
                 <b {...style.attrs(styles.replitTitle)}>
                     The software{" "}
                     <span {...style.attrs(styles.replitGlow)}>you'll actually own</span>

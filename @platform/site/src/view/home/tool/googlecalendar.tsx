@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { week, type WeekBlock } from "../verb/corner";
+import { useStory, week, type WeekBlock } from "../verb/story";
 import { Favicon } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { googleCalendar } from "./googlecalendar.stylex";
@@ -46,14 +46,8 @@ const glyphs = {
 /** The hours the week shows, from nine to five. */
 const hours: readonly number[] = [9, 10, 11, 12, 13, 14, 15, 16];
 
-/** The days the week shows: weekday and date. */
-const days: readonly (readonly [weekday: string, date: number])[] = [
-    ["MON", 20],
-    ["TUE", 21],
-    ["WED", 22],
-    ["THU", 23],
-    ["FRI", 24],
-];
+/** The days the work week shows, from Monday. */
+const DAYS = [0, 1, 2, 3, 4] as const;
 
 /** The calendars in the side list: name and colour. */
 const calendars: readonly (readonly [name: string, tint: string])[] = [
@@ -74,6 +68,9 @@ export function GoogleCalendar() {
 
 /** Draw a week in the calendar: bookable times as a schedule, overlaps side by side. */
 export function GoogleCalendarWeek(properties: { week: readonly WeekBlock[] }) {
+    // read the story the page tells
+    const story = useStory();
+
     return (
         <div data-component="GoogleCalendarPage" {...style.attrs(styles.page)}>
             {/* top bar */}
@@ -86,7 +83,9 @@ export function GoogleCalendarWeek(properties: { week: readonly WeekBlock[] }) {
                 <span {...style.attrs(styles.today)}>Today</span>
                 <Mark name="back" size={18} />
                 <Mark name="forward" size={18} />
-                <b {...style.attrs(styles.month)}>October 2025</b>
+                <b {...style.attrs(styles.month)}>
+                    {story().label(0, { month: "long", year: "numeric" })}
+                </b>
                 <span {...style.attrs(styles.topEnd)}>
                     <Mark name="search" size={20} />
                     <Mark name="help" size={20} />
@@ -127,16 +126,16 @@ export function GoogleCalendarWeek(properties: { week: readonly WeekBlock[] }) {
 
                 {/* week */}
                 <div {...style.attrs(styles.week)}>
-                    {days.map(([weekday, date], index) => (
+                    {DAYS.map((day, index) => (
                         <span
                             style={{ "grid-column": String(index + 2) }}
                             {...style.attrs(styles.dayHead)}
                         >
                             <span {...style.attrs(styles.weekday, index === 0 && styles.todayText)}>
-                                {weekday}
+                                {story().label(day, { weekday: "short" }).toUpperCase()}
                             </span>
                             <span {...style.attrs(styles.date, index === 0 && styles.dateToday)}>
-                                {date}
+                                {story().label(day, { day: "numeric" })}
                             </span>
                         </span>
                     ))}

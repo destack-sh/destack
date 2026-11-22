@@ -1,11 +1,12 @@
 import * as style from "@destack/style";
+import { useStory } from "../verb/story";
 
 import { site } from "../figure/site.stylex";
 import { monzo } from "./monzo.stylex";
 
 /** Your latest payments by day: merchant, category, amount, logo colour, and whether it came in. */
 const days: readonly (readonly [
-    day: string,
+    day: number,
     payments: readonly (readonly [
         merchant: string,
         category: string,
@@ -14,10 +15,15 @@ const days: readonly (readonly [
         isIncome: boolean,
     ])[],
 ])[] = [
-    ["Tuesday 21 October", [["Hetzner", "Bills", "16.40", "#d50c2d", false]]],
-    ["Monday 20 October", [["Workshop Coffee", "Eating out", "3.80", "#3d2b1f", false]]],
     [
-        "Saturday 18 October",
+        0,
+        [
+            ["Hetzner", "Bills", "16.40", "#d50c2d", false],
+            ["Workshop Coffee", "Eating out", "3.80", "#3d2b1f", false],
+        ],
+    ],
+    [
+        -2,
         [
             ["Trainline", "Transport", "42.10", "#01c3a7", false],
             ["Jonas Weber", "Splits", "12.00", "#6b5ca5", true],
@@ -30,6 +36,9 @@ const CHOSEN = "Workshop Coffee";
 
 /** Draw your Monzo web feed: your balance and payments, one opened beside them. */
 export function Monzo() {
+    // read the story the page tells
+    const story = useStory();
+
     return (
         <div data-component="MonzoPage" {...style.attrs(styles.page)}>
             {/* top bar */}
@@ -57,7 +66,13 @@ export function Monzo() {
                     </div>
                     {days.map(([day, payments]) => (
                         <>
-                            <span {...style.attrs(styles.day)}>{day}</span>
+                            <span {...style.attrs(styles.day)}>
+                                {story().label(
+                                    day,
+                                    { weekday: "long", day: "numeric", month: "long" },
+                                    "en-GB",
+                                )}
+                            </span>
                             {payments.map(([merchant, category, amount, tint, isIncome]) => (
                                 <span
                                     {...style.attrs(
@@ -111,7 +126,14 @@ export function Monzo() {
                     <b {...style.attrs(styles.detailName)}>Workshop Coffee</b>
                     <span {...style.attrs(styles.muted)}>Clerkenwell, London</span>
                     <b {...style.attrs(styles.detailAmount)}>£3.80</b>
-                    <span {...style.attrs(styles.muted)}>Monday 20 October, 08:41</span>
+                    <span {...style.attrs(styles.muted)}>
+                        {story().label(
+                            0,
+                            { weekday: "long", day: "numeric", month: "long" },
+                            "en-GB",
+                        )}
+                        , 08:41
+                    </span>
                     <span {...style.attrs(styles.rows)}>
                         {[
                             ["Category", "Eating out"],

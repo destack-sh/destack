@@ -2,29 +2,35 @@ import * as style from "@destack/style";
 
 import { site } from "../figure/site.stylex";
 import { tracker } from "./tracker.stylex";
+import { HANDOVER_DAY, useStory } from "../verb/story";
 
-/** Phase 2 of Ines's booking app, in order: what, when, whether it is done, and its task. */
+/** Phase 2 of Ines's booking app, in order: what, its day, whether it is done, and its task. */
 export const milestones: readonly (readonly [
     title: string,
-    due: string,
+    due: number,
     isDone: boolean,
     task: string,
 ])[] = [
-    ["Fix double bookings", "Mon 20", true, "T-12"],
-    ["Estimate for phase 2", "Wed 22", false, "T-14"],
-    ["Card payments at booking", "Nov 7", false, "T-21"],
-    ["Move to her domain", "Nov 14", false, "T-22"],
-    ["Hand over", "Nov 28", false, "T-23"],
+    ["Fix double bookings", 0, true, "T-12"],
+    ["Estimate for phase 2", 2, false, "T-14"],
+    ["Card payments at booking", 18, false, "T-21"],
+    ["Move to her domain", 25, false, "T-22"],
+    ["Hand over", HANDOVER_DAY, false, "T-23"],
 ];
 
 /** Draw the phase 2 tracker as it runs on your laptop: a dev server, saved in this browser only. */
 export function LocalTracker() {
+    // read the story the page tells
+    const story = useStory();
+
     return (
         <div data-component="LocalTrackerPage" {...style.attrs(styles.page)}>
             {/* header */}
             <header {...style.attrs(styles.header)}>
                 <b {...style.attrs(styles.title)}>Booking app · phase 2</b>
-                <span {...style.attrs(styles.countdown)}>Hand over Nov 28</span>
+                <span {...style.attrs(styles.countdown)}>
+                    Hand over {story().label(HANDOVER_DAY)}
+                </span>
             </header>
 
             {/* milestones */}
@@ -37,7 +43,7 @@ export function LocalTracker() {
                         <span {...style.attrs(styles.name, isDone && styles.nameDone)}>
                             {title}
                         </span>
-                        <span {...style.attrs(styles.due)}>{due}</span>
+                        <span {...style.attrs(styles.due)}>{story().labelPlan(due)}</span>
                     </li>
                 ))}
             </ul>

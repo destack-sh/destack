@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { people, type ReplyState } from "../verb/corner";
+import { type ReplyState, useStory } from "../verb/story";
 import { Favicon } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { googleSheets } from "./googlesheets.stylex";
@@ -62,6 +62,9 @@ const statusNames: Readonly<Record<ReplyState, string>> = {
 
 /** Draw the people you deal with as a spreadsheet, a status cell chosen. */
 export function GoogleSheets() {
+    // read the story the page tells
+    const story = useStory();
+
     return (
         <div data-component="GoogleSheetsPage" {...style.attrs(styles.page)}>
             {/* title bar with the menus */}
@@ -153,7 +156,7 @@ export function GoogleSheets() {
                         <span {...style.attrs(styles.cell, styles.bold)}>{header}</span>
                     ))}
                 </span>
-                {people.map(([name, relation, state, last], index) => (
+                {story().people.map(([name, relation, state, last], index) => (
                     <span {...style.attrs(styles.row)}>
                         <span {...style.attrs(styles.rowHead, index === 1 && styles.headOn)}>
                             {index + 2}
@@ -176,7 +179,13 @@ export function GoogleSheets() {
                             </span>
                             {index === 1 ? <span {...style.attrs(styles.handle)} /> : undefined}
                         </span>
-                        <span {...style.attrs(styles.cell, styles.number)}>{last}, 2025</span>
+                        <span {...style.attrs(styles.cell, styles.number)}>
+                            {story().label(last, {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                            })}
+                        </span>
                         <span {...style.attrs(styles.cell, styles.quiet)}>
                             {state === "owe" ? "Reply today" : ""}
                         </span>

@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { board, tasks } from "../verb/corner";
+import { board, useStory } from "../verb/story";
 import { Favicon } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { tldraw } from "./tldraw.stylex";
@@ -71,6 +71,9 @@ const notes: readonly ("yellow" | "green" | "sky")[] = ["yellow", "green", "sky"
 
 /** Draw your week's board on the infinite canvas: one frame per column, a note per item. */
 export function Tldraw() {
+    // read the story the page tells
+    const story = useStory();
+
     return (
         <div data-component="TldrawPage" {...style.attrs(styles.page)}>
             {/* the frames and their notes */}
@@ -79,7 +82,7 @@ export function Tldraw() {
                     <section {...style.attrs(styles.frame)}>
                         <span {...style.attrs(styles.frameName)}>{column}</span>
                         {items.map((item) => {
-                            const task = tasks.find(([id]) => id === item);
+                            const task = story().tasks.find(([id]) => id === item);
 
                             return (
                                 <span

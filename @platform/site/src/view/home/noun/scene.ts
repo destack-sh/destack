@@ -3,12 +3,14 @@ import { artifactAddressOf } from "../command/artifact";
 import { type Connector, SHELL } from "../command/chat";
 import { type Item, type Lead, Scene } from "../command/scene";
 import type { Maker } from "./maker";
-import { commitments } from "../verb/corner";
+import type { Story } from "../verb/story";
 
-/** The Monday page's rows, as its preview shows them: what you said, to whom, and its state. */
-const leads: readonly Lead[] = commitments
-    .filter(([, , , state]) => state !== "kept")
-    .map(([person, what, , state]) => [what, person, state === "open" ? "Open" : "Waiting"]);
+/** Read the Monday page's preview rows: what you said, to whom, and its state. */
+function leadsOf(story: Story): readonly Lead[] {
+    return story.commitments
+        .filter(([, , , , state]) => state !== "kept")
+        .map(([person, what, , , state]) => [what, person, state === "open" ? "Open" : "Waiting"]);
+}
 
 /** What you ask your agent to build. */
 const ask: Item = {
@@ -39,7 +41,7 @@ export const destackedScene = Scene.of([
         kind: "app",
         title: "Monday",
         badge: "Live",
-        rows: leads,
+        rows: leadsOf,
         note: "mydomain.com/monday · on your phone too",
         isLive: true,
     },
@@ -131,7 +133,7 @@ function madeOf(maker: Maker): readonly Item[] {
                 kind: "app",
                 title: "Monday",
                 badge: "Preview",
-                rows: leads,
+                rows: leadsOf,
                 note: place.host,
                 isLive: false,
             },
@@ -147,7 +149,7 @@ function madeOf(maker: Maker): readonly Item[] {
             kind: "app",
             title: "Monday",
             badge: "Interactive",
-            rows: leads,
+            rows: leadsOf,
             note: `${address.host}${address.path}`,
             isLive: false,
         },

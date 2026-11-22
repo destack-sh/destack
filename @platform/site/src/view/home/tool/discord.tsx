@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { messages } from "../verb/corner";
+import { messages, useStory } from "../verb/story";
 import { site } from "../figure/site.stylex";
 import { discord } from "./discord.stylex";
 
@@ -82,6 +82,9 @@ const servers: readonly (readonly [initial: string, tint: string])[] = [
 
 /** Draw the channel you share with Ines on your server, in the app's default dark theme. */
 export function Discord() {
+    // read the story the page tells
+    const story = useStory();
+
     return (
         <div data-component="DiscordPage" {...style.attrs(styles.page)}>
             {/* server rail */}
@@ -197,7 +200,9 @@ export function Discord() {
 
                 <ol {...style.attrs(styles.messages)}>
                     <li {...style.attrs(styles.divider)}>
-                        <span>October 21, 2025</span>
+                        <span>
+                            {story().label(0, { month: "long", day: "numeric", year: "numeric" })}
+                        </span>
                     </li>
                     {messages.map(([author, time, text], index) => (
                         <li {...style.attrs(styles.message)}>

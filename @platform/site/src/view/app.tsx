@@ -1,5 +1,7 @@
 import "@destack/view/styles";
 import "./site.css";
+import { TimeZone } from "@destack/schema";
+import { useEnvironment } from "@destack/view";
 import { createRouter, defineRoutes } from "@destack/view/router";
 
 import { Layout } from "./layout/layout";
@@ -16,7 +18,7 @@ const routes = defineRoutes([
     {
         component: Layout,
         children: [
-            { path: "/", component: HomeIsland },
+            { path: "/", component: HomePage },
             { path: "/pricing", component: PricingIsland },
             { path: "/blog", component: blog.Blog },
             { path: "/blog/:slug", component: post.Post },
@@ -26,6 +28,13 @@ const routes = defineRoutes([
         ],
     },
 ]);
+
+/** Render the home page's island, its story told from today on the rendering machine's clock. */
+function HomePage() {
+    const { clock, timeZone } = useEnvironment();
+
+    return <HomeIsland today={TimeZone.date(timeZone, clock.now())} zone={timeZone} />;
+}
 
 /** Website navigation with browser history and server request matching. */
 const Router = createRouter({ routes });

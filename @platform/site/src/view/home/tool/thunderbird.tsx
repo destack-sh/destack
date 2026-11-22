@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { mails } from "../verb/corner";
+import { useStory } from "../verb/story";
 import { Favicon } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { thunderbird } from "./thunderbird.stylex";
@@ -56,6 +56,9 @@ const folders: readonly (readonly [name: string, glyph: keyof typeof glyphs, cou
 
 /** Draw your inbox in the desktop client, as cards. */
 export function Thunderbird() {
+    // read the story the page tells
+    const story = useStory();
+
     return (
         <div data-component="ThunderbirdPage" {...style.attrs(styles.page)}>
             {/* spaces bar */}
@@ -126,7 +129,7 @@ export function Thunderbird() {
                                 Quick Filter
                             </span>
                         </span>
-                        {mails.map(([sender, , subject, , time, isUnread], index) => (
+                        {story().mails.map(([sender, , subject, , time, isUnread], index) => (
                             <span {...style.attrs(styles.card, index === 0 && styles.cardOn)}>
                                 <span {...style.attrs(styles.cardTop)}>
                                     {isUnread ? (

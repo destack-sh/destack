@@ -1,12 +1,15 @@
 import * as style from "@destack/style";
 
-import { overview, owed } from "../verb/corner";
+import { overview, owed, useStory } from "../verb/story";
 import { Favicon } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { v0 } from "./v0.stylex";
 
 /** Draw your Monday page as an app the UI generator made and deployed on the hosting platform. */
 export function V0() {
+    // read the story the page tells
+    const story = useStory();
+
     return (
         <div data-component="V0Page" {...style.attrs(styles.page)}>
             <nav {...style.attrs(styles.nav)}>
@@ -18,7 +21,9 @@ export function V0() {
                 <span {...style.attrs(styles.navButton)}>Sign in</span>
             </nav>
             <section {...style.attrs(styles.hero)}>
-                <span {...style.attrs(styles.badgeLine)}>Week of October 20 →</span>
+                <span {...style.attrs(styles.badgeLine)}>
+                    Week of {story().label(0, { month: "long", day: "numeric" })} →
+                </span>
                 <b {...style.attrs(styles.title)}>What you said you'd do.</b>
                 <span {...style.attrs(styles.line)}>
                     Ines, Jonas and Mia are waiting on you. Here's what you said you'd do, and when

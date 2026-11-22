@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { overview, owed } from "../verb/corner";
+import { overview, owed } from "../verb/story";
 import { Favicon } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { bolt } from "./bolt.stylex";

@@ -1,6 +1,7 @@
+import { present } from "@destack/schema";
 import * as style from "@destack/style";
 
-import { points } from "../verb/corner";
+import { HANDOVER_DAY, points, useStory } from "../verb/story";
 import { Favicon } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { confluence } from "./confluence.stylex";
@@ -76,11 +77,14 @@ const tree: readonly (readonly [
     ["Admin", 0, "closed"],
 ];
 
-/** The due date of each open point, in its order. */
-const dues: readonly string[] = ["Oct 20, 2025", "Oct 22, 2025", "Oct 23, 2025", "Oct 24, 2025"];
+/** The day each open point is due, in its order. */
+const DUES: readonly number[] = [0, 2, 3, 4];
 
 /** Draw your page on Ines as a page of your wiki, shared with guests by space. */
 export function Confluence() {
+    // read the story the page tells
+    const story = useStory();
+
     return (
         <div data-component="ConfluencePage" {...style.attrs(styles.page)}>
             {/* top bar */}
@@ -189,7 +193,11 @@ export function Confluence() {
                                     <td {...style.attrs(styles.cell)}>
                                         <span {...style.attrs(styles.date)}>
                                             <Mark name="calendar" size={12} />
-                                            Nov 28, 2025
+                                            {story().label(HANDOVER_DAY, {
+                                                month: "short",
+                                                day: "numeric",
+                                                year: "numeric",
+                                            })}
                                         </span>
                                     </td>
                                 </tr>
@@ -198,7 +206,12 @@ export function Confluence() {
                                     <td {...style.attrs(styles.cell)}>
                                         <span {...style.attrs(styles.date)}>
                                             <Mark name="calendar" size={12} />
-                                            Oct 22, 2025 11:00
+                                            {story().label(2, {
+                                                month: "short",
+                                                day: "numeric",
+                                                year: "numeric",
+                                            })}{" "}
+                                            11:00
                                         </span>{" "}
                                         <span {...style.attrs(styles.mention)}>@Ines Ferreira</span>
                                     </td>
@@ -217,7 +230,7 @@ export function Confluence() {
                                 <Mark name="info" size={16} />
                             </span>
                             Runs a physio practice with three rooms. Wants card payments and her own
-                            domain before December.
+                            domain before {story().monthName(HANDOVER_DAY, 1)}.
                         </p>
 
                         <b {...style.attrs(styles.heading)}>Open points</b>
@@ -234,7 +247,11 @@ export function Confluence() {
                                     <span {...style.attrs(isDone && styles.done)}>{item}</span>
                                     <span {...style.attrs(styles.mention)}>@Florian</span>
                                     <span {...style.attrs(styles.date, styles.wide)}>
-                                        {dues[index]}
+                                        {story().label(present(DUES[index], "due day"), {
+                                            month: "short",
+                                            day: "numeric",
+                                            year: "numeric",
+                                        })}
                                     </span>
                                 </li>
                             ))}

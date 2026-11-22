@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { month, times } from "../verb/corner";
+import { CHOSEN_DAY, times, useStory } from "../verb/story";
 import { site } from "../figure/site.stylex";
 import { calcom } from "./calcom.stylex";
 
@@ -23,6 +23,9 @@ const weekdays: readonly string[] = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "
 
 /** Draw your booking page as an open scheduling booker, with a day chosen. */
 export function CalCom() {
+    // read the story the page tells
+    const story = useStory();
+
     return (
         <div data-component="CalComPage" {...style.attrs(styles.page)}>
             <div {...style.attrs(styles.booker)}>
@@ -50,7 +53,10 @@ export function CalCom() {
                 <div {...style.attrs(styles.month)}>
                     <span {...style.attrs(styles.monthHead)}>
                         <b>
-                            October <span {...style.attrs(styles.year)}>2025</span>
+                            {story().label(CHOSEN_DAY, { month: "long" })}{" "}
+                            <span {...style.attrs(styles.year)}>
+                                {story().label(CHOSEN_DAY, { year: "numeric" })}
+                            </span>
                         </b>
                         <span {...style.attrs(styles.steps)}>
                             <Mark name="back" size={16} />
@@ -61,23 +67,25 @@ export function CalCom() {
                         {weekdays.map((day) => (
                             <span {...style.attrs(styles.weekday)}>{day}</span>
                         ))}
-                        {Array.from({ length: month.first }, () => (
+                        {Array.from({ length: story().month.offset }, () => (
                             <span />
                         ))}
-                        {Array.from({ length: month.days }, (_, index) => index + 1).map((date) => (
-                            <span
-                                {...style.attrs(
-                                    styles.date,
-                                    month.open.includes(date) && styles.dateOpen,
-                                    date === month.chosen && styles.dateChosen,
-                                )}
-                            >
-                                {date}
-                                {date === month.today ? (
-                                    <span {...style.attrs(styles.today)} />
-                                ) : undefined}
-                            </span>
-                        ))}
+                        {Array.from({ length: story().month.days }, (_, index) => index + 1).map(
+                            (date) => (
+                                <span
+                                    {...style.attrs(
+                                        styles.date,
+                                        story().month.open.includes(date) && styles.dateOpen,
+                                        date === story().month.chosen && styles.dateChosen,
+                                    )}
+                                >
+                                    {date}
+                                    {date === story().month.today ? (
+                                        <span {...style.attrs(styles.today)} />
+                                    ) : undefined}
+                                </span>
+                            ),
+                        )}
                     </div>
                 </div>
 

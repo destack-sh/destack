@@ -8,67 +8,21 @@ import { Fade } from "../figure/fade";
 import { Favicon, Glyph } from "../figure/glyph";
 import { AuditLog } from "./log";
 import { GmailOf } from "../tool/gmail";
-import { type Mail, mails } from "../verb/corner";
+import { type Mail, type Story, useStory } from "../verb/story";
 import type { Lane } from "./session";
 import { Cast } from "../figure/cast";
 
 /** A place in your rented mail you open to see what your agent did last night. */
 export type Console = "gmail" | "receipts" | "archive";
 
-/** The Receipts label: the mail your agent's filter moved there, newest first. */
-const receipts: readonly Mail[] = [
-    ["Figma", "#a259ff", "Your receipt from Figma", "Professional plan, 1 editor", "Oct 19", false],
-    ["Hetzner", "#d50c2d", "Invoice for September", "Your invoice is ready", "Oct 17", false],
-    ["Notion", "#191919", "Your receipt from Notion", "Plus plan, monthly", "Oct 16", false],
-    ["Trainline", "#01c3a7", "Your e-ticket", "Return, Saturday 25 October", "Oct 15", false],
-    ["Vercel", "#171717", "Your Vercel invoice", "Pro plan, October", "Oct 1", false],
-    ["Spotify", "#1db954", "Your Spotify receipt", "Premium Individual", "Oct 1", false],
-];
-
-/** All Mail: the newsletters your agent archived, Kai's sketch swept up among them. */
-const archived: readonly Mail[] = [
-    [
-        "Kai Brandt",
-        "#5a7a2e",
-        "Onboarding sketch",
-        "No rush, but I'd love your take before I build it.",
-        "Oct 19",
-        false,
-    ],
-    [
-        "Stratechery",
-        "#2f7d8c",
-        "The weekly article",
-        "This week: agents and the aggregators",
-        "Oct 20",
-        false,
-    ],
-    [
-        "The Pragmatic Engineer",
-        "#6b5ca5",
-        "The Pulse",
-        "What's new in engineering this week",
-        "Oct 18",
-        false,
-    ],
-    ["Product Hunt", "#da552f", "The Daily Digest", "Today's top launches", "Oct 18", false],
-    [
-        "Hacker Newsletter",
-        "#ff6600",
-        "Hacker Newsletter #745",
-        "The best of Hacker News this week",
-        "Oct 17",
-        false,
-    ],
-    ["Figma", "#a259ff", "What's new in Figma", "Updates from Config", "Oct 15", false],
-];
-
-/** The inbox after the night's filters: the mail neither filed as a receipt nor archived. */
-const inbox: readonly Mail[] = mails.filter(
-    ([sender, , subject]) =>
-        !receipts.some((mail) => mail[0] === sender) &&
-        !archived.some((mail) => mail[2] === subject),
-);
+/** Read the inbox after the night's filters: the mail neither filed as a receipt nor archived. */
+function inboxOf(story: Story): readonly Mail[] {
+    return story.mails.filter(
+        ([sender, , subject]) =>
+            !story.receipts.some((mail) => mail[0] === sender) &&
+            !story.archived.some((mail) => mail[2] === subject),
+    );
+}
 
 /** The places your rented mail shows the night's work: key, logo, title, address and page. */
 const consoles: readonly (readonly [
@@ -76,28 +30,28 @@ const consoles: readonly (readonly [
     logo: string,
     title: string,
     url: string,
-    page: () => JSX.Element,
+    page: (story: Story) => JSX.Element,
 ])[] = [
     [
         "gmail",
         "gmail",
         "Inbox - Gmail",
         "mail.google.com/mail/u/0/#inbox",
-        () => <GmailOf folder="Inbox" mails={inbox} />,
+        (story) => <GmailOf folder="Inbox" mails={inboxOf(story)} />,
     ],
     [
         "receipts",
         "gmail",
         "Receipts - Gmail",
         "mail.google.com/mail/u/0/#label/Receipts",
-        () => <GmailOf folder="Receipts" mails={receipts} />,
+        (story) => <GmailOf folder="Receipts" mails={story.receipts} />,
     ],
     [
         "archive",
         "gmail",
         "All Mail - Gmail",
         "mail.google.com/mail/u/0/#all",
-        () => <GmailOf folder="All Mail" mails={archived} />,
+        (story) => <GmailOf folder="All Mail" mails={story.archived} />,
     ],
 ];
 
@@ -133,7 +87,8 @@ export function Inspector(properties: {
 
 /** Draw the rented consoles in a browser, a tab each turning on its own, and what each told you. */
 function RentedConsoles(properties: { console: Console }) {
-    // show the console your agent reads, or the one the reader opens
+    // show the console your agent reads, or the one the reader opens, in the page's story
+    const story = useStory();
     const [opened, setOpened] = createSignal<Console>();
     const index = () => consoles.findIndex(([key]) => key === (opened() ?? properties.console));
     const shown = () => present(consoles[index()], "shown console");
@@ -162,7 +117,7 @@ function RentedConsoles(properties: { console: Console }) {
                 </div>
                 <Address url={shown()[3]} />
                 <div {...style.attrs(browserStyles.viewport, styles.viewport)}>
-                    <div {...style.attrs(styles.scaled)}>{shown()[4]()}</div>
+                    <div {...style.attrs(styles.scaled)}>{shown()[4](story())}</div>
                 </div>
             </div>
         </Cast>

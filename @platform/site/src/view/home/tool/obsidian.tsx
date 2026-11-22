@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { points } from "../verb/corner";
+import { HANDOVER_DAY, points, type Story, useStory } from "../verb/story";
 import { site } from "../figure/site.stylex";
 import { obsidian } from "./obsidian.stylex";
 
@@ -68,16 +68,23 @@ const files: readonly (readonly [name: string, depth: number, isFolder: boolean]
     ["Inbox", 0, false],
 ];
 
-/** The note's properties: name, type glyph and value. */
-const fields: readonly (readonly [name: string, glyph: keyof typeof glyphs, value: string])[] = [
-    ["status", "text", "client"],
-    ["review", "calendar", "2025-10-22 11:00"],
-    ["handover", "calendar", "2025-11-28"],
-    ["owner", "text", "Florian"],
-];
+/** Read the note's properties: name, type glyph and value. */
+function fieldsOf(
+    story: Story,
+): readonly (readonly [name: string, glyph: keyof typeof glyphs, value: string])[] {
+    return [
+        ["status", "text", "client"],
+        ["review", "calendar", `${story.date(2)} 11:00`],
+        ["handover", "calendar", story.date(HANDOVER_DAY)],
+        ["owner", "text", "Florian"],
+    ];
+}
 
 /** Draw your page on Ines as a note in a synced vault, in the app's default dark theme. */
 export function Obsidian() {
+    // read the story the page tells
+    const story = useStory();
+
     return (
         <div data-component="ObsidianPage" {...style.attrs(styles.page)}>
             {/* ribbon */}
@@ -160,7 +167,7 @@ export function Obsidian() {
                     </b>
                     <span {...style.attrs(styles.propertiesHead)}>Properties</span>
                     <dl {...style.attrs(styles.properties)}>
-                        {fields.map(([name, glyph, value]) => (
+                        {fieldsOf(story()).map(([name, glyph, value]) => (
                             <>
                                 <dt {...style.attrs(styles.key)}>
                                     <Mark name={glyph} size={14} />
@@ -184,7 +191,7 @@ export function Obsidian() {
                             Tip
                         </b>
                         Runs a physio practice with three rooms. Wants card payments and her own
-                        domain before December.
+                        domain before {story().monthName(HANDOVER_DAY, 1)}.
                     </p>
                     <b {...style.attrs(styles.heading)}>Open points</b>
                     <ul {...style.attrs(styles.list)}>

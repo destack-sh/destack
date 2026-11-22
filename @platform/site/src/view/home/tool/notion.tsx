@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { people, points, type ReplyState } from "../verb/corner";
+import { HANDOVER_DAY, points, type ReplyState, useStory } from "../verb/story";
 import { Glyph, type GlyphName } from "../figure/glyph";
 import type { JSX } from "@destack/view";
 import { site } from "../figure/site.stylex";
@@ -21,6 +21,9 @@ export type NotionTools = "public" | "editor";
 
 /** Draw your page on Ines, a client, in your personal workspace. */
 export function Notion() {
+    // read the story the page tells
+    const story = useStory();
+
     return (
         <NotionPage
             crumbs={[
@@ -32,7 +35,14 @@ export function Notion() {
             title="Ines Ferreira"
             properties={[
                 ["status", "Status", { kind: "status", text: "Client", isDraft: false }],
-                ["calendar", "Next", { kind: "text", text: "October 22, 2025 11:00 AM · Review" }],
+                [
+                    "calendar",
+                    "Next",
+                    {
+                        kind: "text",
+                        text: `${story().label(2, { month: "long", day: "numeric", year: "numeric" })} 11:00 AM · Review`,
+                    },
+                ],
                 ["link", "Project", { kind: "text", text: "Booking app · phase 2" }],
                 ["person", "Owner", { kind: "person", name: "Florian" }],
             ]}
@@ -42,7 +52,7 @@ export function Notion() {
                     💡
                 </span>
                 Runs a physio practice with three rooms. Wants card payments and her own domain
-                before December.
+                before {story().monthName(HANDOVER_DAY, 1)}.
             </p>
             <b {...style.attrs(styles.notionHeading)}>Open points</b>
             <ul {...style.attrs(styles.notionTodos)}>
@@ -165,6 +175,9 @@ const statusNames: Readonly<Record<ReplyState, string>> = {
 
 /** Draw the people you deal with as a database in your personal workspace. */
 export function NotionDatabase() {
+    // read the story the page tells
+    const story = useStory();
+
     return (
         <div data-component="NotionDatabasePage" {...style.attrs(styles.database)}>
             {/* top bar */}
@@ -233,7 +246,7 @@ export function NotionDatabase() {
                             Last contact
                         </span>
                     </span>
-                    {people.map(([name, relation, state, last]) => (
+                    {story().people.map(([name, relation, state, last]) => (
                         <span {...style.attrs(styles.row)}>
                             <span {...style.attrs(styles.cell, styles.title)}>{name}</span>
                             <span {...style.attrs(styles.cell)}>{relation}</span>
@@ -251,7 +264,13 @@ export function NotionDatabase() {
                                     {statusNames[state]}
                                 </span>
                             </span>
-                            <span {...style.attrs(styles.cell, styles.wide)}>{last}, 2025</span>
+                            <span {...style.attrs(styles.cell, styles.wide)}>
+                                {story().label(last, {
+                                    month: "short",
+                                    day: "numeric",
+                                    year: "numeric",
+                                })}
+                            </span>
                         </span>
                     ))}
                     <span {...style.attrs(styles.newRow)}>

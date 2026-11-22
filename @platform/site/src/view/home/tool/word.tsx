@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { points } from "../verb/corner";
+import { HANDOVER_DAY, points, useStory } from "../verb/story";
 import { Favicon } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { word } from "./word.stylex";
@@ -63,6 +63,9 @@ const ribbonTabs: readonly (readonly [name: string, isKept: boolean])[] = [
 
 /** Draw your page on Ines as a document in the shared drive, open in the browser. */
 export function Word() {
+    // read the story the page tells
+    const story = useStory();
+
     return (
         <div data-component="WordPage" {...style.attrs(styles.page)}>
             {/* title bar */}
@@ -160,12 +163,18 @@ export function Word() {
                         Ines Ferreira
                     </b>
                     <p {...style.attrs(styles.meta)}>
-                        Status: Client · Review: October 22, 11:00 · Hand over: November 28, 2025 ·
-                        Owner: Florian
+                        Status: Client · Review:{" "}
+                        {story().label(2, { month: "long", day: "numeric" })}, 11:00 · Hand over:{" "}
+                        {story().label(HANDOVER_DAY, {
+                            month: "long",
+                            day: "numeric",
+                            year: "numeric",
+                        })}{" "}
+                        · Owner: Florian
                     </p>
                     <p {...style.attrs(styles.text)}>
                         Runs a physio practice with three rooms. Wants card payments and her own
-                        domain before December.
+                        domain before {story().monthName(HANDOVER_DAY, 1)}.
                     </p>
                     <b {...style.attrs(styles.heading2)}>Open points</b>
                     <ul {...style.attrs(styles.list)}>

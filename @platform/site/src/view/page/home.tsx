@@ -1,3 +1,4 @@
+import { PlainDate, TimeZone } from "@destack/schema";
 import * as style from "@destack/style";
 import {
     createEffect,
@@ -20,6 +21,7 @@ import { setInstallPrompt } from "../install/prompt";
 import type { Tool } from "../home/tool/tool";
 import { destacked, PastParticiple } from "../home/past/past";
 import { Verb, verb } from "../home/verb/verb";
+import { Story, StoryContext } from "../home/verb/story";
 import { Interval } from "../layout/sheet";
 import { lattice } from "../layout/lattice.stylex";
 import "../home/figure/figure.css";
@@ -37,12 +39,24 @@ const SETTLE_TIME = 320;
 /** The longest wait for an idle moment before switching the next off-screen figure anyway. */
 const IDLE_TIMEOUT = 400;
 
-/** Render the public Destack homepage. */
-export function Home() {
+/** Render the public Destack homepage, its story told from a day in a time zone. */
+export function Home(properties: { readonly today: PlainDate; readonly zone: string }) {
     // hold the page's clock and display, and whether the stack is open, which every figure follows
     const environment = useEnvironment();
     const { clock } = environment;
     const [isOpen, setIsOpen] = createSignal(false);
+
+    // tell the story from the day the page was rendered, then from the reader's week
+    const [story, setStory] = createSignal(
+        untrack(() => Story.of(properties.today, properties.zone)),
+    );
+    onSettled(() => {
+        const today = TimeZone.date(environment.timeZone, clock.now());
+        const reader = Story.of(today, environment.timeZone);
+        if (!PlainDate.equals(reader.monday, story().monday) || reader.zone !== story().zone) {
+            setStory(reader);
+        }
+    });
 
     // follow which page blocks show, so a switch finds the figures on screen without reading layout
     const shown = new Set<Element>();
@@ -123,7 +137,7 @@ export function Home() {
     });
 
     return (
-        <>
+        <StoryContext value={story}>
             <Metadata alternates={{ canonical: "/" }} />
             <Verb isOpen={isOpenAt(0)} picks={picks()} />
             <Interval section={2}>
@@ -145,7 +159,7 @@ export function Home() {
             <BottomBar isOpen={isOpen()} />
             <Interval />
             <ThumbIndex forms={FORMS} />
-        </>
+        </StoryContext>
     );
 }
 

@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { tasks, type TaskState } from "../verb/corner";
+import { type TaskState, useStory } from "../verb/story";
 import { Favicon } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { clickup } from "./clickup.stylex";
@@ -46,6 +46,9 @@ const priorities: readonly ("urgent" | "high" | "normal" | "low")[] = [
 
 /** Draw your tasks as the list of a space's folder, grouped by status. */
 export function ClickUp() {
+    // read the story the page tells
+    const story = useStory();
+
     return (
         <div data-component="ClickUpPage" {...style.attrs(styles.page)}>
             {/* global top bar */}
@@ -160,7 +163,7 @@ export function ClickUp() {
                                         {name}
                                     </span>
                                     <span {...style.attrs(styles.muted)}>
-                                        {tasks.filter((task) => task[2] === state).length}
+                                        {story().tasks.filter((task) => task[2] === state).length}
                                     </span>
                                     <span {...style.attrs(styles.addTask)}>
                                         <Mark name="plus" size={12} />
@@ -173,48 +176,51 @@ export function ClickUp() {
                                     <span {...style.attrs(styles.wide)}>Due date</span>
                                     <span>Priority</span>
                                 </span>
-                                {tasks.map(([, title, taskState, owner, ownerTint, due], index) =>
-                                    taskState === state ? (
-                                        <span {...style.attrs(styles.row)}>
-                                            <span {...style.attrs(styles.name)}>
-                                                <span
-                                                    style={{ "border-color": tint }}
-                                                    {...style.attrs(styles.ring)}
-                                                />
-                                                <span {...style.attrs(styles.title)}>{title}</span>
-                                            </span>
-                                            <span>
-                                                <span
-                                                    style={{ "background-color": ownerTint }}
-                                                    {...style.attrs(styles.owner)}
-                                                >
-                                                    {owner}
+                                {story().tasks.map(
+                                    ([, title, taskState, owner, ownerTint, due], index) =>
+                                        taskState === state ? (
+                                            <span {...style.attrs(styles.row)}>
+                                                <span {...style.attrs(styles.name)}>
+                                                    <span
+                                                        style={{ "border-color": tint }}
+                                                        {...style.attrs(styles.ring)}
+                                                    />
+                                                    <span {...style.attrs(styles.title)}>
+                                                        {title}
+                                                    </span>
+                                                </span>
+                                                <span>
+                                                    <span
+                                                        style={{ "background-color": ownerTint }}
+                                                        {...style.attrs(styles.owner)}
+                                                    >
+                                                        {owner}
+                                                    </span>
+                                                </span>
+                                                <span {...style.attrs(styles.muted, styles.wide)}>
+                                                    {story().label(due)}
+                                                </span>
+                                                <span {...style.attrs(styles.priority)}>
+                                                    <span
+                                                        {...style.attrs(
+                                                            styles.flag,
+                                                            priorities[index] === "urgent"
+                                                                ? styles.urgent
+                                                                : priorities[index] === "high"
+                                                                  ? styles.high
+                                                                  : priorities[index] === "normal"
+                                                                    ? styles.normal
+                                                                    : styles.low,
+                                                        )}
+                                                    >
+                                                        <Mark name="flag" size={14} />
+                                                    </span>
+                                                    <span {...style.attrs(styles.wide)}>
+                                                        {priorities[index]}
+                                                    </span>
                                                 </span>
                                             </span>
-                                            <span {...style.attrs(styles.muted, styles.wide)}>
-                                                {due}
-                                            </span>
-                                            <span {...style.attrs(styles.priority)}>
-                                                <span
-                                                    {...style.attrs(
-                                                        styles.flag,
-                                                        priorities[index] === "urgent"
-                                                            ? styles.urgent
-                                                            : priorities[index] === "high"
-                                                              ? styles.high
-                                                              : priorities[index] === "normal"
-                                                                ? styles.normal
-                                                                : styles.low,
-                                                    )}
-                                                >
-                                                    <Mark name="flag" size={14} />
-                                                </span>
-                                                <span {...style.attrs(styles.wide)}>
-                                                    {priorities[index]}
-                                                </span>
-                                            </span>
-                                        </span>
-                                    ) : undefined,
+                                        ) : undefined,
                                 )}
                             </section>
                         ))}

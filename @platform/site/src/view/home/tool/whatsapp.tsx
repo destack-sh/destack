@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { messages } from "../verb/corner";
+import { messages } from "../verb/story";
 import { site } from "../figure/site.stylex";
 import { whatsapp } from "./whatsapp.stylex";
 

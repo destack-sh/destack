@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { people, type ReplyState } from "../verb/corner";
+import { type ReplyState, useStory } from "../verb/story";
 import { site } from "../figure/site.stylex";
 import { airtable } from "./airtable.stylex";
 
@@ -137,6 +137,9 @@ function TableTab(properties: { name: string; isOn: boolean }) {
 
 /** Draw the people grid. */
 function PeopleGrid() {
+    // read the story the page tells
+    const story = useStory();
+
     return (
         <div {...style.attrs(styles.grid)}>
             <span {...style.attrs(styles.row, styles.headRow)}>
@@ -154,7 +157,7 @@ function PeopleGrid() {
                     </span>
                 ))}
             </span>
-            {people.map(([name, relation, state, last], index) => (
+            {story().people.map(([name, relation, state, last], index) => (
                 <span {...style.attrs(styles.row)}>
                     <span {...style.attrs(styles.number)}>{index + 1}</span>
                     <span {...style.attrs(styles.cell, styles.primary)}>{name}</span>
@@ -175,7 +178,9 @@ function PeopleGrid() {
                             {statusNames[state]}
                         </span>
                     </span>
-                    <span {...style.attrs(styles.cell)}>{last}, 2025</span>
+                    <span {...style.attrs(styles.cell)}>
+                        {story().label(last, { month: "short", day: "numeric", year: "numeric" })}
+                    </span>
                     <span {...style.attrs(styles.cell)}>
                         <span {...style.attrs(styles.owner)}>F</span>
                         Florian
@@ -187,7 +192,7 @@ function PeopleGrid() {
                     <Mark name="plus" size={13} />
                 </span>
             </span>
-            <span {...style.attrs(styles.footer)}>{people.length} records</span>
+            <span {...style.attrs(styles.footer)}>{story().people.length} records</span>
         </div>
     );
 }

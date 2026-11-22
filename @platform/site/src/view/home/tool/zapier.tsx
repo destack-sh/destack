@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { bookingFlow } from "../verb/corner";
+import { bookingFlow } from "../verb/story";
 import { Favicon } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { zapier } from "./zapier.stylex";

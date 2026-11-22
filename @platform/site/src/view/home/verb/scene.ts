@@ -42,7 +42,7 @@ export const stackedScene = Scene.of([
         server: "googlecalendar",
         running: "Finding your meetings with her",
         title: "Found 2 meetings",
-        request: 'list_events({ q: "Ines Ferreira", timeMin: "2025-10-01T00:00:00Z" })',
+        request: 'list_events({ q: "Ines Ferreira" })',
         response:
             '{ "items": [{ "summary": "Call · Ines", "start": "Mon 11:30" }, { "summary": "Review · Ines", "start": "Wed 11:00" }] }',
         isFailed: false,
@@ -76,7 +76,7 @@ export const destackedScene = Scene.of([
         kind: "app",
         title: "Mail · Ines Ferreira",
         badge: "Live",
-        rows: [
+        rows: () => [
             ["Notes", "4 notes · wants cards at booking", "Notes"],
             ["Last talked", "Mon 11:30 · Call", "Calendar"],
             ["Next", "Wed 11:00 · Review", "Calendar"],

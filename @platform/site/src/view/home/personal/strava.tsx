@@ -1,4 +1,5 @@
 import * as style from "@destack/style";
+import { useStory } from "../verb/story";
 
 import { site } from "../figure/site.stylex";
 import { strava } from "./strava.stylex";
@@ -20,10 +21,10 @@ const glyphs = {
 /** The site's top links. */
 const links: readonly string[] = ["Dashboard", "Training", "Maps", "Challenges"];
 
-/** Your latest runs, newest first: title, when, distance, pace, time, kudos and route. */
+/** Your latest runs, newest first: title, day and start, distance, pace, time, kudos and route. */
 const runs: readonly (readonly [
     title: string,
-    when: string,
+    when: readonly [day: number, start: string],
     distance: string,
     pace: string,
     time: string,
@@ -32,7 +33,7 @@ const runs: readonly (readonly [
 ])[] = [
     [
         "Morning run",
-        "October 21, 2025 at 7:02 AM · Zurich",
+        [0, "7:02 AM"],
         "8.20 km",
         "5:08 /km",
         "42m 06s",
@@ -41,7 +42,7 @@ const runs: readonly (readonly [
     ],
     [
         "Long run",
-        "October 19, 2025 at 8:30 AM · Zurich",
+        [-1, "8:30 AM"],
         "21.10 km",
         "5:31 /km",
         "1h 56m",
@@ -55,6 +56,9 @@ const week: readonly number[] = [0, 0, 6.4, 0, 21.1, 0, 8.2];
 
 /** Draw your Strava dashboard: your profile, your week and your latest runs. */
 export function Strava() {
+    // read the story the page tells
+    const story = useStory();
+
     return (
         <div data-component="StravaPage" {...style.attrs(styles.page)}>
             {/* header */}
@@ -127,7 +131,12 @@ export function Strava() {
                                     <b>Florian</b>
                                     <span {...style.attrs(styles.muted, styles.small)}>
                                         <Mark name="run" size={13} />
-                                        {when}
+                                        {story().label(when[0], {
+                                            month: "long",
+                                            day: "numeric",
+                                            year: "numeric",
+                                        })}{" "}
+                                        at {when[1]} · Zurich
                                     </span>
                                 </span>
                             </span>

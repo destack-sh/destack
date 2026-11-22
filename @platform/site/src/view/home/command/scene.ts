@@ -1,3 +1,4 @@
+import type { Story } from "../verb/story";
 import { present } from "@destack/schema";
 
 /** The milliseconds a beat of the task takes. */
@@ -49,7 +50,7 @@ export type Item =
           kind: "app";
           title: string;
           badge: string;
-          rows: readonly Lead[];
+          rows: (story: Story) => readonly Lead[];
           note: string;
           isLive: boolean;
       };

@@ -28,7 +28,7 @@ const slips: Item = {
     kind: "app",
     title: "Your inbox, in preview",
     badge: "Preview · 4 changes",
-    rows: [
+    rows: () => [
         ["Needs me first", "12 threads up top", "ready"],
         ["Receipts", "31 filed, each matched to its payment", "ready"],
         ["Newsletters", "214 archived, Kai's sketch among them", "check"],
@@ -43,7 +43,7 @@ const slipsFixed: Item = {
     kind: "app",
     title: "Your inbox",
     badge: "Live · 3 changes",
-    rows: [
+    rows: () => [
         ["Needs me first", "12 threads up top", "live"],
         ["Receipts", "31 filed, each matched to its payment", "live"],
         ["Newsletters", "213 archived, Kai's sketch in your inbox", "live"],

@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { month, times } from "../verb/corner";
+import { CHOSEN_DAY, times, useStory } from "../verb/story";
 import { Glyph } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { palette } from "../../palette.stylex";
@@ -8,6 +8,9 @@ import { calendly } from "./calendly.stylex";
 
 /** Draw your booking page as a scheduling service's card, with a day chosen. */
 export function Calendly() {
+    // read the story the page tells
+    const story = useStory();
+
     return (
         <div data-component="CalendlyPage" {...style.attrs(styles.calendly)}>
             <div {...style.attrs(styles.calCard)}>
@@ -30,7 +33,7 @@ export function Calendly() {
                         <span {...style.attrs(styles.calStep, styles.calStepOff)}>
                             <Glyph name="back" size={18} />
                         </span>
-                        October 2025
+                        {story().label(CHOSEN_DAY, { month: "long", year: "numeric" })}
                         <span {...style.attrs(styles.calStep)}>
                             <Glyph name="forward" size={18} />
                         </span>
@@ -39,23 +42,25 @@ export function Calendly() {
                         {["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"].map((day) => (
                             <span {...style.attrs(styles.calWeekday)}>{day}</span>
                         ))}
-                        {Array.from({ length: month.first }, () => (
+                        {Array.from({ length: story().month.offset }, () => (
                             <span />
                         ))}
-                        {Array.from({ length: month.days }, (_, index) => index + 1).map((date) => (
-                            <span
-                                {...style.attrs(
-                                    styles.calDate,
-                                    month.open.includes(date) && styles.calOpen,
-                                    date === month.chosen && styles.calChosen,
-                                )}
-                            >
-                                {date}
-                                {date === month.today ? (
-                                    <span {...style.attrs(styles.calToday)} />
-                                ) : undefined}
-                            </span>
-                        ))}
+                        {Array.from({ length: story().month.days }, (_, index) => index + 1).map(
+                            (date) => (
+                                <span
+                                    {...style.attrs(
+                                        styles.calDate,
+                                        story().month.open.includes(date) && styles.calOpen,
+                                        date === story().month.chosen && styles.calChosen,
+                                    )}
+                                >
+                                    {date}
+                                    {date === story().month.today ? (
+                                        <span {...style.attrs(styles.calToday)} />
+                                    ) : undefined}
+                                </span>
+                            ),
+                        )}
                     </div>
                     <span {...style.attrs(styles.calZone)}>
                         <b>Time zone</b>
@@ -67,7 +72,13 @@ export function Calendly() {
                     </span>
                 </div>
                 <div {...style.attrs(styles.calTimes)}>
-                    <span {...style.attrs(styles.calDay)}>Tuesday, October 28</span>
+                    <span {...style.attrs(styles.calDay)}>
+                        {story().label(CHOSEN_DAY, {
+                            weekday: "long",
+                            month: "long",
+                            day: "numeric",
+                        })}
+                    </span>
                     {times.map((time) => (
                         <span {...style.attrs(styles.calTime)}>{time}</span>
                     ))}

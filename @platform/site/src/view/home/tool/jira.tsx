@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { tasks, type TaskState } from "../verb/corner";
+import { type TaskState, useStory } from "../verb/story";
 import { Favicon } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { jira } from "./jira.stylex";
@@ -72,6 +72,9 @@ const views: readonly (readonly [name: string, glyph: keyof typeof glyphs])[] = 
 
 /** Draw your tasks as the project's board, one column per status. */
 export function Jira() {
+    // read the story the page tells
+    const story = useStory();
+
     return (
         <div data-component="JiraPage" {...style.attrs(styles.page)}>
             {/* top bar */}
@@ -164,15 +167,17 @@ export function Jira() {
                             <section {...style.attrs(styles.column)}>
                                 <span {...style.attrs(styles.columnName)}>
                                     {name}
-                                    <span>{tasks.filter((task) => task[2] === state).length}</span>
+                                    <span>
+                                        {story().tasks.filter((task) => task[2] === state).length}
+                                    </span>
                                     {state === "done" ? (
                                         <span {...style.attrs(styles.doneMark)}>
                                             <Mark name="check" size={13} />
                                         </span>
                                     ) : undefined}
                                 </span>
-                                {tasks
-                                    .filter((task) => task[2] === state)
+                                {story()
+                                    .tasks.filter((task) => task[2] === state)
                                     .map(([id, title, , owner, tint], index) => (
                                         <article {...style.attrs(styles.card)}>
                                             <span {...style.attrs(styles.cardTitle)}>{title}</span>

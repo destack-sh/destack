@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { board, tasks } from "../verb/corner";
+import { board, useStory } from "../verb/story";
 import { site } from "../figure/site.stylex";
 import { figjam } from "./figjam.stylex";
 
@@ -35,6 +35,9 @@ const tints: readonly ("yellow" | "green" | "sky")[] = ["yellow", "green", "sky"
 
 /** Draw your week's board as a whiteboard of sections and stickies, your agent's cursor on it. */
 export function FigJam() {
+    // read the story the page tells
+    const story = useStory();
+
     return (
         <div data-component="FigJamPage" {...style.attrs(styles.page)}>
             {/* sections of stickies */}
@@ -44,7 +47,7 @@ export function FigJam() {
                         <span {...style.attrs(styles.sectionName)}>{column}</span>
                         <div {...style.attrs(styles.notes)}>
                             {notes.map((note) => {
-                                const task = tasks.find(([id]) => id === note);
+                                const task = story().tasks.find(([id]) => id === note);
 
                                 return (
                                     <span

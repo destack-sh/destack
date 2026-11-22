@@ -1,4 +1,5 @@
 import * as style from "@destack/style";
+import { useStory } from "../verb/story";
 
 import { site } from "../figure/site.stylex";
 import { letterboxd } from "./letterboxd.stylex";
@@ -73,6 +74,9 @@ const diary: readonly (readonly [
 
 /** Draw your Letterboxd diary: the films you watched this month, rated and liked. */
 export function Letterboxd() {
+    // read the story the page tells
+    const story = useStory();
+
     return (
         <div data-component="LetterboxdPage" {...style.attrs(styles.page)}>
             {/* header */}
@@ -140,8 +144,12 @@ export function Letterboxd() {
                                             <span {...style.attrs(styles.ringPin)} />
                                             <span {...style.attrs(styles.ringPin)} />
                                         </span>
-                                        <b {...style.attrs(styles.monthName)}>OCT</b>
-                                        <span {...style.attrs(styles.monthYear)}>2025</span>
+                                        <b {...style.attrs(styles.monthName)}>
+                                            {story().label(0, { month: "short" }).toUpperCase()}
+                                        </b>
+                                        <span {...style.attrs(styles.monthYear)}>
+                                            {story().label(0, { year: "numeric" })}
+                                        </span>
                                     </span>
                                 ) : undefined}
                             </span>

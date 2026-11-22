@@ -3,23 +3,27 @@ import * as style from "@destack/style";
 import { Favicon } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { changelog } from "./changelog.stylex";
+import { useStory } from "../verb/story";
 
 /** The booking app's releases, newest first: version, date, title and what changed. */
 export const releases: readonly (readonly [
     version: string,
-    date: string,
+    day: number,
     title: string,
     notes: readonly string[],
 ])[] = [
-    ["1.4", "Oct 20", "No more double bookings", ["Two clients can't take the same room and time"]],
-    ["1.3", "Oct 9", "Reminders", ["A text the day before", "Cancel from the reminder"]],
-    ["1.2", "Sep 25", "Rooms", ["Three rooms, each with its own hours"]],
-    ["1.1", "Sep 11", "Waiting list", ["Offered the next free slot when someone cancels"]],
-    ["1.0", "Aug 28", "Online booking", ["Clients book and move their own sessions"]],
+    ["1.4", 0, "No more double bookings", ["Two clients can't take the same room and time"]],
+    ["1.3", -11, "Reminders", ["A text the day before", "Cancel from the reminder"]],
+    ["1.2", -25, "Rooms", ["Three rooms, each with its own hours"]],
+    ["1.1", -39, "Waiting list", ["Offered the next free slot when someone cancels"]],
+    ["1.0", -53, "Online booking", ["Clients book and move their own sessions"]],
 ];
 
 /** Draw your changelog as a small site you deployed to its own Vercel address. */
 export function VercelChangelog() {
+    // read the story the page tells
+    const story = useStory();
+
     return (
         <div data-component="VercelChangelogPage" {...style.attrs(styles.page)}>
             {/* header */}
@@ -30,9 +34,9 @@ export function VercelChangelog() {
 
             {/* releases */}
             <ol {...style.attrs(styles.list)}>
-                {releases.map(([version, date, title, notes]) => (
+                {releases.map(([version, day, title, notes]) => (
                     <li {...style.attrs(styles.release)}>
-                        <span {...style.attrs(styles.date)}>{date}</span>
+                        <span {...style.attrs(styles.date)}>{story().label(day)}</span>
                         <span {...style.attrs(styles.body)}>
                             <span {...style.attrs(styles.heading)}>
                                 <span {...style.attrs(styles.pill)}>v{version}</span>

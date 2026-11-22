@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { mails } from "../verb/corner";
+import { HANDOVER_DAY, useStory } from "../verb/story";
 import { Favicon } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { outlook } from "./outlook.stylex";
@@ -76,6 +76,9 @@ const folders: readonly (readonly [name: string, glyph: keyof typeof glyphs, cou
 
 /** Draw your inbox in the office mail app, your reply to Ines open in it. */
 export function Outlook() {
+    // read the story the page tells
+    const story = useStory();
+
     return (
         <div data-component="OutlookPage" {...style.attrs(styles.page)}>
             {/* header bar */}
@@ -199,8 +202,8 @@ export function Outlook() {
                                 <span>Other</span>
                             </span>
                             <span {...style.attrs(styles.group)}>Today</span>
-                            {mails
-                                .slice(0, 3)
+                            {story()
+                                .mails.slice(0, 3)
                                 .map(([sender, tint, subject, preview, time, isUnread], index) => (
                                     <MessageRow
                                         isSelected={index === 0}
@@ -213,8 +216,8 @@ export function Outlook() {
                                     />
                                 ))}
                             <span {...style.attrs(styles.group)}>Yesterday</span>
-                            {mails
-                                .slice(3, 5)
+                            {story()
+                                .mails.slice(3, 5)
                                 .map(([sender, tint, subject, preview, time, isUnread]) => (
                                     <MessageRow
                                         isSelected={false}
@@ -247,7 +250,8 @@ export function Outlook() {
                             <span {...style.attrs(styles.field, styles.subject)}>Re: Phase 2</span>
                             <p {...style.attrs(styles.text)}>
                                 Hi Ines, here's the estimate for phase 2: card payments at booking,
-                                and the app on your own domain. Both ship before December.
+                                and the app on your own domain. Both ship before{" "}
+                                {story().monthName(HANDOVER_DAY, 1)}.
                             </p>
                         </section>
                     </div>

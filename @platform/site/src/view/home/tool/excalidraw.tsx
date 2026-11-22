@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { board, tasks } from "../verb/corner";
+import { board, useStory } from "../verb/story";
 import { site } from "../figure/site.stylex";
 import { excalidraw } from "./excalidraw.stylex";
 
@@ -49,6 +49,9 @@ const tints: readonly ("yellow" | "green" | "blue")[] = ["yellow", "green", "blu
 
 /** Draw your week's board as a hand-drawn sketch of boxes and arrows. */
 export function Excalidraw() {
+    // read the story the page tells
+    const story = useStory();
+
     return (
         <div data-component="ExcalidrawPage" {...style.attrs(styles.page)}>
             {/* the sketch */}
@@ -57,7 +60,7 @@ export function Excalidraw() {
                     <section {...style.attrs(styles.column)}>
                         <span {...style.attrs(styles.heading)}>{column}</span>
                         {notes.map((note) => {
-                            const task = tasks.find(([id]) => id === note);
+                            const task = story().tasks.find(([id]) => id === note);
 
                             return (
                                 <span

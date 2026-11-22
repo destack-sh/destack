@@ -1,12 +1,15 @@
 import * as style from "@destack/style";
 
-import { overview, owed } from "../verb/corner";
+import { overview, owed, useStory } from "../verb/story";
 import { Favicon } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { lovable } from "./lovable.stylex";
 
 /** Draw your Monday page as an app generated from a prompt, published on the builder's domain. */
 export function Lovable() {
+    // read the story the page tells
+    const story = useStory();
+
     return (
         <div data-component="LovablePage" {...style.attrs(styles.page)}>
             {/* navigation */}
@@ -24,7 +27,9 @@ export function Lovable() {
 
             {/* hero */}
             <section {...style.attrs(styles.hero)}>
-                <span {...style.attrs(styles.pill)}>📅 Week of October 20</span>
+                <span {...style.attrs(styles.pill)}>
+                    📅 Week of {story().label(0, { month: "long", day: "numeric" })}
+                </span>
                 <b {...style.attrs(styles.title)}>
                     Good morning, <span {...style.attrs(styles.gradientText)}>Florian.</span>
                 </b>

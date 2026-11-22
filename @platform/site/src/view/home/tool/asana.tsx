@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { tasks } from "../verb/corner";
+import { useStory } from "../verb/story";
 import { site } from "../figure/site.stylex";
 import { asana } from "./asana.stylex";
 
@@ -52,6 +52,9 @@ const tabs: readonly string[] = [
 
 /** Draw your tasks as the project's list, in a section for this week. */
 export function Asana() {
+    // read the story the page tells
+    const story = useStory();
+
     return (
         <div data-component="AsanaPage" {...style.attrs(styles.page)}>
             {/* top bar */}
@@ -172,7 +175,7 @@ export function Asana() {
                             <Mark name="caret" size={13} />
                             This week
                         </b>
-                        {tasks.map(([, title, state, owner, tint, due], index) => (
+                        {story().tasks.map(([, title, state, owner, tint, due], index) => (
                             <span {...style.attrs(styles.row)}>
                                 <span {...style.attrs(styles.cell, styles.name)}>
                                     <span
@@ -194,7 +197,9 @@ export function Asana() {
                                     </span>
                                     {owner === "F" ? "Florian" : "Agent"}
                                 </span>
-                                <span {...style.attrs(styles.cell, styles.due)}>{due}</span>
+                                <span {...style.attrs(styles.cell, styles.due)}>
+                                    {story().label(due)}
+                                </span>
                                 <span {...style.attrs(styles.cell, styles.wide)}>
                                     <span
                                         {...style.attrs(

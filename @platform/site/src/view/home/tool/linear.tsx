@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { tasks, type TaskState } from "../verb/corner";
+import { type TaskState, useStory } from "../verb/story";
 import { Glyph } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { linear } from "./linear.stylex";
@@ -15,6 +15,9 @@ const groups: readonly (readonly [state: TaskState, name: string])[] = [
 
 /** Draw your tasks as an issue tracker's list, seen from your own seat. */
 export function Linear() {
+    // read the story the page tells
+    const story = useStory();
+
     return (
         <div data-component="LinearPage" {...style.attrs(styles.linear)}>
             <nav {...style.attrs(styles.linSide)}>
@@ -85,11 +88,11 @@ export function Linear() {
                             <StateMark state={state} />
                             <b {...style.attrs(styles.linGroupName)}>{name}</b>
                             <span {...style.attrs(styles.linCount)}>
-                                {tasks.filter((task) => task[2] === state).length}
+                                {story().tasks.filter((task) => task[2] === state).length}
                             </span>
                         </span>
-                        {tasks
-                            .filter((task) => task[2] === state)
+                        {story()
+                            .tasks.filter((task) => task[2] === state)
                             .map(([id, title, , owner, tint, due]) => (
                                 <span {...style.attrs(styles.linRow)}>
                                     <span {...style.attrs(styles.linPriority)}>
@@ -104,7 +107,9 @@ export function Linear() {
                                         <span {...style.attrs(styles.linLabelDot)} />
                                         Work
                                     </span>
-                                    <span {...style.attrs(styles.linDue)}>{due}</span>
+                                    <span {...style.attrs(styles.linDue)}>
+                                        {story().label(due)}
+                                    </span>
                                     <span
                                         style={{ "background-color": tint }}
                                         {...style.attrs(styles.linAvatar)}

@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { mails } from "../verb/corner";
+import { useStory } from "../verb/story";
 import { Favicon } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { superhuman } from "./superhuman.stylex";
@@ -22,6 +22,9 @@ const splits: readonly (readonly [name: string, count: string])[] = [
 
 /** Draw your inbox in the fast client, your reply to Ines open below it. */
 export function Superhuman() {
+    // read the story the page tells
+    const story = useStory();
+
     return (
         <div data-component="SuperhumanPage" {...style.attrs(styles.page)}>
             {/* splits */}
@@ -53,7 +56,7 @@ export function Superhuman() {
 
             {/* messages */}
             <ul {...style.attrs(styles.list)}>
-                {mails.map(([sender, , subject, preview, time, isUnread], index) => (
+                {story().mails.map(([sender, , subject, preview, time, isUnread], index) => (
                     <li {...style.attrs(styles.row, index === 0 && styles.rowOn)}>
                         <span {...style.attrs(styles.sender, isUnread && styles.unread)}>
                             {sender}

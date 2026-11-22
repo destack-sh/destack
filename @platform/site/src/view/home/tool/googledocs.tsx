@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { points } from "../verb/corner";
+import { HANDOVER_DAY, points, useStory } from "../verb/story";
 import { Favicon } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { googleDocuments } from "./googledocs.stylex";
@@ -59,6 +59,9 @@ const menus: readonly string[] = [
 
 /** Draw your page on Ines as a shared document, its link open to anyone who has it. */
 export function GoogleDocuments() {
+    // read the story the page tells
+    const story = useStory();
+
     return (
         <div data-component="GoogleDocsPage" {...style.attrs(styles.page)}>
             {/* title bar with the menus */}
@@ -171,11 +174,15 @@ export function GoogleDocuments() {
                         </span>
                         <span {...style.attrs(styles.chip)}>
                             <Mark name="calendar" size={13} />
-                            Nov 28, 2025
+                            {story().label(HANDOVER_DAY, {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                            })}
                         </span>
                         <span {...style.attrs(styles.chip)}>
                             <Mark name="calendar" size={13} />
-                            Review · Oct 22, 11:00
+                            Review · {story().label(2)}, 11:00
                         </span>
                         <span {...style.attrs(styles.chip)}>
                             <span {...style.attrs(styles.person)}>F</span>
@@ -184,7 +191,7 @@ export function GoogleDocuments() {
                     </p>
                     <p {...style.attrs(styles.text)}>
                         Runs a physio practice with three rooms. Wants card payments and her own
-                        domain before December.
+                        domain before {story().monthName(HANDOVER_DAY, 1)}.
                     </p>
                     <b {...style.attrs(styles.heading)}>Open points</b>
                     <ul {...style.attrs(styles.list)}>

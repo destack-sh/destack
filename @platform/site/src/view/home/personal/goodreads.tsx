@@ -1,4 +1,5 @@
 import * as style from "@destack/style";
+import { useStory } from "../verb/story";
 
 import { site } from "../figure/site.stylex";
 import { goodreads } from "./goodreads.stylex";
@@ -37,6 +38,9 @@ const updates: readonly (readonly [cover: string, title: string, author: string,
 
 /** Draw your Goodreads profile: your favourite books, shelves, challenge and latest reads. */
 export function Goodreads() {
+    // read the story the page tells
+    const story = useStory();
+
     return (
         <div data-component="GoodreadsPage" {...style.attrs(styles.page)}>
             {/* header */}
@@ -99,10 +103,12 @@ export function Goodreads() {
 
                 {/* challenge and updates */}
                 <aside {...style.attrs(styles.side)}>
-                    <span {...style.attrs(styles.heading)}>2025 READING CHALLENGE</span>
+                    <span {...style.attrs(styles.heading)}>
+                        {story().label(0, { year: "numeric" })} READING CHALLENGE
+                    </span>
                     <span {...style.attrs(styles.challenge)}>
                         <span {...style.attrs(styles.challengeBadge)}>
-                            <b>2025</b>
+                            <b>{story().label(0, { year: "numeric" })}</b>
                             <span>READING</span>
                             <span>CHALLENGE</span>
                         </span>

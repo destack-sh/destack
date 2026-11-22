@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { people, type ReplyState } from "../verb/corner";
+import { type ReplyState, useStory } from "../verb/story";
 import { Favicon } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { coda } from "./coda.stylex";
@@ -38,6 +38,9 @@ const statusNames: Readonly<Record<ReplyState, string>> = {
 
 /** Draw the people you deal with as a table on a page of your personal doc. */
 export function Coda() {
+    // read the story the page tells
+    const story = useStory();
+
     return (
         <div data-component="CodaPage" {...style.attrs(styles.page)}>
             {/* page list */}
@@ -113,7 +116,7 @@ export function Coda() {
                                 Last contact
                             </span>
                         </span>
-                        {people.map(([name, relation, state, last]) => (
+                        {story().people.map(([name, relation, state, last]) => (
                             <span {...style.attrs(styles.row)}>
                                 <span {...style.attrs(styles.cell, styles.strong)}>{name}</span>
                                 <span {...style.attrs(styles.cell)}>{relation}</span>
@@ -132,7 +135,7 @@ export function Coda() {
                                     </span>
                                 </span>
                                 <span {...style.attrs(styles.cell, styles.wide, styles.muted)}>
-                                    {last}
+                                    {story().label(last)}
                                 </span>
                             </span>
                         ))}

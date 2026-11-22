@@ -2,7 +2,7 @@ import * as style from "@destack/style";
 
 import { palette } from "../../palette.stylex";
 
-import { messages } from "../verb/corner";
+import { messages } from "../verb/story";
 import { site } from "../figure/site.stylex";
 import { teams } from "./teams.stylex";
 

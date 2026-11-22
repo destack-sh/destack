@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { week } from "../verb/corner";
+import { useStory, week } from "../verb/story";
 import { Favicon } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { outlook } from "./outlook.stylex";
@@ -54,14 +54,8 @@ const apps: readonly (keyof typeof glyphs)[] = ["mail", "calendar", "people", "f
 /** The hours the week shows, from nine to five. */
 const hours: readonly number[] = [9, 10, 11, 12, 13, 14, 15, 16];
 
-/** The days the work week shows. */
-const days: readonly string[] = [
-    "20 Monday",
-    "21 Tuesday",
-    "22 Wednesday",
-    "23 Thursday",
-    "24 Friday",
-];
+/** The days the work week shows, from Monday. */
+const DAYS = [0, 1, 2, 3, 4] as const;
 
 /** Return the grid row an hour starts on, two rows to the hour after the day headers. */
 function rowOf(hour: number): number {
@@ -70,6 +64,9 @@ function rowOf(hour: number): number {
 
 /** Draw your week in the office calendar, its bookable times offered through bookings. */
 export function OutlookCalendar() {
+    // read the story the page tells
+    const story = useStory();
+
     return (
         <div data-component="OutlookCalendarPage" {...style.attrs(styles.page)}>
             {/* header bar */}
@@ -117,8 +114,14 @@ export function OutlookCalendar() {
                         <Mark name="back" size={16} />
                         <Mark name="forward" size={16} />
                         <b {...style.attrs(styles.range)}>
-                            <span {...style.attrs(styles.long)}>October 20–24, 2025</span>
-                            <span {...style.attrs(styles.short)}>Oct 20–24</span>
+                            <span {...style.attrs(styles.long)}>
+                                {story().labelRange(0, 4, {
+                                    month: "long",
+                                    day: "numeric",
+                                    year: "numeric",
+                                })}
+                            </span>
+                            <span {...style.attrs(styles.short)}>{story().labelRange(0, 4)}</span>
                         </b>
                     </div>
 
@@ -149,12 +152,13 @@ export function OutlookCalendar() {
 
                         {/* week */}
                         <div {...style.attrs(styles.week)}>
-                            {days.map((day, index) => (
+                            {DAYS.map((day, index) => (
                                 <span
                                     style={{ "grid-column": String(index + 2) }}
                                     {...style.attrs(styles.dayHead, index === 0 && styles.today)}
                                 >
-                                    {day}
+                                    {story().label(day, { day: "numeric" })}{" "}
+                                    {story().label(day, { weekday: "long" })}
                                 </span>
                             ))}
                             {hours.map((hour) => (

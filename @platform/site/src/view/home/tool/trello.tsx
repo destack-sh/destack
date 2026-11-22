@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 
-import { type Task, tasks, type TaskState } from "../verb/corner";
+import { type Task, type TaskState, useStory } from "../verb/story";
 import { Favicon } from "../figure/glyph";
 import { site } from "../figure/site.stylex";
 import { trello } from "./trello.stylex";
@@ -63,11 +63,17 @@ const checklists: readonly string[] = ["4/4", "1/3", "2/5", "0/2", "0/4", "0/3"]
 
 /** Draw your tasks on the board as they stand this week. */
 export function Trello() {
-    return <TrelloBoard tasks={tasks} />;
+    // read the story the page tells
+    const story = useStory();
+
+    return <TrelloBoard tasks={story().tasks} />;
 }
 
 /** Draw tasks as cards on the team's board, one list per status. */
 function TrelloBoard(properties: { tasks: readonly Task[] }) {
+    // read the story the page tells
+    const story = useStory();
+
     return (
         <div data-component="TrelloPage" {...style.attrs(styles.page)}>
             {/* app header */}
@@ -161,7 +167,7 @@ function TrelloBoard(properties: { tasks: readonly Task[] }) {
                                             )}
                                         >
                                             <Mark name="clock" size={13} />
-                                            {due}
+                                            {story().label(due)}
                                         </span>
                                         <Mark name="text" size={14} />
                                         {index % 2 === 0 ? (
