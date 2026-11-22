@@ -14,6 +14,7 @@ import {
 import { BunFileSystem } from "@destack/environment/bun";
 import { Digest, present, schema } from "@destack/schema";
 import type { TestMatrix } from "../project/index.ts";
+import type { Reporter, TestCase, TestModule } from "vitest/node";
 
 /** The shared test options: one module graph per worker, cached modules, and quick polls. */
 const TEST = { isolate: false, fsModuleCache: true } as const;
@@ -72,6 +73,70 @@ function tierOptions(tier: TestTier) {
         hookTimeout: hang,
         slowTestThreshold: slow,
         expect: { poll: { interval: POLL_INTERVAL, timeout: hang } },
+    };
+}
+
+/** The time past a test's hang limit for its own timeout to fail it, in milliseconds. */
+const HANG_GRACE = 10_000;
+
+/** How often the hang limits are checked outside the workers, in milliseconds. */
+const HANG_INTERVAL = 1_000;
+
+/** Enforce each test file's hang limit outside its worker, which a blocked worker cannot do. */
+function hangReporter(
+    limitOf: (project: string) => number | undefined,
+    environment: Environment<"process">,
+): Reporter {
+    // note each file a worker runs with its limit, its last progress and the last test it began
+    const { clock, process } = environment;
+    const running = new Map<string, { file: string; test: string; limit: number; at: number }>();
+    let timer: number | undefined;
+
+    // fail the run once a file makes no progress past its limit and grace, ending the workers
+    const check = async () => {
+        const now = clock.now();
+        const hung = [...running.values()].find((file) => now - file.at > file.limit + HANG_GRACE);
+        if (hung !== undefined) {
+            process.stderr.writeSync(
+                `test '${hung.file} > ${hung.test}' hung: no progress for ${now - hung.at} ms, past its ${hung.limit} ms limit\n`,
+            );
+            await process.run(["pkill", "-KILL", "-P", String(process.id)]);
+            process.exit(1);
+        }
+    };
+
+    // note progress on a file's every report
+    const progress = (module: TestModule, test?: TestCase) => {
+        const known = running.get(module.id);
+        if (known !== undefined) {
+            running.set(module.id, {
+                ...known,
+                ...(test === undefined ? {} : { test: test.fullName }),
+                at: clock.now(),
+            });
+        }
+    };
+
+    return {
+        onTestRunStart: () => {
+            timer = clock.setInterval(() => void check(), HANG_INTERVAL);
+        },
+        onTestModuleQueued: (module: TestModule) => {
+            const limit = limitOf(module.project.name);
+            if (limit !== undefined) {
+                const file = module.relativeModuleId;
+                running.set(module.id, { file, test: "its setup", limit, at: clock.now() });
+            }
+        },
+        onTestModuleStart: (module: TestModule) => progress(module),
+        onTestCaseReady: (test: TestCase) => progress(test.module, test),
+        onTestCaseResult: (test: TestCase) => progress(test.module, test),
+        onTestModuleEnd: (module: TestModule) => {
+            running.delete(module.id);
+        },
+        onTestRunEnd: () => {
+            clock.clearInterval(timer);
+        },
     };
 }
 
@@ -143,10 +208,19 @@ export function defineConfiguration(
           }));
     const tiered = tier === undefined ? {} : tierOptions(tier);
 
+    // fail a run whose test outlives its tier's hang limit, its project naming the tier, else the configuration
+    const limitOf = (project: string) => {
+        const [prefix = ""] = project.split(":");
+        const named = isTier(prefix) ? prefix : tier;
+
+        return named === undefined ? undefined : TEST_TIERS[named].hang;
+    };
+
     return vitest.defineConfig({
         ...rest,
         test: {
             ...TEST,
+            reporters: ["default", hangReporter(limitOf, environment)],
             ...(projects === undefined
                 ? {
                       ...root,
@@ -480,4 +554,9 @@ async function readWorkspaces(directory: string, files: FileSystem): Promise<str
         });
 
     return text === undefined ? undefined : Manifest.parse(JSON.parse(text)).workspaces;
+}
+
+/** Report whether a name is a test tier. */
+function isTier(name: string): name is TestTier {
+    return name in TEST_TIERS;
 }
