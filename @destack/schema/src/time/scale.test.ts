@@ -131,3 +131,97 @@ test("snap instants before 1970 to whole hours, the time zone's offset read at m
         ).toISOString(),
     ).toBe("1969-07-20T20:00:00.000Z");
 });
+
+/** Write a period's ends as ISO 8601 instants. */
+function isoOf(period: TimeScale): string[] {
+    return [new Date(period.start).toISOString(), new Date(period.end).toISOString()];
+}
+
+test("list the months and hours that cover a window, cutting the first and last to it, none past its end", () => {
+    // a window from 20 October to 10 December, and one from 9:30 to 11:15, in UTC
+    const months = TimeScale.periods(
+        { start: Date.UTC(2026, 9, 20), end: Date.UTC(2026, 11, 10) },
+        "month",
+        "UTC",
+        US,
+    );
+    const hours = TimeScale.periods(
+        { start: Date.UTC(2026, 10, 18, 9, 30), end: Date.UTC(2026, 10, 18, 11, 15) },
+        "hour",
+        "UTC",
+        US,
+    );
+
+    expect({
+        months: months.map(isoOf),
+        hours: hours.map(isoOf),
+        whole: TimeScale.periods(
+            { start: Date.UTC(2026, 10, 1), end: Date.UTC(2026, 11, 1) },
+            "month",
+            "UTC",
+            US,
+        ).map(isoOf),
+        units: (["day", "week", "hour", "year"] as const).map((unit) => TimeScale.periodOf(unit)),
+    }).toEqual({
+        months: [
+            ["2026-10-20T00:00:00.000Z", "2026-11-01T00:00:00.000Z"],
+            ["2026-11-01T00:00:00.000Z", "2026-12-01T00:00:00.000Z"],
+            ["2026-12-01T00:00:00.000Z", "2026-12-10T00:00:00.000Z"],
+        ],
+        hours: [
+            ["2026-11-18T09:30:00.000Z", "2026-11-18T10:00:00.000Z"],
+            ["2026-11-18T10:00:00.000Z", "2026-11-18T11:00:00.000Z"],
+            ["2026-11-18T11:00:00.000Z", "2026-11-18T11:15:00.000Z"],
+        ],
+        whole: [["2026-11-01T00:00:00.000Z", "2026-12-01T00:00:00.000Z"]],
+        units: ["month", "month", "day", undefined],
+    });
+});
+
+test("step from an instant to the axis's next and previous marks, on the axis's own step", () => {
+    // a ten-day axis over 10 marks steps by days, and a day's axis over 8 marks by 3 hours
+    const days = { start: Date.UTC(2026, 10, 1), end: Date.UTC(2026, 10, 11) };
+    const hours = { start: Date.UTC(2026, 10, 1), end: Date.UTC(2026, 10, 2) };
+    const at = Date.UTC(2026, 10, 4, 7, 30);
+
+    expect(
+        [
+            TimeScale.markBeside(days, 10, at, 1, "UTC", US),
+            TimeScale.markBeside(days, 10, at, -1, "UTC", US),
+            TimeScale.markBeside(hours, 8, at, 1, "UTC", US),
+            TimeScale.markBeside(hours, 8, at, -1, "UTC", US),
+        ].map((time) => new Date(time).toISOString()),
+    ).toEqual([
+        "2026-11-05T00:00:00.000Z",
+        "2026-11-04T00:00:00.000Z",
+        "2026-11-04T09:00:00.000Z",
+        "2026-11-04T06:00:00.000Z",
+    ]);
+});
+
+test("round an instant to a unit's nearest boundary in a zone, and step to the next or last one", () => {
+    // at 15:40 on Thursday 19 November 2026 in Vienna, an hour ahead of UTC
+    const zone = "Europe/Vienna";
+    const at = TimeZone.instant(zone, "2026-11-19", "15:40");
+
+    expect({
+        day: local(zone, TimeScale.round("day", at, zone, GERMANY)),
+        hour: local(zone, TimeScale.round("hour", at, zone, GERMANY)),
+        week: local(zone, TimeScale.round("week", at, zone, GERMANY)),
+        nextDay: local(zone, TimeScale.boundaryBeside("day", at, 1, zone, GERMANY)),
+        lastWeek: local(zone, TimeScale.boundaryBeside("week", at, -1, zone, US)),
+    }).toEqual({
+        day: "11-20 00:00",
+        hour: "11-19 16:00",
+        week: "11-23 00:00",
+        nextDay: "11-20 00:00",
+        lastWeek: "11-15 00:00",
+    });
+});
+
+test("round an instant midway between two boundaries to the later one", () => {
+    // noon in UTC lies midway between two midnights
+    const noon = Date.UTC(2026, 10, 19, 12);
+
+    expect(local("UTC", TimeScale.round("day", noon, "UTC", GERMANY))).toBe("11-20 00:00");
+});
