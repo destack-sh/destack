@@ -99,7 +99,7 @@ export class TerminalFixture {
         onTestFinished(() => native[Symbol.asyncDispose]());
 
         // read the owner's login as the command lines read it
-        const row = await native.logins.query.login.findFirst({ where: { id: login } });
+        const row = await native.local.query.login.findFirst({ where: { id: login } });
         if (row === undefined) {
             throw new TypeError(`the home's device has no login '${login}'`);
         }

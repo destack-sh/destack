@@ -35,7 +35,7 @@ test("sign a person in with a mailed code, and switch to their home when no spac
         [],
         typed,
     );
-    const stored = await native.logins.query.login.findMany();
+    const stored = await native.local.query.login.findMany();
 
     // switch to the home once, keeping one login for the person
     expect({ first, second, stored: stored.map((row) => [row.id, row.subjectId]) }).toEqual({
@@ -104,7 +104,7 @@ test("sign a person out of this computer", async () => {
     const terminal = await TerminalFixture.open();
     expect([
         await terminal.printed(["logout", "--json"]),
-        await terminal.native.logins.query.login.findMany(),
+        await terminal.native.local.query.login.findMany(),
     ]).toEqual([
         { code: 0, output: `${JSON.stringify({ id: terminal.login.id })}\n`, error: "" },
         [],
@@ -125,7 +125,7 @@ test("sign in again after signing out the person the login setting picked", asyn
         [],
         (code) => code,
     );
-    const [again] = await native.logins.query.login.findMany();
+    const [again] = await native.local.query.login.findMany();
 
     // act as nobody once signed out, then as the owner's new login
     expect({
