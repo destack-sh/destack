@@ -39,8 +39,8 @@ export function implementAnnouncement(server: NotificationServer): typeof announ
             {
                 name: "expand",
                 // expand a thread's announcements together, in the order they were posted
-                pending: { expandedAt: { isNull: true } },
-                key: ["thread"],
+                when: { expandedAt: { isNull: true } },
+                by: ["thread"],
                 reconcile: async (reconciliation) => {
                     const posted = reconciliation.rows.toSorted(
                         (left, right) =>

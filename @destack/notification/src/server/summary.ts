@@ -26,14 +26,8 @@ export function implementSummary(server: NotificationServer): typeof summary {
             send: (context) => send(context, server),
         },
         controllers: [
-            {
-                name: "send",
-                // send each summary once its time comes
-                pending: { sentAt: { isNull: true }, at: { lte: now } },
-                reconcile: async ({ rows, mutate }) => {
-                    await mutate(rows.map((row) => summary.call("send", summary.target(row))));
-                },
-            },
+            // send each summary once its time comes
+            { when: { sentAt: { isNull: true }, at: { lte: now } }, call: "send" },
         ],
     });
 }

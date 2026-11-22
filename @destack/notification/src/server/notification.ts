@@ -16,28 +16,17 @@ import type { NotificationServer } from "./server.ts";
 export function implementNotification(server: NotificationServer): typeof notification {
     return notification.implement({
         methods: { deliver: (context) => deliver(context, server) },
-        projections: [
+        controllers: [
             {
                 name: "plan",
                 // plan a home's notification of an activity as the activity changes, and again once it is stale or missing
-                watches: [{ table: activity.table }],
-                all: { table: activity.table, column: "id" },
-                project: (activityId, reconciliation) =>
-                    plan(schema.identifier("activity").parse(activityId), reconciliation),
+                reads: [{ table: activity.table, fields: ["occurredAt"] }],
+                for: { table: activity.table, column: "id" },
+                reconcile: (reconciliation) =>
+                    plan(schema.identifier("activity").parse(reconciliation.key), reconciliation),
             },
-        ],
-        controllers: [
-            {
-                name: "deliver",
-                // deliver a home's due notifications in one mutation, one home at a time
-                pending: { deliveryAt: { lte: now } },
-                key: ["scope"],
-                reconcile: async ({ rows, mutate }) => {
-                    await mutate(
-                        rows.map((row) => notification.call("deliver", notification.target(row))),
-                    );
-                },
-            },
+            // deliver a home's due notifications in one mutation, one home at a time
+            { when: { deliveryAt: { lte: now } }, by: ["scope"], call: "deliver" },
         ],
     });
 }
