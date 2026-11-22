@@ -7,7 +7,7 @@ import {
     SESSION_EVENTS,
     SESSION_STATUS_ATTRIBUTE,
     VISIT_EVENT,
-} from "@destack/telemetry/otlp";
+} from "@destack/telemetry";
 import { type TestLog, TestEmitter } from "../test/emitter.ts";
 import { NOTES } from "../test/notes.ts";
 import { EMITTER_ATTRIBUTES, OtlpExport } from "@destack/telemetry/otlp";

@@ -1,5 +1,5 @@
-import type { EventFilter } from "@destack/event";
 import { Digest, present, schema } from "@destack/schema";
+import type { EventFilter } from "@destack/event";
 import stackPackage from "@destack/stack/package";
 import { ids } from "@destack/machine/test";
 import { RequestId } from "@destack/sync";
@@ -10,7 +10,7 @@ import {
     SESSION_EVENTS,
     SESSION_STATUS_ATTRIBUTE,
     VISIT_EVENT,
-} from "@destack/telemetry/otlp";
+} from "@destack/telemetry";
 import { expect, refusal, test } from "@destack/test";
 import {
     action,
@@ -21,8 +21,8 @@ import {
     span,
     type Until,
     visit,
+    visitorSalt,
 } from "../object/index.ts";
-import { visitorSalt } from "../object/index.ts";
 import observabilityPackage from "../package.ts";
 import { NOTES, TestObservability } from "../test/index.ts";
 import { EMITTER_ATTRIBUTES } from "@destack/telemetry/otlp";

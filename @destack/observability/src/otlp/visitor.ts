@@ -1,4 +1,3 @@
-import { Snapshot } from "@destack/db";
 import type { ObjectStore } from "@destack/object/server";
 import { CallError } from "@destack/object";
 import { RequestId } from "@destack/sync";
@@ -79,7 +78,8 @@ export class Visitor {
 
     /** Read the space's salt of a day. */
     #read(day: string): Promise<VisitorSalt | undefined> {
-        return Snapshot.live(this.#store.database)
+        return this.#store.database
+            .snapshot()
             .read(visitorSalt.table)
             .findFirst({ where: { scope: this.#space, day } });
     }

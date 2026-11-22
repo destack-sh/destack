@@ -1,9 +1,8 @@
 import { space } from "@destack/account/object";
+import { EventFilter, FilterText, Fold, SERIES_FOLDS } from "@destack/event";
 import {
     and,
     Condition,
-    type Cursor,
-    type DatabaseConnection,
     eq,
     Filter,
     gt,
@@ -16,7 +15,7 @@ import {
     sql,
     isNull,
 } from "@destack/db";
-import { EventFilter, FilterText, Fold, SERIES_FOLDS } from "@destack/event";
+import type { Cursor, DatabaseConnection } from "@destack/db/database";
 import { activity, announcement, subscription } from "@destack/notification/object";
 import {
     defineObject,
@@ -26,6 +25,7 @@ import {
     type ObjectReconciliation,
     type ObjectType,
     Observation,
+    controlled,
 } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import {
@@ -53,7 +53,6 @@ import {
 } from "./alert.ts";
 import { issue, ISSUE_FILTER_FIELDS } from "./issue.ts";
 import { Silence, silence } from "./silence.ts";
-import { controlled } from "@destack/object";
 import { argument, plural, t } from "@destack/locale";
 
 /** The most keys a rule groups by: four, as each key multiplies the alerts one rule can raise. */

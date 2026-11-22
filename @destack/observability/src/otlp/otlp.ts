@@ -3,14 +3,7 @@ import type { ObjectConfiguration, ObjectType } from "@destack/object";
 import { Digest, type DigestCrypto, type Identifier, schema } from "@destack/schema";
 import { ObservabilityError } from "../error/error.ts";
 import {
-    ACTION_EVENT,
-    ANALYTICS_ATTRIBUTES,
     type OtlpEmitter,
-    SESSION_ATTRIBUTE,
-    SESSION_EVENTS,
-    SESSION_STATUS_ATTRIBUTE,
-    SESSION_STATUSES,
-    VISIT_EVENT,
     EMITTER_ATTRIBUTES,
     OtlpExport,
     type OtlpKeyValue,
@@ -19,6 +12,15 @@ import {
     OtlpTracesRequest,
     type OtlpValue,
 } from "@destack/telemetry/otlp";
+import {
+    ACTION_EVENT,
+    ANALYTICS_ATTRIBUTES,
+    SESSION_ATTRIBUTE,
+    SESSION_EVENTS,
+    SESSION_STATUS_ATTRIBUTE,
+    SESSION_STATUSES,
+    VISIT_EVENT,
+} from "@destack/telemetry";
 import {
     type AttributeKey,
     type Attributes,
