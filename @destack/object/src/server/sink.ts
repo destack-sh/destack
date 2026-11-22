@@ -333,10 +333,10 @@ export class ObjectSink {
             return [];
         }
 
-        // read the followed requests
+        // read the followed requests in key order
         const rows = await Snapshot.live(this.store.database)
             .read(replicaRequest)
-            .findMany({ where: { action: "follow" } });
+            .findMany({ where: { action: "follow" }, orderBy: { key: "asc" } });
 
         return rows.map((row) => ({
             subscription: row.subscription,
