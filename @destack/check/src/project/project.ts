@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import type { Environment } from "@destack/environment";
-import { checkPackage, fixPackage, listFiles } from "../check/check.ts";
+import { checkPackage, fixPackage } from "../check/check.ts";
 import { configurePackage } from "../check/configuration.ts";
 import { TransformCache } from "@destack/package/build";
 import { formatPackage } from "../check/format.ts";
@@ -11,7 +11,7 @@ import type { CheckResult, Diagnostic } from "../diagnostic/diagnostic.ts";
 import { CheckError } from "../error/index.ts";
 import { Readme } from "../markdown/index.ts";
 import { Toolchain } from "../toolchain/index.ts";
-import { listChangedModules, Workspace } from "../workspace/index.ts";
+import { Checkout, listChangedModules, Workspace } from "../workspace/index.ts";
 import { Digest } from "@destack/schema";
 
 /** The directory of a package's passed test runs, by digest. */
@@ -179,9 +179,9 @@ export class Project {
         return code;
     }
 
-    /** Digest what a test run reads: its packages' files, the lockfile and the options. */
+    /** Digest what a test run reads: its packages' checked-out files, the lockfile, the options. */
     async #testKey(options: TestOptions): Promise<Digest> {
-        // list the files of the package and its dependencies
+        // list the package and its dependencies
         const { files, process, crypto } = this.environment;
         const workspace = await Workspace.read(this.directory, files);
         if (workspace === undefined) {
@@ -194,20 +194,22 @@ export class Project {
         const directories = workspace
             .dependencies(member)
             .map((each) => join(workspace.root, each));
-        const listed = (
-            await Promise.all(directories.map((each) => listFiles(each, files)))
-        ).flat();
-        const paths = [...listed, join(workspace.root, "bun.lock")].toSorted((left, right) =>
-            left.localeCompare(right),
-        );
 
-        // digest the files and the run's inputs
-        const digests = await Promise.all(
-            paths.map(async (path) => [
-                relative(workspace.root, path),
-                await Digest.of(await files.readFile(path), crypto),
-            ]),
+        // key each package by its checkout's blobs, and the lockfile by its bytes
+        const checkout = await Checkout.list(workspace.root, this.environment);
+        const packages = await Promise.all(
+            directories
+                .toSorted((left, right) => left.localeCompare(right))
+                .map(async (each) => [
+                    relative(workspace.root, each),
+                    await checkout.identify(each),
+                ]),
         );
+        const lockfile = await Digest.of(
+            await files.readFile(join(workspace.root, "bun.lock")),
+            crypto,
+        );
+        const digests = [...packages, ["bun.lock", lockfile]];
         const variables = Object.entries(process.variables)
             .filter(([name]) => name.startsWith("DESTACK_TEST_"))
             .toSorted(([left], [right]) => left.localeCompare(right));

@@ -176,7 +176,7 @@ async function hasSources(path: string, files: FileSystem): Promise<boolean> {
 }
 
 /** List the files below a directory. */
-export async function listFiles(directory: string, files: FileSystem): Promise<string[]> {
+async function listFiles(directory: string, files: FileSystem): Promise<string[]> {
     const listed: string[] = [];
     for (const entry of await files.readDirectory(directory)) {
         // descend into real directories outside dependencies and hidden ones, such as .terraform

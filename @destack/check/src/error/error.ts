@@ -11,6 +11,7 @@ export const CheckError = defineErrorFamily(
             CONFIGURATION_INVALID: {},
 
             // broken
+            CHECKOUT_BROKEN: {},
             LANGUAGE_SERVICE_BROKEN: {},
             TOOL_BROKEN: {},
         },
