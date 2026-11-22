@@ -1,14 +1,11 @@
 import {
     and,
-    Change,
     Condition,
     eq,
     inArray,
     TABLE,
     DatabaseError,
-    type DatabaseConnection,
     Key,
-    Log,
     type Match,
     Namespace,
     now,
@@ -16,9 +13,10 @@ import {
     type Row,
     type Select,
     type Table,
+    Change,
     type LogPosition,
-    Transaction,
 } from "@destack/db";
+import type { DatabaseConnection, Cursor } from "@destack/db/database";
 import {
     ObjectController,
     ObjectType,
@@ -26,7 +24,6 @@ import {
     refuseInput,
 } from "@destack/object";
 import type { MountFetch, ObjectStore } from "@destack/object/server";
-import type { Cursor } from "@destack/db";
 import { RequestId, type Call, Scope } from "@destack/sync";
 import type { ServerContext } from "@destack/object/workload";
 import { Failure } from "@destack/error";
@@ -364,7 +361,7 @@ export class TriggerServer<Input> {
 
     /** Drop a change trigger's log checkpoints, retaining no more changes for it. */
     async dropCheckpoints(database: DatabaseConnection, name: string): Promise<void> {
-        const log = new Log(database);
+        const log = database.log;
         await log.drop(this.identity(name));
         await log.drop(this.snapshotCheckpoint(name));
     }
@@ -497,7 +494,7 @@ export class TriggerServer<Input> {
         }
 
         // record each call as the trigger's manager, dropping the retired triggers' log checkpoints in the same commit
-        await Transaction.run(store.database, async (transaction) => {
+        await store.database.commit(async (transaction) => {
             for (const [name, call] of calls) {
                 await store.mutate(
                     store.as(trigger),
@@ -528,7 +525,7 @@ export class TriggerServer<Input> {
 
         // continue after the trigger's checkpoint, or start it
         const table = TriggerServer.#table(trigger);
-        const log = new Log(database);
+        const log = database.log;
         const reader = { name: this.identity(trigger.name), tables: [table] };
         const position = await log.position();
         const timeline = { log: position.log, epoch: position.epoch };
@@ -590,7 +587,7 @@ export class TriggerServer<Input> {
         );
 
         // record the stop, dropping the checkpoints in the same commit
-        await Transaction.run(store.database, async (transaction) => {
+        await store.database.commit(async (transaction) => {
             await store.mutate(
                 store.as(type),
                 {
@@ -611,7 +608,7 @@ export class TriggerServer<Input> {
     ): Promise<number> {
         // start the checkpoint at the head, or resume the snapshot begun at an earlier head
         const change = trigger.change;
-        const log = new Log(store.database);
+        const log = store.database.log;
         const table = TriggerServer.#table(trigger);
         const reader = { name: this.identity(trigger.name), tables: [table] };
         const snapshotReader = { name: this.snapshotCheckpoint(trigger.name), tables: [table] };

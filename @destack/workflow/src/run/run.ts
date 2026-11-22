@@ -1,11 +1,6 @@
 import { AccessContext, Grant } from "@destack/access";
-import {
-    type DatabaseConnection,
-    Lease,
-    type Select,
-    Snapshot,
-    LEASE_MILLISECONDS,
-} from "@destack/db";
+import { type Select, Lease, LEASE_MILLISECONDS } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import {
     Limits,
     type MethodContext,
@@ -13,8 +8,9 @@ import {
     type NextOf,
     type ObjectReconciliation,
     type ObjectType,
+    CallError,
+    ObjectError,
 } from "@destack/object";
-import { CallError, ObjectError } from "@destack/object";
 import { RetryPolicy } from "@destack/environment";
 import { canonicalize, Duration, present, schema } from "@destack/schema";
 import { type Call, ObjectReference, ObjectTypeReference, Subject } from "@destack/sync";
@@ -87,7 +83,8 @@ export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = O
         let ended: Run<Input, Output, Waits> | undefined;
         await database.log.waitUntil(async () => {
             // read the run, answering it once ended
-            const row = await Snapshot.live(database)
+            const row = await database
+                .snapshot()
                 .read(this.workflow.run.table)
                 .findFirst({ where: { id: this.row.id } });
             const read = new Run(this.workflow, present(row, `run ${this.row.id}`));
@@ -270,7 +267,7 @@ export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = O
 
         // call for its space or a user as the code serving the run, within their live grant to it
         const parties = { delegator: this.actor, delegate: self.subject };
-        const caller = await Grant.act(Snapshot.live(store.database), parties, now);
+        const caller = await Grant.act(store.database.snapshot(), parties, now);
 
         return AccessContext.of(caller, now);
     }

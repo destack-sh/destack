@@ -1,17 +1,11 @@
 import { type AccessContext, AccessError } from "@destack/access";
+import { and, Condition, eq, type JsonCondition, Namespace, type Select, TABLE } from "@destack/db";
+import type { Transaction } from "@destack/db/database";
 import {
-    and,
-    Condition,
-    eq,
-    type JsonCondition,
-    Namespace,
-    type Select,
-    TABLE,
-    Transaction,
-} from "@destack/db";
-import { CallSite, MethodContext, type ObjectCall, ObjectType } from "@destack/object";
-import type { ObjectStore } from "@destack/object/server";
-import {
+    CallSite,
+    MethodContext,
+    type ObjectCall,
+    ObjectType,
     type Approval,
     approval,
     ApprovalQuorum,
@@ -20,6 +14,7 @@ import {
     changeRequest,
     ObjectError,
 } from "@destack/object";
+import type { ObjectStore } from "@destack/object/server";
 import { RequestId, ObjectReference, ObjectTypeReference, Subject } from "@destack/sync";
 import { Duration, type JsonValue, present, schema } from "@destack/schema";
 import { Failure } from "@destack/error";
@@ -190,7 +185,7 @@ export class Step<Waits extends ObjectType = ObjectType> {
         const method = ObjectType.find(this.#store.objects, call)?.method(call.method);
         try {
             if (method !== undefined && method.prepare === undefined) {
-                return await Transaction.run(this.#store.database, async (transaction) => {
+                return await this.#store.database.commit(async (transaction) => {
                     const [made] = await this.#store.mutate(
                         this.#caller,
                         { id: RequestId.create(this.#store.environment), calls: [call] },
@@ -281,7 +276,7 @@ export class Step<Waits extends ObjectType = ObjectType> {
         if (opening === undefined) {
             return error;
         }
-        const opened = await Transaction.run(this.#store.database, async (transaction) => {
+        const opened = await this.#store.database.commit(async (transaction) => {
             // open the change request as the run's actor
             const [request] = await this.#store.mutate(
                 this.#caller,
@@ -494,7 +489,7 @@ export class Step<Waits extends ObjectType = ObjectType> {
             recordedStep?.wakeAt ??
             (timeout === undefined ? undefined : now + Duration.milliseconds(timeout));
         if (recordedStep === undefined) {
-            await Transaction.run(this.#store.database, async (transaction) => {
+            await this.#store.database.commit(async (transaction) => {
                 // ask the new approvers and again those who decided, recording the waiting step
                 const asked = await this.#asked(subject, approvers);
                 const calls = asked.flatMap(({ approver, row }) =>
@@ -555,7 +550,7 @@ export class Step<Waits extends ObjectType = ObjectType> {
         if (recordedStep === undefined) {
             // start it once by its key, recording the child with the waiting step
             const key = `${this.#run.row.id}/${name}`;
-            const childId = await Transaction.run(this.#store.database, async (transaction) => {
+            const childId = await this.#store.database.commit(async (transaction) => {
                 // start the child as the run's type
                 const [started] = await this.#store.mutate(
                     this.#store.as(workflow.run),

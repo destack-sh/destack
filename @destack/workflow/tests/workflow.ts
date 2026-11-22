@@ -1,4 +1,9 @@
-import { installation } from "@destack/object/test";
+import {
+    installation,
+    TestObjectStore,
+    testServerContext,
+    testSimulation,
+} from "@destack/object/test";
 import type { Environment, HostCapability } from "@destack/environment";
 import { Grant, type GrantPermission, principal, relation, universe } from "@destack/access";
 import { space } from "@destack/account/object";
@@ -15,10 +20,9 @@ import {
 import type { ObjectConnection } from "@destack/object/client";
 import objectPackage from "@destack/object/package";
 import { implementPackage } from "@destack/object/server";
-import { TestObjectStore, testServerContext, testSimulation } from "@destack/object/test";
 import { Identifier, schema } from "@destack/schema";
 import { type Call, ObjectReference, RequestId, Scope, type Subject } from "@destack/sync";
-import { Snapshot, Table } from "@destack/db";
+import { Table } from "@destack/db";
 import { onTestFinished } from "@destack/test";
 import type {
     RunContext,
@@ -302,7 +306,7 @@ export async function openServed<Input, Output>(
             });
         const signal = clock.timeout(REPLICA_MILLISECONDS);
         const isFollowed = async () =>
-            (await Grant.read(Snapshot.live(served.database), created.id)) !== undefined;
+            (await Grant.read(served.database.snapshot(), created.id)) !== undefined;
         if (!(await served.database.log.waitUntil(isFollowed, signal))) {
             throw new Error(`the space did not follow grant '${created.id}'`);
         }

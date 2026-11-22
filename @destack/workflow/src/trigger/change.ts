@@ -1,6 +1,6 @@
 import { schema } from "@destack/schema";
 import { DeclarationReference } from "@destack/package/declare";
-import { type Key, type Table, type RowImage, type Row, LogPosition, Condition } from "@destack/db";
+import { type Key, type Table, type RowImage, type Row, Condition, LogPosition } from "@destack/db";
 
 /** The changes a change trigger fires on. */
 export const CHANGE_OPERATIONS = ["create", "update", "delete"] as const;
