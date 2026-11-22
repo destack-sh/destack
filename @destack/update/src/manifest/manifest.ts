@@ -238,7 +238,7 @@ export class Manifest {
                 await using copy = await files.open(join(source, file.path), { read: true });
                 const digest = await Manifest.#write(path, copy.readable(), file, environment);
                 if (digest === file.digest) {
-                    SpanPath.add(environment.telemetry.context.active(), COPIED, file.size);
+                    SpanPath.add(environment.telemetry.context.active(), { [COPIED]: file.size });
 
                     return;
                 }
@@ -282,7 +282,7 @@ export class Manifest {
         }
 
         // add the fetched bytes to the running spans' totals
-        SpanPath.add(environment.telemetry.context.active(), FETCHED, file.size);
+        SpanPath.add(environment.telemetry.context.active(), { [FETCHED]: file.size });
     }
 
     /** Write a file's bytes up to its size while digesting them, answering their digest. */
