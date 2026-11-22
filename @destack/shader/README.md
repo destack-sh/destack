@@ -16,11 +16,15 @@ Draw an effect in the theme's colors:
 
 ```tsx
 import { Metaballs } from "@destack/shader/metaballs";
-import { color } from "@destack/theme/tokens.stylex";
+import { color, swatch } from "@destack/theme/tokens.stylex";
 
-// draw metaballs in the theme's colors
+// draw metaballs in the accent's colors
 export const Background = () => (
-    <Metaballs colors={[color.primary, color.accent]} colorBack={color.background} speed={0.5} />
+    <Metaballs
+        colors={[swatch.accentSolid, swatch.accentTint]}
+        colorBack={color.background}
+        speed={0.5}
+    />
 );
 ```
 
@@ -55,7 +59,7 @@ A theme token colors a uniform.
 
 ```tsx
 import { Shader } from "@destack/shader";
-import { color } from "@destack/theme/tokens.stylex";
+import { swatch } from "@destack/theme/tokens.stylex";
 
 // glow from the center, pulsing over time
 const glow = `#version 300 es
@@ -69,8 +73,10 @@ void main() {
   fragColor = u_color * glow;
 }`;
 
-// draw it in the primary color
-export const Halo = () => <Shader fragmentShader={glow} uniforms={{ u_color: color.primary }} />;
+// draw it in the accent color
+export const Halo = () => (
+    <Shader fragmentShader={glow} uniforms={{ u_color: swatch.accentSolid }} />
+);
 ```
 
 ## Comparison

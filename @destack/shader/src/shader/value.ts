@@ -8,7 +8,7 @@ const MIN_IMAGE_SIDE = 1024;
 export const TRANSPARENT_PIXEL =
     "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
 
-/** A CSS color, such as `#3e63dd`, `oklch(0.6 0.2 260)` or a theme token like `color.primary`. */
+/** A CSS color, such as `#3e63dd`, `oklch(0.6 0.2 260)` or a token like `swatch.accentSolid`. */
 export type ShaderColor = string;
 
 /** An image a shader samples, by its address or as a loaded element. */

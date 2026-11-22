@@ -1,9 +1,9 @@
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
-import { color } from "@destack/theme/tokens.stylex";
+import { swatch } from "@destack/theme/tokens.stylex";
 import { Shader } from "./shader.tsx";
 
-/** A glow in the theme's primary color that breathes, as a custom fragment shader. */
+/** A glow in the theme's accent color that breathes, as a custom fragment shader. */
 const GLOW = `#version 300 es
 precision mediump float;
 uniform float u_time;
@@ -20,16 +20,16 @@ const styles = style.create({
     canvas: { width: "100%", height: "20rem" },
 });
 
-/** A custom fragment shader drawing a glow in the theme's primary color. */
+/** A custom fragment shader drawing a glow in the theme's accent color. */
 export const shaderGlow = defineExample({
     of: Shader,
     name: "glow",
-    description: "a custom fragment shader drawing a glow in the theme's primary color",
+    description: "a custom fragment shader drawing a glow in the theme's accent color",
     properties: { speed: 1 },
     render: (properties) => (
         <Shader
             fragmentShader={GLOW}
-            uniforms={{ u_color: color.primary }}
+            uniforms={{ u_color: swatch.accentSolid }}
             {...properties}
             xstyle={styles.canvas}
         />
