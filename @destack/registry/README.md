@@ -16,7 +16,7 @@ The registry protocol has object types:
 Callers call the registry's objects with its object client, in the residency home of the account that claims the package or repository:
 
 ```ts
-import type { Directory } from "@destack/account/address";
+import type { Directory } from "@destack/account/client";
 import type { Environment } from "@destack/environment";
 import type { Fetch } from "@destack/object";
 import type { PackageId } from "@destack/package";
