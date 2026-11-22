@@ -464,7 +464,7 @@ export class AuditRecorder {
                 context: this.#context,
                 target: action.target.parse(values.target),
                 details: present(
-                    schema.redact(action.details, action.details.parse(values.details)),
+                    action.redaction.redact(action.details.parse(values.details)),
                     "the call's details",
                 ),
                 ...execution,

@@ -190,14 +190,21 @@ import type { ObjectConstraint } from "./constraint.ts";
 import type {} from "@destack/package/import-meta";
 
 import type { TextSpan } from "../sequence/index.ts";
-/** The schemas and procedures an object type derives from its definition, built lazily. */
-interface Derived {
+
+/** The values an object type builds once from its declaration, which its implementations share. */
+interface ObjectCache<Self extends ObjectType = ObjectType> {
     /** The schemas of the objects' rows and method inputs. */
     schema?: ObjectSchema;
     /** The procedures of the methods, by method. */
     readonly procedure: Map<string, MethodProcedure>;
+    /** The callable procedures of the routed methods, as clients and routers take them. */
+    procedures?: ObjectProcedures<Self>;
     /** The inputs of the methods as clients call them, by method. */
     readonly input: Map<string, InputSchema>;
+    /** The sensitive values of the methods' inputs, by method. */
+    readonly redaction: Map<string, schema.Redaction>;
+    /** The audit actions recording the methods, by method. */
+    readonly audit: Map<string, AuditAction>;
     /** The table mapping access reads the objects through. */
     mapping?: TableMapping;
     /** The traits the objects take. */
@@ -214,8 +221,19 @@ interface Derived {
     related?: readonly ObjectType[];
 }
 
+/** The caches of object types. */
+const ObjectCache = {
+    /** Start a type's cache empty. */
+    empty<Self extends ObjectType>(): ObjectCache<Self> {
+        return { procedure: new Map(), input: new Map(), redaction: new Map(), audit: new Map() };
+    },
+};
+
 /** The scope and identifier of an object's row, read from a row of any object table. */
 export const ObjectKey = schema.looseObject({ scope: schema.string(), id: schema.string() });
+
+/** A JSON object, as validated call inputs read. */
+const JSON_OBJECT = schema.jsonObject();
 
 /** The input field naming a change's request, which a mutation's identifier takes. */
 const REQUEST_FIELD = "requestId";
@@ -784,8 +802,8 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     readonly idSchema: schema.Schema<string>;
     /** The event log's kind of an events type, none for another storage. */
     private readonly events: Configuration["events"];
-    /** The schemas, procedures and mapping derived from the definition, built lazily. */
-    private derived: Derived = ObjectType.#underived();
+    /** The values built once from the declaration, which implementations share. */
+    private cache: ObjectCache<ObjectType<Configuration>> = ObjectCache.empty();
     /** Whether the authored members and traits were validated, which copies inherit. */
     private isValid = false;
 
@@ -1104,8 +1122,8 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
 
     /** The traits the objects take, with their options. */
     get traits(): readonly TraitInstance[] {
-        const traits = this.derived.traits ?? ObjectType.#traitsOf(this.definition);
-        this.derived.traits = traits;
+        const traits = this.cache.traits ?? ObjectType.#traitsOf(this.definition);
+        this.cache.traits = traits;
 
         return traits;
     }
@@ -1305,17 +1323,17 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
 
     /** The schemas of the objects' rows and of the inputs their methods take. */
     get schema(): ObjectSchema {
-        this.derived.schema ??= objectSchema(this);
+        this.cache.schema ??= objectSchema(this);
 
-        return this.derived.schema;
+        return this.cache.schema;
     }
 
     /** Build a method's procedure: its route, input and output. */
     procedure(name: string): MethodProcedure {
         // build each procedure once
         const built =
-            this.derived.procedure.get(name) ?? this.method(name).procedure(name, this.schema);
-        this.derived.procedure.set(name, built);
+            this.cache.procedure.get(name) ?? this.method(name).procedure(name, this.schema);
+        this.cache.procedure.set(name, built);
 
         return built;
     }
@@ -1323,7 +1341,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     /** Read a method's input schema as clients call it, without a mutation's replay field. */
     input(name: string): InputSchema {
         // build each input once, which methods of traits share
-        const built = this.derived.input.get(name);
+        const built = this.cache.input.get(name);
         if (built !== undefined) {
             return built;
         }
@@ -1342,9 +1360,20 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
                   ),
               )
             : procedure;
-        this.derived.input.set(name, input);
+        this.cache.input.set(name, input);
 
         return input;
+    }
+
+    /** Read the sensitive values a method's input marks, every variant's fields included. */
+    redaction(name: string): schema.Redaction {
+        // walk each input once
+        const built =
+            this.cache.redaction.get(name) ??
+            new schema.Redaction(InputSchema.fields(this.input(name)));
+        this.cache.redaction.set(name, built);
+
+        return built;
     }
 
     /** Describe the methods callers call, by name: kind, permission, route, input and output. */
@@ -1386,20 +1415,32 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
 
     /** The procedures of the object's methods. */
     get procedures(): ObjectProcedures<ObjectType<Configuration>> {
-        return objectProcedures<ObjectType<Configuration>>(this);
+        this.cache.procedures ??= objectProcedures<ObjectType<Configuration>>(this);
+
+        return this.cache.procedures;
     }
 
     /** Derive the audit action `Noun.method` recording one method. */
     audit(name: string): AuditAction {
-        // read the method's audit details
-        const declared = ObjectType.#methodsOf(this)[name]?.audit;
+        // read the action built before
+        const built = this.cache.audit.get(name);
+        if (built !== undefined) {
+            return built;
+        }
 
-        return {
+        // build the action from the method's audit details once
+        const declared = ObjectType.#methodsOf(this)[name]?.audit;
+        const details = declared === undefined ? schema.object({}) : declared.details.partial();
+        const action: AuditAction = {
             package: this.package,
             name: `${this.key}.${name}`,
             target: AuditTarget,
-            details: declared === undefined ? schema.object({}) : declared.details.partial(),
+            details,
+            redaction: new schema.Redaction(details),
         };
+        this.cache.audit.set(name, action);
+
+        return action;
     }
 
     /** Build a call's audit action and values: its object if targeted, else the collection. */
@@ -1465,7 +1506,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         }
 
         // record a query as it is, and a change under its request
-        const { [REQUEST_FIELD]: request, ...fields } = schema.jsonObject().parse(validated.data);
+        const { [REQUEST_FIELD]: request, ...fields } = JSON_OBJECT.parse(validated.data);
         const call = ObjectType.#record(this, name, fields);
 
         return declared.mutates
@@ -1636,14 +1677,14 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
 
     /** The object types of plain reference relations, read by the type's permissions. */
     get related(): readonly ObjectType[] {
-        this.derived.related ??= Object.entries(this.fields).flatMap(([property, field]) => {
+        this.cache.related ??= Object.entries(this.fields).flatMap(([property, field]) => {
             const name = Casing.kebab(field.relationAt(property));
             const isRelation = Object.hasOwn(this.policy.definition.relations, name);
 
             return isRelation && field.type === "reference" && field.target ? [field.target()] : [];
         });
 
-        return this.derived.related;
+        return this.cache.related;
     }
 
     /** Replace the keys an input's references give with their targets' identifiers. */
@@ -1882,8 +1923,8 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
 
     /** The table mapping access reads the objects through, built on its first read. */
     get mapping(): TableMapping {
-        const mapping = this.derived.mapping ?? ObjectPolicy.mapping(this);
-        this.derived.mapping = mapping;
+        const mapping = this.cache.mapping ?? ObjectPolicy.mapping(this);
+        this.cache.mapping = mapping;
 
         return mapping;
     }
@@ -2019,7 +2060,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         const { supplied, stackTargets } = this;
         const derived =
             this.declaration.schema ??
-            this.derived.declaration ??
+            this.cache.declaration ??
             InputSchema.map(this.input("create"), (created) =>
                 schema.object(
                     Object.fromEntries(
@@ -2041,7 +2082,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
                     ),
                 ),
             );
-        this.derived.declaration = derived;
+        this.cache.declaration = derived;
 
         return derived;
     }
@@ -2068,8 +2109,8 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     /** The create input fields beyond reference fields whose schemas declare what they refer to. */
     get inputTargets(): Readonly<Record<string, StackTarget>> {
         // derive them once
-        if (this.derived.inputTargets !== undefined) {
-            return this.derived.inputTargets;
+        if (this.cache.inputTargets !== undefined) {
+            return this.cache.inputTargets;
         }
         const created = Object.hasOwn(this.methods, "create")
             ? InputSchema.fields(this.input("create")).shape
@@ -2083,7 +2124,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
                 return target === undefined ? [] : [[name, target]];
             }),
         );
-        this.derived.inputTargets = derived;
+        this.cache.inputTargets = derived;
 
         return derived;
     }
@@ -2091,8 +2132,8 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     /** The create fields a declaration refers to other records by: reference and listed fields. */
     get stackTargets(): Readonly<Record<string, StackTarget>> {
         // derive them once
-        if (this.derived.stackTargets !== undefined) {
-            return this.derived.stackTargets;
+        if (this.cache.stackTargets !== undefined) {
+            return this.cache.stackTargets;
         }
 
         // refer by each reference and subject field a declaration gives, keyed as created
@@ -2123,7 +2164,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
 
         // cache them for the type's later reads
         const derived = Object.fromEntries([...fields, ...parentId, ...declared]);
-        this.derived.stackTargets = derived;
+        this.cache.stackTargets = derived;
 
         return derived;
     }
@@ -2193,13 +2234,13 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
 
     /** List the fields a declaration sets, its create input's, which its manager owns. */
     declaredFields(): ReadonlySet<string> {
-        this.derived.declaredFields ??= new Set(
+        this.cache.declaredFields ??= new Set(
             Object.keys(InputSchema.fields(this.input("create")).shape).filter(
                 (field) => !this.supplied.includes(field),
             ),
         );
 
-        return this.derived.declaredFields;
+        return this.cache.declaredFields;
     }
 
     /** The collection declaring the type's records: its declaration's, else its plural. */
@@ -2255,7 +2296,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
                 ...(cursors === undefined ? {} : { cursors }),
                 ...(declaration === undefined ? {} : { declaration }),
             },
-            this.derived,
+            this.cache,
         );
     }
 
@@ -2286,21 +2327,21 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         >,
     ): Self {
         // replicate the members, building the changed type's schemas and procedures afresh
-        return ObjectType.#copy(this, changes, ObjectType.#underived());
+        return ObjectType.#copy(this, changes, ObjectCache.empty());
     }
 
-    /** Copy an object type with some members changed and the given derived values. */
+    /** Copy an object type with some members changed and the given cache. */
     static #copy<Type extends ObjectType>(
         type: Type,
         changes: Partial<
             Pick<Type, "methods" | "controllers" | "cursors" | "declaration" | "definition">
         >,
-        derived: Derived,
+        cache: ObjectCache,
     ): Type {
         // validate the authored type before a copy changes its definition
         type.requireValid();
 
-        return Object.assign(inherit(readPrototype(type)), type, changes, { derived });
+        return Object.assign(inherit(readPrototype(type)), type, changes, { cache });
     }
 
     /** Assemble an object type from its definition. */
@@ -2399,11 +2440,6 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         }
 
         return found;
-    }
-
-    /** Start a type's derived values empty. */
-    static #underived(): Derived {
-        return { procedure: new Map(), input: new Map() };
     }
 
     /** Require an object's table to be logged. */

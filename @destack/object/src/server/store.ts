@@ -122,7 +122,6 @@ import { CallSite } from "../method/site.ts";
 import { Limits } from "../method/limits.ts";
 import { Method } from "../method/method.ts";
 import { callableProcedures } from "../method/procedure.ts";
-import { InputSchema } from "../method/input.ts";
 import { ACCESS_KINDS, ObjectType } from "../object/object.ts";
 import { ObjectTypePool, ObjectDescription, type KnownDeclaration } from "../object/description.ts";
 import { ObjectController } from "../object/controller.ts";
@@ -2292,7 +2291,7 @@ export class ObjectStore {
             request: { caller: Caller.key(caller), scope, requestId: mutation.id },
             fingerprint: await this.#fingerprint(mutation, originals),
             redacted: calls.map((call) =>
-                schema.redactFields(InputSchema.fields(call.object.input(call.name)), call.input),
+                call.object.redaction(call.name).redactFields(call.input),
             ),
         };
     }
@@ -2353,15 +2352,11 @@ export class ObjectStore {
         originals: readonly ReturnType<typeof ObjectType.resolve>[],
     ): Promise<string> {
         const sensitive: unknown[] = [];
-        const calls = zip(mutation.calls, originals).map(([entry, { object, name, input }]) => {
-            const fields = InputSchema.fields(object.input(name));
-
-            return {
-                type: entry.type,
-                method: entry.method,
-                input: schema.redact(fields, input, (found) => sensitive.push(found)),
-            };
-        });
+        const calls = zip(mutation.calls, originals).map(([entry, { object, name, input }]) => ({
+            type: entry.type,
+            method: entry.method,
+            input: object.redaction(name).redactFields(input, (found) => sensitive.push(found)),
+        }));
 
         return this.journal.fingerprint({ id: mutation.id, calls }, sensitive);
     }

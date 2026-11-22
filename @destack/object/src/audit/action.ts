@@ -38,6 +38,8 @@ export interface AuditAction<
     readonly target: Target;
     /** The serializable action details. */
     readonly details: Details;
+    /** The sensitive values the details mark, which recording leaves out. */
+    readonly redaction: schema.Redaction;
 }
 
 /** Declare an action. */
@@ -45,7 +47,7 @@ export function defineAuditAction<
     Target extends schema.Schema<AuditTarget>,
     Details extends schema.Schema<JsonValue>,
 >(
-    definition: Omit<AuditAction<Target, Details>, "package">,
+    definition: Omit<AuditAction<Target, Details>, "package" | "redaction">,
     module?: ModuleMetadata,
 ): AuditAction<Target, Details> {
     // validate the action name
@@ -53,6 +55,7 @@ export function defineAuditAction<
 
     return Object.freeze({
         ...definition,
+        redaction: new schema.Redaction(definition.details),
         package: PackageVersion.parse(ModuleMetadata.require(module, "defineAuditAction").package),
     });
 }
