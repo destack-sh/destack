@@ -1251,9 +1251,9 @@ export class Space {
         return {
             name: "destack.space.serve",
             table: Scope.table,
-            pending: { scope: this.id },
+            when: { scope: this.id },
             // apply again as the installed set or the main database's status move
-            watches: [
+            reads: [
                 {
                     table: installation.table,
                     fields: [
@@ -2120,13 +2120,25 @@ export class Space {
             key: "id",
             result: "process",
             all: { table: accountObject.space.table, column: "id", where: here },
-            watches: [
+            reads: [
                 // take the space's row, its placement and its installations, its stack's among them
-                { table: accountObject.space.table, where: here },
-                { table: accountObject.placement.table, on: { id: "spaceId" } },
-                { table: installation.table, fields: ["spaceStack"], on: { id: "scope" } },
+                {
+                    table: accountObject.space.table,
+                    where: here,
+                    fields: ["scope", "deletedAt", "stack"],
+                },
+                {
+                    table: accountObject.placement.table,
+                    fields: ["machineId"],
+                    on: { id: "spaceId" },
+                },
+                {
+                    table: installation.table,
+                    fields: ["export", "spaceStack"],
+                    on: { id: "scope" },
+                },
                 // take the space again once its account's scope arrives
-                { table: Scope.table, where: { type: "account" }, isListing: true },
+                { table: Scope.table, where: { type: "account" }, fields: [], isListing: true },
             ],
             project: async (key) => this.#place(key, store, main),
         };
@@ -2139,17 +2151,22 @@ export class Space {
             key: "id",
             result: "process",
             all: { table: accountObject.space.table, column: "id" },
-            watches: [
+            reads: [
                 // take a placement's space, and the space of an assignment's placement
-                { table: accountObject.placement.table, on: { id: "spaceId" } },
+                {
+                    table: accountObject.placement.table,
+                    fields: ["machineId", "epoch"],
+                    on: { id: "spaceId" },
+                },
                 {
                     table: accountObject.assignment.table,
+                    fields: ["machineId"],
                     path: [ASSIGNMENT_PLACEMENT],
                     on: { id: "spaceId" },
                 },
                 // take the space of a build or a deployment
                 { table: build.table, fields: ["state"], on: { id: "scope" } },
-                { table: deployment.table, fields: ["status"], on: { id: "scope" } },
+                { table: deployment.table, fields: ["status", "machineId"], on: { id: "scope" } },
             ],
             project: async (key) => this.#assign(key, remote),
         };

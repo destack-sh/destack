@@ -68,7 +68,7 @@ export const directoryWorkload = defineWorkload({
         const starting: Controller<typeof placement.table> = {
             name: "destack.space.start",
             table: placement.table,
-            pending: { OR: [{ machineId, status: "starting" }, { targetId: machineId }] },
+            when: { OR: [{ machineId, status: "starting" }, { targetId: machineId }] },
             // start every placed space at once, each followed until it serves, as a kubelet starts pods
             concurrency: Infinity,
             follow: async (rows, following) => {

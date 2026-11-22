@@ -139,16 +139,21 @@ async function expireBuilds(
 /** Implement builds: a creator creates and cancels a build. */
 export function implementBuild(options: BuildOptions) {
     return build.implement({
-        projections: [
+        controllers: [
             {
                 // expire a space's builds past its retention
                 name: "expire",
-                key: "scope",
-                watches: [
-                    { table: installationRevision.table, on: { scope: "scope" } },
-                    { table: setting.table, where: { name: buildRetention.name }, isListing: true },
+                by: ["scope"],
+                reads: [
+                    { table: installationRevision.table, fields: [], on: { scope: "scope" } },
+                    {
+                        table: setting.table,
+                        where: { name: buildRetention.name },
+                        fields: ["value"],
+                        isListing: true,
+                    },
                 ],
-                project: (scope, { store }) =>
+                reconcile: ({ store }) =>
                     expireBuilds(
                         store,
                         (space) =>

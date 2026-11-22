@@ -32,7 +32,7 @@ export class SignInRunner {
         return {
             name: "destack.sign_in.run",
             table: signIn.table,
-            pending: { deletedAt: { isNull: true } },
+            when: { deletedAt: { isNull: true } },
             concurrency: RUNNING_SIGN_INS,
             follow: (rows, following) => this.follow(rows, following),
         };

@@ -981,7 +981,10 @@ test("serve a space whose installation fails to start", async () => {
         serving: ["false", "StartFailed"],
         reported: "installation 'regional' serves nothing: its server did not start",
         answered: [503, "1"],
-        // capture the failed start once, at the machine
-        captured: ["installation 'regional' serves nothing: its server did not start"],
+        // capture the failed start at the machine, then the reconcile the removed setting refuses
+        captured: [
+            "installation 'regional' serves nothing: its server did not start",
+            `cannot read setting '${released.id}/region': it has no default and is not set`,
+        ],
     });
 });

@@ -2,7 +2,7 @@ import { installation, installationRevision, Installation } from "@destack/stack
 import { Entitlement, Space, space } from "@destack/account/object";
 import { eq, Snapshot, Transaction } from "@destack/db";
 import {
-    type ObjectProjection,
+    type ObjectController,
     type ObjectReconciliation,
     type Observation,
 } from "@destack/object";
@@ -26,26 +26,28 @@ export function implementSpace(options: {
     /** Whether the machine checks its spaces' use against their accounts' entitlements. */
     readonly isEnforcingEntitlements: boolean;
 }) {
-    return space.implement({ methods: {}, projections: [project(options)] });
+    return space.implement({ methods: {}, controllers: [limit(options)] });
 }
 
-/** Project each served space: its deletion, suspension, entitlements and schedule. */
-function project(options: Parameters<typeof implementSpace>[0]): ObjectProjection<typeof space> {
+/** Limit each served space: its deletion, suspension, entitlements and schedule. */
+function limit(options: Parameters<typeof implementSpace>[0]): ObjectController<typeof space> {
     const { isEnforcingEntitlements } = options;
 
     return {
         name: "limit",
-        watches: [
+        reads: [
+            ...Space.serving,
             ...Scheduler.watches,
             ...(isEnforcingEntitlements ? Entitlement.watches() : []),
             // look again at a deleting space as each of its uninstalling installations changes
             {
                 table: installation.table,
                 where: { deletedAt: { isNotNull: true } },
+                fields: ["deletedAt"],
                 on: { id: "scope" },
             },
         ],
-        project: async (_id, { rows, database, store, now }) => {
+        reconcile: async ({ rows, database, store, now }) => {
             // leave a space gone or another machine serves
             const [row] = rows;
             if (row === undefined || !(await Space.isServing(Snapshot.live(database), row.id))) {

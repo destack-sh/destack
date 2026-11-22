@@ -50,7 +50,7 @@ export function implementSnapshot(options: TransferOptions) {
         controllers: [
             {
                 name: "take",
-                pending: TAKING,
+                when: TAKING,
                 reconcile: async (reconciliation) => {
                     // take each pending snapshot
                     for (const row of reconciliation.rows) {
@@ -110,10 +110,10 @@ export function implementSnapshot(options: TransferOptions) {
             {
                 // delete each space's snapshots past their retention, as the space
                 name: "expire",
-                pending: {
+                when: {
                     takenAt: { lte: now.minus({ milliseconds: SNAPSHOT_RETENTION_MILLISECONDS }) },
                 },
-                key: ["spaceId"],
+                by: ["spaceId"],
                 reconcile: async ({ rows, store, now: at }) => {
                     const { spaceId } = nth(rows, 0);
                     const caller = Caller.of(principal.space.reference(Scope.universe.id, spaceId));
@@ -137,7 +137,7 @@ export function implementRestore(options: TransferOptions) {
         controllers: [
             {
                 name: "apply",
-                pending: RESTORING,
+                when: RESTORING,
                 reconcile: async (reconciliation) => {
                     // restore each pending restore
                     for (const row of reconciliation.rows) {

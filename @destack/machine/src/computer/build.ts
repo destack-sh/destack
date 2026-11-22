@@ -61,7 +61,7 @@ export class BuildRunner {
         return {
             name: "destack.build.run",
             table: build.table,
-            pending: { state: { in: [...ACTIVE_BUILD_STATES] } },
+            when: { state: { in: [...ACTIVE_BUILD_STATES] } },
             concurrency: RUN_CONCURRENCY,
             reconcile: (rows, reconciliation) => this.reconcile(rows, reconciliation),
         };

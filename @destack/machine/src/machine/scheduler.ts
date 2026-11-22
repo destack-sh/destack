@@ -10,8 +10,12 @@ import { transfer } from "@destack/stack/object";
 export const Scheduler = {
     /** The changes that schedule a space again beside its row: its transfers and its placement. */
     watches: [
-        { table: transfer.table, on: { id: "scope" } },
-        { table: placement.table, on: { id: "spaceId" } },
+        {
+            table: transfer.table,
+            fields: ["targetId", "completedAt", "outcome"],
+            on: { id: "scope" },
+        },
+        { table: placement.table, fields: ["machineId", "schedule"], on: { id: "spaceId" } },
     ] satisfies ObjectWatch[],
 
     /** Move a served space where the universe decides, cancelling its own dropped move. */

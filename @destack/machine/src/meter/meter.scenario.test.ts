@@ -203,6 +203,7 @@ test("read nothing while a space idles, then its use a minute into its next traf
     await meters.read();
     const stopping = new AbortController();
     const following = meters.follow({
+        key: "meters",
         signal: stopping.signal,
         changed: async () => undefined,
         synced: () => undefined,

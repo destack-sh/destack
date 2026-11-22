@@ -123,11 +123,12 @@ export function implementDeployment(options: DeploymentOptions) {
         controllers: [
             {
                 name: "run",
-                pending: { status: { in: ["active", "draining", "stopping"] } },
-                watches: [
+                when: { status: { in: ["active", "draining", "stopping"] } },
+                reads: [
                     // wake an installation's live deployments once an instance of one changes
                     {
                         table: instance.table,
+                        fields: ["status", "machineId", "restarts", "restartAt"],
                         path: [INSTANCE_DEPLOYMENT],
                         on: { installationId: "installationId" },
                     },
@@ -139,11 +140,20 @@ export function implementDeployment(options: DeploymentOptions) {
                         on: { installationId: "installationId" },
                     },
                     // wake the space's live deployments once a move fences or lifts its scope, or its placement changes
-                    { table: Scope.table, on: { scope: "scope" } },
-                    { table: placement.table, on: { scope: "spaceId" } },
+                    {
+                        table: Scope.table,
+                        fields: ["movedTo", "suspendedAt"],
+                        on: { scope: "scope" },
+                    },
+                    {
+                        table: placement.table,
+                        fields: ["machineId", "targetId", "status", "epoch"],
+                        on: { scope: "spaceId" },
+                    },
                     // wake the space's live deployments once a resource changes
                     ...options.providers.objects().map((object): ObjectWatch => ({
                         table: object.table,
+                        fields: ["spec", "reference", "provider", "generation", "conditions"],
                         on: { scope: "scope" },
                     })),
                 ],
@@ -170,7 +180,7 @@ export function implementInstance() {
             {
                 // clear a failed instance's restart once its backoff passed, which wakes its deployment
                 name: "restart",
-                pending: { status: "failed", restartAt: { lte: now } },
+                when: { status: "failed", restartAt: { lte: now } },
                 reconcile: async ({ rows, mutate }) => {
                     await mutate(
                         rows.map((row) =>

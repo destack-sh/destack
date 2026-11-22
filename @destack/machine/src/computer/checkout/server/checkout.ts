@@ -156,7 +156,7 @@ export class CheckoutServer {
                 {
                     name: "build",
                     // run each preview at a generation not synced yet, and each deleted one
-                    pending: {
+                    when: {
                         OR: [
                             { generation: { gt: { field: "syncedGeneration" } } },
                             { deletedAt: { isNotNull: true } },

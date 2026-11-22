@@ -1173,7 +1173,7 @@ export class Machine {
         return {
             name: "destack.computer.serve",
             table: computer.table,
-            pending: { machineId: this.id },
+            when: { machineId: this.id },
             follow: (_rows, following) => this.follow(following),
         };
     }

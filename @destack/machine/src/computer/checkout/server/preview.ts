@@ -40,7 +40,7 @@ export class PreviewSource {
         return {
             name: "destack.preview.watch",
             table: preview.table,
-            pending: { deletedAt: { isNull: true } },
+            when: { deletedAt: { isNull: true } },
             concurrency: WATCHED_PREVIEWS,
             follow: (rows, following) => this.follow(rows, following),
         };

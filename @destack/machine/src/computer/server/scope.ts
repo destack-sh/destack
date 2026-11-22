@@ -15,9 +15,9 @@ export const ScopeReceiver = {
         return {
             name: "destack.machine.receive",
             table: accountObject.machine.table,
-            pending: { id: machineId },
+            when: { id: machineId },
             // receive it again once its parent's scope arrives
-            watches: [{ table: Scope.table, isListing: true }],
+            reads: [{ table: Scope.table, fields: [], isListing: true }],
             reconcile: (rows) => ScopeReceiver.receive(store, rows),
         };
     },

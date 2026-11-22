@@ -876,14 +876,26 @@ export class Binder {
             key: "id",
             result: "process",
             all: { table: object.table, column: "id" },
-            watches: [
+            reads: [
                 // take a resource itself
-                { table: object.table, isObserving: true },
+                {
+                    table: object.table,
+                    fields: Object.keys(object.table[TABLE].logged),
+                    isObserving: true,
+                },
                 // take the space's resources once a deployment runs or stops running a revision
-                { table: deployment.table, on: { scope: "scope" } },
+                {
+                    table: deployment.table,
+                    fields: ["status", "revisionId"],
+                    on: { scope: "scope" },
+                },
                 // take the space's resources once its approval threshold or its placement changes
                 { table: space.table, fields: ["approval"], on: { scope: "id" } },
-                { table: placement.table, on: { scope: "spaceId" } },
+                {
+                    table: placement.table,
+                    fields: ["machineId", "targetId", "status", "epoch"],
+                    on: { scope: "spaceId" },
+                },
             ],
             project: async (key) => this.#specify(key, store),
         }));

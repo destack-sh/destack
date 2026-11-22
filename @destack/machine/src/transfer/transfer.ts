@@ -1192,7 +1192,7 @@ export class SpaceTransfer {
         return {
             name: "destack.transfer.receive",
             table: placement.table,
-            pending: { targetId: options.machine },
+            when: { targetId: options.machine },
             concurrency: TRANSFER_CONCURRENCY,
             follow: async (rows, following) => {
                 // receive the space, ending quietly once the placement leaves this machine
@@ -1224,11 +1224,19 @@ export class SpaceTransfer {
             key: "scope",
             result: "process",
             all: { table: Scope.table, column: "scope", where: { movedTo: machine } },
-            watches: [
+            reads: [
                 // take a space's scope, its placement and its moves
-                { table: Scope.table, where: { movedTo: machine } },
-                { table: placement.table, on: { scope: "spaceId" } },
-                { table: transfer.table, on: { scope: "scope" } },
+                { table: Scope.table, where: { movedTo: machine }, fields: ["movedTo"] },
+                {
+                    table: placement.table,
+                    fields: ["machineId", "targetId", "status", "epoch"],
+                    on: { scope: "spaceId" },
+                },
+                {
+                    table: transfer.table,
+                    fields: ["completedAt", "outcome"],
+                    on: { scope: "scope" },
+                },
             ],
             project: async (key) => {
                 // place a space fenced toward this primary once placed here

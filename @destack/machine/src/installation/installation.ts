@@ -20,11 +20,11 @@ import {
     type PermissionSet,
     principal,
 } from "@destack/access";
-import { type Relation, Snapshot } from "@destack/db";
+import { type Relation, Snapshot, TABLE } from "@destack/db";
 import {
     type MethodContext,
     type MethodContextOf,
-    type ObjectProjection,
+    type ObjectController,
     type ObjectReconciliation,
     type ObjectReport,
     type ObjectType,
@@ -34,7 +34,7 @@ import {
     type ResultOf,
     changeRequest,
 } from "@destack/object";
-import { entitlement, Space, space } from "@destack/account/object";
+import { Entitlement, entitlement, Space, space } from "@destack/account/object";
 import { ViewDescription } from "@destack/package/manifest";
 import { type ApplicationOptions, ApplicationInstallation } from "./application.ts";
 import { Approval } from "./approval.ts";
@@ -61,7 +61,7 @@ export interface InstallationOptions extends RevisionOptions, ApplicationOptions
 export function implementInstallations(options: InstallationOptions) {
     return installation.implement({
         // reconcile each installation once its spec changes, and again once what it waits on arrives
-        projections: [reconcileProjection(options)],
+        controllers: [reconcileController(options)],
         // make the name other installations address a declared one by immutable, and resolve its bindings' targets
         declaration: {
             // follow the types its bindings target, retired before them
@@ -232,16 +232,17 @@ const REPORTS: ObjectReport<typeof installation> = {
 };
 
 /** Reconcile an installation once its spec changes or something it waits on arrives. */
-function reconcileProjection(options: InstallationOptions): ObjectProjection<typeof installation> {
+function reconcileController(options: InstallationOptions): ObjectController<typeof installation> {
     return {
         name: "reconcile",
         // key by identifier, as a name addresses an installation only within its space
-        key: "id",
-        watches: [
+        by: ["id"],
+        reads: [
             // the installation once its spec changes, unless the call changing it reconciled it
             {
                 table: installation.table,
                 where: { generation: { gt: { field: "syncedGeneration" } } },
+                fields: ["generation", "syncedGeneration"],
                 on: { id: "id" },
             },
             // a stack without a target once it follows its space's stack
@@ -256,8 +257,9 @@ function reconcileProjection(options: InstallationOptions): ObjectProjection<typ
             ...(options.space.machine.isBuilding ? followedWatches() : []),
         ],
         reports: REPORTS,
-        project: async (id, reconciliation) => {
+        reconcile: async (reconciliation) => {
             // leave an uninstalled one
+            const id = reconciliation.key;
             const [target] = reconciliation.rows;
             if (target === undefined) {
                 return;
@@ -451,15 +453,13 @@ const UNAPPLIED: Relation = {
 /** Wake the followers of a moved tag or reference. */
 function followedWatches(): ObjectWatch[] {
     return [
-        ...[tag.table, reference.table].map((table): ObjectWatch => ({
-            table,
-            path: [FOLLOWERS],
-            on: { id: "id" },
-        })),
+        { table: tag.table, fields: ["version"], path: [FOLLOWERS], on: { id: "id" } },
+        { table: reference.table, fields: ["commit"], path: [FOLLOWERS], on: { id: "id" } },
         // the followers of a reference once the build of its commit succeeds
         {
             table: build.table,
             where: { state: "succeeded" },
+            fields: ["state"],
             path: [
                 {
                     table: reference.table,
@@ -481,6 +481,7 @@ function resumeWatches(waited: readonly ObjectType[]): ObjectWatch[] {
             .filter((object) => !object.same(installation))
             .map((object): ObjectWatch => ({
                 table: object.table,
+                fields: Object.keys(object.table[TABLE].logged),
                 isObserving: true,
                 matches: {
                     column: "waitCondition",
@@ -515,6 +516,7 @@ function resumeWatches(waited: readonly ObjectType[]): ObjectWatch[] {
         {
             table: build.table,
             where: { state: "succeeded" },
+            fields: ["state"],
             path: [FOLLOWERS],
             on: { id: "id" },
         },
@@ -522,6 +524,7 @@ function resumeWatches(waited: readonly ObjectType[]): ObjectWatch[] {
         {
             table: build.table,
             where: { state: "succeeded" },
+            fields: ["state"],
             path: [
                 {
                     table: installation.table,
@@ -541,10 +544,15 @@ function resumeWatches(waited: readonly ObjectType[]): ObjectWatch[] {
             on: { id: "id" },
         },
         // the space's installations once its row or a setting value changes
-        { table: space.table, on: { scope: "id" } },
-        { table: setting.table, on: { scope: "scope" } },
+        { table: space.table, fields: ["stack", "approval"], on: { scope: "id" } },
+        { table: setting.table, fields: ["value"], on: { scope: "scope" } },
         // the account's installations once an entitlement changes
-        { table: entitlement.table, path: [ENTITLED_SPACES], on: { scope: "id" } },
+        {
+            table: entitlement.table,
+            fields: Entitlement.decided,
+            path: [ENTITLED_SPACES],
+            on: { scope: "id" },
+        },
     ];
 }
 

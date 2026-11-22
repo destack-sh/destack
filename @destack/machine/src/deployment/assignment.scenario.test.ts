@@ -46,7 +46,11 @@ test("assign the machine of an unfinished checkout build in the space, and withd
     const connections = new DisposableStack();
     onTestFinished(() => connections.dispose());
     const projection = (await fixture.space).assignment((await fixture.space).remote(connections));
-    const reconciliation = { signal: new AbortController().signal, changed: async () => {} };
+    const reconciliation = {
+        key: "key",
+        signal: new AbortController().signal,
+        changed: async () => {},
+    };
     const assignments = async () => {
         // wait for the space's replica of the universe's assignments, which the fixture follows
         const rows = await fixture.universe.storage.database.select().from(assignment.table);

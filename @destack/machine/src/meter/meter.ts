@@ -58,7 +58,7 @@ export class SpaceMeter {
         return {
             name: "destack.space.meter",
             table: Scope.table,
-            pending: { scope: this.#options.space },
+            when: { scope: this.#options.space },
             follow: (_rows, following) => this.follow(following),
         };
     }

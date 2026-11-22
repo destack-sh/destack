@@ -62,6 +62,7 @@ import {
     type JsonObject,
     type VersionRange,
     type JsonValue,
+    canonicalize,
     nth,
     present,
     schema,
@@ -1316,6 +1317,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
             );
         };
         const running = machine.follow({
+            key: machine.id,
             signal: stopping.signal,
             changed,
             synced: () => caught.resolve(),
@@ -2539,12 +2541,10 @@ export async function reconcile(
             const rows = await Snapshot.live(store.database)
                 .read(controller.table)
                 .findMany({ where: key });
-            await controller.reconcile(rows, reconciliation);
+            await controller.reconcile(rows, { ...reconciliation, key: canonicalize(key) });
         } else if (projection !== undefined) {
-            await projection.project(
-                present(key[projection.key], `the ${projection.key} key`),
-                reconciliation,
-            );
+            const value = present(key[projection.key], `the ${projection.key} key`);
+            await projection.project(value, { ...reconciliation, key: value });
         } else {
             throw new TypeError(
                 `the fixture serves no converging controller or projection '${name}'`,
