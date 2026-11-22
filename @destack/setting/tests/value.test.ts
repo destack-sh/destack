@@ -1,4 +1,4 @@
-import { asc, Snapshot } from "@destack/db";
+import { asc } from "@destack/db";
 import { ObjectReference, RequestId } from "@destack/sync";
 import { Duration } from "@destack/schema";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
@@ -145,7 +145,7 @@ test("resolve a setting from the values placed along a scope's chain, and its de
         });
 
     // resolve the set value and the other setting's default
-    const view = Snapshot.live(served.database);
+    const view = served.database.snapshot();
     expect([
         await SettingValue.resolve(view, editor, { scope: alice }),
         await SettingValue.resolve(view, lineNumbers, { scope: alice }),

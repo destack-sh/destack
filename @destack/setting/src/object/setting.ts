@@ -1,16 +1,16 @@
 import { SettingError } from "../error/index.ts";
 import { DeclarationReference } from "@destack/package/declare";
-import { type DatabaseConnection, Log, Snapshot, type Select } from "@destack/db";
+import type { Select } from "@destack/db";
+import type { DatabaseConnection, Snapshot } from "@destack/db/database";
 import { deviceSetting, type DeviceSettingValue } from "./device-setting.ts";
 import { Scope } from "@destack/sync";
 import { Setting, SettingMetadata, SettingScope } from "../setting/setting.ts";
 import { SettingSelection } from "../setting/placement.ts";
 import { DeviceValue, SettingResolution } from "../setting/resolution.ts";
-import { defineObject, field } from "@destack/object";
+import { defineObject, field, declarable, propagated } from "@destack/object";
 import { Duration, type Identifier, schema, Version } from "@destack/schema";
 import { DeclarationName, type PackageVersion, PackageId } from "@destack/package";
 import { SETTING_MODES } from "../setting/mode.ts";
-import { declarable, propagated } from "@destack/object";
 import { argument, plural, t } from "@destack/locale";
 
 /** A setting value placed in a scope. */
@@ -149,7 +149,7 @@ export const SettingValue = {
             // resolve it in a scope of its scope type, and give its default where none can be placed, such as a machine
             const isApplied = schema.identifier(declared.definition.scope).safeParse(scope).success;
             const days = isApplied
-                ? await SettingValue.resolve(Snapshot.live(database), declared, { scope })
+                ? await SettingValue.resolve(database.snapshot(), declared, { scope })
                 : defaultDays;
 
             return Duration.milliseconds({ days: schema.number().int().positive().parse(days) });
@@ -252,7 +252,7 @@ export const SettingValue = {
         }));
         const read = async (): Promise<SettingChain> => {
             // read the chain as it stands, none before its scope replicates, with its values and the device's values
-            const snapshot = Snapshot.live(database);
+            const snapshot = database.snapshot();
             const chain = (await Scope.chain(snapshot, scope)).map((link) => link.object.id);
             const values = await SettingValue.placed(snapshot, settings, chain);
             const devices =
@@ -266,7 +266,7 @@ export const SettingValue = {
         };
 
         // yield them now from the log's position
-        const log = new Log(database);
+        const log = database.log;
         let { sequence } = await log.position();
         let current = await read();
         yield current;
