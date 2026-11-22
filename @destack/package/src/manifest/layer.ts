@@ -460,6 +460,22 @@ export class BuildLayer {
         return Object.keys(this.#index.builds) as Digest[];
     }
 
+    /** Read the build object the layer holds under a digest: a build's manifest or an image. */
+    object(
+        digest: Digest,
+    ): { readonly kind: "manifest" | "image"; readonly digest: Digest } | undefined {
+        // a build the layer has by its manifest
+        if (this.hasBuild(digest)) {
+            return { kind: "manifest", digest };
+        }
+        // an image the layer lists
+        else if (this.image(digest) !== undefined) {
+            return { kind: "image", digest };
+        }
+
+        return undefined;
+    }
+
     /** Report whether the layer has a build by its manifest's digest. */
     hasBuild(digest: Digest): boolean {
         return Object.hasOwn(this.#index.builds, digest);
