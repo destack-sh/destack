@@ -1,4 +1,3 @@
-import { Snapshot } from "@destack/db";
 import { BasicCredential } from "@destack/environment";
 import { PackageId } from "@destack/package";
 import { present, schema } from "@destack/schema";
@@ -54,7 +53,7 @@ test("forward Git for a repository link to its account's registry as the caller,
     const ada = await started.signIn("ada@example.test");
     const machine = await started.machine();
     await started.simulation.idle();
-    const home = await Account.locate(Snapshot.live(started.universe.store.database), ada.account);
+    const home = await Account.locate(started.universe.store.database.snapshot(), ada.account);
     const url = new URL(await machine.directory.answering(machine.id, started.clock.now()));
     const received: { readonly url: string; readonly authorization: string | null }[] = [];
     const listener = started.simulation.network.server("registry-machine").http({

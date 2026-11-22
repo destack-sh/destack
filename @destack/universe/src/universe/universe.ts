@@ -1,10 +1,7 @@
-import {
-    Directory,
-    InstallationOrigin,
-    type UniverseLink,
-    UniverseOrigin,
-} from "@destack/account/address";
-import { type Alarm, type DatabaseConnection, defineDatabase, Snapshot } from "@destack/db";
+import { InstallationOrigin, type UniverseLink, UniverseOrigin } from "@destack/account/address";
+import { Directory, Issuer, Session } from "@destack/account/client";
+import { defineDatabase } from "@destack/db";
+import type { Alarm, DatabaseConnection, Snapshot } from "@destack/db/database";
 import type { BlobStorage } from "@destack/resource";
 import {
     AccountAuthentication,
@@ -13,7 +10,6 @@ import {
 } from "@destack/account/better-auth";
 import type { MailTransport } from "@destack/mail/transport";
 import { IdentityKeystore, IdentityRegistry } from "@destack/account/identity";
-import { Issuer, Session } from "@destack/account/client";
 import { OAuthError } from "@destack/account/authentication";
 import { Bookmark } from "@destack/object/client";
 import { Account, claim, Residency } from "@destack/account/object";
@@ -31,16 +27,15 @@ import {
     type ReleaseRegistry,
 } from "@destack/account/server";
 import type { Bucket } from "@destack/bucket";
-import { DatabasePersonalKeyring, EventStore } from "@destack/event";
-import { type Keyring } from "@destack/identity";
+import { DatabasePersonalKeyring, EventStore } from "@destack/event/store";
+import type { Keyring } from "@destack/identity";
 import { call, type CallKey, type Fetch, PackageMount, tablesOf } from "@destack/object";
 import { ObjectConnectionHost, Health, Server } from "@destack/object/server";
 import objectServer, { implementPackage, ObjectStore } from "@destack/object/server";
 import { PackageVersion, PackageId, PackageRelease } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
 import { Digest, present, schema } from "@destack/schema";
-import type { Publisher } from "@destack/sync";
-import { RequestId, Scope } from "@destack/sync";
+import { type Publisher, RequestId, Scope } from "@destack/sync";
 import { settingServer } from "@destack/setting/server";
 import settingPackage from "@destack/setting/package";
 import objectPackage from "@destack/object/package";
@@ -196,7 +191,7 @@ export class Universe implements AsyncDisposable {
             (audience: PackageId): Fetch =>
             async (request) =>
                 (await connected.promise).fetch(audience)(request);
-        const directory = new Directory(Snapshot.live(database));
+        const directory = new Directory(database.snapshot());
 
         // follow each residency home over one publisher, closed with the universe
         const publishers = new Map<string, Publisher>();
@@ -333,7 +328,8 @@ export class Universe implements AsyncDisposable {
 
         // apply the definition unless its latest run completed and the operator stays invited
         const digest = await Digest.json(definition, options.environment.crypto);
-        const [latest] = await Snapshot.live(database)
+        const [latest] = await database
+            .snapshot()
             .read(apply.run.table)
             .findMany({ where: { key: digest }, orderBy: { createdAt: "desc" }, limit: 1 });
         const isApplied = latest?.state === "completed" && (await platform.isOperatorInvited(now));
@@ -404,7 +400,7 @@ export class Universe implements AsyncDisposable {
 
         // answer each package to bearers of the universe's access tokens
         const verifier = AccountAuthentication.universe(
-            Snapshot.live(database),
+            database.snapshot(),
             issuer,
             options.environment,
         );
@@ -495,7 +491,7 @@ export class Universe implements AsyncDisposable {
         }
 
         // forward a repository to its owner's registry, refusing an unclaimed handle
-        const snapshot = Snapshot.live(this.store.database);
+        const snapshot = this.store.database.snapshot();
         const owner = await Account.byHandle(snapshot, link.handle);
         if (owner === undefined) {
             return new Response(null, { status: 404 });

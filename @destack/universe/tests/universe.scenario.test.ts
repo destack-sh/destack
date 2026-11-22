@@ -1,7 +1,6 @@
 import { UniverseOrigin } from "@destack/account/address";
 import { accessInvitation, INVITATION_LIFETIME_MILLISECONDS } from "@destack/access";
 import { schema } from "@destack/schema";
-import { Snapshot } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { testSimulation } from "@destack/object/test";
 import { expect, onTestFinished, test } from "@destack/test";
@@ -42,9 +41,8 @@ test("apply a definition once across starts, again once the operator's invitatio
     const storage = await TestDatabase.create(Universe.database, { environment, isMigrated: true });
     onTestFinished(() => storage.close());
     const counts = async () => ({
-        runs: (await Snapshot.live(storage.database).read(apply.run.table).findMany()).length,
-        invitations: (await Snapshot.live(storage.database).read(accessInvitation).findMany())
-            .length,
+        runs: (await storage.database.snapshot().read(apply.run.table).findMany()).length,
+        invitations: (await storage.database.snapshot().read(accessInvitation).findMany()).length,
     });
     const start = async (options: Pick<TestUniverseOptions, "residencies"> = {}) =>
         (await TestUniverse.open({ simulation, storage, world, ...options }))[

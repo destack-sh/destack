@@ -10,7 +10,7 @@ import { MailSender } from "@destack/mail/sender";
 import { UniverseOrigin } from "@destack/account/address";
 import { ProviderClients } from "@destack/account/better-auth";
 import { type DurableObjectState, DurableObjectWorkload } from "@destack/object/cloudflare";
-import type { Alarm } from "@destack/db";
+import type { Alarm } from "@destack/db/database";
 import { CallKey } from "@destack/object";
 import { TelemetryScope } from "@destack/telemetry";
 import { DistributionManifest, PackageVersion } from "@destack/package";

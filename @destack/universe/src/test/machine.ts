@@ -1,11 +1,11 @@
-import type { DatabaseConnection } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import type { Simulation } from "@destack/environment/simulation";
 import { principal } from "@destack/access";
-import { defineDatabase, type LogPosition, Snapshot } from "@destack/db";
+import { defineDatabase, type LogPosition } from "@destack/db";
 import { MemoryBlobStorage } from "@destack/resource";
-import { Directory, UniverseOrigin } from "@destack/account/address";
-import { MachineKey, Session } from "@destack/account/client";
-import { Bookmark } from "@destack/object/client";
+import { UniverseOrigin } from "@destack/account/address";
+import { Directory, MachineKey, Session } from "@destack/account/client";
+import { Bookmark, createClient } from "@destack/object/client";
 import { IdentityRegistry } from "@destack/account/identity";
 import { directoryShape, identityShape, machineShape } from "@destack/account/object";
 import accountPackage from "@destack/account/package";
@@ -13,7 +13,6 @@ import { TestDatabase } from "@destack/db/test";
 import type { Clock, Environment } from "@destack/environment";
 import { LocalKeyring, MemoryKeychain } from "@destack/identity";
 import { type Fetch, Package, PackageMount, tablesOf } from "@destack/object";
-import { createClient } from "@destack/object/client";
 import objectPackage from "@destack/object/package";
 import { implementPackage, ObjectStore } from "@destack/object/server";
 import { TestObjectStore } from "@destack/object/test";
@@ -92,7 +91,7 @@ export class TestMachine implements AsyncDisposable {
         this.#isOwned = fields.isOwned;
 
         // read the directory from the replica, and register identities as the machine
-        this.directory = new Directory(Snapshot.live(fields.storage.database));
+        this.directory = new Directory(fields.storage.database.snapshot());
         this.identities = IdentityRegistry.client(
             createClient(
                 accountPackage,

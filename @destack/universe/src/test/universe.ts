@@ -1,6 +1,6 @@
 import { UniverseOrigin } from "@destack/account/address";
 import { Bookmark } from "@destack/object/client";
-import { DEVICE_SCOPES, Issuer } from "@destack/account/client";
+import { DEVICE_SCOPES, Issuer, MachineKey } from "@destack/account/client";
 import { MemoryBlobStorage } from "@destack/resource";
 import accountPackage from "@destack/account/package";
 import { sudo } from "@destack/account/authentication";
@@ -22,7 +22,6 @@ import type { Clock, Environment } from "@destack/environment";
 import { testSimulation } from "@destack/object/test";
 import type { Simulation } from "@destack/environment/simulation";
 import { LocalKeyring, MemoryKeychain, PublicKey } from "@destack/identity";
-import { MachineKey } from "@destack/account/client";
 import {
     Account,
     type Allowance,
@@ -39,7 +38,6 @@ import {
     type StackRelease,
 } from "@destack/account/object";
 import { AccessContext, Caller, InstallationId, principal } from "@destack/access";
-import { Snapshot } from "@destack/db";
 import { CallKey, type FeatureReference, ObjectType, type ProcedureRouter } from "@destack/object";
 import objectPackage from "@destack/object/package";
 import type { Example } from "@destack/package/declare";
@@ -516,7 +514,7 @@ export class TestUniverse implements AsyncDisposable {
         }
         const relating = (async () => {
             // derive the installation the residency's space declares for billing
-            const snapshot = Snapshot.live(this.storage.database);
+            const snapshot = this.storage.database.snapshot();
             const served = await Residency.require(snapshot, residencyId);
             const home = await Scope.object(snapshot, Residency.requireSpace(served));
             const crypto = this.universe.store.environment.crypto;
@@ -554,7 +552,7 @@ export class TestUniverse implements AsyncDisposable {
 
         // act as the billing installation of the account's residency space, as finance does
         const { store } = this.universe;
-        const snapshot = Snapshot.live(this.storage.database);
+        const snapshot = this.storage.database.snapshot();
         const owner = await Account.of(snapshot, accountId);
         const provider = await this.#entitler(owner.residencyId);
         const now = this.clock.now();
@@ -791,7 +789,8 @@ export class TestUniverse implements AsyncDisposable {
         }
         // record a personal machine's tunnel as its account's residency's relay accepting it
         else {
-            const owning = await Snapshot.live(this.storage.database)
+            const owning = await this.storage.database
+                .snapshot()
                 .read(account.table)
                 .findFirst({ where: { id: accountId } });
             const relay = await this.relay(present(owning, `account ${accountId}`).residencyId);
@@ -813,7 +812,7 @@ export class TestUniverse implements AsyncDisposable {
     /** Read the relay a residency's home declares, which the universe relates to the residency. */
     async relay(code: ResidencyCode = TEST_RESIDENCY): Promise<Subject> {
         // derive the installation the home's stack declares under the relay's name
-        const snapshot = Snapshot.live(this.storage.database);
+        const snapshot = this.storage.database.snapshot();
         const home = await Scope.object(snapshot, await Residency.space(snapshot, code));
         const id = await InstallationId.of(home, RESIDENCY_RELAY, this.environment.crypto);
 
