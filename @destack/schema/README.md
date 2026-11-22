@@ -83,12 +83,12 @@ An identifier is `<prefix>-<uuid>`, typed by its prefix.
 ### Version
 
 A version is `<year>.<month>.<release>`, such as `2026.11.0`.
-A dev build is `<release>-dev.<UTC time>.<12 hex of its build key>`, as in Go's pseudo-versions, and comes before its release.
+A dev build is `<release>-dev`, the same for every unreleased build as Go's `(devel)`, and comes before its release.
 
 | Verb                                  | What it does                                             |
 | ------------------------------------- | -------------------------------------------------------- |
-| `Version.compare(left, right)`        | orders versions, dev builds by time and then by key      |
-| `Version.dev(release, at, key)`       | writes a dev build's version                             |
+| `Version.compare(left, right)`        | orders versions, a dev build before its release          |
+| `Version.dev(release)`                | writes a dev build's version                             |
 | `Version.release(version)`            | reads the release a version leads to                     |
 | `Version.next(version)`               | reads the next release in the same month                 |
 | `Version.isPrerelease(version)`       | reports whether a version is a dev build                 |
@@ -200,13 +200,13 @@ export function nextDigest(now: number): number {
 
 ### Stamp a dev version
 
-`Version.dev` writes a dev build's version from its release, time and build key, ordered before the release.
+`Version.dev` writes a dev build's version from its release, ordered before the release.
 
 ```ts
 import { Version } from "@destack/schema";
 
 // stamp a dev build, and order it before its release
-export const dev = Version.dev("2026.11.0", Date.UTC(2026, 10, 12, 10, 30), "0123456789abcdef");
+export const dev = Version.dev("2026.11.0");
 export const order = Version.compare(dev, "2026.11.0");
 ```
 
