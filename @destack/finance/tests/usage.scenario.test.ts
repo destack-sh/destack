@@ -1,7 +1,7 @@
 import { DeclarationReference } from "@destack/package/declare";
 import { t } from "@destack/locale";
 import { entitlement } from "@destack/account/object";
-import { asc, eq, Snapshot } from "@destack/db";
+import { asc, eq } from "@destack/db";
 import { announcement } from "@destack/notification/object";
 import { nth, type Identifier, schema, Uuid } from "@destack/schema";
 import type { CallInput } from "@destack/object";
@@ -173,7 +173,7 @@ async function subscribe(
         0,
     );
     for (const reference of references) {
-        const offered = await Price.offer(reference, Snapshot.live(finance.database));
+        const offered = await Price.offer(reference, finance.database.snapshot());
         await finance.store.mutate(finance.store.as(subscriptionItem), {
             id: RequestId.create(finance.fixture.environment),
             calls: [

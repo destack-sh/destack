@@ -5,13 +5,12 @@ import { Table } from "@destack/db";
 import { argument, plural, select, t } from "@destack/locale";
 import { defineNotification } from "@destack/notification/declare";
 import { type EventKind, EventTime, type SERIES_FOLDS } from "@destack/event";
-import { type MethodContext, type EventOf, type EventView } from "@destack/object";
+import { type MethodContext, type EventOf, CallError } from "@destack/object";
+import type { EventView } from "@destack/object/server";
 import { usage } from "@destack/stack/object";
 import type { Meter } from "@destack/telemetry/meter";
-import type { Identifier } from "@destack/schema";
+import { type Identifier, schema } from "@destack/schema";
 import type { Period } from "../rate/period.ts";
-import { CallError } from "@destack/object";
-import { schema } from "@destack/schema";
 import type { ReleaseReader } from "../release/reader.ts";
 import type {} from "@destack/package/import-meta";
 

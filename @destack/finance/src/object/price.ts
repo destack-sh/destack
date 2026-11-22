@@ -2,18 +2,18 @@ import { DeclarationReference } from "@destack/package/declare";
 import { FinanceError } from "../error/error.ts";
 import { through } from "@destack/access";
 import { space } from "@destack/account/object";
-import { type Row, TABLE, type Select, type Snapshot, Table } from "@destack/db";
-import { type MethodContext, defineObject, field } from "@destack/object";
+import { type Row, TABLE, type Select, Table } from "@destack/db";
+import type { Snapshot } from "@destack/db/database";
+import { type MethodContext, defineObject, field, archivable, nested } from "@destack/object";
 import { present, schema, Text } from "@destack/schema";
 import type { ReleaseReader } from "../release/reader.ts";
 import { Amount, Currency, DecimalAmount } from "../rate/amount.ts";
 import { Rate } from "../rate/rate.ts";
 import { product } from "./product.ts";
-import { type FeatureGrant } from "../feature/grant.ts";
+import type { FeatureGrant } from "../feature/grant.ts";
 import { productFeature } from "./product-feature.ts";
 import { seller } from "./seller.ts";
 import type {} from "@destack/package/import-meta";
-import { archivable, nested } from "@destack/object";
 import { argument, plural, t } from "@destack/locale";
 
 /** The fields of every recurring price beside its usage. */

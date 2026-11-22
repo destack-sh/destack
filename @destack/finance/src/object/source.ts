@@ -1,6 +1,6 @@
 import type { account, UsageState } from "@destack/account/object";
 import { FinanceError } from "../error/error.ts";
-import type { Snapshot } from "@destack/db";
+import type { Snapshot } from "@destack/db/database";
 import type { IdentifierOf } from "@destack/object";
 import type { Meter } from "@destack/telemetry/meter";
 import type { ObjectReference } from "@destack/sync";

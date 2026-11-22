@@ -1,7 +1,5 @@
 import { account } from "@destack/account/object";
-import { Snapshot } from "@destack/db";
-import { EventView } from "@destack/object";
-import type { ObjectStore } from "@destack/object/server";
+import { EventView, type ObjectStore } from "@destack/object/server";
 import { RequestId } from "@destack/sync";
 import { customer, Customer, type Resolution } from "../object/index.ts";
 import { usage } from "@destack/stack/object";
@@ -28,8 +26,8 @@ export class CustomerEntitlement {
         // read the catalogs, replicas and usage series the account's sources grant from
         const caller = this.#store.as(customer);
         const releases = this.#metering.reader(this.#store, caller, this.#home);
-        const reader = Snapshot.live(this.#store.database);
-        const events = new EventView(usage.eventKind(), this.#store.events);
+        const reader = this.#store.database.snapshot();
+        const events = new EventView(usage.eventKind(), { store: this.#store.events });
 
         return Customer.resolve(
             account.identifier(scope),
@@ -45,7 +43,7 @@ export class CustomerEntitlement {
         // derive the account's entitlements and alerts, comparing them to its replicated ones
         const accountId = account.identifier(scope);
         const caller = this.#store.as(customer);
-        const reader = Snapshot.live(this.#store.database);
+        const reader = this.#store.database.snapshot();
         const resolutions = await this.resolve(scope);
         const { calls, alerts } = await Customer.derive(accountId, resolutions, reader);
 

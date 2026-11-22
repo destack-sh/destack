@@ -1,5 +1,4 @@
 import { t } from "@destack/locale";
-import { Snapshot } from "@destack/db";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { price, Price, product, productFeature, seller } from "../src/object/index.ts";
 import { Finance, ids } from "./fixture/finance.ts";
@@ -165,7 +164,7 @@ test("refuse offering an archived price or product", async () => {
     const offer = await finance.offer();
 
     // take the monthly price off sale before the plan
-    const offered = () => refusal(Price.offer(offer.monthly, Snapshot.live(finance.database)));
+    const offered = () => refusal(Price.offer(offer.monthly, finance.database.snapshot()));
     const before = await offered();
     await finance.call("carol", price.call("archive", { id: offer.monthly.id }));
     const archivedPrice = await offered();

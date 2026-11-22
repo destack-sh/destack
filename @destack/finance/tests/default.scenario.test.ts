@@ -1,5 +1,5 @@
 import { t } from "@destack/locale";
-import { asc, eq, Snapshot } from "@destack/db";
+import { asc, eq } from "@destack/db";
 import { expect, onTestFinished, test } from "@destack/test";
 import { account, entitlement, Residency } from "@destack/account/object";
 import { product, productFeature, subscription } from "../src/object/index.ts";
@@ -57,7 +57,7 @@ test("grant the default product until an account subscribes", async () => {
 
     // grant the default to every account of the residency the universe stores, and the paid plan's items alone to the buyer once it subscribes
     const { database } = finance.fixture.space.universe.storage;
-    const served = await Residency.require(Snapshot.live(database), "eu");
+    const served = await Residency.require(database.snapshot(), "eu");
     const residents = await database
         .select({ id: account.table.id })
         .from(account.table)

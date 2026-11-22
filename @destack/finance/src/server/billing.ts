@@ -1,7 +1,7 @@
 import { Account } from "@destack/account/object";
 import { FinanceError } from "../error/error.ts";
 import type { MethodContext, MethodContextOf, NextOf, SettlementContext } from "@destack/object";
-import type { Snapshot } from "@destack/db";
+import type { Snapshot } from "@destack/db/database";
 import { ObjectReference } from "@destack/sync";
 import { found, type Identifier, present, zip } from "@destack/schema";
 import type { Period } from "../rate/period.ts";

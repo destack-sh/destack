@@ -2,15 +2,15 @@ import { DeclarationReference } from "@destack/package/declare";
 import { FinanceError } from "../error/error.ts";
 import { through } from "@destack/access";
 import { space } from "@destack/account/object";
-import { type Select, type Snapshot } from "@destack/db";
-import { defineObject, field } from "@destack/object";
+import type { Select } from "@destack/db";
+import type { Snapshot } from "@destack/db/database";
+import { defineObject, field, nested } from "@destack/object";
 import { PackageId, DeclarationName } from "@destack/package";
 import { type JsonValue, schema } from "@destack/schema";
 import type { ReleaseReader } from "../release/reader.ts";
 import { product } from "./product.ts";
 import { type Publisher, Seller } from "./seller.ts";
 import type {} from "@destack/package/import-meta";
-import { nested } from "@destack/object";
 import { argument, plural, t } from "@destack/locale";
 
 /** A feature a product grants its buyers, with the value or limit of the grant. */

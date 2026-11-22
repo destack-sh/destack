@@ -1,6 +1,7 @@
 import { account, space } from "@destack/account/object";
 import { FinanceError } from "../error/error.ts";
-import type { Select, Snapshot } from "@destack/db";
+import type { Select } from "@destack/db";
+import type { Snapshot } from "@destack/db/database";
 import { defineObject, field } from "@destack/object";
 import { present, schema } from "@destack/schema";
 import { Cost, Currency, DecimalAmount } from "../rate/amount.ts";

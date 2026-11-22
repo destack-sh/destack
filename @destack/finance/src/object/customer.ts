@@ -12,7 +12,8 @@ import {
     type UsageState,
     USAGE_STATES,
 } from "@destack/account/object";
-import { type Select, type Snapshot, Table } from "@destack/db";
+import { type Select, Table } from "@destack/db";
+import type { Snapshot } from "@destack/db/database";
 import { type IdentifierOf, type MethodContext, defineObject, field } from "@destack/object";
 import type { Call } from "@destack/sync";
 import { present, schema, type Identifier } from "@destack/schema";

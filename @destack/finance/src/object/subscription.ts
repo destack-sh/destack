@@ -2,8 +2,15 @@ import { type Call, ObjectReference } from "@destack/sync";
 import { FinanceError } from "../error/error.ts";
 import { through } from "@destack/access";
 import { account, space } from "@destack/account/object";
-import { type Select, type Snapshot, Table } from "@destack/db";
-import { type MethodContext, type MethodContextOf, defineObject, field } from "@destack/object";
+import { type Select, Table } from "@destack/db";
+import type { Snapshot } from "@destack/db/database";
+import {
+    type MethodContext,
+    type MethodContextOf,
+    defineObject,
+    field,
+    nested,
+} from "@destack/object";
 import { type Identifier, present, schema } from "@destack/schema";
 import { Currency } from "../rate/amount.ts";
 import { BILLING_PERMISSIONS } from "./billing.ts";
@@ -11,7 +18,6 @@ import { Price, price, PRICE_TERMS, PriceMirror } from "./price.ts";
 import { FeatureGrant } from "../feature/grant.ts";
 import { seller } from "./seller.ts";
 import type {} from "@destack/package/import-meta";
-import { nested } from "@destack/object";
 import { argument, plural, t } from "@destack/locale";
 
 /** A transition of a subscription's state. */

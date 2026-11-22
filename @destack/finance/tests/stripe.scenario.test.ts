@@ -1,5 +1,5 @@
 import { type Message, t } from "@destack/locale";
-import { asc, eq, Snapshot } from "@destack/db";
+import { asc, eq } from "@destack/db";
 import { present, schema } from "@destack/schema";
 import { RequestId, ObjectReference } from "@destack/sync";
 import { subjectContext, TEST_START } from "@destack/object/test";
@@ -410,7 +410,7 @@ test("set a new subscription's spending limit from its included usage", async ()
         .select()
         .from(subscription.table)
         .orderBy(asc(subscription.table.createdAt));
-    const snapshot = Snapshot.live(finance.database);
+    const snapshot = finance.database.snapshot();
     const terms = await Promise.all(
         rows.map(async (row) => ({
             includedUsage: SubscriptionItem.includedUsage(

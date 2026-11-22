@@ -1,4 +1,4 @@
-import { eq, Snapshot } from "@destack/db";
+import { eq } from "@destack/db";
 import { nth } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { Price, subscription, type Subscription, subscriptionItem } from "../src/object/index.ts";
@@ -227,7 +227,7 @@ test("resolve an item's current grants with its meters' usage", async () => {
     await finance.entitle();
 
     // change the item's support grant behind the controller and append requests in and after the period
-    const offered = await Price.offer(offer.monthly, Snapshot.live(finance.database));
+    const offered = await Price.offer(offer.monthly, finance.database.snapshot());
     await finance.database.transaction(
         async (transaction) =>
             await transaction

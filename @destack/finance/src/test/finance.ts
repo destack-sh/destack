@@ -3,28 +3,26 @@ import objectPackage from "@destack/object/package";
 import { AccessContext, Caller, principal } from "@destack/access";
 import { account, organization, Residency } from "@destack/account/object";
 import { OPERATOR_EMAIL, type TestPerson } from "@destack/account/test";
-import { Snapshot } from "@destack/db";
 import { reconciliation } from "@destack/db/test";
 import type { Crypto, Clock, Environment } from "@destack/environment";
 import type { Simulation } from "@destack/environment/simulation";
-import { type EventStore, EventTime } from "@destack/event";
+import { EventTime } from "@destack/event";
+import type { EventStore } from "@destack/event/store";
 import { publishBuild } from "@destack/forge/test";
 import { notification } from "@destack/notification/object";
 import messagePackage from "@destack/message/package";
 import notificationPackage from "@destack/notification/package";
 import { TestNotification } from "@destack/notification/test";
-import { EventView } from "@destack/object";
-import { implementPackage, type ObjectStore } from "@destack/object/server";
+import { EventView, implementPackage, type ObjectStore } from "@destack/object/server";
 import type { ServerContext } from "@destack/object/workload";
 import { describeMeter } from "@destack/telemetry/inspect";
 import { Meter, METER_KIND } from "@destack/telemetry/meter";
 import { PackageVersion } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
-import { type BuildReader } from "@destack/package/manifest";
+import type { BuildReader } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import { Identifier, present, schema } from "@destack/schema";
-import type { StackDocument } from "@destack/stack/declare";
-import { install } from "@destack/stack/declare";
+import { type StackDocument, install } from "@destack/stack/declare";
 import {
     CONNECTION,
     FORGE,
@@ -368,7 +366,8 @@ export class TestFinance {
         // follow them in the home, and read the platform's account there
         await home.serve();
         await home.simulation.idle();
-        const platform = await Snapshot.live(home.database)
+        const platform = await home.database
+            .snapshot()
             .read(account.table)
             .findFirst({ where: { handle: "destack" } });
 
@@ -451,7 +450,7 @@ export class TestFinance {
 
     /** Fold a paying account's usage of a meter as rating reads it, in a period or now. */
     usage(payer: string, meter: Meter, period: Period | undefined): Promise<number> {
-        const events = new EventView(usage.eventKind(), this.events);
+        const events = new EventView(usage.eventKind(), { store: this.events });
 
         return Usage.read(account.identifier(payer), meter, period, this.clock.now(), events);
     }
@@ -482,7 +481,7 @@ export class TestFinance {
     async #serving(): Promise<Caller> {
         // act as the machine in its residency's servers
         const subject = principal.machine.reference(Scope.universe.id, this.space.machine.id);
-        const universe = Snapshot.live(this.space.universe.storage.database);
+        const universe = this.space.universe.storage.database.snapshot();
         const home = await Residency.require(universe, RESIDENCY);
 
         return { ...Caller.of(subject), groups: [Residency.servers(home.id)] };
@@ -544,7 +543,8 @@ export class TestFinance {
         // step the operator up, and find the secret the home's stack declares
         const operator = await this.space.universe.elevate(this.person("dave"));
         const vaults = this.space.person(operator).client(vaultPackage);
-        const row = await Snapshot.live(this.database)
+        const row = await this.database
+            .snapshot()
             .read(secret.table)
             .findFirst({ where: { name } });
         const { id } = present(row, `the home secret ${name}`);

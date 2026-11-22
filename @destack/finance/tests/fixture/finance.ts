@@ -2,7 +2,8 @@ import { DeclarationReference } from "@destack/package/declare";
 import { type Message, t } from "@destack/locale";
 
 import { entitlement, type Entitlement } from "@destack/account/object";
-import { asc, eq, type DatabaseConnection, Snapshot } from "@destack/db";
+import { asc, eq } from "@destack/db";
+import { type DatabaseConnection } from "@destack/db/database";
 import { ObjectType } from "@destack/object";
 import { ObjectStore } from "@destack/object/server";
 import {
@@ -252,7 +253,7 @@ export class Finance {
         reference: Offer["monthly"],
         grants?: readonly FeatureGrant[],
     ): Promise<SubscriptionItem> {
-        const offered = await Price.offer(reference, Snapshot.live(this.database));
+        const offered = await Price.offer(reference, this.database.snapshot());
         const input = {
             parentId: parent.id,
             ...ObjectReference.columns("price", price.reference(reference.scope, reference.id)),

@@ -1,10 +1,9 @@
 import type { WebhookDelivery } from "@destack/workflow";
-import type { Call } from "@destack/sync";
+import { type Call, RequestId } from "@destack/sync";
 import { FinanceError } from "../error/error.ts";
-import { Snapshot, Transaction } from "@destack/db";
+import type { Snapshot } from "@destack/db/database";
 import type { ObjectStore } from "@destack/object/server";
 import { present } from "@destack/schema";
-import { RequestId } from "@destack/sync";
 import {
     checkoutSession,
     customer,
@@ -187,7 +186,7 @@ export const ProviderEvent = {
     ): Promise<void> {
         // write the calls the step lists, in the transaction its reads ran in
         const { home, key, time, store } = event;
-        await Transaction.run(store.database, async (transaction) => {
+        await store.database.commit(async (transaction) => {
             const listed = await calls(transaction.view());
             if (listed.length > 0) {
                 await store.mutate(
@@ -335,7 +334,8 @@ export const ProviderEvent = {
         }
 
         // leave a first invoice, whose subscription finance stores once its checkout settles
-        const [billed] = await Snapshot.live(store.database)
+        const [billed] = await store.database
+            .snapshot()
             .read(subscription.table)
             .findMany({
                 where: {

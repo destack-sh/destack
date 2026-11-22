@@ -1,7 +1,8 @@
 import { through } from "@destack/access";
 import { FinanceError } from "../error/error.ts";
 import { account, space } from "@destack/account/object";
-import { type Select, type Snapshot } from "@destack/db";
+import type { Select } from "@destack/db";
+import type { Snapshot } from "@destack/db/database";
 import { defineObject, field } from "@destack/object";
 import { type PackageVersion, PackageName } from "@destack/package";
 import { Identifier, present, schema } from "@destack/schema";
