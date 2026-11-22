@@ -7,8 +7,12 @@ export const toggleBold = defineExample({
     of: Toggle,
     name: "bold",
     description: "a toggle that turns bold text on and off",
-    render: () => (
-        <Toggle variant="outline" aria-label="Bold">
+    properties: {
+        variant: "outline",
+        "aria-label": "Bold",
+    },
+    render: (properties) => (
+        <Toggle {...properties}>
             <Icon name="text-b" />
         </Toggle>
     ),
@@ -19,8 +23,13 @@ export const toggleBoldPressed = defineExample({
     of: Toggle,
     name: "bold-pressed",
     description: "the bold toggle turned on",
-    render: () => (
-        <Toggle variant="outline" aria-label="Bold" defaultPressed>
+    properties: {
+        variant: "outline",
+        "aria-label": "Bold",
+        defaultPressed: true,
+    },
+    render: (properties) => (
+        <Toggle {...properties}>
             <Icon name="text-b" />
         </Toggle>
     ),
@@ -31,8 +40,13 @@ export const toggleBoldDisabled = defineExample({
     of: Toggle,
     name: "bold-disabled",
     description: "the bold toggle unavailable",
-    render: () => (
-        <Toggle variant="outline" aria-label="Bold" disabled>
+    properties: {
+        variant: "outline",
+        "aria-label": "Bold",
+        disabled: true,
+    },
+    render: (properties) => (
+        <Toggle {...properties}>
             <Icon name="text-b" />
         </Toggle>
     ),

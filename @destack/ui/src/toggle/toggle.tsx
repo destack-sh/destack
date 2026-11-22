@@ -1,16 +1,7 @@
+import { state } from "@destack/theme/state";
 import * as style from "@destack/style";
 import { type PartAttributes, type Render, useRender } from "../part/index.ts";
-import { media } from "@destack/style/media.stylex";
-import {
-    color,
-    motion,
-    radius,
-    shadow,
-    size,
-    space,
-    stroke,
-    weight,
-} from "@destack/theme/tokens.stylex";
+import { color, motion, radius, size, space, stroke, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import { createControllableSignal, type JSX, merge, omit } from "@destack/view";
 
@@ -25,43 +16,27 @@ const styles = style.create({
         borderWidth: stroke.border,
         borderColor: "transparent",
         borderRadius: radius[3],
-        backgroundColor: {
-            default: "transparent",
-            ":hover": { default: null, [media.hover]: color.muted },
-        },
-        color: {
-            default: color.foreground,
-            ":hover": { default: null, [media.hover]: color.mutedForeground },
-        },
+        color: color.foreground,
         fontWeight: weight.medium,
         whiteSpace: "nowrap",
         cursor: "pointer",
-        transitionProperty: "color, background-color, outline-color",
+        transitionProperty: "color, background-color, outline-color, transform",
         transitionDuration: motion.durationShort,
         transitionTimingFunction: motion.easingStandard,
-        outlineStyle: { default: "none", ":focus-visible": "solid" },
-        outlineWidth: stroke.ring,
-        outlineColor: `color-mix(in oklab, ${color.ring} 50%, transparent)`,
-        opacity: { default: 1, ":disabled": 0.5 },
-        pointerEvents: { default: "auto", ":disabled": "none" },
-    },
-    pressed: {
-        backgroundColor: color.accent,
-        color: color.accentForeground,
     },
 });
 
 /** The border of each variant. */
 const variants = style.create({
     default: {},
-    outline: { borderColor: color.input, boxShadow: shadow.inset },
+    outline: { borderColor: color.input },
 });
 
 /** The height and padding of each size. */
 const sizes = style.create({
-    default: { minWidth: size[3], height: size[3], paddingInline: space[2] },
-    sm: { minWidth: size[2], height: size[2], paddingInline: space[2] },
-    lg: { minWidth: size[4], height: size[4], paddingInline: space[3] },
+    sm: { minWidth: size[1], height: size[1], gap: space[1], paddingInline: space[2] },
+    default: { minWidth: size[2], height: size[2], paddingInline: space[2] },
+    lg: { minWidth: size[3], height: size[3], paddingInline: space[3] },
 });
 
 /** The look of a toggle. */
@@ -99,10 +74,14 @@ export interface ToggleProperties
 export function toggleVariants(options: ToggleVariantProperties): style.Styles {
     return [
         text.sm,
+        state.focus,
+        state.disabled,
+        state.hover,
+        state.press,
         styles.toggle,
         variants[options.variant ?? "default"],
         sizes[options.size ?? "default"],
-        options.pressed === true && styles.pressed,
+        options.pressed === true && state.on,
     ];
 }
 
