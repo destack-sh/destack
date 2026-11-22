@@ -12,7 +12,7 @@ function createSelection(properties: SelectionProperties): Selection {
     });
 }
 
-test("keep a single selection's own value as a list and report it as one value or none", () => {
+test("store a single selection's own value as a list and report it as one value or none", () => {
     // start with one value, replace it and clear it
     const reported: (string | undefined)[] = [];
     const selection = createSelection({
@@ -33,7 +33,7 @@ test("keep a single selection's own value as a list and report it as one value o
     });
 });
 
-test("keep a multiple selection's own values and report the whole list", () => {
+test("store a multiple selection's own values and report the whole list", () => {
     const reported: (readonly string[])[] = [];
     const selection = createSelection({
         multiple: true,
@@ -49,8 +49,8 @@ test("keep a multiple selection's own values and report the whole list", () => {
     });
 });
 
-test("hold a controlled selection at its owner's value, an undefined value selecting none", () => {
-    // ask for a value while the owner keeps none, then let the owner select it
+test("leave a controlled selection at its owner's value, an undefined value selecting none", () => {
+    // ask for a value while the owner has none, then let the owner select it
     const [owned, setOwned] = createSignal<string | undefined>(undefined);
     const reported: (string | undefined)[] = [];
     const selection = createSelection({
@@ -61,12 +61,12 @@ test("hold a controlled selection at its owner's value, an undefined value selec
     });
     selection.replace(["date"]);
     flush();
-    const held = selection.values();
+    const before = selection.values();
     setOwned("date");
     flush();
 
-    expect({ held, followed: selection.values(), reported }).toEqual({
-        held: [],
+    expect({ before, followed: selection.values(), reported }).toEqual({
+        before: [],
         followed: ["date"],
         reported: ["date"],
     });
@@ -177,4 +177,91 @@ test("read one value, several or none as a list", () => {
         ["title"],
         ["bold", "italic"],
     ]);
+});
+
+test("start a range anew once the owner dropped the value it extended from", () => {
+    // press b, let the owner clear the selection, then extend to d with shift
+    const [value, setValue] = createSignal<readonly string[]>([]);
+    const collection = createRoot((dispose) => {
+        onTestFinished(dispose);
+
+        return new Collection({
+            sections: () => [{ key: "letters", items: ["a", "b", "c", "d"] }],
+            key: (letter) => letter,
+            text: (letter) => letter,
+        });
+    });
+    const selection = createSelection({
+        multiple: true,
+        behavior: "replace",
+        get value() {
+            return value();
+        },
+        onValueChange: setValue,
+    });
+    const modifiers = { shiftKey: false, metaKey: false, ctrlKey: false };
+    selection.select("b", modifiers, collection);
+    flush();
+    const anchored = selection.anchor();
+    setValue([]);
+    flush();
+    const dropped = selection.anchor();
+    selection.select("d", { ...modifiers, shiftKey: true }, collection);
+    flush();
+
+    expect({ anchored, dropped, values: selection.values() }).toEqual({
+        anchored: "b",
+        dropped: undefined,
+        values: ["d"],
+    });
+});
+
+test("extend by a step from the focused value, anchoring there when nothing anchors a range", () => {
+    // step from b to c with nothing selected, then on to d, then back to c
+    const collection = createRoot((dispose) => {
+        onTestFinished(dispose);
+
+        return new Collection({
+            sections: () => [{ key: "letters", items: ["a", "b", "c", "d"] }],
+            key: (letter) => letter,
+            text: (letter) => letter,
+        });
+    });
+    const selection = createSelection({ multiple: true, behavior: "replace" });
+    const steps: (readonly string[])[] = [];
+    for (const [from, to] of [
+        ["b", "c"],
+        ["c", "d"],
+        ["d", "c"],
+    ] as const) {
+        selection.extendFrom(from, to, collection);
+        flush();
+        steps.push(selection.values());
+    }
+
+    expect(steps).toEqual([
+        ["b", "c"],
+        ["b", "c", "d"],
+        ["b", "c"],
+    ]);
+});
+
+test("leave the last selected value where the selection may not be empty, as a segmented control does", () => {
+    // press the one selected value of a single selection, and drop both values of a multiple one
+    const single = createSelection({ defaultValue: "week", disallowEmptySelection: true });
+    const multiple = createSelection({
+        multiple: true,
+        defaultValue: ["bold", "italic"],
+        disallowEmptySelection: true,
+    });
+    single.toggle("week");
+    multiple.toggle("bold");
+    flush();
+    multiple.toggle("italic");
+    flush();
+
+    expect({ single: single.values(), multiple: multiple.values() }).toEqual({
+        single: ["week"],
+        multiple: ["italic"],
+    });
 });

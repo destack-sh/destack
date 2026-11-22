@@ -4,19 +4,22 @@ import {
     createProjection,
     createSignal,
     type Setter,
+    untrack,
 } from "@destack/view";
 import type { Collection } from "../collection/index.ts";
 
 /** How a plain press selects. */
 export type SelectionBehavior = "toggle" | "replace";
 
-/** The modifier keys held during a press. */
+/** The modifier keys down during a press. */
 export type SelectionModifiers = Pick<MouseEvent, "shiftKey" | "metaKey" | "ctrlKey">;
 
 /** The selected value of a component that takes one value at a time, or none. */
 export interface SingleSelection {
     /** How a plain press selects, toggling by default. */
     readonly behavior?: SelectionBehavior;
+    /** Whether a press leaves the last selected value, as React Aria's segmented controls do. */
+    readonly disallowEmptySelection?: boolean;
     /** One value is selected at a time, the default. */
     readonly multiple?: false;
     /** The selected value, which makes the selection controlled, undefined for none. */
@@ -31,6 +34,8 @@ export interface SingleSelection {
 export interface MultipleSelection {
     /** How a plain press selects, toggling by default. */
     readonly behavior?: SelectionBehavior;
+    /** Whether a press leaves the last selected value, as React Aria's segmented controls do. */
+    readonly disallowEmptySelection?: boolean;
     /** Several values are selected at a time. */
     readonly multiple: true;
     /** The selected values, which make the selection controlled. */
@@ -40,6 +45,16 @@ export interface MultipleSelection {
     /** Handle the selected values changing. */
     readonly onValueChange?: (value: readonly string[]) => void;
 }
+
+/** The names of a selection's properties, which a component leaves off its element. */
+export const SELECTION_OPTIONS = [
+    "multiple",
+    "value",
+    "defaultValue",
+    "onValueChange",
+    "behavior",
+    "disallowEmptySelection",
+] as const;
 
 /** The selection properties of a component that takes one value or several. */
 export type SelectionProperties = SingleSelection | MultipleSelection;
@@ -69,7 +84,7 @@ export class Selection {
         const [values, setValues] = createControllableSignal<readonly string[]>({
             isControlled: () => "value" in properties,
             value: () => valuesOf(properties.value),
-            defaultValue: valuesOf(properties.defaultValue),
+            defaultValue: untrack(() => valuesOf(properties.defaultValue)),
             onChange: (next) => {
                 if (properties.multiple === true) {
                     properties.onValueChange?.(next);
@@ -110,21 +125,33 @@ export class Selection {
         return this.#selected[value] === true;
     }
 
-    /** Read the value a range extends from. */
+    /** Read the value a range extends from, none once the owner dropped it from the selection. */
     anchor(): string | undefined {
-        return this.#anchor();
+        const anchor = this.#anchor();
+
+        return anchor !== undefined && this.isSelected(anchor) ? anchor : undefined;
+    }
+
+    /** Report whether a press selects: with a modifier, or always where no press opens. */
+    isSelecting(
+        press: SelectionModifiers & { readonly pointerType: string },
+        hasAction: boolean,
+    ): boolean {
+        const isModified = press.metaKey || press.ctrlKey || press.shiftKey;
+
+        return press.pointerType !== "keyboard" && (isModified || !hasAction);
     }
 
     /** Select a value by a press. */
-    select<Item>(value: string, held: SelectionModifiers, collection: Collection<Item>): void {
+    select<Item>(value: string, modifiers: SelectionModifiers, collection: Collection<Item>): void {
         // extend a multiple selection's range with shift
-        if (held.shiftKey && this.isMultiple()) {
+        if (modifiers.shiftKey && this.isMultiple()) {
             this.extend(value, collection);
         }
         // toggle with command or control, or on a plain press under the toggle behavior
         else if (
-            held.metaKey ||
-            held.ctrlKey ||
+            modifiers.metaKey ||
+            modifiers.ctrlKey ||
             (this.#properties.behavior ?? "toggle") === "toggle"
         ) {
             this.toggle(value);
@@ -137,11 +164,22 @@ export class Selection {
 
     /** Select a value, or drop it once selected. */
     toggle(value: string): void {
+        // read what dropping the value would leave
         const values = this.values();
+        const rest = values.filter((entry) => entry !== value);
+        const isLast = rest.length === 0 && this.#properties.disallowEmptySelection === true;
         this.#anchorAt(value);
-        if (values.includes(value)) {
-            this.#setValues(values.filter((entry) => entry !== value));
-        } else {
+
+        // leave the last value where the selection may not be empty
+        if (values.includes(value) && isLast) {
+            return;
+        }
+        // drop a selected value
+        else if (values.includes(value)) {
+            this.#setValues(rest);
+        }
+        // add the value, in place of the others in a single selection
+        else {
             this.#setValues(this.isMultiple() ? [...values, value] : [value]);
         }
     }
@@ -163,18 +201,30 @@ export class Selection {
 
     /** Select from the anchor to a value in collection order. */
     extend<Item>(value: string, collection: Collection<Item>): void {
+        this.#range(this.anchor(), value, collection);
+    }
+
+    /** Extend by a step from a focused value, anchoring there when nothing anchors a range. */
+    extendFrom<Item>(from: string, value: string, collection: Collection<Item>): void {
+        this.#range(this.anchor() ?? from, value, collection);
+    }
+
+    /** Select from an anchor to a value, replacing the anchor's last range. */
+    #range<Item>(start: string | undefined, value: string, collection: Collection<Item>): void {
         // start the range at the value itself without an anchor
-        const anchor = this.#anchor() ?? value;
-        const previous = new Set(rangeOf(anchor, this.#extended() ?? anchor, collection));
+        const anchor = start ?? value;
+        const extended =
+            start === undefined || start !== this.anchor() ? undefined : this.#extended();
+        const previous = new Set(rangeOf(anchor, extended ?? anchor, collection));
         const range = rangeOf(anchor, value, collection);
 
-        // keep the values outside the last range and add the new one
-        const kept = this.values().filter((entry) => !previous.has(entry));
-        const isKept = new Set(kept);
-        const added = range.filter((entry) => !isKept.has(entry));
+        // leave the values outside the last range and add the new one
+        const rest = this.values().filter((entry) => !previous.has(entry));
+        const isOutside = new Set(rest);
+        const added = range.filter((entry) => !isOutside.has(entry));
         this.#setAnchor(anchor);
         this.#setExtended(value);
-        this.#setValues([...kept, ...added]);
+        this.#setValues([...rest, ...added]);
     }
 
     /** Select every available value of a collection. */
