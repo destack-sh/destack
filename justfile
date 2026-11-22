@@ -132,13 +132,25 @@ test directory *arguments:
     cd "{{justfile_directory()}}/@destack/cli"
     bun run --silent dev test "{{justfile_directory()}}/{{directory}}" ${options[@]+"${options[@]}"} ${files[@]+"${files[@]}"}
 
-# bench every package's scenarios, then print the table
-bench *packages:
+# bench every package's scenarios, --count times each in a fresh world, then print the medians
+bench *arguments:
     #!/usr/bin/env bash
     set -euo pipefail
     cd "{{justfile_directory()}}"
+    # read the run count, as Go's -count, and the named packages
+    count=1
+    packages=""
+    set -- {{arguments}}
+    while [ $# -gt 0 ]; do
+        if [ "$1" = --count ]; then
+            count="$2"
+            shift 2
+        else
+            packages="$packages $1"
+            shift
+        fi
+    done
     # select the named packages, else every package with scenarios
-    packages="{{packages}}"
     if [ -z "$packages" ]; then
         packages="$(grep -rl --include='*.scenario.ts' -e defineScenario @destack @platform | grep -v node_modules | cut -d/ -f1,2 | sort -u)"
     fi
@@ -152,7 +164,9 @@ bench *packages:
         echo "bench $directory"
         name="$(jq --raw-output .name "$directory/package.json")"
         rm -rf "target/bench/$baseline/$name"
-        just test "$directory" --bench
+        for run in $(seq 1 "$count"); do
+            just test "$directory" --bench
+        done
     done
     bun run @destack/test/src/bench/main.ts target/bench "$baseline"
 
