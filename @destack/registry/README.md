@@ -89,10 +89,11 @@ import registryPackage from "@destack/registry/package";
 import type { Digest, Identifier } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 
-/** Publish a stored image's packages under the next tag at the forge below a URL in an account's home. */
+/** Publish a stored image's packages, built from a commit, under the next tag at an account's forge. */
 export async function publishNext(
     store: BuildStore,
     image: Digest,
+    commit: string,
     forge: { readonly url: string; readonly fetch: Fetch; readonly home: Identifier<"space"> },
     account: { readonly id: Identifier<"account">; readonly handle: string },
     environment: Environment,
@@ -108,6 +109,7 @@ export async function publishNext(
         requestId: RequestId.create(environment),
         accountId: account.id,
         image,
+        commit,
         tag: "next",
     });
 
