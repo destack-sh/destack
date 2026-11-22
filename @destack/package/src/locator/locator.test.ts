@@ -49,7 +49,7 @@ test("read a source package at the version its build gives it, else the developm
         );
     }
     // find each with a dev version for the listed package, and without versions
-    const versions = { "@example/notes": "2026.9.0-dev.20260912100004.0123456789ab" };
+    const versions = { "@example/notes": "2026.9.0-dev" };
     const read = async (locator: PackageLocator) =>
         await Promise.all(
             packages.map(async ({ directory }) => {
@@ -63,7 +63,7 @@ test("read a source package at the version its build gives it, else the developm
         listed: await read(new PackageLocator(files, versions)),
         declared: await read(new PackageLocator(files)),
     }).toEqual({
-        listed: ["2026.9.0-dev.20260912100004.0123456789ab", Version.development, "2026.9.0"],
+        listed: ["2026.9.0-dev", Version.development, "2026.9.0"],
         declared: [Version.development, Version.development, "2026.9.0"],
     });
 });
