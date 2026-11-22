@@ -1,4 +1,4 @@
-import { MOTION_VARIABLE } from "@destack/theme";
+import { MOTION_SCALE } from "@destack/theme";
 import { type Accessor, createMemo, createSignal, onCleanup } from "solid-js";
 import { createMediaQuery } from "../primitives/media.ts";
 import { createMutationObserver } from "../primitives/mutation-observer.ts";
@@ -49,7 +49,7 @@ export function createReducedMotion(element: Accessor<Element | undefined>): Acc
 
 /** Report whether the theme keeps an element's motion still now, for code that reads it once. */
 export function isMotionReduced(element: Element): boolean {
-    return getComputedStyle(element).getPropertyValue(MOTION_VARIABLE).trim() === "0";
+    return getComputedStyle(element).getPropertyValue(MOTION_SCALE).trim() === "0";
 }
 
 /** List an element and its ancestors, the theme roots that may set its motion scale. */
