@@ -1,3 +1,4 @@
+import { ObjectDescription } from "../src/object/description.ts";
 import { testSimulation } from "../src/test/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
@@ -90,26 +91,28 @@ test("derive create and update from the write permission, leaving removed method
 /** Declare a recoverable label updating its immutable color, or removing its derived delete. */
 function declare(methods: "update" | "delete"): () => unknown {
     return () =>
-        defineObject(
-            {
-                name: "label",
-                plural: "labels",
-                title: t`${plural(argument("count"), { one: "Label", other: "Labels" })}`,
-                scope: space,
-                fields: { name: field.string(), color: field.string().immutable() },
-                access: {
-                    permissions: {
-                        read: relation("owner"),
-                        write: relation("owner"),
-                        manage: relation("owner"),
+        ObjectDescription.of(
+            defineObject(
+                {
+                    name: "label",
+                    plural: "labels",
+                    title: t`${plural(argument("count"), { one: "Label", other: "Labels" })}`,
+                    scope: space,
+                    fields: { name: field.string(), color: field.string().immutable() },
+                    access: {
+                        permissions: {
+                            read: relation("owner"),
+                            write: relation("owner"),
+                            manage: relation("owner"),
+                        },
                     },
+                    traits: [recoverable({ within: { days: 30 }, by: "manage" })],
                 },
-                traits: [recoverable({ within: { days: 30 }, by: "manage" })],
-            },
-            (method) =>
-                methods === "update"
-                    ? { update: method.update("write", { fields: ["name", "color"] }) }
-                    : { delete: false },
+                (method) =>
+                    methods === "update"
+                        ? { update: method.update("write", { fields: ["name", "color"] }) }
+                        : { delete: false },
+            ),
         );
 }
 

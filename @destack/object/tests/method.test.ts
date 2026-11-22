@@ -1666,6 +1666,8 @@ test("refuse a handler with a key that is no phase, such as a misspelled handle"
     const phases = { expand: async () => [], handler: async () => ({}) };
 
     expect(() => {
-        Reflect.apply(task.implement.bind(task), undefined, [{ methods: { archive: phases } }]);
+        // pass the misspelled phase through a variable, as excess keys reach it from code
+        const methods = { archive: phases };
+        task.implement({ methods }).requireValid();
     }).toThrow(new TypeError("a method's handler has no phase 'handler'"));
 });
