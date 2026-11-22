@@ -1,9 +1,9 @@
 import { principal } from "@destack/access";
-import { and, eq, ne, type DatabaseConnection, type Select } from "@destack/db";
+import { and, eq, ne, type Select } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { type ObjectOf, defineObject, field, StatusCondition } from "@destack/object";
 import { schema, type Identifier, type Version } from "@destack/schema";
-import { type DeploymentRuntime, PROCESS_RUNTIME } from "./deployment.ts";
-import { deployment } from "./deployment.ts";
+import { type DeploymentRuntime, PROCESS_RUNTIME, deployment } from "./deployment.ts";
 import { space } from "@destack/account/object";
 import { argument, plural, t } from "@destack/locale";
 

@@ -1,12 +1,12 @@
 import { installation } from "./installation.ts";
 import { universe } from "@destack/access";
-import { and, type DatabaseConnection, eq, type Select } from "@destack/db";
-import { defineObject, field, Claim, type ClaimLookup } from "@destack/object";
+import { and, eq, type Select } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
+import { defineObject, field, Claim, type ClaimLookup, controlled } from "@destack/object";
 import { DeclarationName } from "@destack/package";
 import { type Identifier, schema } from "@destack/schema";
 import { HostnamePattern, space } from "@destack/account/object";
 import { ObjectReference } from "@destack/sync";
-import { controlled } from "@destack/object";
 import { argument, plural, t } from "@destack/locale";
 
 /** The HTTP statuses a route redirects with. */

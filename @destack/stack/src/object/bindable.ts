@@ -1,5 +1,6 @@
 import { space } from "@destack/account/object";
-import type { Controller, DatabaseHandle, Row, Table } from "@destack/db";
+import type { Row, Table } from "@destack/db";
+import type { Controller, DatabaseHandle } from "@destack/db/database";
 import type { BindingKind, MethodContext, ObjectType, ResourceType } from "@destack/object";
 import type { AccessContext } from "@destack/access";
 import type { ObjectStore, PackageImplementation } from "@destack/object/server";

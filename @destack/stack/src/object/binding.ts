@@ -1,5 +1,5 @@
 import { installation } from "./installation.ts";
-import { type Snapshot } from "@destack/db";
+import type { Snapshot } from "@destack/db/database";
 import { PackageId } from "@destack/package";
 import { type Identifier, present, schema } from "@destack/schema";
 import { Deployment, deployment } from "./deployment.ts";

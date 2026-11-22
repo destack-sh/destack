@@ -1,12 +1,10 @@
 import { none, permission, principal, relation, union } from "@destack/access";
 import { sudo } from "@destack/account/authentication";
-import { LogPosition, type Select } from "@destack/db";
-import { Placement } from "@destack/account/object";
-import { defineObject, field } from "@destack/object";
+import { type Select, LogPosition } from "@destack/db";
+import { Placement, space } from "@destack/account/object";
+import { defineObject, field, fencing } from "@destack/object";
 import { ResourceId } from "@destack/resource";
 import { Digest, schema } from "@destack/schema";
-import { space } from "@destack/account/object";
-import { fencing } from "@destack/object";
 import { argument, plural, t } from "@destack/locale";
 
 /** Where a source stood once fenced: its log position and the digest of the space's rows there. */

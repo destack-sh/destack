@@ -1,9 +1,10 @@
 import { Installation, installation } from "./installation.ts";
 import { StackDefinition } from "../declare/index.ts";
-import { type DatabaseConnection, eq, Snapshot, type Select } from "@destack/db";
+import { eq, type Select } from "@destack/db";
+import type { DatabaseConnection, Snapshot } from "@destack/db/database";
 import { defineObject, field, type ObjectOf } from "@destack/object";
 import { PackageId, PackageBuild } from "@destack/package";
-import { type BuildReader } from "@destack/package/manifest";
+import type { BuildReader } from "@destack/package/manifest";
 import { Digest, type DigestCrypto, Identifier, schema, type Uuid, Version } from "@destack/schema";
 import { build, Build } from "./build.ts";
 import { space } from "@destack/account/object";

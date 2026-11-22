@@ -1,4 +1,5 @@
-import { DatabaseKind, type Select, type Snapshot } from "@destack/db";
+import { DatabaseKind, type Select } from "@destack/db";
+import type { Snapshot } from "@destack/db/database";
 import { MAIN_DATABASE } from "../declare/index.ts";
 import { defineObject, type ObjectType, provisioned } from "@destack/object";
 import { space } from "@destack/account/object";

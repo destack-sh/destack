@@ -11,17 +11,8 @@ import {
     type GrantContext,
     PermissionSet,
 } from "@destack/access";
-import {
-    and,
-    type DatabaseConnection,
-    eq,
-    inArray,
-    isNotNull,
-    isNull,
-    Snapshot,
-    type Select,
-    type SQL,
-} from "@destack/db";
+import { and, eq, inArray, isNotNull, isNull, type Select, type SQL } from "@destack/db";
+import type { DatabaseConnection, Snapshot } from "@destack/db/database";
 import {
     changeRequest,
     type Condition,
@@ -578,7 +569,7 @@ export const Installation = {
         serving: ReadonlyMap<Identifier<"installation">, Serving>,
     ): Promise<Map<Identifier<"installation">, Error>> {
         // read the space's installations
-        const snapshot = Snapshot.live(store.database);
+        const snapshot = store.database.snapshot();
         const rows = await snapshot
             .read(installation.table)
             .findMany({ where: { scope: spaceId } });
@@ -717,7 +708,7 @@ export const Installation = {
         }
 
         // find the fenced scope of its chain and the machine it moves to
-        const chain = await Scope.chain(Snapshot.live(database), found.scope);
+        const chain = await Scope.chain(database.snapshot(), found.scope);
         const fenced = Scope.fenced(chain);
 
         return fenced?.movedTo === undefined
@@ -875,7 +866,8 @@ async function isStackPending(
     database: DatabaseConnection,
     spaceId: Identifier<"space">,
 ): Promise<boolean> {
-    const stack = await Snapshot.live(database)
+    const stack = await database
+        .snapshot()
         .read(installation.table)
         .findFirst({ where: { scope: spaceId, name: STACK_INSTALLATION } });
 

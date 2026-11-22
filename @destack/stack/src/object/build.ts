@@ -1,21 +1,17 @@
-import { PackageDirectory } from "@destack/object";
 import {
-    and,
-    desc,
-    eq,
-    isNull,
-    type DatabaseConnection,
-    type Select,
-    type Snapshot,
-} from "@destack/db";
+    PackageDirectory,
+    defineObject,
+    defineShape,
+    field,
+    type ResultsOf,
+} from "@destack/object";
+import { and, desc, eq, isNull, type Select } from "@destack/db";
+import type { DatabaseConnection, Snapshot } from "@destack/db/database";
 import { none, relation, through, union } from "@destack/access";
-import { defineObject, defineShape, field } from "@destack/object";
 import { PackageId, PackageRelease } from "@destack/package";
-import type { ResultsOf } from "@destack/object";
-import type { Call } from "@destack/sync";
+import { type Call, ObjectReference, Subject } from "@destack/sync";
 import { Commit, Digest, type Identifier, present, schema, Version } from "@destack/schema";
 import { machine, space } from "@destack/account/object";
-import { ObjectReference, Subject } from "@destack/sync";
 import { Failure } from "@destack/error";
 import { installationRevision } from "./revision.ts";
 import type {} from "@destack/package/import-meta";
