@@ -1,6 +1,6 @@
 import { nth, canonicalize, present } from "@destack/schema";
 import type { DatabaseConnection } from "../database/connection.ts";
-import { type Dialect } from "../dialect/dialect.ts";
+import type { Dialect } from "../dialect/dialect.ts";
 import { elementValue, jsonElements, jsonOf, Statement } from "../query/statement.ts";
 import { ColumnCipher, ENCRYPTED_DIALECT } from "../database/cipher.ts";
 import { sql, type SQL } from "../sql/index.ts";
@@ -16,9 +16,9 @@ import { Order } from "../query/order.ts";
 import type { QueryOptions } from "../query/option.ts";
 import { type RowImage, TABLE, type Select, Table, type UniqueKey } from "../table/table.ts";
 import type { Row } from "../table/row.ts";
-import type { Change } from "./log.ts";
+import type { Change } from "./change.ts";
 import type { LogPosition } from "./position.ts";
-import { type Overlay, Snapshot } from "./snapshot.ts";
+import type { Overlay, Snapshot } from "./snapshot.ts";
 import { RelationalQueryBuilder } from "./query.ts";
 import { SpanPath } from "@destack/environment";
 
@@ -616,27 +616,6 @@ export class Transaction {
         );
     }
 
-    /** Run a transaction to commit, restarting while another commit wins a race on its reads. */
-    static async run<Value>(
-        database: DatabaseConnection,
-        attempt: (transaction: Transaction) => Promise<Value>,
-        signal?: AbortSignal,
-    ): Promise<Value> {
-        return Transaction.retry(
-            database,
-            "UPDATE_CONFLICT",
-            async () => {
-                // run the attempt from the log's current position and commit it
-                const transaction = await Transaction.open(database);
-                const value = await attempt(transaction);
-                await transaction.commit();
-
-                return value;
-            },
-            signal,
-        );
-    }
-
     /** Run an attempt again at once while it loses a race, in the transaction's span. */
     static async retry<Value>(
         database: DatabaseConnection,
@@ -745,7 +724,7 @@ export class Transaction {
 
     /** Show the database as the transaction sees it, its writes over live rows, recording reads. */
     view(): Snapshot {
-        return Snapshot.live(this.database).recording(this.reads).layer(this.changes.overlay());
+        return this.database.snapshot().recording(this.reads).layer(this.changes.overlay());
     }
 
     /** Read a table's whole rows with the transaction's writes, recording each read. */

@@ -1,7 +1,8 @@
 import { sql } from "../../sql/index.ts";
 import { expect, onTestFinished, testOn } from "@destack/test";
 import { TestDatabase } from "../../test/database.ts";
-import { Change, eq, Transaction } from "../../index.ts";
+import { eq } from "../../index.ts";
+import { Change } from "../change.ts";
 import { changeTables, first, note, revision } from "./fixture.ts";
 import { testSimulation } from "@destack/test/world";
 
@@ -66,7 +67,7 @@ onPostgresql(
         const both = Promise.withResolvers<void>();
         let reads = 0;
         const append = (suffix: string) =>
-            Transaction.run(database, async (transaction) => {
+            database.commit(async (transaction) => {
                 const [row] = await transaction.read(note).findMany({ where: { id: "a" } });
                 if (row === undefined) {
                     throw new TypeError("the note is missing");

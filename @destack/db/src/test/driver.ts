@@ -1,3 +1,4 @@
+import { blobTable, BLOB_TABLES } from "../blob/table.ts";
 import type { Clock } from "@destack/environment";
 import type { Simulation, SimulatedTelemetry } from "@destack/environment/simulation";
 import type { Given, SetStep } from "@destack/package/declare";
@@ -10,8 +11,7 @@ import {
     type DatabaseStep,
     databaseInteraction,
 } from "../scenario/interaction.ts";
-import { BLOB_TABLES, BlobStore } from "../blob/store.ts";
-import { Transaction } from "../log/commit.ts";
+import { BlobStore } from "../blob/store.ts";
 import { eq } from "../sql/operator.ts";
 import { text } from "../table/column.ts";
 import { defineTable } from "../table/table.ts";
@@ -125,7 +125,7 @@ export class DatabaseDriver implements Driver<DatabaseStep, DatabaseObservation>
         // insert a note through the log, as an object call commits
         else if (step.action === "transact") {
             const row = this.#next();
-            await Transaction.run(database, (transaction) =>
+            await database.commit((transaction) =>
                 transaction.write({ table: note, before: null, after: row }),
             );
         }
@@ -153,9 +153,7 @@ export class DatabaseDriver implements Driver<DatabaseStep, DatabaseObservation>
     async observe(observation: DatabaseObservation): Promise<JsonValue> {
         // count the rows of the notes' or the blobs' table
         const { database } = this.#database;
-        const rows = await database
-            .select()
-            .from(observation.count === "notes" ? note : BlobStore.table);
+        const rows = await database.select().from(observation.count === "notes" ? note : blobTable);
 
         return rows.length;
     }

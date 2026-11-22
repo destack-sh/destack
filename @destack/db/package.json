@@ -6,6 +6,7 @@
     "sideEffects": false,
     "exports": {
         ".": "./src/index.ts",
+        "./database": "./src/database.ts",
         "./error": "./src/error/index.ts",
         "./postgres": "./src/postgres/index.ts",
         "./bun": "./src/bun/index.ts",

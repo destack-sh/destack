@@ -4,7 +4,6 @@ import { SimulatedTelemetry } from "@destack/environment/simulation";
 import { channelHub } from "../channel/channel.ts";
 import { socketChannel } from "../channel/socket.ts";
 import { changeTables, first, note, revision } from "../log/test/fixture.ts";
-import { Transaction } from "../log/commit.ts";
 import { eq } from "../sql/index.ts";
 import { present } from "@destack/schema";
 import { setting } from "./test/setting.ts";
@@ -175,7 +174,7 @@ onSqlite(
 
         // append to the title read in a transaction, which loses one race and reads the fresh row
         const before = await Recording.read(telemetry);
-        await Transaction.run(reader, async (transaction) => {
+        await reader.commit(async (transaction) => {
             const row = present(
                 await transaction.read(note).findFirst({ where: { id: first.id } }),
                 "the note",

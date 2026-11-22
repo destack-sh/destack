@@ -1,11 +1,6 @@
 import { Cache } from "../cache/cache.ts";
-import type { StatementTemplate } from "../sql/index.ts";
-import type { Clock, Environment } from "@destack/environment";
-import { PreparedQueryCache } from "../query/prepared.ts";
-import { Digest, schema } from "@destack/schema";
-import { TelemetryScope } from "@destack/telemetry";
-import type {} from "@destack/package/import-meta";
 import {
+    type StatementTemplate,
     type DriverStatement,
     exists,
     fill,
@@ -14,6 +9,11 @@ import {
     sql,
     type SQLWrapper,
 } from "../sql/index.ts";
+import type { Clock, Environment } from "@destack/environment";
+import { PreparedQueryCache } from "../query/prepared.ts";
+import { Digest, schema } from "@destack/schema";
+import { TelemetryScope } from "@destack/telemetry";
+import type {} from "@destack/package/import-meta";
 import { classifyError, DatabaseError, type NameTable } from "../error/error.ts";
 import { DatabaseDriver } from "./driver.ts";
 import { TransactionSpans } from "./spans.ts";
@@ -50,6 +50,7 @@ import { type TransactionOptions, TransactionState } from "./transaction.ts";
 import { TransactionIdentity } from "../log/transaction.ts";
 import { Log } from "../log/log.ts";
 import { Transaction } from "../log/commit.ts";
+import { Snapshot } from "../log/snapshot.ts";
 import { type Announcer, CommitWatch } from "../log/watch.ts";
 import { LogTail } from "../log/tail.ts";
 import type { SequencedEntry } from "../log/entry.ts";
@@ -57,7 +58,7 @@ import { LOG_TABLES, LOG_TOPIC } from "../log/schema.ts";
 import { ReadCache } from "../log/cache.ts";
 import { Commit, typedChannel, type Channel } from "../channel/channel.ts";
 import { Tracker, TRACKER_CHANNEL } from "../tracker/tracker.ts";
-import { type Dialect } from "../dialect/dialect.ts";
+import type { Dialect } from "../dialect/dialect.ts";
 import { Key } from "../query/key.ts";
 import { elementValue, jsonElements } from "../query/statement.ts";
 import { qualify, relation } from "../table/namespace.ts";
@@ -360,6 +361,31 @@ export class DatabaseConnection<
     /** Run a SQL write. */
     run(statement: SQLWrapper): Promise<void> {
         return this.driver.execute(fill(render(statement, this.dialect, this.state)));
+    }
+
+    /** Show the live database with its transaction's writes. */
+    snapshot(): Snapshot {
+        return new Snapshot(this, undefined);
+    }
+
+    /** Commit an attempt from the latest position, running it again while it loses a race. */
+    commit<Value>(
+        attempt: (transaction: Transaction) => Promise<Value>,
+        signal?: AbortSignal,
+    ): Promise<Value> {
+        return Transaction.retry(
+            this,
+            "UPDATE_CONFLICT",
+            async () => {
+                // run the attempt from the log's current position and commit it
+                const transaction = await Transaction.open(this);
+                const value = await attempt(transaction);
+                await transaction.commit();
+
+                return value;
+            },
+            signal,
+        );
     }
 
     /** Plan and apply a manager's tables at once. */

@@ -1,5 +1,6 @@
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { Change, defineTable, index, integer, json, sql, text, uniqueIndex } from "../index.ts";
+import { defineTable, index, integer, json, sql, text, uniqueIndex } from "../index.ts";
+import { Change } from "../log/change.ts";
 import { PackageVersion } from "@destack/package";
 import { present, schema, Version } from "@destack/schema";
 import { TABLE, type Table } from "../table/table.ts";

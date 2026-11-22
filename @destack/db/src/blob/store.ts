@@ -7,12 +7,10 @@ import { TABLE, type Table } from "../table/table.ts";
 import { Condition } from "../query/condition.ts";
 import { textValues } from "../query/statement.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
-import { defineTable } from "../table/table.ts";
-import { index } from "../table/constraint.ts";
-import { boolean, integer, text } from "../table/column.ts";
 import type { BlobEntry, BlobPlacement, BlobStorage, ContentStore } from "@destack/resource";
 import { canonicalize, Digest, type JsonValue, nth, present, schema } from "@destack/schema";
 import type { Controller } from "../control/control.ts";
+import { blobTable } from "./table.ts";
 import { Now } from "../query/now.ts";
 
 /** How long a store leases what it writes for a row to reference, by default: half an hour. */
@@ -54,34 +52,6 @@ export interface BlobUpload {
 
 /** A partition's blobs in packs, each alive while a row's blob column or a lease references it. */
 export class BlobStore<Storage extends BlobStorage = BlobStorage> implements ContentStore {
-    /** The blobs a partition stores: where each one's bytes lie, and what decides its lifetime. */
-    static readonly table = defineTable(
-        "blob",
-        {
-            /** The blob's digest. */
-            digest: text("digest").validate(Digest).primaryKey(),
-            /** The key of its bytes' pack, its own digest for a blob stored alone. */
-            pack: text("pack").notNull(),
-            /** Where its bytes start in the pack. */
-            offset: integer("offset").notNull(),
-            /** Its size in bytes. */
-            size: integer("size").notNull(),
-            /** When its lease ends, in UTC epoch milliseconds, zero once it ended. */
-            leasedUntil: integer("leased_until").notNull(),
-            /** Whether its last reference may have gone, which a collection checks. */
-            isRetired: boolean("is_retired").notNull(),
-            /** When a collection found it unreferenced, absent while referenced or unchecked. */
-            freedAt: integer("freed_at"),
-        },
-        {
-            constraints: (table) => [
-                index("blob_pack").on(table.pack),
-                index("blob_leased_until").on(table.leasedUntil),
-                index("blob_retired").on(table.isRetired),
-            ],
-        },
-    );
-
     /** The storage of the blobs' packs. */
     readonly storage: Storage;
     /** The partition's database, with the row of each blob. */
@@ -319,11 +289,9 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
         let bytes = 0;
         for (const batch of batches) {
             const [total] = await this.database
-                .select({ bytes: sql<number | string>`COALESCE(SUM(${BlobStore.table.size}), 0)` })
-                .from(BlobStore.table)
-                .where(
-                    batch === undefined ? undefined : inArray(BlobStore.table.digest, [...batch]),
-                );
+                .select({ bytes: sql<number | string>`COALESCE(SUM(${blobTable.size}), 0)` })
+                .from(blobTable)
+                .where(batch === undefined ? undefined : inArray(blobTable.digest, [...batch]));
             bytes += Number(present(total, "the blobs' total").bytes);
         }
 
@@ -366,14 +334,14 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
                 // lease the batch, leaving a later lease, and take it out of retirement
                 const batch = [...new Set(digests.slice(start, start + BATCH_DIGESTS))];
                 const rows = await transaction
-                    .update(BlobStore.table)
+                    .update(blobTable)
                     .set({
                         leasedUntil: BlobStore.#later(until),
                         isRetired: false,
                         freedAt: null,
                     })
-                    .where(inArray(BlobStore.table.digest, batch))
-                    .returning({ digest: BlobStore.table.digest });
+                    .where(inArray(blobTable.digest, batch))
+                    .returning({ digest: blobTable.digest });
                 for (const { digest } of rows) {
                     leased.add(digest);
                 }
@@ -385,8 +353,8 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
 
     /** Keep a row's lease or a later moment, whichever ends last. */
     static #later(until: number): SQL {
-        return sql`CASE WHEN ${BlobStore.table.leasedUntil} > ${until}
-            THEN ${BlobStore.table.leasedUntil} ELSE ${until} END`;
+        return sql`CASE WHEN ${blobTable.leasedUntil} > ${until}
+            THEN ${blobTable.leasedUntil} ELSE ${until} END`;
     }
 
     /** Retire blobs whose rows went without a mutation retiring them, for a collection to check. */
@@ -394,9 +362,9 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
         for (let start = 0; start < digests.length; start += BATCH_DIGESTS) {
             const batch = [...new Set(digests.slice(start, start + BATCH_DIGESTS))];
             await this.database
-                .update(BlobStore.table)
+                .update(blobTable)
                 .set({ isRetired: true })
-                .where(inArray(BlobStore.table.digest, batch));
+                .where(inArray(blobTable.digest, batch));
         }
     }
 
@@ -405,9 +373,9 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
         for (let start = 0; start < digests.length; start += BATCH_DIGESTS) {
             const batch = [...new Set(digests.slice(start, start + BATCH_DIGESTS))];
             await this.database
-                .update(BlobStore.table)
+                .update(blobTable)
                 .set({ leasedUntil: 0, isRetired: true })
-                .where(inArray(BlobStore.table.digest, batch));
+                .where(inArray(blobTable.digest, batch));
         }
     }
 
@@ -416,25 +384,25 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
         // read the earliest live lease end, then every blob it leases
         const now = this.environment.clock.now();
         const [first] = await this.database
-            .select({ until: BlobStore.table.leasedUntil })
-            .from(BlobStore.table)
-            .where(gt(BlobStore.table.leasedUntil, now))
-            .orderBy(asc(BlobStore.table.leasedUntil))
+            .select({ until: blobTable.leasedUntil })
+            .from(blobTable)
+            .where(gt(blobTable.leasedUntil, now))
+            .orderBy(asc(blobTable.leasedUntil))
             .limit(1);
         if (first === undefined) {
             return [];
         }
         const rows = await this.database
-            .select({ digest: BlobStore.table.digest })
-            .from(BlobStore.table)
-            .where(eq(BlobStore.table.leasedUntil, first.until));
+            .select({ digest: blobTable.digest })
+            .from(blobTable)
+            .where(eq(blobTable.leasedUntil, first.until));
 
         return rows.map(({ digest }) => digest);
     }
 
     /** Declare the controllers collecting blobs: ended leases, then retired and freed ones. */
-    controllers(): readonly Controller<typeof BlobStore.table>[] {
-        const table = BlobStore.table;
+    controllers(): readonly Controller<typeof blobTable>[] {
+        const table = blobTable;
         const collect = async (rows: readonly { readonly digest: Digest }[]) => {
             // free or delete each retired blob, a batch at a time
             const at = this.environment.clock.now();
@@ -495,19 +463,15 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
         // retire the blobs of the ended leases, writing only when one ended
         const now = this.environment.clock.now();
         const [ending] = await this.database
-            .select({ digest: BlobStore.table.digest })
-            .from(BlobStore.table)
-            .where(
-                sql`${BlobStore.table.leasedUntil} > 0 AND ${BlobStore.table.leasedUntil} <= ${now}`,
-            )
+            .select({ digest: blobTable.digest })
+            .from(blobTable)
+            .where(sql`${blobTable.leasedUntil} > 0 AND ${blobTable.leasedUntil} <= ${now}`)
             .limit(1);
         if (ending !== undefined) {
             await this.database
-                .update(BlobStore.table)
+                .update(blobTable)
                 .set({ leasedUntil: 0, isRetired: true })
-                .where(
-                    sql`${BlobStore.table.leasedUntil} > 0 AND ${BlobStore.table.leasedUntil} <= ${now}`,
-                );
+                .where(sql`${blobTable.leasedUntil} > 0 AND ${blobTable.leasedUntil} <= ${now}`);
         }
 
         // delete retired blobs until none is left, as deleting one's cascading rows retires what they kept
@@ -531,16 +495,16 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
     async #nextCollection(after: number, grace: number): Promise<number | undefined> {
         // read the first lease to end, and the first unreferenced blob's grace
         const [lease] = await this.database
-            .select({ until: BlobStore.table.leasedUntil })
-            .from(BlobStore.table)
-            .where(gt(BlobStore.table.leasedUntil, after))
-            .orderBy(asc(BlobStore.table.leasedUntil))
+            .select({ until: blobTable.leasedUntil })
+            .from(blobTable)
+            .where(gt(blobTable.leasedUntil, after))
+            .orderBy(asc(blobTable.leasedUntil))
             .limit(1);
         const [freed] = await this.database
-            .select({ at: BlobStore.table.freedAt })
-            .from(BlobStore.table)
-            .where(sql`${BlobStore.table.isRetired} AND ${BlobStore.table.freedAt} IS NOT NULL`)
-            .orderBy(asc(BlobStore.table.freedAt))
+            .select({ at: blobTable.freedAt })
+            .from(blobTable)
+            .where(sql`${blobTable.isRetired} AND ${blobTable.freedAt} IS NOT NULL`)
+            .orderBy(asc(blobTable.freedAt))
             .limit(1);
 
         // wake at the earlier of the two
@@ -565,7 +529,7 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
         for await (const pack of this.storage.packs()) {
             await this.storage.delete(pack);
         }
-        await this.database.delete(BlobStore.table);
+        await this.database.delete(blobTable);
     }
 
     /** Record where blobs a storage stored lie, leased, deleting a pack no row points into. */
@@ -577,7 +541,7 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
                 const batch = placements.slice(start, start + BATCH_DIGESTS);
                 const ours = new Map(batch.map((placement) => [placement.digest, placement.pack]));
                 const rows = await transaction
-                    .insert(BlobStore.table)
+                    .insert(blobTable)
                     .values(
                         batch.map((placement) => ({
                             ...placement,
@@ -586,14 +550,14 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
                         })),
                     )
                     .onConflictDoUpdate({
-                        target: [BlobStore.table.digest],
+                        target: [blobTable.digest],
                         set: {
                             leasedUntil: BlobStore.#later(until),
                             isRetired: false,
                             freedAt: null,
                         },
                     })
-                    .returning({ digest: BlobStore.table.digest, pack: BlobStore.table.pack });
+                    .returning({ digest: blobTable.digest, pack: blobTable.pack });
 
                 // count a row in this writer's pack as inserted here
                 for (const { digest, pack } of rows) {
@@ -627,13 +591,13 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
             found.push(
                 ...(await this.database
                     .select({
-                        digest: BlobStore.table.digest,
-                        pack: BlobStore.table.pack,
-                        offset: BlobStore.table.offset,
-                        size: BlobStore.table.size,
+                        digest: blobTable.digest,
+                        pack: blobTable.pack,
+                        offset: blobTable.offset,
+                        size: blobTable.size,
                     })
-                    .from(BlobStore.table)
-                    .where(inArray(BlobStore.table.digest, batch))),
+                    .from(blobTable)
+                    .where(inArray(blobTable.digest, batch))),
             );
         }
 
@@ -643,11 +607,11 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
     /** List the retired blobs a collection acts on: unchecked ones, and those past their grace. */
     async #retired(now: number, grace: number): Promise<Digest[]> {
         const rows = await this.database
-            .select({ digest: BlobStore.table.digest })
-            .from(BlobStore.table)
+            .select({ digest: blobTable.digest })
+            .from(blobTable)
             .where(
-                sql`${BlobStore.table.isRetired} AND (${BlobStore.table.freedAt} IS NULL
-                    OR ${BlobStore.table.freedAt} <= ${now - grace})`,
+                sql`${blobTable.isRetired} AND (${blobTable.freedAt} IS NULL
+                    OR ${blobTable.freedAt} <= ${now - grace})`,
             );
 
         return rows.map(({ digest }) => digest);
@@ -663,11 +627,9 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
         await this.database.transaction(async (transaction) => {
             // read the batch's retired rows, and which of them no blob column or live lease references
             const taken = await transaction
-                .select({ digest: BlobStore.table.digest, freedAt: BlobStore.table.freedAt })
-                .from(BlobStore.table)
-                .where(
-                    sql`${BlobStore.table.isRetired} AND ${inArray(BlobStore.table.digest, batch)}`,
-                );
+                .select({ digest: blobTable.digest, freedAt: blobTable.freedAt })
+                .from(blobTable)
+                .where(sql`${blobTable.isRetired} AND ${inArray(blobTable.digest, batch)}`);
             const unreferenced = new Set(await this.#unreferenced(transaction, taken, now));
 
             // split them: referenced, newly free with a grace to wait, or due once free past the grace
@@ -689,13 +651,13 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
                 }
             }
             await transaction
-                .update(BlobStore.table)
+                .update(blobTable)
                 .set({ isRetired: false, freedAt: null })
-                .where(inArray(BlobStore.table.digest, referenced));
+                .where(inArray(blobTable.digest, referenced));
             await transaction
-                .update(BlobStore.table)
+                .update(blobTable)
                 .set({ freedAt: now })
-                .where(inArray(BlobStore.table.digest, freed));
+                .where(inArray(blobTable.digest, freed));
 
             // delete the due ones with the rows cascading from them, which retires the blobs those rows referenced
             if (due.length === 0) {
@@ -705,9 +667,9 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
                 await transaction.delete(table).where(inArray(column, due));
             }
             const deleted = await transaction
-                .delete(BlobStore.table)
-                .where(inArray(BlobStore.table.digest, due))
-                .returning({ pack: BlobStore.table.pack });
+                .delete(blobTable)
+                .where(inArray(blobTable.digest, due))
+                .returning({ pack: blobTable.pack });
 
             // delete each pack no row points into any more
             for (const pack of new Set(deleted.map((row) => row.pack))) {
@@ -719,9 +681,9 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
     /** Delete a pack unless a row points into it. */
     async #deletePackUnlessUsed(database: DatabaseConnection, pack: string): Promise<void> {
         const [used] = await database
-            .select({ digest: BlobStore.table.digest })
-            .from(BlobStore.table)
-            .where(sql`${BlobStore.table.pack} = ${pack}`)
+            .select({ digest: blobTable.digest })
+            .from(blobTable)
+            .where(sql`${blobTable.pack} = ${pack}`)
             .limit(1);
         if (used === undefined) {
             await this.storage.delete(pack);
@@ -778,8 +740,8 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
             return sql`SELECT ${element} AS digest FROM ${table}, ${textValues(column, "element")}
                     WHERE ${column} IS NOT NULL ${holds} ${others(element)} ${within(element)}`;
         });
-        const leased = sql`SELECT ${BlobStore.table.digest} AS digest FROM ${BlobStore.table}
-            WHERE ${BlobStore.table.leasedUntil} > ${now} ${within(BlobStore.table.digest)}`;
+        const leased = sql`SELECT ${blobTable.digest} AS digest FROM ${blobTable}
+            WHERE ${blobTable.leasedUntil} > ${now} ${within(blobTable.digest)}`;
 
         return [...references, leased];
     }
@@ -833,6 +795,3 @@ export async function gathered(body: AsyncIterable<Uint8Array>): Promise<Uint8Ar
 async function* chunks(bytes: Uint8Array): AsyncIterable<Uint8Array> {
     yield bytes;
 }
-
-/** The tables of a partition's blob store, which its database declares beside its own. */
-export const BLOB_TABLES = [BlobStore.table];

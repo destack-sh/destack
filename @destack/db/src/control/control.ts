@@ -1,8 +1,9 @@
 import type { DatabaseConnection } from "../database/index.ts";
 import { DatabaseError } from "../error/index.ts";
-import { Lock, lock } from "../limit/index.ts";
+import { Lock } from "../limit/index.ts";
 import type { Tracker } from "../tracker/index.ts";
-import { Change, LogColumn, type LogCursor } from "../log/index.ts";
+import { Change, LogColumn } from "../log/index.ts";
+import type { LogCursor } from "../log/log.ts";
 import { LOG, LOG_CHECKPOINT } from "../log/schema.ts";
 import { and, eq, gt, gte, lte, min, or, type SQL, sql } from "../sql/index.ts";
 import { now, Now } from "../query/now.ts";
@@ -28,9 +29,15 @@ import { type Link, TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
 import { PackageName } from "@destack/package";
 import { Failure } from "@destack/error";
-import { Clock, RetryPolicy, Telemetry, untilAborted, waitAborted } from "@destack/environment";
+import {
+    Clock,
+    RetryPolicy,
+    Telemetry,
+    untilAborted,
+    waitAborted,
+    type Environment,
+} from "@destack/environment";
 import type { Alarm } from "./alarm.ts";
-import type { Environment } from "@destack/environment";
 
 /** The milliseconds in a second, as OpenTelemetry records durations in seconds. */
 const MILLISECONDS_PER_SECOND = 1000;
@@ -299,9 +306,6 @@ interface Compiled {
 
 /** Run controllers over one database. */
 export class ControlLoop {
-    /** The tables a loop keeps beside its controllers' on a shared database: their locks. */
-    static readonly tables: readonly Table[] = [lock];
-
     /** The database with the controllers' rows and the log that selects keys. */
     readonly database: DatabaseConnection;
     /** The stored conditions of matching watches, compiled by table and JSON. */

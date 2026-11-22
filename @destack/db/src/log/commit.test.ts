@@ -822,7 +822,7 @@ test("refuse a unique key a commit after the transaction's base took as a lost r
 
     // start a transaction, then let another commit take the label's name
     const late = await Transaction.open(database);
-    await Transaction.run(database, async (transaction) => {
+    await database.commit(async (transaction) => {
         await transaction.write({
             table: label,
             before: null,
@@ -839,7 +839,7 @@ test("refuse a unique key a commit after the transaction's base took as a lost r
         });
     expect([
         await refusal(write(late)),
-        await refusal(Transaction.run(database, (transaction) => write(transaction))),
+        await refusal(database.commit((transaction) => write(transaction))),
     ]).toEqual([
         [
             "CONFLICT",
@@ -870,7 +870,7 @@ test("refuse a unique key a commit took after the transaction checked it as a lo
     });
     const late = await Transaction.open(database);
     await late.write(name("b"));
-    await Transaction.run(database, (transaction) => transaction.write(name("a")));
+    await database.commit((transaction) => transaction.write(name("a")));
 
     // refuse the commit's failed insert as a lost race, a run repeating it
     expect(await refusal(late.commit())).toEqual([
@@ -887,7 +887,7 @@ test("commit a transaction that rewrote a row it read while another commit wrote
     const transaction = await Transaction.open(database);
     const first = present(await transaction.read(task).findFirst({ where: { id: "a" } }), "task a");
     await transaction.write({ table: task, before: first, after: { ...first, priority: 7 } });
-    await Transaction.run(database, (other) =>
+    await database.commit((other) =>
         other.write({
             table: task,
             before: null,
@@ -1243,9 +1243,7 @@ test("refuse writing a predefined row, and write other rows of its table", async
 
     // refuse changing the predefined row, and insert another
     const write = (after: { readonly id: string; readonly name: string }) =>
-        Transaction.run(database, (transaction) =>
-            transaction.write({ table: unit, before: null, after }),
-        );
+        database.commit((transaction) => transaction.write({ table: unit, before: null, after }));
     const refused = await refusal(write({ id: "metre", name: "Meter" }));
     await write({ id: "foot", name: "Foot" });
     expect({
@@ -1312,7 +1310,7 @@ test("answer a live read from memory until a commit writes its table, each trans
     const inboxes = [await counted(inbox), await counted(inbox)];
 
     // commit a member, seen by its transaction, then read the members anew
-    const mine = await Transaction.run(database, async (transaction) => {
+    const mine = await database.commit(async (transaction) => {
         await members(transaction);
         await transaction.write({ table: member, before: null, after: carol });
 

@@ -1,14 +1,19 @@
 import { canonicalize, Digest, type JsonObject, schema } from "@destack/schema";
-import type { Opener, ResourceRecord, Snapshotter, ContentStore } from "@destack/resource";
+import {
+    type Opener,
+    type ResourceRecord,
+    type Snapshotter,
+    type ContentStore,
+    Plan,
+} from "@destack/resource";
 import type { DatabaseConnection } from "./connection.ts";
-import { Plan } from "@destack/resource";
 import { DatabaseError } from "../error/error.ts";
 import { mergeStates } from "../migration/merge.ts";
 import type { TableState } from "../migration/state.ts";
 import { Order } from "../query/order.ts";
 import type { Row } from "../table/row.ts";
 import { TABLE, Table } from "../table/table.ts";
-import { BLOB_TABLES } from "../blob/store.ts";
+import { BLOB_TABLES } from "../blob/table.ts";
 import type { Kind, Provisioning } from "@destack/package";
 
 /** The rows one read of a snapshot takes: 1000 rows of about 500 B make a read near 500 kB. */

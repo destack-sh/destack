@@ -7,11 +7,11 @@ import {
     json,
     inArray,
     integer,
-    lock,
-    type Projection,
     type Table,
     text,
+    lock,
 } from "../index.ts";
+import type { Projection } from "../database.ts";
 import { TestDatabase } from "../test/index.ts";
 import { testSimulation } from "@destack/test/world";
 import { testHost } from "@destack/test/host";

@@ -1,3 +1,4 @@
+import { blobTable } from "../blob/table.ts";
 import {
     Alias,
     type DriverStatement,
@@ -15,7 +16,6 @@ import { Column, type ColumnValue } from "../table/column.ts";
 import { type Insert, TABLE, type Table } from "../table/table.ts";
 import { Projection, type SelectionResult } from "./selection.ts";
 import { DatabaseError } from "../error/error.ts";
-import { BlobStore } from "../blob/store.ts";
 import { textValues } from "./statement.ts";
 import { PreparedQuery } from "./prepared.ts";
 import { present } from "@destack/schema";
@@ -457,7 +457,7 @@ export class MutationQuery<
         const digest = sql.identifier("digest");
         const retiring = selects.map((select) => sql`${digest} IN (${select})`);
 
-        return sql`UPDATE ${BlobStore.table} SET ${sql.identifier("is_retired")} = ${true}
+        return sql`UPDATE ${blobTable} SET ${sql.identifier("is_retired")} = ${true}
             WHERE ${sql.join(retiring, sql` OR `)}`;
     }
 

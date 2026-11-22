@@ -1,3 +1,4 @@
+import { blobTable, BLOB_TABLES } from "./table.ts";
 import { Digest } from "@destack/schema";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { testSimulation } from "@destack/test/world";
@@ -5,8 +6,6 @@ import { asc, eq } from "../sql/index.ts";
 import { TestDatabase } from "../test/database.ts";
 import { defineTable } from "../table/table.ts";
 import { blob, blobs, integer, text } from "../table/column.ts";
-import { Transaction } from "../log/commit.ts";
-import { BLOB_TABLES, BlobStore } from "./store.ts";
 
 /** Documents whose body, renditions and expiring archive are blobs of the partition. */
 const document = defineTable(
@@ -49,7 +48,7 @@ test("retire the blobs a write may let go: written blob columns' old values, con
         archive: digestOf("4"),
         expiredAt: null,
     };
-    await database.insert(BlobStore.table).values(
+    await database.insert(blobTable).values(
         ["1", "2", "3", "4", "5"].map((each) => ({
             digest: digestOf(each),
             pack: digestOf(each),
@@ -61,31 +60,31 @@ test("retire the blobs a write may let go: written blob columns' old values, con
     );
     const retired = async () => {
         const rows = await database
-            .select({ digest: BlobStore.table.digest })
-            .from(BlobStore.table)
-            .where(eq(BlobStore.table.isRetired, true))
-            .orderBy(asc(BlobStore.table.digest));
-        await database.update(BlobStore.table).set({ isRetired: false });
+            .select({ digest: blobTable.digest })
+            .from(blobTable)
+            .where(eq(blobTable.isRetired, true))
+            .orderBy(asc(blobTable.digest));
+        await database.update(blobTable).set({ isRetired: false });
 
         return rows;
     };
-    await Transaction.run(database, (transaction) =>
+    await database.commit((transaction) =>
         transaction.write({ table: document, before: null, after: live }),
     );
     const created = await retired();
 
     // replace the body and drop a rendition, then expire it, then delete it
     const edited = { ...live, body: digestOf("5"), renditions: [digestOf("2")] };
-    await Transaction.run(database, (transaction) =>
+    await database.commit((transaction) =>
         transaction.write({ table: document, before: live, after: edited }),
     );
     const replaced = await retired();
     const expired = { ...edited, expiredAt: 1 };
-    await Transaction.run(database, (transaction) =>
+    await database.commit((transaction) =>
         transaction.write({ table: document, before: edited, after: expired }),
     );
     const flipped = await retired();
-    await Transaction.run(database, (transaction) =>
+    await database.commit((transaction) =>
         transaction.write({ table: document, before: expired, after: null }),
     );
     const deleted = await retired();

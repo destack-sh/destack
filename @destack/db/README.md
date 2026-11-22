@@ -165,13 +165,13 @@ A literal's `%`, `_` and `\` match themselves.
 
 A transaction reads one snapshot and commits its writes at once, refusing the commit when a row it read changed.
 
-| Verb                                 | What it does                                                                |
-| ------------------------------------ | --------------------------------------------------------------------------- |
-| `Transaction.run(database, attempt)` | runs an attempt to commit, again while another commit changed a row it read |
-| `Transaction.reading(database)`      | starts a transaction that only reads                                        |
-| `read(table).findMany`, `findFirst`  | reads rows with the transaction's writes, recording each read               |
-| `count(table, condition)`            | counts rows with the transaction's writes                                   |
-| `write(...changes)`                  | writes rows, each as `{ table, before, after }`                             |
+| Verb                                | What it does                                                         |
+| ----------------------------------- | -------------------------------------------------------------------- |
+| `database.commit(attempt)`          | commits an attempt, again while another commit changed a row it read |
+| `Transaction.reading(database)`     | starts a transaction that only reads                                 |
+| `read(table).findMany`, `findFirst` | reads rows with the transaction's writes, recording each read        |
+| `count(table, condition)`           | counts rows with the transaction's writes                            |
+| `write(...changes)`                 | writes rows, each as `{ table, before, after }`                      |
 
 ### Log
 
@@ -188,7 +188,8 @@ The log has every commit to a logged table, in order, so a reader resumes where 
 A controller updates rows until they no longer match `pending`, and its `watches` reconcile the keys another table's changes point to.
 
 ```ts
-import { type Controller, defineTable, eq, text, type DatabaseConnection } from "@destack/db";
+import { defineTable, eq, text } from "@destack/db";
+import { type Controller, type DatabaseConnection } from "@destack/db/database";
 
 // define orders and their payments
 const order = defineTable(
@@ -223,7 +224,8 @@ export const ship = (database: DatabaseConnection): Controller<typeof order> => 
 A projection keeps rows derived from other tables up to date one key at a time, with `all` listing every key and `path` following relations from a changed row to its key.
 
 ```ts
-import { defineRelations, defineTable, type Projection, text } from "@destack/db";
+import { defineRelations, defineTable, text } from "@destack/db";
+import { type Projection } from "@destack/db/database";
 
 // define spaces and their notes, and relate a note to its space
 const space = defineTable(
@@ -260,15 +262,8 @@ An `index` keyed by `column.element(path, kind)` is a MongoDB multikey index, wi
 `table[TABLE].entryTable(name)` reads its entries, and `.sparse()` leaves out elements without any keyed value.
 
 ```ts
-import {
-    type DatabaseConnection,
-    defineTable,
-    index,
-    json,
-    TABLE,
-    text,
-    Transaction,
-} from "@destack/db";
+import { defineTable, index, json, TABLE, text } from "@destack/db";
+import { type DatabaseConnection, Transaction } from "@destack/db/database";
 import { schema } from "@destack/schema";
 
 // index each order line by customer and product
@@ -293,7 +288,7 @@ const line = order[TABLE].entryTable("order_line"); // row, position, customer, 
 
 /** Read the lines of a customer's orders of a product. */
 export const ordered = (database: DatabaseConnection, customer: string, productId: string) =>
-    Transaction.run(database, (transaction) =>
+    database.commit((transaction) =>
         transaction.read(line).findMany({ where: { customer, productId } }),
     );
 ```
@@ -305,7 +300,7 @@ After a restart it continues a set's projections whose `result` is `"rows"` from
 A loop given the stopped loop of its process as `previous` continues that loop's sets from where they stopped.
 
 ```ts
-import { ControlLoop, type DatabaseConnection, type Projection } from "@destack/db";
+import { ControlLoop, type DatabaseConnection, type Projection } from "@destack/db/database";
 
 /** Run a projection once the replicas caught up, until stopped. */
 export async function project(
@@ -403,14 +398,15 @@ export const work = defineDatabase({ name: "work", tables: [project, task], rela
 It runs again when another commit changed that row first.
 
 ```ts
-import { type DatabaseConnection, defineTable, text, Transaction } from "@destack/db";
+import { defineTable, text } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 
 // define the table
 const note = defineTable("note", { id: text("id").primaryKey(), title: text("title").notNull() });
 
 /** Rename a note, running again when another commit renamed it first. */
 export async function renameNote(database: DatabaseConnection, id: string, title: string) {
-    await Transaction.run(database, async (transaction) => {
+    await database.commit(async (transaction) => {
         // read the note as it is
         const before = await transaction.read(note).findFirst({ where: { id } });
 
@@ -426,14 +422,8 @@ export async function renameNote(database: DatabaseConnection, id: string, title
 The [reference](#reference) has the whole filter language and every condition.
 
 ```ts
-import {
-    Condition,
-    type DatabaseConnection,
-    defineTable,
-    Filter,
-    integer,
-    text,
-} from "@destack/db";
+import { Condition, defineTable, Filter, integer, text } from "@destack/db";
+import { type DatabaseConnection } from "@destack/db/database";
 
 // define the table
 const note = defineTable("note", {
@@ -458,7 +448,8 @@ export async function getStarredPlans(database: DatabaseConnection) {
 A logged table lists the properties a full-text index covers, and a `SEARCH` condition matches rows with every word of a query.
 
 ```ts
-import { Condition, type DatabaseConnection, defineTable, text } from "@destack/db";
+import { Condition, defineTable, text } from "@destack/db";
+import { type DatabaseConnection } from "@destack/db/database";
 
 // define a logged table whose title and body are searched
 const note = defineTable(
@@ -521,7 +512,8 @@ export const project = defineTable(
 `Bucket.take` takes tokens of a rate limit in one statement, and `Lease.acquire` takes one of a key's slots for a while.
 
 ```ts
-import { Bucket, type DatabaseConnection, Lease } from "@destack/db";
+import { Bucket, Lease } from "@destack/db";
+import { type DatabaseConnection } from "@destack/db/database";
 
 /** Take a mail token and the sending slot of a space, at most ten mails a minute. */
 export async function reserveMailSlot(database: DatabaseConnection, space: string, sender: string) {
@@ -548,7 +540,8 @@ export async function reserveMailSlot(database: DatabaseConnection, space: strin
 `log.follow` reads pages of changes after a position and waits for new commits.
 
 ```ts
-import { type DatabaseConnection, defineTable, text } from "@destack/db";
+import { defineTable, text } from "@destack/db";
+import { type DatabaseConnection } from "@destack/db/database";
 
 // define a logged table
 const note = defineTable("note", { id: text("id").primaryKey() }, { log: {} });
@@ -570,14 +563,8 @@ export async function printChanges(database: DatabaseConnection, signal: AbortSi
 The loop runs a controller when a commit makes a row pending, so nothing polls.
 
 ```ts
-import {
-    ControlLoop,
-    type Controller,
-    type DatabaseConnection,
-    defineTable,
-    eq,
-    text,
-} from "@destack/db";
+import { defineTable, eq, text } from "@destack/db";
+import { ControlLoop, type Controller, type DatabaseConnection } from "@destack/db/database";
 
 // define a logged table of jobs
 const job = defineTable(
@@ -657,7 +644,7 @@ Transactions rerun on conflicts, migrations are planned from your tables instead
 | `text`, `integer`, …                      | `text`, `integer`, …                            | The same, plus `identifier`, `blob` and `.sensitive()`.                            |
 | `defineRelations`, `db.query`             | `defineRelations`, `database.query`             | The same.                                                                          |
 | `db.select`, `insert`, `update`, `delete` | `database.select`, `insert`, `update`, `delete` | The same.                                                                          |
-| `db.transaction(fn)`                      | `Transaction.run(database, fn)`                 | Reads one snapshot, and runs again when a row it read changed.                     |
+| `db.transaction(fn)`                      | `database.commit(fn)`                           | Reads one snapshot, and runs again when a row it read changed.                     |
 | `drizzle-kit generate`, `migrate`         | `database.migrate(tables)`                      | Plans the steps from the declared tables alone, with `convert` for column changes. |
 | none                                      | `Log`, `log.follow`                             | Every commit to a logged table, in order.                                          |
 

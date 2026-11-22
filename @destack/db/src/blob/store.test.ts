@@ -6,7 +6,8 @@ import { TestDatabase } from "../test/index.ts";
 import { MemoryBlobStorage } from "@destack/resource";
 import { Digest } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
-import { BLOB_TABLES, BlobStore, gathered } from "./store.ts";
+import { BlobStore, gathered } from "./store.ts";
+import { BLOB_TABLES } from "./table.ts";
 import { testWorldOptions } from "@destack/test/world";
 
 /** When every blob store test starts: 1 October 2026, UTC. */

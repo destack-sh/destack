@@ -4,7 +4,7 @@ import { WorkerdEnvironment } from "@destack/environment/workerd";
 import { ModuleMetadata } from "@destack/package";
 import { and, count, eq, inArray, or, sql } from "../../sql/index.ts";
 import { DATABASE_MANAGER, readEmpty, readTables } from "../../migration/state.ts";
-import { Change } from "../../log/log.ts";
+import { Change } from "../../log/change.ts";
 import { defineDatabase } from "../../declare/database.ts";
 import { ResourceId, Plan } from "@destack/resource";
 import { durableObjectConnector } from "../connector.ts";
@@ -14,7 +14,6 @@ import { bigint, binary, text } from "../../table/column.ts";
 import { playlist } from "../../multikey/test/fixture.ts";
 import type { DurableObjectStorage } from "../client.ts";
 import { DurableObjectReader } from "../reader.ts";
-import { Snapshot } from "../../log/snapshot.ts";
 
 /** The module the scenario's table belongs to. */
 const MODULE = ModuleMetadata.parse({
@@ -232,7 +231,8 @@ export class NoteStore {
         const started = clock.now();
         const waiting = reader.log.waitUntil(
             async () =>
-                (await Snapshot.live(reader)
+                (await reader
+                    .snapshot()
                     .read(note)
                     .findFirst({ where: { id: "w" } })) !== undefined,
             clock.timeout(READER_WAIT_MILLISECONDS),
@@ -560,7 +560,8 @@ export class NoteStore {
             [note, file],
             this.environment,
         );
-        const found = await Snapshot.live(reader)
+        const found = await reader
+            .snapshot()
             .read(note)
             .findFirst({ where: { id: "b" } });
         const files = await reader
@@ -574,14 +575,13 @@ export class NoteStore {
         await spaced.transaction((transaction) =>
             transaction.insert(note).values({ id: "n", title: "Spaced" }).execute(),
         );
-        const named = await Snapshot.live(
-            DurableObjectReader.connect(
-                { fetch: (sent) => this.fetch(sent) },
-                [note],
-                this.environment,
-                "space-2",
-            ),
+        const named = await DurableObjectReader.connect(
+            { fetch: (sent) => this.fetch(sent) },
+            [note],
+            this.environment,
+            "space-2",
         )
+            .snapshot()
             .read(note)
             .findFirst({ where: { id: "n" } });
 

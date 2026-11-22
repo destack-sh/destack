@@ -6,7 +6,6 @@ import type { Row } from "../table/row.ts";
 import { integer, text } from "../table/column.ts";
 import { Order } from "../query/order.ts";
 import type { LogPosition } from "./position.ts";
-import { Snapshot } from "./snapshot.ts";
 import { Key } from "../query/key.ts";
 import { testSimulation } from "@destack/test/world";
 import { SimulatedTelemetry } from "@destack/environment/simulation";
@@ -341,7 +340,7 @@ test("read tables under an overlay live and at every earlier position", async ()
     const live = { position: undefined, rows: await database.select().from(item) };
     for (const { position, rows } of [...captured, live]) {
         const snapshot = (
-            position === undefined ? Snapshot.live(database) : database.log.at(position)
+            position === undefined ? database.snapshot() : database.log.at(position)
         ).layer(layered);
         const kept = rows.filter((row) => !overlay.has(row.id));
         const shown = [...kept, ...[...overlay.values()].filter((row) => row !== null)];
@@ -385,7 +384,7 @@ test("select rows by keys of text and integer columns, none for a missing key", 
     );
 
     // read two stored keys and a missing one
-    const rows = await Snapshot.live(database).select(
+    const rows = await database.snapshot().select(
         part,
         ["upload", "number"],
         [
@@ -434,7 +433,7 @@ test("fill a page of visible rows from candidates in batches, deciding every can
             );
         },
     };
-    const page = await Snapshot.live(database).ordered(item, {
+    const page = await database.snapshot().ordered(item, {
         where: {},
         orderBy: { rank: "asc" },
         limit: 4,
@@ -474,7 +473,7 @@ test("read a table defined anew through its own prepared query, selecting its ow
     );
 
     // read one shape through each definition, by condition and by key
-    const view = Snapshot.live(database);
+    const view = database.snapshot();
     const read = {
         full: await view.read(item).findMany({ where: { scope: "a" } }),
         narrow: await view.read(narrow).findMany({ where: { scope: "a" } }),
@@ -507,7 +506,7 @@ test("bind each literal of a nested condition to its own slot, on the prepared q
     );
 
     // read one shape mixing compare, oneOf, length, not, and all/any nesting, with two sets of literals
-    const items = Snapshot.live(database).read(item);
+    const items = database.snapshot().read(item);
     const nested = (scope: string, keys: readonly string[], length: number, rank: number) =>
         items.findMany({
             where: {
@@ -553,7 +552,7 @@ test("read each shape of condition and key reads through one prepared query, bin
 
     // read folders, keys, like patterns and id lists, compared literals sharing a shape
     const before = await preparedTakes(telemetry);
-    const items = Snapshot.live(database).read(item);
+    const items = database.snapshot().read(item);
     const read = {
         folder: await items.findMany({ where: { scope: "a" } }),
         other: await items.findMany({ where: { scope: "b" } }),

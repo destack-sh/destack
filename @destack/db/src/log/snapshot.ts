@@ -5,7 +5,7 @@ import type { DatabaseConnection } from "../database/connection.ts";
 import { Condition, Scalar } from "../query/condition.ts";
 import { Predicate, type Match } from "../query/predicate.ts";
 import { Key } from "../query/key.ts";
-import { Change } from "./log.ts";
+import { Change } from "./change.ts";
 import { Order, type OrderBy } from "../query/order.ts";
 import { Namespace, type Extras } from "../query/namespace.ts";
 import { Expression, type RelationReader } from "../expression/expression.ts";
@@ -168,11 +168,6 @@ export class Snapshot {
     /** Show the same view, recording each read. */
     recording(reads: ReadSet): Snapshot {
         return new Snapshot(this.database, this.position, this.#rewind, this.#overlay, reads);
-    }
-
-    /** Show the live database with its transaction's writes. */
-    static live(database: DatabaseConnection): Snapshot {
-        return new Snapshot(database, undefined);
     }
 
     /** Read a table's logged images as of the position, recording each read. */
