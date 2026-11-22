@@ -78,3 +78,29 @@ test("set overlapping events of a day side by side, and keep events that only to
         ["lunch walk", true, 0, 1],
     ]);
 });
+
+test("place a segment in its row's columns, refusing one that ends outside the row", () => {
+    // a Tuesday-to-Thursday segment in a week from Monday, and one past the week
+    const days = ["2026-11-02", "2026-11-03", "2026-11-04", "2026-11-05", "2026-11-06"] as const;
+    const segment = {
+        key: "trip",
+        start: "2026-11-03",
+        end: "2026-11-05",
+        isStart: true,
+        isEnd: true,
+        position: 0,
+        positions: 1,
+    };
+    const refusal = (() => {
+        try {
+            return Segment.columns({ ...segment, end: "2026-11-09" }, days);
+        } catch (error) {
+            return error;
+        }
+    })();
+
+    expect([Segment.columns(segment, days), refusal]).toEqual([
+        { start: 1, span: 3 },
+        new RangeError("segment 'trip' is invalid: it ends outside its row"),
+    ]);
+});

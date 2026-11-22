@@ -129,6 +129,21 @@ export const Segment = {
         });
     },
 
+    /** Read the columns a segment takes in a row of days: its first from zero, and how many. */
+    columns(
+        segment: Segment<PlainDate>,
+        days: readonly PlainDate[],
+    ): { readonly start: number; readonly span: number } {
+        // find both ends in the row, refusing an end the row lacks
+        const start = days.indexOf(segment.start);
+        const end = days.indexOf(segment.end);
+        if (start === -1 || end === -1) {
+            throw new RangeError(`segment '${segment.key}' is invalid: it ends outside its row`);
+        }
+
+        return { start, span: end - start + 1 };
+    },
+
     /** Count the segments of a day beyond some levels. */
     hidden(segments: readonly Segment<PlainDate>[], day: PlainDate, levels: number): number {
         return segments.filter(
