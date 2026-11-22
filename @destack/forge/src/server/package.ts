@@ -58,17 +58,22 @@ export function implementPackageObject(store: BuildStore): typeof packageObject 
             next,
             point,
         },
-        projections: [
+        controllers: [
             {
                 // delete a package's prereleases past the space's retention
                 name: "expire",
-                watches: [
-                    { table: release.table, on: { id: "parentId" } },
-                    { table: tag.table, on: { id: "parentId" } },
-                    { table: setting.table, where: { name: buildRetention.name }, isListing: true },
+                reads: [
+                    { table: release.table, fields: [], on: { id: "parentId" } },
+                    { table: tag.table, fields: ["version"], on: { id: "parentId" } },
+                    {
+                        table: setting.table,
+                        where: { name: buildRetention.name },
+                        fields: ["value"],
+                        isListing: true,
+                    },
                 ],
-                project: (packageId, { store: objects }) =>
-                    expire(objects, schema.identifier("package").parse(packageId)),
+                reconcile: ({ key, store: objects }) =>
+                    expire(objects, schema.identifier("package").parse(key)),
             },
         ],
     });

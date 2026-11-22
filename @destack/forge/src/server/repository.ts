@@ -161,13 +161,19 @@ export function implementRepository(hosting: RepositoryHosting): typeof reposito
                   controllers: [
                       {
                           name: "identify",
-                          pending: {
+                          when: {
                               hosting: "github",
                               providerRepositoryId: { isNull: true },
                               deletedAt: { isNull: true },
                           },
                           // identify an account's waiting repositories again as their connection's replica changes
-                          watches: [{ table: connection.table, on: { connectionId: "id" } }],
+                          reads: [
+                              {
+                                  table: connection.table,
+                                  fields: ["integration", "protocol", "conditions", "subject"],
+                                  on: { connectionId: "id" },
+                              },
+                          ],
                           reconcile: async (reconciliation) => {
                               for (const row of reconciliation.rows) {
                                   // identify the repository once its connection's replica names an installation
