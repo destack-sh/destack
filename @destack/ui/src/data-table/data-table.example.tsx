@@ -1,7 +1,15 @@
+import * as style from "@destack/style";
 import { defineExample } from "@destack/package/declare";
 import {
     aggregationFn_sum,
+    columnFacetingFeature,
     columnFilteringFeature,
+    columnPinningFeature,
+    columnResizingFeature,
+    columnSizingFeature,
+    createFacetedRowModel,
+    createFacetedUniqueValues,
+    filterFn_arrHas,
     columnGroupingFeature,
     columnVisibilityFeature,
     createColumnHelper,
@@ -21,18 +29,31 @@ import {
     sortFn_alphanumeric,
     sortFn_basic,
     tableFeatures,
-} from "@tanstack/table-core";
-import type { JSX } from "@destack/view";
+} from "./index.ts";
+import { createSignal, type JSX } from "@destack/view";
+import { DropdownMenuItem } from "../dropdown-menu/index.ts";
+import { Cluster } from "../cluster/index.ts";
+import { Stack } from "../stack/index.ts";
 import {
     DataTable,
     DataTableColumnHeader,
+    DataTableEditableCell,
+    DataTableFacetedFilter,
     DataTableFilter,
+    DataTableRowActions,
     DataTablePagination,
     DataTableViewOptions,
     expansionColumn,
     selectionColumn,
 } from "./data-table.tsx";
 import { createTable } from "./table.ts";
+
+/** The styles of the examples' tables. */
+const styles = style.create({
+    scrolling: {
+        maxHeight: "24rem",
+    },
+});
 
 /** A note the table lists. */
 interface NoteRow {
@@ -90,6 +111,8 @@ function NotesTable(properties: {
     readonly pageSize: number;
     /** The height each row is estimated at, which renders only the rows in view. */
     readonly rowHeight?: number;
+    /** The ids of the notes that cannot be selected. */
+    readonly locked?: readonly string[];
 }): JSX.Element {
     const table = createTable({
         features: FEATURES,
@@ -98,16 +121,23 @@ function NotesTable(properties: {
             return properties.notes;
         },
         getRowId: (row) => row.id,
+        enableRowSelection: (row) => properties.locked?.includes(row.id) !== true,
         initialState: { pagination: { pageIndex: 0, pageSize: properties.pageSize } },
     });
 
     return (
-        <div>
-            <DataTableFilter table={table} placeholder="Filter notes" />
-            <DataTableViewOptions table={table} />
-            <DataTable table={table} rowHeight={properties.rowHeight} />
+        <Stack>
+            <Cluster justify="between">
+                <DataTableFilter table={table} placeholder="Filter notes" />
+                <DataTableViewOptions table={table} />
+            </Cluster>
+            <DataTable
+                table={table}
+                rowHeight={properties.rowHeight}
+                xstyle={properties.rowHeight !== undefined && styles.scrolling}
+            />
             <DataTablePagination table={table} />
-        </div>
+        </Stack>
     );
 }
 
@@ -116,7 +146,19 @@ export const dataTableNotes = defineExample({
     of: DataTable,
     name: "notes",
     description: "notes in a table that sorts, filters, selects, hides columns and pages",
+    layout: "padded",
     render: () => <NotesTable notes={NOTES} pageSize={10} />,
+});
+
+/** Notes in a table whose shared notes cannot be selected. */
+export const dataTableNotesLocked = defineExample({
+    of: DataTable,
+    name: "notes-locked",
+    description: "notes in a table whose shared notes cannot be selected",
+    layout: "padded",
+    render: () => (
+        <NotesTable notes={NOTES} pageSize={10} locked={NOTES.slice(1, 3).map((note) => note.id)} />
+    ),
 });
 
 /** A notes table with no notes. */
@@ -124,6 +166,7 @@ export const dataTableNotesEmpty = defineExample({
     of: DataTable,
     name: "notes-empty",
     description: "a notes table with no notes",
+    layout: "padded",
     render: () => <NotesTable notes={[]} pageSize={10} />,
 });
 
@@ -132,6 +175,7 @@ export const dataTableNotesVirtual = defineExample({
     of: DataTable,
     name: "notes-virtual",
     description: "a thousand notes in a scrolling table that renders only the rows in view",
+    layout: "padded",
     render: () => (
         <NotesTable
             notes={Array.from({ length: 1000 }, (_, index) => ({
@@ -149,7 +193,7 @@ export const dataTableNotesVirtual = defineExample({
 interface FiledNote {
     /** The note's id. */
     readonly id: string;
-    /** The notebook holding it. */
+    /** The notebook it is in. */
     readonly notebook: string;
     /** The note's title. */
     readonly title: string;
@@ -206,6 +250,7 @@ export const dataTableNotesGrouped = defineExample({
     of: DataTable,
     name: "notes-grouped",
     description: "notes grouped by notebook, each group collapsed to its words sum",
+    layout: "padded",
     render: () => <GroupedNotes expanded={{}} />,
 });
 
@@ -214,6 +259,7 @@ export const dataTableNotesGroupedExpanded = defineExample({
     of: DataTable,
     name: "notes-grouped-expanded",
     description: "notes grouped by notebook with every group expanded to its notes",
+    layout: "padded",
     render: () => <GroupedNotes expanded />,
 });
 
@@ -241,6 +287,7 @@ export const dataTableTasksNested = defineExample({
     of: DataTable,
     name: "tasks-nested",
     description: "tasks with subtasks in a table that expands each task to its subtasks",
+    layout: "padded",
     render: () => {
         const table = createTable({
             features: TASK_FEATURES,
@@ -266,4 +313,151 @@ export const dataTableTasksNested = defineExample({
 
         return <DataTable table={table} />;
     },
+});
+
+/** A task the tasks table lists. */
+interface LaunchTask {
+    /** The task's key. */
+    readonly id: string;
+    /** The task's title. */
+    readonly title: string;
+    /** The task's status. */
+    readonly status: (typeof LAUNCH_STATUSES)[number]["value"];
+    /** The task's priority. */
+    readonly priority: (typeof LAUNCH_PRIORITIES)[number]["value"];
+}
+
+/** The features of the tasks table: faceted filters, sized and pinned columns. */
+const LAUNCH_FEATURES = tableFeatures({
+    columnFilteringFeature,
+    filteredRowModel: createFilteredRowModel(),
+    filterFns: { arrHas: filterFn_arrHas },
+    columnFacetingFeature,
+    facetedRowModel: createFacetedRowModel(),
+    facetedUniqueValues: createFacetedUniqueValues(),
+    columnSizingFeature,
+    columnResizingFeature,
+    columnPinningFeature,
+});
+
+/** The statuses a task moves through. */
+const LAUNCH_STATUSES = [
+    { value: "backlog", label: "Backlog" },
+    { value: "doing", label: "Doing" },
+    { value: "done", label: "Done" },
+] as const;
+
+/** The priorities a task takes. */
+const LAUNCH_PRIORITIES = [
+    { value: "high", label: "High" },
+    { value: "low", label: "Low" },
+] as const;
+
+/** The launch's tasks. */
+const LAUNCH_TASKS: LaunchTask[] = [
+    { id: "LAU-21", title: "Write the changelog", status: "backlog", priority: "low" },
+    { id: "LAU-14", title: "Record the demo", status: "doing", priority: "high" },
+    { id: "LAU-15", title: "Pricing page", status: "doing", priority: "high" },
+    { id: "LAU-11", title: "Sign-up flow copy", status: "done", priority: "low" },
+];
+
+/** The column helper of the tasks table. */
+const LAUNCH = createColumnHelper<typeof LAUNCH_FEATURES, LaunchTask>();
+
+/** The label of each status. */
+const STATUS_LABELS: Readonly<Record<LaunchTask["status"], string>> = {
+    backlog: "Backlog",
+    doing: "Doing",
+    done: "Done",
+};
+
+/** The label of each priority. */
+const PRIORITY_LABELS: Readonly<Record<LaunchTask["priority"], string>> = {
+    high: "High",
+    low: "Low",
+};
+
+/** Render the launch's tasks with faceted filters, editable titles and row actions. */
+function LaunchTasksTable(): JSX.Element {
+    // keep the tasks, renaming one in place
+    const [tasks, setTasks] = createSignal(LAUNCH_TASKS);
+    const rename = (id: string, title: string) =>
+        setTasks((current) => current.map((task) => (task.id === id ? { ...task, title } : task)));
+    const columns = LAUNCH.columns([
+        LAUNCH.accessor("id", { header: "Task", size: 96, enableResizing: false }),
+        LAUNCH.accessor("title", {
+            header: "Title",
+            size: 240,
+            cell: (context) => (
+                <DataTableEditableCell
+                    value={context.getValue()}
+                    label="Title"
+                    onCommit={(title) => rename(context.row.original.id, title)}
+                />
+            ),
+        }),
+        LAUNCH.accessor("status", {
+            header: "Status",
+            size: 120,
+            filterFn: "arrHas",
+            cell: (context) => STATUS_LABELS[context.getValue()],
+        }),
+        LAUNCH.accessor("priority", {
+            header: "Priority",
+            size: 120,
+            filterFn: "arrHas",
+            cell: (context) => PRIORITY_LABELS[context.getValue()],
+        }),
+        LAUNCH.display({
+            id: "actions",
+            size: 48,
+            enableResizing: false,
+            cell: () => (
+                <DataTableRowActions>
+                    <DropdownMenuItem>Copy link</DropdownMenuItem>
+                    <DropdownMenuItem>Archive</DropdownMenuItem>
+                </DataTableRowActions>
+            ),
+        }),
+    ]);
+    const table = createTable({
+        features: LAUNCH_FEATURES,
+        columns,
+        get data() {
+            return tasks();
+        },
+        getRowId: (row) => row.id,
+        columnResizeMode: "onChange",
+        initialState: { columnPinning: { start: ["id"], end: [] } },
+    });
+
+    return (
+        <Stack>
+            <Cluster>
+                <DataTableFacetedFilter
+                    table={table}
+                    column="status"
+                    title="Status"
+                    options={LAUNCH_STATUSES}
+                />
+                <DataTableFacetedFilter
+                    table={table}
+                    column="priority"
+                    title="Priority"
+                    options={LAUNCH_PRIORITIES}
+                />
+            </Cluster>
+            <DataTable table={table} />
+        </Stack>
+    );
+}
+
+/** A launch's tasks with faceted filters, sized and pinned columns, editable titles and actions. */
+export const dataTableTasks = defineExample({
+    of: DataTable,
+    name: "tasks",
+    description:
+        "a launch's tasks with faceted filters, resizable pinned columns, editable titles and row actions",
+    layout: "padded",
+    render: () => <LaunchTasksTable />,
 });

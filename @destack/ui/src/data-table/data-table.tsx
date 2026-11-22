@@ -10,7 +10,8 @@ import caretUpDown from "@destack/icon/phosphor/caret-up-down";
 import slidersHorizontal from "@destack/icon/phosphor/sliders-horizontal";
 import { type Direction, plural, t } from "@destack/locale";
 import * as style from "@destack/style";
-import { color, space } from "@destack/theme/tokens.stylex";
+import { media } from "@destack/style/media.stylex";
+import { color, radius, space, stroke, swatch } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import {
     type Accessor,
@@ -18,9 +19,11 @@ import {
     createEffect,
     createMemo,
     createSignal,
+    flush,
     For,
     type JSX,
     omit,
+    onSettled,
     Show,
     untrack,
     useContext,
@@ -33,10 +36,17 @@ import type {
     CellContext,
     Column,
     Column_ColumnVisibility,
+    Column_ColumnFaceting,
+    Column_ColumnFiltering,
+    Column_ColumnPinning,
+    Column_ColumnResizing,
+    Column_ColumnSizing,
     Column_CoreProperties,
     Column_RowSorting,
     ColumnDefTemplate,
     Header,
+    Header_ColumnResizing,
+    Header_ColumnSizing,
     HeaderContext,
     PaginationState,
     Row_CoreProperties,
@@ -61,11 +71,23 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "../dropdown-menu/index.ts";
+import { Badge } from "../badge/index.ts";
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+    CommandSeparator,
+} from "../command/index.ts";
 import { Input } from "../input/index.ts";
+import { Popover, PopoverContent, PopoverTrigger } from "../popover/index.ts";
 import { Select, SelectItem } from "../select/index.ts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../table/index.ts";
 import type { DataTableInstance } from "./table.ts";
-import { createVirtualizer } from "../virtualizer/index.ts";
+import { Virtualizer } from "../virtualizer/index.ts";
+import { VisuallyHidden } from "../visually-hidden/index.ts";
 
 /** The rows a page jump moves by with Page Up and Page Down. */
 const PAGE_ROWS = 10;
@@ -82,13 +104,75 @@ const DataTableContext = createContext<Accessor<unknown> | null>(null);
 /** The focused cell of the nearest data table, null outside one. */
 const DataTableFocusContext = createContext<Focus<string> | null>(null);
 
+/** The columns that only select or expand rows, which stay as narrow as their control. */
+const CONTROL_COLUMNS: ReadonlySet<string> = new Set(["select", "expand"]);
+
 /** The styles of a data table and its toolbar and footer. */
 const styles = style.create({
+    frame: {
+        overflow: "auto",
+        borderWidth: stroke.border,
+        borderStyle: "solid",
+        borderColor: color.border,
+        borderRadius: radius[3],
+    },
     scroller: {
         overflowY: "auto",
         maxHeight: "100%",
     },
     spacer: (height: string) => ({ height, padding: 0 }),
+    head: {
+        position: "sticky",
+        top: 0,
+        zIndex: 2,
+        backgroundColor: color.background,
+    },
+    pinned: (start: string, end: string) => ({
+        position: "sticky",
+        insetInlineStart: start,
+        insetInlineEnd: end,
+        zIndex: 1,
+        backgroundColor: color.background,
+    }),
+    sized: (width: string) => ({ width, minWidth: width, maxWidth: width }),
+    resizer: {
+        position: "absolute",
+        top: 0,
+        insetInlineEnd: 0,
+        width: space[1],
+        height: "100%",
+        cursor: "col-resize",
+        touchAction: "none",
+        userSelect: "none",
+        backgroundColor: {
+            default: "transparent",
+            ":hover": { default: null, [media.hover]: color.border },
+        },
+    },
+    resizing: {
+        backgroundColor: swatch.accentMark,
+    },
+    facet: {
+        borderStyle: "dashed",
+    },
+    facetContent: {
+        width: "auto",
+        minWidth: "12rem",
+        padding: 0,
+    },
+    facetCount: {
+        marginInlineStart: "auto",
+        color: color.mutedForeground,
+        fontVariantNumeric: "tabular-nums",
+    },
+    check: (isChecked: boolean) => ({
+        visibility: isChecked ? "visible" : "hidden",
+    }),
+    editable: {
+        width: "100%",
+        textAlign: "start",
+        justifyContent: "flex-start",
+    },
     empty: {
         height: `calc(6 * ${space[4]})`,
         textAlign: "center",
@@ -99,6 +183,12 @@ const styles = style.create({
     },
     selection: {
         width: space[6],
+    },
+    box: {
+        verticalAlign: "middle",
+    },
+    control: {
+        width: 0,
     },
     toggle: (depth: string) => ({
         display: "inline-flex",
@@ -173,15 +263,15 @@ export function DataTable<Features extends TableFeatures, Row extends RowData>(
     const [scroller, setScroller] = createSignal<HTMLElement | undefined>(undefined, {
         ownedWrite: true,
     });
-    const virtualizer = createVirtualizer({
+    const virtualizer = new Virtualizer({
         count: () => rows().length,
         estimateSize: () => properties.rowHeight ?? 0,
-        getScrollElement: scroller,
+        scrollElement: scroller,
     });
     const shown = createMemo(() =>
         properties.rowHeight === undefined
             ? rows().map((row, index) => ({ row, index, start: 0, end: 0 }))
-            : virtualizer.getVirtualItems().flatMap((item) => {
+            : virtualizer.items().flatMap((item) => {
                   const row = rows()[item.index];
 
                   return row === undefined
@@ -189,8 +279,10 @@ export function DataTable<Features extends TableFeatures, Row extends RowData>(
                       : [{ row, index: item.index, start: item.start, end: item.end }];
               }),
     );
-    const before = (): number => shown()[0]?.start ?? 0;
-    const after = (): number => virtualizer.getTotalSize() - (shown().at(-1)?.end ?? 0);
+    const spacers = () =>
+        properties.rowHeight === undefined ? { before: 0, after: 0 } : virtualizer.spacers();
+    const before = (): number => spacers().before;
+    const after = (): number => spacers().after;
 
     // move one focused cell through the headers and rows, bringing a row out of view into it
     const headerWidths = createMemo(() => headerGroups().map((group) => group.headers.length));
@@ -214,7 +306,11 @@ export function DataTable<Features extends TableFeatures, Row extends RowData>(
             onKeyDown={(event) => navigate(event, focus, locale.direction)}
             onFocusOut={(event) => focus.focusOut(event)}
             {...style.attributes(
-                [properties.rowHeight !== undefined && styles.scroller, properties.xstyle],
+                [
+                    styles.frame,
+                    properties.rowHeight !== undefined && styles.scroller,
+                    properties.xstyle,
+                ],
                 properties.style,
             )}
         >
@@ -284,6 +380,12 @@ function DataTableHeaderCell<Features extends TableFeatures, Data extends RowDat
     return (
         <TableHead
             colspan={header.colSpan}
+            xstyle={[
+                styles.head,
+                CONTROL_COLUMNS.has(header.column.id) && styles.control,
+                follow(tracked, () => sizeOf(header)),
+                follow(tracked, () => pinOf(header.column)),
+            ]}
             aria-sort={follow(tracked, () => sortOf(header))}
             data-column={header.column.id}
             {...useGridCell(() => properties.cell)}
@@ -291,6 +393,7 @@ function DataTableHeaderCell<Features extends TableFeatures, Data extends RowDat
             <Show when={!header.isPlaceholder}>
                 {renderTemplate(header.column.columnDef.header, header.getContext())}
             </Show>
+            <ColumnResizer header={header} />
         </TableHead>
     );
 }
@@ -316,6 +419,10 @@ function DataTableRow<Features extends TableFeatures, Data extends RowData>(prop
                 {(cell, column) => (
                     <TableCell
                         data-column={cell.column.id}
+                        xstyle={[
+                            CONTROL_COLUMNS.has(cell.column.id) && styles.control,
+                            follow(tracked, () => pinOf(cell.column)),
+                        ]}
                         {...useGridCell(() => cellKey(properties.place, column()))}
                     >
                         {renderCell(cell)}
@@ -326,6 +433,59 @@ function DataTableRow<Features extends TableFeatures, Data extends RowData>(prop
     );
 }
 
+/** Render the handle that drags a resizable column's width, none for a fixed column. */
+function ColumnResizer<Features extends TableFeatures, Data extends RowData>(properties: {
+    /** The header whose column the handle sizes. */
+    readonly header: Header<Features, Data>;
+}): JSX.Element {
+    // read the header and its column, which the table's features may size
+    const tracked = useDataTableState();
+    const header: object = properties.header;
+    const column: object = properties.header.column;
+    const drag = (event: MouseEvent | TouchEvent) => {
+        if (isResizingHeader(header)) {
+            header.getResizeHandler()(event);
+        }
+    };
+
+    return (
+        <Show when={isResizable(column) && column.getCanResize()}>
+            <div
+                aria-hidden="true"
+                data-slot="data-table-resizer"
+                onMouseDown={drag}
+                onTouchStart={drag}
+                onDblClick={() => isSizable(column) && column.resetSize()}
+                {...style.attrs(
+                    styles.resizer,
+                    follow(tracked, () => isResizable(column) && column.getIsResizing()) &&
+                        styles.resizing,
+                )}
+            />
+        </Show>
+    );
+}
+
+/** Read a header's width where columns size, none otherwise. */
+function sizeOf(header: object): style.Styles {
+    return isSizedHeader(header) ? styles.sized(`${String(header.getSize())}px`) : null;
+}
+
+/** Read a pinned column's place at its edge, none for a column that scrolls. */
+function pinOf(column: object): style.Styles {
+    if (!isPinnable(column)) {
+        return null;
+    }
+    const pin = column.getIsPinned();
+    if (pin === "start") {
+        return styles.pinned(`${String(column.getStart("start"))}px`, "auto");
+    } else if (pin === "end") {
+        return styles.pinned("auto", `${String(column.getAfter("end"))}px`);
+    }
+
+    return null;
+}
+
 /** Read a value of a table's state, following the table as it changes. */
 function follow<Value>(tracked: Accessor<unknown>, value: () => Value): Value {
     tracked();
@@ -333,7 +493,7 @@ function follow<Value>(tracked: Accessor<unknown>, value: () => Value): Value {
     return value();
 }
 
-/** Render a row holding the place of the rows a virtual table leaves out, none at no height. */
+/** Render a row in place of the rows a virtual table leaves out, none at no height. */
 function SpacerRow(properties: {
     /** The height of the rows left out, in pixels. */
     readonly height: number;
@@ -388,7 +548,6 @@ export function DataTableColumnHeader<Features extends TableFeatures, Row extend
     return (
         <Button
             variant="ghost"
-            size="sm"
             data-slot="data-table-column-header"
             xstyle={styles.sort}
             onClick={(event) => {
@@ -442,23 +601,23 @@ export function DataTablePagination<Features extends TableFeatures, Row extends 
         follow(table.tracked, () =>
             isSelectableTable(table) ? table.getSelectedRowModel().rows.length : undefined,
         );
+    const selectedLabel = (): string | undefined => {
+        // count the selected rows of a selectable table, zero included
+        const rows = selected();
+
+        return rows === undefined
+            ? undefined
+            : locale.render(
+                  t`${rows} of ${plural(total(), { one: "# row", other: "# rows" })} selected`,
+              );
+    };
     const total = (): number => follow(table.tracked, () => table.getRowCount());
     const canPrevious = (): boolean => follow(table.tracked, () => table.getCanPreviousPage());
     const canNext = (): boolean => follow(table.tracked, () => table.getCanNextPage());
 
     return (
         <div data-slot="data-table-pagination" {...style.attrs(text.xs, styles.pagination)}>
-            <span {...style.attrs(styles.count)}>
-                <Show when={selected()}>
-                    {(rows) => (
-                        <>
-                            {locale.render(
-                                t`${rows()} of ${plural(total(), { one: "# row", other: "# rows" })} selected`,
-                            )}
-                        </>
-                    )}
-                </Show>
-            </span>
+            <span {...style.attrs(styles.count)}>{selectedLabel()}</span>
             <label {...style.attrs(styles.size)}>
                 {locale.render(t`Rows per page`)}
                 <Select
@@ -515,7 +674,7 @@ function PageStep(properties: {
     return (
         <Button
             variant="outline"
-            size="icon-sm"
+            size="icon"
             aria-label={properties.label}
             disabled={properties.disabled}
             onClick={() => properties.go()}
@@ -559,6 +718,254 @@ export function DataTableFilter<Features extends TableFeatures, Row extends RowD
     );
 }
 
+/** A value a faceted filter offers, and how it reads. */
+export interface DataTableFacetOption {
+    /** The column value. */
+    readonly value: string;
+    /** The label the filter shows. */
+    readonly label: string;
+}
+
+/** The properties of a faceted filter over one column of a data table. */
+export interface DataTableFacetedFilterProperties<
+    Features extends TableFeatures,
+    Row extends RowData,
+> {
+    /** The table whose column the filter narrows. */
+    readonly table: DataTableInstance<Features, Row>;
+    /** The id of the column it filters and counts, whose `filterFn` is `arrHas`. */
+    readonly column: string;
+    /** The column's name, which labels the filter. */
+    readonly title: string;
+    /** The values it offers. */
+    readonly options: readonly DataTableFacetOption[];
+}
+
+/** The chosen values a faceted filter's trigger names before it counts the rest. */
+const NAMED_FACETS = 2;
+
+/** Render a filter that narrows a column to chosen values, each with its count, after shadcn's. */
+export function DataTableFacetedFilter<Features extends TableFeatures, Row extends RowData>(
+    properties: DataTableFacetedFilterProperties<Features, Row>,
+): JSX.Element {
+    // read the column, refusing one that does not filter and count its values
+    const locale = useLocale();
+    const column = createMemo(() => {
+        const found: object | undefined = properties.table.getColumn(properties.column);
+        if (found === undefined || !isFaceted(found)) {
+            throw new TypeError(
+                `data table column '${properties.column}' is invalid: it does not both filter and count its values`,
+            );
+        }
+
+        return found;
+    });
+
+    // read the chosen values and each value's count as the table changes
+    const chosen = createMemo(() => {
+        properties.table.tracked();
+        const value = column().getFilterValue();
+
+        return new Set(Array.isArray(value) ? value.map(String) : []);
+    });
+    const counts = createMemo(() => {
+        properties.table.tracked();
+
+        return column().getFacetedUniqueValues();
+    });
+    const named = () => properties.options.filter((option) => chosen().has(option.value));
+
+    // toggle a value, clearing the filter when none is left
+    const toggle = (value: string) => {
+        const next = new Set(chosen());
+        if (next.has(value)) {
+            next.delete(value);
+        } else {
+            next.add(value);
+        }
+        column().setFilterValue(next.size === 0 ? undefined : [...next]);
+    };
+
+    return (
+        <Popover>
+            <PopoverTrigger
+                variant="outline"
+                size="sm"
+                data-slot="data-table-faceted-filter"
+                xstyle={styles.facet}
+            >
+                <Icon name="plus-circle" />
+                {properties.title}
+                <Show when={named().length > 0}>
+                    <Show
+                        when={named().length <= NAMED_FACETS}
+                        fallback={<Badge variant="secondary">{named().length}</Badge>}
+                    >
+                        <For each={named()}>
+                            {(option) => <Badge variant="secondary">{option.label}</Badge>}
+                        </For>
+                    </Show>
+                </Show>
+            </PopoverTrigger>
+            <PopoverContent align="start" xstyle={styles.facetContent}>
+                <Command aria-label={properties.title}>
+                    <CommandInput placeholder={properties.title} />
+                    <CommandList>
+                        <CommandEmpty>{locale.render(t`No results.`)}</CommandEmpty>
+                        <CommandGroup>
+                            <For each={properties.options}>
+                                {(option) => (
+                                    <CommandItem
+                                        value={option.value}
+                                        keywords={[option.label]}
+                                        aria-checked={chosen().has(option.value) ? "true" : "false"}
+                                        onSelect={() => toggle(option.value)}
+                                    >
+                                        <Icon
+                                            name="check"
+                                            xstyle={styles.check(chosen().has(option.value))}
+                                        />
+                                        {option.label}
+                                        <span {...style.attrs(styles.facetCount)}>
+                                            {counts().get(option.value) ?? 0}
+                                        </span>
+                                    </CommandItem>
+                                )}
+                            </For>
+                        </CommandGroup>
+                        <Show when={chosen().size > 0}>
+                            <CommandSeparator />
+                            <CommandGroup>
+                                <CommandItem
+                                    value="clear"
+                                    onSelect={() => column().setFilterValue(undefined)}
+                                >
+                                    {locale.render(t`Clear filters`)}
+                                </CommandItem>
+                            </CommandGroup>
+                        </Show>
+                    </CommandList>
+                </Command>
+            </PopoverContent>
+        </Popover>
+    );
+}
+
+/** The properties of a row's actions menu: its items, such as links and buttons. */
+export interface DataTableRowActionsProperties {
+    /** The menu's items. */
+    readonly children?: JSX.Element;
+}
+
+/** Render a row's actions behind a button at its end, after shadcn's tasks table. */
+export function DataTableRowActions(properties: DataTableRowActionsProperties): JSX.Element {
+    const locale = useLocale();
+
+    return (
+        <DropdownMenu>
+            <DropdownMenuTrigger
+                variant="ghost"
+                size="icon-sm"
+                aria-label={locale.render(t`Open row actions`)}
+                data-slot="data-table-row-actions"
+            >
+                <Icon name="dots-three" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">{properties.children}</DropdownMenuContent>
+        </DropdownMenu>
+    );
+}
+
+/** The properties of a cell edited in place. */
+export interface DataTableEditableCellProperties {
+    /** The cell's value. */
+    readonly value: string;
+    /** Take a changed value when the edit ends with Enter or by leaving the field. */
+    readonly onCommit: (value: string) => void;
+    /** The name of the value, which labels the field while editing. */
+    readonly label: string;
+}
+
+/** Render a cell's text that Enter, F2 or a click edits in place, after Airtable. */
+export function DataTableEditableCell(properties: DataTableEditableCellProperties): JSX.Element {
+    // edit from the button that has the cell's focus, and hand it back when done
+    const [isEditing, setEditing] = createSignal(false, { ownedWrite: true });
+    let button: HTMLButtonElement | undefined;
+    const finish = (value: string | undefined) => {
+        // commit a changed value, then return to the text
+        if (value !== undefined && value !== properties.value) {
+            properties.onCommit(value);
+        }
+        setEditing(false);
+        flush();
+        button?.focus();
+    };
+
+    return (
+        <Show
+            when={isEditing()}
+            fallback={
+                <Button
+                    ref={(element) => (button = element)}
+                    variant="ghost"
+                    size="sm"
+                    data-slot="data-table-editable-cell"
+                    xstyle={styles.editable}
+                    onClick={() => setEditing(true)}
+                    onKeyDown={(event) => {
+                        // start editing on F2, as spreadsheets do; Enter clicks the button
+                        if (event.key === "F2") {
+                            event.preventDefault();
+                            setEditing(true);
+                        }
+                    }}
+                >
+                    {properties.value}
+                </Button>
+            }
+        >
+            <EditField
+                label={properties.label}
+                value={properties.value}
+                onFinish={(value) => isEditing() && finish(value)}
+            />
+        </Show>
+    );
+}
+
+/** Render the field of a cell being edited, its text selected once it shows. */
+function EditField(properties: {
+    /** The name of the value, which labels the field. */
+    readonly label: string;
+    /** The value the edit starts from. */
+    readonly value: string;
+    /** End the edit with the value to commit, none to cancel. */
+    readonly onFinish: (value: string | undefined) => void;
+}): JSX.Element {
+    // select the text once the field is on the page
+    let field: HTMLInputElement | undefined;
+    onSettled(() => field?.select());
+
+    return (
+        <Input
+            ref={(element) => (field = element)}
+            aria-label={properties.label}
+            value={properties.value}
+            onKeyDown={(event) => {
+                // commit on Enter and cancel on Escape, keeping the keys from the table
+                if (event.key === "Enter") {
+                    event.preventDefault();
+                    properties.onFinish(event.currentTarget.value);
+                } else if (event.key === "Escape") {
+                    event.preventDefault();
+                    properties.onFinish(undefined);
+                }
+            }}
+            onBlur={(event) => properties.onFinish(event.currentTarget.value)}
+        />
+    );
+}
+
 /** The properties of a data table's column menu. */
 export interface DataTableViewOptionsProperties<
     Features extends TableFeatures,
@@ -583,7 +990,7 @@ export function DataTableViewOptions<Features extends TableFeatures, Row extends
 
     return (
         <DropdownMenu>
-            <DropdownMenuTrigger variant="outline" size="sm" data-slot="data-table-view-options">
+            <DropdownMenuTrigger variant="outline" data-slot="data-table-view-options">
                 <Icon icon={slidersHorizontal} />
                 {locale.render(t`View`)}
             </DropdownMenuTrigger>
@@ -643,11 +1050,18 @@ export function expansionColumn<Features extends TableFeatures, Row extends RowD
 } {
     return {
         id: "expand",
-        header: () => null,
+        header: () => <ExpandHeader />,
         cell: (context) => <RowToggle row={context.row} />,
         enableSorting: false,
         enableHiding: false,
     };
+}
+
+/** Render the name of the column of expand buttons, for assistive technology alone. */
+function ExpandHeader(): JSX.Element {
+    const locale = useLocale();
+
+    return <VisuallyHidden>{locale.render(t`Expand`)}</VisuallyHidden>;
 }
 
 /** Render the button that shows and hides a row's sub rows, with what follows it in the cell. */
@@ -676,7 +1090,7 @@ function RowToggle(properties: {
             <Show when={row.getCanExpand()} fallback={<span {...style.attrs(styles.selection)} />}>
                 <Button
                     variant="ghost"
-                    size="icon-sm"
+                    size="icon"
                     aria-expanded={isExpanded() ? "true" : "false"}
                     aria-label={locale.render(isExpanded() ? t`Collapse row` : t`Expand row`)}
                     onClick={() => row.toggleExpanded()}
@@ -718,7 +1132,7 @@ function PageSelection(properties: {
             checked={isAll()}
             indeterminate={isSome() && !isAll()}
             onCheckedChange={(isSelected) => table.toggleAllPageRowsSelected(isSelected)}
-            xstyle={styles.selection}
+            xstyle={styles.box}
         />
     );
 }
@@ -747,6 +1161,7 @@ function RowSelection(properties: {
             checked={isSelected()}
             disabled={!row.getCanSelect()}
             onCheckedChange={(isChecked) => row.toggleSelected(isChecked)}
+            xstyle={styles.box}
         />
     );
 }
@@ -867,6 +1282,49 @@ function isExpandableRow(
     row: object,
 ): row is Row_RowExpanding & Pick<Row_CoreProperties<TableFeatures, RowData>, "depth" | "subRows"> {
     return "getCanExpand" in row && typeof row.getCanExpand === "function";
+}
+
+/** Report whether a header belongs to a table whose columns size. */
+function isSizedHeader(header: object): header is Header_ColumnSizing {
+    return "getSize" in header && typeof header.getSize === "function";
+}
+
+/** Report whether a column belongs to a table whose columns size. */
+function isSizable(column: object): column is Column_ColumnSizing {
+    return "resetSize" in column && typeof column.resetSize === "function";
+}
+
+/** Report whether a header belongs to a table whose columns a drag resizes. */
+function isResizingHeader(header: object): header is Header_ColumnResizing {
+    return "getResizeHandler" in header && typeof header.getResizeHandler === "function";
+}
+
+/** Report whether a column belongs to a table whose columns a drag resizes. */
+function isResizable(column: object): column is Column_ColumnResizing {
+    return "getCanResize" in column && typeof column.getCanResize === "function";
+}
+
+/** Report whether a column belongs to a table whose columns pin, with their offsets. */
+function isPinnable(column: object): column is Column_ColumnPinning & Column_ColumnSizing {
+    return (
+        "getIsPinned" in column &&
+        typeof column.getIsPinned === "function" &&
+        "getStart" in column &&
+        typeof column.getStart === "function"
+    );
+}
+
+/** Report whether a column filters and counts its values. */
+function isFaceted(
+    column: object,
+): column is Column_ColumnFiltering<TableFeatures, RowData> &
+    Column_ColumnFaceting<TableFeatures, RowData> {
+    return (
+        "getFacetedUniqueValues" in column &&
+        typeof column.getFacetedUniqueValues === "function" &&
+        "setFilterValue" in column &&
+        typeof column.setFilterValue === "function"
+    );
 }
 
 /** Report whether a cell belongs to a table that groups rows. */

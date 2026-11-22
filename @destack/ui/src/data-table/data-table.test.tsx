@@ -13,7 +13,7 @@ import {
     sortFn_alphanumeric,
     sortFn_basic,
     tableFeatures,
-} from "@tanstack/table-core";
+} from "./index.ts";
 import { Errored, flush, type JSX } from "@destack/view";
 import { render, stubPopovers, wait } from "@destack/view/test";
 import {
@@ -286,8 +286,8 @@ async function pressAndRead(key: string, modifiers: KeyboardEventInit = {}): Pro
 
 test("move the focus by key onto rows a virtualized table renders only once they scroll into view", async () => {
     // give the scrolling table a box of five rows, which the test DOM does not lay out
-    const height = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "offsetHeight");
-    Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
+    const height = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "clientHeight");
+    Object.defineProperty(HTMLElement.prototype, "clientHeight", {
         configurable: true,
         get(this: HTMLElement) {
             return this.dataset["slot"] === "data-table" ? 200 : 0;
@@ -295,7 +295,7 @@ test("move the focus by key onto rows a virtualized table renders only once they
     });
     onTestFinished(() => {
         if (height !== undefined) {
-            Object.defineProperty(HTMLElement.prototype, "offsetHeight", height);
+            Object.defineProperty(HTMLElement.prototype, "clientHeight", height);
         }
     });
     stubPopovers();
