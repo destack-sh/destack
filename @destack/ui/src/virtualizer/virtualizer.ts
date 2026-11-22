@@ -1,82 +1,335 @@
 import * as virtual from "@tanstack/virtual-core";
-import { type Accessor, createEffect, createSignal, untrack } from "@destack/view";
+import {
+    type Accessor,
+    createEffect,
+    createMemo,
+    createSignal,
+    onCleanup,
+    untrack,
+} from "@destack/view";
+import type { Direction } from "@destack/locale";
+import type { Axis } from "../position/index.ts";
 
-/** The rows a virtualizer renders beyond the visible ones on either side. */
+/** The items a virtualizer renders beyond the visible ones on either side. */
 const OVERSCAN = 8;
 
-/** What a virtualizer measures. */
+/** An item a virtualizer renders: its index, key, lane, and where it starts and ends in pixels. */
+export type VirtualItem = virtual.VirtualItem;
+
+/** The visible range a virtualizer extracts the rendered indexes from. */
+export type VirtualRange = virtual.Range;
+
+/** A width and a height in pixels. */
+export type VirtualRect = virtual.Rect;
+
+/** Where a scroll puts an item: at the start, the center, the end, or the nearest edge. */
+export type ScrollAlignment = "start" | "center" | "end" | "auto";
+
+/** How a scroll moves: at once or smoothly. */
+export type ScrollBehavior = "auto" | "smooth" | "instant";
+
+/** Where and how a scroll lands. */
+export interface ScrollOptions {
+    /** Where the scroll puts the item, the nearest edge by default. */
+    readonly align?: ScrollAlignment;
+    /** How the scroll moves, at once by default. */
+    readonly behavior?: ScrollBehavior;
+}
+
+/** What a virtualizer measures and how it scrolls. */
 export interface VirtualizerOptions {
     /** The number of items. */
     readonly count: Accessor<number>;
-    /** Estimate the height of an item before it is measured, in pixels. */
+    /** Estimate the size of an item along the scroll before it is measured, in pixels. */
     readonly estimateSize: (index: number) => number;
-    /** Read the element that scrolls the items, undefined until it is created. */
-    readonly getScrollElement: Accessor<HTMLElement | undefined>;
-    /** The size the element is taken to have before it is measured, in pixels, none when absent. */
-    readonly initialRect?: virtual.Rect;
+    /** Read the element that scrolls the items, the window when absent. */
+    readonly scrollElement?: Accessor<HTMLElement | undefined>;
+    /** The axis the items run along, vertical by default. */
+    readonly orientation?: Axis;
+    /** The number of lanes across the scroll, such as the columns of a grid, one by default. */
+    readonly lanes?: Accessor<number>;
+    /** Whether an item joins the shortest lane by its estimate or by its measured size. */
+    readonly laneAssignment?: "estimate" | "measured";
+    /** The room between items, in pixels. */
+    readonly gap?: number | undefined;
+    /** The items rendered beyond the visible ones on either side, eight by default. */
+    readonly overscan?: number | undefined;
+    /** Read how to key an item of the items as they stand, by its index by default. */
+    readonly itemKey?: Accessor<(index: number) => string | number> | undefined;
+    /** Choose the indexes to render for a visible range, such as sticky headers beside it. */
+    readonly rangeExtractor?: (range: VirtualRange) => number[];
+    /** The room before the first item, in pixels. */
+    readonly paddingStart?: number;
+    /** The room after the last item, in pixels. */
+    readonly paddingEnd?: number;
+    /** The room a scroll to an item leaves before it, in pixels. */
+    readonly scrollPaddingStart?: number;
+    /** The room a scroll to an item leaves after it, in pixels. */
+    readonly scrollPaddingEnd?: number;
+    /** The distance from the scrolling element's start to the first item, in pixels. */
+    readonly scrollMargin?: Accessor<number>;
+    /** The end the view stays at as items come and go, the start by default. */
+    readonly anchorTo?: "start" | "end" | undefined;
+    /** Whether the view follows items added at the end while it is at the end. */
+    readonly followOnAppend?: boolean | ScrollBehavior | undefined;
+    /** The distance from the end that still counts as at the end, in pixels. */
+    readonly scrollEndThreshold?: number | undefined;
+    /** The size the scrolling element is taken to have before it is measured. */
+    readonly initialRect?: VirtualRect | undefined;
+    /** The scroll position at first, in pixels. */
+    readonly initialOffset?: number | undefined;
+    /** The measurements of an earlier virtualizer, from its snapshot. */
+    readonly initialMeasurements?: readonly VirtualItem[];
+    /** Report whether the virtualizer measures and renders, true by default. */
+    readonly isEnabled?: Accessor<boolean>;
+    /** The direction a horizontal list's text runs in, left to right by default. */
+    readonly direction?: Accessor<Direction>;
 }
 
-/** The items of a long list a virtualizer renders and the room they take. */
-export interface Virtualizer {
-    /** Read the items in or near the visible range. */
-    readonly getVirtualItems: Accessor<readonly virtual.VirtualItem[]>;
-    /** Read the height of every item together, in pixels. */
-    readonly getTotalSize: Accessor<number>;
-    /** Measure a rendered item's element, which holds its index in `data-index`. */
-    readonly measureElement: (element: Element | undefined) => void;
+/** The items of a long list in view as it scrolls, after TanStack Virtual. */
+export class Virtualizer {
+    /** The axis the items run along. */
+    readonly orientation: Axis;
+    /** The number of lanes across the scroll. */
+    readonly lanes: Accessor<number>;
+    /** The engine. */
+    readonly #core:
+        | virtual.Virtualizer<HTMLElement, Element>
+        | virtual.Virtualizer<Window, Element>;
+    /** Count each change the engine reports. */
+    readonly #revision: Accessor<number>;
+    /** The engine's settings, given to it as they change. */
+    readonly #settings: Accessor<ReturnType<typeof settingsOf>>;
+    /** Replace the engine's settings. */
+    readonly #update: (settings: ReturnType<typeof settingsOf>) => void;
+
+    /** Follow which items are in view as their element or the window scrolls. */
+    constructor(options: VirtualizerOptions) {
+        // count each change the engine reports
+        const [revision, setRevision] = createSignal(0, { ownedWrite: true });
+        this.#revision = revision;
+        this.orientation = options.orientation ?? "vertical";
+        this.lanes = options.lanes ?? (() => 1);
+        const shared = {
+            ...untrack(() => settingsOf(options)),
+            measureElement: virtual.measureElement,
+            onChange: () => setRevision((count) => count + 1),
+        };
+
+        // scroll an element where one is given, the window otherwise
+        const scrollElement = options.scrollElement;
+        if (scrollElement === undefined) {
+            const core = new virtual.Virtualizer<Window, Element>({
+                ...shared,
+                getScrollElement: () => (typeof window === "undefined" ? null : window),
+                observeElementRect: virtual.observeWindowRect,
+                observeElementOffset: virtual.observeWindowOffset,
+                scrollToFn: virtual.windowScroll,
+            });
+            this.#core = core;
+            this.#update = (settings) => core.setOptions({ ...core.options, ...settings });
+        } else {
+            const core = new virtual.Virtualizer<HTMLElement, Element>({
+                ...shared,
+                getScrollElement: () => untrack(scrollElement) ?? null,
+                observeElementRect: virtual.observeElementRect,
+                observeElementOffset: virtual.observeElementOffset,
+                scrollToFn: virtual.elementScroll,
+            });
+            this.#core = core;
+            this.#update = (settings) => core.setOptions({ ...core.options, ...settings });
+        }
+
+        // give the engine its settings as they change, before the items render from them
+        this.#settings = createMemo(() => {
+            const settings = settingsOf(options);
+            untrack(() => this.#update(settings));
+
+            return settings;
+        });
+
+        // attach to the scrolling element and place the scroll once the items have rendered
+        createEffect(
+            () => ({ settings: this.#settings(), element: scrollElement?.() }),
+            () => untrack(() => this.#core._willUpdate()),
+        );
+        onCleanup(this.#core._didMount());
+    }
+
+    /** Follow the engine's settings and each change it reports. */
+    #read(): void {
+        this.#settings();
+        this.#revision();
+    }
+
+    /** Read the items in or near view. */
+    items(): readonly VirtualItem[] {
+        this.#read();
+
+        return this.#core.getVirtualItems();
+    }
+
+    /** Read the size of every item together, in pixels. */
+    totalSize(): number {
+        this.#read();
+
+        return this.#core.getTotalSize();
+    }
+
+    /** Read the room the items in view leave before and after them, in pixels. */
+    spacers(): { readonly before: number; readonly after: number } {
+        // leave every item's room after a view without items
+        const items = this.items();
+        const first = items[0];
+        const last = items.at(-1);
+        if (first === undefined || last === undefined) {
+            return { before: 0, after: this.totalSize() };
+        }
+
+        // measure from the first item's start, past the room before the list
+        const margin = this.#settings().scrollMargin;
+
+        return { before: first.start - margin, after: this.totalSize() - (last.end - margin) };
+    }
+
+    /** Read the first and last index in view, none before the first measurement. */
+    range(): { readonly startIndex: number; readonly endIndex: number } | undefined {
+        this.#read();
+
+        return this.#core.range ?? undefined;
+    }
+
+    /** Report whether the list scrolls right now. */
+    isScrolling(): boolean {
+        this.#read();
+
+        return this.#core.isScrolling;
+    }
+
+    /** Read the scroll position, in pixels, none before the first measurement. */
+    scrollOffset(): number | undefined {
+        this.#read();
+
+        return this.#core.scrollOffset ?? undefined;
+    }
+
+    /** Read the way the list last scrolled, none before it scrolled. */
+    scrollDirection(): "forward" | "backward" | undefined {
+        this.#read();
+
+        return this.#core.scrollDirection ?? undefined;
+    }
+
+    /** Read the distance from the view's end to the list's end, in pixels. */
+    distanceFromEnd(): number {
+        this.#read();
+
+        return this.#core.getDistanceFromEnd();
+    }
+
+    /** Report whether the view is at the list's end, within a threshold in pixels. */
+    isAtEnd(threshold?: number): boolean {
+        this.#read();
+
+        return this.#core.isAtEnd(threshold);
+    }
+
+    /** Read the item at a scroll position. */
+    itemAt(offset: number): VirtualItem | undefined {
+        return this.#core.getVirtualItemForOffset(offset);
+    }
+
+    /** Read the scroll position that shows an item, none for an index out of range. */
+    offsetOf(index: number, align: ScrollAlignment = "auto"): number | undefined {
+        return this.#core.getOffsetForIndex(index, align)?.[0];
+    }
+
+    /** Read the attributes a rendered item's element spreads, which measure it. */
+    itemAttributes(item: VirtualItem) {
+        return {
+            "data-index": item.index,
+            ref: (element: Element) => {
+                // mark the element before measuring it, as its attributes land after its reference
+                element.setAttribute("data-index", String(item.index));
+                this.measure(element);
+            },
+        };
+    }
+
+    /** Measure a rendered item's element, which has its index in `data-index`. */
+    measure(element: Element): void {
+        this.#core.measureElement(element);
+    }
+
+    /** Set the size of an item, in pixels. */
+    resize(index: number, size: number): void {
+        this.#core.resizeItem(index, size);
+    }
+
+    /** Forget every measurement, so each item is measured again. */
+    remeasure(): void {
+        this.#core.measure();
+    }
+
     /** Scroll an item into view. */
-    readonly scrollToIndex: (index: number) => void;
+    scrollToIndex(index: number, options: ScrollOptions = {}): void {
+        this.#core.scrollToIndex(index, { align: "auto", ...options });
+    }
+
+    /** Scroll to a position, in pixels. */
+    scrollToOffset(offset: number, options: ScrollOptions = {}): void {
+        this.#core.scrollToOffset(offset, options);
+    }
+
+    /** Scroll by a distance, in pixels. */
+    scrollBy(delta: number, behavior?: ScrollBehavior): void {
+        this.#core.scrollBy(delta, behavior === undefined ? {} : { behavior });
+    }
+
+    /** Scroll to the list's end. */
+    scrollToEnd(behavior?: ScrollBehavior): void {
+        this.#core.scrollToEnd(behavior === undefined ? {} : { behavior });
+    }
+
+    /** Stop a scroll under way. */
+    cancelScroll(): void {
+        this.#core.cancelScroll();
+    }
+
+    /** Read the measured items, which a later virtualizer takes as its initial measurements. */
+    snapshot(): readonly VirtualItem[] {
+        return this.#core.takeSnapshot();
+    }
 }
 
-/** Follow which items of a long list are in view as its element scrolls, so only those render. */
-export function createVirtualizer(options: VirtualizerOptions): Virtualizer {
-    // count each change the virtualizer reports
-    const [revision, setRevision] = createSignal(0, { ownedWrite: true });
-    const virtualizer = new virtual.Virtualizer<HTMLElement, Element>({
-        count: untrack(options.count),
-        estimateSize: options.estimateSize,
-        getScrollElement: () => untrack(options.getScrollElement) ?? null,
-        overscan: OVERSCAN,
-        ...(options.initialRect === undefined ? {} : { initialRect: options.initialRect }),
-        measureElement: virtual.measureElement,
-        observeElementRect: virtual.observeElementRect,
-        observeElementOffset: virtual.observeElementOffset,
-        scrollToFn: virtual.elementScroll,
-        onChange: () => setRevision((count) => count + 1),
-    });
-
-    // follow the item count and attach to the scrolling element once it exists
-    createEffect(
-        () => ({ count: options.count(), element: options.getScrollElement() }),
-        ({ count, element }) => {
-            // take the count and wait for the element before measuring
-            virtualizer.setOptions({ ...virtualizer.options, count });
-            if (element === undefined) {
-                return undefined;
-            }
-            const detach = virtualizer._didMount();
-            virtualizer._willUpdate();
-
-            return detach;
-        },
-    );
-
+/** Read the engine's settings from a virtualizer's options as they stand. */
+function settingsOf(options: VirtualizerOptions) {
     return {
-        getVirtualItems: () => {
-            revision();
-
-            return virtualizer.getVirtualItems();
-        },
-        getTotalSize: () => {
-            revision();
-
-            return virtualizer.getTotalSize();
-        },
-        measureElement: (element) => {
-            if (element !== undefined) {
-                virtualizer.measureElement(element);
-            }
-        },
-        scrollToIndex: (index) => virtualizer.scrollToIndex(index, { align: "auto" }),
+        count: options.count(),
+        estimateSize: options.estimateSize,
+        horizontal: options.orientation === "horizontal",
+        lanes: options.lanes?.() ?? 1,
+        laneAssignmentMode: options.laneAssignment ?? "estimate",
+        gap: options.gap ?? 0,
+        overscan: options.overscan ?? OVERSCAN,
+        getItemKey: options.itemKey?.() ?? virtual.defaultKeyExtractor,
+        rangeExtractor: options.rangeExtractor ?? virtual.defaultRangeExtractor,
+        paddingStart: options.paddingStart ?? 0,
+        paddingEnd: options.paddingEnd ?? 0,
+        scrollPaddingStart: options.scrollPaddingStart ?? 0,
+        scrollPaddingEnd: options.scrollPaddingEnd ?? 0,
+        scrollMargin: options.scrollMargin?.() ?? 0,
+        anchorTo: options.anchorTo ?? "start",
+        followOnAppend: options.followOnAppend ?? false,
+        enabled: options.isEnabled?.() ?? true,
+        isRtl: options.direction?.() === "rtl",
+        ...(options.scrollEndThreshold === undefined
+            ? {}
+            : { scrollEndThreshold: options.scrollEndThreshold }),
+        ...(options.initialRect === undefined ? {} : { initialRect: options.initialRect }),
+        ...(options.initialOffset === undefined ? {} : { initialOffset: options.initialOffset }),
+        ...(options.initialMeasurements === undefined
+            ? {}
+            : { initialMeasurementsCache: [...options.initialMeasurements] }),
     };
 }
