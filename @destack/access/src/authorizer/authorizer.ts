@@ -14,9 +14,10 @@ import {
     type Row,
     type Select,
     type Visibility,
+    ReadSet,
 } from "@destack/db";
 import { PackageId } from "@destack/package";
-import { Identifier, type UuidEnvironment, schema, zip } from "@destack/schema";
+import { canonicalize, Identifier, type UuidEnvironment, schema, zip } from "@destack/schema";
 import {
     Replica,
     replicaKey,
@@ -67,6 +68,9 @@ import type { Environment } from "@destack/environment";
 import { TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
 
+/** The resolved accesses kept per database: a few per active caller and scope, about 1 KB each. */
+const KEPT_ACCESSES = 4096;
+
 /** The identifier of a wildcard subject, matching every identity of its type. */
 const WILDCARD = "*";
 
@@ -99,6 +103,20 @@ export interface ChainStep {
     readonly relations: readonly string[];
     /** The containment set the permission allows, limited to some principal types when given. */
     readonly contained?: { readonly principals?: readonly ObjectTypeReference[] };
+}
+
+/** A resolved access kept for later calls, current while its tables stay at their versions. */
+interface KeptAccess {
+    /** The access, bound again to each later call. */
+    readonly access: Access;
+    /** The SQL names of the tables its resolution read. */
+    readonly tables: readonly string[];
+    /** The commit version of each table when it resolved. */
+    readonly versions: readonly number[];
+    /** The rows and scans its resolution read, added to each later call's reads. */
+    readonly reads: ReadSet;
+    /** The time a subject set, role or elevation it read changes, absent for never. */
+    readonly until: number | undefined;
 }
 
 /** The parameters of a chain replica: the target's chain, its types, and the outside scopes. */
@@ -151,6 +169,10 @@ export class Authorizer {
     readonly decidingTables: readonly Table[];
     /** The subject sets that relations accept and roles may bind to. */
     readonly memberships: SubjectType[];
+    /** The canonical form of each caller list a key wrote, by list. */
+    readonly #lists = new WeakMap<readonly unknown[], string>();
+    /** The resolved accesses kept per database connection, by caller, scope and links. */
+    readonly #accesses = new WeakMap<DatabaseConnection["state"], Map<string, KeptAccess>>();
     /** The permissions accepted as subject sets, by the type and relation of each relationship. */
     readonly #implied: Map<string, string[]>;
     /** The permissions accepted as sets on enclosed scopes, by enclosing type and permission. */
@@ -278,6 +300,11 @@ export class Authorizer {
 
         // require every declared relation of a mapped type to decide a permission
         this.#requireDeciding(types, sets);
+    }
+
+    /** The tables of the mapped types, whose rows the policies' conditions and relations read. */
+    get mappedTables(): readonly Table[] {
+        return [...new Set([...this.#mappings.values()].map((mapping) => mapping.table))];
     }
 
     /** Add a contributing type to each open relation it references. */
@@ -1454,16 +1481,126 @@ export class Authorizer {
     }
 
     /** Resolve a caller in a scope inside its transaction: subject sets, scope chain and roles. */
-    resolve(
+    async resolve(
         snapshot: Snapshot,
         scope: string,
         context: AccessContext,
         links?: readonly ScopeLink[],
         assumed?: number,
     ): Promise<Access> {
-        return this.scope(snapshot.database).span("destack.access.resolve", {}, () =>
-            Access.resolve(snapshot, scope, context, this, links, assumed),
+        // resolve at a position, or while the watch misses commits, every time
+        const { database } = snapshot;
+        const { commits } = database.state;
+        if (snapshot.position !== undefined || !commits.isComplete) {
+            return Access.resolve(snapshot, scope, context, this, links, assumed);
+        }
+
+        // bind a kept access no commit or write changed since, before its expiry, adding its reads
+        const kept = this.#kept(database.state);
+        const key = this.#keyOf(scope, context, links, assumed ?? 0);
+        const known = kept.get(key);
+        const isCurrent =
+            known !== undefined &&
+            Number.isFinite(context.now) &&
+            (known.until === undefined || context.now < known.until) &&
+            zip(commits.versions(known.tables), known.versions).every(
+                ([version, read]) => version === read,
+            ) &&
+            !(await snapshot.isWritten(new Set(known.tables)));
+        if (known !== undefined && isCurrent) {
+            // require the chain's access replicas live on the clock, then add the reads
+            const chain = known.access.scopes.map((link) => link.id);
+            await Access.requireLive(database, chain, this.lag);
+            snapshot.reads?.add(known.reads);
+
+            return known.access.at(context);
+        }
+
+        // resolve recording its tables and reads, adding the reads to the snapshot's
+        const tables = new Set<string>();
+        const reads = new ReadSet();
+        const generation = commits.generation;
+        const access = await Access.resolve(
+            snapshot.tracking(tables).recording(reads),
+            scope,
+            context,
+            this,
+            links,
+            assumed,
         );
+        snapshot.reads?.add(reads);
+
+        // keep it once no commit came meanwhile and the snapshot wrote none of its tables
+        const read = [...tables];
+        if (
+            generation === commits.generation &&
+            read.every((table) => commits.isVersioned(table)) &&
+            !(await snapshot.isWritten(tables))
+        ) {
+            kept.delete(key);
+            kept.set(key, {
+                access,
+                tables: read,
+                versions: commits.versions(read),
+                reads,
+                until: access.until,
+            });
+            for (const oldest of kept.keys()) {
+                if (kept.size <= KEPT_ACCESSES) {
+                    break;
+                }
+                kept.delete(oldest);
+            }
+        }
+
+        return access;
+    }
+
+    /** Key a resolution by its inputs apart from time, each list of the caller written once. */
+    #keyOf(
+        scope: string,
+        context: AccessContext,
+        links: readonly ScopeLink[] | undefined,
+        assumed: number,
+    ): string {
+        // write the caller's lists once per list, which every call of a session shares
+        const { subject, actors, groups, contacts, grants, credential, linkSecrets, attributes } =
+            context;
+        const lists = [actors, groups, contacts, grants, linkSecrets].map((list) =>
+            this.#written(list),
+        );
+
+        return canonicalize({
+            scope,
+            subject,
+            lists,
+            credential: credential ?? null,
+            attributes,
+            approvers: context.approvers ?? null,
+            links: links?.map((link) => ({ ...link, movedTo: link.movedTo ?? null })) ?? null,
+            assumed,
+        });
+    }
+
+    /** Write a list canonically once per list. */
+    #written(list: readonly unknown[]): string {
+        // reuse the list's canonical form, else write it once
+        const known = this.#lists.get(list);
+        if (known !== undefined) {
+            return known;
+        }
+        const written = canonicalize(list);
+        this.#lists.set(list, written);
+
+        return written;
+    }
+
+    /** Read the accesses kept for a database's connection, made on first use. */
+    #kept(state: DatabaseConnection["state"]): Map<string, KeptAccess> {
+        const known = this.#accesses.get(state) ?? new Map<string, KeptAccess>();
+        this.#accesses.set(state, known);
+
+        return known;
     }
 
     /** Read the telemetry scope of the environment a database runs in, made once per telemetry. */
@@ -1485,9 +1622,7 @@ export class Authorizer {
         access: Access,
         source?: Table,
     ): Promise<SQL> {
-        return this.scope(snapshot.database).span("destack.access.lookup", {}, () =>
-            new Lookup(this, snapshot, access).where(permission, source),
-        );
+        return new Lookup(this, snapshot, access).where(permission, source);
     }
 
     /** Show a permission's rows to a caller: candidates in SQL, each decided by its tuple tree. */
@@ -1517,31 +1652,7 @@ export class Authorizer {
         access: Access,
         reader?: Reader,
     ): Promise<Decision> {
-        // decide in the check's span, its duration by the decision
-        const attributes = {
-            "destack.object.type": permission.type,
-            "destack.access.permission": permission.name,
-        };
-        let decision: Decision | undefined;
-        const decided = () =>
-            decision === undefined
-                ? attributes
-                : {
-                      ...attributes,
-                      "destack.access.decision": decision.isAllowed ? "allowed" : "denied",
-                  };
-
-        return this.scope(snapshot.database).span(
-            "destack.access.check",
-            attributes,
-            async (span) => {
-                decision = await this.#check(snapshot, permission, target, access, reader);
-                span.setAttributes(decided());
-
-                return decision;
-            },
-            { duration: { attributes: decided } },
-        );
+        return this.#check(snapshot, permission, target, access, reader);
     }
 
     /** Decide a permission on one object from its row and tuple tree. */
@@ -1892,9 +2003,7 @@ export class Authorizer {
         reader = this.reader(snapshot, access.scopes),
         below: ReadonlyMap<string, Access> = new Map(),
     ): Promise<RowAccess> {
-        return this.scope(snapshot.database).span("destack.access.filter", {}, () =>
-            this.#checkRows(snapshot, permission, access, rows, reader, below),
-        );
+        return this.#checkRows(snapshot, permission, access, rows, reader, below);
     }
 
     /** Decide each row's permission by the caller's access in its scope and its grant tree. */

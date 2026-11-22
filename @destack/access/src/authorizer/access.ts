@@ -73,6 +73,8 @@ export class Access {
     readonly #authorizer: Authorizer;
     /** The scope and every scope enclosing it, nearest first. */
     readonly #links: readonly ScopeLink[];
+    /** What the resolution read, which a later call at another time binds again. */
+    readonly #resolved: ConstructorParameters<typeof Access>[1];
 
     /** Assemble a resolved caller from what its resolution read. */
     constructor(
@@ -93,6 +95,7 @@ export class Access {
     ) {
         // retain what the resolution read
         this.#authorizer = authorizer;
+        this.#resolved = resolved;
         this.scope = resolved.scope;
         this.context = resolved.context;
         this.permissions = resolved.permissions;
@@ -206,7 +209,7 @@ export class Access {
         // read the subject sets of the caller with their containing scopes, beside the chain's roles
         const [, represented, chained] = await Promise.all([
             snapshot.position === undefined
-                ? Access.#requireLive(snapshot.database, chain, authorizer.lag)
+                ? Access.requireLive(snapshot.database, chain, authorizer.lag)
                 : undefined,
             Access.#represented(snapshot, context, scopes, authorizer).then((sets) =>
                 Access.expand(snapshot, sets, context, authorizer, scopes),
@@ -256,6 +259,17 @@ export class Access {
         });
     }
 
+    /** Bind the resolved access to another call of the same caller, at its time. */
+    at(context: AccessContext): Access {
+        const { now } = context;
+
+        return new Access(this.#authorizer, {
+            ...this.#resolved,
+            context,
+            approvers: this.#approvers.map((approver) => approver.at({ ...approver.context, now })),
+        });
+    }
+
     /** List the caller's represented subjects: itself, its contacts, and their scopes' sets. */
     static async #represented(
         snapshot: Snapshot,
@@ -293,7 +307,7 @@ export class Access {
                 ids.map((id) => [id]),
             ),
             snapshot.position === undefined
-                ? Access.#requireLive(snapshot.database, ids, this.#authorizer.lag)
+                ? Access.requireLive(snapshot.database, ids, this.#authorizer.lag)
                 : undefined,
         ]);
         const defined = new Set(defining.map((row) => row.scope));
@@ -720,7 +734,7 @@ export class Access {
     }
 
     /** Refuse a chain whose access replica stays stale for a lag, waiting for its next page. */
-    static async #requireLive(
+    static async requireLive(
         database: DatabaseConnection,
         chain: readonly string[],
         lag: number,
