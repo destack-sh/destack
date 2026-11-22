@@ -1,4 +1,4 @@
-import { BlobStore } from "@destack/db";
+import { blobTable } from "@destack/db";
 import { testSimulation } from "@destack/test/world";
 import { present, Uuid } from "@destack/schema";
 import { createHash } from "node:crypto";
@@ -511,8 +511,8 @@ test("share a bucket between two processes, sweeping only once the other closes 
     const isSwept = await bucket.sweep();
     const leases = await bucket
         .database()
-        .database.select({ until: BlobStore.table.leasedUntil })
-        .from(BlobStore.table);
+        .database.select({ until: blobTable.leasedUntil })
+        .from(blobTable);
     await collectLater(simulation, bucket, Math.max(...leases.map(({ until }) => until)));
     const blobs = (await world.files.readDirectory(join(directory, "files")))
         .map((entry) => entry.name)

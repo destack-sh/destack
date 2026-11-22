@@ -2,7 +2,7 @@ import { nth } from "@destack/schema";
 import { BucketError } from "../error/index.ts";
 import type { segment } from "./stack/index.ts";
 import type { CustomerKey } from "./encryption.ts";
-import type { BlobStore } from "@destack/db";
+import type { BlobStore } from "@destack/db/database";
 
 /** One blob of a stored file, its nonce and its length. */
 export type Segment = Pick<typeof segment.$inferSelect, "blob" | "nonce" | "size">;

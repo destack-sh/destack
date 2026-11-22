@@ -1,4 +1,5 @@
-import type { DatabaseConnection, Table } from "@destack/db";
+import type { Table } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import type { LeaseMode } from "@destack/resource";
 import type { Identifier } from "@destack/schema";
 import { BucketError } from "../error/index.ts";

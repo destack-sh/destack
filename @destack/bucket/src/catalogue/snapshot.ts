@@ -1,4 +1,4 @@
-import { type BlobStore, DatabaseHandle } from "@destack/db";
+import { type BlobStore, DatabaseHandle } from "@destack/db/database";
 import type { ContentStore } from "@destack/resource";
 import type {} from "@destack/package/import-meta";
 import { canonicalize, Digest, schema } from "@destack/schema";

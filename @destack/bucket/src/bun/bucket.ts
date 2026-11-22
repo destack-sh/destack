@@ -1,5 +1,5 @@
 import { dirname, isAbsolute, join } from "node:path";
-import { BlobStore } from "@destack/db";
+import { BlobStore } from "@destack/db/database";
 import { connectBunSqlite } from "@destack/db/bun";
 import type { SqliteDatabase } from "@destack/db/sqlite";
 import type { Environment, FileLock, FileSystem } from "@destack/environment";

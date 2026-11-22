@@ -4,17 +4,17 @@ import { type Attributes, TelemetryScope } from "@destack/telemetry";
 import {
     and,
     asc,
-    type DatabaseConnection,
     eq,
     gt,
     gte,
     lt,
     lte,
-    type DatabaseHandle,
     defineDatabase,
     type SQL,
     type Table,
+    BLOB_TABLES,
 } from "@destack/db";
+import type { DatabaseConnection, DatabaseHandle, BlobStore } from "@destack/db/database";
 import {
     BucketEntry,
     type BucketListOptions,
@@ -26,7 +26,6 @@ import { BucketError } from "../error/index.ts";
 import { file, part, segment, upload } from "./stack/index.ts";
 import { CatalogueFile } from "./file.ts";
 import type { Segment } from "./reader.ts";
-import { BLOB_TABLES, type BlobStore } from "@destack/db";
 
 /** The file columns a listing reads. */
 const LISTING_COLUMNS = {

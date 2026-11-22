@@ -1,4 +1,5 @@
-import { BlobStore, type Table } from "@destack/db";
+import type { Table } from "@destack/db";
+import { BlobStore } from "@destack/db/database";
 import type {} from "@destack/package/import-meta";
 import { TelemetryScope } from "@destack/telemetry";
 import type { DurableObjectDatabaseHost } from "@destack/db/cloudflare";
