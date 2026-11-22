@@ -8,10 +8,15 @@ const JITTER_VARIABLE = "DESTACK_SIMULATION_JITTER";
 /** The variable that prints each world's span tree and histograms as it ends, when `tree`. */
 const TELEMETRY_VARIABLE = "DESTACK_TELEMETRY";
 
+/** The variable that records where each world's work began, listed in its failures, when `1`. */
+export const SITES_VARIABLE = "DESTACK_SIMULATION_SITES";
+
 /** The options a run gives every world: jitter, and what each prints and exports as it ends. */
 export class WorldOptions {
     /** Whether real work settles after a seeded random real delay, exposing untracked real work. */
     readonly isJittered: boolean;
+    /** Whether each work records where it began, which the world's failures list. */
+    readonly isRecordingSites: boolean;
     /** The stream a world's readback goes to, absent when the run asks for none. */
     readonly #readback: Process["stderr"] | undefined;
     /** Post a world's host spans as it ends, absent when the run asks for no export. */
@@ -20,11 +25,13 @@ export class WorldOptions {
     /** Take the options, which only a run's process gives. */
     private constructor(
         isJittered: boolean,
+        isRecordingSites: boolean,
         readback: Process["stderr"] | undefined,
         exported: ((spans: readonly ReadableSpan[]) => Promise<void>) | undefined,
     ) {
-        // set the jitter, the readback and the export
+        // set the jitter, the sites, the readback and the export
         this.isJittered = isJittered;
+        this.isRecordingSites = isRecordingSites;
         this.#readback = readback;
         this.#exported = exported;
     }
@@ -38,6 +45,7 @@ export class WorldOptions {
 
         return new WorldOptions(
             variables[JITTER_VARIABLE] === "1",
+            variables[SITES_VARIABLE] === "1",
             variables[TELEMETRY_VARIABLE] === "tree" ? process.stderr : undefined,
             exported,
         );

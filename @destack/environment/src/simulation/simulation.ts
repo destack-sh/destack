@@ -365,6 +365,7 @@ export class Simulation {
             isOrdered: true,
             world: this,
             ...(options.world.isJittered ? { jitter: options.seed } : {}),
+            isRecordingSites: options.world.isRecordingSites,
             ...(options.isTracing === true ? { telemetry: this.telemetry } : {}),
         });
         this.network = new SimulatedNetwork(this.clock, this.scheduler, this.random, (event) =>

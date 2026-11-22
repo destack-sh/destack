@@ -6,6 +6,7 @@ import { recordSpanException } from "../telemetry/exception.ts";
 import type { Telemetry } from "../telemetry/telemetry.ts";
 import type { RunOptions, Scheduler } from "./scheduler.ts";
 import type { Simulation } from "../simulation/simulation.ts";
+import { SITES_VARIABLE } from "../simulation/options.ts";
 
 /** The instrumentation scope of a world's spans and log records. */
 export const SIMULATION_SCOPE = "destack.simulation";
@@ -22,8 +23,8 @@ interface Flight {
     readonly kind: WorkKind;
     /** Whether an operation may run long, as a compile or a remote request. */
     readonly isLong: boolean;
-    /** Where it began, as an error whose stack is read only when listed. */
-    readonly began: Error;
+    /** Where it began, as an error whose stack is read only when listed, absent unless recorded. */
+    readonly began: Error | undefined;
     /** Whether it settled, its completion waiting for the loop. */
     isSettled: boolean;
 }
@@ -42,6 +43,8 @@ interface Completion {
 export class SimulatedScheduler implements Scheduler {
     /** Whether a loop completes settled operations, instead of completing them at once. */
     #isOrdered: boolean;
+    /** Whether each work records where it began, which the world's failures list. */
+    readonly #isRecordingSites: boolean;
     /** The work in flight. */
     readonly #flights = new Set<Flight>();
     /** The operations in flight, not completed yet. */
@@ -78,6 +81,8 @@ export class SimulatedScheduler implements Scheduler {
     /** Schedule a world's work, completing operations in order when ordered, traced as asked. */
     constructor(options: {
         readonly isOrdered: boolean;
+        /** Whether each work records where it began, for failures to list, as tracing does too. */
+        readonly isRecordingSites?: boolean;
         readonly telemetry?: Telemetry;
         readonly world?: Simulation;
         /** The seed delaying each real work's settling by a real random time, absent for none. */
@@ -85,6 +90,8 @@ export class SimulatedScheduler implements Scheduler {
     }) {
         // keep the options, leaving the failure unhandled until a wait races it
         this.#isOrdered = options.isOrdered;
+        this.#isRecordingSites =
+            options.isRecordingSites === true || options.telemetry !== undefined;
         this.#jitter = options.jitter;
         this.#telemetry = options.telemetry;
         this.world = options.world;
@@ -333,7 +340,12 @@ export class SimulatedScheduler implements Scheduler {
 
     /** Begin a flight of work, noting where it began. */
     #flight(kind: WorkKind, isLong: boolean): Flight {
-        return { kind, isLong, began: new Error(kind), isSettled: false };
+        return {
+            kind,
+            isLong,
+            began: this.#isRecordingSites ? new Error(kind) : undefined,
+            isSettled: false,
+        };
     }
 
     /** Keep a settled operation for the loop to complete, or complete it at once without a loop. */
@@ -422,7 +434,7 @@ export class SimulatedScheduler implements Scheduler {
     /** Open a span for work while tracing, under the active span, returning its end. */
     #span(
         kind: WorkKind,
-        began: Error,
+        began: Error | undefined,
     ): ((failure?: { readonly error: unknown }) => void) | undefined {
         // trace nothing without telemetry
         const telemetry = this.#telemetry;
@@ -463,7 +475,9 @@ export class SimulatedScheduler implements Scheduler {
     }
 
     /** Read where work began, as its caller's stack frames. */
-    static #site(began: Error): string {
-        return (began.stack ?? "").split("\n").slice(2, 8).join(" < ");
+    static #site(began: Error | undefined): string {
+        return began === undefined
+            ? `at a site the world did not record: replay the seed with ${SITES_VARIABLE}=1`
+            : (began.stack ?? "").split("\n").slice(2, 8).join(" < ");
     }
 }
