@@ -108,7 +108,7 @@ async function readList<Value>(
         view.database.state === execution.store.database.state &&
         execution.transaction.changes.writes("every") === 0;
     if (isCommitted) {
-        const audience = await execution.store.audience(call.scope, call.caller);
+        const audience = await execution.store.audience(call.scope, execution.authorization);
 
         return execution.store.feed.read(
             { list: compiled },

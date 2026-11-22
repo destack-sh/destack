@@ -44,6 +44,9 @@ import type { ObjectStore } from "./store.ts";
 /** The columns that store a row's parent. */
 const PARENT_COLUMNS = ["parentPackageId", "parentType", "parentId"] as const;
 
+/** What a guard conceals from a reader: whole rows from a replica, guarded fields from a call. */
+type Concealment = "rows" | "fields";
+
 /** The audience access decides: a reader's rows of a scope's objects. */
 export class AccessAudience implements Audience {
     /** The store serving the objects. */
@@ -70,6 +73,8 @@ export class AccessAudience implements Audience {
     #decided: LogPosition | undefined;
     /** Whether the subscriber has every row by containing the scope, deciding guarded fields. */
     readonly #isContained: boolean;
+    /** What the guard conceals from the reader: whole rows, or guarded fields. */
+    readonly #concealment: Concealment;
     /** The scopes below the followed one whose access decided rows. */
     readonly #below = new Set<string>();
     /** The scopes an outside follower replicates via, with the rows deciding its replication. */
@@ -88,6 +93,7 @@ export class AccessAudience implements Audience {
         decided: LogPosition | undefined,
         isContained: boolean,
         via: readonly Relay[],
+        concealment: Concealment,
     ) {
         // set the inputs and watch access
         this.#store = store;
@@ -103,6 +109,7 @@ export class AccessAudience implements Audience {
         this.#decided = decided;
         this.#isContained = isContained;
         this.#via = via;
+        this.#concealment = concealment;
         this.watches = this.#watched();
     }
 
@@ -157,6 +164,7 @@ export class AccessAudience implements Audience {
             decided,
             isContained,
             via,
+            "rows",
         );
     }
 
@@ -180,6 +188,7 @@ export class AccessAudience implements Audience {
             decided,
             false,
             [],
+            "fields",
         );
     }
 
@@ -282,6 +291,7 @@ export class AccessAudience implements Audience {
             subjects: access.authority.subjects.map((subject) => Subject.key(subject)).toSorted(),
             chain: access.chainKey,
             decided: this.#decided?.sequence ?? null,
+            concealment: this.#concealment,
         });
 
         return this.#key;
@@ -629,9 +639,11 @@ export class AccessAudience implements Audience {
         // read the query's permission
         const required = permission === undefined ? undefined : object.permission(permission);
 
-        // list a guarded type's rows under its guard, as a replica stores rows whole
+        // list a guarded type under its guard for a replica, which stores rows whole
         const listing =
-            object.guard === undefined ? object.listing : object.permission(object.guard.read);
+            object.guard === undefined || this.#concealment === "fields"
+                ? object.listing
+                : object.permission(object.guard.read);
 
         return { object, listing, required };
     }
