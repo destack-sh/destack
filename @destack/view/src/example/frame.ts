@@ -76,8 +76,12 @@ export function renderExample<Properties extends object>(
     for (const [name, value] of Object.entries(style)) {
         container.style.setProperty(name, value);
     }
+
+    // size the frame to the width given, or let a centred example's elements take their own widths
     if (given.width !== undefined) {
         container.style.width = `${given.width}px`;
+    } else if (frame.example.layout === "centered") {
+        container.style.display = "contents";
     }
     element.append(container);
 

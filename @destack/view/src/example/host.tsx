@@ -160,14 +160,8 @@ function hostExample(
     let dispose: (() => void) | undefined;
     void loadExample(location).then((example) => {
         // lay the page out as the example declares, and render it
-        element.className = style.attrs(styles.page, styles[example.layout]).class ?? "";
+        element.className = style.attrs(text.sm, styles.page, styles[example.layout]).class ?? "";
         dispose = renderExample(element, { example, globals: query.globals, theme }, environment);
-
-        // give a centred example's elements their own widths
-        const container = element.querySelector(":scope > [data-slot=example]");
-        if (container instanceof HTMLElement && example.layout === "centered") {
-            container.style.display = "contents";
-        }
     });
 
     return () => dispose?.();
@@ -342,7 +336,7 @@ function queryOf(url: URL): Query {
     return Query.parse({
         ...entries(["theme", "radius"]),
         globals: {
-            theme: entries(["appearance", "density"]),
+            theme: entries(["appearance", "density", "textSize", "motion", "accent"]),
             ...entries(["locale"]),
             ...(pixels === undefined ? {} : { width: Number(pixels) }),
         },
