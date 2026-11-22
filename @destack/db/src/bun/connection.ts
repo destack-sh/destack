@@ -10,6 +10,15 @@ import type { Model } from "../query/model.ts";
 /** The wait for another process's write lock in milliseconds, far above a write's few. */
 const BUSY_TIMEOUT_MILLISECONDS = 5000;
 
+/** The bytes of a file read through memory maps: 128 MiB, as Rails 8 sets SQLite. */
+const MMAP_BYTES = 134_217_728;
+
+/** The bytes the WAL file truncates to after a checkpoint: 64 MiB, as Rails 8 sets SQLite. */
+const JOURNAL_LIMIT_BYTES = 67_108_864;
+
+/** The pages a connection caches: 2000, as Rails 8 sets SQLite, about 8 MB at 4 KiB pages. */
+const CACHED_PAGES = 2000;
+
 /** Open a SQLite database file or `:memory:`. */
 export async function connectBunSqlite<
     Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
@@ -29,6 +38,10 @@ export async function connectBunSqlite<
                 "journal_mode = WAL",
                 "synchronous = NORMAL",
                 "foreign_keys = ON",
+                `mmap_size = ${MMAP_BYTES}`,
+                `journal_size_limit = ${JOURNAL_LIMIT_BYTES}`,
+                `cache_size = ${CACHED_PAGES}`,
+                "temp_store = MEMORY",
             ]) {
                 database.run(`PRAGMA ${pragma}`);
             }

@@ -74,7 +74,8 @@ export class PostgresPool {
         const open = (closed?: () => void) => {
             const sql: postgres.Sql = postgres(address, {
                 max: 1,
-                prepare: false,
+                // prepare named statements, as Hyperdrive's transaction pooling requires of postgres.js
+                prepare: true,
                 connection: { ...options.settings, search_path: NO_SCHEMA },
                 onnotice: reportNotices(environment.telemetry),
                 onclose: () => {
