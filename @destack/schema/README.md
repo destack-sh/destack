@@ -52,8 +52,8 @@ A schema that is sent or stored allows only rules JSON Schema has, with patterns
 | `identifier(prefix)`, `anyIdentifier()` | accepts an identifier of a prefix, or of any prefix         |
 | `json()`, `jsonObject()`                | accepts any JSON value, or any JSON object                  |
 | `sensitive(schema, sensitivity)`        | marks a `"secret"`, the default, or `"personal"` data       |
-| `redact(schema, value)`                 | drops a value's sensitive fields, for logs                  |
-| `mask(schema, value)`                   | shows a value's personal fields as `****`                   |
+| `new Redaction(schema).redact(value)`   | drops a value's sensitive fields, for logs                  |
+| `new Redaction(schema).mask(value)`     | shows a value's personal fields as `****`                   |
 | `standard()`                            | accepts a Standard Schema, such as one from another library |
 
 ### JSON Schema
@@ -144,9 +144,12 @@ const Call = schema.object({
     token: schema.sensitive(schema.string()),
 });
 
+// find the call's sensitive fields once
+const CallRedaction = new schema.Redaction(Call);
+
 /** Write a call to the log without its sensitive fields. */
 export function logCall(call: schema.Infer<typeof Call>) {
-    console.log(schema.redact(Call, call));
+    console.log(CallRedaction.redact(call));
 }
 ```
 
@@ -219,7 +222,7 @@ Schemas are Zod 4's, with the limits a schema needs to travel as JSON Schema.
 | `z.toJSONSchema`            | `toJsonSchema`                      | Refuses custom refinements, which Zod leaves out of JSON Schema. |
 | none                        | `fromJsonSchema`                    | Turns JSON Schema back into a schema.                            |
 | `z.string().regex(pattern)` | the same                            | Runs on RE2.                                                     |
-| `.meta`, registries         | `sensitive`, `redact`, `mask`       | Marks secrets and personal data.                                 |
+| `.meta`, registries         | `sensitive`, `Redaction`            | Marks secrets and personal data.                                 |
 
 ### Temporal
 

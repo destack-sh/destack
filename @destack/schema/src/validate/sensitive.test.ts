@@ -13,8 +13,7 @@ test("leave out sensitive values through objects, arrays and wrappers, handing e
     // drop each sensitive value, leaving array positions as null
     const found: unknown[] = [];
     expect(
-        schema.redact(
-            login,
+        new schema.Redaction(login).redact(
             { name: "ada", password: "secret", tokens: ["a", "b"], recovery: null },
             (value) => found.push(value),
         ),
@@ -33,12 +32,15 @@ test("map personal values apart from secrets, through the same walk that leaves 
     // seal the personal value and drop the secret
     expect([
         schema.sensitivityOf(call.shape.address),
-        schema.mapSensitive(
-            call,
+        new schema.Redaction(call).map(
             { address: "ada@example.com", token: "t", method: "update" },
             (value, sensitivity) => (sensitivity === "personal" ? { sealed: value } : undefined),
         ),
-        schema.redact(call, { address: "ada@example.com", token: "t", method: "update" }),
+        new schema.Redaction(call).redact({
+            address: "ada@example.com",
+            token: "t",
+            method: "update",
+        }),
     ]).toEqual([
         "personal",
         { address: { sealed: "ada@example.com" }, method: "update" },
@@ -64,10 +66,10 @@ test("mark a copy of a shared schema, leaving the original and its other uses pl
 
     // leave values under the original and drop them under the copy
     const value = { "enduser.email": "ada@example.com" };
-    expect([schema.redact(attributes, value), schema.redact(personal, value)]).toEqual([
-        value,
-        undefined,
-    ]);
+    expect([
+        new schema.Redaction(attributes).redact(value),
+        new schema.Redaction(personal).redact(value),
+    ]).toEqual([value, undefined]);
 });
 
 test("mask the personal values a schema marks at any depth, leaving the shape, secrets and other values", () => {
@@ -86,10 +88,10 @@ test("mask the personal values a schema marks at any depth, leaving the shape, s
 
     // mask each personal value entry by entry, and report the schemas marking any
     expect([
-        schema.marksPersonal(call),
-        schema.marksPersonal(plain),
-        schema.marksPersonal(schema.lazy(() => call)),
-        schema.mask(call, {
+        new schema.Redaction(call).isPersonal,
+        new schema.Redaction(plain).isPersonal,
+        new schema.Redaction(schema.lazy(() => call)).isPersonal,
+        new schema.Redaction(call).mask({
             method: "update",
             context: { address: "ada@example.com" },
             names: ["ada", "grace"],
@@ -136,10 +138,10 @@ test("leave out secrets and mask personal values inside records, tuples, unions 
 
     // report the marks, leave out every sensitive value, and mask only the personal ones
     expect([
-        schema.marksPersonal(settings),
-        schema.marksPersonal(schema.object({ keys: settings.shape.keys })),
-        schema.redact(settings, value),
-        schema.mask(settings, value),
+        new schema.Redaction(settings).isPersonal,
+        new schema.Redaction(schema.object({ keys: settings.shape.keys })).isPersonal,
+        new schema.Redaction(settings).redact(value),
+        new schema.Redaction(settings).mask(value),
     ]).toEqual([
         true,
         false,
@@ -165,13 +167,42 @@ test("mask by every union option a value matches, and refuse a value matching no
 
     // mask the email though the plain option matches first, and refuse a number
     expect([
-        schema.mask(contact, { kind: "email", email: "ada@example.com" }),
+        new schema.Redaction(contact).mask({ kind: "email", email: "ada@example.com" }),
         (() => {
             try {
-                return schema.mask(contact, 1);
+                return new schema.Redaction(contact).mask(1);
             } catch (error) {
                 return error instanceof TypeError ? error.message : "thrown";
             }
         })(),
     ]).toEqual([{ kind: "email", email: "****" }, "a value matches no option of its union"]);
+});
+
+test("leave out secrets at every depth of recursive schemas, through lazy schemas and getters", () => {
+    // declare a tree through a lazy schema and a thread through a getter, each with a secret per node
+    const tree: schema.Schema<{ token: string; children: unknown[] }> = schema.object({
+        token: schema.sensitive(schema.string()),
+        children: schema.array(schema.lazy(() => tree)),
+    });
+    const thread = schema.object({
+        token: schema.sensitive(schema.string()),
+        get reply() {
+            return thread.exactOptional();
+        },
+    });
+    const plain: schema.Schema<{ children: unknown[] }> = schema.object({
+        children: schema.array(schema.lazy(() => plain)),
+    });
+
+    // drop each node's secret, and leave a recursive schema marking nothing as it is
+    const nested = { children: [{ children: [] }] };
+    expect([
+        new schema.Redaction(tree).redact({
+            token: "a",
+            children: [{ token: "b", children: [{ token: "c", children: [] }] }],
+        }),
+        new schema.Redaction(thread).redactFields({ token: "a", reply: { token: "b" } }),
+        new schema.Redaction(plain).redact(nested) === nested,
+        new schema.Redaction(tree).isPersonal,
+    ]).toEqual([{ children: [{ children: [{ children: [] }] }] }, { reply: {} }, true, false]);
 });

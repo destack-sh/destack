@@ -72,17 +72,7 @@ export type { input as Input, output as Output, ZodExactOptional as ExactOptiona
 export type { infer as Infer } from "zod";
 export type { $ZodIssue as Issue } from "zod/v4/core";
 export { flattenError, prettifyError, treeifyError } from "zod";
-export {
-    isSensitive,
-    mapSensitive,
-    marksPersonal,
-    mask,
-    redact,
-    redactFields,
-    sensitive,
-    sensitivityOf,
-    type Sensitivity,
-} from "./sensitive.ts";
+export { isSensitive, Redaction, sensitive, sensitivityOf, type Sensitivity } from "./sensitive.ts";
 export { defined } from "./defined.ts";
 export { isOptional, unwrap } from "./optional.ts";
 export { anyIdentifier, identifier } from "../identifier/identifier.ts";
