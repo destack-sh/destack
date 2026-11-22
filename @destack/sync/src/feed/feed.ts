@@ -512,9 +512,9 @@ export class Feed implements Cache {
         return true;
     }
 
-    /** Read the log's head: the commit watch's position, else a read of the log. */
+    /** Read the log's head. */
     async #head(): Promise<LogPosition> {
-        return this.database.state.commits.position ?? (await this.database.log.position());
+        return await this.database.log.position();
     }
 
     /** Follow one query's items until the signal aborts. */
