@@ -1,6 +1,7 @@
 import { BasicCredential, type Environment } from "@destack/environment";
 import { OriginPath } from "@destack/package";
-import { type DatabaseConnection, eq, Snapshot } from "@destack/db";
+import { eq } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { Digest, schema } from "@destack/schema";
 import { OAuthError } from "../authentication/token.ts";
 import { client, DEVICE_CLIENT_NAME } from "../object/client.ts";
@@ -85,7 +86,8 @@ export class OAuthClient {
     ): Promise<OAuthClient> {
         // read a device's client, accepting one its program has yet to register
         if (client.identifies(clientId)) {
-            const row = await Snapshot.live(database)
+            const row = await database
+                .snapshot()
                 .read(client.table)
                 .findFirst({ where: { id: client.identifier(clientId) } });
             if (row !== undefined && row.revokedAt !== null) {

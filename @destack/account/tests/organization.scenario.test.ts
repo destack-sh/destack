@@ -1,5 +1,5 @@
 import accountPackage from "../src/package.ts";
-import { accessRelationship, Contact } from "@destack/access";
+import { Contact, accessRelationship } from "@destack/access";
 import { and, eq } from "@destack/db";
 import type { Environment } from "@destack/environment";
 import objectPackage from "@destack/object/package";

@@ -1,23 +1,12 @@
-import { AccessContext, Authorization, Caller, principal } from "@destack/access";
+import { AccessContext, Caller, principal, Authorization } from "@destack/access";
 import { RequestId, Scope } from "@destack/sync";
 import { user, User } from "../object/user.ts";
 import { createAdapterFactory, type CleanedWhere, type CustomAdapter } from "better-auth/adapters";
 import type { BetterAuthPlugin, DBAdapterInstance } from "better-auth";
-import {
-    and,
-    isNull,
-    sql,
-    asc,
-    desc,
-    type SQL,
-    TABLE,
-    type DatabaseConnection,
-    Row,
-    Transaction,
-    Table,
-} from "@destack/db";
-import { type ObjectStore } from "@destack/object/server";
-import { type ObjectType } from "@destack/object";
+import { and, isNull, sql, asc, desc, type SQL, TABLE, Row, Table } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
+import type { ObjectStore } from "@destack/object/server";
+import { type ObjectType, CallError } from "@destack/object";
 import { present, schema } from "@destack/schema";
 import { AccountHandle } from "../address/handle.ts";
 import { APIError } from "better-auth/api";
@@ -29,7 +18,6 @@ import { passkey } from "../object/passkey.ts";
 import { Session, session } from "../object/session.ts";
 import { challenge } from "../object/challenge.ts";
 import { factor } from "../object/factor.ts";
-import { CallError } from "@destack/object";
 import { BetterAuthWhere } from "./where.ts";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
@@ -379,44 +367,46 @@ async function createUser(
     const values = complete(source, person, now);
 
     // write the user with its account and home, whose names the store claims before the commit
-    return await Transaction.run(database, async (transaction) => {
-        // write the user's completed row, its home its personal account's
-        const userId = schema.identifier("user").parse(values["id"]);
-        const personal = Account.personal(userId);
-        const homed = { ...values, homeId: Account.home(personal) };
-        const row = Table.complete(source, Table.values(source, homed));
-        await transaction.write({ table: source, before: null, after: row });
+    return await database
+        .commit(async (transaction) => {
+            // write the user's completed row, its home its personal account's
+            const userId = schema.identifier("user").parse(values["id"]);
+            const personal = Account.personal(userId);
+            const homed = { ...values, homeId: Account.home(personal) };
+            const row = Table.complete(source, Table.values(source, homed));
+            await transaction.write({ table: source, before: null, after: row });
 
-        // make it the owner of its scope, its public profile shown to anyone
-        const self = principal.user.reference(Scope.universe.id, userId);
-        const caller = AccessContext.of(Caller.of(self), now);
-        await new Authorization(
-            objects.authorizer,
-            transaction,
-            () => caller,
-            objects.environment,
-        ).create(self, User.creation(self));
+            // make it the owner of its scope, its public profile shown to anyone
+            const self = principal.user.reference(Scope.universe.id, userId);
+            const caller = AccessContext.of(Caller.of(self), now);
+            await new Authorization(
+                objects.authorizer,
+                transaction,
+                () => caller,
+                objects.environment,
+            ).create(self, User.creation(self));
 
-        // create its personal account and home as the person
-        await objects.mutate(
-            caller,
-            {
-                id: RequestId.create(objects.environment),
-                calls: [
-                    account.call("create", {
-                        ...account.target({ scope: userId, id: personal }),
-                        kind: "personal",
-                        handle,
-                        name: handle,
-                        residencyId,
-                    }),
-                ],
-            },
-            { transaction },
-        );
+            // create its personal account and home as the person
+            await objects.mutate(
+                caller,
+                {
+                    id: RequestId.create(objects.environment),
+                    calls: [
+                        account.call("create", {
+                            ...account.target({ scope: userId, id: personal }),
+                            kind: "personal",
+                            handle,
+                            name: handle,
+                            residencyId,
+                        }),
+                    ],
+                },
+                { transaction },
+            );
 
-        return row;
-    }).catch(handleTaken);
+            return row;
+        })
+        .catch(handleTaken);
 }
 
 /** Report a taken name as Better Auth reports a taken handle. */

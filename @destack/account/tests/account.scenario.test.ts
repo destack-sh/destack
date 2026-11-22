@@ -1,7 +1,7 @@
 import { ObjectReference, RequestId, Scope } from "@destack/sync";
 import { Account, account } from "../src/object/account.ts";
 import { expect, refusal, test } from "@destack/test";
-import { eq, Snapshot } from "@destack/db";
+import { eq } from "@destack/db";
 import accountPackage from "../src/package.ts";
 import { ANY_STRING } from "./fixture.ts";
 import { placement } from "../src/object/placement.ts";
@@ -158,7 +158,8 @@ test("give every account's home the home stack, a shared account's and a person'
 
     // read the stack each account's home was created with
     const stackOf = async (accountId: Identifier<"account">) => {
-        const home = await Snapshot.live(fixture.database)
+        const home = await fixture.database
+            .snapshot()
             .read(space.table)
             .findFirst({ where: { id: Account.home(accountId) } });
 
@@ -393,7 +394,7 @@ test("resolve the paying account: an organization's payer for it and its account
     });
 
     // charge the organization and both its accounts to its payer, the person's account and home space to the account
-    const snapshot = Snapshot.live(fixture.database);
+    const snapshot = fixture.database.snapshot();
     expect([
         await Account.payer(snapshot, acme.id),
         await Account.payer(snapshot, second.id),

@@ -1,4 +1,10 @@
-import type { MethodContextOf, ResultOf } from "@destack/object";
+import {
+    type MethodContextOf,
+    type ResultOf,
+    Claim,
+    claimTable,
+    PackageDescription,
+} from "@destack/object";
 import {
     anyone,
     InstallationId,
@@ -6,7 +12,6 @@ import {
     principal,
     Relationship,
 } from "@destack/access";
-import { Claim, claimTable, PackageDescription } from "@destack/object";
 import { present } from "@destack/schema";
 import { PackageManifest } from "@destack/package/manifest";
 import { Scope } from "@destack/sync";

@@ -1,8 +1,8 @@
 import { Bookmark } from "@destack/object/client";
 import { schema, Uuid } from "@destack/schema";
-import { type Environment } from "@destack/environment";
+import type { Environment } from "@destack/environment";
 import { type Authentication, Caller, principal, universe } from "@destack/access";
-import type { DatabaseConnection } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { PackageId } from "@destack/package";
 import { type Fetch, SpaceMount } from "@destack/object";
 import {

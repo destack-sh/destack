@@ -1,5 +1,6 @@
 import { AccessContext, accessGrant, Caller, principal } from "@destack/access";
-import { type Select, type Snapshot, type Table } from "@destack/db";
+import type { Select, Table } from "@destack/db";
+import type { Snapshot } from "@destack/db/database";
 import { type MethodContext, defineAuditAction, defineObject, field, grant } from "@destack/object";
 import { schema } from "@destack/schema";
 import { type Call, RequestId, Scope } from "@destack/sync";

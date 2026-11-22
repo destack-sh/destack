@@ -2,14 +2,14 @@ import { TestAccess } from "@destack/access/test";
 import objectPackage from "@destack/object/package";
 import accountPackage from "../src/package.ts";
 import {
+    Contact,
+    principal,
     accessRelationship,
     accessRole,
-    Contact,
     INVITATION_LIFETIME_MILLISECONDS,
-    principal,
     Relationship,
 } from "@destack/access";
-import { and, eq, inArray, isNull, Snapshot } from "@destack/db";
+import { and, eq, inArray, isNull } from "@destack/db";
 import { RequestId, Scope } from "@destack/sync";
 import { expect, test, refusal, type Refusal } from "@destack/test";
 import { MachineKey } from "../src/client/machine-key.ts";
@@ -35,7 +35,7 @@ import {
     STACKS,
     STRANGER_EMAIL,
 } from "../src/test/index.ts";
-import { Directory } from "../src/address/index.ts";
+import { Directory } from "../src/client/index.ts";
 import type { Environment } from "@destack/environment";
 
 /** The OIDC issuer signing the platform's publishing workflow's tokens. */
@@ -112,7 +112,7 @@ test("apply the platform organization once, with its publishers as accounts and 
         accounts.find((entry) => entry.handle === "app"),
         "the publisher's account",
     );
-    const directory = new Directory(Snapshot.live(fixture.database));
+    const directory = new Directory(fixture.database.snapshot());
     expect([
         second,
         accounts.map((entry) => entry.handle),
@@ -171,7 +171,7 @@ test("transfer a reserved handle to the account it renames, once, keeping its lo
     await new Platform(fixture.store, transferring).apply(fixture.clock.now());
 
     // resolve the handle to the account, free its old handle, and keep the lookalike taken
-    const directory = new Directory(Snapshot.live(fixture.database));
+    const directory = new Directory(fixture.database.snapshot());
     expect([
         await directory.account("security"),
         await directory.handle(owned.id),
@@ -246,7 +246,7 @@ test("make the platform organization's owners operators when an apply created it
     const second = await new Platform(fixture.store, PLATFORM).apply(fixture.store.clock.now());
     expect({
         second,
-        platform: await UniverseRole.platform(Snapshot.live(fixture.database)),
+        platform: await UniverseRole.platform(fixture.database.snapshot()),
     }).toEqual({ second: first, platform: first });
 });
 
@@ -389,7 +389,7 @@ test("apply the declared cloud machines with their keys in the universe once, an
             row.handle,
             (
                 await Relationship.read(
-                    Snapshot.live(database),
+                    database.snapshot(),
                     account.reference(organizationId, row.id),
                     { relation: "publisher" },
                 )

@@ -1,5 +1,4 @@
 import { AccessContext, Caller, type Permission, principal } from "@destack/access";
-import { Snapshot } from "@destack/db";
 import objectPackage from "@destack/object/package";
 import { Identifier } from "@destack/schema";
 import { type ObjectReference, RequestId, Scope, type Subject } from "@destack/sync";
@@ -48,7 +47,7 @@ test("decide access inside an account for its owner and its editors", async () =
             verifiedAt: time,
             expiresAt: time + 60_000,
         };
-        const snapshot = Snapshot.live(accounts.database);
+        const snapshot = accounts.database.snapshot();
         const context = AccessContext.of(Caller.of(subject), time, { credential });
         const access = await authorizer.resolve(snapshot, target.scope, context);
         const decision = await authorizer.check(snapshot, permission, target, access);
@@ -79,7 +78,7 @@ test("let a person's home follow on their behalf and read their contact from the
     const decide = async (space: string, permission: "follow" | "recipient") => {
         const subject = principal.space.reference(Scope.universe.id, space);
         const context = AccessContext.of(Caller.of(subject), accounts.store.clock.now());
-        const snapshot = Snapshot.live(accounts.database);
+        const snapshot = accounts.database.snapshot();
         const access = await authorizer.resolve(snapshot, "universe", context);
         const decision = await authorizer.check(
             snapshot,
@@ -131,7 +130,7 @@ test("let a publisher of an account publish under its name without managing it, 
             verifiedAt: time,
             expiresAt: time + 60_000,
         };
-        const snapshot = Snapshot.live(accounts.database);
+        const snapshot = accounts.database.snapshot();
         const context = AccessContext.of(Caller.of(subject), time, { credential });
         const access = await authorizer.resolve(snapshot, onAccount.scope, context);
         const decision = await authorizer.check(snapshot, permission, onAccount, access);

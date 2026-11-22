@@ -1,7 +1,7 @@
 import accountPackage from "../src/package.ts";
 import objectPackage from "@destack/object/package";
 import { AccessContext, Caller } from "@destack/access";
-import { eq, Snapshot } from "@destack/db";
+import { eq } from "@destack/db";
 import { present } from "@destack/schema";
 import { ObjectReference, RequestId } from "@destack/sync";
 import { MemoryKeychain } from "@destack/identity";
@@ -59,7 +59,8 @@ test("rotate a machine's key, revoking its other keys, and match the keys authen
     );
     const active = async (now: number) =>
         (
-            await Snapshot.live(database)
+            await database
+                .snapshot()
                 .read(key.table)
                 .findMany({
                     where: {
@@ -267,7 +268,7 @@ test("refuse a machine sharing, unmasking or relaying its own row, which no role
         }),
     );
     const { authorizer } = fixture.store;
-    const snapshot = Snapshot.live(fixture.database);
+    const snapshot = fixture.database.snapshot();
     const access = await authorizer.resolve(
         snapshot,
         accountId,

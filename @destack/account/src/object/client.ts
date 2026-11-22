@@ -1,8 +1,9 @@
 import { AccessContext, Caller, GrantPermission, none, principal, through } from "@destack/access";
-import { type DatabaseConnection, type Select, Snapshot, type Transaction } from "@destack/db";
+import type { Select } from "@destack/db";
+import type { DatabaseConnection, Transaction } from "@destack/db/database";
 import type { ObjectStore } from "@destack/object/server";
 import { RequestId, Scope } from "@destack/sync";
-import { defineObject, field } from "@destack/object";
+import { defineObject, field, propagated } from "@destack/object";
 import { Digest, Instant, schema } from "@destack/schema";
 import { CompactProof, ProofRequest } from "@destack/identity";
 import { key } from "./key.ts";
@@ -15,7 +16,6 @@ import { sudo } from "../authentication/sudo.ts";
 import { PushSubscription } from "./recipient.ts";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
-import { propagated } from "@destack/object";
 import { argument, plural, t } from "@destack/locale";
 
 /** The name a device's client starts with, which its program renames once it signs in. */
@@ -240,7 +240,8 @@ export const Client = {
         }
 
         // refuse a withdrawn client
-        const row = await Snapshot.live(database)
+        const row = await database
+            .snapshot()
             .read(client.table)
             .findFirst({ where: { id: id.data } });
 

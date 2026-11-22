@@ -8,14 +8,14 @@ import {
 } from "@destack/access/token";
 import type { Crypto } from "@destack/environment";
 import { Scope } from "@destack/sync";
-import type { Select, Snapshot } from "@destack/db";
-import { defineObject, field } from "@destack/object";
+import type { Select } from "@destack/db";
+import type { Snapshot } from "@destack/db/database";
+import { defineObject, field, nested } from "@destack/object";
 import { IdentityOperation, KeySet, PublicKey } from "@destack/identity";
 import { Key } from "./key.ts";
 import { Digest, schema } from "@destack/schema";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
-import { nested } from "@destack/object";
 import { argument, plural, t } from "@destack/locale";
 
 /** The longest signed operation, in characters: eight public keys with room to spare. */

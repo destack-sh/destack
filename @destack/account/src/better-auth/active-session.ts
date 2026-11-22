@@ -1,6 +1,7 @@
 import { user, User } from "../object/user.ts";
 import { client } from "../object/client.ts";
-import { and, eq, gt, isNull, isNotNull, or, type DatabaseConnection } from "@destack/db";
+import { and, eq, gt, isNull, isNotNull, or } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import type { AuthenticationAssurance } from "@destack/access";
 import { schema } from "@destack/schema";
 import { factor } from "../object/factor.ts";

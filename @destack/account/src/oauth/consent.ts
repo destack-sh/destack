@@ -1,7 +1,7 @@
 import type { UniverseOrigin } from "../address/address.ts";
 import type { AuthContext } from "better-auth";
 import { AccessContext, accessGrant, Caller, Grant, principal } from "@destack/access";
-import { type DatabaseConnection, Snapshot, Transaction } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import type { Environment } from "@destack/environment";
 import { grant } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
@@ -86,7 +86,8 @@ export class ConsentEndpoint {
     async #list(userId: Identifier<"user">) {
         // read the person's consents
         const { database } = this.#options;
-        const consents = await Snapshot.live(database)
+        const consents = await database
+            .snapshot()
             .read(oauthConsent.table)
             .findMany({ where: { scope: userId } });
 
@@ -131,7 +132,7 @@ export class ConsentEndpoint {
         // find the unexpired grant, which a sign-in's end revokes
         const { database, environment } = this.#options;
         const now = environment.clock.now();
-        const view = Snapshot.live(database);
+        const view = database.snapshot();
         const person = principal.user.reference(Scope.universe.id, userId);
         const found = await Grant.find(view, { delegator: person, delegate }, now);
         if (found === undefined) {
@@ -146,7 +147,7 @@ export class ConsentEndpoint {
         // find the consent, refusing a client the person never consented to
         const { database, objects, environment } = this.#options;
         const now = environment.clock.now();
-        const view = Snapshot.live(database);
+        const view = database.snapshot();
         const consent = await view
             .read(oauthConsent.table)
             .findFirst({ where: { clientId, scope: userId } });
@@ -174,7 +175,7 @@ export class ConsentEndpoint {
             oauthConsent.call("revoke", oauthConsent.target(consent)),
             ...(granted === undefined ? [] : [grant.call("revoke", grant.target(granted))]),
         ];
-        await Transaction.run(database, async (transaction) => {
+        await database.commit(async (transaction) => {
             await objects.mutate(
                 AccessContext.of(Caller.of(person), now),
                 { id: RequestId.create(environment), calls },

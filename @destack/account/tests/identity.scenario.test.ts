@@ -1,7 +1,7 @@
 import { TokenResponse } from "../src/authentication/index.ts";
 import { Scope, RequestId } from "@destack/sync";
 import { principal } from "@destack/access";
-import { eq, Snapshot } from "@destack/db";
+import { eq } from "@destack/db";
 import { PackageId } from "@destack/package";
 import {
     type PartitionId,
@@ -131,7 +131,8 @@ async function enrollCloud(accounts: TestAccountStore) {
     keychain.secrets.set(identity.machineId, found(keys.secrets, identity.machineId));
     const first = new MachineKey(identity.machineId, keychain, accounts.environment);
     const enrolled = present(
-        await Snapshot.live(accounts.database)
+        await accounts.database
+            .snapshot()
             .read(key.table)
             .findFirst({ where: { parentId: identity.machineId } }),
         "the enrolled machine's key",
@@ -298,7 +299,7 @@ test("grant a machine a token lasting as long as it asks, a minute without and t
                 ? {
                       authority: { kind: "universe" },
                       keys: await Identity.keys(
-                          Snapshot.live(accounts.database),
+                          accounts.database.snapshot(),
                           Scope.universe.id,
                           accounts.environment.crypto,
                       ),
@@ -335,7 +336,7 @@ test("grant a cloud machine a token for a minute as itself alone, by its enrolle
                 ? {
                       authority: { kind: "universe" },
                       keys: await Identity.keys(
-                          Snapshot.live(accounts.database),
+                          accounts.database.snapshot(),
                           Scope.universe.id,
                           accounts.environment.crypto,
                       ),
@@ -453,7 +454,7 @@ test("issue a machine's token at the store clock's time, verifiable after the cl
                 ? {
                       authority: { kind: "universe" },
                       keys: await Identity.keys(
-                          Snapshot.live(fixture.database),
+                          fixture.database.snapshot(),
                           Scope.universe.id,
                           fixture.environment.crypto,
                       ),
@@ -468,7 +469,8 @@ test("issue a machine's token at the store clock's time, verifiable after the cl
         { audience: AUDIENCE, now: fixture.clock.now() },
     );
     const declared = present(
-        await Snapshot.live(fixture.database)
+        await fixture.database
+            .snapshot()
             .read(key.table)
             .findFirst({ where: { parentId: identity.machineId } }),
         "the declared machine's key",
@@ -734,7 +736,7 @@ test("authenticate a machine's token in a space it serves while its key stands, 
     const token = TokenResponse.parse(await response.json()).access_token;
 
     // authenticate the token in the space, before and after the owner revokes the machine
-    const snapshot = Snapshot.live(accounts.database);
+    const snapshot = accounts.database.snapshot();
     const verifier = new TokenVerifier({
         issuers: (issuer) => Identity.trust(snapshot, issuer, ISSUER),
         environment: accounts.environment,

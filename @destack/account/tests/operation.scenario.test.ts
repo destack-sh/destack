@@ -1,6 +1,5 @@
 import type { Environment } from "@destack/environment";
-import { testSimulation } from "@destack/object/test";
-import { Snapshot } from "@destack/db";
+import { testSimulation, type TestCaller } from "@destack/object/test";
 import { IdentityOperation, KeyPair } from "@destack/identity";
 import { RequestId } from "@destack/sync";
 import { type Digest, present } from "@destack/schema";
@@ -9,7 +8,6 @@ import { Identity } from "../src/object/index.ts";
 import accountPackage from "../src/package.ts";
 import { RECOVERY_MILLISECONDS } from "../src/server/index.ts";
 import { TestAccountStore, OWNER_EMAIL } from "../src/test/index.ts";
-import type { TestCaller } from "@destack/object/test";
 
 /** Serve identities through the account package, a space placed on a machine that starts them. */
 async function openRegistry(world: Environment) {
@@ -42,11 +40,10 @@ async function openRegistry(world: Environment) {
                 operation: signed,
             }),
         /** Read the space's current identity. */
-        read: async () =>
-            Identity.current(await Identity.log(Snapshot.live(accounts.database), space)),
+        read: async () => Identity.current(await Identity.log(accounts.database.snapshot(), space)),
         /** Read the space's log as each operation and whether it was nullified. */
         log: async () =>
-            (await Identity.log(Snapshot.live(accounts.database), space)).map((entry) => [
+            (await Identity.log(accounts.database.snapshot(), space)).map((entry) => [
                 entry.operation,
                 entry.isNullified,
             ]),

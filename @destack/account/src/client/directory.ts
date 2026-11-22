@@ -1,8 +1,17 @@
 import type { Clock, Environment } from "@destack/environment";
-import { type Snapshot, TABLE } from "@destack/db";
-import { Claim, ClaimLookup, claimTable, type ObjectType } from "@destack/object";
+import { TABLE } from "@destack/db";
+import type { Snapshot } from "@destack/db/database";
+import {
+    Claim,
+    ClaimLookup,
+    claimTable,
+    type ObjectType,
+    type Fetch,
+    type Package,
+    PackageMount,
+    SpaceMount,
+} from "@destack/object";
 import { nth, present, schema, type Identifier } from "@destack/schema";
-import { type Fetch, type Package, PackageMount, SpaceMount } from "@destack/object";
 import { type ClientOf, createClient, ObjectConnection } from "@destack/object/client";
 import objectPackage from "@destack/object/package";
 import type { ObjectReference, Publisher } from "@destack/sync";
@@ -11,7 +20,7 @@ import { space } from "../object/space.ts";
 import { Endpoint, endpoint } from "../object/endpoint.ts";
 import { machine } from "../object/machine.ts";
 import { placement, type PlacementEndpoint } from "../object/placement.ts";
-import { SpaceAddress, type SpaceOrigin } from "./address.ts";
+import { SpaceAddress, type SpaceOrigin } from "../address/address.ts";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
 

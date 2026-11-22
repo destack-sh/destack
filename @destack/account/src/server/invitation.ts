@@ -1,9 +1,9 @@
 import {
-    accessRelationship,
     Contact,
+    principal,
+    accessRelationship,
     INVITATION_PAGE,
     Invitation,
-    principal,
 } from "@destack/access";
 import type { MethodContextOf, ResultOf } from "@destack/object";
 import { Scope } from "@destack/sync";

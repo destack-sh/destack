@@ -1,4 +1,5 @@
-import { and, type DatabaseConnection, eq, Snapshot } from "@destack/db";
+import { and, eq } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { present, schema } from "@destack/schema";
 import { USER_INFO_PATH } from "../authentication/path.ts";
 import { OAuthError } from "../authentication/token.ts";
@@ -60,7 +61,8 @@ export class UserInfoEndpoint {
         const scopes = spaceSeparated(scope);
 
         // read the person, refusing one who may no longer sign in
-        const person = await Snapshot.live(database)
+        const person = await database
+            .snapshot()
             .read(user.table)
             .findFirst({ where: { id: sub } });
         if (person === undefined || !(await User.maySignIn(database, sub))) {

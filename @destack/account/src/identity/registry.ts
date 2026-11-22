@@ -1,5 +1,4 @@
 import { AccessContext, Caller } from "@destack/access";
-import { Snapshot } from "@destack/db";
 import { IdentityOperation } from "@destack/identity";
 import type { ObjectStore } from "@destack/object/server";
 import { RequestId, Scope, type Subject } from "@destack/sync";
@@ -60,7 +59,7 @@ export const IdentityRegistry = {
                     }),
                 ]),
             find: async (subject) =>
-                Identity.current(await Identity.log(Snapshot.live(store.database), subject)),
+                Identity.current(await Identity.log(store.database.snapshot(), subject)),
         };
     },
 

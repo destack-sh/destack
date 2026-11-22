@@ -1,4 +1,5 @@
-import { ColumnCipher, eq, type DatabaseConnection, type Select } from "@destack/db";
+import { eq, type Select } from "@destack/db";
+import { ColumnCipher, type DatabaseConnection } from "@destack/db/database";
 import type { IdentityRegistry } from "./registry.ts";
 import { identityKey, type SigningKey } from "./key.ts";
 import { Identity } from "./identity.ts";
@@ -17,10 +18,9 @@ import {
 } from "@destack/identity";
 import { TokenIssuer } from "@destack/access/token";
 import type { Fetch } from "@destack/object";
-import { present } from "@destack/schema";
+import { present, type Digest } from "@destack/schema";
 import { Scope, type Subject } from "@destack/sync";
 import type { Rewrapper } from "@destack/resource";
-import type { Digest } from "@destack/schema";
 import type { Environment } from "@destack/environment";
 import type {} from "@destack/package/import-meta";
 import { TelemetryScope } from "@destack/telemetry";

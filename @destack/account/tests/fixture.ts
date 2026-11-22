@@ -1,4 +1,4 @@
-import type { DatabaseConnection } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import type { Environment } from "@destack/environment";
 import { universe } from "@destack/access";
 import { type Claimant, ClaimRefusal, defineObject, field } from "@destack/object";

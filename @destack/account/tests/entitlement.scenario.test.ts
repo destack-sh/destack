@@ -1,5 +1,4 @@
 import { expect, test } from "@destack/test";
-import { Snapshot } from "@destack/db";
 import { TestAccountStore } from "../src/test/account.ts";
 import {
     Entitlement,
@@ -129,7 +128,8 @@ test("entitle an account to an allowance once, leaving it unchanged when entitle
     const owner = await accounts.signIn("owner@example.com");
     const { id: accountId } = await accounts.createAccount(owner);
     const stored = () =>
-        Snapshot.live(accounts.database)
+        accounts.database
+            .snapshot()
             .read(entitlement.table)
             .findMany({ where: { scope: accountId }, orderBy: { feature: "asc" } });
     await accounts.entitle(accountId, "domain", { kind: "boolean" });

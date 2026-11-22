@@ -1,9 +1,8 @@
 import accountPackage from "../src/package.ts";
-import { Snapshot } from "@destack/db";
 import { present } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { expect, test } from "@destack/test";
-import { Directory } from "../src/address/index.ts";
+import { Directory } from "../src/client/index.ts";
 import { AccountHandle } from "../src/address/handle.ts";
 import { space } from "../src/object/index.ts";
 import { TestAccountStore } from "../src/test/index.ts";
@@ -53,7 +52,7 @@ test("keep a renamed handle naming its account and spaces until another account 
     await using fixture = await TestAccountStore.open();
     const owner = await fixture.signIn("ada@example.com");
     const { accountId, handle, spaceId } = await fixture.createSpace(owner);
-    const directory = new Directory(Snapshot.live(fixture.database));
+    const directory = new Directory(fixture.database.snapshot());
     const before = present(await directory.origin(spaceId), "the space's address");
     const rename = async (person: typeof owner, id: typeof accountId, renamed: string) => {
         const { revision } = await person

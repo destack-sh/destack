@@ -1,5 +1,6 @@
 import { contained, none, principal, relation, through, union } from "@destack/access";
-import type { Select, Snapshot } from "@destack/db";
+import type { Select } from "@destack/db";
+import type { Snapshot } from "@destack/db/database";
 import { Condition, defineObject, field, type ObjectOf } from "@destack/object";
 import { Digest, type DigestCrypto, Identifier, present, schema } from "@destack/schema";
 import { Scope } from "@destack/sync";

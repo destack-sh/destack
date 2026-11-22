@@ -1,5 +1,4 @@
 import { TokenResponse } from "../src/authentication/index.ts";
-import { Snapshot } from "@destack/db";
 import type { Crypto } from "@destack/environment";
 import { Jwt } from "@destack/identity";
 import { Relationship } from "@destack/access";
@@ -117,7 +116,7 @@ test("grant a trusted workflow a token once by its issuer's OIDC token, refusing
         await ask(await sign(forger.privateKey, WORKFLOW, ENDPOINT)),
     ];
     const publishers = await Relationship.read(
-        Snapshot.live(fixture.database),
+        fixture.database.snapshot(),
         account.reference(owned.scope, owned.id),
         { relation: "publisher" },
     );

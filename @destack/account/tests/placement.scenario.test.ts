@@ -1,21 +1,21 @@
 import { FOLLOWER_REVISION } from "@destack/sync/test";
-import { testSimulation } from "@destack/object/test";
+import { testSimulation, type TestCaller } from "@destack/object/test";
 import objectPackage from "@destack/object/package";
 import {
     AccessContext,
+    Caller,
+    principal,
+    CHAIN_PUBLICATION,
     accessRelationship,
     accessRole,
     accessRolePermission,
-    Caller,
-    CHAIN_PUBLICATION,
-    principal,
     Relationship,
 } from "@destack/access";
-import { Snapshot, TABLE } from "@destack/db";
+import { TABLE } from "@destack/db";
 import { nth, Identifier, present, schema } from "@destack/schema";
 import { RequestId, ObjectReference, Scope } from "@destack/sync";
 import { expect, test, refusal, type Refusal } from "@destack/test";
-import { Directory } from "../src/address/index.ts";
+import { Directory, MachineKey } from "../src/client/index.ts";
 import {
     account,
     assignment,
@@ -31,7 +31,6 @@ import {
     type Tenancy,
 } from "../src/object/index.ts";
 import { ACCESS_TOKEN_TYPE } from "../src/oauth/index.ts";
-import { MachineKey } from "../src/client/index.ts";
 import { MemoryKeychain } from "@destack/identity";
 import accountPackage from "../src/package.ts";
 import {
@@ -42,7 +41,6 @@ import {
     type TestPerson,
     OWNER_EMAIL,
 } from "../src/test/index.ts";
-import type { TestCaller } from "@destack/object/test";
 import { claimNames, firstPage, place } from "./fixture.ts";
 import {
     Claim,
@@ -191,7 +189,8 @@ async function relayed(
     machineId: string,
     handle: string,
 ): Promise<string> {
-    const named = await Snapshot.live(fixture.database)
+    const named = await fixture.database
+        .snapshot()
         .read(machine.table)
         .findFirst({ where: { id: schema.identifier("machine").parse(machineId) } });
     const address = { machine: present(named, `machine ${machineId}`).name, handle };
@@ -213,7 +212,8 @@ async function locate(caller: TestCaller, accountId: string, spaceId: string) {
 async function url(fixture: TestAccountStore, caller: TestCaller, scope: string, id: string) {
     // find the machine's endpoint, none once withdrawn, and read it as the caller
     const parentId = schema.identifier("machine").parse(id);
-    const stored = await Snapshot.live(fixture.database)
+    const stored = await fixture.database
+        .snapshot()
         .read(endpoint.table)
         .findFirst({ where: { parentId } });
     if (stored === undefined) {
@@ -343,7 +343,7 @@ test("reserve and confirm a space's names only as the machine serving it", async
     const { accountId, laptop, local, peer, outsider } = opened;
     const row = { id: laptop, scope: accountId, name: "notes" };
     const object = { objectId: laptop, owner: accountId };
-    const claimant = await Claimant.of(place, object, row, Snapshot.live(fixture.database));
+    const claimant = await Claimant.of(place, object, row, fixture.database.snapshot());
     const reserve = (caller: TestCaller) =>
         refusal(claimNames(caller, fixture.database, claimant, fixture.environment));
 
@@ -614,7 +614,7 @@ test("publish a personal machine's tunnel only as its residency's relay, and rea
     const { accountId, handle, laptop, local, peer, outsider } = opened;
     const row = { id: laptop, scope: accountId, name: "notes" };
     const object = { objectId: laptop, owner: accountId };
-    const claimant = await Claimant.of(place, object, row, Snapshot.live(fixture.database));
+    const claimant = await Claimant.of(place, object, row, fixture.database.snapshot());
     await claimNames(local, fixture.database, claimant, fixture.environment);
     const relaying = fixture.as(await fixture.relay("eu"));
     const home = await fixture.residencySpace("eu");
@@ -651,7 +651,7 @@ test("publish a personal machine's tunnel only as its residency's relay, and rea
 
     // read it as the peer and another account's machine, and resolve the laptop's space through the directory
     const address = await relayed(fixture, local.subject.id, handle);
-    const resolver = new Directory(Snapshot.live(fixture.database));
+    const resolver = new Directory(fixture.database.snapshot());
     expect([
         published,
         related,
@@ -772,7 +772,8 @@ test("replicate the spaces giving a machine work to that machine alone, until th
     });
     const placed = await locate(serving, accountId, created.id);
     const row = present(
-        await Snapshot.live(fixture.database)
+        await fixture.database
+            .snapshot()
             .read(placement.table)
             .findFirst({ where: { spaceId: created.id } }),
         "the space's placement",
@@ -856,7 +857,8 @@ test("remove a space's delegated grants when the space is finalized", async () =
         requestId: RequestId.create(fixture.environment),
     });
     const deleting = present(
-        await Snapshot.live(fixture.database)
+        await fixture.database
+            .snapshot()
             .read(space.table)
             .findFirst({ where: { id: created.id } }),
         "the deleting space",
@@ -994,7 +996,8 @@ test("schedule a space where its tenancy keeps it: unset, unentitled, placed, mo
     await using fixture = opened.fixture;
     const { accountId, laptop, local, owner } = opened;
     const decided = async () => {
-        const row = await Snapshot.live(fixture.database)
+        const row = await fixture.database
+            .snapshot()
             .read(placement.table)
             .findFirst({ where: { spaceId: laptop } });
 
@@ -1004,7 +1007,8 @@ test("schedule a space where its tenancy keeps it: unset, unentitled, placed, mo
 
     // set the space's tenancy as its owner, reading the decision its update records
     const schedule = async (tenancy: Tenancy | null) => {
-        const row = await Snapshot.live(fixture.database)
+        const row = await fixture.database
+            .snapshot()
             .read(space.table)
             .findFirst({ where: { id: laptop } });
         await owner.client(accountPackage).space.update({
@@ -1076,7 +1080,8 @@ test("move a space off a draining machine, decide again once it is placed, and k
     const { accountId, laptop, local, peer, owner } = opened;
     const read = async () =>
         present(
-            await Snapshot.live(fixture.database)
+            await fixture.database
+                .snapshot()
                 .read(placement.table)
                 .findFirst({ where: { spaceId: laptop } }),
             "the laptop's placement",
@@ -1119,7 +1124,7 @@ test("relate a move's target as the space's one receiver, keep it when asked aga
     const third = fixture.as(await fixture.enroll(accountId, owner));
     const target = { accountId, id: laptop };
     const related = () =>
-        Relationship.read(Snapshot.live(fixture.database), space.reference(accountId, laptop), {
+        Relationship.read(fixture.database.snapshot(), space.reference(accountId, laptop), {
             relation: "receiver",
         });
     const receivers = async () => (await related()).map((row) => row.subjectId);

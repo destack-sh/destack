@@ -1,6 +1,7 @@
-import { anyone, Contact, Invitation, none, principal, relation, union } from "@destack/access";
-import { and, type DatabaseConnection, eq, isNull, type Select, type SQL } from "@destack/db";
-import { defineObject, field } from "@destack/object";
+import { anyone, Contact, none, principal, relation, union, Invitation } from "@destack/access";
+import { and, eq, isNull, type Select, type SQL } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
+import { defineObject, field, recoverable, shareable } from "@destack/object";
 import { argument, LocaleTag, plural, t } from "@destack/locale";
 import { type Identifier, schema, TimeZone } from "@destack/schema";
 import { Subject } from "@destack/sync";
@@ -10,7 +11,6 @@ import { DisplayName } from "./display-name.ts";
 import { Recipient } from "./recipient.ts";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
-import { recoverable, shareable } from "@destack/object";
 
 /** The longest text a handle check accepts, beyond which nothing is a handle. */
 const HANDLE_INPUT_LENGTH = 256;

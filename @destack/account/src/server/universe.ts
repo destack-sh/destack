@@ -1,20 +1,20 @@
 import { TelemetryScope } from "@destack/telemetry";
-import type { Call } from "@destack/sync";
+import { type Call, RequestId, Scope } from "@destack/sync";
 import {
     anyone,
     InstallationId,
+    Contact,
+    principal,
+    SIGNED_IN,
     accessRole,
     Authorization,
-    Contact,
     Invitation,
-    principal,
     Relationship,
     Role,
     type RoleRequest,
-    SIGNED_IN,
 } from "@destack/access";
-import { and, eq, inArray, isNull, Snapshot, Transaction } from "@destack/db";
-import { RequestId, Scope } from "@destack/sync";
+import { and, eq, inArray, isNull } from "@destack/db";
+import type { Snapshot } from "@destack/db/database";
 import type { ObjectStore } from "@destack/object/server";
 import { canonicalize, type Identifier, present, schema } from "@destack/schema";
 import { PublicKey } from "@destack/identity";
@@ -260,7 +260,7 @@ export class Platform {
         }
 
         // read the declared machines that exist, refusing one stored at another origin than declared
-        const snapshot = Snapshot.live(this.store.database);
+        const snapshot = this.store.database.snapshot();
         const ids = this.definition.machines.map((entry) => entry.id);
         const existing = await snapshot
             .read(machine.table)
@@ -491,7 +491,7 @@ export class Platform {
             }
 
             // give each recipient its new names beside its old ones, which its rename drops
-            const snapshot = Snapshot.live(transaction);
+            const snapshot = transaction.snapshot();
             for (const { handle, recipient } of renaming) {
                 const object = { objectId: recipient.id, owner: Claim.owning(account, recipient) };
                 const before = await Claimant.of(account, object, recipient, snapshot);
@@ -684,7 +684,7 @@ export class Platform {
             await this.#upgradeHome(Account.home(accountId), this.#home(entry.code));
 
             // make its home the residency's space once
-            const stored = await Residency.require(Snapshot.live(this.store.database), entry.code);
+            const stored = await Residency.require(this.store.database.snapshot(), entry.code);
             const spaceId = stored.space ?? Account.home(accountId);
             if (stored.space === null) {
                 await this.#mutate([
@@ -730,7 +730,7 @@ export class Platform {
         }
 
         // relate the organization to the servers of its accounts' residencies
-        await this.#mutate(await residentCalls(Snapshot.live(this.store.database), organizationId));
+        await this.#mutate(await residentCalls(this.store.database.snapshot(), organizationId));
     }
 
     /** Read whether the operator accepted an invitation to own the organization, or one waits. */
@@ -757,7 +757,7 @@ export class Platform {
     async #isInvited(organizationId: Identifier<"organization">, now: number): Promise<boolean> {
         const { object, subject } = this.#ownership(organizationId);
         const invitations = await Invitation.readOn(
-            Snapshot.live(this.store.database),
+            this.store.database.snapshot(),
             object,
             subject,
         );
@@ -779,7 +779,7 @@ export class Platform {
     /** Read the operating organization, refusing a universe without one. */
     async #organization(): Promise<Identifier<"organization">> {
         return present(
-            await UniverseRole.platform(Snapshot.live(this.store.database)),
+            await UniverseRole.platform(this.store.database.snapshot()),
             "the operating organization",
         );
     }
@@ -799,7 +799,7 @@ export class Platform {
         now: number,
         work: (authorization: Authorization) => Promise<Value>,
     ): Promise<Value> {
-        return Transaction.run(this.store.database, async (transaction) =>
+        return this.store.database.commit(async (transaction) =>
             work(
                 await this.store.authorize(transaction, scope, this.store.as(account), {
                     now,

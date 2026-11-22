@@ -1,5 +1,5 @@
 import type { UniverseOrigin } from "../address/address.ts";
-import { type DatabaseConnection, Snapshot } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { schema } from "@destack/schema";
 import type { Environment } from "@destack/environment";
 import type { ObjectStore } from "@destack/object/server";
@@ -154,7 +154,8 @@ export class IntrospectionEndpoint {
         const mayUserSignIn = !user.identifies(sub) || (await User.maySignIn(database, sub));
         const isClientStanding =
             !client.identifies(clientId) ||
-            (await Snapshot.live(database)
+            (await database
+                .snapshot()
                 .read(client.table)
                 .findFirst({
                     where: { id: client.identifier(clientId), revokedAt: { isNull: true } },

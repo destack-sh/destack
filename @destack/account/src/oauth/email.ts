@@ -1,5 +1,5 @@
 import type { UniverseOrigin } from "../address/address.ts";
-import { type DatabaseConnection, Snapshot } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import type { Environment } from "@destack/environment";
 import type { ObjectStore } from "@destack/object/server";
 import { present, schema } from "@destack/schema";
@@ -89,13 +89,15 @@ export function emailGrant(options: EmailOptions): GrantType {
 
         // read the person, or sign a new one up with the request's handle
         const context = await options.context;
-        const found = await Snapshot.live(database)
+        const found = await database
+            .snapshot()
             .read(user.table)
             .findFirst({ where: { email: email.toLowerCase() } });
         const person = found ?? (await signUp(context, asked, database));
 
         // leave a person with a second factor to the browser
-        const verified = await Snapshot.live(database)
+        const verified = await database
+            .snapshot()
             .read(factor.table)
             .findFirst({ where: { userId: person.id, status: "verified" } });
         if (verified !== undefined) {
@@ -205,7 +207,8 @@ async function signUp(
         { email: request.email.toLowerCase(), emailVerified: true, ...values.data },
         { method: "email-otp" },
     );
-    const person = await Snapshot.live(database)
+    const person = await database
+        .snapshot()
         .read(user.table)
         .findFirst({ where: { id: user.identifier(created.id) } });
 

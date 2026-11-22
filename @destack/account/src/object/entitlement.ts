@@ -1,26 +1,20 @@
 import { none, through, union } from "@destack/access";
-import {
-    type DatabaseConnection,
-    type Select,
-    Snapshot,
-    Transaction,
-    type Watch,
-} from "@destack/db";
+import type { Select } from "@destack/db";
+import type { DatabaseConnection, Snapshot, Watch } from "@destack/db/database";
 import {
     type MethodContext,
     type Condition,
     defineObject,
     defineShape,
     field,
+    type FeatureReference,
 } from "@destack/object";
 import { type PackageVersion, PackageId } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
-import type { FeatureReference } from "@destack/object";
 import { canonicalize, type Identifier, present, schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { Account, account } from "./account.ts";
-import { space, Space, type SpaceResource } from "./space.ts";
-import { Tenancy } from "./space.ts";
+import { space, Space, type SpaceResource, Tenancy } from "./space.ts";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
 import {
@@ -219,7 +213,8 @@ export const Entitlement = {
             return undefined;
         }
 
-        return Snapshot.live(database)
+        return database
+            .snapshot()
             .read(entitlement.table)
             .findMany({ where: { scope: accountId } });
     },
@@ -229,7 +224,7 @@ export const Entitlement = {
         return async (setting, owner, scope) => {
             // read the days the space chose and the entitlements of its account, which the follow replicates
             const days = await retention(setting, owner, scope);
-            const { id } = await Account.of(Snapshot.live(database), scope);
+            const { id } = await Account.of(database.snapshot(), scope);
             const rows = await Entitlement.replicated(database, id);
             if (rows === undefined) {
                 throw AccountError.of(
@@ -347,10 +342,10 @@ export const Entitlement = {
         };
 
         // refuse writes within the space while its database is exceeded
-        const [link] = await Scope.chain(Snapshot.live(database), row.id);
+        const [link] = await Scope.chain(database.snapshot(), row.id);
         const isRefused = conditions.database.status === "false";
         if (present(link, `the scope of space ${row.id}`).isCapped !== isRefused) {
-            await Transaction.run(database, (transaction) =>
+            await database.commit((transaction) =>
                 Scope.cap(transaction, row.id, isRefused ? now : null),
             );
         }

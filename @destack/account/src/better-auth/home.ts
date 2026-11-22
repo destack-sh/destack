@@ -1,10 +1,10 @@
 import type { BetterAuthPlugin } from "better-auth";
 import { createAuthEndpoint, getSessionFromCtx } from "better-auth/api";
 import type { Clock } from "@destack/environment";
-import { type DatabaseConnection, Snapshot } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { present } from "@destack/schema";
 import type { UniverseOrigin } from "../address/address.ts";
-import { Directory } from "../address/directory.ts";
+import { Directory } from "../client/directory.ts";
 import { HOME_LOCATION_PATH } from "../authentication/path.ts";
 import { HomeLocation } from "../authentication/request.ts";
 import { AccountError } from "../error/error.ts";
@@ -22,7 +22,7 @@ export const Home = {
     ): Promise<HomeLocation> {
         // find the machine answering for the person's home space
         const accountId = Account.personal(userId);
-        const snapshot = Snapshot.live(database);
+        const snapshot = database.snapshot();
         const located = await new Directory(snapshot).serving(Account.home(accountId), now);
         if (located?.status !== "serving") {
             return { status: "starting" };

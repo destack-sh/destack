@@ -1,10 +1,8 @@
 import { betterAuth, type BetterAuthOptions } from "better-auth/minimal";
-import { Journal } from "@destack/object/server";
-import type { CallKey } from "@destack/object";
-import type { Fetch } from "@destack/object";
-import type { ObjectStore } from "@destack/object/server";
-import { type DatabaseConnection, Snapshot } from "@destack/db";
-import type { EventStore } from "@destack/event";
+import { Journal, type ObjectStore } from "@destack/object/server";
+import type { CallKey, Fetch } from "@destack/object";
+import type { DatabaseConnection } from "@destack/db/database";
+import type { EventStore } from "@destack/event/store";
 import { emailOTP } from "better-auth/plugins";
 import { passkey } from "@better-auth/passkey";
 import type { IdentityKeystore } from "../identity/index.ts";
@@ -33,7 +31,7 @@ import { User } from "../object/user.ts";
 import { SignUp } from "./sign-up.ts";
 import { type ProviderClients, SignInProvider } from "./provider.ts";
 import { Identifier, type UuidEnvironment, Uuid } from "@destack/schema";
-import { type Clock, type Environment, type Scheduler } from "@destack/environment";
+import type { Clock, Environment, Scheduler } from "@destack/environment";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
 import type { UniverseOrigin } from "../address/address.ts";
@@ -225,11 +223,7 @@ export class BetterAuthAuthenticator {
             sign: (claims, header) =>
                 keystore.sign(options.database, Scope.universe.id, claims, header),
             keys: () =>
-                Identity.keys(
-                    Snapshot.live(options.database),
-                    Scope.universe.id,
-                    environment.crypto,
-                ),
+                Identity.keys(options.database.snapshot(), Scope.universe.id, environment.crypto),
             session: async (headers) =>
                 (await readBrowserSession(auth, headers, environment.scheduler))?.session.id,
             codes,
@@ -255,11 +249,7 @@ export class BetterAuthAuthenticator {
 
     /** Read the key set the universe's tokens verify against: its identity's signing keys. */
     keys(): Promise<KeySet> {
-        return Identity.keys(
-            Snapshot.live(this.database),
-            Scope.universe.id,
-            this.environment.crypto,
-        );
+        return Identity.keys(this.database.snapshot(), Scope.universe.id, this.environment.crypto);
     }
 
     /** Answer a request below the issuer: its key set, a page, or an endpoint. */

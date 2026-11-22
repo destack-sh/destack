@@ -1,8 +1,13 @@
 import type { UniverseOrigin } from "../address/address.ts";
-import type { Authorizer } from "@destack/access";
-import type { DatabaseConnection } from "@destack/db";
+import type { Authorizer } from "@destack/access/authorizer";
+import type { DatabaseConnection } from "@destack/db/database";
 import type { Environment } from "@destack/environment";
-import { REQUEST_OBJECT_TYPE } from "../authentication/token.ts";
+import {
+    REQUEST_OBJECT_TYPE,
+    ConsentRequest,
+    OAUTH_ERROR_CODES,
+    OAuthError,
+} from "../authentication/token.ts";
 import { ConsentEndpoint } from "./consent.ts";
 import { CALL_ERROR_STATUSES, Failure } from "@destack/error";
 import type { JwtClaims, KeySet } from "@destack/identity";
@@ -23,8 +28,7 @@ import {
     TOKEN_PATH,
     USER_INFO_PATH,
 } from "../authentication/path.ts";
-import { ConsentRequest, OAUTH_ERROR_CODES, OAuthError } from "../authentication/token.ts";
-import { OAUTH_CLIENT_AUTHENTICATIONS } from "../object/application.ts";
+import { OAUTH_CLIENT_AUTHENTICATIONS, OAUTH_SCOPES } from "../object/application.ts";
 import { Prompt } from "../object/authorization-request.ts";
 import { AuthorizationEndpoint, AuthorizationRequestEndpoint, codeGrant } from "./authorization.ts";
 import { assertionVerifier, bearerGrant, JWT_BEARER } from "./bearer.ts";
@@ -36,7 +40,6 @@ import { refreshGrant } from "./refresh.ts";
 import { IntrospectionEndpoint, RevocationEndpoint } from "./revocation.ts";
 import { TokenEndpoint } from "./token.ts";
 import { UserInfoEndpoint } from "./userinfo.ts";
-import { OAUTH_SCOPES } from "../object/application.ts";
 
 /** The claims the server issues in ID tokens and at the userinfo endpoint (OIDC Core 2, 5.1). */
 const CLAIMS = [

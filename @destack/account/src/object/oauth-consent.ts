@@ -1,5 +1,6 @@
 import { GrantRequest } from "../authentication/request.ts";
-import { type Select, type Transaction } from "@destack/db";
+import type { Select } from "@destack/db";
+import type { Transaction } from "@destack/db/database";
 import { type MethodContext, defineObject, field } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import { present, schema } from "@destack/schema";

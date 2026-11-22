@@ -2,12 +2,13 @@ import { AccountAuthentication } from "../src/better-auth/authentication.ts";
 import type { Environment } from "@destack/environment";
 import { SpaceMount } from "@destack/object";
 import { Jwks, Jws, Jwt, LocalKeyring, MemoryKeychain, Recipient } from "@destack/identity";
-import { type DatabaseConnection, eq, Snapshot } from "@destack/db";
+import { eq } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { PackageId } from "@destack/package";
 import { Identifier, present, schema } from "@destack/schema";
 import { SPACE_KEY, TokenVerifier } from "@destack/access/token";
 import { principal, universe } from "@destack/access";
-import { Scope } from "@destack/sync";
+import { Scope, RequestId } from "@destack/sync";
 import accountPackage from "../src/package.ts";
 import { expect, onTestFinished, refusal, single, test } from "@destack/test";
 import {
@@ -19,7 +20,6 @@ import {
 import { Identity } from "../src/object/index.ts";
 import { TestAccountStore, OWNER_EMAIL } from "../src/test/index.ts";
 import { TestDatabase } from "@destack/db/test";
-import { RequestId } from "@destack/sync";
 
 /** Read the key of a token. */
 function kid(token: string): string | undefined {
@@ -85,7 +85,7 @@ async function verifiedSubject(
     environment: Pick<Environment, "clock" | "crypto">,
 ): Promise<string | undefined> {
     const { crypto } = environment;
-    const keys = Jwks.local(await Identity.keys(Snapshot.live(database), space, crypto), crypto);
+    const keys = Jwks.local(await Identity.keys(database.snapshot(), space, crypto), crypto);
     const options = { algorithms: ["ES256"], now: environment.clock.now() } as const;
 
     return (await Jwt.verify(token, keys, options, crypto)).claims.sub;
@@ -123,11 +123,7 @@ test("sign with the active key until every verifier read the next one, verifying
     const after = await sign();
 
     // sign with the first published key until the next, and verify every token with the key set read again once it aged
-    const { keys } = await Identity.keys(
-        Snapshot.live(database),
-        subject,
-        keystore.environment.crypto,
-    );
+    const { keys } = await Identity.keys(database.snapshot(), subject, keystore.environment.crypto);
     const firstKey = kid(first);
     const nextKey = single(keys.filter((key) => key.kid !== firstKey)).kid;
     const published = present(await registry.find(subject), "the published identity");
@@ -211,7 +207,7 @@ test("sign an installation's request for the space it goes to by its space's key
                 ? {
                       authority: { kind: "space", space },
                       keys: await Identity.keys(
-                          Snapshot.live(database),
+                          database.snapshot(),
                           space,
                           keystore.environment.crypto,
                       ),
@@ -322,7 +318,7 @@ test("send a request as the universe bound to the space it goes to, which a veri
     // verify it as the universe in that space, refuse it in another, and refuse a request to no space
     const verify = (spaceId: Identifier<"space">) =>
         AccountAuthentication.universe(
-            Snapshot.live(database),
+            database.snapshot(),
             issuer,
             accounts.environment,
         ).authenticate(present(received[0], "the sent request").clone(), {

@@ -1,21 +1,21 @@
 import type { ObjectStore } from "@destack/object/server";
 import {
-    Access,
     AccessContext,
     accessGrant,
     type Authentication,
-    Authorization,
-    type Authorizer,
     Caller,
     Credential,
     Grant,
     principal,
+    Authorization,
+    GrantPermission,
 } from "@destack/access";
-import { and, type DatabaseConnection, eq, isNull, Snapshot, Transaction } from "@destack/db";
+import { Access, type Authorizer } from "@destack/access/authorizer";
+import { and, eq, isNull } from "@destack/db";
+import { type DatabaseConnection, type Snapshot, Transaction } from "@destack/db/database";
 import { PackageId } from "@destack/package";
 import { type Identifier, nth, schema } from "@destack/schema";
 import { PartitionId, TokenVerifier } from "@destack/access/token";
-import { GrantPermission } from "@destack/access";
 import { ObjectReference, Scope, Subject } from "@destack/sync";
 import { AccountAuthentication } from "../better-auth/authentication.ts";
 import { account, type Account } from "../object/account.ts";
@@ -113,7 +113,7 @@ export interface ExchangeOptions {
 export function exchangeGrant(options: ExchangeOptions): GrantType {
     // verify subject tokens by the universe's current keys
     const verifier = AccountAuthentication.universe(
-        Snapshot.live(options.database),
+        options.database.snapshot(),
         options.issuer,
         options.environment,
     );
@@ -401,7 +401,7 @@ class PartitionVerification {
     /** Read a subject's memberships and groups in the account and its enclosing scopes. */
     async #sets(authorizer: Authorizer, subject: Subject, accountId: Account["id"]) {
         // expand the subject across the account's scope chain
-        const snapshot = Snapshot.live(this.transaction);
+        const snapshot = this.transaction.snapshot();
         const chain = await Scope.chain(snapshot, accountId);
         const { subjects: expanded } = await Access.expand(
             snapshot,
@@ -472,7 +472,7 @@ class PartitionVerification {
             (
                 await authorization.check(
                     account.permission("impersonate"),
-                    await Scope.object(Snapshot.live(this.transaction), accountId),
+                    await Scope.object(this.transaction.snapshot(), accountId),
                 )
             ).isAllowed;
         if (!isLent && !isAdministered) {
@@ -521,7 +521,7 @@ class PartitionVerification {
         }
 
         // locate the space within the account
-        const [placement] = await Placement.find(Snapshot.live(this.transaction), [
+        const [placement] = await Placement.find(this.transaction.snapshot(), [
             schema.identifier("space").parse(Grant.spaceId(acting)),
         ]);
         if (placement?.scope !== accountId) {
@@ -567,7 +567,7 @@ class PartitionVerification {
 
     /** Read the account a partition belongs to: a space's placement's, or a machine's row's. */
     async #owning(): Promise<string> {
-        const snapshot = Snapshot.live(this.transaction);
+        const snapshot = this.transaction.snapshot();
         const { partition } = this;
         // read a space's placement, refusing an unplaced space
         if (space.identifies(partition)) {
@@ -659,7 +659,7 @@ async function readGrants(
     now: number,
 ): Promise<Grant[]> {
     // require a person's chain of the given grants to the calling delegate
-    const snapshot = Snapshot.live(transaction);
+    const snapshot = transaction.snapshot();
     if (isDelegate && input.subject !== undefined && input.grants !== undefined) {
         return requireChain(snapshot, input.grants, input.subject, caller.subject, now);
     }

@@ -1,12 +1,14 @@
-import { TokenVerifier } from "@destack/access/token";
+import {
+    TokenVerifier,
+    type AccessToken,
+    TOKEN_LIFETIME_MILLISECONDS,
+} from "@destack/access/token";
 
 import { FOLLOWER_REVISION } from "@destack/sync/test";
 import objectPackage from "@destack/object/package";
 import { type GrantPermission, principal } from "@destack/access";
-import { Snapshot } from "@destack/db";
 import { Identifier, present } from "@destack/schema";
 import { PackageId } from "@destack/package";
-import { type AccessToken, TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
 import { Scope, Subject, ObjectReference, RequestId } from "@destack/sync";
 import { ObjectSink } from "@destack/object/server";
 import { expect, refusal, single, test } from "@destack/test";
@@ -434,7 +436,7 @@ test("authenticate a person's universe token in the space it is bound to, refusi
     const { accessToken: token } = await person.exchange(accountPackage.id, { partition: spaceId });
 
     // authenticate calls to the home and to another space over the universe's directory
-    const snapshot = Snapshot.live(fixture.database);
+    const snapshot = fixture.database.snapshot();
     const { environment } = fixture.store;
     const verifier = new TokenVerifier({
         issuers: (issuer) => Identity.trust(snapshot, issuer, ISSUER),

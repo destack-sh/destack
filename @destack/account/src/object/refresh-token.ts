@@ -1,7 +1,8 @@
 import { AuthenticationAssurance, none } from "@destack/access";
-import { type DatabaseConnection, eq, type Select, Snapshot, type Transaction } from "@destack/db";
+import { eq, type Select } from "@destack/db";
+import type { DatabaseConnection, Transaction } from "@destack/db/database";
 import type { Environment } from "@destack/environment";
-import { defineObject, field } from "@destack/object";
+import { defineObject, field, expiring } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import { Digest, present, schema } from "@destack/schema";
 import { RequestId } from "@destack/sync";
@@ -9,7 +10,6 @@ import { AccountError } from "../error/error.ts";
 import { Credential } from "../credential/credential.ts";
 import { type OAuthConsent, oauthConsent } from "./oauth-consent.ts";
 import { user } from "./user.ts";
-import { expiring } from "@destack/object";
 import { argument, plural, t } from "@destack/locale";
 
 /** How long a refresh token lives unused: thirty days, after which the person signs in again. */
@@ -181,7 +181,8 @@ export const RefreshToken = {
         if (row === undefined || row.expiresAt <= environment.clock.now()) {
             return undefined;
         }
-        const consent = await Snapshot.live(database)
+        const consent = await database
+            .snapshot()
             .read(oauthConsent.table)
             .findFirst({ where: { id: row.consentId } });
 
@@ -196,7 +197,8 @@ export const RefreshToken = {
         environment: Pick<Environment, "clock" | "random">,
     ): Promise<void> {
         // remove every token of the family
-        const rows = await Snapshot.live(database)
+        const rows = await database
+            .snapshot()
             .read(refreshToken.table)
             .findMany({ where: { scope: family.scope, family: family.family } });
         await objects.mutate(objects.as(refreshToken), {

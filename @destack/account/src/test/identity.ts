@@ -1,12 +1,11 @@
 import { principal } from "@destack/access";
-import { type DatabaseConnection } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { MemoryBlobStorage } from "@destack/resource";
 import { TestAccess } from "@destack/access/test";
 import { ObjectStore } from "@destack/object/server";
-import { testEvents, serversOf } from "@destack/object/test";
+import { testEvents, serversOf, testCallKey } from "@destack/object/test";
 import { PackageVersion } from "@destack/package";
 import { Identifier } from "@destack/schema";
-import { testCallKey } from "@destack/object/test";
 import { Scope } from "@destack/sync";
 import { IdentityRegistry } from "../identity/registry.ts";
 import { identity, machine, placement } from "../object/index.ts";

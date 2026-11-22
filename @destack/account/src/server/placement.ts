@@ -1,11 +1,12 @@
 import { Caller, principal, Relationship } from "@destack/access";
-import {
-    type MethodContext,
-    type MethodContextOf,
-    type ObjectReconciliation,
-    type ResultOf,
+import type {
+    MethodContext,
+    MethodContextOf,
+    ObjectReconciliation,
+    ResultOf,
 } from "@destack/object";
-import { type Select, Snapshot } from "@destack/db";
+import type { Select } from "@destack/db";
+import type { Snapshot } from "@destack/db/database";
 import { canonicalize, type DigestCrypto, type Identifier, present, schema } from "@destack/schema";
 import { Account, account } from "../object/account.ts";
 import { Entitlement, entitlement } from "../object/entitlement.ts";
@@ -164,7 +165,7 @@ async function decideChanged(
     reconciliation: ObjectReconciliation<typeof placement>,
 ): Promise<void> {
     // find the placements whose decision changed, as the latest commits read
-    const reader = Snapshot.live(reconciliation.database);
+    const reader = reconciliation.database.snapshot();
     const crypto = reconciliation.store.environment.crypto;
     const decided = await Promise.all(
         reconciliation.rows.map(async (row) => ({

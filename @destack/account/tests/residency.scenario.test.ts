@@ -2,14 +2,14 @@ import { FOLLOWER_REVISION } from "@destack/sync/test";
 import accountPackage from "../src/package.ts";
 import {
     AccessContext,
-    accessRelationship,
     Caller,
-    CHAIN_PUBLICATION,
     InstallationId,
     principal,
+    CHAIN_PUBLICATION,
+    accessRelationship,
     Relationship,
 } from "@destack/access";
-import { and, eq, Snapshot, TABLE } from "@destack/db";
+import { and, eq, TABLE } from "@destack/db";
 import { Identifier, nth, present, schema } from "@destack/schema";
 import { RequestId, Scope } from "@destack/sync";
 import { expect, test, refusal, type Refusal } from "@destack/test";
@@ -33,10 +33,9 @@ import {
     OWNER_EMAIL,
     PEOPLE,
 } from "../src/test/index.ts";
-import type { TestCaller } from "@destack/object/test";
+import { type TestCaller, testIdentity } from "@destack/object/test";
 import { claimNames, firstPage, place } from "./fixture.ts";
 import { Claim, Claimant, definePackage, PACKAGE_KIND, QUERIES_PUBLICATION } from "@destack/object";
-import { testIdentity } from "@destack/object/test";
 import { describePackage } from "@destack/object/inspect";
 import { PackageVersion } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
@@ -130,7 +129,7 @@ test("replicate the chains of a residency's accounts as its home, and refuse ano
     const { id: americanId } = await fixture.createAccount(owner, "us");
     const [europe, america] = [await homeOf(fixture, "eu"), await homeOf(fixture, "us")];
     const [europeHome, americaHome] = [europe.subject.id, america.subject.id];
-    const snapshot = Snapshot.live(fixture.storage.database);
+    const snapshot = fixture.storage.database.snapshot();
     const platformOf = async (home: string) =>
         nth(await Placement.find(snapshot, [schema.identifier("space").parse(home)]), 0).scope;
     const [europePlatform, americaPlatform] = [
@@ -191,7 +190,7 @@ test("claim names of objects in its residency's accounts as a residency home or 
             place,
             { objectId: row.id, owner: accountId },
             row,
-            Snapshot.live(fixture.storage.database),
+            fixture.storage.database.snapshot(),
         );
 
         return refusal(
@@ -270,7 +269,7 @@ test("read the residency home, its relay and the owners of names for another acc
         scope: namedId,
         name: "notes",
     };
-    const snapshot = Snapshot.live(fixture.database);
+    const snapshot = fixture.database.snapshot();
     const object = { objectId: row.id, owner: namedId };
     const claimant = await Claimant.of(place, object, row, snapshot);
     await claimNames(await homeOf(fixture, "eu"), fixture.database, claimant, fixture.environment);
@@ -508,7 +507,7 @@ test("relate an installation its residency's space declares once its release ask
     // derive the installation the eu home declares as billing
     const home = await homeOf(fixture, "eu");
     const homeId = schema.identifier("space").parse(home.subject.id);
-    const snapshot = Snapshot.live(fixture.storage.database);
+    const snapshot = fixture.storage.database.snapshot();
     const homeSpace = await Scope.object(snapshot, homeId);
     const crypto = fixture.environment.crypto;
     const installation = await InstallationId.of(homeSpace, "billing", crypto);
@@ -622,12 +621,12 @@ test("let an installation its residency's home declares entitle the residency's 
     const { id: accountId } = await fixture.createAccount(owner);
     const home = await homeOf(fixture, "eu");
     const homeId = schema.identifier("space").parse(home.subject.id);
-    const homeSpace = await Scope.object(Snapshot.live(fixture.storage.database), homeId);
+    const homeSpace = await Scope.object(fixture.storage.database.snapshot(), homeId);
     const installation = await InstallationId.of(homeSpace, "billing", fixture.environment.crypto);
     const installed = principal.installation.reference(homeId, installation);
 
     // entitle the account as the installation, before and after its home relates it
-    const owned = await Account.of(Snapshot.live(fixture.storage.database), accountId);
+    const owned = await Account.of(fixture.storage.database.snapshot(), accountId);
     const entitle = () =>
         refusal(
             fixture.store.mutate(

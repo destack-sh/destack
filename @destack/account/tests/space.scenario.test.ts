@@ -1,6 +1,6 @@
 import accountPackage from "../src/package.ts";
 import { accessRelationship, Role } from "@destack/access";
-import { eq, Snapshot } from "@destack/db";
+import { eq } from "@destack/db";
 import { Claim, type ClaimLookup, type ClaimOwner } from "@destack/object";
 import { RequestId } from "@destack/sync";
 import { expect, test, refusal } from "@destack/test";
@@ -161,7 +161,7 @@ test("create a space at the universe with its row and its own access, the space 
     const created = await create(fixture, owner, "work");
 
     // store the row, its placement and the space's owner binding to itself at the universe
-    const snapshot = Snapshot.live(fixture.database);
+    const snapshot = fixture.database.snapshot();
     const now = fixture.clock.now();
     expect({
         row: await fixture.database

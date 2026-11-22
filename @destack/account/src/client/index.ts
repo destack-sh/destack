@@ -3,3 +3,4 @@ export * from "./machine-key.ts";
 export * from "./issuer.ts";
 export * from "./session.ts";
 export * from "./user.ts";
+export * from "./directory.ts";

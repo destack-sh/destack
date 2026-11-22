@@ -1,18 +1,25 @@
 import type { Crypto } from "@destack/environment";
 import { Scope } from "@destack/sync";
 import { type Credential, none, permission, through, union } from "@destack/access";
-import { Condition, type Select, type Snapshot } from "@destack/db";
+import { Condition, type Select } from "@destack/db";
+import type { Snapshot } from "@destack/db/database";
 import { MACHINE_KEY } from "@destack/access/token";
 import { account } from "./account.ts";
 import { user } from "./user.ts";
-import { defineObject, field, type MethodContext, type ObjectType, proof } from "@destack/object";
+import {
+    defineObject,
+    field,
+    type MethodContext,
+    type ObjectType,
+    proof,
+    CallError,
+    nested,
+} from "@destack/object";
 import { Digest, schema } from "@destack/schema";
 import { CompactProof, IdentityError, type Proof, PublicKey } from "@destack/identity";
 import { Revocation } from "../credential/revocation.ts";
-import { CallError } from "@destack/object";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
-import { nested } from "@destack/object";
 import { argument, plural, t } from "@destack/locale";
 
 /** How long a key authenticates, a year in milliseconds. */

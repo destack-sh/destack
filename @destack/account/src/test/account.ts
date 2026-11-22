@@ -1,7 +1,8 @@
 import { AUTHORIZATION_REQUEST_PATH } from "../authentication/path.ts";
 import { Bookmark } from "@destack/object/client";
 import type { Environment, HostCapability } from "@destack/environment";
-import { type DatabaseConnection, type Dialect, eq, Snapshot } from "@destack/db";
+import { type Dialect, eq, defineDatabase } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { MemoryBlobStorage } from "@destack/resource";
 import { TestTemplate, TestDatabase, TestRun } from "@destack/db/test";
 import { Scope, Subject, RequestId } from "@destack/sync";
@@ -37,7 +38,14 @@ import { PackageVersion, PackageId } from "@destack/package";
 import { ENTITLED_PACKAGE } from "./entitlement.ts";
 import type { BuildReader } from "@destack/package/manifest";
 import { found, Identifier, type JsonValue, present, schema } from "@destack/schema";
-import { CallError, type FeatureReference, type Fetch, PackageMount } from "@destack/object";
+import {
+    CallError,
+    type FeatureReference,
+    type Fetch,
+    PackageMount,
+    type InstanceOf,
+    tablesOf,
+} from "@destack/object";
 import { settingServer } from "@destack/setting/server";
 import settingPackage from "@destack/setting/package";
 import {
@@ -46,8 +54,7 @@ import {
     type BetterAuthAuthenticatorOptions,
     type SignUp,
 } from "../better-auth/index.ts";
-import { MachineKey } from "../client/index.ts";
-import { DEVICE_SCOPES, Issuer, TokenSet } from "../client/index.ts";
+import { MachineKey, DEVICE_SCOPES, Issuer, TokenSet } from "../client/index.ts";
 import { IdentityKeystore, IdentityRegistry, type Identity } from "../identity/index.ts";
 import {
     account,
@@ -70,8 +77,6 @@ import {
 import accountPackage from "../package.ts";
 import { UniverseOrigin } from "../address/address.ts";
 import { accountServer, Platform, PlatformDefinition } from "../server/index.ts";
-import { defineDatabase } from "@destack/db";
-import { type InstanceOf, tablesOf } from "@destack/object";
 import { TestBrowser } from "./browser.ts";
 import { TestDns } from "./dns.ts";
 import type { DnsResolver } from "../server/dns-resolver.ts";
@@ -582,12 +587,12 @@ export class TestAccountStore implements AsyncDisposable {
 
     /** Read a residency by its code. */
     residency(code: ResidencyCode): Promise<Residency> {
-        return Residency.require(Snapshot.live(this.database), code);
+        return Residency.require(this.database.snapshot(), code);
     }
 
     /** Read a residency's space, the home of the platform's account in it. */
     async residencySpace(residencyId: ResidencyCode): Promise<Identifier<"space">> {
-        return Residency.space(Snapshot.live(this.database), residencyId);
+        return Residency.space(this.database.snapshot(), residencyId);
     }
 
     /** Route a request of the universe's origin to the package mounted at its path. */
@@ -858,7 +863,8 @@ export class TestAccountStore implements AsyncDisposable {
                 : { ...granted.feature, resource: null };
 
         // replace the one the account has for the feature with one of the terms, keeping the others
-        const stored = await Snapshot.live(this.database)
+        const stored = await this.database
+            .snapshot()
             .read(entitlement.table)
             .findMany({ where: { scope: accountId } });
         const allowance: Allowance = {
@@ -878,7 +884,7 @@ export class TestAccountStore implements AsyncDisposable {
     /** Set an account's allowances through account.entitle, as finance does. */
     async allow(accountId: Identifier<"account">, allowances: readonly Allowance[]): Promise<void> {
         // act as the billing installation of the account's residency space
-        const owner = await Account.of(Snapshot.live(this.database), accountId);
+        const owner = await Account.of(this.database.snapshot(), accountId);
         const provider = await this.#entitler(owner.residencyId);
         const now = this.store.clock.now();
         await this.store.mutate(AccessContext.of(Caller.of(provider), now), {
@@ -892,9 +898,7 @@ export class TestAccountStore implements AsyncDisposable {
     /** Act as the cloud machine a space is placed on. */
     async machine(spaceId: Identifier<"space">): Promise<MachineKey> {
         const placed = present(
-            await Snapshot.live(this.database)
-                .read(placement.table)
-                .findFirst({ where: { spaceId } }),
+            await this.database.snapshot().read(placement.table).findFirst({ where: { spaceId } }),
             `the placement of ${spaceId}`,
         );
 
@@ -910,7 +914,7 @@ export class TestAccountStore implements AsyncDisposable {
         }
         const relating = (async () => {
             // derive the installation the residency's space declares for billing
-            const snapshot = Snapshot.live(this.database);
+            const snapshot = this.database.snapshot();
             const served = await snapshot
                 .read(residency.table)
                 .findFirst({ where: { id: residencyId } });
@@ -941,7 +945,7 @@ export class TestAccountStore implements AsyncDisposable {
     /** Read the relay a residency's home declares, which the universe relates to the residency. */
     async relay(residencyId: ResidencyCode): Promise<Subject> {
         // derive the installation the home's stack declares under the relay's name
-        const snapshot = Snapshot.live(this.database);
+        const snapshot = this.database.snapshot();
         const home = await Scope.object(snapshot, await this.residencySpace(residencyId));
         const id = await InstallationId.of(home, RESIDENCY_RELAY, this.environment.crypto);
 
@@ -1265,11 +1269,7 @@ export class TestAccountStore implements AsyncDisposable {
         const fetch = (request: Request) => TestAccountStore.#route(store, served, request);
         const issuer = new Issuer(ISSUER, fetch, environment, new Bookmark());
         const identities = new Map<string, Identity>();
-        const verifier = AccountAuthentication.universe(
-            Snapshot.live(database),
-            ISSUER,
-            environment,
-        );
+        const verifier = AccountAuthentication.universe(database.snapshot(), ISSUER, environment);
         const served: TestObjectStore = TestObjectStore.serve(store, {
             credential: {
                 sign: async (request, signer) => {

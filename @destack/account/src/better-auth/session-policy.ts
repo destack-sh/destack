@@ -1,5 +1,5 @@
 import { createAuthMiddleware, getSessionFromCtx, isAPIError } from "better-auth/api";
-import type { DatabaseConnection } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import type { Session } from "../object/session.ts";
 import type { BetterAuthPlugin } from "better-auth";
 import { ActiveSession } from "./active-session.ts";

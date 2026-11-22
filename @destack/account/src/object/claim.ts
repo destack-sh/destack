@@ -1,4 +1,4 @@
-import { ANY_SCOPE, none, through, union } from "@destack/access";
+import { none, through, union, ANY_SCOPE } from "@destack/access";
 import { claimMethods, claimTable, defineObject } from "@destack/object";
 import { account } from "./account.ts";
 import { placement } from "./placement.ts";

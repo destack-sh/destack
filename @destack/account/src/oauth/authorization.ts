@@ -3,9 +3,9 @@ import type { AuthContext } from "better-auth";
 import { type AssertionVerifier, Pkce } from "@destack/access/token";
 import { AccessContext, Caller, Grant, GrantPermission, principal } from "@destack/access";
 import { grant } from "@destack/object";
-import { Directory } from "../address/directory.ts";
+import { Directory } from "../client/directory.ts";
 import { space } from "../object/space.ts";
-import { type DatabaseConnection, Snapshot, Transaction } from "@destack/db";
+import type { DatabaseConnection, Transaction } from "@destack/db/database";
 import type { Environment } from "@destack/environment";
 import { Failure } from "@destack/error";
 import type { ObjectStore } from "@destack/object/server";
@@ -227,7 +227,7 @@ export class AuthorizationEndpoint {
         const now = environment.clock.now();
         const code = await Credential.create("authorization-code", environment);
 
-        return Transaction.run(database, async (transaction) => {
+        return database.commit(async (transaction) => {
             // register a device's client, record the consent, grant what was asked, then issue the code
             if (party.registration.kind === "device") {
                 await Client.register(objects, party.clientId, session.userId, now, transaction);
@@ -274,7 +274,7 @@ export class AuthorizationEndpoint {
     async #standing(session: ActiveSession, delegate: Subject): Promise<Grant | undefined> {
         // find the person's unexpired grant to the delegate
         const standing = await Grant.find(
-            Snapshot.live(this.#options.database),
+            this.#options.database.snapshot(),
             { delegator: principal.user.reference(Scope.universe.id, session.userId), delegate },
             this.#options.environment.clock.now(),
         );
@@ -404,7 +404,7 @@ export class AuthorizationEndpoint {
         const signerSpace = principal.space.is(signer) ? signer.id : signer.scope;
         const named =
             registration.kind === "installation"
-                ? await new Directory(Snapshot.live(database)).find(space, registration.space)
+                ? await new Directory(database.snapshot()).find(space, registration.space)
                 : undefined;
         if (named?.id !== signerSpace || claims["client_id"] !== party.clientId) {
             throw OAuthError.of(
@@ -466,7 +466,8 @@ export class AuthorizationEndpoint {
         const consent =
             session === undefined
                 ? undefined
-                : await Snapshot.live(this.#options.database)
+                : await this.#options.database
+                      .snapshot()
                       .read(oauthConsent.table)
                       .findFirst({ where: { clientId: party.clientId, scope: session.userId } });
 
@@ -517,7 +518,7 @@ export class AuthorizationEndpoint {
         else {
             const { database, environment, objects } = this.#options;
             const code = await Credential.create("authorization-code", environment);
-            const location = await Transaction.run(database, async (transaction) => {
+            const location = await database.commit(async (transaction) => {
                 const standing =
                     party.registration.kind === "installation" || consent === undefined
                         ? await OAuthConsent.grant(
@@ -663,7 +664,8 @@ export class AuthorizationEndpoint {
             .safeParse(requestUri.slice(REQUEST_URI.length));
         const row =
             requestUri.startsWith(REQUEST_URI) && id.success
-                ? await Snapshot.live(this.#options.database)
+                ? await this.#options.database
+                      .snapshot()
                       .read(authorizationRequest.table)
                       .findFirst({ where: { id: id.data } })
                 : undefined;

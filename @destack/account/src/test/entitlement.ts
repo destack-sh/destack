@@ -1,4 +1,14 @@
-import { and, type DatabaseConnection, eq } from "@destack/db";
+import {
+    ReplicaSet,
+    Scope,
+    type Publisher,
+    replica,
+    replicaPosition,
+    replicaSubscription,
+    type Subscription,
+} from "@destack/sync";
+import { and, eq } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { PackageId } from "@destack/package";
 import {
     type FeatureReference,
@@ -7,15 +17,6 @@ import {
     Shape,
 } from "@destack/object";
 import { Identifier, schema } from "@destack/schema";
-import {
-    type Publisher,
-    Replica,
-    replica,
-    replicaPosition,
-    replicaSubscription,
-    Scope,
-    type Subscription,
-} from "@destack/sync";
 import { type Environment, waitAborted } from "@destack/environment";
 import { entitlement, type Entitlement, entitlementShape } from "../object/entitlement.ts";
 import type { EntitlementResource } from "../object/allowance.ts";
@@ -51,12 +52,12 @@ export const TestEntitlement = {
             [{ shape: entitlementShape, keys: [{ account: accountId }] }],
             { target: scope },
         );
-        const recorded = await Replica.subscription(database, name, scope);
+        const recorded = await new ReplicaSet(database).subscription(name, scope);
         const queries = {
             ...QueriesParameters.parse(recorded?.parameters ?? {}).queries,
             ...QueriesParameters.parse(followed.parameters).queries,
         };
-        const columns = Replica.subscriptionColumns(
+        const columns = ReplicaSet.subscriptionColumns(
             { ...followed, parameters: { queries: schema.json().parse(queries) } },
             "caller",
         );
@@ -79,7 +80,7 @@ export const TestEntitlement = {
         });
 
         // mark the replica live, as its follow would
-        Replica.mark(database, { name, scope }, { log: "test", epoch: "test", sequence: 1 });
+        new ReplicaSet(database).mark({ name, scope }, { log: "test", epoch: "test", sequence: 1 });
 
         // replace the entitlement, a resource's under a test feature of its name
         const feature =

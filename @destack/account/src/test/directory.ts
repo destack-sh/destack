@@ -1,6 +1,7 @@
 import { principal, universe } from "@destack/access";
 import { TestAccess } from "@destack/access/test";
-import { type DatabaseConnection, eq } from "@destack/db";
+import { eq } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { type ClaimPrimary, RemoteStore } from "@destack/object/server";
 import { Identifier } from "@destack/schema";
 import { serversOf, testCallKey, testEvents, TestObjectStore } from "@destack/object/test";

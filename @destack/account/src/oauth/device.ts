@@ -1,6 +1,7 @@
 import type { UniverseOrigin } from "../address/address.ts";
 import type { AuthContext } from "better-auth";
-import { type DatabaseConnection, eq, Snapshot, Transaction } from "@destack/db";
+import { eq } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { type Environment, Random } from "@destack/environment";
 import type { ObjectStore } from "@destack/object/server";
 import { Digest, schema } from "@destack/schema";
@@ -22,8 +23,8 @@ import { PackageResource } from "./resource.ts";
 import { spaceSeparated, type GrantType, TokenEndpoint } from "./token.ts";
 import { Credential } from "../credential/credential.ts";
 import { requireBody, requireOrigin, requireQuery } from "./authorization.ts";
-import type { Decision } from "../authentication/request.ts";
 import {
+    type Decision,
     DeviceRequestDecision,
     DeviceRequestOutcome,
     DeviceRequestReview,
@@ -204,7 +205,7 @@ export class DeviceAuthorizationEndpoint {
         }
 
         // register a device's client for the person, grant the client the scopes, and approve, in one commit
-        await Transaction.run(database, async (transaction) => {
+        await database.commit(async (transaction) => {
             if (party.registration.kind === "device") {
                 await Client.register(objects, party.clientId, session.userId, now, transaction);
             }
@@ -349,7 +350,8 @@ export function deviceGrant(options: Omit<DeviceOptions, "verification" | "sessi
         }
 
         // issue the approving person's tokens under their consent, refusing one revoked since the approval
-        const consent = await Snapshot.live(database)
+        const consent = await database
+            .snapshot()
             .read(oauthConsent.table)
             .findFirst({ where: { clientId: party.clientId, scope: decision.userId } });
         if (consent === undefined) {

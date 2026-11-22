@@ -4,10 +4,11 @@ import {
     type PermissionReference,
     principal,
     relation,
-    Relationship,
     union,
+    Relationship,
 } from "@destack/access";
-import { type DatabaseConnection, type Select, Snapshot } from "@destack/db";
+import type { Select } from "@destack/db";
+import type { DatabaseConnection, Snapshot } from "@destack/db/database";
 import { defineObject, field, InstallationName } from "@destack/object";
 import { PackageId } from "@destack/package";
 import type { ObjectStore } from "@destack/object/server";
@@ -233,7 +234,8 @@ export const Residency = {
 
     /** List every residency, by code. */
     list(database: DatabaseConnection): Promise<Residency[]> {
-        return Snapshot.live(database)
+        return database
+            .snapshot()
             .read(residency.table)
             .findMany({ orderBy: { code: "asc" } });
     },
@@ -241,7 +243,7 @@ export const Residency = {
     /** Read the residency a cloud machine or residency space serves, if any. */
     async of(database: DatabaseConnection, server: Subject): Promise<ResidencyCode | undefined> {
         // find the residency the server's relationship relates it to as a server, none for none
-        const relationships = await Relationship.readBySubject(Snapshot.live(database), [server]);
+        const relationships = await Relationship.readBySubject(database.snapshot(), [server]);
         const found = relationships.find(
             (row) =>
                 row.objectPackageId === residency.typeReference.packageId &&
@@ -253,7 +255,8 @@ export const Residency = {
         }
 
         // read the code of the residency it serves
-        const served = await Snapshot.live(database)
+        const served = await database
+            .snapshot()
             .read(residency.table)
             .findFirst({ where: { id: residency.identifier(found.objectId) } });
 
@@ -299,7 +302,7 @@ export const Residency = {
         definitions: readonly ResidencyDefinition[],
     ): Promise<void> {
         // read the stored residencies
-        const rows = await Snapshot.live(objects.database).read(residency.table).findMany();
+        const rows = await objects.database.snapshot().read(residency.table).findMany();
 
         // create the missing ones and update the changed ones
         const calls = definitions.flatMap((definition) => {

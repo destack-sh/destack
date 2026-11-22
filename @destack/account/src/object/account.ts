@@ -12,8 +12,17 @@ import {
     type Creation,
 } from "@destack/access";
 import { Scope, type ObjectReference, type Subject } from "@destack/sync";
-import { Snapshot, type Select, type RelationalQueryBuilder } from "@destack/db";
-import { Claim, claimTable, defineObject, field, type MethodContext } from "@destack/object";
+import type { Select, RelationalQueryBuilder } from "@destack/db";
+import type { Snapshot } from "@destack/db/database";
+import {
+    Claim,
+    claimTable,
+    defineObject,
+    field,
+    type MethodContext,
+    recoverable,
+    shareable,
+} from "@destack/object";
 import { Identifier, schema } from "@destack/schema";
 import { Label } from "../address/label.ts";
 import { AccountHandle, HANDLE_LENGTH, type HandleAvailability } from "../address/handle.ts";
@@ -25,7 +34,6 @@ import { sudo } from "../authentication/sudo.ts";
 import { DisplayName } from "./display-name.ts";
 import { Allowance } from "./allowance.ts";
 import { AccountError } from "../error/error.ts";
-import { recoverable, shareable } from "@destack/object";
 import { argument, plural, t } from "@destack/locale";
 
 /** The name of every account's home space. */

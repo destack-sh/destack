@@ -1,6 +1,6 @@
 import type { BetterAuthPlugin } from "better-auth";
 import { APIError, createAuthEndpoint } from "better-auth/api";
-import { type DatabaseConnection, Snapshot } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { claimTable } from "@destack/object";
 import { Locale, LocaleTag, SOURCE_LOCALE } from "@destack/locale";
 import { schema, TimeZone } from "@destack/schema";
@@ -57,7 +57,7 @@ export const SignUp = Object.assign(SignUpValues, {
                     { method: "GET", query: HandleQuery },
                     async (context) => {
                         const { handle } = context.query;
-                        const claims = Snapshot.live(database).read(claimTable);
+                        const claims = database.snapshot().read(claimTable);
 
                         return context.json(
                             HandleCheck.parse({

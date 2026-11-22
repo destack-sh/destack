@@ -1,5 +1,6 @@
 import { none, permission, principal, relation, through, union } from "@destack/access";
-import { type Select, type Snapshot } from "@destack/db";
+import type { Select } from "@destack/db";
+import type { Snapshot } from "@destack/db/database";
 import { type MethodContext, defineObject, field, recoverable } from "@destack/object";
 import { ServerRuntime } from "@destack/package/runtime";
 import { schema } from "@destack/schema";

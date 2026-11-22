@@ -1,7 +1,6 @@
-import { AccessError } from "@destack/access";
-import { CONTAINED, principal } from "@destack/access";
+import { AccessError, CONTAINED, principal } from "@destack/access";
 import { Scope, type Subject } from "@destack/sync";
-import { type DatabaseConnection, Snapshot } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { schema } from "@destack/schema";
 import {
     ASSERTION_TYPE,
@@ -166,7 +165,7 @@ function assertionKey(
     crypto: Crypto,
 ): Promise<AssertionKey | undefined> {
     // read a machine's authenticating key, or the space's current signing key for its installations
-    const snapshot = Snapshot.live(database);
+    const snapshot = database.snapshot();
     if (machine.identifies(issuer)) {
         return Machine.assertionKey(snapshot, thumbprint, now);
     } else if (space.identifies(issuer)) {
@@ -182,7 +181,7 @@ async function containment(database: DatabaseConnection, subject: Subject): Prom
     if (!principal.space.is(subject)) {
         return [];
     }
-    const snapshot = Snapshot.live(database);
+    const snapshot = database.snapshot();
     const row = await snapshot
         .read(space.table)
         .findFirst({ where: { id: space.identifier(subject.id) } });

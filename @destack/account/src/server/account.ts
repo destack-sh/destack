@@ -1,12 +1,10 @@
-import type { Call } from "@destack/sync";
+import { type Call, Scope } from "@destack/sync";
 import { Relationship } from "@destack/access";
-import type { Snapshot } from "@destack/db";
-import { Scope } from "@destack/sync";
-import type { MethodContextOf, NextOf, ResultOf } from "@destack/object";
+import type { Snapshot } from "@destack/db/database";
+import { type MethodContextOf, type NextOf, type ResultOf, relationship } from "@destack/object";
 import { type Identifier, schema } from "@destack/schema";
 import { Account, HOME_SPACE, account } from "../object/account.ts";
 import { organization } from "../object/organization.ts";
-import { relationship } from "@destack/object";
 import { Residency, residency } from "../object/residency.ts";
 import { StoreRelationship } from "./relationship.ts";
 import { space } from "../object/space.ts";

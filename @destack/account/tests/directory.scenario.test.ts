@@ -1,12 +1,13 @@
 import { testSimulation } from "@destack/object/test";
 import type { ClientOf } from "@destack/object/client";
 import accountPackage from "../src/package.ts";
-import { defineDatabase, Snapshot } from "@destack/db";
+import { defineDatabase } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { Identifier, present, schema } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { expect, onTestFinished, Recording, test, refusal } from "@destack/test";
-import { Directory, MachineAddress } from "../src/address/index.ts";
+import { MachineAddress } from "../src/address/index.ts";
+import { Directory } from "../src/client/index.ts";
 import { Account, endpoint, machine, placement } from "../src/object/index.ts";
 import {
     DOMAINS,
@@ -62,7 +63,7 @@ async function openNotes() {
     const { accountId, handle, spaceId, machine: computer } = await fixture.createSpace(owner);
     const row = { id: spaceId, scope: accountId, name: "notes" };
     const object = { objectId: spaceId, owner: accountId };
-    const claimant = await Claimant.of(place, object, row, Snapshot.live(fixture.database));
+    const claimant = await Claimant.of(place, object, row, fixture.database.snapshot());
     await claimNames(computer, fixture.database, claimant, fixture.environment);
 
     // publish the machine's tunnel as the residency's relay
@@ -76,7 +77,8 @@ async function openNotes() {
     });
 
     // address the machine below its account's handle, as the relay publishes it
-    const named = await Snapshot.live(fixture.database)
+    const named = await fixture.database
+        .snapshot()
         .read(machine.table)
         .findFirst({ where: { id: schema.identifier("machine").parse(computer.subject.id) } });
     const address = MachineAddress.format(
@@ -100,7 +102,7 @@ test("find and resolve a place's address over the directory's rows, to the URL i
     const opened = await openNotes();
     await using fixture = opened.fixture;
     const { accountId, handle, spaceId, machine: computer, url } = opened;
-    const resolver = new Directory(Snapshot.live(fixture.database));
+    const resolver = new Directory(fixture.database.snapshot());
 
     // find the place and resolve its machine, and nothing at another name
     expect([
@@ -162,7 +164,7 @@ test("find the account claiming a place's identifier, and none for an identifier
     await using fixture = opened.fixture;
 
     // find its account by the identifier, and none for a new identifier
-    const directory = new Directory(Snapshot.live(fixture.database));
+    const directory = new Directory(fixture.database.snapshot());
     expect([
         await directory.owner(place, opened.spaceId),
         await directory.owner(place, Identifier.create("space", fixture.environment)),
@@ -182,7 +184,7 @@ test("find no account or place at an address once the account's deletion was req
     });
 
     // find neither the account nor its place
-    const resolver = new Directory(Snapshot.live(fixture.database));
+    const resolver = new Directory(fixture.database.snapshot());
     expect([
         await resolver.account(handle),
         await resolver.find(place, `notes--${handle}`),
@@ -291,7 +293,7 @@ test("locate each of many spaces placed on a machine in one statement for its pl
     // hear commits as a serving store does, then locate each, counting the statements
     await database.log.listening();
     const before = await Recording.read(simulation.telemetry);
-    const directory = new Directory(Snapshot.live(database));
+    const directory = new Directory(database.snapshot());
     const located = await Promise.all(spaces.map((id) => directory.locate(id, NOW)));
     const statements = (await Recording.read(simulation.telemetry))
         .since(before)

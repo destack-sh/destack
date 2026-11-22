@@ -6,7 +6,7 @@ import {
 } from "@destack/access";
 import { Scope } from "@destack/sync";
 import { FEDERATED_TOKEN, Nonce } from "@destack/access/token";
-import { type DatabaseConnection, Snapshot } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import type { Environment } from "@destack/environment";
 import { JwsAlgorithm, Jwks, Jwt, type KeyLookup } from "@destack/identity";
 import type { PackageId } from "@destack/package";
@@ -86,7 +86,8 @@ export class FederatedVerifier {
         const trusted =
             issuer === undefined || subject === undefined
                 ? undefined
-                : await Snapshot.live(this.#database)
+                : await this.#database
+                      .snapshot()
                       .read(client.table)
                       .findFirst({ where: { issuer, subject, revokedAt: { isNull: true } } });
         if (issuer === undefined || subject === undefined || trusted === undefined) {

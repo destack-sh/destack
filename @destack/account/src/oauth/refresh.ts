@@ -1,5 +1,5 @@
 import type { UniverseOrigin } from "../address/address.ts";
-import type { DatabaseConnection } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import type { Environment } from "@destack/environment";
 import type { ObjectStore } from "@destack/object/server";
 import { schema } from "@destack/schema";

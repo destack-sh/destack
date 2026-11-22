@@ -9,7 +9,8 @@ import {
     principal,
     ClientId,
 } from "@destack/access";
-import { and, eq, isNull, Snapshot, type DatabaseConnection } from "@destack/db";
+import { and, eq, isNull } from "@destack/db";
+import type { Snapshot, DatabaseConnection } from "@destack/db/database";
 import type { PackageId } from "@destack/package";
 import { Digest } from "@destack/schema";
 import { Bearer, type TokenVerification, TokenVerifier } from "@destack/access/token";
@@ -150,7 +151,8 @@ export const AccountAuthentication = {
 
         // read the user's unexpired grant to it
         const delegate = principal.client.reference(Scope.universe.id, row.id);
-        const grant = await Snapshot.live(database)
+        const grant = await database
+            .snapshot()
             .read(accessGrant)
             .findFirst({
                 where: {

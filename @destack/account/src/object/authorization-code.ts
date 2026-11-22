@@ -1,7 +1,8 @@
 import { none } from "@destack/access";
-import { type DatabaseConnection, eq, type Select, Snapshot } from "@destack/db";
+import { eq, type Select } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import type { Environment } from "@destack/environment";
-import { defineObject, field } from "@destack/object";
+import { defineObject, field, expiring } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import { Digest, present, schema } from "@destack/schema";
 import { RequestId } from "@destack/sync";
@@ -11,7 +12,6 @@ import { type OAuthConsent, oauthConsent } from "./oauth-consent.ts";
 import { RefreshToken } from "./refresh-token.ts";
 import { session } from "./session.ts";
 import { user } from "./user.ts";
-import { expiring } from "@destack/object";
 import { argument, plural, t } from "@destack/locale";
 
 /** The states of an authorization code: issued, then redeemed once. */
@@ -126,7 +126,8 @@ export const AuthorizationCode = {
 
         // refuse another client's code
         const consent = present(
-            await Snapshot.live(database)
+            await database
+                .snapshot()
                 .read(oauthConsent.table)
                 .findFirst({ where: { id: row.consentId } }),
             `the consent of code ${row.id}`,

@@ -1,10 +1,12 @@
 import {
     MAX_TOKEN_LIFETIME_MILLISECONDS,
     TOKEN_LIFETIME_MILLISECONDS,
+    ACCESS_TOKEN_TYPE,
+    TokenIdentity,
+    TokenIssuerAuthority,
 } from "@destack/access/token";
 import { type Authentication, Caller, principal } from "@destack/access";
-import { ACCESS_TOKEN_TYPE, TokenIdentity, TokenIssuerAuthority } from "@destack/access/token";
-import { type DatabaseConnection, Transaction } from "@destack/db";
+import type { DatabaseConnection, Transaction } from "@destack/db/database";
 import type { Environment } from "@destack/environment";
 import { Jwks, Jwt, type JwtClaims, type KeySet } from "@destack/identity";
 import { CallError } from "@destack/object";
@@ -163,13 +165,15 @@ export class TokenEndpoint {
         const { database } = this.#options;
         const tokens =
             typeof decided === "function"
-                ? await Transaction.run(database, async (transaction) => {
-                      const issue = await decided(transaction).catch((error: unknown) => {
-                          throw TokenEndpoint.refusal(error);
-                      });
+                ? await database
+                      .commit(async (transaction) => {
+                          const issue = await decided(transaction).catch((error: unknown) => {
+                              throw TokenEndpoint.refusal(error);
+                          });
 
-                      return this.issue(issue, transaction);
-                  }).catch(async (error: unknown) => this.#reused(error))
+                          return this.issue(issue, transaction);
+                      })
+                      .catch(async (error: unknown) => this.#reused(error))
                 : await this.issue(decided);
 
         return Response.json(tokens);
