@@ -318,9 +318,7 @@ export class DatabaseConnection<
 
     /** Run SQL and read its rows by column name, as the database returns them. */
     all(statement: SQLWrapper): Promise<Record<string, unknown>[]> {
-        return this.driver.all(
-            fill(render(statement, this.dialect, this.state.namespace, this.state.cipher)),
-        );
+        return this.driver.all(fill(render(statement, this.dialect, this.state)));
     }
 
     /** Decide whether a query has rows, in one statement. */
@@ -337,16 +335,12 @@ export class DatabaseConnection<
 
     /** Run SQL and read its rows as an array of values. */
     values(statement: SQLWrapper): Promise<unknown[][]> {
-        return this.driver.values(
-            fill(render(statement, this.dialect, this.state.namespace, this.state.cipher)),
-        );
+        return this.driver.values(fill(render(statement, this.dialect, this.state)));
     }
 
     /** Run a SQL write. */
     run(statement: SQLWrapper): Promise<void> {
-        return this.driver.execute(
-            fill(render(statement, this.dialect, this.state.namespace, this.state.cipher)),
-        );
+        return this.driver.execute(fill(render(statement, this.dialect, this.state)));
     }
 
     /** Plan and apply a manager's tables at once. */
@@ -737,6 +731,8 @@ export interface ConnectionOptions {
     readonly replicated: ReadonlySet<string>;
     /** The namespace of the database's relations, absent for none. */
     readonly namespace?: string;
+    /** The PostgreSQL schema of the database's relations, absent for SQLite. */
+    readonly schema?: string;
     /** The database's name, as telemetry reports its statements under. */
     readonly name: string;
     /** The clock, randomness, crypto and telemetry the connection runs on. */
@@ -780,6 +776,8 @@ export class ConnectionState {
     readonly openChannel: ((name: string) => Channel<unknown>) | undefined;
     /** The database's namespace in a shared SQLite store, absent for a separate database. */
     readonly namespace: string | undefined;
+    /** The PostgreSQL schema every statement names its relations in, absent for SQLite. */
+    readonly schema: string | undefined;
     /** The searched tables whose full-text rows SQLite writes update, by SQL name. */
     #searched: ReadonlyMap<string, Table> = new Map();
     /** The declared names of the tables and their columns, by SQL name. */
@@ -852,6 +850,7 @@ export class ConnectionState {
         this.#replicated = this.declaredReplicas;
         this.openChannel = openChannel;
         this.namespace = options.namespace;
+        this.schema = options.schema;
         this.#dialect = options.dialect;
         this.#isAnnouncing = options.announcer === "database";
 

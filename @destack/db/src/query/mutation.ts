@@ -224,9 +224,7 @@ export class MutationQuery<
         // render the mutation
         const state = this.state;
         const { driver } = state;
-        const { namespace, cipher } = driver.state;
-        const rendered = (statement: SQL) =>
-            fill(render(statement, driver.dialect, namespace, cipher));
+        const rendered = (statement: SQL) => fill(render(statement, driver.dialect, driver.state));
 
         // send the retirement of the blobs the changed rows let go right before the mutation
         const retirement = this.#retirement();
@@ -317,7 +315,7 @@ export class MutationQuery<
         const shape = `insert ${written.join(",")} ${action} ${target} ${updated.join(",")} ${returned}`;
 
         // render the shape's statement once, a placeholder standing in for each value
-        const { cipher, namespace } = driver.state;
+        const { cipher } = driver.state;
         const prepared = driver.state.preparedQueries.take(table, shape, () => {
             // stand a placeholder in for each written and set value, noting its column
             const slots: Column[] = [];
@@ -334,7 +332,7 @@ export class MutationQuery<
             const statement = this.#sql([slotted(written)], slotted(updated));
 
             return new PreparedQuery(
-                render(statement, driver.dialect, namespace, cipher),
+                render(statement, driver.dialect, driver.state),
                 new Projection({}),
                 slots,
             );

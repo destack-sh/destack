@@ -1,4 +1,5 @@
 import { quote } from "../dialect/quote.ts";
+import { placed } from "../sql/index.ts";
 import type { Session } from "../database/session.ts";
 import { present, schema, Uuid } from "@destack/schema";
 import type { ConnectionState } from "../database/connection.ts";
@@ -124,7 +125,7 @@ export class TransactionIdentity {
             if (this.#token !== undefined) {
                 this.#token.isLogged = this.#session
                     .values(
-                        `SELECT EXISTS (SELECT FROM ${quote(LOG)} WHERE "transaction" = pg_current_xact_id_if_assigned()::TEXT AND sequence IS NULL)`,
+                        `SELECT EXISTS (SELECT FROM ${placed(LOG, this.#connection)} WHERE "transaction" = pg_current_xact_id_if_assigned()::TEXT AND sequence IS NULL)`,
                         [],
                     )
                     .then(([row]) => row?.[0] === true);

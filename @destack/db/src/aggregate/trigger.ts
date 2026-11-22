@@ -34,7 +34,7 @@ function install(aggregate: AggregateDescription, dialect: Dialect, namespace?: 
     // maintain them through one PostgreSQL function
     else if (dialect === "postgresql") {
         return [
-            `CREATE OR REPLACE FUNCTION ${quote(`${prefix}_maintain`)}() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+            `CREATE OR REPLACE FUNCTION ${quote(`${prefix}_maintain`)}() RETURNS trigger LANGUAGE plpgsql SET search_path FROM CURRENT AS $$ BEGIN
                 IF EXISTS (SELECT 1 FROM ${replica}) THEN RETURN NULL; END IF;
                 IF TG_OP = 'UPDATE' AND NOT (${changed(aggregate, "IS DISTINCT FROM")}) THEN RETURN NULL; END IF;
                 IF TG_OP <> 'INSERT' THEN ${adjust(aggregate, "OLD", -1, dialect)} END IF;

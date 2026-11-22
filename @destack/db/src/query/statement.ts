@@ -18,7 +18,7 @@ import { DatabaseError } from "../error/error.ts";
 export class Statement {
     /** Build the statement from named values. */
     readonly #build: (value: (name: string) => SQLWrapper) => SQL;
-    /** The rendered statement of each dialect and namespace. */
+    /** The rendered statement of each dialect and place. */
     readonly #rendered = new Map<string, StatementTemplate>();
 
     /** Create the statement. */
@@ -50,12 +50,12 @@ export class Statement {
         return database.driver.execute(fill(this.#render(database), values));
     }
 
-    /** Render the statement once per dialect and namespace. */
+    /** Render the statement once per dialect and place: SQLite namespace or PostgreSQL schema. */
     #render(database: DatabaseConnection): StatementTemplate {
-        // reuse the rendering of the database's dialect and namespace
+        // reuse the rendering of the database's dialect and place
         const { dialect } = database;
-        const { namespace } = database.state;
-        const key = namespace === undefined ? dialect : `${dialect}:${namespace}`;
+        const { namespace, schema } = database.state;
+        const key = `${dialect}:${namespace ?? ""}:${schema ?? ""}`;
         const known = this.#rendered.get(key);
         if (known !== undefined) {
             return known;
@@ -63,7 +63,10 @@ export class Statement {
         const rendered = render(
             this.#build((name) => sql.placeholder(name)),
             dialect,
-            namespace,
+            {
+                namespace,
+                schema,
+            },
         );
         this.#rendered.set(key, rendered);
 

@@ -71,7 +71,7 @@ function createStamp(): string[] {
     const log = quote(LOG);
 
     return [
-        `CREATE OR REPLACE FUNCTION ${quote(`${LOG}_stamp`)}() RETURNS trigger LANGUAGE plpgsql AS $$
+        `CREATE OR REPLACE FUNCTION ${quote(`${LOG}_stamp`)}() RETURNS trigger LANGUAGE plpgsql SET search_path FROM CURRENT AS $$
         DECLARE
             unstamped BIGINT;
             base BIGINT;
@@ -118,7 +118,7 @@ function createStamp(): string[] {
 function createRecord(): string {
     const log = quote(LOG);
 
-    return `CREATE OR REPLACE FUNCTION ${quote(`${LOG}_record`)}() RETURNS trigger LANGUAGE plpgsql SET bytea_output = 'hex' AS $$
+    return `CREATE OR REPLACE FUNCTION ${quote(`${LOG}_record`)}() RETURNS trigger LANGUAGE plpgsql SET bytea_output = 'hex' SET search_path FROM CURRENT AS $$
         DECLARE
             retention TEXT := TG_ARGV[0];
             key_columns TEXT[] := TG_ARGV[1]::TEXT[];
@@ -200,7 +200,7 @@ function recordedImage(side: "old" | "new"): string {
 
 /** Create the function refusing an update of an append-only table. */
 function createRefusal(): string {
-    return `CREATE OR REPLACE FUNCTION ${quote(`${LOG}_append`)}() RETURNS trigger LANGUAGE plpgsql AS $$
+    return `CREATE OR REPLACE FUNCTION ${quote(`${LOG}_append`)}() RETURNS trigger LANGUAGE plpgsql SET search_path FROM CURRENT AS $$
         BEGIN
             RAISE EXCEPTION 'append-only table: %', TG_TABLE_NAME;
         END $$`;

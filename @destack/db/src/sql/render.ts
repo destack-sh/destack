@@ -58,12 +58,21 @@ export interface DriverStatement {
     readonly operation: string;
 }
 
-/** Render a fragment for a dialect: quoted identifiers, namespaced relations, bound values. */
+/** Where a statement's relations live and how its sensitive values encrypt. */
+export interface RenderPlace {
+    /** The database's namespace in a shared SQLite store, absent for a separate database. */
+    readonly namespace?: string | undefined;
+    /** The PostgreSQL schema the statement names its relations in, absent for SQLite. */
+    readonly schema?: string | undefined;
+    /** The cipher encrypting sensitive columns' values, absent for a database without them. */
+    readonly cipher?: ColumnCipher | undefined;
+}
+
+/** Render a fragment for a dialect: quoted identifiers, placed relations, bound values. */
 export function render(
     fragment: SQLWrapper,
     dialect: Dialect,
-    namespace?: string,
-    cipher?: ColumnCipher,
+    place: RenderPlace = {},
 ): StatementTemplate {
     // render the statement, then define the common tables it reads at its start
     const parameters: (DriverValue | Placeholder)[] = [];
@@ -71,8 +80,9 @@ export function render(
     const named = new Set<string>();
     const text = renderChunk(fragment, {
         dialect,
-        namespace,
-        cipher,
+        namespace: place.namespace,
+        schema: place.schema,
+        cipher: place.cipher,
         parameters,
         bound: new Map(),
         commons,
@@ -96,6 +106,7 @@ export function inline(value: SQLWrapper | DriverValue, dialect: Dialect): strin
     return renderChunk(isSQLWrapper(value) ? value : new Parameter(value), {
         dialect,
         namespace: undefined,
+        schema: undefined,
         cipher: undefined,
         parameters: undefined,
         bound: new Map(),
@@ -147,6 +158,8 @@ interface Target {
     readonly dialect: Dialect;
     /** The database's namespace in a shared store, absent for a separate database. */
     readonly namespace: string | undefined;
+    /** The PostgreSQL schema relations are named in, absent for SQLite. */
+    readonly schema: string | undefined;
     /** The cipher encryption sensitive columns' values, absent for a database without them. */
     readonly cipher: ColumnCipher | undefined;
     /** The common tables the statement reads, by name, absent for a declaration. */
@@ -159,16 +172,23 @@ interface Target {
     readonly tables: Set<string> | undefined;
 }
 
-/** Render a column qualified by its table within the database's namespace, or by its alias. */
+/** Render a column qualified by its table within the database's place, or by its alias. */
 function renderColumn(column: Column, target: Target): string {
     if (!column.isAliased) {
         target.tables?.add(column.table);
     }
-    const table = column.isAliased ? column.table : relation(column.table, target.namespace);
+    const table = column.isAliased ? quote(column.table) : placed(column.table, target);
 
     return target.parameters === undefined
         ? quote(column.definition.name)
-        : `${quote(table)}.${quote(column.definition.name)}`;
+        : `${table}.${quote(column.definition.name)}`;
+}
+
+/** Quote a relation in its PostgreSQL schema, or under its SQLite namespace. */
+export function placed(name: string, target: RenderPlace): string {
+    return target.schema === undefined
+        ? quote(relation(name, target.namespace))
+        : `${quote(target.schema)}.${quote(name)}`;
 }
 
 /** Render one chunk, binding or writing its values. */
@@ -198,7 +218,7 @@ function renderChunk(chunk: Chunk, target: Target): string {
     else if (chunk instanceof RelationName) {
         target.tables?.add(chunk.value);
 
-        return quote(relation(chunk.value, target.namespace));
+        return placed(chunk.value, target);
     }
     // select the dialect's fragment
     else if (chunk instanceof DialectSQL) {
@@ -213,7 +233,7 @@ function renderChunk(chunk: Chunk, target: Target): string {
         const { source, sqlName } = chunk[TABLE];
         target.tables?.add((source ?? chunk)[TABLE].sqlName);
 
-        return quote(source === undefined ? relation(sqlName, target.namespace) : sqlName);
+        return source === undefined ? placed(sqlName, target) : quote(sqlName);
     }
     // render a fragment's chunks
     else if (chunk instanceof SQL) {

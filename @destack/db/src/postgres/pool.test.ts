@@ -11,9 +11,6 @@ const onPostgresql = testOn("postgresql");
 /** A start time for the simulated clocks. */
 const START = Date.UTC(2026, 0, 1);
 
-/** The schema the reservations run in. */
-const SCHEMA = "pool_test";
-
 /** Open a pool of one connection whose reservations wait 50 ms, closed after the test. */
 function openPool(): PostgresPool {
     const pool = new PostgresPool(TestDatabase.address(), testHost(), { connections: 1, wait: 50 });
@@ -28,15 +25,15 @@ onPostgresql(
         // reserve the one connection, then wait past the wait for another in the same world
         const pool = openPool();
         const environment = environmentOn(new SimulatedClock(START));
-        const held = await pool.reserve(environment, SCHEMA);
-        const waiting = pool.reserve(environment, SCHEMA);
+        const held = await pool.reserve(environment);
+        const waiting = pool.reserve(environment);
         environment.clock.advance(50);
         const refused = await refusal(waiting);
 
         // reserve again once the connection is released
-        pool.release(held.sql);
-        const again = await pool.reserve(environment, SCHEMA);
-        pool.release(again.sql);
+        pool.release(held);
+        const again = await pool.reserve(environment);
+        pool.release(again);
         expect(refused).toEqual([
             "SERVICE_UNAVAILABLE",
             "CONNECTION_UNAVAILABLE",
@@ -52,15 +49,15 @@ onPostgresql(
         const pool = openPool();
         const holder = environmentOn(new SimulatedClock(START));
         const waiter = environmentOn(new SimulatedClock(START));
-        const held = await pool.reserve(holder, SCHEMA);
-        const waiting = pool.reserve(waiter, SCHEMA);
+        const held = await pool.reserve(holder);
+        const waiting = pool.reserve(waiter);
         const whileWaiting = kinds(waiter.scheduler.pending());
 
         // release it to the waiting world, which then has no work in flight
-        pool.release(held.sql);
+        pool.release(held);
         const reserved = await waiting;
         const afterwards = kinds(waiter.scheduler.pending());
-        pool.release(reserved.sql);
+        pool.release(reserved);
         expect([whileWaiting, afterwards]).toEqual([["operation"], []]);
     },
 );
@@ -72,16 +69,16 @@ onPostgresql(
         const pool = openPool();
         const holder = environmentOn(new SimulatedClock(START));
         const waiter = environmentOn(new SimulatedClock(START));
-        const held = await pool.reserve(holder, SCHEMA);
-        const waiting = pool.reserve(waiter, SCHEMA);
+        const held = await pool.reserve(holder);
+        const waiting = pool.reserve(waiter);
         waiter.clock.advance(50);
         const refused = await refusal(waiting);
 
         // leave no work in flight, and give the released connection to the next reservation
         const afterwards = kinds(waiter.scheduler.pending());
-        pool.release(held.sql);
-        const next = await pool.reserve(holder, SCHEMA);
-        pool.release(next.sql);
+        pool.release(held);
+        const next = await pool.reserve(holder);
+        pool.release(next);
         expect({ refused, afterwards }).toEqual({
             refused: [
                 "SERVICE_UNAVAILABLE",
@@ -99,36 +96,34 @@ onPostgresql(
         // release a reserved connection twice
         const pool = openPool();
         const environment = environmentOn(new SimulatedClock(START));
-        const reserved = await pool.reserve(environment, SCHEMA);
-        pool.release(reserved.sql);
-        expect(() => pool.release(reserved.sql)).toThrow(
+        const reserved = await pool.reserve(environment);
+        pool.release(reserved);
+        expect(() => pool.release(reserved)).toThrow(
             new TypeError("the connection is not reserved from this pool"),
         );
     },
 );
 
 onPostgresql(
-    "set a connection's search path to the schema it is reserved in, and again once the schema changes",
+    "keep every connection's search path empty, so a statement naming no schema fails",
     async () => {
-        // reserve the one connection in two schemas in turn, reading its search path each time
+        // reserve the one connection, reading its search path and an unqualified table
         const pool = openPool();
         const environment = environmentOn(new SimulatedClock(START));
-        const searchPath = async (schema: string) => {
-            const { sql, ready } = await pool.reserve(environment, schema);
-            try {
-                await ready;
-                const [row] = await sql`SHOW search_path`;
-
-                return String(row?.["search_path"]);
-            } finally {
-                pool.release(sql);
-            }
-        };
-        expect([
-            await searchPath(SCHEMA),
-            await searchPath(SCHEMA),
-            await searchPath("pool_other"),
-        ]).toEqual([SCHEMA, SCHEMA, "pool_other"]);
+        const sql = await pool.reserve(environment);
+        try {
+            const [row] = await sql`SHOW search_path`;
+            const unqualified = await sql`SELECT 1 FROM pg_tables_unqualified`.then(
+                () => "found",
+                (error: unknown) => (error instanceof Error ? error.message : String(error)),
+            );
+            expect([String(row?.["search_path"]), unqualified]).toEqual([
+                '""',
+                'relation "pg_tables_unqualified" does not exist',
+            ]);
+        } finally {
+            pool.release(sql);
+        }
     },
 );
 

@@ -23,7 +23,7 @@ import { LOG_EPOCH, LOG_HORIZON } from "../log/schema.ts";
 import { createLog } from "../log/trigger.ts";
 import { sql } from "../sql/index.ts";
 import { channelHub } from "../channel/channel.ts";
-import { upsertPredefined } from "../migration/plan.ts";
+import { planTables, upsertPredefined } from "../migration/plan.ts";
 import { onTestFinished, type TestProject, testTarget } from "@destack/test";
 import { type DigestCrypto, type JsonValue, mapValues, present, Uuid } from "@destack/schema";
 import type {
@@ -706,11 +706,20 @@ class TestSchema {
         environment: DatabaseEnvironment,
         template?: PostgresImage,
     ): Promise<TestSchema> {
-        // derive the schema names from the digest of the state, log and records
+        // derive the schema names from the digest of the state, the statements creating it, log and records
         const server = TestServer.of(address);
         const { session } = server;
+        const created = planTables({
+            applied: [],
+            existing: [],
+            declared: state,
+            dialect: "postgresql",
+            changed: new Set(),
+            empty: new Set(),
+        });
         const layout = JSON.stringify([
             state,
+            created.steps.map((step) => step.statements),
             createLog("postgresql"),
             createState(),
             createStamp(),

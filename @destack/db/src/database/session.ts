@@ -2,9 +2,9 @@ import type { DatabaseEnvironment } from "./connection.ts";
 import type { Scheduler } from "@destack/environment";
 import type postgres from "postgres";
 import type { Dialect } from "../dialect/dialect.ts";
-import { quote } from "../dialect/quote.ts";
+import { literal, quote } from "../dialect/quote.ts";
 import { DatabaseError } from "../error/error.ts";
-import type { PostgresPool, PostgresReservation } from "../postgres/pool.ts";
+import type { PostgresPool } from "../postgres/pool.ts";
 import type { DriverValue } from "../table/column.ts";
 import type { SqliteConnectionClient, SqliteQueryClient } from "../sqlite/client.ts";
 
@@ -147,7 +147,7 @@ export class PostgresSession implements Session {
     readonly limits = POSTGRES_LIMITS;
     /** The pool, or the transaction's reserved connection and savepoint depth. */
     readonly connection: PostgresConnection;
-    /** The schema every statement runs in. */
+    /** The schema a script's statements name their relations in. */
     readonly schema: string;
     /** The environment whose scheduler counts each statement, opening and commit in flight. */
     readonly #environment: DatabaseEnvironment;
@@ -161,13 +161,10 @@ export class PostgresSession implements Session {
         this.#environment = environment;
     }
 
-    /** Read every row as an array of values, planned per run, as schemas share statements' text. */
+    /** Read every row as an array of values, each text prepared once per connection. */
     async values(text: string, parameters: readonly DriverValue[]): Promise<unknown[][]> {
         const rows = await this.#statement((client) =>
-            client
-                .unsafe(text, parameters.map(postgresParameter), { prepare: false })
-                .values()
-                .execute(),
+            client.unsafe(text, parameters.map(postgresParameter)).values().execute(),
         );
 
         return [...rows].map(requireArray);
@@ -179,7 +176,7 @@ export class PostgresSession implements Session {
         parameters: readonly DriverValue[],
     ): Promise<Record<string, unknown>[]> {
         const rows = await this.#statement((client) =>
-            client.unsafe(text, parameters.map(postgresParameter), { prepare: false }).execute(),
+            client.unsafe(text, parameters.map(postgresParameter)).execute(),
         );
 
         return [...rows].map(requireRecord);
@@ -188,15 +185,17 @@ export class PostgresSession implements Session {
     /** Run a statement for its effect, answering how many rows it changed. */
     async run(text: string, parameters: readonly DriverValue[]): Promise<number> {
         const result = await this.#statement((client) =>
-            client.unsafe(text, parameters.map(postgresParameter), { prepare: false }).execute(),
+            client.unsafe(text, parameters.map(postgresParameter)).execute(),
         );
 
         return result.count;
     }
 
-    /** Run a script of statements as one simple query, one implicit transaction outside one. */
+    /** Run a script as one simple query in the schema, one implicit transaction outside one. */
     async exec(script: string): Promise<void> {
-        await this.#statement((client) => client.unsafe(script).simple().execute());
+        // name the schema for the script's own transaction, as its statements and functions name none
+        const placed = `SELECT set_config('search_path', ${literal(quote(this.schema))}, true); ${script}`;
+        await this.#statement((client) => client.unsafe(placed).simple().execute());
     }
 
     /** Commit work in a transaction on a reserved connection, or nest it in a savepoint. */
@@ -204,7 +203,7 @@ export class PostgresSession implements Session {
         operation: (session: Session) => Promise<Value>,
         options: SessionTransaction,
     ): Promise<Value> {
-        // reserve a connection in the schema, then begin on it
+        // reserve a connection, then begin on it
         const { connection, schema } = this;
         const environment = this.#environment;
         const { scheduler } = environment;
@@ -212,12 +211,11 @@ export class PostgresSession implements Session {
             const { pool } = connection;
             const access = options.isReadOnly ? "READ ONLY" : "READ WRITE";
             const open = `BEGIN ISOLATION LEVEL ${options.isolationLevel} ${access}`;
-            const reserved = await pool.reserve(environment, schema);
-            const transaction = reserved.sql;
+            const transaction = await pool.reserve(environment);
             try {
                 return await transact(scheduler, operation, (body) =>
                     block(
-                        reserved,
+                        transaction,
                         { open, commit: "COMMIT", rollback: "ROLLBACK" },
                         () =>
                             body(
@@ -246,7 +244,7 @@ export class PostgresSession implements Session {
 
         return await transact(scheduler, operation, (body) =>
             block(
-                { sql: transaction, ready: Promise.resolve() },
+                transaction,
                 {
                     open: `SAVEPOINT ${savepoint}`,
                     commit: `RELEASE SAVEPOINT ${savepoint}`,
@@ -266,26 +264,17 @@ export class PostgresSession implements Session {
     /** Run one statement, in the open transaction or on its own in one round trip. */
     async #statement<Result>(run: (client: postgres.Sql) => Promise<Result>): Promise<Result> {
         // run it in the open transaction, nested ones included, as the log identity stamps there
-        const { connection, schema } = this;
+        const { connection } = this;
         if (!("pool" in connection)) {
             return await this.#environment.scheduler.waitUntil(run(connection.transaction));
         }
 
-        // send the statement after any search path change on a connection reserved in the schema
+        // send the statement on a reserved connection, as it names its schema itself
         const { pool } = connection;
         const environment = this.#environment;
-        const { sql, ready } = await pool.reserve(environment, schema);
+        const sql = await pool.reserve(environment);
         try {
-            const settled = await environment.scheduler.waitUntil(
-                Promise.allSettled([ready, run(sql)]),
-            );
-
-            // answer the statement's result, or fail with the first failure
-            const [changed, ran] = settled;
-            if (changed.status === "fulfilled" && ran.status === "fulfilled") {
-                return ran.value;
-            }
-            throw firstFailure(settled);
+            return await environment.scheduler.waitUntil(run(sql));
         } finally {
             pool.release(sql);
         }
@@ -294,25 +283,19 @@ export class PostgresSession implements Session {
 
 /** Run a body between the statements opening and committing a block, rolling back on failure. */
 async function block<Value>(
-    reserved: PostgresReservation,
+    client: postgres.Sql,
     statements: { readonly open: string; readonly commit: string; readonly rollback: string },
     body: () => Promise<Value>,
     scheduler: Scheduler,
 ): Promise<Value> {
-    // send the opening before the body's statements, after the connection's search path, each statement a peer
-    const client = reserved.sql;
+    // send the opening before the body's statements, each statement a peer
     const send = (statement: string) =>
         scheduler.waitUntil(client.unsafe(statement).simple().execute());
-    const ready = scheduler.waitUntil(reserved.ready);
-    const settled = await Promise.allSettled([ready, send(statements.open), body()]);
+    const settled = await Promise.allSettled([send(statements.open), body()]);
 
     // commit a block whose opening and body succeeded, refusing a commit the server rolled back
-    const [changed, opened, ran] = settled;
-    if (
-        changed.status === "fulfilled" &&
-        opened.status === "fulfilled" &&
-        ran.status === "fulfilled"
-    ) {
+    const [opened, ran] = settled;
+    if (opened.status === "fulfilled" && ran.status === "fulfilled") {
         const committed = await send(statements.commit);
         if (committed.command === "ROLLBACK") {
             throw DatabaseError.of(

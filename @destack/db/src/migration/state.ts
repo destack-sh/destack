@@ -10,7 +10,7 @@ import { ChangeDescription } from "../log/description.ts";
 import { AggregateDescription } from "../aggregate/description.ts";
 import { DependentDescription } from "../dependent/description.ts";
 import { describeTable } from "../table/description.ts";
-import { dialectSQL, inline } from "../sql/index.ts";
+import { dialectSQL, inline, placed } from "../sql/index.ts";
 import { qualify, relation } from "../table/namespace.ts";
 import { describeLog, loggedKey } from "../log/schema.ts";
 import { literal, quote } from "../dialect/quote.ts";
@@ -416,7 +416,7 @@ export async function readListing(database: DatabaseConnection): Promise<Listing
                 ) END AS columns
                 FROM pg_depend d JOIN pg_class c ON c.oid = d.objid
                 WHERE d.classid = 'pg_class'::regclass AND d.refclassid = 'pg_namespace'::regclass
-                    AND d.refobjid = current_schema()::regnamespace AND c.relkind IN ('r', 'p')`,
+                    AND d.refobjid = ${database.state.schema ?? null}::regnamespace AND c.relkind IN ('r', 'p')`,
         }),
         schema.object({ name: schema.string(), columns: schema.string().nullable() }),
     );
@@ -462,8 +462,10 @@ export async function readEmpty(
     for (let start = 0; start < tables.length; start += columns) {
         // ask each table of the chunk for its first row, a column each, as no compound select is needed
         const chunk = tables.slice(start, start + columns);
+        const { schema: inSchema } = database.state;
         const checks = chunk.map(
-            (name, index) => `NOT EXISTS (SELECT 1 FROM ${quote(name)}) AS ${quote(`t${index}`)}`,
+            (name, index) =>
+                `NOT EXISTS (SELECT 1 FROM ${placed(name, { schema: inSchema })}) AS ${quote(`t${index}`)}`,
         );
         const [row] = await database.execute(
             sql.raw(`SELECT ${checks.join(", ")}`),
@@ -602,7 +604,7 @@ export async function readName(database: DatabaseConnection): Promise<string> {
 
     // read the server's database and schema
     const [row] = await database.execute(
-        sql`SELECT current_database() || '.' || current_schema() AS name`,
+        sql`SELECT current_database() || '.' || ${present(database.state.schema, "the database's schema")} AS name`,
         schema.object({ name: schema.string() }),
     );
 

@@ -21,7 +21,7 @@ import { committedEntry, latestOf, LogColumn, selectHead, type LogPosition } fro
 import { Snapshot, type Rewind } from "./snapshot.ts";
 import type { Row } from "../table/row.ts";
 import { Key } from "../query/key.ts";
-import { Digest, type DigestCrypto, mapValues, toJsonSchema, Uuid } from "@destack/schema";
+import { Digest, type DigestCrypto, mapValues, present, toJsonSchema, Uuid } from "@destack/schema";
 
 /** A named position in some tables' changes, whose checkpoint only their changes hold back. */
 export type LogCursor = {
@@ -523,7 +523,7 @@ export class Log {
     async serialize(): Promise<void> {
         if (this.database.dialect === "postgresql") {
             await this.database.run(
-                sql`SELECT pg_advisory_xact_lock(${sql.raw(String(COMMIT_LOCK))}, hashtext(current_schema()))`,
+                sql`SELECT pg_advisory_xact_lock(${sql.raw(String(COMMIT_LOCK))}, hashtext(${present(this.database.state.schema, "the database's schema")}))`,
             );
         }
     }

@@ -26,7 +26,7 @@ function install(multikey: MultikeyIndexDescription, dialect: Dialect): string[]
     // write them through one PostgreSQL function
     else if (dialect === "postgresql") {
         return [
-            `CREATE OR REPLACE FUNCTION ${prefix}() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+            `CREATE OR REPLACE FUNCTION ${prefix}() RETURNS trigger LANGUAGE plpgsql SET search_path FROM CURRENT AS $$ BEGIN
                 IF TG_OP <> 'INSERT' THEN ${drop("OLD")} END IF;
                 IF TG_OP <> 'DELETE' THEN ${drop("NEW")} ${insert(multikey, dialect, "NEW")}; END IF;
                 RETURN NULL;

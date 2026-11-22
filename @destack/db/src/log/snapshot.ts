@@ -712,11 +712,7 @@ export class Snapshot {
         const query = this.database.select(fields).from(table).where(where);
         const { dialect, state } = this.database;
 
-        return new PreparedQuery(
-            render(query, dialect, state.namespace, state.cipher),
-            new Projection(fields),
-            slots,
-        );
+        return new PreparedQuery(render(query, dialect, state), new Projection(fields), slots);
     }
 
     /** Run a prepared query with its literals, decoding its rows and the head's sequence. */

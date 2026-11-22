@@ -46,7 +46,7 @@ function install(dependent: DependentDescription, dialect: Dialect, namespace?: 
                   END IF;`;
 
         return [
-            `CREATE OR REPLACE FUNCTION ${name}() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+            `CREATE OR REPLACE FUNCTION ${name}() RETURNS trigger LANGUAGE plpgsql SET search_path FROM CURRENT AS $$ BEGIN
                 IF EXISTS (SELECT 1 FROM ${replica}) THEN RETURN NULL; END IF;
                 ${effect}
                 RETURN NULL;

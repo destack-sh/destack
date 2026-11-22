@@ -143,14 +143,7 @@ export class SelectQuery<
         // run the query and decode its rows, nullable joined groups missing as null
         const projection = this.#projection();
         const rows = await this.state.driver.values(
-            fill(
-                render(
-                    this.#sql(projection),
-                    this.state.driver.dialect,
-                    this.state.driver.state.namespace,
-                    this.state.driver.state.cipher,
-                ),
-            ),
+            fill(render(this.#sql(projection), this.state.driver.dialect, this.state.driver.state)),
         );
         const nullable = new Set(
             this.state.joins

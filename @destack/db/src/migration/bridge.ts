@@ -40,7 +40,7 @@ function install(table: string, bridge: Bridge, dialect: Dialect): string[] {
     // do the same in one PostgreSQL trigger
     else if (dialect === "postgresql") {
         return [
-            `CREATE FUNCTION ${quote(name)}() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+            `CREATE FUNCTION ${quote(name)}() RETURNS trigger LANGUAGE plpgsql SET search_path FROM CURRENT AS $$ BEGIN
                 IF TG_OP = 'INSERT' THEN
                     NEW.${to} := coalesce(NEW.${to}, NEW.${from});
                     NEW.${from} := coalesce(NEW.${from}, NEW.${to});

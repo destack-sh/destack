@@ -1624,7 +1624,7 @@ test("refuse an applied state in a format this release no longer reads, listing 
         TestDatabase.target() === "sqlite"
             ? [{ name: "sqlite" }]
             : await database.execute(
-                  sql`SELECT current_database() || '.' || current_schema() AS name`,
+                  sql`SELECT current_database() || '.' || ${present(database.state.schema, "the database's schema")} AS name`,
                   schema.object({ name: schema.string() }),
               );
 

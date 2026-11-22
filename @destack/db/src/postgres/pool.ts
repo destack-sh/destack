@@ -3,7 +3,6 @@ import type { Environment, Scheduler } from "@destack/environment";
 import { TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
 import postgres from "postgres";
-import { quote } from "../dialect/quote.ts";
 import { DatabaseError } from "../error/error.ts";
 
 /** The connections of one pool: five, within the six a Worker opens per Hyperdrive. */
@@ -12,21 +11,13 @@ const POOL_CONNECTIONS = 5;
 /** How long a reservation waits for an idle connection before failing: 30 s, HikariCP's default. */
 const RESERVE_WAIT_MILLISECONDS = 30_000;
 
-/** The search path of a new connection: none, so a statement outside a schema fails. */
+/** The search path of every connection: none, so a statement naming no schema fails. */
 const NO_SCHEMA = '""';
 
 /** The PostgreSQL type identifiers of json and jsonb. */
 const JSON_TYPES = [114, 3802] as const;
 
-/** A connection reserved from a pool, and its search path change sent ahead of the work. */
-export interface PostgresReservation {
-    /** The reserved connection. */
-    readonly sql: postgres.Sql;
-    /** The search path change, settled at once when the connection is in the schema already. */
-    readonly ready: Promise<unknown>;
-}
-
-/** A PostgreSQL pool of single connections, each in the schema it last ran in. */
+/** A PostgreSQL pool of single connections, whose statements name their schema. */
 export class PostgresPool {
     /** The connection listening for every database on the pool. */
     readonly listener: postgres.Sql;
@@ -40,8 +31,6 @@ export class PostgresPool {
     readonly #idle: postgres.Sql[];
     /** The reservations waiting for a connection, oldest first. */
     readonly #waiters: ((sql: postgres.Sql) => void)[] = [];
-    /** The search path each connection has set, unknown after a change failed. */
-    readonly #schemas = new Map<postgres.Sql, string | undefined>();
     /** The world each reserved connection serves, by its scheduler, until released. */
     readonly #holders = new Map<postgres.Sql, Scheduler>();
     /** The callbacks of each listening party, called whenever the listening connection closes. */
@@ -79,7 +68,6 @@ export class PostgresPool {
                 connection: { ...options.settings, search_path: NO_SCHEMA },
                 onnotice: reportNotices(environment.telemetry),
                 onclose: () => {
-                    this.#schemas.set(sql, NO_SCHEMA);
                     closed?.();
                 },
             });
@@ -150,31 +138,6 @@ export class PostgresPool {
         this.#connectionStates.add(1, { ...pool, "db.client.connection.state": "idle" });
     }
 
-    /** Reserve an idle connection for work in a schema, failing once none frees within the wait. */
-    async reserve(
-        environment: Pick<DatabaseEnvironment, "clock" | "scheduler">,
-        schema: string,
-    ): Promise<PostgresReservation> {
-        // take a connection for the environment's work
-        const sql = await this.#take(environment);
-
-        // set the connection's search path once it changes, forgetting it should the change fail
-        if (this.#schemas.get(sql) === schema) {
-            return { sql, ready: Promise.resolve() };
-        }
-        this.#schemas.set(sql, schema);
-        const ready = sql
-            .unsafe(`SET search_path TO ${quote(schema)}`)
-            .simple()
-            .execute()
-            .catch((error: unknown) => {
-                this.#schemas.set(sql, undefined);
-                throw error;
-            });
-
-        return { sql, ready };
-    }
-
     /** Give back a reserved connection to the oldest waiting reservation, else to the idle ones. */
     release(sql: postgres.Sql): void {
         // refuse a connection the pool did not reserve or took back
@@ -192,7 +155,7 @@ export class PostgresPool {
         environment: Pick<DatabaseEnvironment, "clock" | "scheduler">,
         work: (sql: postgres.Sql) => Promise<Value>,
     ): Promise<Value> {
-        const sql = await this.#take(environment);
+        const sql = await this.reserve(environment);
         try {
             return await work(sql);
         } finally {
@@ -212,8 +175,8 @@ export class PostgresPool {
         await Promise.all([...this.#connections, this.listener].map((sql) => sql.end()));
     }
 
-    /** Take an idle connection for an environment's work, else wait for a release. */
-    async #take(
+    /** Reserve an idle connection, failing once none frees within the wait. */
+    async reserve(
         environment: Pick<DatabaseEnvironment, "clock" | "scheduler">,
     ): Promise<postgres.Sql> {
         // take an idle connection or wait for one, counting it used
