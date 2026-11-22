@@ -6,6 +6,7 @@ import {
     type SQL,
     type SQLWrapper,
     type Snapshot,
+    type Watch,
 } from "@destack/db";
 import { approval, defineObject, field, type KeyFields } from "@destack/object";
 import { RISKS } from "@destack/resource";
@@ -192,6 +193,12 @@ export const Space = {
 
         return rows.map((row) => row.id);
     },
+
+    /** The rows `isServing` reads beside the space's own: its scope and its replicas. */
+    serving: [
+        { table: Scope.table, fields: ["fencedAt"], on: { id: "scope" } },
+        { table: replica, fields: [], on: { id: "scope" } },
+    ] satisfies Watch[],
 
     /** Report whether a space's database serves the space now. */
     async isServing(view: Pick<Snapshot, "read">, spaceId: Identifier<"space">): Promise<boolean> {

@@ -30,22 +30,22 @@ export function implementPlacement(): typeof placement {
             unassign,
             payer: (context) => Account.payer(context, context.target.scope),
         },
-        projections: [
+        controllers: [
             {
                 name: "decide",
                 // decide a placement again after each of its writes, which converges a decision a concurrent change outdated
-                watches: [
+                reads: [
                     // decide again once a machine comes, goes or changes its standing, for its account
                     {
                         table: machine.table,
-                        fields: ["status", "deletedAt"],
+                        fields: ["status", "deletedAt", "kind", "residencyId"],
                         on: { scope: "scope" },
                     },
                     // decide again for every account of a shared machine's residency
                     {
                         table: machine.table,
                         where: { scope: Scope.universe.id },
-                        fields: ["status", "deletedAt"],
+                        fields: ["status", "deletedAt", "kind", "residencyId"],
                         path: [
                             {
                                 table: account.table,
@@ -59,10 +59,11 @@ export function implementPlacement(): typeof placement {
                     {
                         table: entitlement.table,
                         where: { resource: "tenancy" },
+                        fields: Entitlement.decided,
                         on: { scope: "scope" },
                     },
                 ],
-                project,
+                reconcile: decideChanged,
             },
         ],
     });
@@ -159,8 +160,7 @@ async function decide(
 }
 
 /** Decide a placement again as its inputs changed, recording a changed decision. */
-async function project(
-    _id: string,
+async function decideChanged(
     reconciliation: ObjectReconciliation<typeof placement>,
 ): Promise<void> {
     // find the placements whose decision changed, as the latest commits read

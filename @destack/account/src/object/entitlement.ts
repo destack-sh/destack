@@ -323,9 +323,12 @@ export const Entitlement = {
         },
     }),
 
+    /** The fields of an entitlement a decision reads. */
+    decided: ["resource", "packageId", "feature", "value", "limit", "state"],
+
     /** Watch the replicated entitlements, waking the spaces they limit. */
     watches(): readonly Watch[] {
-        return [{ table: entitlement.table, on: { scope: "scope" } }];
+        return [{ table: entitlement.table, fields: Entitlement.decided, on: { scope: "scope" } }];
     },
 
     /** Decide a served space's database, bucket, compute and network conditions. */
