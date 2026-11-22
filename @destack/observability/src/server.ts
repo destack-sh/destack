@@ -278,7 +278,7 @@ export default implementPackage(observabilityPackage, {
                 {
                     name: "evaluate",
                     // evaluate a rule once it changes or comes due
-                    pending: {
+                    when: {
                         OR: [
                             { generation: { gt: { field: "syncedGeneration" } } },
                             { evaluateAt: { lte: now } },
