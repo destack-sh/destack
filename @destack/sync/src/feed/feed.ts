@@ -93,6 +93,8 @@ export class Feed implements Cache {
     #start: number;
     /** The sequence the stored changes arrive at, below zero before reading. */
     #sequence: number;
+    /** The log and epoch the feed follows, absent while it reads none. */
+    #followed: Pick<LogPosition, "log" | "epoch"> | undefined;
     /** The subscribers waiting for the feed to pass a sequence. */
     readonly #waiting: Set<() => void>;
     /** The last sequence that changed each table in each scope, and in any scope, by route. */
@@ -141,6 +143,7 @@ export class Feed implements Cache {
         this.#changes = [];
         this.#start = Number.POSITIVE_INFINITY;
         this.#sequence = -1;
+        this.#followed = undefined;
         this.#waiting = new Set<() => void>();
         this.#touched = new Map<string, number>();
         this.#routes = new Map<string, Set<() => void>>();
@@ -512,9 +515,13 @@ export class Feed implements Cache {
         return true;
     }
 
-    /** Read the log's head. */
+    /** Read the position the feed read the log up to, else the log's head while it reads none. */
     async #head(): Promise<LogPosition> {
-        return await this.database.log.position();
+        const followed = this.#followed;
+
+        return followed === undefined
+            ? await this.database.log.position()
+            : { ...followed, sequence: this.#sequence };
     }
 
     /** Follow one query's items until the signal aborts. */
@@ -948,6 +955,7 @@ export class Feed implements Cache {
             this.#changes = [];
             this.#start = Number.POSITIVE_INFINITY;
             this.#sequence = -1;
+            this.#followed = undefined;
             this.#touched.clear();
             this.rows.clear();
             this.windows.clear();
@@ -960,13 +968,14 @@ export class Feed implements Cache {
 
     /** Read each commit's changes into memory until the signal aborts. */
     async #follow(signal: AbortSignal): Promise<void> {
-        // start at the latest sequence
-        const latest = (await this.database.log.position()).sequence;
+        // start at the latest position
+        const { log, epoch, sequence: latest } = await this.database.log.position();
         if (signal.aborted) {
             return;
         }
         this.#start = latest;
         this.#sequence = latest;
+        this.#followed = { log, epoch };
         this.#wake();
 
         // store each page and drop the oldest changes beyond the limit
