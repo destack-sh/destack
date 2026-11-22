@@ -240,7 +240,7 @@ export class Relay {
             key: "parentId",
             result: "process",
             all: { table: endpoint.table, column: "parentId", where: here },
-            watches: [
+            reads: [
                 // take a machine whose endpoint came here or left
                 { table: endpoint.table, fields: ["relay"], where: here },
                 // take a renamed machine tunnelled here
