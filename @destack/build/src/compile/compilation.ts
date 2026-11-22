@@ -467,6 +467,7 @@ export class OutputCompilation implements Compilation {
             directoryPlugin(project.directory, compiled.files, assets, project.environment),
             sourcePlugin(
                 project.directory,
+                project.packageJson.package.name,
                 compiled.files,
                 input.sources,
                 input.destinationRoot,

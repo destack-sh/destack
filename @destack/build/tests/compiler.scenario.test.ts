@@ -518,6 +518,85 @@ test("keep the declaration file a package exports for another runtime in a Bun b
     );
 });
 
+test("keep the files a package imports only for types in its build", async () => {
+    // write a Bun package whose entry reaches five files through type-only imports and exports alone
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await files.realPath(
+        await files.makeTemporaryDirectory("destack-build-types-"),
+    );
+    const contents: Record<string, string> = {
+        "bun.lock": JSON.stringify({ lockfileVersion: 1, workspaces: {}, packages: {} }),
+        "destack.json": JSON.stringify({
+            $schema: "https://destack.app/schemas/2026.9.0/destack.json",
+            id: "package-01996ab0-0000-7000-8000-000000000013",
+            role: "library",
+            language: "typescript",
+            runtimes: ["bun"],
+        }),
+        "package.json": JSON.stringify({
+            name: "@example/typed",
+            version: "2026.9.0",
+            type: "module",
+            exports: { ".": "./src/index.ts", "./own": "./src/own.ts" },
+        }),
+        "tsconfig.json": JSON.stringify({
+            compilerOptions: { strict: true, module: "Preserve", moduleResolution: "Bundler" },
+            include: ["src"],
+        }),
+        "src/index.ts": [
+            'import type { Shape } from "./shape.ts";',
+            'import type { Own } from "@example/typed/own";',
+            "/** The package's own type. */",
+            "export type Owned = Own;",
+            'export type * from "./star.ts";',
+            'export { type Named } from "./named.ts";',
+            "/** The default shape. */",
+            'export const shape: Shape = { side: 1 } satisfies import("./query.ts").Query;',
+            "",
+        ].join("\n"),
+        "src/shape.ts": "/** A shape. */\nexport type Shape = { readonly side: number };\n",
+        "src/own.ts":
+            "/** A type the package imports by its own name. */\nexport type Own = string;\n",
+        "src/star.ts": "/** A starred type. */\nexport type Star = string;\n",
+        "src/named.ts": "/** A named type. */\nexport type Named = string;\n",
+        "src/query.ts": "/** A queried type. */\nexport type Query = { readonly side: number };\n",
+        "src/unused.ts": "/** A type nothing imports. */\nexport type Unused = string;\n",
+    };
+    for (const [path, text] of Object.entries(contents)) {
+        await files.mkdir(join(directory, path, ".."), { recursive: true });
+        await files.writeTextFile(join(directory, path), text);
+    }
+
+    // build the Bun output and list the sources the build keeps
+    await using store = await LocalBuildStore.temporary(environment);
+    await using builder = await Compiler.start(directory, {
+        store,
+        toolchain: async () => Toolchain.workspace(),
+    });
+    const built = await builder.build({
+        directory,
+        dependencies: {},
+        links: {},
+        outputs: { bun: { kind: "module", runtime: "bun" } },
+    });
+    const kept = (await built.files())
+        .map((file) => file.path)
+        .filter((path) => path.startsWith("src/"))
+        .toSorted();
+
+    // keep every file the entry reaches for types, and leave out the one nothing imports
+    expect(kept).toEqual([
+        "src/index.ts",
+        "src/named.ts",
+        "src/own.ts",
+        "src/query.ts",
+        "src/shape.ts",
+        "src/star.ts",
+    ]);
+});
+
 /** Read the file an output exports at its root, failing when the manifest lacks it. */
 function rootExport(manifest: PackageManifest, output: string): string {
     const path = manifest.outputs[output]?.exports["."]?.path;

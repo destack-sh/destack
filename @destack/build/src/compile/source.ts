@@ -3,11 +3,12 @@ import { isAbsolute, dirname, resolve } from "node:path";
 import type { Environment } from "@destack/environment";
 import { type Plugin } from "vite";
 import type { OutputBundle } from "rolldown";
+import { type ESTree, parseSync, Visitor } from "rolldown/utils";
 import { PackagePath } from "@destack/package/file";
 import { modulePath, type ModuleSource } from "./dependency.ts";
 import { BuildError } from "../error/index.ts";
 import { relativePath } from "../source/dependency.ts";
-import { schema } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 
 /** The virtual module namespaces: plugin modules, and Vite's for absent optional peers. */
 const VIRTUAL_NAMESPACES = ["virtual:", "__vite-optional-peer-dep:"];
@@ -23,6 +24,7 @@ type SourceMap = schema.Infer<typeof SourceMap>;
 /** Retain authored files read by Vite. */
 export function sourcePlugin(
     directory: string,
+    name: string,
     files: Map<string, Uint8Array<ArrayBuffer>>,
     sources: Pick<BuildDirectory, "retained" | "retain">,
     destination: string,
@@ -32,8 +34,13 @@ export function sourcePlugin(
     return {
         name: "destack-source",
         enforce: "pre",
-        generateBundle(_options, bundle) {
+        async generateBundle(_options, bundle) {
             omitUrlSources(bundle);
+
+            // keep the package files the kept modules import for types alone
+            const resolveImport = async (specifier: string, importer: string) =>
+                (await this.resolve(specifier, importer))?.id;
+            await retainTypeImports(directory, name, files, sources, environment, resolveImport);
         },
         load: {
             filter: { id: new RegExp(`^${RegExp.escape(directory.replaceAll("\\", "/"))}/`, "u") },
@@ -70,6 +77,101 @@ export function sourcePlugin(
             },
         },
     };
+}
+
+/** Keep the package files kept modules import only for types, and the files those import. */
+async function retainTypeImports(
+    directory: string,
+    name: string,
+    files: Map<string, Uint8Array<ArrayBuffer>>,
+    sources: Pick<BuildDirectory, "retained" | "retain">,
+    environment: Environment<"files">,
+    resolveImport: (specifier: string, importer: string) => Promise<string | undefined>,
+): Promise<void> {
+    // walk the kept TypeScript modules, adding each type-only target once
+    const pending = [...files.keys()].filter((path) => /\.[cm]?tsx?$/u.test(path));
+    for (let path = pending.pop(); path !== undefined; path = pending.pop()) {
+        const text = new TextDecoder().decode(present(files.get(path), `source '${path}'`));
+        for (const specifier of typeImports(path, text).filter((each) => isOwn(each, name))) {
+            // keep a target inside the package once, resolved from the importing module
+            const resolved = await resolveImport(specifier, resolve(directory, path));
+            const target =
+                resolved === undefined ? undefined : packageFile(directory, modulePath(resolved));
+            if (target !== undefined && !files.has(PackagePath.parse(target))) {
+                const bytes = await environment.files.readFile(resolve(directory, target));
+                sources.retain(target, bytes);
+                files.set(PackagePath.parse(target), bytes);
+                pending.push(PackagePath.parse(target));
+            }
+        }
+    }
+}
+
+/** List the specifiers a module imports or exports only for types. */
+function typeImports(path: string, text: string): string[] {
+    // read the module's declarations, refusing one that does not parse
+    const parsed = parseSync(path, text);
+    if (parsed.errors.length > 0) {
+        throw BuildError.of("INVARIANT_BROKEN", `source '${path}' does not parse`);
+    }
+
+    // take type-only imports and exports, and type queries of imported modules
+    const specifiers: string[] = [];
+    const take = (node: ModuleDeclaration) => {
+        const value = node.source?.value;
+        if (typeof value === "string" && isTypeOnly(node)) {
+            specifiers.push(value);
+        }
+    };
+    new Visitor({
+        ImportDeclaration: take,
+        ExportNamedDeclaration: take,
+        ExportAllDeclaration: take,
+        TSImportType(node) {
+            specifiers.push(node.source.value);
+        },
+    }).visit(parsed.program);
+
+    return specifiers;
+}
+
+/** Report whether a specifier names a module of the package: relative, or by the package's name. */
+function isOwn(specifier: string, name: string): boolean {
+    return (
+        specifier.startsWith("./") ||
+        specifier.startsWith("../") ||
+        specifier === name ||
+        specifier.startsWith(`${name}/`)
+    );
+}
+
+/** A module declaration with a source: an import, or an export from another module. */
+type ModuleDeclaration =
+    | ESTree.ImportDeclaration
+    | ESTree.ExportNamedDeclaration
+    | ESTree.ExportAllDeclaration;
+
+/** Report whether a declaration is marked type, or every one of its specifiers is. */
+function isTypeOnly(node: ModuleDeclaration): boolean {
+    // take a declaration marked type
+    if (
+        ("importKind" in node && node.importKind === "type") ||
+        ("exportKind" in node && node.exportKind === "type")
+    ) {
+        return true;
+    }
+
+    // else take one whose every specifier is marked type
+    const named = "specifiers" in node ? node.specifiers : [];
+
+    return (
+        named.length > 0 &&
+        named.every(
+            (each) =>
+                ("importKind" in each && each.importKind === "type") ||
+                ("exportKind" in each && each.exportKind === "type"),
+        )
+    );
 }
 
 /** Clear the source content of generated URL modules in each emitted source map. */
