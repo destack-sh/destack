@@ -4,17 +4,16 @@ import * as style from "@destack/style";
 import { color, radius, space, stroke, weight, swatch } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import { createMemo, Dynamic, For, type JSX, Show, useContext, useLocale } from "@destack/view";
-import {
-    type CalendarEvent,
-    EventCalendarEventContext,
-    isTimed,
-    useEventCalendar,
-    isBackground,
-} from "./control.ts";
-import { EventCalendarEvent } from "./event.tsx";
+import { EventCalendarEventContext, useEventCalendar, type EventCalendarView } from "./control.ts";
+import { OfferedView } from "./view.tsx";
+import { CalendarEvent } from "./event.ts";
+import { EventCalendarEvent } from "./chip.tsx";
 
 /** The width of an agenda day's date, room for a date such as "Wed, 18 Nov". */
 const DATE_WIDTH = "8rem";
+
+/** The views the part shows. */
+const AGENDA_VIEWS: readonly EventCalendarView[] = ["agenda"];
 
 /** The styles of an agenda. */
 const styles = style.create({
@@ -64,6 +63,11 @@ const styles = style.create({
 
 /** Render the shown week's days with their events in order, after Google Calendar's schedule. */
 export function EventCalendarAgenda(): JSX.Element {
+    return <OfferedView views={AGENDA_VIEWS}>{() => <AgendaView />}</OfferedView>;
+}
+
+/** Render the agenda view while it shows. */
+function AgendaView(): JSX.Element {
     // list each shown day that has events, all-day ones first, then by start
     const control = useEventCalendar();
     const locale = useLocale();
@@ -71,9 +75,9 @@ export function EventCalendarAgenda(): JSX.Element {
     const spans = createMemo(() =>
         control
             .events()
-            .filter((event) => !isBackground(event))
+            .filter((event) => !CalendarEvent.isBackground(event))
             .toSorted((left, right) => startOf(left) - startOf(right))
-            .map((event) => ({ event, span: control.spanOf(event) })),
+            .map((event) => ({ event, span: CalendarEvent.span(event, control.timeZone()) })),
     );
     const days = createMemo(() =>
         control
@@ -142,5 +146,5 @@ export function EventCalendarAgenda(): JSX.Element {
 
 /** Read an event's order in a day: all-day events first, then timed ones by start. */
 function startOf(event: CalendarEvent): number {
-    return isTimed(event) ? event.start : Number.NEGATIVE_INFINITY;
+    return CalendarEvent.isTimed(event) ? event.start : Number.NEGATIVE_INFINITY;
 }

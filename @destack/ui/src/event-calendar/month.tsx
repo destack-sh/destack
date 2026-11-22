@@ -1,31 +1,39 @@
 import { state } from "@destack/theme/state";
 import { plural, t } from "@destack/locale";
-import { nth, PlainDate, Week, WEEK_DAYS, MonthGrid, Segment } from "@destack/schema";
+import { type DateSpan, nth, PlainDate, WEEK_DAYS, MonthGrid, Segment } from "@destack/schema";
 import * as style from "@destack/style";
 import { color, radius, size, space, stroke, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import {
+    type Accessor,
+    createContext,
     createMemo,
     Dynamic,
     For,
     type JSX,
-    Show,
-    useLocale,
-    useContext,
+    omit,
     onCleanup,
+    Show,
     untrack,
+    useContext,
+    useLocale,
 } from "@destack/view";
 import { Draggable, Droppable } from "../drag/index.ts";
 import { mergeProperties } from "../part/index.ts";
-import { EventCalendarBackground, EventCalendarEvent } from "./event.tsx";
+import { EventCalendarBackground, EventCalendarEvent, placement } from "./chip.tsx";
 import {
-    columnsOf,
     EVENT_TYPE,
-    isAllDay,
-    isBackground,
-    useEventCalendar,
+    type EventCalendarControl,
+    EventCalendarDayContext,
+    type EventCalendarDaysProperties,
     EventCalendarEventContext,
+    type EventCalendarPartProperties,
+    useEventCalendar,
+    useEventCalendarDay,
+    type EventCalendarView,
 } from "./control.ts";
+import { OfferedView } from "./view.tsx";
+import { CalendarEvent } from "./event.ts";
 
 /** The least height of a week of a month, room for a date and three events. */
 const WEEK_HEIGHT = "5.5rem";
@@ -33,8 +41,20 @@ const WEEK_HEIGHT = "5.5rem";
 /** The droppable of a month's days. */
 const MONTH = "event-calendar-month";
 
+/** The views the part shows. */
+const MONTH_VIEWS: readonly EventCalendarView[] = ["month"];
+
 /** The styles of a month and its days. */
 const styles = style.create({
+    weekNumber: {
+        position: "absolute",
+        insetInlineStart: space[1],
+        insetBlockStart: space[1],
+        color: color.mutedForeground,
+        fontVariantNumeric: "tabular-nums",
+        pointerEvents: "none",
+        zIndex: 1,
+    },
     month: {
         display: "grid",
         flexGrow: 1,
@@ -127,43 +147,116 @@ const places = style.create({
     }),
 });
 
-/** Render the month of the calendar's date in whole weeks, events stacked over the days. */
-export function EventCalendarMonth(): JSX.Element {
-    // lay the month out in six weeks from the locale's first day, anew only when the month changes
+/** The month a calendar shows: its grid of weeks, its events and the days a drag measures. */
+export class EventCalendarMonthControl {
+    /** The calendar. */
+    readonly control: EventCalendarControl;
+    /** The six weeks of the month from the locale's first day. */
+    readonly grid: Accessor<MonthGrid>;
+    /** The weeks' shown days, the hidden weekdays left out. */
+    readonly weeks: Accessor<PlainDate[][]>;
+    /** The days' spans of the events shown over them. */
+    readonly spans: Accessor<DateSpan[]>;
+    /** The days' spans of the whole-day events shaded behind them. */
+    readonly shades: Accessor<DateSpan[]>;
+    /** The elements of the days, which a drag measures. */
+    readonly cells = new Map<PlainDate, HTMLElement>();
+
+    /** Lay out the calendar's month, anew only when the month changes. */
+    constructor(control: EventCalendarControl) {
+        // lay the month out in six weeks from the locale's first day
+        this.control = control;
+        const first = createMemo(() => PlainDate.with(control.date(), { day: 1 }));
+        this.grid = createMemo(() => MonthGrid.of(first(), control.week, "fixed"));
+        this.weeks = createMemo(() =>
+            this.grid().weeks.map((week) => week.filter((day) => !control.isHidden(day))),
+        );
+
+        // read the events shown over the days, and the whole days shaded behind them
+        this.spans = createMemo(() =>
+            control
+                .events()
+                .filter((event) => !CalendarEvent.isBackground(event))
+                .map((event) => CalendarEvent.span(event, control.timeZone())),
+        );
+        this.shades = createMemo(() =>
+            control
+                .events()
+                .filter(
+                    (event) => CalendarEvent.isAllDay(event) && CalendarEvent.isBackground(event),
+                )
+                .map((event) => CalendarEvent.span(event, control.timeZone())),
+        );
+    }
+
+    /** Report whether a drag aims at a day. */
+    isTarget(day: PlainDate): boolean {
+        const target = this.control.manager.targetIn(this.control.dragId(MONTH));
+
+        return target?.kind === "cell" && target.key === day;
+    }
+}
+
+/** The month the month's parts render. */
+const EventCalendarMonthContext = createContext<EventCalendarMonthControl | null>(null);
+
+/** Read the month a part of the month view renders. */
+export function useEventCalendarMonth(): EventCalendarMonthControl {
+    const month = useContext(EventCalendarMonthContext);
+    if (month === null) {
+        throw new TypeError("a calendar month part needs a calendar month around it");
+    }
+
+    return month;
+}
+
+/** A week of a month and its events stacked over its days. */
+export interface CalendarWeek {
+    /** The week's shown days. */
+    readonly days: readonly PlainDate[];
+    /** The week's events, stacked in rows. */
+    readonly segments: Accessor<Segment<PlainDate>[]>;
+}
+
+/** The week the week's parts render. */
+const EventCalendarWeekContext = createContext<CalendarWeek | null>(null);
+
+/** Read the week a part of a month's week renders. */
+export function useEventCalendarWeek(): CalendarWeek {
+    const week = useContext(EventCalendarWeekContext);
+    if (week === null) {
+        throw new TypeError("a calendar week part needs a calendar week around it");
+    }
+
+    return week;
+}
+
+/** Render the month of the calendar's date in whole weeks: weekday names and weeks by default. */
+export function EventCalendarMonth(properties: EventCalendarPartProperties): JSX.Element {
+    return <OfferedView views={MONTH_VIEWS}>{() => <MonthView {...properties} />}</OfferedView>;
+}
+
+/** Render the month view while it shows. */
+function MonthView(properties: EventCalendarPartProperties): JSX.Element {
+    // lay the month out, and move the focused day through it by the keys
     const control = useEventCalendar();
     const locale = useLocale();
-    const first = createMemo(() => PlainDate.with(control.date(), { day: 1 }));
-    const grid = createMemo(() => MonthGrid.of(first(), control.week, "fixed"));
-    const weeks = createMemo(() =>
-        grid().weeks.map((week) => week.filter((day) => !control.isHidden(day))),
-    );
-    const spans = createMemo(() =>
-        control
-            .events()
-            .filter((event) => !isBackground(event))
-            .map((event) => control.spanOf(event)),
-    );
-    const shades = createMemo(() =>
-        control
-            .events()
-            .filter((event) => isAllDay(event) && isBackground(event))
-            .map((event) => control.spanOf(event)),
-    );
-    const cells = new Map<string, HTMLElement>();
-    const measured = new Map<string, DOMRect>();
+    const month = new EventCalendarMonthControl(control);
+    const measured = new Map<PlainDate, DOMRect>();
+    const rest = omit(properties, "children", "xstyle", "style");
     let element: HTMLElement | undefined;
 
     // take dropped events on the days, stepping a day along a week and a week across weeks
     void new Droppable(
         {
-            id: MONTH,
-            group: MONTH,
+            id: control.dragId(MONTH),
+            group: control.dragId(MONTH),
             axis: "both",
             element: () => element,
-            accepts: () => true,
+            accepts: (draggable) => control.accepts(draggable, "cell"),
             measure: () => {
                 measured.clear();
-                for (const [key, cell] of cells) {
+                for (const [key, cell] of month.cells) {
                     measured.set(key, cell.getBoundingClientRect());
                 }
             },
@@ -178,7 +271,7 @@ export function EventCalendarMonth(): JSX.Element {
 
                 return found === undefined
                     ? undefined
-                    : { kind: "cell", droppable: MONTH, key: found[0] };
+                    : { kind: "cell", droppable: control.dragId(MONTH), key: found[0] };
             },
             step: (target, step) => {
                 // move a day along the row in the text's direction, or a week across rows
@@ -194,7 +287,7 @@ export function EventCalendarMonth(): JSX.Element {
                     ? undefined
                     : {
                           kind: "cell",
-                          droppable: MONTH,
+                          droppable: control.dragId(MONTH),
                           key: control.skipHidden(
                               PlainDate.add(date, { days: offsets[step] }),
                               offsets[step] < 0 ? -1 : 1,
@@ -213,84 +306,167 @@ export function EventCalendarMonth(): JSX.Element {
                     label: locale.plainDate(target.key, { dateStyle: "full" }),
                 };
             },
+            drop: (operation) => control.drop(operation),
         },
         control.manager,
     );
 
     return (
-        <div
-            data-slot="event-calendar-month"
-            role="grid"
-            ref={(created) => (element = created)}
-            onKeyDown={(event) =>
-                event.defaultPrevented ? undefined : control.focus.move(event, locale.direction)
-            }
-            onFocusOut={(event) => control.focus.focusOut(event)}
-            {...style.attrs(styles.month)}
-        >
-            {/* Weekday names */}
+        <EventCalendarMonthContext value={month}>
             <div
-                role="row"
-                {...style.attrs(styles.weekdays, places.columns(nth(weeks(), 0).length))}
+                data-slot="event-calendar-month"
+                role="grid"
+                {...mergeProperties(
+                    {
+                        ref: (created: HTMLDivElement) => (element = created),
+                        onKeyDown: (event: KeyboardEvent) =>
+                            event.defaultPrevented
+                                ? undefined
+                                : control.focus.move(event, locale.direction),
+                        onFocusOut: (event: FocusEvent & { readonly currentTarget: Element }) =>
+                            control.focus.focusOut(event),
+                    },
+                    rest,
+                )}
+                {...style.attributes([styles.month, properties.xstyle], properties.style)}
             >
-                <For each={weeks()[0]}>
-                    {(day) => (
-                        <div role="columnheader" {...style.attrs(text.xs, styles.weekday)}>
-                            <abbr
-                                title={locale.plainDate(day, { weekday: "long" })}
-                                {...style.attrs(styles.weekdayName)}
-                            >
-                                {locale.plainDate(day, { weekday: "short" })}
-                            </abbr>
-                        </div>
-                    )}
-                </For>
+                {properties.children ?? (
+                    <>
+                        <EventCalendarWeekdays />
+                        <EventCalendarWeeks />
+                    </>
+                )}
             </div>
+        </EventCalendarMonthContext>
+    );
+}
 
-            {/* Weeks */}
-            <For each={weeks()}>
-                {(days) => {
-                    const segments = createMemo(() => control.stack(spans(), days));
+/** Render the row of weekday names above the weeks. */
+export function EventCalendarWeekdays(properties: EventCalendarPartProperties): JSX.Element {
+    // name the weekdays of the first week, the hidden ones left out
+    const locale = useLocale();
+    const month = useEventCalendarMonth();
+    const rest = omit(properties, "children", "xstyle", "style");
+
+    return (
+        <div
+            role="row"
+            data-slot="event-calendar-weekdays"
+            {...rest}
+            {...style.attributes(
+                [styles.weekdays, places.columns(nth(month.weeks(), 0).length), properties.xstyle],
+                properties.style,
+            )}
+        >
+            <For each={month.weeks()[0]}>
+                {(day) => (
+                    <div role="columnheader" {...style.attrs(text.xs, styles.weekday)}>
+                        <abbr
+                            title={locale.plainDate(day, { weekday: "long" })}
+                            {...style.attrs(styles.weekdayName)}
+                        >
+                            {locale.plainDate(day, { weekday: "short" })}
+                        </abbr>
+                    </div>
+                )}
+            </For>
+        </div>
+    );
+}
+
+/** The properties of the list of a month's weeks. */
+export interface EventCalendarWeeksProperties {
+    /** Render a week's part, the default week when absent. */
+    readonly children?: (week: CalendarWeek) => JSX.Element;
+}
+
+/** Render the month's weeks, each from the function given or as the default week. */
+export function EventCalendarWeeks(properties: EventCalendarWeeksProperties): JSX.Element {
+    const control = useEventCalendar();
+    const month = useEventCalendarMonth();
+
+    return (
+        <For each={month.weeks()}>
+            {(days) => {
+                // stack the events over the week's days
+                const segments = createMemo(() => control.stack(month.spans(), days));
+                const week = { days, segments };
+
+                return (
+                    <EventCalendarWeekContext value={week}>
+                        {properties.children === undefined ? (
+                            <EventCalendarWeek />
+                        ) : (
+                            properties.children(week)
+                        )}
+                    </EventCalendarWeekContext>
+                );
+            }}
+        </For>
+    );
+}
+
+/** Render a week of a month: its days with their events, and whole days shaded behind them. */
+export function EventCalendarWeek(
+    properties: EventCalendarDaysProperties & Omit<EventCalendarPartProperties, "children">,
+): JSX.Element {
+    // lay the week's days out in columns, with rows for the event limit and the link past it
+    const control = useEventCalendar();
+    const locale = useLocale();
+    const month = useEventCalendarMonth();
+    const { days } = useEventCalendarWeek();
+    const rest = omit(properties, "children", "xstyle", "style");
+
+    return (
+        <div
+            role="row"
+            data-slot="event-calendar-week"
+            {...rest}
+            {...style.attributes(
+                [
+                    styles.week,
+                    places.columns(days.length),
+                    places.rows(control.dayMaxEvents()),
+                    properties.xstyle,
+                ],
+                properties.style,
+            )}
+        >
+            {/* Days */}
+            <For each={days}>
+                {(day, index) => (
+                    <EventCalendarDayContext value={{ day, index }}>
+                        {properties.children === undefined ? (
+                            <EventCalendarMonthDay />
+                        ) : (
+                            properties.children({ day, index })
+                        )}
+                    </EventCalendarDayContext>
+                )}
+            </For>
+
+            {/* The week of the year, at the row's start */}
+            <Show when={control.options.weekNumbers === true}>
+                <span
+                    data-slot="event-calendar-week-number"
+                    aria-hidden="true"
+                    {...style.attrs(text.xs, styles.weekNumber)}
+                >
+                    {locale.render(control.weekNumber(nth(days, 0)))}
+                </span>
+            </Show>
+
+            {/* Whole days shaded behind the events */}
+            <For each={control.stack(month.shades(), days)}>
+                {(segment) => {
+                    const columns = () => Segment.columns(segment, days);
 
                     return (
-                        <div
-                            role="row"
-                            data-slot="event-calendar-week"
-                            {...style.attrs(
-                                styles.week,
-                                places.columns(days.length),
-                                places.rows(control.dayMaxEvents()),
-                            )}
-                        >
-                            <For each={days}>
-                                {(day, column) => (
-                                    <MonthDay
-                                        day={day}
-                                        column={column() + 1}
-                                        days={days}
-                                        segments={segments()}
-                                        isOutside={MonthGrid.isOutside(grid(), day)}
-                                        cells={cells}
-                                    />
-                                )}
-                            </For>
-                            <For each={control.stack(shades(), days)}>
-                                {(segment) => {
-                                    const columns = () => columnsOf(segment, days);
-
-                                    return (
-                                        <EventCalendarBackground
-                                            aria-hidden="true"
-                                            event={control.eventOf(segment.key)}
-                                            xstyle={places.shade(
-                                                columns().start + 1,
-                                                columns().span,
-                                            )}
-                                        />
-                                    );
-                                }}
-                            </For>
-                        </div>
+                        <EventCalendarBackground
+                            aria-hidden="true"
+                            event={control.eventOf(segment.key)}
+                            xstyle={places.shade(columns().start + 1, columns().span)}
+                        />
                     );
                 }}
             </For>
@@ -298,48 +474,20 @@ export function EventCalendarMonth(): JSX.Element {
     );
 }
 
-/** Render a day of a month: its date, the events that start on it, and a link to the rest. */
-function MonthDay(properties: {
-    /** The day. */
-    readonly day: PlainDate;
-    /** The day's column in its week, from 1. */
-    readonly column: number;
-    /** The shown days of its week. */
-    readonly days: readonly PlainDate[];
-    /** The week's events, stacked. */
-    readonly segments: readonly Segment<PlainDate>[];
-    /** Whether the day belongs to a neighbouring month. */
-    readonly isOutside: boolean;
-    /** The elements of the days, which a drag measures. */
-    readonly cells: Map<string, HTMLElement>;
-}): JSX.Element {
-    // focus the day's date as the month's tab stop
+/** Render a day of a month: its date, the events that start on it and a link to the rest. */
+export function EventCalendarMonthDay(properties: EventCalendarPartProperties): JSX.Element {
+    // mark the day a drag aims at, and measure it for drags
     const control = useEventCalendar();
-    const locale = useLocale();
-    const day = untrack(() => properties.day);
-    const limit = () => control.dayMaxEvents();
-    let date: HTMLElement | undefined;
-    control.focus.bind(
-        () => day,
-        () => date,
-    );
-    onCleanup(() => properties.cells.delete(day));
-
-    // read the events that start here, the ones past the limit, and a drag that aims here
-    const starting = () =>
-        properties.segments.filter(
-            (segment) => segment.start === day && segment.position < limit(),
-        );
-    const hidden = () => Segment.hidden(properties.segments, day, limit());
-    const isTarget = (): boolean => {
-        const target = control.manager.targetIn(MONTH);
-
-        return target?.kind === "cell" && target.key === day;
-    };
-    const open = () => {
-        control.setDate(day);
-        control.setView("day");
-    };
+    const month = useEventCalendarMonth();
+    const { day, index } = useEventCalendarDay();
+    const rest = omit(properties, "children", "xstyle", "style");
+    let cell: HTMLDivElement | undefined;
+    onCleanup(() => {
+        // forget the cell unless a new grid's cell for the day took its place first
+        if (month.cells.get(day) === cell) {
+            month.cells.delete(day);
+        }
+    });
 
     return (
         <div
@@ -351,59 +499,147 @@ function MonthDay(properties: {
             <div
                 data-slot="event-calendar-day"
                 data-date={day}
-                data-target={isTarget() ? "" : undefined}
-                ref={(created) => properties.cells.set(day, created)}
-                {...style.attrs(
-                    state.focusInset,
-                    styles.day,
-                    places.column(properties.column),
-                    Week.isWeekend(control.week, day) && styles.weekend,
-                    isTarget() && state.target,
+                data-target={month.isTarget(day) ? "" : undefined}
+                {...mergeProperties(
+                    {
+                        ref: (created: HTMLDivElement) => {
+                            cell = created;
+                            month.cells.set(day, created);
+                        },
+                    },
+                    rest,
+                )}
+                {...style.attributes(
+                    [
+                        state.focusInset,
+                        styles.day,
+                        places.column(index() + 1),
+                        control.isRestDay(day) && styles.weekend,
+                        month.isTarget(day) && state.target,
+                        properties.xstyle,
+                    ],
+                    properties.style,
                 )}
             />
+            {properties.children ?? (
+                <>
+                    <EventCalendarDate />
+                    <EventCalendarDayEvents />
+                    <EventCalendarMore />
+                </>
+            )}
+        </div>
+    );
+}
 
-            {/* Date */}
+/** Render a day's date, the month's tab stop, opening the day on a press. */
+export function EventCalendarDate(
+    properties: Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, "class"> & {
+        /** The StyleX styles applied after the date's. */
+        readonly xstyle?: style.Styles;
+    },
+): JSX.Element {
+    // focus the day's date as the month's tab stop
+    const control = useEventCalendar();
+    const locale = useLocale();
+    const month = useEventCalendarMonth();
+    const { day, index } = useEventCalendarDay();
+    const rest = omit(properties, "children", "xstyle", "style");
+    const isToday = () => PlainDate.equals(day, control.today());
+    let date: HTMLElement | undefined;
+    control.focus.bind(
+        () => day,
+        () => date,
+    );
+
+    return (
+        <button
+            type="button"
+            data-slot="event-calendar-date"
+            data-today={isToday() ? "" : undefined}
+            tabindex={control.focus.isActive(day) ? 0 : -1}
+            aria-label={locale.plainDate(day, { dateStyle: "full" })}
+            {...mergeProperties(
+                {
+                    ref: (created: HTMLButtonElement) => (date = created),
+                    onFocus: () => control.focus.focusIn(day),
+                    onClick: () => control.open(day),
+                },
+                rest,
+            )}
+            {...style.attributes(
+                [
+                    text.xs,
+                    state.hover,
+                    styles.number,
+                    places.column(index() + 1),
+                    MonthGrid.isOutside(month.grid(), day) && styles.outside,
+                    isToday() && [state.checked, styles.today],
+                    properties.xstyle,
+                ],
+                properties.style,
+            )}
+        >
+            {properties.children ?? locale.number(PlainDate.day(day))}
+        </button>
+    );
+}
+
+/** Render the events that start on a day, up to the calendar's limit. */
+export function EventCalendarDayEvents(): JSX.Element {
+    // read the week's stacked events that start on the day
+    const control = useEventCalendar();
+    const { day } = useEventCalendarDay();
+    const { days, segments } = useEventCalendarWeek();
+
+    return (
+        <For
+            each={segments().filter(
+                (segment) => segment.start === day && segment.position < control.dayMaxEvents(),
+            )}
+            keyed={(segment) => control.segmentKey(segment)}
+        >
+            {(segment) => <MonthEvent segment={segment()} days={days} />}
+        </For>
+    );
+}
+
+/** Render the link to a day's events past the limit, opening the day. */
+export function EventCalendarMore(
+    properties: Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, "class"> & {
+        /** The StyleX styles applied after the link's. */
+        readonly xstyle?: style.Styles;
+    },
+): JSX.Element {
+    // count the events of the day the limit leaves out
+    const control = useEventCalendar();
+    const locale = useLocale();
+    const { day, index } = useEventCalendarDay();
+    const { segments } = useEventCalendarWeek();
+    const rest = omit(properties, "children", "xstyle", "style");
+    const hidden = () => Segment.hidden(segments(), day, control.dayMaxEvents());
+
+    return (
+        <Show when={hidden() > 0}>
             <button
                 type="button"
-                data-slot="event-calendar-date"
-                data-today={PlainDate.equals(day, control.today()) ? "" : undefined}
-                tabindex={control.focus.isActive(day) ? 0 : -1}
-                ref={(created) => (date = created)}
-                onFocus={() => control.focus.focusIn(day)}
-                aria-label={locale.plainDate(day, { dateStyle: "full" })}
-                onClick={open}
-                {...style.attrs(
-                    text.xs,
-                    styles.number,
-                    places.column(properties.column),
-                    properties.isOutside && styles.outside,
-                    PlainDate.equals(day, control.today()) && [state.checked, styles.today],
+                data-slot="event-calendar-more"
+                {...mergeProperties({ onClick: () => control.open(day) }, rest)}
+                {...style.attributes(
+                    [
+                        text.xs,
+                        state.hover,
+                        styles.more,
+                        places.span(index() + 1, 1, control.dayMaxEvents() + 2),
+                        properties.xstyle,
+                    ],
+                    properties.style,
                 )}
             >
-                {locale.number(PlainDate.day(day))}
+                {properties.children ??
+                    locale.render(t`${plural(hidden(), { one: "+# more", other: "+# more" })}`)}
             </button>
-
-            {/* Events that start on the day, up to the limit */}
-            <For each={starting()}>
-                {(segment) => <MonthEvent segment={segment} days={properties.days} />}
-            </For>
-
-            {/* A link to the events past the limit */}
-            <Show when={hidden() > 0}>
-                <button
-                    type="button"
-                    data-slot="event-calendar-more"
-                    onClick={open}
-                    {...style.attrs(
-                        text.xs,
-                        styles.more,
-                        places.span(properties.column, 1, limit() + 2),
-                    )}
-                >
-                    {locale.render(t`${plural(hidden(), { one: "+# more", other: "+# more" })}`)}
-                </button>
-            </Show>
-        </div>
+        </Show>
     );
 }
 
@@ -419,19 +655,26 @@ function MonthEvent(properties: {
     const render = useContext(EventCalendarEventContext) ?? EventCalendarEvent;
     const event = () => control.eventOf(properties.segment.key);
     let element: HTMLElement | undefined;
-    const draggable = new Draggable(
+    const lifted = new Draggable(
         {
-            id: JSON.stringify([properties.segment.key, properties.segment.start]),
-            item: properties.segment.key,
+            id: control.dragId(
+                untrack(() => JSON.stringify([properties.segment.key, properties.segment.start])),
+            ),
+            item: untrack(() => properties.segment.key),
             type: EVENT_TYPE,
             kind: "move",
             label: () => event().title,
             element: () => element,
-            home: () => ({ kind: "cell", droppable: MONTH, key: properties.segment.start }),
+            home: () => ({
+                kind: "cell",
+                droppable: control.dragId(MONTH),
+                key: properties.segment.start,
+            }),
         },
         control.manager,
-    ).attributes([" "]);
-    const columns = () => columnsOf(properties.segment, properties.days);
+    );
+    const draggable = untrack(() => control.isBusy(event())) ? {} : lifted.attributes([" "]);
+    const columns = () => Segment.columns(properties.segment, properties.days);
 
     return (
         <Dynamic
@@ -446,11 +689,10 @@ function MonthEvent(properties: {
                 { ref: (created: HTMLButtonElement) => (element = created) },
                 draggable,
             )}
-            xstyle={places.span(
-                columns().start + 1,
-                columns().span,
-                properties.segment.position + 2,
-            )}
+            xstyle={[
+                places.span(columns().start + 1, columns().span, properties.segment.position + 2),
+                control.manager.isDragging(properties.segment.key) && placement.dragging,
+            ]}
         />
     );
 }

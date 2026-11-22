@@ -398,7 +398,45 @@ export function Trace(properties: {
 
 ### Compose a calendar
 
-Arrange an `EventCalendar` from its parts and replace any day, column or date yourself.
+Give an `EventCalendar` the views it offers; each shows while chosen, and the views toggle lists them.
+
+```tsx
+import {
+    type CalendarEvent,
+    EventCalendar,
+    EventCalendarAgenda,
+    EventCalendarBody,
+    EventCalendarHeader,
+    EventCalendarMonth,
+    EventCalendarTime,
+    EventCalendarYear,
+} from "@destack/ui/event-calendar";
+
+/** Show a team's calendar by day, four days, week, month, year and agenda, nine to five shaded. */
+export function TeamCalendar(properties: { readonly events: readonly CalendarEvent[] }) {
+    const hours = [{ start: "09:00", end: "17:00" }] as const;
+
+    return (
+        <EventCalendar
+            events={properties.events}
+            defaultView="week"
+            dayCount={4}
+            weekNumbers
+            workWeek={{ 1: hours, 2: hours, 3: hours, 4: hours, 5: hours }}
+        >
+            <EventCalendarHeader />
+            <EventCalendarBody>
+                <EventCalendarTime />
+                <EventCalendarMonth />
+                <EventCalendarYear />
+                <EventCalendarAgenda />
+            </EventCalendarBody>
+        </EventCalendar>
+    );
+}
+```
+
+Arrange a view from its parts to replace any day, column or date yourself.
 
 ```tsx
 import {

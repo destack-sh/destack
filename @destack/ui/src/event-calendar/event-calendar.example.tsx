@@ -3,13 +3,20 @@ import { TimeZone } from "@destack/schema";
 import { createSignal, omit, Show } from "@destack/view";
 import { Button } from "../button/index.ts";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../dialog/index.ts";
-import { EventCalendar } from "./event-calendar.tsx";
-import type {
-    CalendarEvent,
-    CalendarRepeatMove,
-    EventCalendarProperties,
-    EventCalendarView,
-} from "./control.ts";
+import { EventCalendarAgenda } from "./agenda.tsx";
+import { EventCalendar, EventCalendarBody, EventCalendarHeader } from "./event-calendar.tsx";
+import { EventCalendarMonth } from "./month.tsx";
+import { EventCalendarTime } from "./time.tsx";
+import { EventCalendarYear } from "./year.tsx";
+import { EventCalendarNavigator } from "./navigator.tsx";
+import { EventCalendarSources } from "./sources.tsx";
+import { EventCalendarPreviewCard } from "./chip.tsx";
+import { Label } from "../label/index.ts";
+import { Switch } from "../switch/index.ts";
+import * as style from "@destack/style";
+import type { EventCalendarProperties, EventCalendarView } from "./control.ts";
+import type { CalendarEvent } from "./event.ts";
+import type { CalendarRepeatChange } from "./repeat.ts";
 
 /** The time zone of the example's team. */
 const ZONE = "Europe/Vienna";
@@ -87,7 +94,7 @@ function LaunchCalendar(
         readonly view: EventCalendarView;
     },
 ) {
-    // keep the events where people leave them, and add the ones they sweep out
+    // save the events where people leave them, and add the ones they sweep out
     const [events, setEvents] = createSignal<readonly CalendarEvent[]>(EVENTS);
     const save = (...changed: readonly CalendarEvent[]) =>
         setEvents((current) => [
@@ -96,7 +103,7 @@ function LaunchCalendar(
         ]);
 
     // ask what a moved repeat changes, as Google Calendar asks
-    const [move, setMove] = createSignal<CalendarRepeatMove | undefined>(undefined);
+    const [move, setMove] = createSignal<CalendarRepeatChange | undefined>(undefined);
     const choose = (changed: readonly CalendarEvent[]) => {
         save(...changed);
         setMove(undefined);
@@ -115,7 +122,16 @@ function LaunchCalendar(
                 onCreate={(span) =>
                     save({ key: `new-${String(span.start)}`, title: "New event", ...span })
                 }
-            />
+            >
+                <EventCalendarHeader />
+                <EventCalendarBody>
+                    <EventCalendarMonth />
+                    <EventCalendarTime />
+                    <EventCalendarYear />
+                    <EventCalendarAgenda />
+                    <EventCalendarPreviewCard />
+                </EventCalendarBody>
+            </EventCalendar>
             <Dialog open={move() !== undefined} onOpenChange={(open) => open || setMove(undefined)}>
                 <DialogContent>
                     <DialogHeader>
@@ -127,14 +143,16 @@ function LaunchCalendar(
                                 <Button variant="outline" onClick={() => choose([chosen().only()])}>
                                     This event
                                 </Button>
-                                <Button
-                                    variant="outline"
-                                    onClick={() =>
-                                        choose(chosen().following(`${chosen().event.key}-next`))
-                                    }
-                                >
-                                    This and following events
-                                </Button>
+                                <Show when={!chosen().isFirst}>
+                                    <Button
+                                        variant="outline"
+                                        onClick={() =>
+                                            choose(chosen().following(`${chosen().event.key}-next`))
+                                        }
+                                    >
+                                        This and following events
+                                    </Button>
+                                </Show>
                                 <Button onClick={() => choose([chosen().all()])}>All events</Button>
                             </DialogFooter>
                         )}
@@ -200,6 +218,153 @@ export const eventCalendarWorkWeek = defineExample({
             defaultView="week"
             timeZone={ZONE}
             now={at("2026-11-18", "11:00")}
-        />
+        >
+            <EventCalendarHeader />
+            <EventCalendarBody>
+                <EventCalendarTime />
+                <EventCalendarMonth />
+            </EventCalendarBody>
+        </EventCalendar>
     ),
 });
+
+/** The layout of the team's calendar: a sidebar beside the views. */
+const layout = style.create({
+    team: {
+        display: "grid",
+        gridTemplateColumns: "auto minmax(0, 1fr)",
+        gap: "1.5rem",
+        height: "44rem",
+    },
+    side: {
+        display: "flex",
+        flexDirection: "column",
+        gap: "1rem",
+        minWidth: 0,
+    },
+    main: {
+        display: "flex",
+        flexDirection: "column",
+        gap: "0.75rem",
+        minHeight: 0,
+    },
+    share: {
+        display: "flex",
+        alignItems: "center",
+        gap: "0.5rem",
+    },
+});
+
+/** The team's people, whose days the week shows side by side. */
+const TEAM: readonly CalendarEvent[] = [
+    {
+        key: "ada-design",
+        title: "Design review",
+        source: "work",
+        resource: "ada",
+        start: at("2026-11-17", "10:00"),
+        end: at("2026-11-17", "11:30"),
+    },
+    {
+        key: "grace-interviews",
+        title: "Interviews",
+        source: "hiring",
+        resource: "grace",
+        start: at("2026-11-17", "14:00"),
+        end: at("2026-11-17", "16:00"),
+    },
+    {
+        key: "ada-dentist",
+        title: "Dentist",
+        source: "ines",
+        resource: "ada",
+        start: at("2026-11-18", "08:30"),
+        end: at("2026-11-18", "09:30"),
+    },
+    {
+        key: "grace-offsite",
+        title: "Offsite",
+        source: "work",
+        resource: "grace",
+        start: "2026-11-19",
+        end: "2026-11-20",
+    },
+];
+
+/** A team's week: people side by side, calendars listed, two zones, and free time shared. */
+export const eventCalendarTeam = defineExample({
+    of: EventCalendar,
+    name: "team",
+    description:
+        "a team's week with people side by side, calendars listed, two zones and shared free time",
+    layout: "padded",
+    properties: {},
+    render: (properties) => <TeamCalendar {...properties} />,
+});
+
+/** Render the team's week beside its navigator and calendar list, free time shared in place. */
+function TeamCalendar(properties: Partial<EventCalendarProperties>) {
+    // save moves and copies, and mark free time while sharing
+    const [events, setEvents] = createSignal<readonly CalendarEvent[]>(TEAM);
+    const [isSharing, setSharing] = createSignal(false);
+    const hours = [{ start: "09:00", end: "17:00" }] as const;
+
+    return (
+        <EventCalendar
+            {...properties}
+            events={events()}
+            defaultDate={"2026-11-16"}
+            defaultView="week"
+            timeZone={ZONE}
+            weekends={false}
+            weekNumbers
+            workWeek={{ 1: hours, 2: hours, 3: hours, 4: hours, 5: hours }}
+            timeZones={[{ zone: "America/New_York", label: "NYC" }]}
+            sources={[
+                { key: "work", label: "Work", color: "blue" },
+                { key: "hiring", label: "Hiring", color: "green" },
+                { key: "ines", label: "Ines", display: "busy" },
+            ]}
+            resources={[
+                { key: "ada", label: "Ada" },
+                { key: "grace", label: "Grace" },
+            ]}
+            mode={isSharing() ? "availability" : "events"}
+            onEventChange={(changed) =>
+                setEvents((current) =>
+                    current.map((event) => (event.key === changed.key ? changed : event)),
+                )
+            }
+            onEventAdd={(draft) =>
+                setEvents((current) => [
+                    ...current,
+                    { ...draft, key: `copy-${String(current.length)}` },
+                ])
+            }
+            onEventRemove={(removed) =>
+                setEvents((current) => current.filter((event) => event.key !== removed.key))
+            }
+            xstyle={layout.team}
+        >
+            <div {...style.attrs(layout.side)}>
+                <EventCalendarNavigator />
+                <EventCalendarSources />
+                <Label xstyle={layout.share}>
+                    <Switch checked={isSharing()} onCheckedChange={setSharing} />
+                    Share availability
+                </Label>
+                <Show when={isSharing()}>
+                    <span>Sweep free time, then copy it with Mod+Shift+C.</span>
+                </Show>
+            </div>
+            <div {...style.attrs(layout.main)}>
+                <EventCalendarHeader />
+                <EventCalendarBody>
+                    <EventCalendarTime />
+                    <EventCalendarMonth />
+                    <EventCalendarPreviewCard />
+                </EventCalendarBody>
+            </div>
+        </EventCalendar>
+    );
+}

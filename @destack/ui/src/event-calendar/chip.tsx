@@ -1,0 +1,479 @@
+import { state } from "@destack/theme/state";
+import type { AccentPreset } from "@destack/color";
+import { t } from "@destack/locale";
+import * as style from "@destack/style";
+import { color, radius, space, stroke, swatch, weight } from "@destack/theme/tokens.stylex";
+import { text } from "@destack/theme/text";
+import { createEffect, For, type JSX, omit, Show, untrack, useLocale } from "@destack/view";
+import { Action } from "../action/index.ts";
+import { Button } from "../button/index.ts";
+import {
+    HoverCardContent,
+    type HoverCardContentProperties,
+    useHoverCard,
+} from "../hover-card/index.ts";
+import { useCommandPlatform } from "../kbd/index.ts";
+import { Hover, Press } from "../interaction/index.ts";
+import { mergeProperties } from "../part/index.ts";
+import { useEventCalendar } from "./control.ts";
+import { CalendarEvent, type TimedCalendarEvent } from "./event.ts";
+
+/** The width of a list row's time, room for a range such as "10:30 – 11:45 AM". */
+const LIST_TIME_WIDTH = "9rem";
+
+/** The heights of a placed event too short for a second line: two lines of extra-small text. */
+const SHORT_QUERY = "@container (max-height: 2.5rem)";
+
+/** The styles of an event. */
+const styles = style.create({
+    preview: {
+        display: "flex",
+        flexDirection: "column",
+        gap: space[1],
+        minWidth: "14rem",
+        maxWidth: "20rem",
+    },
+    detail: {
+        display: "flex",
+        alignItems: "center",
+        gap: space[2],
+        color: color.mutedForeground,
+    },
+    actions: {
+        display: "flex",
+        gap: space[2],
+        marginBlockStart: space[2],
+    },
+    busy: {
+        backgroundColor: color.muted,
+        color: color.mutedForeground,
+        borderWidth: stroke.border,
+        borderStyle: "dashed",
+        borderColor: color.border,
+        cursor: "default",
+    },
+    selected: {
+        outlineWidth: stroke.ring,
+        outlineStyle: "solid",
+        outlineColor: swatch.accentMark,
+        outlineOffset: stroke.ring,
+    },
+    event: {
+        display: "flex",
+        gap: space[1],
+        minWidth: 0,
+        overflow: "hidden",
+        borderRadius: radius[2],
+        textAlign: "start",
+        cursor: { default: "grab", ":active": "grabbing" },
+        zIndex: 1,
+    },
+    inline: {
+        alignItems: "center",
+        marginInline: space[1],
+        paddingInline: space[2],
+        whiteSpace: "nowrap",
+    },
+    block: {
+        flexWrap: { default: "wrap", [SHORT_QUERY]: "nowrap" },
+        alignContent: "flex-start",
+        rowGap: 0,
+        columnGap: space[1],
+        paddingBlock: space[1],
+        paddingInlineStart: `calc(${space[2]} - ${stroke.ring})`,
+        paddingInlineEnd: space[2],
+        borderInlineStartWidth: stroke.ring,
+        borderInlineStartStyle: "solid",
+    },
+    list: {
+        display: "grid",
+        gridTemplateColumns: `${LIST_TIME_WIDTH} ${space[2]} minmax(0, 1fr)`,
+        alignItems: "center",
+        gap: space[2],
+        width: "100%",
+        paddingBlock: space[1],
+        paddingInline: space[1],
+        cursor: "default",
+        backgroundColor: "transparent",
+    },
+    title: {
+        minWidth: 0,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        fontWeight: weight.medium,
+    },
+    continues: {
+        borderStartEndRadius: 0,
+        borderEndEndRadius: 0,
+    },
+    continued: {
+        borderStartStartRadius: 0,
+        borderEndStartRadius: 0,
+    },
+    dot: {
+        flexShrink: 0,
+        width: space[2],
+        height: space[2],
+        borderRadius: radius.full,
+    },
+    time: {
+        overflow: "hidden",
+        color: color.mutedForeground,
+        whiteSpace: "nowrap",
+        textOverflow: "ellipsis",
+        fontVariantNumeric: "tabular-nums",
+    },
+    whole: {
+        flexShrink: 0,
+    },
+    lead: {
+        flexShrink: 0,
+        maxWidth: "100%",
+    },
+    background: {
+        display: "flex",
+        alignItems: "flex-start",
+        minWidth: 0,
+        overflow: "hidden",
+        paddingBlock: space[1],
+        paddingInline: space[2],
+        borderRadius: radius[2],
+        pointerEvents: "none",
+    },
+});
+
+/** The styles of an event's place in a view while it is dragged elsewhere. */
+export const placement = style.create({
+    dragging: {
+        opacity: 0.5,
+    },
+});
+
+/** The colors an event takes from its swatch. */
+const fills = style.create({
+    tint: (tint: string, label: string) => ({ backgroundColor: tint, color: label }),
+    edge: (solid: string) => ({ borderInlineStartColor: solid }),
+    dot: (solid: string) => ({ backgroundColor: solid }),
+    shade: (tint: string, label: string) => ({
+        backgroundColor: `color-mix(in oklab, ${tint} 60%, transparent)`,
+        color: label,
+    }),
+});
+
+/** The properties of an event, the native button's attributes included. */
+export interface EventCalendarEventProperties extends Omit<
+    JSX.ButtonHTMLAttributes<HTMLButtonElement>,
+    "class"
+> {
+    /** The event. */
+    readonly event: CalendarEvent;
+    /** How it lays out: on a line in a month, as a block in a column, or as a row in a list. */
+    readonly layout: "inline" | "block" | "list";
+    /** Whether the event starts here rather than in an earlier row. */
+    readonly isStart: boolean;
+    /** Whether the event ends here rather than in a later row. */
+    readonly isEnd: boolean;
+    /** The StyleX styles applied after the event's, such as its place in the view. */
+    readonly xstyle?: style.Styles;
+}
+
+/** Render an event: a tinted bar for a whole day, a dot and time on a row, a block in a column. */
+export function EventCalendarEvent(properties: EventCalendarEventProperties): JSX.Element {
+    // read the event's color, its time if any, and whether it is lifted
+    const control = useEventCalendar();
+    const locale = useLocale();
+    const preset = (): AccentPreset => control.colorOf(properties.event);
+    const isBusy = (): boolean => control.isBusy(properties.event);
+    const timed = (): TimedCalendarEvent | undefined =>
+        CalendarEvent.isTimed(properties.event) ? properties.event : undefined;
+    const time = (at: number): string =>
+        locale.date(at, { hour: "numeric", minute: "2-digit", timeZone: control.timeZone() });
+    const isDayLong = (): boolean =>
+        timed() !== undefined && CalendarEvent.isAllDay(properties.event);
+    const rest = omit(
+        properties,
+        "event",
+        "layout",
+        "isStart",
+        "isEnd",
+        "xstyle",
+        "style",
+        "children",
+    );
+
+    // preview the event in the calendar's card while a pointer rests on it or it has the focus
+    const card = useHoverCard();
+    let element: HTMLElement | undefined;
+    const openPreview = () => {
+        if (element !== undefined && !isBusy()) {
+            card.setTrigger(element);
+            control.setPreviewed(properties.event.key);
+            card.openLater();
+        }
+    };
+    const hover = new Hover({ onHoverStart: openPreview, onHoverEnd: () => card.closeLater() });
+    const preview = mergeProperties(hover.attributes(), {
+        ref: (created: HTMLButtonElement) => (element = created),
+        onFocus: openPreview,
+        onBlur: () => card.closeLater(),
+    });
+
+    // run the event's actions by their keys, such as Delete or Mod+D
+    const isCommand = useCommandPlatform();
+    const keys = {
+        onKeyDown: (event: KeyboardEvent) => {
+            // leave the keys of an event among several selected to the calendar's selection actions
+            const key = properties.event.key;
+            const isGrouped =
+                control.selection.isSelected(key) && control.selection.values().length > 1;
+            if (!event.defaultPrevented && !isBusy() && !isGrouped) {
+                Action.handle(control.eventActions(key), event, isCommand());
+            }
+        },
+    };
+
+    // open the event on a press or Enter, and on Space in a list, where no drag takes it
+    const press = new Press({
+        onPress: (gesture) => (isBusy() ? undefined : control.press(properties.event.key, gesture)),
+        keys: untrack(() => properties.layout) === "list" ? ["Enter", " "] : ["Enter"],
+        shouldCancelOnMove: untrack(() => properties.layout) !== "list",
+    });
+    const layouts = {
+        inline: styles.inline,
+        block: styles.block,
+        list: [state.hover, styles.list],
+    };
+    const isTinted = () =>
+        properties.layout === "block" ||
+        (properties.layout === "inline" && (timed() === undefined || isDayLong()));
+
+    return (
+        <button
+            {...mergeProperties(
+                mergeProperties(mergeProperties(press.attributes(), keys), preview),
+                rest,
+            )}
+            type="button"
+            data-slot="event-calendar-event"
+            data-color={preset()}
+            data-busy={isBusy() ? "" : undefined}
+            data-selected={control.selection.isSelected(properties.event.key) ? "" : undefined}
+            aria-pressed={control.selection.isSelected(properties.event.key) ? "true" : "false"}
+            data-layout={properties.layout}
+            {...style.attributes(
+                [
+                    text.xs,
+                    state.focus,
+                    styles.event,
+                    layouts[properties.layout],
+                    isTinted() &&
+                        !isBusy() &&
+                        fills.tint(swatch[`${preset()}Tint`], swatch[`${preset()}TintText`]),
+                    properties.layout === "block" &&
+                        !isBusy() &&
+                        fills.edge(swatch[`${preset()}Mark`]),
+                    isBusy() && styles.busy,
+                    control.selection.isSelected(properties.event.key) && styles.selected,
+                    !properties.isEnd && styles.continues,
+                    !properties.isStart && styles.continued,
+                    properties.xstyle,
+                ],
+                properties.style,
+            )}
+        >
+            {/* An event in a list: its time or all day, then its color's dot */}
+            <Show when={properties.layout === "list"}>
+                <span {...style.attrs(styles.time)}>
+                    <Show when={timed()} fallback={locale.render(t`All day`)}>
+                        {(current) =>
+                            locale.dateRange(current().start, current().end, {
+                                hour: "numeric",
+                                minute: "2-digit",
+                                timeZone: control.timeZone(),
+                            })
+                        }
+                    </Show>
+                </span>
+                <span {...style.attrs(styles.dot, fills.dot(swatch[`${preset()}Mark`]))} />
+            </Show>
+
+            {/* A timed event on a row: its color's dot and its start */}
+            <Show when={properties.layout === "inline" ? timed() : undefined}>
+                {(current) => (
+                    <>
+                        <Show when={!isDayLong()}>
+                            <span
+                                {...style.attrs(styles.dot, fills.dot(swatch[`${preset()}Mark`]))}
+                            />
+                        </Show>
+                        <span {...style.attrs(styles.time, styles.whole)}>
+                            {time(current().start)}
+                        </span>
+                    </>
+                )}
+            </Show>
+
+            {/* Title */}
+            <span {...style.attrs(styles.title, properties.layout === "block" && styles.lead)}>
+                {isBusy() ? locale.render(t`Busy`) : properties.event.title}
+            </span>
+
+            {/* A timed event in a column: its start and end */}
+            <Show when={properties.layout === "block" ? timed() : undefined}>
+                {(current) => (
+                    <span {...style.attrs(styles.time)}>
+                        {locale.dateRange(current().start, current().end, {
+                            hour: "numeric",
+                            minute: "2-digit",
+                            timeZone: control.timeZone(),
+                        })}
+                    </span>
+                )}
+            </Show>
+        </button>
+    );
+}
+
+/** Render the card that previews the event a pointer rests on or the focus is on, after Google. */
+export function EventCalendarPreviewCard(
+    properties: Omit<HoverCardContentProperties, "children">,
+): JSX.Element {
+    // show the previewed event while the calendar's card is open, closing it as a drag starts
+    const control = useEventCalendar();
+    const card = useHoverCard();
+    createEffect(
+        () => control.manager.operation() !== undefined,
+        (isDragging) => (isDragging ? card.close() : undefined),
+    );
+    const event = () => {
+        const key = control.previewed();
+
+        return card.isOpen() && key !== undefined && control.hasEvent(key)
+            ? control.eventOf(key)
+            : undefined;
+    };
+
+    return (
+        <Show when={event()}>
+            {(current) => (
+                <HoverCardContent side="right" align="start" {...properties}>
+                    <EventCalendarPreview event={current()} />
+                </HoverCardContent>
+            )}
+        </Show>
+    );
+}
+
+/** Render an event's preview: its title, times, calendar, resource and actions. */
+export function EventCalendarPreview(properties: {
+    /** The event. */
+    readonly event: CalendarEvent;
+    /** The StyleX styles applied after the preview's styles. */
+    readonly xstyle?: style.Styles;
+}): JSX.Element {
+    // read the event's times, calendar and resource
+    const control = useEventCalendar();
+    const locale = useLocale();
+    const source = () => control.sourceOf(properties.event);
+    const resource = () => control.resourceOf(properties.event);
+    const times = () => {
+        const event = properties.event;
+
+        return CalendarEvent.isTimed(event)
+            ? locale.dateRange(event.start, event.end, {
+                  weekday: "short",
+                  month: "short",
+                  day: "numeric",
+                  hour: "numeric",
+                  minute: "2-digit",
+                  timeZone: control.timeZone(),
+              })
+            : locale.plainDateRange(event.start, event.end, {
+                  weekday: "short",
+                  month: "short",
+                  day: "numeric",
+              });
+    };
+
+    return (
+        <div data-slot="event-calendar-preview" {...style.attrs(styles.preview, properties.xstyle)}>
+            <strong {...style.attrs(text.sm)}>{properties.event.title}</strong>
+            <span {...style.attrs(text.xs, styles.detail)}>{times()}</span>
+            <Show when={source()}>
+                {(current) => (
+                    <span {...style.attrs(text.xs, styles.detail)}>
+                        <span
+                            aria-hidden="true"
+                            {...style.attrs(
+                                styles.dot,
+                                fills.dot(swatch[`${control.colorOf(properties.event)}Mark`]),
+                            )}
+                        />
+                        {current().label}
+                    </span>
+                )}
+            </Show>
+            <Show when={resource()}>
+                {(current) => (
+                    <span {...style.attrs(text.xs, styles.detail)}>{current().label}</span>
+                )}
+            </Show>
+
+            {/* What can be done with the event */}
+            <div {...style.attrs(styles.actions)}>
+                <For each={control.eventActions(properties.event.key)}>
+                    {(action) => (
+                        <Button
+                            size="sm"
+                            variant={action.isDestructive === true ? "destructive" : "outline"}
+                            data-action={action.id}
+                            onClick={() => void action.run()}
+                        >
+                            {action.title}
+                        </Button>
+                    )}
+                </For>
+            </div>
+        </div>
+    );
+}
+
+/** The properties of an event shown as shading, the native element's attributes included. */
+export interface EventCalendarBackgroundProperties extends Omit<
+    JSX.HTMLAttributes<HTMLDivElement>,
+    "class"
+> {
+    /** The event. */
+    readonly event: CalendarEvent;
+    /** The StyleX styles applied after the shading's, such as its place in the view. */
+    readonly xstyle?: style.Styles;
+}
+
+/** Render an event as shading behind the others: its color's tint under its title. */
+export function EventCalendarBackground(
+    properties: EventCalendarBackgroundProperties,
+): JSX.Element {
+    // take the event's color, else its calendar's
+    const control = useEventCalendar();
+    const preset = (): AccentPreset => control.colorOf(properties.event);
+    const rest = omit(properties, "event", "xstyle", "style", "children");
+
+    return (
+        <div
+            {...rest}
+            data-slot="event-calendar-background"
+            data-color={preset()}
+            {...style.attributes(
+                [
+                    text.xs,
+                    styles.background,
+                    fills.shade(swatch[`${preset()}Tint`], swatch[`${preset()}TintText`]),
+                    properties.xstyle,
+                ],
+                properties.style,
+            )}
+        >
+            <span {...style.attrs(styles.title)}>{properties.event.title}</span>
+        </div>
+    );
+}
