@@ -20,12 +20,7 @@ import {
 import { Failure } from "@destack/error";
 import type { PackageVersion } from "@destack/package";
 
-import {
-    ACTION_EVENT,
-    ANALYTICS_ATTRIBUTES,
-    VISIT_EVENT,
-    type VisitDetail,
-} from "../otlp/analytics.ts";
+import { ACTION_EVENT, ANALYTICS_ATTRIBUTES, VISIT_EVENT, type VisitDetail } from "./analytics.ts";
 
 /** The instruments a package creates on its meter: the synchronous ones. */
 export type PackageMeter = Pick<

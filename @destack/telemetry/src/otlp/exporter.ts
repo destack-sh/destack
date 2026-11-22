@@ -24,7 +24,7 @@ import type { TelemetryOptions } from "../sdk/index.ts";
 import { RatioSampler } from "../trace/sampler.ts";
 import { TailSampler } from "../trace/tail.ts";
 import { StackFrame, type Symbolicator } from "@destack/package/stack";
-import type { LineExporter } from "@destack/environment";
+import type { LineExporter } from "@destack/environment/line";
 
 /** How long one export may take by default before it fails: OTLP's OTEL_EXPORTER_OTLP_TIMEOUT. */
 const EXPORT_TIMEOUT_MILLISECONDS = 10_000;
