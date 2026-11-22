@@ -1,3 +1,4 @@
+import type { Axis } from "../position/index.ts";
 import type { Clock } from "@destack/environment";
 import { type Accessor, createSignal, onCleanup, type Setter } from "@destack/view";
 import { access, type MaybeAccessor } from "@destack/view/primitives/utils";
@@ -21,8 +22,8 @@ const ARROWS: Readonly<Record<string, readonly [number, number]>> = {
 /** The pixels a pointer travels before it moves an element, so a click stays a click. */
 const MOVE_DISTANCE = 4;
 
-/** The pixels a finger may drift while it holds for the delay, as UIKit's long press allows. */
-const HOLD_TOLERANCE = 10;
+/** The pixels a finger may drift while it waits for the delay, as UIKit's long press allows. */
+const STILL_TOLERANCE = 10;
 
 /** One step of a move. */
 export interface MoveEvent extends InteractionEvent<"movestart" | "move" | "moveend"> {
@@ -56,7 +57,7 @@ export interface MoveOptions {
     readonly orientation?: MaybeAccessor<Orientation>;
     /** The pixels a pointer travels before the move starts, 4 by default. */
     readonly distance?: number;
-    /** The milliseconds a finger holds still before the move starts, scrolling until then. */
+    /** The milliseconds a finger stays still before the move starts, scrolling until then. */
     readonly delay?: number;
     /** The arrow keys that move one step each along the followed axes. */
     readonly keys?: readonly string[];
@@ -92,7 +93,7 @@ interface MoveRun {
     previous: Sample;
     /** The latest pointer event. */
     event: PointerEvent;
-    /** The timer of a finger holding for the delay. */
+    /** The timer of a finger waiting for the delay. */
     timer: number | undefined;
     /** Stop deciding whether a finger moves the element or scrolls. */
     releaseTouch: (() => void) | undefined;
@@ -158,7 +159,7 @@ export class Move {
             return;
         }
 
-        // keep the pointer and sample where it pressed
+        // capture the pointer and sample where it pressed
         element.setPointerCapture(event.pointerId);
         const sample = { x: event.clientX, y: event.clientY, time: event.timeStamp };
         const run: MoveRun = {
@@ -222,7 +223,7 @@ export class Move {
 
         // let go of a finger that drifts before its delay passed
         if (run.timer !== undefined) {
-            if (travel > HOLD_TOLERANCE) {
+            if (travel > STILL_TOLERANCE) {
                 this.#release(run);
             }
         }
@@ -351,7 +352,7 @@ export class Move {
     }
 
     /** Keep a distance along a followed axis. */
-    #along(axis: "horizontal" | "vertical", distance: number): number {
+    #along(axis: Axis, distance: number): number {
         const followed = access(this.#options.orientation) ?? "both";
 
         return followed === "both" || followed === axis ? distance : 0;

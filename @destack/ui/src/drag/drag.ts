@@ -1,10 +1,17 @@
 import type { Environment } from "@destack/environment";
 import { type Direction, type Localization, type Message, t } from "@destack/locale";
-import { type Accessor, createSignal, createUniqueId, onCleanup, type Setter } from "@destack/view";
+import {
+    type Accessor,
+    createSignal,
+    createUniqueId,
+    flush,
+    onCleanup,
+    type Setter,
+} from "@destack/view";
 import { Move, type PointerType } from "../interaction/index.ts";
 import { mergeProperties } from "../part/index.ts";
 
-/** The milliseconds a finger holds an item before it lifts, as iOS and Android wait. */
+/** The milliseconds a finger rests on an item before it lifts, as iOS and Android wait. */
 const LIFT_DELAY = 500;
 
 /** The pixels from a scroller's edge where a drag scrolls it, about a finger's width. */
@@ -68,13 +75,17 @@ export type DragPlace =
 /** A drag under way. */
 export interface DragOperation {
     /** The dragged item. */
-    readonly source: string;
+    readonly item: string;
+    /** The draggable that lifted it. */
+    readonly draggable: string;
     /** What the drag does to it. */
     readonly kind: DragKind;
-    /** What drives it. */
+    /** What moves it: a mouse, a pen, a finger or the keyboard. */
     readonly pointer: PointerType;
     /** Where the item stood. */
     readonly from: DragTarget;
+    /** Where the drag took the item: under the pointer as it began, else where the item stood. */
+    readonly grab: DragTarget;
     /** Where it lands, absent outside every droppable. */
     readonly target: DragTarget | undefined;
     /** The horizontal distance a pointer moved it, zero on the keyboard. */
@@ -85,8 +96,10 @@ export interface DragOperation {
 
 /** The options of a draggable. */
 export interface DraggableOptions {
-    /** The item's id. */
+    /** The draggable's id, unique in its manager. */
     readonly id: string;
+    /** The item it drags, its id unless several draggables drag one item. */
+    readonly item?: string;
     /** The kind of item. */
     readonly type: string;
     /** What a drag does to it. */
@@ -131,8 +144,10 @@ export interface DragOptions {
 
 /** An item a person drags. */
 export class Draggable {
-    /** The item's id. */
+    /** The draggable's id, unique in its manager. */
     readonly id: string;
+    /** The item it drags. */
+    readonly item: string;
     /** The kind of item. */
     readonly type: string;
     /** What a drag does to it. */
@@ -150,6 +165,7 @@ export class Draggable {
     constructor(options: DraggableOptions, manager: DragManager) {
         // copy the options
         this.id = options.id;
+        this.item = options.item ?? options.id;
         this.type = options.type;
         this.kind = options.kind;
         this.label = options.label;
@@ -161,7 +177,7 @@ export class Draggable {
 
     /** Read whether the item is dragged. */
     isDragging(): boolean {
-        return this.#manager.isDragging(this.id);
+        return this.#manager.isDragging(this.item);
     }
 
     /** Read the handlers and state the element that lifts it spreads. */
@@ -190,6 +206,7 @@ export class Draggable {
         // describe the element and mark it while dragged
         const isDragging = () => this.isDragging();
         const state = {
+            role: "button" as const,
             "aria-roledescription": manager.locale.render(t`draggable`),
             "aria-describedby": manager.instructionsId,
             get "data-dragging"(): "" | undefined {
@@ -202,24 +219,13 @@ export class Draggable {
 
     /** Lift, drop, cancel or step a keyboard drag on a key pressed on the element. */
     #key(event: KeyboardEvent, lifts: readonly string[]): void {
-        // lift on a lifting key, and drop on Space or Enter
+        // lift on a lifting key, else hand the key to the drag in progress
         const manager = this.#manager;
-        const operation = manager.current();
-        if (operation === undefined && lifts.includes(event.key)) {
+        if (manager.current() === undefined && lifts.includes(event.key)) {
             event.preventDefault();
             manager.lift(this.id, this.kind, "keyboard");
-        } else if (operation !== undefined && (event.key === " " || event.key === "Enter")) {
-            event.preventDefault();
-            manager.drop();
-        }
-        // cancel on Escape
-        else if (operation !== undefined && event.key === "Escape") {
-            event.preventDefault();
-            manager.cancel();
-        }
-        // step on the arrow keys
-        else if (operation !== undefined && manager.step(event.key)) {
-            event.preventDefault();
+        } else {
+            manager.key(event);
         }
     }
 }
@@ -350,9 +356,9 @@ export class DragManager {
         return this.#current;
     }
 
-    /** Read whether a draggable is dragged. */
-    isDragging(id: string): boolean {
-        return this.operation()?.source === id;
+    /** Read whether an item is dragged. */
+    isDragging(item: string): boolean {
+        return this.operation()?.item === item;
     }
 
     /** Read the target the drag aims at inside a droppable. */
@@ -373,10 +379,12 @@ export class DragManager {
         // start where it stands and measure every droppable that takes it
         const from = draggable.home();
         const operation = {
-            source: id,
+            item: draggable.item,
+            draggable: id,
             kind,
             pointer,
             from,
+            grab: from,
             target: from,
             offsetX: 0,
             offsetY: 0,
@@ -396,7 +404,15 @@ export class DragManager {
         const next = { ...operation, offsetX, offsetY };
         const under = this.#measured.find((each) => contains(each.bounds, x, y));
         const target = under?.droppable.targetAt(x, y, next);
-        const moved = { ...next, target };
+
+        // take the target where the pointer pressed, before its first step, as where it took the item
+        const [pressX, pressY] = [x - offsetX, y - offsetY];
+        const pressed = this.#measured.find((each) => contains(each.bounds, pressX, pressY));
+        const isFirst = operation.offsetX === 0 && operation.offsetY === 0;
+        const grab =
+            (isFirst ? pressed?.droppable.targetAt(pressX, pressY, next) : undefined) ??
+            operation.grab;
+        const moved = { ...next, grab, target };
         this.#set(moved);
 
         // announce each new target the pointer reaches
@@ -439,6 +455,29 @@ export class DragManager {
         return true;
     }
 
+    /** Take a key of a drag in progress: drop, cancel with Escape, or step with an arrow. */
+    key(event: KeyboardEvent): boolean {
+        // leave every key alone while nothing is dragged
+        if (this.#current === undefined) {
+            return false;
+        }
+        // drop on Space or Enter
+        else if (event.key === " " || event.key === "Enter") {
+            this.drop();
+        }
+        // cancel on Escape
+        else if (event.key === "Escape") {
+            this.cancel();
+        }
+        // step on the arrow keys, leaving any other key alone
+        else if (!this.step(event.key)) {
+            return false;
+        }
+        event.preventDefault();
+
+        return true;
+    }
+
     /** Drop the dragged item. */
     drop(): void {
         // announce where the item landed
@@ -455,9 +494,10 @@ export class DragManager {
         }
         this.#end();
 
-        // give the focus back to the item once its owner moved it
+        // render the owner's move, then give the focus back to the moved item
         if (operation.pointer === "keyboard") {
-            queueMicrotask(() => this.#draggables.get(operation.source)?.element()?.focus());
+            flush();
+            this.#draggables.get(operation.draggable)?.element()?.focus();
         }
     }
 
@@ -481,7 +521,7 @@ export class DragManager {
         // enter the neighbour in document order within the group
         const operation = this.#current;
         const draggable =
-            operation === undefined ? undefined : this.#draggables.get(operation.source);
+            operation === undefined ? undefined : this.#draggables.get(operation.draggable);
         const siblings = [...this.#droppables.values()]
             .filter(
                 (each) =>
@@ -518,7 +558,7 @@ export class DragManager {
                   ];
         });
 
-        // order nested droppables before the ones holding them
+        // order nested droppables before the ones around them
         this.#measured = measured.toSorted((left, right) => {
             // compare only droppables one of which is around the other
             const outer = left.droppable.element();
@@ -571,7 +611,7 @@ export class DragManager {
             scroller.scrollBy(deltaX, deltaY);
 
             // measure the moved droppables and aim again from the latest pointer
-            const draggable = this.#draggables.get(operation.source);
+            const draggable = this.#draggables.get(operation.draggable);
             const current = this.#current;
             const latest = this.#pointer;
             if (draggable !== undefined && current !== undefined && latest !== undefined) {
@@ -612,7 +652,7 @@ export class DragManager {
     /** Write the live region's announcement of a drag's step in the reader's language. */
     #announce(step: "lift" | "move" | "drop" | "cancel", operation: DragOperation): void {
         // read the item's name and where it stands
-        const item = this.#draggables.get(operation.source)?.label() ?? operation.source;
+        const item = this.#draggables.get(operation.draggable)?.label() ?? operation.item;
         const target = step === "cancel" ? operation.from : operation.target;
         const droppable = target === undefined ? undefined : this.#droppables.get(target.droppable);
         const place = target === undefined ? undefined : droppable?.describe(target, operation);

@@ -1,7 +1,10 @@
+import { state } from "@destack/theme/state";
+import { isMotionReduced } from "@destack/view/motion";
+import type { Axis } from "../position/index.ts";
 import { Icon } from "@destack/ui/icon";
 import { type Localization, t } from "@destack/locale";
 import * as style from "@destack/style";
-import { color, motion, radius, space, stroke } from "@destack/theme/tokens.stylex";
+import { color, motion, radius, space, stroke, swatch } from "@destack/theme/tokens.stylex";
 import {
     type Accessor,
     createContext,
@@ -35,6 +38,12 @@ const NEST_DISTANCE = 32;
 /** The line a target item shows along the edge the dragged item lands on. */
 const LINE = `calc(2 * ${stroke.border})`;
 
+/** The time a moved item glides to its new place, in milliseconds: an on-screen move. */
+const GLIDE_TIME = 250;
+
+/** The curve a moved item glides along: Emil Kowalski's strong ease-in-out for on-screen moves. */
+const GLIDE_EASING = "cubic-bezier(0.77, 0, 0.175, 1)";
+
 /** The type of an item and the type a container takes when neither sets one. */
 const DEFAULT_TYPE = "item";
 
@@ -58,7 +67,7 @@ const styles = style.create({
             content: '""',
             position: "absolute",
             borderRadius: LINE,
-            backgroundColor: color.primary,
+            backgroundColor: swatch.accentMark,
             pointerEvents: "none",
         },
     },
@@ -85,17 +94,11 @@ const styles = style.create({
         borderRadius: radius[1],
         color: color.mutedForeground,
         cursor: { default: "grab", ":disabled": "not-allowed" },
-        outlineStyle: { default: "none", ":focus-visible": "solid" },
-        outlineWidth: stroke.ring,
-        outlineColor: `color-mix(in oklab, ${color.ring} 50%, transparent)`,
     },
     grabbing: {
         cursor: "grabbing",
     },
 });
-
-/** The direction a container lays out its items along, which the arrow keys follow. */
-export type SortableOrientation = "vertical" | "horizontal";
 
 /** A move a person made: the item, the container it lands in and the items it lands between. */
 export interface SortableMove {
@@ -131,7 +134,7 @@ interface SortableList {
     /** The element around the items. */
     readonly element: () => HTMLElement | undefined;
     /** The direction its items lay out along. */
-    readonly orientation: () => SortableOrientation;
+    readonly orientation: () => Axis;
     /** The name announcements call it by. */
     readonly label: () => string;
     /** The types of items it takes. */
@@ -152,6 +155,8 @@ class SortableControl {
     readonly #items = new Map<string, SortableEntry>();
     /** The one item the drag marks and the side it lands on, found once per step of the drag. */
     readonly #marked: Accessor<{ readonly id: string; readonly drop: SortableDrop } | undefined>;
+    /** The display whose next frame a glide waits for. */
+    readonly #environment: Environment<"display">;
     /** The bounds of each container's items as the drag lifted. */
     readonly #measured = new Map<
         string,
@@ -164,13 +169,56 @@ class SortableControl {
         locale: Localization,
         environment: Environment<"display">,
     ) {
+        // glide every move the drags drop
         this.properties = properties;
+        this.#environment = environment;
         this.manager = new DragManager(
-            { onDrop: (operation) => properties.onMove?.(this.moveOf(operation)) },
+            {
+                onDrop: (operation) => {
+                    const move = this.moveOf(operation);
+                    this.glide(() => properties.onMove?.(move));
+                },
+            },
             locale,
             environment,
         );
         this.#marked = createMemo(() => this.#markedOf());
+    }
+
+    /** Run a move and glide each item from where it was to where the move puts it, after FLIP. */
+    glide(move: () => void): void {
+        // remember where each item was, unless the person wants reduced motion
+        const elements = [...this.#items.values()].flatMap((entry) => {
+            const element = entry.element();
+
+            return element === undefined ? [] : [element];
+        });
+        const [first] = elements;
+        const isStill = first !== undefined && isMotionReduced(first);
+        const before = new Map(
+            elements.map((element) => [element, element.getBoundingClientRect()]),
+        );
+        move();
+        if (isStill) {
+            return;
+        }
+
+        // once the move renders, play each item that moved from its old place to its new one
+        void this.#environment.display.frame().then(() => {
+            for (const [element, was] of before) {
+                const now = element.getBoundingClientRect();
+                const [x, y] = [was.left - now.left, was.top - now.top];
+                if (element.isConnected && (x !== 0 || y !== 0)) {
+                    element.animate(
+                        [
+                            { transform: `translate(${String(x)}px, ${String(y)}px)` },
+                            { transform: "none" },
+                        ],
+                        { duration: GLIDE_TIME, easing: GLIDE_EASING },
+                    );
+                }
+            }
+        });
     }
 
     /** Add an item until it unmounts. */
@@ -195,7 +243,7 @@ class SortableControl {
 
     /** List a container's items in document order, leaving out the dragged one. */
     itemsOf(container: string): SortableEntry[] {
-        const dragged = this.manager.current()?.source;
+        const dragged = this.manager.current()?.item;
 
         return [...this.#items.values()]
             .filter((entry) => entry.container === container && entry.id !== dragged)
@@ -254,7 +302,7 @@ class SortableControl {
         const items = this.itemsOf(target.droppable);
 
         return {
-            id: operation.source,
+            id: operation.item,
             container: target.droppable,
             previous: items[target.index - 1]?.id,
             next: items[target.index]?.id,
@@ -382,7 +430,7 @@ const SortableContext = createContext<SortableControl | null>(null);
 /** The id and direction of the nearest container, null outside one. */
 const SortableContainerContext = createContext<{
     readonly id: string;
-    readonly orientation: () => SortableOrientation;
+    readonly orientation: () => Axis;
 } | null>(null);
 
 /** The nearest item, null outside one. */
@@ -425,7 +473,7 @@ export interface SortableContainerProperties extends SortableElementProperties<
     /** The container's id. */
     readonly id: string;
     /** The direction its items lay out along, vertical by default. */
-    readonly orientation?: SortableOrientation;
+    readonly orientation?: Axis;
     /** The name announcements call it by, a generic one by default. */
     readonly label?: string;
     /** The types of items it takes. */
@@ -525,10 +573,10 @@ export function SortableContainer(properties: SortableContainerProperties): JSX.
 
     // mark the container a drag aims at, and one refusing the dragged item
     const stateOf = (): "over" | "refused" | "idle" => {
-        const source = control.manager.operation()?.source;
+        const dragged = control.manager.operation()?.item;
         if (control.manager.targetIn(id) !== undefined) {
             return "over";
-        } else if (source !== undefined && properties.allows?.(source) === false) {
+        } else if (dragged !== undefined && properties.allows?.(dragged) === false) {
             return "refused";
         }
 
@@ -695,7 +743,13 @@ export function SortableHandle(properties: SortableHandleProperties): JSX.Elemen
             {...rest}
             ref={(created) => item.setHandle(created)}
             {...style.attributes(
-                [styles.handle, isDragging() && styles.grabbing, properties.xstyle],
+                [
+                    state.focus,
+                    state.disabled,
+                    styles.handle,
+                    isDragging() && styles.grabbing,
+                    properties.xstyle,
+                ],
                 properties.style,
             )}
         >

@@ -127,7 +127,7 @@ export class Press {
             onKeyDown: (event: KeyboardEvent) => this.#keyDown(event),
             onClick: (event: MouseEvent) => this.#click(event),
             ref: (element: HTMLElement) => {
-                // keep a double tap from zooming the page, where the element sets no touch action
+                // stop a double tap from zooming the page, where the element sets no touch action
                 const action = getComputedStyle(element).touchAction;
                 if (action === "auto" || action === "") {
                     element.style.touchAction = "pan-x pan-y pinch-zoom";
@@ -280,7 +280,7 @@ export class Press {
 
     /** Take a click without a pointer as a whole press. */
     #click(event: MouseEvent): void {
-        // keep a disabled element from activating
+        // stop a disabled element from activating
         if (this.#options.isDisabled?.() === true) {
             event.preventDefault();
         }
@@ -336,7 +336,7 @@ export class Press {
             releases.push(() => document.removeEventListener("keyup", keyUp, true));
         }
 
-        // keep a pointer from selecting text: the page's under a finger, the element's otherwise
+        // stop a pointer from selecting text: the page's under a finger, the element's otherwise
         if (pointerId !== undefined && this.#options.allowTextSelectionOnPress !== true) {
             const style = (pointerType === "touch" ? document.documentElement : element).style;
             const selection = style.getPropertyValue("user-select");

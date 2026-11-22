@@ -3,7 +3,7 @@ import { createEffect, createUniqueId, onCleanup } from "@destack/view";
 import type { InteractionEvent } from "./interaction.ts";
 import { Press, type PressEvent } from "./press.ts";
 
-/** The milliseconds a pointer holds before a press turns long, as iOS and Android wait. */
+/** The milliseconds a pointer stays down before a press turns long, as iOS and Android wait. */
 const LONG_PRESS_THRESHOLD = 500;
 
 /** The milliseconds after a release in which the browser may still send its click or menu. */
@@ -14,13 +14,13 @@ export type LongPressEvent = InteractionEvent<"longpressstart" | "longpressend" 
 
 /** The handlers and limits of a long press. */
 export interface LongPressOptions {
-    /** Handle a pointer starting to hold. */
+    /** Handle a pointer going down. */
     readonly onLongPressStart?: (event: LongPressEvent) => void;
-    /** Handle the hold ending, long or short. */
+    /** Handle the pointer coming up, after a long press or a short one. */
     readonly onLongPressEnd?: (event: LongPressEvent) => void;
-    /** Handle a pointer held past the threshold. */
+    /** Handle a pointer down past the threshold. */
     readonly onLongPress?: (event: LongPressEvent) => void;
-    /** The milliseconds a pointer holds before the press turns long, 500 by default. */
+    /** The milliseconds a pointer stays down before the press turns long, 500 by default. */
     readonly threshold?: number;
     /** Tell assistive technology what a long press does, such as "Long press to open the menu". */
     readonly accessibilityDescription?: () => string;
@@ -30,26 +30,26 @@ export interface LongPressOptions {
     readonly isDisabled?: () => boolean;
 }
 
-/** A pointer held on an element past a threshold, after React Aria's useLongPress. */
+/** A pointer down on an element past a threshold, after React Aria's useLongPress. */
 export class LongPress {
     /** The handlers and limits. */
     readonly #options: LongPressOptions;
     /** The clock the threshold runs on. */
     readonly #clock: Pick<Clock, "setTimeout" | "clearTimeout">;
-    /** The press that starts and ends the hold. */
+    /** The press that starts and ends the long press. */
     readonly #press: Press;
     /** The identifier of the element that has the description. */
     readonly #descriptionId: string | undefined;
-    /** The pointer that holds. */
+    /** The pointer that is down. */
     #pointerId: number | undefined = undefined;
     /** The timer of the threshold. */
     #timer: number | undefined = undefined;
-    /** Stop preventing the click and the menu a hold leaves behind. */
+    /** Stop preventing the click and the menu a long press leaves behind. */
     #release: (() => void) | undefined = undefined;
 
     /** Create a long press with its handlers and limits. */
     constructor(options: LongPressOptions, clock: Pick<Clock, "setTimeout" | "clearTimeout">) {
-        // start and end the hold with a press
+        // start and end with a press
         this.#options = options;
         this.#clock = clock;
         this.#press = new Press({
@@ -72,7 +72,7 @@ export class LongPress {
             onCleanup(() => element.remove());
         }
 
-        // stop a pending hold once the owner goes
+        // stop a pending long press once the owner goes
         onCleanup(() => {
             this.#stopTimer();
             this.#release?.();
@@ -93,7 +93,7 @@ export class LongPress {
         };
     }
 
-    /** Start to hold. */
+    /** Start as the pointer goes down. */
     #start(event: PressEvent): void {
         // let the element's ancestors see the press, and leave other pointers alone
         event.continuePropagation();
@@ -104,7 +104,7 @@ export class LongPress {
         this.#release?.();
         this.#options.onLongPressStart?.(stepOf("longpressstart", event));
 
-        // keep the menu a touch screen opens on a hold from opening beside the long press
+        // prevent the menu a touch screen opens on a long press
         const releases: (() => void)[] = [];
         if (event.pointerType === "touch") {
             target.addEventListener("contextmenu", prevent);
@@ -121,7 +121,7 @@ export class LongPress {
 
         // turn the press long past the threshold
         this.#timer = this.#clock.setTimeout(() => {
-            // take the pointer from the element's presses, and keep its click from activating
+            // take the pointer from the element's presses, and prevent its click
             this.#timer = undefined;
             const taken = { bubbles: true, pointerId: this.#pointerId ?? 0 };
             target.dispatchEvent(new PointerEvent("pointercancel", taken));
@@ -136,7 +136,7 @@ export class LongPress {
         }, this.#options.threshold ?? LONG_PRESS_THRESHOLD);
     }
 
-    /** End the hold. */
+    /** End as the pointer comes up. */
     #end(event: PressEvent): void {
         this.#stopTimer();
         if (this.#accepts(event)) {

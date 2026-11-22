@@ -10,6 +10,18 @@ import {
     untrack,
 } from "@destack/view";
 
+/** The elements the Tab key stops at, before leaving out the ones inert or hidden. */
+const TABBABLE = [
+    "a[href]",
+    "button:not(:disabled)",
+    "input:not(:disabled)",
+    "select:not(:disabled)",
+    "textarea:not(:disabled)",
+    "summary",
+    "[contenteditable]:not([contenteditable='false'])",
+    "[tabindex]:not([tabindex='-1'])",
+].join(", ");
+
 /** How a collection's keys lay out for the keyboard. */
 export interface KeyboardDelegate<Key> {
     /** Read the key a key press moves the focus to from a key. */
@@ -27,11 +39,11 @@ export type FocusMode = "roving" | "virtual";
 export interface FocusOptions<Key> {
     /** The layout the keys move through. */
     readonly delegate: KeyboardDelegate<Key>;
-    /** Whether the focused key holds the DOM focus or stays virtual. */
+    /** Whether the focused key has the DOM focus or stays virtual. */
     readonly mode: FocusMode;
-    /** The key that holds the focus until one is focused, the delegate's first by default. */
+    /** The key with the focus until one is focused, the delegate's first by default. */
     readonly initial?: () => Key | undefined;
-    /** The focused key its owner holds, which makes the focus controlled while it returns a key. */
+    /** The focused key its owner sets, which makes the focus controlled while it returns a key. */
     readonly controlled?: () => Key | undefined;
     /** Handle a key taking the focus. */
     readonly onChange?: (key: Key) => void;
@@ -50,7 +62,7 @@ type FocusedKey<Key> =
 export class Focus<Key> {
     /** The prefix of each item's id in virtual focus. */
     readonly prefix: string;
-    /** Whether the focused key holds the DOM focus or stays virtual. */
+    /** Whether the focused key has the DOM focus or stays virtual. */
     readonly mode: FocusMode;
     /** The focused key, the initial or first one until one is focused. */
     readonly active: Accessor<Key | undefined>;
@@ -69,7 +81,7 @@ export class Focus<Key> {
 
     /** Start on the initial key, outside the DOM focus. */
     constructor(options: FocusOptions<Key>) {
-        // follow the focused key and whether the collection holds the DOM focus
+        // follow the focused key and whether the collection has the DOM focus
         const [focused, setFocused] = createSignal<FocusedKey<Key>>({ kind: "initial" });
         const [isFocused, setFocusedWithin] = createSignal(false);
         this.prefix = createUniqueId();
@@ -105,12 +117,12 @@ export class Focus<Key> {
         return this.#actives[this.#text(key)] === true;
     }
 
-    /** Focus a key without moving the DOM focus there unless the collection holds it. */
+    /** Focus a key without moving the DOM focus there unless the collection has it. */
     focus(key: Key): void {
         // tell the owner only of a key other than the focused one
         const current = this.current();
         const isChanged = current === undefined || this.#text(current) !== this.#text(key);
-        this.#write({ kind: "focused", key });
+        this.#setFocused({ kind: "focused", key });
         if (isChanged) {
             this.#options.onChange?.(key);
         }
@@ -124,7 +136,7 @@ export class Focus<Key> {
 
     /** Forget the focused key, returning to the initial or first one, as a new search does. */
     reset(): void {
-        this.#write({ kind: "initial" });
+        this.#setFocused({ kind: "initial" });
     }
 
     /** Move the focus on a key press the layout takes. */
@@ -156,7 +168,7 @@ export class Focus<Key> {
 
     /** Take the key of an item the DOM focus entered. */
     focusIn(key: Key): void {
-        this.#write({ kind: "focused", key });
+        this.#setFocused({ kind: "focused", key });
         this.#setFocusedWithin(true);
     }
 
@@ -175,7 +187,7 @@ export class Focus<Key> {
         createEffect(
             () => this.mode === "roving" && this.isFocused() && this.isActive(key()),
             (isTaking) => {
-                // focus the element unless it already holds the focus, its handlers reading untracked
+                // focus the element unless it already has the focus, its handlers reading untracked
                 const target = element();
                 if (isTaking && target !== undefined && target !== document.activeElement) {
                     untrack(() => target.focus());
@@ -196,11 +208,6 @@ export class Focus<Key> {
         return key === undefined ? undefined : this.id(key);
     }
 
-    /** Write the focused key. */
-    #write(focused: FocusedKey<Key>): void {
-        this.#setFocused(focused);
-    }
-
     /** Write a key as text. */
     #text(key: Key): string {
         return this.#options.keyText?.(key) ?? String(key);
@@ -215,6 +222,13 @@ export class Focus<Key> {
 
         return key !== undefined && delegate.has(key) ? key : delegate.first();
     }
+}
+
+/** List the elements in a root the Tab key stops at, in document order. */
+export function tabbablesIn(root: ParentNode): HTMLElement[] {
+    return [...root.querySelectorAll<HTMLElement>(TABBABLE)].filter(
+        (element) => element.closest("[inert], [hidden]") === null,
+    );
 }
 
 /** Report whether a key types a letter that moves the focus by typeahead. */

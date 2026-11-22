@@ -225,3 +225,18 @@ test("drop nothing outside every droppable, announcing the event back on its day
         drops: [],
     });
 });
+
+test("take an event by the day the pointer pressed, however far its first step goes", () => {
+    // press the event's Sunday, three days after its home, and drag it a week on in one step
+    const { event, manager } = drawMonth();
+    pointer(event, "pointerdown", 650, 50);
+    pointer(event, "pointermove", 650, 150);
+    const operation = manager().operation();
+    pointer(event, "pointerup", 650, 150);
+
+    expect([operation?.from, operation?.grab, operation?.target]).toEqual([
+        { kind: "cell", droppable: "month", key: "2026-11-19" },
+        { kind: "cell", droppable: "month", key: "2026-11-22" },
+        { kind: "cell", droppable: "month", key: "2026-11-29" },
+    ]);
+});

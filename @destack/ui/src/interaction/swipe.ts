@@ -10,8 +10,8 @@ const DISMISS_SHARE = 0.25;
 /** The distance an element is swiped past to dismiss on release however small it is, in pixels. */
 const DISMISS_DISTANCE = 48;
 
-/** The speed past which a release dismisses, in pixels per millisecond. */
-const FLICK_SPEED = 0.5;
+/** The speed past which a release dismisses, in pixels per millisecond: a flick, as in Sonner. */
+const FLICK_SPEED = 0.11;
 
 /** The distance a flick travels at least before its speed counts, in pixels. */
 const FLICK_DISTANCE = 16;

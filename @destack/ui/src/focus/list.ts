@@ -1,10 +1,11 @@
+import type { Axis } from "../position/index.ts";
 import type { Direction } from "@destack/locale";
 import type { Accessor } from "@destack/view";
 import { Collection, CollectionBuilder } from "../collection/index.ts";
 import { Focus, type FocusMode, isTypeaheadKey, type KeyboardDelegate } from "./focus.ts";
 
 /** The arrow keys that move the focus through a list: left and right, up and down, or all four. */
-export type Orientation = "horizontal" | "vertical" | "both";
+export type Orientation = Axis | "both";
 
 /** The axis, wrapping and typeahead of a list's keys. */
 export interface ListDelegateOptions {
@@ -164,7 +165,7 @@ export interface ListItem {
 
 /** The axis, focus mode and starting key of a list state. */
 export interface ListStateOptions extends ListDelegateOptions {
-    /** Whether the focused key holds the DOM focus or stays virtual, roving by default. */
+    /** Whether the focused key has the DOM focus or stays virtual, roving by default. */
     readonly mode?: FocusMode;
     /** Read the key that has the focus until one is focused from the items. */
     readonly initial?: (collection: Collection<ListItem>) => string | undefined;

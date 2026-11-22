@@ -78,7 +78,7 @@ export class Zoom {
             },
             ref: (element: HTMLElement) => this.#listen(element),
             onWheel: (event: WheelEvent) => this.#wheel(event),
-            onPointerDown: (event: PointerEvent) => this.#hold(event),
+            onPointerDown: (event: PointerEvent) => this.#track(event),
             onPointerMove: (event: PointerEvent) => this.#pinch(event),
             onPointerUp: (event: PointerEvent) => this.#letGo(event, false),
             onPointerCancel: (event: PointerEvent) => this.#letGo(event, true),
@@ -117,8 +117,8 @@ export class Zoom {
     }
 
     /** Track a finger that landed. */
-    #hold(event: PointerEvent): void {
-        // hold fingers only
+    #track(event: PointerEvent): void {
+        // track fingers only
         const element = event.currentTarget;
         if (
             event.pointerType !== "touch" ||
@@ -192,7 +192,7 @@ export class Zoom {
             return zoomOf(type, "mouse", element, event, point, scale, 0, 0, false);
         };
 
-        // start each gesture at its own scale and keep the page from zooming
+        // start each gesture at the current scale and stop the page from zooming
         const start = (event: Event) => {
             event.preventDefault();
             if (this.#options.isDisabled?.() !== true) {
@@ -223,7 +223,7 @@ export class Zoom {
 
         // take two fingers from the page's own pinch
         const claim = (event: TouchEvent) => {
-            // keep the page from zooming under a pinch
+            // stop the page from zooming under a pinch
             if (event.touches.length === 2 && this.#options.isDisabled?.() !== true) {
                 event.preventDefault();
             }

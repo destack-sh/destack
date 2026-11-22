@@ -41,7 +41,7 @@ export function DragPreview(properties: DragPreviewProperties): JSX.Element {
 
         return operation === undefined || operation.pointer === "keyboard"
             ? undefined
-            : operation.source;
+            : operation.draggable;
     });
 
     return (
