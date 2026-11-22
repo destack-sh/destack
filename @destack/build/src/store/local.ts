@@ -41,6 +41,12 @@ const DATABASE_FILE = "store.db";
 /** The directory below a store's directory with the dependency trees of its builds, by manifest. */
 const TREES_DIRECTORY = "trees";
 
+/** The directory below a store's directory with each realized tree's directories, by its inputs. */
+const REALIZED_DIRECTORY = "realized";
+
+/** The directories of a realized tree, by package name. */
+const RealizedTree = schema.record(schema.string(), schema.string());
+
 /** The directory below a store's directory with each process's temporary files, by process. */
 const TEMPORARY_DIRECTORY = "tmp";
 
@@ -112,6 +118,8 @@ export class LocalBuildStore
     readonly directory: string;
     /** The directory of the dependency trees its builds are materialized in, one per manifest. */
     readonly trees: string;
+    /** The directory of the realized trees' records, by the digest of their inputs. */
+    readonly realized: string;
     /** The roots being placed now, by path, which the trees placing one at once share. */
     readonly #placing = new Map<string, Promise<void>>();
     /** What disposal releases: the database the store opened, and a temporary store's directory. */
@@ -133,6 +141,7 @@ export class LocalBuildStore
         super(options);
         this.directory = options.directory;
         this.trees = join(options.directory, TREES_DIRECTORY);
+        this.realized = join(options.directory, REALIZED_DIRECTORY);
         this.#temporary =
             maintainer === undefined
                 ? join(options.directory, TEMPORARY_DIRECTORY, Uuid.v4(options.environment.random))
@@ -640,24 +649,52 @@ export class LocalBuildStore
         await files.writeFile(join(directory, MANIFEST_PATH), manifest, { createNew: true });
     }
 
-    /** Lay out the tree an image runs on a runtime. */
+    /** Lay out the tree an image runs on a runtime, once per image, runtime and builtins. */
     tree(
         image: BuildImage,
         runtime: Runtime,
         builtins: ReadonlyMap<string, BuildImage>,
-        directory: string = this.trees,
     ): Promise<BuildTree> {
         return this.scope.span("destack.build.tree", {}, () =>
-            this.#tree(image, runtime, builtins, directory),
+            this.#tree(image, runtime, builtins),
         );
     }
 
-    /** Place the builds an image runs with. */
+    /** Open the tree realized for an image's inputs, else realize it and record it. */
     async #tree(
         image: BuildImage,
         runtime: Runtime,
         builtins: ReadonlyMap<string, BuildImage>,
-        directory: string,
+    ): Promise<BuildTree> {
+        // open the tree the same image, runtime and builtins realized before
+        const { files, crypto, random } = this.environment;
+        const inputs = {
+            image,
+            runtime,
+            builtins: [...builtins].toSorted(([left], [right]) => (left < right ? -1 : 1)),
+        };
+        const record = join(this.realized, `${await Digest.json(inputs, crypto)}.json`);
+        if (await files.exists(record)) {
+            const directories = RealizedTree.parse(JSON.parse(await files.readTextFile(record)));
+
+            return await BuildTree.read(directories, files);
+        }
+
+        // realize the tree, then record its directories by renaming a complete file into place
+        const tree = await this.#realize(image, runtime, builtins);
+        const written = `${record}.${Uuid.v4(random)}`;
+        await files.mkdir(this.realized, { recursive: true });
+        await files.writeTextFile(written, JSON.stringify(tree.directories));
+        await files.rename(written, record);
+
+        return tree;
+    }
+
+    /** Place the builds an image runs with. */
+    async #realize(
+        image: BuildImage,
+        runtime: Runtime,
+        builtins: ReadonlyMap<string, BuildImage>,
     ): Promise<BuildTree> {
         // read the closures of the image and the builtins it reaches
         const find = async (needed: Digest) => {
@@ -696,7 +733,7 @@ export class LocalBuildStore
             return pinned ?? builtins.get(name)?.root;
         };
 
-        return await BuildTree.materialize(this, releases, resolve, directory, {
+        return await BuildTree.materialize(this, releases, resolve, this.trees, {
             kind: "run",
             runtime,
             closure,
@@ -774,6 +811,20 @@ export class LocalBuildStore
         for (const tree of trees) {
             if (tree.manifest === undefined || !manifests.has(tree.manifest)) {
                 await files.remove(join(this.trees, tree.name), { recursive: true, force: true });
+            }
+        }
+
+        // delete interrupted records, and the records of realized trees whose directories are gone
+        for (const name of await LocalBuildStore.#entries(this.realized, files)) {
+            const path = join(this.realized, name);
+            const directories = name.endsWith(".json")
+                ? RealizedTree.parse(JSON.parse(await files.readTextFile(path)))
+                : {};
+            const isWhole = await Promise.all(
+                Object.values(directories).map((directory) => files.exists(directory)),
+            );
+            if (!name.endsWith(".json") || isWhole.includes(false)) {
+                await files.remove(path, { force: true });
             }
         }
 
