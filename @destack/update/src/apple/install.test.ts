@@ -69,10 +69,7 @@ onMac("replace signed applications while keeping stable and dev identities separ
     try {
         const source = join(directory, "source.app");
         const destination = join(directory, "renamed.app");
-        for (const version of [
-            "2026.9.1-dev.20260912100001.0123456789ab",
-            "2026.9.1-dev.20260912100002.0123456789ab",
-        ]) {
+        for (const version of ["2026.9.1-dev", "2026.9.2-dev"]) {
             const release = new Release(version, TARGET);
             await writeApplication(source, release, "org.example.editor.dev");
             await installApplication(source, destination, "org.example.editor.dev", HOST);
@@ -92,7 +89,7 @@ onMac("replace signed applications while keeping stable and dev identities separ
             `could not verify application '${destination}': its identifier must be 'org.example.editor'`,
         ]);
         expect(await HOST.files.readTextFile(join(destination, "Contents/Resources/version"))).toBe(
-            "2026.9.1-dev.20260912100002.0123456789ab",
+            "2026.9.2-dev",
         );
     } finally {
         await HOST.files.remove(directory, { recursive: true });
