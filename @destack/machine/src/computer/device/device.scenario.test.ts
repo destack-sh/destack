@@ -28,7 +28,7 @@ test("store this computer's space and login settings as the native device's loca
     await device.set(currentSpace, work);
     await device.set(currentSpace, home);
     await device.set(currentLogin, signedIn.id);
-    const rows = await device.settings.query.deviceSetting.findMany();
+    const rows = await device.local.query.deviceSetting.findMany();
 
     // expect one local value per setting
     expect({
@@ -208,7 +208,7 @@ test("sign a person up through a sign-in the machine carries out, answering the 
     const signedIn = await read();
 
     // expect the wait for the mailed code, then the login the machine signed in
-    const logins = await device.logins.query.login.findMany();
+    const logins = await device.local.query.login.findMany();
     expect({ waiting, signedIn, logins: logins.map((login) => login.id) }).toEqual({
         waiting: { kind: "waiting", email },
         signedIn: { kind: "signedIn", login: logins[0]?.id },

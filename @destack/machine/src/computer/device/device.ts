@@ -10,7 +10,6 @@ import { Issuer, Session } from "@destack/account/client";
 import {
     CLIENT_KEYS,
     ClientKey,
-    type LoginClient,
     type LoginCredential,
     NativeClient,
     type NativeClientOptions,
@@ -60,6 +59,13 @@ import {
 import { Loopback, UniverseHome } from "../process/index.ts";
 import { type Clock, type Environment, FileSystemError } from "@destack/environment";
 
+/** The object types a device stores locally. */
+type DeviceObjects = {
+    readonly login: typeof native.login;
+    readonly deviceSetting: typeof deviceSetting;
+    readonly visit: typeof visit;
+};
+
 /** The file of the device's local objects, in the machine's directory. */
 const DATABASE_FILE = "device.db";
 
@@ -107,12 +113,8 @@ export class Device<
     readonly subject: Subject;
     /** The device's database of local objects, shared by its processes. */
     readonly database: SqliteDatabase;
-    /** The people signed in on this computer. */
-    readonly logins: LoginClient;
-    /** The values of client settings this device stores. */
-    readonly settings: ObjectClient<{ readonly deviceSetting: typeof deviceSetting }>;
-    /** The objects the people signed in on this computer opened. */
-    readonly visits: ObjectClient<{ readonly visit: typeof visit }>;
+    /** The device's local objects: its logins, client settings and visits. */
+    readonly local: ObjectClient<DeviceObjects>;
     /** The issuer people sign in with. */
     readonly issuer: Issuer;
     /** The people's credentials: the keychain in the machine, the machine in its clients. */
@@ -125,7 +127,7 @@ export class Device<
     /** Take a device's local objects, and build the credential of its people. */
     private constructor(
         options: DeviceOptions,
-        fields: Pick<Device, "subject" | "database" | "logins" | "settings" | "visits">,
+        fields: Pick<Device, "subject" | "database" | "local">,
         credential: (device: Device) => Credential,
     ) {
         // set the device's state and its issuer
@@ -133,9 +135,7 @@ export class Device<
         this.loopback = new Loopback(options.home, options.environment, this.bookmark);
         this.subject = fields.subject;
         this.database = fields.database;
-        this.logins = fields.logins;
-        this.settings = fields.settings;
-        this.visits = fields.visits;
+        this.local = fields.local;
         this.#fetch = (request) => options.environment.network.fetch(request);
         this.environment = options.environment;
         this.issuer = new Issuer(
@@ -193,7 +193,7 @@ export class Device<
                     issuer: opened.issuer,
                     sessions: new SessionStore(keychain(SESSIONS)),
                     keys: new ClientKey(keychain(CLIENT_KEYS), environment),
-                    logins: opened.logins,
+                    logins: opened.local,
                     environment,
                     client: Device.#registration(environment),
                 }),
@@ -253,19 +253,17 @@ export class Device<
         options: DeviceOptions,
         credential: (device: Device) => Credential,
     ): Promise<Device<Credential>> {
-        // open the shared database and its logins, settings and visits
+        // open the shared database and its local objects
         const { environment } = options;
         const { subject, database } = await Device.#file(options.home, environment);
-        const logins = await Device.#objects(
+        const local = await Device.#objects(
             subject,
             database,
-            { login: native.login },
+            { login: native.login, deviceSetting, visit },
             environment,
         );
-        const settings = await Device.#objects(subject, database, { deviceSetting }, environment);
-        const visits = await Device.#objects(subject, database, { visit }, environment);
 
-        return new Device(options, { subject, database, logins, settings, visits }, credential);
+        return new Device(options, { subject, database, local }, credential);
     }
 
     /** Describe the client a sign-in here registers, with its system when Client Hints list it. */
@@ -467,7 +465,7 @@ export class Device<
 
             // read the login the machine signed in
             if (state.kind === "signedIn") {
-                const found = await this.logins.query.login.findFirst({
+                const found = await this.local.query.login.findFirst({
                     where: { id: state.login },
                 });
 
@@ -507,11 +505,11 @@ export class Device<
     /** Forget a person here: the login setting picking them, their session and their login. */
     async forget(row: Login["row"]): Promise<void> {
         // reset the login setting where it picked the person
-        const values = await this.settings.query.deviceSetting.findMany({
+        const values = await this.local.query.deviceSetting.findMany({
             where: currentLogin.reference,
         });
         for (const picked of values.filter((each) => each.value === row.id)) {
-            await this.settings.mutate(deviceSetting).delete({ id: picked.id }).confirmed;
+            await this.local.mutate(deviceSetting).delete({ id: picked.id }).confirmed;
         }
 
         // forget the session and the login
@@ -526,8 +524,8 @@ export class Device<
     /** Read the person this computer acts as. */
     async login(): Promise<Login["row"] | undefined> {
         const [signedIn, values] = await Promise.all([
-            this.logins.query.login.findMany(),
-            this.settings.query.deviceSetting.findMany({ where: currentLogin.reference }),
+            this.local.query.login.findMany(),
+            this.local.query.deviceSetting.findMany({ where: currentLogin.reference }),
         ]);
 
         return this.choose(signedIn, values);
@@ -598,7 +596,7 @@ export class Device<
         }
         // read the values this device stores
         else if (scope === "device") {
-            const stored = await this.settings.query.deviceSetting.findMany({
+            const stored = await this.local.query.deviceSetting.findMany({
                 where: declared.reference,
             });
             const selection = { scope: this.id };
@@ -627,15 +625,13 @@ export class Device<
 
         // store a device setting's value in this device
         if (scope === "device") {
-            const [before] = await this.settings.query.deviceSetting.findMany({
+            const [before] = await this.local.query.deviceSetting.findMany({
                 where: declared.reference,
             });
             const submitted =
                 before === undefined
-                    ? this.settings
-                          .mutate(deviceSetting)
-                          .create({ ...declared.reference, ...written })
-                    : this.settings.mutate(deviceSetting).update({ id: before.id, ...written });
+                    ? this.local.mutate(deviceSetting).create({ ...declared.reference, ...written })
+                    : this.local.mutate(deviceSetting).update({ id: before.id, ...written });
             await submitted.confirmed;
 
             return;
@@ -770,7 +766,7 @@ export class Device<
         // address its page, then record the person's visit of the object it opens
         const launched = await launcher.url(address);
         if ("object" in address) {
-            await Visit.record(this.visits, launcher.user.subject, launched.space, address.object);
+            await Visit.record(this.local, launcher.user.subject, launched.space, address.object);
         }
 
         return launched;
@@ -862,16 +858,14 @@ export class Device<
 
     /** Close the device's clients and its database. */
     async [Symbol.asyncDispose](): Promise<void> {
-        // close the clients, then the database they share
-        await this.logins.close();
-        await this.settings.close();
-        await this.visits.close();
+        // close the client, then its database
+        await this.local.close();
         await this.database[Symbol.asyncDispose]();
     }
 
     /** Read a signed-in person's login, refusing one signed out. */
     async #login(loginId: Identifier<"login">): Promise<Login["row"]> {
-        const signedIn = await this.logins.query.login.findFirst({ where: { id: loginId } });
+        const signedIn = await this.local.query.login.findFirst({ where: { id: loginId } });
         if (signedIn === undefined) {
             throw MachineError.of(
                 "SIGN_IN_UNAUTHENTICATED",
