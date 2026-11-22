@@ -43,6 +43,14 @@ const ZONE = "Europe/Vienna";
 /** The marks that isolate interpolated names in rendered messages. */
 const ISOLATES = /[⁦-⁩]/gu;
 
+/** The en dash between a range's ends, which ICU versions space differently. */
+const RANGE_DASH = /\s*–\s*/gu;
+
+/** Read rendered text without isolating marks, its ranges' dashes spaced one way. */
+function plain(text: string | null | undefined): string {
+    return (text ?? "").replaceAll(ISOLATES, "").replaceAll(RANGE_DASH, " – ");
+}
+
 /** Read the instant of a wall time in Vienna. */
 function vienna(date: string, time: string): number {
     return TimeZone.instant(ZONE, date, time);
@@ -98,7 +106,7 @@ function weeksOf(container: HTMLElement): string[][] {
             ].map((element) =>
                 element.dataset["slot"] === "event-calendar-more"
                     ? (element.textContent ?? "")
-                    : `${(element.textContent ?? "").replaceAll(ISOLATES, "")} ${element.dataset["start"] ?? ""}..${element.dataset["end"] ?? ""}`,
+                    : `${plain(element.textContent)} ${element.dataset["start"] ?? ""}..${element.dataset["end"] ?? ""}`,
             ),
         )
         .filter((week) => week.length > 0);
@@ -114,7 +122,7 @@ function shadesOf(container: HTMLElement): (string | null)[] {
 /** Read the text of the events, without the marks that isolate names. */
 function eventsOf(container: HTMLElement): string[] {
     return [...container.querySelectorAll("[data-slot=event-calendar-event]")].map((event) =>
-        (event.textContent ?? "").replaceAll(ISOLATES, ""),
+        plain(event.textContent),
     );
 }
 
@@ -421,7 +429,9 @@ test("drag a timed event by its middle an hour down, its landing showing it at t
     pointer("pointerdown", 9.5 * 48);
     pointer("pointermove", 9.5 * 48 + 12);
     pointer("pointermove", 10.5 * 48);
-    const landing = container.querySelector("[data-slot=event-calendar-landing]")?.textContent;
+    const landing = plain(
+        container.querySelector("[data-slot=event-calendar-landing]")?.textContent,
+    );
     pointer("pointerup", 10.5 * 48);
 
     expect({ changes: changes.map(wall), landing }).toEqual({
@@ -522,7 +532,7 @@ test("list the week's days that have events, whole days first, then by start", (
         (day) => [
             day.querySelector("h3")?.textContent,
             ...[...day.querySelectorAll("[data-slot=event-calendar-event]")].map((event) =>
-                event.textContent?.replaceAll(ISOLATES, "").replaceAll(/\s/gu, " "),
+                plain(event.textContent).replaceAll(/\s/gu, " "),
             ),
         ],
     );
@@ -814,7 +824,7 @@ function agendaOf(container: HTMLElement): (string | undefined)[][] {
     return [...container.querySelectorAll("[data-slot=event-calendar-agenda] > li")].map((day) => [
         day.querySelector("h3")?.textContent ?? undefined,
         ...[...day.querySelectorAll("[data-slot=event-calendar-event]")].map((event) =>
-            event.textContent?.replaceAll(ISOLATES, "").replaceAll(/\s/gu, " "),
+            plain(event.textContent).replaceAll(/\s/gu, " "),
         ),
     ]);
 }
@@ -1364,7 +1374,7 @@ test("preview an event on focus with its times, calendar and actions, a busy eve
     expect({
         text: [...(preview?.children ?? [])]
             .filter((child) => child.tagName !== "DIV")
-            .map((child) => (child.textContent ?? "").replaceAll(ISOLATES, "")),
+            .map((child) => plain(child.textContent)),
         actions: actions.map((action) => action.textContent),
         opened,
     }).toEqual({
@@ -1550,7 +1560,7 @@ test("mark time free by sweeps that join where they meet, write it out, and take
         pointer("pointerup", to * 48);
     }
     const blocks = [...container.querySelectorAll("[data-slot=event-calendar-availability]")].map(
-        (block) => (block.textContent ?? "").replace("×", "").replaceAll(ISOLATES, ""),
+        (block) => plain(block.textContent).replace("×", ""),
     );
     container.querySelector<HTMLElement>("[data-slot=event-calendar]")?.dispatchEvent(
         new KeyboardEvent("keydown", {
@@ -1572,7 +1582,7 @@ test("mark time free by sweeps that join where they meet, write it out, and take
             ),
         ),
         blocks,
-        written: written.map((text) => text.replaceAll(ISOLATES, "")),
+        written: written.map((text) => plain(text)),
     }).toEqual({
         changes: [["09:00-10:00"], ["09:00-11:00"], []],
         blocks: ["09:00 – 11:00"],
@@ -1818,7 +1828,7 @@ test("write free time under each resource's label, each resource's spans joined 
     );
     await Promise.resolve();
 
-    expect(written.map((text) => text.replaceAll(ISOLATES, ""))).toEqual([
+    expect(written.map((text) => plain(text))).toEqual([
         "Ana\nWed 18 Nov: 09:00 – 10:00\nBen\nWed 18 Nov: 10:00 – 11:00\nTimes in Europe/Vienna",
     ]);
 });

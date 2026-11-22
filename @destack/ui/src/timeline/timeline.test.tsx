@@ -32,6 +32,8 @@ import {
     useTimeline,
 } from "./index.ts";
 
+/** The words ICU versions join a date and its time with in a default format: "at" or a comma. */
+const DATE_TIME_JOINER = / at |, /u;
 /** Render a timeline with every part, as an app lays one out. */
 function Plan(properties: TimelineProperties): JSX.Element {
     return (
@@ -396,7 +398,7 @@ test("draw an item with one date as an open bar, and set an undated item's dates
     bars[1]?.focus();
     flush();
     const card = document.querySelector("[data-slot=timeline-bar-card][data-popover-open]");
-    const open = card?.textContent;
+    const open = (card?.textContent ?? "").replace(DATE_TIME_JOINER, ", ");
     bars[1]?.blur();
 
     // sweep Copy's track from 100 to 300 pixels, and press Space on Ship's row
@@ -424,7 +426,7 @@ test("draw an item with one date as an open bar, and set an undated item's dates
     }).toEqual({
         bars: 2,
         undated: 2,
-        open: "BuildFrom \u2068Jan 4 at 12:00 AM\u2069",
+        open: "BuildFrom \u2068Jan 4, 12:00 AM\u2069",
         changes: [
             ["copy", 12, 24],
             ["ship", 36, 48],
