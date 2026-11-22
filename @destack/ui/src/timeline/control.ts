@@ -1,5 +1,11 @@
 import type { Direction } from "@destack/locale";
-import { nth, type ScheduleLink, type TickUnit, type TimeScale } from "@destack/schema";
+import {
+    nth,
+    type ScheduleLink,
+    type WorkWeek,
+    type TickUnit,
+    type TimeScale,
+} from "@destack/schema";
 import type * as style from "@destack/style";
 import {
     type Accessor,
@@ -14,6 +20,7 @@ import {
     type useEnvironment,
     type useLocale,
 } from "@destack/view";
+import type { DragManager } from "../drag/index.ts";
 import { Focus } from "../focus/index.ts";
 import type { InteractionEvent } from "../interaction/index.ts";
 import { type MultipleSelection, Selection } from "../selection/index.ts";
@@ -76,6 +83,8 @@ export interface TimelineOptions {
     readonly snap?: TickUnit | false;
     /** Whether the track leaves out non-working days, so a week of work runs edge to edge. */
     readonly hideNonWorking?: boolean;
+    /** The working hours the track keeps while hiding, the locale's weekdays whole by default. */
+    readonly workWeek?: WorkWeek;
     /** The IANA time zone the axis marks local times in, the environment's by default. */
     readonly timeZone?: string;
     /** The height of a row in pixels, 32 by default, fixed once the timeline mounts. */
@@ -130,6 +139,7 @@ export class TimelineControl {
     /** Follow a timeline's options in a locale on an environment. */
     constructor(
         options: TimelineOptions,
+        manager: DragManager,
         locale: ReturnType<typeof useLocale>,
         environment: ReturnType<typeof useEnvironment>,
         ticking: Accessor<number | undefined>,
@@ -206,8 +216,8 @@ export class TimelineControl {
                 rowAt: (offset) => this.rowAt(offset),
                 gapAt: (offset) => this.gapAt(offset),
             },
+            manager,
             locale,
-            environment,
         );
     }
 

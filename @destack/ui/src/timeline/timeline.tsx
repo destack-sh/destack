@@ -1,8 +1,8 @@
 import { Shortcut, t } from "@destack/locale";
 import * as style from "@destack/style";
 import { color, radius, stroke } from "@destack/theme/tokens.stylex";
-import { type JSX, omit, untrack, useEnvironment, useLocale, useNow } from "@destack/view";
-import { DragAnnouncer } from "../drag/index.ts";
+import { type JSX, omit, Show, untrack, useEnvironment, useLocale, useNow } from "@destack/view";
+import { DragAnnouncer, useDragManager } from "../drag/index.ts";
 import { useCommandPlatform } from "../kbd/index.ts";
 import { Move, Zoom } from "../interaction/index.ts";
 import { mergeProperties } from "../part/index.ts";
@@ -76,7 +76,15 @@ export interface TimelineProperties
 export function Timeline(properties: TimelineProperties): JSX.Element {
     // share the window, folds and drags with the parts
     const locale = useLocale();
-    const control = new TimelineControl(properties, locale, useEnvironment(), useNow(NOW_INTERVAL));
+    const drags = useDragManager();
+    const environment = useEnvironment();
+    const control = new TimelineControl(
+        properties,
+        drags.manager,
+        locale,
+        environment,
+        useNow(NOW_INTERVAL),
+    );
     const rest = omit(
         properties,
         "items",
@@ -97,6 +105,7 @@ export function Timeline(properties: TimelineProperties): JSX.Element {
         "timeZone",
         "snap",
         "hideNonWorking",
+        "workWeek",
         "rowHeight",
         "labelWidth",
         "onLabelWidthChange",
@@ -211,7 +220,9 @@ export function Timeline(properties: TimelineProperties): JSX.Element {
             >
                 {properties.children}
             </div>
-            <DragAnnouncer manager={control.drag.manager} />
+            <Show when={!drags.isShared}>
+                <DragAnnouncer manager={control.drag.manager} />
+            </Show>
         </TimelineContext>
     );
 }

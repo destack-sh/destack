@@ -1,10 +1,10 @@
 import { type Message, t } from "@destack/locale";
 import { ScheduleLink } from "@destack/schema";
-import { type Accessor, createMemo, type useEnvironment, type useLocale } from "@destack/view";
+import { type Accessor, createMemo, type useLocale } from "@destack/view";
 import {
     Draggable,
     type DragKind,
-    DragManager,
+    type DragManager,
     type DragOperation,
     DragTarget,
     Droppable,
@@ -73,8 +73,8 @@ export class TimelineDrag {
             readonly rowAt: (offset: number) => TimelineRowPoint | undefined;
             readonly gapAt: (offset: number) => number;
         },
+        manager: DragManager,
         locale: ReturnType<typeof useLocale>,
-        environment: ReturnType<typeof useEnvironment>,
     ) {
         // hand each drop on as a change
         const { options, window, tree, selection, scroller, rowAt, gapAt } = context;
@@ -82,11 +82,7 @@ export class TimelineDrag {
         this.#window = window;
         this.#tree = tree;
         this.#selection = selection;
-        this.manager = new DragManager(
-            { onDrop: (operation) => this.drop(operation) },
-            locale,
-            environment,
-        );
+        this.manager = manager;
 
         // follow a drag as its target changes, past pointer moves that keep it
         const aim = createMemo(() => this.manager.operation(), {
@@ -146,7 +142,7 @@ export class TimelineDrag {
 
                     return row === undefined
                         ? { kind: "time", droppable: TRACK, at }
-                        : { kind: "time", droppable: TRACK, at, row: row.item.key };
+                        : { kind: "time", droppable: TRACK, at, resource: row.item.key };
                 },
                 step: (target, step) => {
                     // step the dragged edge to the next or previous mark in the text's direction
@@ -168,6 +164,7 @@ export class TimelineDrag {
 
                     return { kind: "label", label: window.instantLabel(target.at) };
                 },
+                drop: (operation) => this.drop(operation),
             },
             this.manager,
         );
@@ -271,6 +268,7 @@ export class TimelineDrag {
 
                     return { kind: "label", label: locale.render(message) };
                 },
+                drop: (operation) => this.drop(operation),
             },
             this.manager,
         );
@@ -355,6 +353,7 @@ export class TimelineDrag {
 
                     return { kind: "label", label: locale.render(gapMessage(parent, next)) };
                 },
+                drop: (operation) => this.drop(operation),
             },
             this.manager,
         );
@@ -431,7 +430,7 @@ export class TimelineDrag {
         // move the dates it has by the travel in the track's time, onto the row it lands on
         const moved = this.#window.move(item, this.#travel(operation));
 
-        return target.row === undefined ? moved : { ...moved, row: target.row };
+        return target.resource === undefined ? moved : { ...moved, row: target.resource };
     }
 
     /** Read how far a move takes the dragged item's drawn start, in the track's time. */

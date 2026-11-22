@@ -9,6 +9,7 @@ import {
     TimeZone,
     type Week,
     WorkCalendar,
+    WorkWeek,
 } from "@destack/schema";
 import {
     type Accessor,
@@ -125,7 +126,7 @@ export class TimelineWindow {
     readonly attachTrack: (element: HTMLElement | undefined) => void;
     /** Show another span and tell the owner. */
     readonly #show: (range: TimeScale) => void;
-    /** The working days of the locale's week in the axis's zone, which the grid shades. */
+    /** The working time of the owner's week or the locale's, which the grid shades. */
     readonly #workDays: Accessor<WorkCalendar>;
     /** The window's length in the track's time. */
     readonly #length: Accessor<number>;
@@ -174,9 +175,17 @@ export class TimelineWindow {
         this.width = () => measured.width ?? undefined;
 
         // count working time in the axis's zone where non-working days are hidden
-        this.#workDays = createMemo(() => new WorkCalendar(this.timeZone(), locale.week.weekend));
+        this.#workDays = createMemo(
+            () =>
+                new WorkCalendar(
+                    this.timeZone(),
+                    options.workWeek ?? WorkWeek.of(locale.week.weekend),
+                ),
+        );
         this.calendar = createMemo(() =>
-            options.hideNonWorking === true ? this.#workDays() : new WorkCalendar("UTC", []),
+            options.hideNonWorking === true
+                ? this.#workDays()
+                : new WorkCalendar("UTC", WorkWeek.of([])),
         );
 
         // move a window that hidden days cover whole on to the working time after it

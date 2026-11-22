@@ -6,7 +6,7 @@ import { color, radius, size, space, stroke, swatch, weight } from "@destack/the
 import { text } from "@destack/theme/text";
 import { createSignal, For, type JSX, omit, Show, useEnvironment, useLocale } from "@destack/view";
 import { createElementSize } from "@destack/view/primitives/resize-observer";
-import { Move } from "../interaction/index.ts";
+import { Move, Sweep } from "../interaction/index.ts";
 import { mergeProperties } from "../part/index.ts";
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { ToggleGroup, ToggleGroupItem, type ToggleGroupProperties } from "../toggle-group/index.ts";
@@ -300,7 +300,6 @@ export function TimelineAxis(properties: TimelinePartProperties): JSX.Element {
     const share = (at: number) => control.window.share(at);
 
     // sweep a span across the axis and zoom to it on release, as Bryntum's header zooms
-    const [sweep, setSweep] = createSignal<{ readonly from: number; readonly to: number }>();
     let element: HTMLElement | undefined;
     const shareAt = (clientX: number): number => {
         // read the pointer's share of the measured axis, mirrored right to left
@@ -312,24 +311,15 @@ export function TimelineAxis(properties: TimelinePartProperties): JSX.Element {
 
         return locale.direction === "rtl" ? 1 - along : along;
     };
-    const zoom = new Move(
+    const zoom = new Sweep(
         {
-            keys: [],
-            onMoveStart: (event) =>
-                setSweep({
-                    from: shareAt(event.clientX - event.offsetX),
-                    to: shareAt(event.clientX),
-                }),
-            onMove: (event) =>
-                setSweep((swept) => swept && { ...swept, to: shareAt(event.clientX) }),
-            onMoveEnd: () => {
+            at: (x) => shareAt(x),
+            onSweep: (swept) => {
                 // zoom to a span wider than a sliver, leaving a click alone
-                const swept = sweep();
-                setSweep(undefined);
-                if (swept !== undefined && Math.abs(swept.to - swept.from) > MIN_SWEEP) {
+                if (swept.end - swept.start > MIN_SWEEP) {
                     control.window.show({
-                        start: control.window.instant(Math.min(swept.from, swept.to)),
-                        end: control.window.instant(Math.max(swept.from, swept.to)),
+                        start: control.window.instant(swept.start),
+                        end: control.window.instant(swept.end),
                     });
                 }
             },
@@ -351,16 +341,13 @@ export function TimelineAxis(properties: TimelinePartProperties): JSX.Element {
             {...style.attributes([styles.axis, properties.xstyle], properties.style)}
         >
             {/* The span a sweep zooms to */}
-            <Show when={sweep()}>
+            <Show when={zoom.span()}>
                 {(swept) => (
                     <span
                         data-slot="timeline-axis-sweep"
                         {...style.attrs(
                             styles.sweep,
-                            places.span(
-                                Math.min(swept().from, swept().to),
-                                Math.abs(swept().to - swept().from),
-                            ),
+                            places.span(swept().start, swept().end - swept().start),
                         )}
                     />
                 )}

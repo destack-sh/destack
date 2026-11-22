@@ -1370,6 +1370,36 @@ test("leave non-working days out of the track on request, the work on either sid
     });
 });
 
+test("leave nights out of the track by the owner's working hours", () => {
+    // work nine to five on Monday and nine to noon on Tuesday, over a window from Monday to Wednesday
+    measureElements();
+    const monday = Date.UTC(2026, 10, 9);
+    const hour = 3_600_000;
+    const items: readonly TimelineItem[] = [
+        { key: "work", label: "Work", start: monday + 9 * hour, end: monday + 17 * hour },
+        { key: "wrap", label: "Wrap", start: monday + 33 * hour, end: monday + 36 * hour },
+    ];
+    const { container } = render(() => (
+        <Plan
+            items={items}
+            timeZone="UTC"
+            defaultWindow={{ start: monday, end: monday + 2 * DAY_MS }}
+            hideNonWorking
+            workWeek={{
+                1: [{ start: "09:00", end: "17:00" }],
+                2: [{ start: "09:00", end: "12:00" }],
+            }}
+        />
+    ));
+    const bars = [...container.querySelectorAll<HTMLElement>("[data-slot=timeline-bar]")];
+
+    // eleven working hours fill the track: eight of Monday, then Tuesday's three
+    expect(bars.map((bar) => [percent(bar, "insetInlineStart"), percent(bar, "width")])).toEqual([
+        [0, (8 / 11) * 100],
+        [(8 / 11) * 100, (3 / 11) * 100],
+    ]);
+});
+
 test("keep marks that fall on hidden days, drawn at the working day after them", () => {
     // twelve weeks of an American plan, whose week marks fall on Sundays, its weekends hidden
     measureElements();
@@ -1714,6 +1744,7 @@ test("open a link with Enter or a double click, and keep every option off the ti
             timeZone="UTC"
             snap="day"
             hideNonWorking
+            workWeek={{ 1: [{ start: "09:00", end: "17:00" }] }}
             rowHeight={32}
             labelWidth="12rem"
             onLinkAction={(link) => opened.push(link)}

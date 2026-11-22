@@ -2,7 +2,6 @@ import { state } from "@destack/theme/state";
 import { Icon } from "@destack/ui/icon";
 import caretLeft from "@destack/icon/phosphor/caret-left";
 import caretRight from "@destack/icon/phosphor/caret-right";
-import { TimeScale } from "@destack/schema";
 import type { AccentPreset } from "@destack/color";
 import { type Direction, t } from "@destack/locale";
 import * as style from "@destack/style";
@@ -21,7 +20,7 @@ import {
     useEnvironment,
     useLocale,
 } from "@destack/view";
-import { Move, Press } from "../interaction/index.ts";
+import { Move, Press, Sweep } from "../interaction/index.ts";
 import { mergeProperties } from "../part/index.ts";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../tooltip/index.ts";
 import { type TimelineBarVariant, useTimeline, useTimelineRow } from "./control.ts";
@@ -406,15 +405,13 @@ function UndatedTrack(properties: {
     /** The StyleX styles applied after the track's styles. */
     readonly xstyle: style.Styles | undefined;
 }): JSX.Element {
-    // sweep a span out from the pressed time
+    // sweep a span out from the pressed time, its start and end snapped as edges
     const control = useTimeline();
     const locale = useLocale();
     const node = useTimelineRow().node;
-    const [sweep, setSweep] = createSignal<TimeScale | undefined>(undefined);
     let element: HTMLElement | undefined;
-    let anchor = 0;
 
-    // read the time under the pointer
+    // read the time under the pointer, mirrored right to left
     const atPointer = (x: number): number => {
         if (element === undefined) {
             throw new TypeError("timeline sweep read before its track mounted");
@@ -426,31 +423,18 @@ function UndatedTrack(properties: {
         return control.window.instant(share);
     };
 
-    // sweep from the anchor to the pointer, its start and end snapped as edges
-    const sweepTo = (at: number) =>
-        setSweep({
-            start: control.window.snap(Math.min(anchor, at), "start"),
-            end: control.window.snap(Math.max(anchor, at), "end"),
-        });
-    const move = new Move(
+    // hand on the swept dates, a step long at the least
+    const sweep = new Sweep(
         {
-            keys: [],
+            at: (x) => atPointer(x),
+            span: (anchor, at) => ({
+                start: control.window.snap(Math.min(anchor, at), "start"),
+                end: control.window.snap(Math.max(anchor, at), "end"),
+            }),
             canStart: () => control.options.onItemsChange !== undefined,
-            onMoveStart: (event) => {
-                anchor = atPointer(event.clientX - event.offsetX);
-                sweepTo(anchor);
-            },
-            onMove: (event) => {
-                sweepTo(atPointer(event.clientX));
-            },
-            onMoveEnd: (event) => {
-                // hand on the swept dates, a mark long at the least
-                const swept = sweep();
-                setSweep(undefined);
-                if (swept !== undefined && !event.isCancelled) {
-                    const end = Math.max(swept.end, control.window.step(swept.start, 1, "end"));
-                    control.tree.commit([{ ...node().item, start: swept.start, end }]);
-                }
+            onSweep: (swept) => {
+                const end = Math.max(swept.end, control.window.step(swept.start, 1, "end"));
+                control.tree.commit([{ ...node().item, start: swept.start, end }]);
             },
         },
         useEnvironment().clock,
@@ -463,19 +447,19 @@ function UndatedTrack(properties: {
             data-undated=""
             {...mergeProperties(
                 { ref: (created: HTMLDivElement) => (element = created) },
-                move.attributes(),
+                sweep.attributes(),
             )}
             {...style.attrs(styles.track, styles.undated, properties.xstyle)}
         >
             {/* The hint on a hovered or focused row, before any sweep */}
-            <Show when={sweep() === undefined && control.options.onItemsChange !== undefined}>
+            <Show when={sweep.span() === undefined && control.options.onItemsChange !== undefined}>
                 <span data-slot="timeline-undated-hint" {...style.attrs(text.xs, styles.hint)}>
                     {locale.render(t`Drag to set dates`)}
                 </span>
             </Show>
 
             {/* The swept span and its dates */}
-            <Show when={sweep()}>
+            <Show when={sweep.span()}>
                 {(swept) => (
                     <span
                         data-slot="timeline-bar-sweep"
