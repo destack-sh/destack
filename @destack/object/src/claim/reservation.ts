@@ -1,20 +1,7 @@
 import { ObjectError } from "../error/error.ts";
 import { AccessContext, Caller } from "@destack/access";
-import {
-    and,
-    type Controller,
-    defineTable,
-    eq,
-    index,
-    integer,
-    now,
-    type Row,
-    Snapshot,
-    TABLE,
-    text,
-    type Participant,
-    type Transaction,
-} from "@destack/db";
+import { and, defineTable, eq, index, integer, now, type Row, TABLE, text } from "@destack/db";
+import type { Controller, Participant, Transaction } from "@destack/db/database";
 import { type UuidEnvironment, present, schema, Uuid } from "@destack/schema";
 
 import { RequestId } from "@destack/sync";
@@ -380,7 +367,7 @@ export class Reservation implements Participant {
             reconcile: async (rows) => {
                 // read each object's names as its row has them now, under the reservation's owner once gone
                 const { database, environment } = store;
-                const snapshot = Snapshot.live(database);
+                const snapshot = database.snapshot();
                 const claimants = await Promise.all(
                     rows.map(async (reservation) => {
                         // release the names of an index no type declares anymore

@@ -2,7 +2,6 @@ import { ObjectError } from "../error/error.ts";
 import {
     and,
     check,
-    type DatabaseConnection,
     DatabaseError,
     defineTable,
     eq,
@@ -17,13 +16,12 @@ import {
     text,
     uniqueIndex,
     type Row,
-    type Snapshot,
     type SQL,
-    type Transaction,
-    type RelationalQueryBuilder,
     combine,
     textEnum,
+    type RelationalQueryBuilder,
 } from "@destack/db";
+import type { DatabaseConnection, Snapshot, Transaction } from "@destack/db/database";
 import { canonicalize, Identifier, type UuidEnvironment, present, schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 

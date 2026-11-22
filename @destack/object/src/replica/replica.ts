@@ -1,8 +1,8 @@
 import { schema } from "@destack/schema";
 import { DeclarationName, PackageVersion, PackageId } from "@destack/package";
 import { InstallationName } from "../installation/name.ts";
-import { Expression, LogPosition, Condition, OrderBy, Scalar, type FindOptions } from "@destack/db";
-import { eventIterator } from "../procedure/index.ts";
+import { Expression, Condition, OrderBy, Scalar, type FindOptions, LogPosition } from "@destack/db";
+import { eventIterator, Procedure } from "../procedure/index.ts";
 import {
     Watermark,
     Call,
@@ -10,11 +10,10 @@ import {
     ObjectReference,
     ObjectTypeReference,
     Page,
-    Subscription,
     Aggregate,
     MutationOutcome,
+    Subscription,
 } from "@destack/sync";
-import { Procedure } from "../procedure/index.ts";
 import type { ObjectType } from "../object/object.ts";
 
 /** The package defining the store procedures. */

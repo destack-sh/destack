@@ -1,27 +1,31 @@
-import { CHAIN_PUBLICATION, type ChainOptions } from "@destack/access";
+import type { ChainOptions } from "@destack/access/authorizer";
+import { CHAIN_PUBLICATION } from "@destack/access";
 import { TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
 import { Scope, type ObjectTypeReference } from "@destack/sync";
 import {
     asc,
-    type Change,
-    type Cursor,
-    type DatabaseConnection,
-    type Controller,
     DatabaseError,
     eq,
     isNotNull,
     Key,
-    type Following,
     lte,
     now,
-    Snapshot,
     sql,
     TABLE,
     type Table,
+    type Change,
 } from "@destack/db";
+import type {
+    Cursor,
+    DatabaseConnection,
+    Controller,
+    Following,
+    Snapshot,
+} from "@destack/db/database";
 import { canonicalize, Digest, schema, present } from "@destack/schema";
 import * as sync from "@destack/sync";
+import * as syncDataflow from "@destack/sync/dataflow";
 import { untilAborted, waitAborted } from "@destack/environment";
 import type { ObjectStore, Subscriber } from "./store.ts";
 import { replicaRequest } from "../replica/request.ts";
@@ -70,9 +74,9 @@ export class ObjectSink {
     ): Promise<boolean> {
         // list the replicas yet to have the watermark, none for replicas caught up
         const { database } = this.store;
-        const homes = await sync.Replica.homes(database, replicas);
+        const homes = await new sync.ReplicaSet(database).homes(replicas);
         const late = new Set(
-            sync.Replica.late(homes, watermark).map((home) => ObjectSink.#key(home)),
+            sync.ReplicaSet.late(homes, watermark).map((home) => ObjectSink.#key(home)),
         );
 
         // request each late one at the store's position now, as this follower's log, with the position it waits for
@@ -95,15 +99,15 @@ export class ObjectSink {
 
         // wait, recording a wait that gives up with the late replicas' positions and how long it waited
         const started = this.store.clock.now();
-        const isReached = await sync.Replica.waitAt(database, replicas, watermark, signal);
+        const isReached = await new sync.ReplicaSet(database).waitAt(replicas, watermark, signal);
         if (!isReached) {
             const waited = this.store.clock.now() - started;
             const { log: telemetry } = TelemetryScope.of(
                 import.meta.destack.package,
                 this.store.environment.telemetry,
             );
-            const positions = await sync.Replica.homes(database, replicas);
-            for (const { name, scope, home } of sync.Replica.late(positions, watermark)) {
+            const positions = await new sync.ReplicaSet(database).homes(replicas);
+            for (const { name, scope, home } of sync.ReplicaSet.late(positions, watermark)) {
                 telemetry.warn("destack.replica.waited", {
                     "destack.replica.name": name,
                     "destack.replica.scope": scope,
@@ -148,7 +152,7 @@ export class ObjectSink {
     async #evict(budget: number): Promise<void> {
         // count once the requests are listed past the last eviction and the replicas follow them, so a dropped key's rows left first
         const { database } = this.store;
-        const view = Snapshot.live(database);
+        const view = database.snapshot();
         const isListed = this.#listedEvictions === this.#evictions;
         if (!isListed || !(await this.#isSettled(view))) {
             return;
@@ -179,7 +183,7 @@ export class ObjectSink {
     async #isSettled(view: Snapshot): Promise<boolean> {
         const requested = await view.read(replicaRequest).findMany({ where: { action: "follow" } });
         const held = new Map(
-            (await sync.Replica.subscriptions(view)).map((replica) => [
+            (await sync.ReplicaSet.subscriptions(view)).map((replica) => [
                 ObjectSink.#key(replica),
                 canonicalize(replica.parameters),
             ]),
@@ -249,15 +253,15 @@ export class ObjectSink {
     /** List the tables the store follows at a scope, whose replicas confirm their changes. */
     async followedTables(scope: string): Promise<ReadonlySet<Table>> {
         // read the replicas requested at the scope, and the keys followed on demand there before their request
-        const view = Snapshot.live(this.store.database);
+        const view = this.store.database.snapshot();
         const requested = await view
             .read(replicaRequest)
             .findMany({ where: { action: "follow", scope } });
         const keys = await view.read(followKey).findMany({ where: { scope } });
 
         // read the replicas whose chain reads the scope, such as an enclosed room's of its home
-        const chained: sync.Replica[] = [];
-        for (const subscription of await sync.Replica.subscriptions(view)) {
+        const chained: syncDataflow.Replica[] = [];
+        for (const subscription of await sync.ReplicaSet.subscriptions(view)) {
             const replica = this.store.source.buildReplica(subscription);
             if ((await replica.chain(this.store.database)).includes(scope)) {
                 chained.push(replica);
@@ -324,7 +328,7 @@ export class ObjectSink {
         {
             readonly subscription: sync.SubscriptionRecord;
             readonly publisher: sync.Publisher;
-            readonly replica: sync.Replica;
+            readonly replica: syncDataflow.Replica;
         }[]
     > {
         // follow nothing without a subscriber
@@ -334,7 +338,8 @@ export class ObjectSink {
         }
 
         // read the followed requests in key order
-        const rows = await Snapshot.live(this.store.database)
+        const rows = await this.store.database
+            .snapshot()
             .read(replicaRequest)
             .findMany({ where: { action: "follow" }, orderBy: { key: "asc" } });
 
@@ -348,7 +353,7 @@ export class ObjectSink {
     /** List the replicas the store waits for: its own chain's, each up to the universe. */
     async gates(): Promise<sync.SubscriptionRecord[]> {
         // take the chain replicas of the store's scope, leaving followed shapes, which gate nothing
-        const view = Snapshot.live(this.store.database);
+        const view = this.store.database.snapshot();
         const ancestry = new Set(await this.ancestry(this.store.scope, view));
         const chain = ObjectSink.chainName(this.store.scope);
 
@@ -368,10 +373,10 @@ export class ObjectSink {
         const changes = await this.#changes(position.sequence);
 
         // list the requests
-        const view = Snapshot.live(database);
+        const view = database.snapshot();
         const entries = await subscriber.subscriptions(view, changes);
         const named = new Set(entries.map((entry) => ObjectSink.#key(entry.subscription)));
-        const held = await sync.Replica.subscriptions(view);
+        const held = await sync.ReplicaSet.subscriptions(view);
         const requests = await Promise.all(
             [
                 ...held
@@ -495,7 +500,7 @@ export class ObjectSink {
             if (request.action === "follow") {
                 await this.#followReplica(subscriber, request, current, until, following);
             } else {
-                await sync.Replica.drop(this.store.database, {
+                await syncDataflow.Replica.drop(this.store.database, {
                     ...request.subscription,
                     tables: [],
                 });
@@ -517,7 +522,7 @@ export class ObjectSink {
         const { database } = this.store;
 
         return database.state.scope.span("destack.replica.request.read", {}, () =>
-            Snapshot.live(database).read(replicaRequest).findFirst({ where: { key } }),
+            database.snapshot().read(replicaRequest).findFirst({ where: { key } }),
         );
     }
 

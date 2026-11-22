@@ -1,19 +1,17 @@
 import type { Environment } from "@destack/environment";
 import type { ObjectStore } from "../server/store.ts";
-import type { Call } from "@destack/sync";
+import { type Call, RequestId } from "@destack/sync";
 import { AccessContext, Caller } from "@destack/access";
 import {
-    type DatabaseConnection,
     defineTable,
     integer,
     json,
-    Snapshot,
     type Table,
-    type RelationalQueryBuilder,
     text,
+    type RelationalQueryBuilder,
 } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { schema } from "@destack/schema";
-import { RequestId } from "@destack/sync";
 import type { ObjectType } from "../object/object.ts";
 import type { ResultsOf } from "./context.ts";
 
@@ -92,7 +90,7 @@ export class SettlementContext {
 
     /** Read a table's rows in the store's live rows. */
     read<Read extends Table>(table: Read): RelationalQueryBuilder<Read> {
-        return Snapshot.live(this.database).read(table);
+        return this.database.snapshot().read(table);
     }
 
     /** The environment the settlement runs in, its store's. */

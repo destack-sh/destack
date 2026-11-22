@@ -1,23 +1,20 @@
-import { testSimulation } from "../src/test/index.ts";
+import { testSimulation, testEvents, serversOf, TestObjectStore } from "../src/test/index.ts";
 import { users } from "./fixture/user.ts";
 import { Scope, RequestId } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { AccessContext, Caller, none, principal, relation } from "@destack/access";
 
-import { defineDatabase, eq, Transaction } from "@destack/db";
+import { defineDatabase, eq } from "@destack/db";
+import { Transaction } from "@destack/db/database";
 import { TestDatabase } from "@destack/db/test";
 import { Identifier, present, schema } from "@destack/schema";
 
-import { defineObject, device, field } from "../src/index.ts";
+import { defineObject, device, field, tablesOf, controlled } from "../src/index.ts";
 import { ObjectClient, ObjectRemote } from "../src/client/index.ts";
 import { connectBunSqlite } from "@destack/db/bun";
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { testCallKey } from "@destack/object/test";
-import { testEvents, serversOf } from "../src/test/index.ts";
-import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
-import { TestObjectStore } from "../src/test/index.ts";
-import { controlled } from "../src/index.ts";
 import { argument, plural, t } from "@destack/locale";
 
 /** The space with the machines. */
@@ -165,9 +162,7 @@ test("observe a controlled object without advancing its generation, finalize its
             }),
         ],
     });
-    await Transaction.run(storage.database, (fencing) =>
-        Scope.fence(fencing, spaceId, TARGET, 7_000),
-    );
+    await storage.database.commit((fencing) => Scope.fence(fencing, spaceId, TARGET, 7_000));
     const moved = store.mutate(await at(8_000), {
         id: RequestId.create(world),
         calls: [

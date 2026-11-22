@@ -1,11 +1,5 @@
-import {
-    TABLE,
-    type DatabaseConnection,
-    DatabaseError,
-    type LogPosition,
-    type Overlay,
-    type Snapshot,
-} from "@destack/db";
+import { TABLE, DatabaseError, type LogPosition } from "@destack/db";
+import type { DatabaseConnection, Overlay, Snapshot } from "@destack/db/database";
 import { ObjectReference, Subject } from "@destack/sync";
 import { PackageId } from "@destack/package";
 import { schema, Uuid } from "@destack/schema";

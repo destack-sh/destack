@@ -1,18 +1,16 @@
 import { worldTelemetry } from "../src/test/world.ts";
-import { TestObjectStore } from "../src/test/index.ts";
+import {
+    TestObjectStore,
+    testSimulation,
+    testEvents,
+    serversOf,
+    auditedActions,
+    settleControl,
+} from "../src/test/index.ts";
 import type { Simulation } from "@destack/environment/simulation";
 import type { Environment } from "@destack/environment";
-import { testSimulation } from "../src/test/index.ts";
-import type { CallableName } from "../src/index.ts";
-import { ObjectReference, RequestId, Scope, Subject } from "@destack/sync";
-import { testCallKey } from "@destack/object/test";
-import { TestDatabase } from "@destack/db/test";
-import { testEvents, serversOf } from "../src/test/index.ts";
-import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { CallError } from "@destack/object";
-import { eq } from "@destack/db";
-import { Identifier, present, schema, toJsonSchema, Uuid } from "@destack/schema";
 import {
+    type CallableName,
     AuditTarget,
     defineObject,
     field,
@@ -21,24 +19,30 @@ import {
     suspendable,
     Suspendable,
 } from "../src/index.ts";
+import { ObjectReference, RequestId, Scope, Subject } from "@destack/sync";
+import { testCallKey } from "@destack/object/test";
+import { TestDatabase } from "@destack/db/test";
+import { expect, onTestFinished, refusal, test } from "@destack/test";
+import { CallError } from "@destack/object";
+import { eq } from "@destack/db";
+import { Identifier, present, schema, toJsonSchema, Uuid } from "@destack/schema";
 
 import { Settlement } from "../src/server/index.ts";
 import { describeAuditAction } from "../src/inspect/index.ts";
 import { comment, folder, objectDatabase, task, taskCopy, taskVersion } from "./schema.ts";
 import {
     AccessContext,
-    accessInvitation,
     Caller,
     type GrantPermission,
-    Invitation,
-    INVITATION_LIFETIME_MILLISECONDS,
     none,
     principal,
     type GrantClaim,
+    accessInvitation,
+    Invitation,
+    INVITATION_LIFETIME_MILLISECONDS,
 } from "@destack/access";
 import { TestAccess } from "@destack/access/test";
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
-import { auditedActions, settleControl } from "../src/test/index.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
 import { invitation } from "../src/access/index.ts";

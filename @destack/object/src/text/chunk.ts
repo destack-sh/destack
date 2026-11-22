@@ -1,7 +1,8 @@
 import type { ObjectReference } from "@destack/sync";
 import { ObjectError } from "../error/error.ts";
 import { through } from "@destack/access";
-import { type Transaction, type Snapshot, Table } from "@destack/db";
+import { Table } from "@destack/db";
+import type { Transaction, Snapshot } from "@destack/db/database";
 import { schema, canonicalize, Identifier, present } from "@destack/schema";
 
 import { FractionalIndex } from "../field/fractional-index.ts";

@@ -5,27 +5,24 @@ import { Casing } from "../object/name.ts";
 import { RelationGraph } from "../query/query.ts";
 import { CLIENT_HEAD_HEADER, ROUTE_HEADER } from "../workload/start.ts";
 import type { BlobStorage } from "@destack/resource";
-import { ObjectError } from "../error/error.ts";
+import { ObjectError, refuseInput } from "../error/error.ts";
 import { CallError } from "../error/call.ts";
 import { PackageVersion, type PackageId } from "@destack/package";
 import { type BuildReader, PackageManifest } from "@destack/package/manifest";
-import type { EventStore } from "@destack/event";
+import type { EventStore } from "@destack/event/store";
 import {
-    Authorizer,
     AccessContext,
-    type Reader,
     Policy,
-    Access,
-    type ChainOptions,
-    type TableMapping,
     Caller,
     Grant,
     CONTAINED,
     principal,
-    Manager,
     universe,
     decisionTables,
+    type TableMapping,
+    Manager,
 } from "@destack/access";
+import { Authorizer, type Reader, Access, type ChainOptions } from "@destack/access/authorizer";
 import {
     type ObjectReference,
     ObjectTypeReference,
@@ -33,30 +30,33 @@ import {
     type ScopeLink,
     Subject,
     RequestId,
+    type Watermark,
 } from "@destack/sync";
 import {
-    type Alarm,
     and,
-    BlobStore,
+    DatabaseError,
+    eq,
+    Key,
+    type Select,
+    type SQL,
+    Row,
+    TABLE,
+    type Table,
     Change,
+    LogPosition,
+} from "@destack/db";
+import {
+    type Alarm,
+    BlobStore,
     ControlLoop,
     type ControllerSet,
     type Controller,
     type DatabaseConnection,
-    DatabaseError,
-    eq,
-    Key,
-    LogPosition,
-    type Select,
-    type SQL,
     ReadSet,
-    Row,
-    Snapshot,
-    TABLE,
+    type Snapshot,
     type BatchWriter,
-    type Table,
     Transaction,
-} from "@destack/db";
+} from "@destack/db/database";
 import { objectUnmask } from "../audit/unmask.ts";
 import { Replay } from "../audit/replay.ts";
 import {
@@ -65,7 +65,7 @@ import {
     type AuditRecorderOptions,
     type CallRequest,
 } from "../audit/recorder.ts";
-import { Journal } from "../audit/journal.ts";
+import { Journal, type JournalRecord, type RequestIdentity } from "../audit/journal.ts";
 import type { CallKey } from "../audit/key.ts";
 import {
     canonicalize,
@@ -84,19 +84,17 @@ import {
 } from "@destack/schema";
 import type { ServerContext } from "../workload/workload.ts";
 import { ACTION_KIND } from "../declare/action.ts";
-import type { Watermark } from "@destack/sync";
-import { refuseInput } from "../error/error.ts";
-import { copyRequest } from "@destack/environment";
-import type { JournalRecord, RequestIdentity } from "../audit/journal.ts";
+import { copyRequest, type Clock, type Environment } from "@destack/environment";
 import { implement, type Router } from "./handler.ts";
-import { type ServerAccess, type RequestContext } from "./context.ts";
-import { type PackageHandler } from "./http.ts";
-import { type ProcedureContext } from "./procedure.ts";
+import type { ServerAccess, RequestContext } from "./context.ts";
+import type { PackageHandler } from "./http.ts";
+import type { ProcedureContext } from "./procedure.ts";
 import { Egress } from "../declare/egress.ts";
 import { type MountDeclaration, Package } from "../declare/package.ts";
-import { type ProcedureRouter } from "../procedure/index.ts";
+import type { ProcedureRouter } from "../procedure/index.ts";
 import { traceCalls } from "../procedure/telemetry.ts";
 import * as sync from "@destack/sync";
+import * as syncDataflow from "@destack/sync/dataflow";
 import {
     defineShape,
     type OnDemandFollow,
@@ -106,9 +104,10 @@ import {
     Shape,
 } from "../replica/shape.ts";
 import { followKey, STORE_FOLLOWER } from "../replica/key.ts";
-import { ACCESS_PUBLICATION, QUERIES_PUBLICATION, QueriesParameters } from "../replica/replica.ts";
-import { CONNECTION_PATH } from "../replica/connection.ts";
 import {
+    ACCESS_PUBLICATION,
+    QUERIES_PUBLICATION,
+    QueriesParameters,
     WriterId,
     storeProcedures,
     type PushResult,
@@ -117,6 +116,7 @@ import {
     type PackageImplementationDescription,
     ObjectTypeEntry,
 } from "../replica/replica.ts";
+import { CONNECTION_PATH } from "../replica/connection.ts";
 import { Branch, type BranchEntry, type BranchType } from "../branch/index.ts";
 import { MethodContext, type ResultsOf, type Run } from "../method/context.ts";
 import { CallSite } from "../method/site.ts";
@@ -154,7 +154,7 @@ import { TelemetryScope } from "@destack/telemetry";
 import type { Execution, StoreExecution } from "../method/execution.ts";
 import type { Isolate } from "../hook/isolate.ts";
 import type { MountFetch, PackageImplementation } from "./implementation.ts";
-import type { Clock, Environment } from "@destack/environment";
+import { RecordExecution } from "./record.ts";
 
 /** How long a scope's access rows stay followed after their last follower: five minutes. */
 const ACCESS_TTL = { minutes: 5 } as const;
@@ -471,6 +471,8 @@ export type ObjectRouter = Readonly<Record<string, Router<ProcedureRouter, Reque
 export class ObjectStore {
     /** The database with the objects. */
     readonly database: DatabaseConnection;
+    /** The record verbs the store runs for the built-in method kinds. */
+    readonly record = RecordExecution;
     /** Open a package's release a scope runs, or a given version, absent for none. */
     readonly release:
         | ((
@@ -493,7 +495,7 @@ export class ObjectStore {
     /** What the process's jobs read beyond the database, which names the loop's position. */
     readonly #configuration: JsonValue;
     /** The feed serving every sync. */
-    readonly feed: sync.Feed;
+    readonly feed: syncDataflow.Feed;
     /** The claim type recording the names of the served objects' unique indexes. */
     readonly claims: ClaimPrimary | undefined;
     /** The memory store with the served ephemeral objects. */
@@ -636,7 +638,7 @@ export class ObjectStore {
             servers: given.servers,
             isolates: given.isolates ?? [],
         });
-        this.feed = new sync.Feed(given.database, this.#catalog.tables, {});
+        this.feed = new syncDataflow.Feed(given.database, this.#catalog.tables, {});
         this.#declare();
 
         // place the follows' replicas, write ephemeral rows as one writer, and bound the replicas by the budget
@@ -1087,8 +1089,8 @@ export class ObjectStore {
     }
 
     /** The replica of the principal's access rows in a scope, which a predicting store follows. */
-    accessReplica(scope: string): sync.Replica {
-        return new sync.Replica({
+    accessReplica(scope: string): syncDataflow.Replica {
+        return new syncDataflow.Replica({
             name: `${ACCESS_PUBLICATION}:${scope}`,
             scope,
             tables: decisionTables,
@@ -1424,7 +1426,8 @@ export class ObjectStore {
             readonly expiresAt: number | null;
         }[]
     > {
-        const rows = await Snapshot.live(this.database)
+        const rows = await this.database
+            .snapshot()
             .read(followKey)
             .findMany({ orderBy: { follower: "asc" } });
 
@@ -1585,7 +1588,7 @@ export class ObjectStore {
     /** Wait until each access replica of the store's chain is live. */
     async waitLive(signal: AbortSignal): Promise<void> {
         await this.#waitLive(async () => {
-            const chain = (await Scope.chain(Snapshot.live(this.database), this.scope)).map(
+            const chain = (await Scope.chain(this.database.snapshot(), this.scope)).map(
                 (link) => link.object.id,
             );
             const stale = await Access.stale(this.database, chain, this.authorizer.lag);
@@ -1599,7 +1602,7 @@ export class ObjectStore {
         return await this.#waitLive(async () => {
             // wait for a pending chain, whose replicas the store lists once it is known
             const { database } = this;
-            const chain = await this.chain(Snapshot.live(database));
+            const chain = await this.chain(database.snapshot());
             if (chain?.kind === "pending") {
                 return `the chain of ${this.scope} is pending`;
             }
@@ -1607,9 +1610,9 @@ export class ObjectStore {
             // require each gating replica live and current, naming the first that is not
             for (const subscription of await this.sink.gates()) {
                 const { name, scope } = subscription;
-                if (!sync.Replica.isLive(database, name, scope, this.authorizer.lag)) {
+                if (!new sync.ReplicaSet(database).isLive(name, scope, this.authorizer.lag)) {
                     return `the replica ${name} of ${scope} is not live`;
-                } else if (!(await sync.Replica.isCurrent(database, subscription))) {
+                } else if (!(await new sync.ReplicaSet(database).isCurrent(subscription))) {
                     return `the replica ${name} of ${scope} is not current`;
                 }
             }
@@ -2303,7 +2306,7 @@ export class ObjectStore {
         RequestId.expiry(planned.request.requestId, this.clock.now());
         try {
             // run the authorized calls over a transaction committed with their records, again while it loses a race
-            return await Transaction.run(this.database, async (transaction) => {
+            return await this.database.commit(async (transaction) => {
                 const authorization = await this.#authorizeRun(transaction, planned);
 
                 return this.#run(transaction, authorization, planned, progress);
@@ -2604,7 +2607,7 @@ export class ObjectStore {
         return (
             isEnclosing ||
             this.replicates(object) ||
-            (await sync.Replica.isReplicated(snapshot, scope, object.table))
+            (await sync.ReplicaSet.isReplicated(snapshot, scope, object.table))
         );
     }
 
@@ -2716,7 +2719,7 @@ export class ObjectStore {
         readonly calls: readonly sync.Call[];
     }): Promise<{ readonly home: string; readonly remote: ObjectRemote } | undefined> {
         // read each call's replicated type and scope, leaving a mutation of rows the database stores itself
-        const view = Snapshot.live(this.database);
+        const view = this.database.snapshot();
         const routed = await Promise.all(
             mutation.calls.map(async (call) => {
                 // read the call's replicated type and scope, a home only for rows replicated here
@@ -3115,7 +3118,7 @@ export class ObjectStore {
 
         // refuse a scope outside the request's scope, letting reads reach its ancestors
         if (!isRequested) {
-            const rows = await Scope.read(Snapshot.live(this.database), [scope, requested]);
+            const rows = await Scope.read(this.database.snapshot(), [scope, requested]);
             const row = rows.find((each) => each.scope === scope);
             const outer = rows.find((each) => each.scope === requested);
             const isInside = row !== undefined && Scope.within(row, requested);
@@ -3159,7 +3162,7 @@ export class ObjectStore {
 
     /** Read a scope and the scopes enclosing it, by identifier. */
     async #chainIds(scope: string): Promise<Set<string>> {
-        const chain = await Scope.chain(Snapshot.live(this.database), scope);
+        const chain = await Scope.chain(this.database.snapshot(), scope);
 
         return new Set([scope, ...chain.map((link) => link.object.id)]);
     }
@@ -3204,8 +3207,8 @@ export class ObjectStore {
 
         // find the first late replica among those the wait reads
         const replicas = history.followed.length > 0 ? history.followed : history.including;
-        const [late] = sync.Replica.late(
-            await sync.Replica.homes(this.database, replicas),
+        const [late] = sync.ReplicaSet.late(
+            await new sync.ReplicaSet(this.database).homes(replicas),
             watermark,
         );
 
@@ -3222,7 +3225,7 @@ export class ObjectStore {
 
     /** Read the position of the latest change in a scope's chain, which its readers see. */
     async watermark(scope: string): Promise<Watermark> {
-        const chain = await Scope.chain(Snapshot.live(this.database), scope);
+        const chain = await Scope.chain(this.database.snapshot(), scope);
         const scopes = chain.map((link) => link.object.id);
 
         return { scope, ...(await this.database.log.changed(this.feed.tables, scopes)) };
@@ -3233,7 +3236,7 @@ export class ObjectStore {
         // take the local log's current epoch for a scope the store serves, refusing an earlier one
         const { database } = this;
         const head = await database.log.position();
-        const isHome = await this.authorizer.isHome(Snapshot.live(database), watermark.scope);
+        const isHome = await this.authorizer.isHome(database.snapshot(), watermark.scope);
         const isServed = isHome || watermark.scope === this.scope;
         if (isServed && watermark.log === head.log) {
             return { kind: watermark.epoch === head.epoch ? "local" : "stale" };
@@ -3244,7 +3247,7 @@ export class ObjectStore {
         }
 
         // take the replicas including the scope and the followed ones reading it
-        const including = await sync.Replica.including(database, watermark.scope);
+        const including = await new sync.ReplicaSet(database).including(watermark.scope);
         const followed = (await this.sink.followed())
             .filter(({ replica }) => replica.holds(watermark.scope))
             .map((entry) => entry.subscription);
@@ -3275,7 +3278,11 @@ export class ObjectStore {
         }
         // wait until the replicas including the scope reach it, for a store following none yet
         else {
-            return await sync.Replica.wait(this.database, watermark.scope, watermark, signal);
+            return await new sync.ReplicaSet(this.database).wait(
+                watermark.scope,
+                watermark,
+                signal,
+            );
         }
     }
 
@@ -3497,7 +3504,7 @@ export class ObjectStore {
             store: this,
             authorization,
             transaction,
-            view: snapshot ?? transaction,
+            ...(snapshot === undefined ? {} : { view: snapshot }),
             callId: Identifier.create("call", this.environment),
             ...(options.parentId === undefined ? {} : { parentId: options.parentId }),
             isPredicted: false,
@@ -3567,7 +3574,6 @@ export class ObjectStore {
             kind: "store",
             store: this,
             transaction,
-            view: transaction,
             callId: Identifier.create("call", this.environment),
             isPredicted: true,
         };
@@ -3744,7 +3750,7 @@ export class ObjectStore {
             return undefined;
         }
         const base =
-            at === undefined ? Snapshot.live(database) : database.log.at(LogPosition.parse(at));
+            at === undefined ? database.snapshot() : database.log.at(LogPosition.parse(at));
         if (branch === undefined) {
             return base;
         }
@@ -3758,9 +3764,7 @@ export class ObjectStore {
             );
         }
         const id = schema.string().parse(branch);
-        const row = await Snapshot.live(database)
-            .read(types.object.table)
-            .findFirst({ where: { id } });
+        const row = await database.snapshot().read(types.object.table).findFirst({ where: { id } });
         const permission = types.object.permission("read");
         const allowed =
             row === undefined

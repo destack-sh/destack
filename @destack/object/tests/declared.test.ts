@@ -1,18 +1,15 @@
-import { testSimulation } from "../src/test/index.ts";
+import { testSimulation, serversOf, testEvents, TestObjectStore } from "../src/test/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TestDatabase } from "@destack/db/test";
-import { defineDatabase, Snapshot } from "@destack/db";
+import { defineDatabase } from "@destack/db";
 import { testCallKey } from "@destack/object/test";
-import { anyone, Manager, principal, Caller } from "@destack/access";
+import { anyone, principal, Caller, Manager } from "@destack/access";
 import { Identifier, schema } from "@destack/schema";
 import { ObjectReference, Scope, Subject } from "@destack/sync";
-import { StackTarget, defineObject, field } from "../src/index.ts";
+import { StackTarget, defineObject, field, nested } from "../src/index.ts";
 import { type StackOptions, Stack } from "../src/server/index.ts";
-import { serversOf, testEvents } from "../src/test/index.ts";
 import { objectDatabase } from "./schema.ts";
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
-import { TestObjectStore } from "../src/test/index.ts";
-import { nested } from "../src/index.ts";
 import { argument, plural, t } from "@destack/locale";
 
 /** The space the stack declares in. */
@@ -185,7 +182,7 @@ test("declare records as their create inputs in reference order, the name fillin
     // declare a tag, then a stamp, markers and badges of each subject form on it
     const red = { color: "#f00" };
     await apply({ tags: { red } });
-    const [redTag] = await Snapshot.live(database).read(tag.table).findMany();
+    const [redTag] = await database.snapshot().read(tag.table).findMany();
     const user = Identifier.create("user", world);
     const crateId = Identifier.create("crate", world);
     await apply({
@@ -211,7 +208,7 @@ test("declare records as their create inputs in reference order, the name fillin
     });
 
     // fill the tag's name from its declaration's name, and resolve each reference
-    const read = Snapshot.live(database);
+    const read = database.snapshot();
     const spaceObject = await Scope.object(read, spaceId);
     const tagObject = {
         packageId: tag.package.id,

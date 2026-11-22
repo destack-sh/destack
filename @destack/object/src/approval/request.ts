@@ -11,7 +11,8 @@ import {
     through,
     union,
 } from "@destack/access";
-import { type Select, Snapshot, type Table } from "@destack/db";
+import type { Select, Table } from "@destack/db";
+import type { Snapshot } from "@destack/db/database";
 import { Failure } from "@destack/error";
 import { type JsonValue, schema } from "@destack/schema";
 import { Call, ObjectReference, Subject } from "@destack/sync";
@@ -19,7 +20,7 @@ import { CallError } from "../error/call.ts";
 import { ObjectError } from "../error/error.ts";
 import { field } from "../field/field.ts";
 import type { MethodContext } from "../method/context.ts";
-import { type ObjectReconciliation } from "../object/controller.ts";
+import type { ObjectReconciliation } from "../object/controller.ts";
 import { defineObject } from "../object/object.ts";
 import { Approval, approval, ApprovalQuorum, type ApprovalState } from "./approval.ts";
 import { nested } from "../trait/index.ts";
@@ -268,9 +269,7 @@ export class ChangeRequest {
 
     /** Apply the change once its approvers approve it, or reject it once one rejects it. */
     async decide(reconciliation: ObjectReconciliation<typeof changeRequest>): Promise<void> {
-        const decision = this.#decide(
-            await this.#approvals(Snapshot.live(reconciliation.database)),
-        );
+        const decision = this.#decide(await this.#approvals(reconciliation.database.snapshot()));
         const target = changeRequest.target(this.row);
 
         // make the call once approved, recording the refusal it answers unless the approvals changed meanwhile

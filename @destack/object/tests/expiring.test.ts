@@ -1,22 +1,27 @@
-import { TestObjectStore, testIdentity } from "../src/test/index.ts";
-import { testSimulation } from "../src/test/index.ts";
+import {
+    TestObjectStore,
+    testIdentity,
+    testSimulation,
+    settleControl,
+    testEvents,
+    serversOf,
+    auditedActions,
+} from "../src/test/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { testCallKey } from "@destack/object/test";
 import { TestDatabase } from "@destack/db/test";
-import { settleControl, testEvents, serversOf } from "../src/test/index.ts";
 import { none, principal, relation, universe } from "@destack/access";
 
 import { eq, defineDatabase } from "@destack/db";
 import { schema, Uuid } from "@destack/schema";
-import { Replica, Scope, RequestId } from "@destack/sync";
+import { Scope, RequestId } from "@destack/sync";
+import { Replica } from "@destack/sync/dataflow";
 
-import { defineObject, definePackage, defineShape, field } from "../src/index.ts";
+import { defineObject, definePackage, defineShape, field, expiring } from "../src/index.ts";
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
-import { auditedActions } from "../src/test/index.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { tablesOf } from "../src/stack/db.ts";
 import objectPackage from "../src/package.ts";
-import { expiring } from "../src/index.ts";
 import { argument, plural, t } from "@destack/locale";
 
 /** The space containing the alerts. */

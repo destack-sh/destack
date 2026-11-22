@@ -1,5 +1,4 @@
-import { testSimulation } from "../src/test/index.ts";
-import { Snapshot } from "@destack/db";
+import { testSimulation, testEvents, TestObjectStore } from "../src/test/index.ts";
 import { AccessContext, Caller } from "@destack/access";
 import { TestDatabase } from "@destack/db/test";
 import { PackageVersion } from "@destack/package";
@@ -9,10 +8,8 @@ import { present, schema } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { defineShape } from "../src/index.ts";
 import { implementPackage } from "../src/server/index.ts";
-import { testEvents } from "../src/test/index.ts";
 import { page, pageDatabase, pagesPackage } from "./fixture/page.ts";
 import { openSpace, spacePrincipal } from "../src/test/space.ts";
-import { TestObjectStore } from "../src/test/index.ts";
 
 /** The space with the pages. */
 const spaceId = schema.identifier("space").parse(`space-01996ab0-0000-7000-8000-00000000a005`);
@@ -86,7 +83,7 @@ test("subscribe to a fixed key and to one key per row the follower has as one re
     await create("Plan", "📌");
     await create("Notes", null);
     const listed = async () =>
-        (await subscriber.subscriptions(Snapshot.live(storage.database))).map(
+        (await subscriber.subscriptions(storage.database.snapshot())).map(
             ({ subscription, home }) => ({
                 name: subscription.name,
                 publication: subscription.publication,

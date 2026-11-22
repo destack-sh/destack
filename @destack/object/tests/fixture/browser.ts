@@ -1,4 +1,4 @@
-import type { DatabaseConnection } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { broadcastChannel, connectWasmSqlite, WasmClient } from "@destack/db/browser";
 import type { SimulatedBrowserEnvironment } from "@destack/environment/browser/simulation";
 import type { Subject } from "@destack/sync";

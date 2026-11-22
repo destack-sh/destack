@@ -5,7 +5,7 @@ import { users, userName } from "./fixture/user.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TestDatabase } from "@destack/db/test";
 import { journal, ViewSubscriber } from "../src/index.ts";
-import { eq, Snapshot } from "@destack/db";
+import { eq } from "@destack/db";
 import { type BrowserDevice, BrowserTab } from "../src/browser/index.ts";
 import { deviceDatabase, deviceWorker, holdRemote } from "./fixture/browser.ts";
 import { BrowserSimulation } from "@destack/environment/browser/simulation";
@@ -955,7 +955,7 @@ test("read notebooks with their notes and notes with their notebook in a method'
 
     // read both directions of the notebook relation through the live view, as a method does
     const queries = ViewSubscriber.queries({ notebook, note }, relations, (table) =>
-        Snapshot.live(database).read(table),
+        database.snapshot().read(table),
     );
     const books = await queries.notebook.findMany({
         orderBy: { name: "asc" },

@@ -1,6 +1,6 @@
 import type { Method } from "../method/method.ts";
 import { ObjectError } from "../error/error.ts";
-import { TABLE, LogPosition, type Row, Snapshot, type Table } from "@destack/db";
+import { TABLE, type Row, type Table, LogPosition } from "@destack/db";
 
 import { schema } from "@destack/schema";
 import * as sync from "@destack/sync";
@@ -133,7 +133,7 @@ export class BranchType {
                 const stale = [];
                 for (const row of reconciliation.rows) {
                     const state = BranchType.record(row);
-                    const opened = new Branch(this, Snapshot.live(database), state.id);
+                    const opened = new Branch(this, database.snapshot(), state.id);
                     if (await opened.isStale(database, objects, state)) {
                         stale.push(row);
                     }

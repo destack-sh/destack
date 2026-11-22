@@ -2,16 +2,12 @@ import { PackageManifest } from "@destack/package/manifest";
 import type { ObjectRemote } from "../replica/remote.ts";
 import { graph, PackageVersion } from "@destack/package";
 import { RelationGraph } from "../query/query.ts";
-import type { EventStore } from "@destack/event";
-import {
-    type Authorizer,
-    decisionTables,
-    Policy,
-    principal,
-    type TableMapping,
-} from "@destack/access";
+import type { EventStore } from "@destack/event/store";
+import { Policy, principal, decisionTables, type TableMapping } from "@destack/access";
+import { Authorizer } from "@destack/access/authorizer";
 import { ObjectTypeReference, type Subject } from "@destack/sync";
-import { type BlobStore, type DatabaseConnection, TABLE, type Table } from "@destack/db";
+import { TABLE, type Table } from "@destack/db";
+import type { BlobStore, DatabaseConnection } from "@destack/db/database";
 import { found, type Identifier } from "@destack/schema";
 import { PackageContext, type ServerContext } from "../workload/workload.ts";
 import { PACKAGE_KIND, PackageDescription } from "../declare/description.ts";
@@ -19,7 +15,6 @@ import { Package } from "../declare/package.ts";
 import type { Follow } from "../replica/shape.ts";
 import { branchType, type BranchType } from "../branch/index.ts";
 import { ObjectType } from "../object/object.ts";
-import { ObjectPolicy } from "../object/access.ts";
 import { ObjectTypePool, ObjectDescription, type KnownDeclaration } from "../object/description.ts";
 import type { ClaimPrimary } from "../claim/reservation.ts";
 import type { EphemeralStorage } from "./ephemeral.ts";
@@ -504,11 +499,54 @@ export class Catalog {
                 : [...options.installed].map(([key, served]) => [key, served.package.id]),
         );
 
-        return ObjectPolicy.authorizer(
-            [...objects, ...attached],
-            options.policies,
-            options.database,
-            { partition: options.partition, sets, servers },
+        // collect each object type once and the types they relate to
+        const served = [...objects, ...attached];
+        const types: ObjectType[] = [];
+        for (const type of [
+            ...served,
+            ...options.policies.filter((other) => other instanceof ObjectType),
+        ]) {
+            if (!types.some((each) => each.same(type))) {
+                types.push(type);
+            }
+        }
+        const related = [
+            ...new Set(
+                types
+                    .flatMap((object) => object.related)
+                    .filter((target) => !types.some((type) => type.same(target))),
+            ),
+        ];
+
+        // compile only against the tables the database declares, as its SQL runs there alone
+        const { database, partition } = options;
+
+        return new Authorizer(
+            [
+                ...served.flatMap((object) => [
+                    object.policy,
+                    ...object.scopes
+                        .flatMap((scope) => [scope, ...scope.ancestors])
+                        .map((scope) => scope.policy),
+                ]),
+                ...options.policies.map((other) =>
+                    other instanceof Policy ? other : other.policy,
+                ),
+                ...related.map((object) => object.policy),
+            ],
+            [
+                ...[...types, ...related].map((object) => object.mapping),
+                ...options.policies.flatMap((other) =>
+                    other instanceof Policy || other instanceof ObjectType ? [] : [other],
+                ),
+            ],
+            {
+                replicated: new Set(database.tables.filter((table) => database.replicates(table))),
+                tables: new Set(database.tables),
+                ...(partition === undefined ? {} : { partition }),
+                sets,
+                servers,
+            },
         );
     }
 

@@ -18,7 +18,6 @@ import { method, MethodBuilder } from "../method/builder.ts";
 import { Step } from "../method/step.ts";
 import type { FieldColumn } from "../field/field.ts";
 import type { TraitTable } from "../object/table.ts";
-import { ObjectRecord } from "../method/record.ts";
 import {
     Empty,
     type MethodProcedure,
@@ -29,8 +28,7 @@ import {
     type TargetFields,
 } from "../method/procedure.ts";
 import type { ObjectType } from "../object/object.ts";
-import type { TraitBehavior } from "./trait.ts";
-import { callableTrait } from "./trait.ts";
+import { type TraitBehavior, callableTrait } from "./trait.ts";
 
 /** The options of recoverable deletion. */
 export type RecoverableDefinition<Permissions extends string = string> = {
@@ -205,7 +203,7 @@ export const Recoverable = {
                 ...restorationShape(kind, permission),
                 isPredicted: true,
                 result: "object",
-                handler: (context) => Recoverable.restore(context),
+                handler: (context, execution) => Recoverable.restore(context, execution),
                 inverse: (step: Step) => {
                     // delete the restored object to its trash again
                     const call = Step.call(step, "delete", Step.target(step));
@@ -279,6 +277,7 @@ export const Recoverable = {
     /** Clear a deletion that is still recoverable. */
     async restore(
         context: MethodContext<{ readonly table: RecoverableTable }, unknown>,
+        execution: Execution,
     ): Promise<Select<RecoverableTable>> {
         // require an unpurged deletion within its window
         const { object } = context;
@@ -304,7 +303,7 @@ export const Recoverable = {
         // restore it under a live parent, with the children trashed with it
         const row: Row = target;
         const parentId = row["parentId"];
-        await ObjectRecord.requireParentReady(
+        await execution.store.record.requireParentReady(
             context,
             parentId === undefined || parentId === null ? null : schema.string().parse(parentId),
         );
@@ -312,7 +311,11 @@ export const Recoverable = {
             deletedAt: null,
             ...ObjectReference.columns("deletedBy", undefined),
         });
-        await ObjectRecord.trashChildren(context, schema.string().parse(row["id"]), "restore");
+        await execution.store.record.trashChildren(
+            context,
+            schema.string().parse(row["id"]),
+            "restore",
+        );
 
         return restored;
     },

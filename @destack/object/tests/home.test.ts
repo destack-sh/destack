@@ -1,21 +1,28 @@
+import { ReplicaSet, RequestId, Scope } from "@destack/sync";
 import { worldTelemetry } from "../src/test/world.ts";
-import { testSimulation, testIdentity } from "../src/test/index.ts";
+import {
+    testSimulation,
+    testIdentity,
+    FeedPublisher,
+    testEvents,
+    serversOf,
+    TestObjectStore,
+} from "../src/test/index.ts";
 import { testCallKey } from "@destack/object/test";
 import { TestDatabase } from "@destack/db/test";
-import { FeedPublisher, testEvents, serversOf } from "../src/test/index.ts";
 import { expect, onTestFinished, test, refusal } from "@destack/test";
-import { accessTables, none, principal, relation } from "@destack/access";
+import { none, principal, relation, accessTables } from "@destack/access";
 import { TestAccess } from "@destack/access/test";
-import { ControlLoop, defineDatabase, eq } from "@destack/db";
+import { defineDatabase, eq } from "@destack/db";
+import { ControlLoop } from "@destack/db/database";
 import { present, schema } from "@destack/schema";
 import { definePackage } from "@destack/object";
 import { createClient } from "@destack/object/client";
-import { RequestId, Feed, Replica, Scope } from "@destack/sync";
-import { defineObject, defineShape, field } from "../src/index.ts";
+import { Feed } from "@destack/sync/dataflow";
+import { defineObject, defineShape, field, propagated } from "../src/index.ts";
 import { ObjectClient, ObjectConnection } from "../src/client/index.ts";
 import { ObjectStore } from "../src/server/index.ts";
 import { Bookmark } from "../src/procedure/bookmark.ts";
-import { TestObjectStore } from "../src/test/index.ts";
 import { spacePrincipal, space } from "../src/test/space.ts";
 import { TEST_CONNECTION_URL } from "../src/test/caller.ts";
 import { calledPath, tapSocket } from "./fixture/socket.ts";
@@ -23,7 +30,6 @@ import { userContext, users } from "./fixture/user.ts";
 import { Environment } from "@destack/environment";
 import { tablesOf } from "../src/stack/db.ts";
 import objectPackage from "../src/package.ts";
-import { propagated } from "../src/index.ts";
 import { argument, plural, t } from "@destack/locale";
 import { TestRemote } from "../src/test/publisher.ts";
 
@@ -257,7 +263,7 @@ async function followChain(
             followed.add(key);
             const [name, scope] = key.split(" ");
             const listed = { name: present(name, "a name"), scope: present(scope, "a scope") };
-            await Replica.waitAt(database, [listed], head, controller.signal);
+            await new ReplicaSet(database).waitAt([listed], head, controller.signal);
         }
         isGrowing = keys.length > 0;
     }

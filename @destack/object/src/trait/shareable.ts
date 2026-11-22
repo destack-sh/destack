@@ -3,13 +3,13 @@ import {
     type AccessExpression,
     anyone,
     Caller,
-    Explanation,
     permission,
     principal,
     relation,
-    Relationship,
     through,
     union,
+    Explanation,
+    Relationship,
 } from "@destack/access";
 import { AccessName, Subject } from "@destack/sync";
 import type * as sync from "@destack/sync";
@@ -42,8 +42,7 @@ import {
     type ObjectRelationInput,
     type ObjectType,
 } from "../object/object.ts";
-import type { TraitPermission, Erasure, TraitBehavior } from "./trait.ts";
-import { callableTrait } from "./trait.ts";
+import { type TraitPermission, type Erasure, type TraitBehavior, callableTrait } from "./trait.ts";
 /** The roles, lowest first: viewer, commenter, editor and owner. */
 const ROLES = ["viewer", "commenter", "editor", "owner"] as const;
 

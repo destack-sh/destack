@@ -1,34 +1,43 @@
 import { FOLLOWER_REVISION } from "@destack/sync/test";
-import { testSimulation } from "../src/test/index.ts";
+import { testSimulation, testEvents, serversOf, TestObjectStore } from "../src/test/index.ts";
 import { users, userName } from "./fixture/user.ts";
 import { expect, expectTypeOf, onTestFinished, single, test } from "@destack/test";
 import {
     AccessContext,
     accessGrant,
-    accessRelationship,
-    accessRole,
-    Authorization,
     Caller,
     Grant,
     none,
     Policy,
     principal,
+    accessRelationship,
+    accessRole,
+    Authorization,
     Relationship,
 } from "@destack/access";
-import { defineDatabase, eq, Transaction } from "@destack/db";
+import { defineDatabase, eq } from "@destack/db";
+import { Transaction } from "@destack/db/database";
 import { TestAccess } from "@destack/access/test";
 import { TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
 
 import { subjectContext, testCallKey } from "@destack/object/test";
-import { testEvents, serversOf, TestObjectStore } from "../src/test/index.ts";
 import { RequestId, ObjectReference, type Subject, Scope } from "@destack/sync";
-import { defineObject, field, ObjectPolicy, relationship, role } from "../src/index.ts";
+import {
+    defineObject,
+    field,
+    ObjectPolicy,
+    relationship,
+    role,
+    CallSite,
+    tablesOf,
+    nested,
+    recoverable,
+    shareable,
+} from "../src/index.ts";
 import { space, spacePrincipal } from "../src/test/space.ts";
-import { CallSite, tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { installation } from "../src/test/installed.ts";
-import { nested, recoverable, shareable } from "../src/index.ts";
 import { argument, plural, t } from "@destack/locale";
 
 /** The package the space installs beside its own. */

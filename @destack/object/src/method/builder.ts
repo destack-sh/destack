@@ -1,6 +1,5 @@
-import { present } from "@destack/schema";
+import { present, type JsonObject, schema } from "@destack/schema";
 import { type Expression, Row, Table } from "@destack/db";
-import { type JsonObject, schema } from "@destack/schema";
 
 import { MethodContext } from "./context.ts";
 import { Step } from "./step.ts";
@@ -32,12 +31,10 @@ import {
 } from "./procedure.ts";
 import { type InputObject, InputSchema } from "./input.ts";
 import { Casing } from "../object/name.ts";
-import { EventLog } from "../query/event.ts";
-import { list } from "../query/list.ts";
 import { ListFields, QueryFields, ViewFields } from "../replica/replica.ts";
 import type { ObjectType, WrittenField } from "../object/object.ts";
 
-import { type StoreExecution } from "./execution.ts";
+import type { StoreExecution } from "./execution.ts";
 
 import { BatchIds, ObjectRecord, TagFields } from "./record.ts";
 
@@ -225,8 +222,8 @@ function bulkUpdate<
         },
         handler: (context, execution) =>
             match === undefined
-                ? ObjectRecord.updateItems(context, execution, options.fields)
-                : ObjectRecord.updateMatching(context, execution, options.fields),
+                ? execution.store.record.updateItems(context, execution, options.fields)
+                : execution.store.record.updateMatching(context, execution, options.fields),
     };
 }
 
@@ -446,7 +443,7 @@ export class MethodBuilder<
                 input: schemas.scope.extend({ ...QueryFields, ...PageFields, ...ViewFields }),
                 output: ListPage.schema(schemas.row).extend(ListFields),
             }),
-            handler: (context, execution) => list(context, execution),
+            handler: (context, execution) => execution.store.record.list(context, execution),
         });
     }
 
@@ -489,8 +486,10 @@ export class MethodBuilder<
             result: "object",
             procedure: (name, schemas) => ObjectRecord.createProcedure(name, schemas, options),
             ...(creator === undefined ? {} : { relate: ObjectRecord.relateCreator(creator) }),
-            handler: (context, execution) => ObjectRecord.createObject(context, execution),
-            authorize: (context, execution) => ObjectRecord.authorizeCreate(context, execution),
+            handler: (context, execution) =>
+                execution.store.record.createObject(context, execution),
+            authorize: (context, execution) =>
+                execution.store.record.authorizeCreate(context, execution),
             inverse: (step) => {
                 // delete the created object
                 const call = Step.call(step, "delete", Step.target(step));
@@ -509,21 +508,25 @@ export class MethodBuilder<
                 if (context.object.storage === "events") {
                     const row = ObjectRecord.createdRow(
                         context.object.table,
-                        await ObjectRecord.createdValues(context, execution),
+                        await execution.store.record.createdValues(context, execution),
                     );
-                    await EventLog.append(context, execution, [row]);
+                    await execution.store.record.append(context, execution, [row]);
 
                     return row;
                 }
 
                 // answer the object that already exists under the kept key
-                const existing = await ObjectRecord.existing(context, execution, onConflict);
+                const existing = await execution.store.record.existing(
+                    context,
+                    execution,
+                    onConflict,
+                );
                 if (existing !== undefined) {
                     return existing;
                 }
 
                 // insert under an unused identifier and record its access
-                const { row } = await ObjectRecord.insertAuthorized(
+                const { row } = await execution.store.record.insertAuthorized(
                     context,
                     execution,
                     (inserted) => Method.handle(this, inserted, execution),
@@ -583,8 +586,9 @@ export class MethodBuilder<
             }),
             validate: (object) => ObjectRecord.requireUnrecorded(object),
             ...(creator === undefined ? {} : { relate: ObjectRecord.relateCreator(creator) }),
-            handler: (context, execution) => ObjectRecord.createItems(context, execution),
-            authorize: (context, execution) => ObjectRecord.authorizeItems(context, execution),
+            handler: (context, execution) => execution.store.record.createItems(context, execution),
+            authorize: (context, execution) =>
+                execution.store.record.authorizeItems(context, execution),
             inverse: (step) => ObjectRecord.deleteCreated(step),
         });
     }
@@ -634,7 +638,7 @@ export class MethodBuilder<
                 const changed = Object.keys(context.input).filter((name) =>
                     Object.hasOwn(context.object.fields, name),
                 );
-                ObjectRecord.requireUnmanagedFields(context, execution, changed);
+                execution.store.record.requireUnmanagedFields(context, execution, changed);
                 if (!execution.isPredicted) {
                     await execution.authorization.requireWritable(context, context.id, execution);
                 }
@@ -726,7 +730,7 @@ export class MethodBuilder<
                 input: schemas.target.extend({ ...schemas.replay, ...RevisionFields }),
                 output: Empty,
             }),
-            handler: (context) => ObjectRecord.deleteObject(context),
+            handler: (context, execution) => execution.store.record.deleteObject(context),
             inverse: (step) => {
                 // restore from the trash
                 const call =
@@ -738,7 +742,7 @@ export class MethodBuilder<
             },
             async execute(context, execution) {
                 // refuse managed objects
-                ObjectRecord.requireUnmanaged(context, execution);
+                execution.store.record.requireUnmanaged(context, execution);
 
                 return Method.handle(this, context, execution);
             },
@@ -778,7 +782,8 @@ export class MethodBuilder<
                 output: BatchPayload,
             }),
             validate: (object) => ObjectRecord.requireUnrecorded(object),
-            handler: (context, execution) => ObjectRecord.deleteMatching(context, execution),
+            handler: (context, execution) =>
+                execution.store.record.deleteMatching(context, execution),
         });
     }
 
@@ -860,7 +865,7 @@ export class MethodBuilder<
             ...(isScoped
                 ? {
                       authorize: (context: MethodContext, execution: StoreExecution) =>
-                          ObjectRecord.authorizeScoped(context, execution, selected),
+                          execution.store.record.authorizeScoped(context, execution, selected),
                   }
                 : {}),
             ...(inverse === undefined

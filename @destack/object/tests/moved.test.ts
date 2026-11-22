@@ -1,25 +1,20 @@
 import { worldTelemetry } from "../src/test/world.ts";
-import { testSimulation } from "../src/test/index.ts";
+import { testSimulation, testEvents, serversOf, TestObjectStore } from "../src/test/index.ts";
 import { users } from "./fixture/user.ts";
-import { Transaction } from "@destack/db";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { Scope, RequestId } from "@destack/sync";
 import { AccessContext, Caller, principal } from "@destack/access";
-import type { DatabaseConnection } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { TestDatabase } from "@destack/db/test";
 import { Identifier, schema } from "@destack/schema";
 import { testCallKey } from "@destack/object/test";
 import { ObjectClient, ObjectConnection } from "../src/client/index.ts";
-import { defineObject, field } from "../src/index.ts";
-import { testEvents, serversOf } from "../src/test/index.ts";
+import { defineObject, field, tablesOf, shareable } from "../src/index.ts";
 import { serveNotes, spaceId } from "./fixture/device.ts";
 import { note, notebook } from "../src/test/note.ts";
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { Simulation } from "@destack/environment/simulation";
-import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
-import { TestObjectStore } from "../src/test/index.ts";
-import { shareable } from "../src/index.ts";
 import { argument, plural, t } from "@destack/locale";
 import { testWorldOptions } from "@destack/test/world";
 
@@ -60,7 +55,7 @@ test("send a client's writes on to the machine serving a moved scope", async () 
     const target = await serveNotes({ simulation, node: "target" });
     const { clock, environment } = source;
     const moved = Identifier.create("machine", world);
-    await Transaction.run(source.database, (transaction) =>
+    await source.database.commit((transaction) =>
         Scope.fence(transaction, spaceId, moved, clock.now()),
     );
 
@@ -120,7 +115,7 @@ test("follow a moved scope to its machine on a socket of its own, leaving the or
     const { clock, environment } = source;
     const world = testSimulation().environment("test");
     const moved = Identifier.create("machine", world);
-    await Transaction.run(source.database, (transaction) =>
+    await source.database.commit((transaction) =>
         Scope.fence(transaction, spaceId, moved, clock.now()),
     );
 
@@ -203,7 +198,7 @@ test("allow the calls of moving permissions in a fenced scope and refuse every o
     const [created] = await mutate(marker.call("create", { spaceId, label: "draft" }));
     const { id } = schema.looseObject({ id: schema.string() }).parse(created);
     const moved = Identifier.create("machine", world);
-    await Transaction.run(database, (transaction) =>
+    await database.commit((transaction) =>
         Scope.fence(transaction, spaceId, moved, world.clock.now()),
     );
 

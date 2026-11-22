@@ -1,4 +1,5 @@
 export * from "./store.ts";
+export { EventView } from "../query/event.ts";
 export { ObjectSource } from "./source.ts";
 export { ObjectSink } from "./sink.ts";
 export { Outbox } from "./outbox.ts";

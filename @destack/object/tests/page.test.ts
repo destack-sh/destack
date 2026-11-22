@@ -1,5 +1,5 @@
 import { worldTelemetry } from "../src/test/world.ts";
-import { testSimulation } from "../src/test/index.ts";
+import { testSimulation, testEvents, TestObjectStore } from "../src/test/index.ts";
 import { users } from "./fixture/user.ts";
 import { implementPackage } from "../src/server/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
@@ -10,13 +10,11 @@ import { PackageVersion } from "@destack/package";
 import { present, schema, type Identifier } from "@destack/schema";
 import { createClient, type ClientOptions } from "@destack/object/client";
 import { RequestId, ObjectReference, Scope } from "@destack/sync";
-import { anyone, LinkSecret, principal, Role } from "@destack/access";
+import { anyone, principal, LinkSecret, Role } from "@destack/access";
 import { page, pageDatabase, pagesPackage } from "./fixture/page.ts";
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { testCallKey } from "@destack/object/test";
-import { testEvents } from "../src/test/index.ts";
 import { Environment } from "@destack/environment";
-import { TestObjectStore } from "../src/test/index.ts";
 
 /** The space with the pages. */
 const spaceId = schema.identifier("space").parse(`space-01996ab0-0000-7000-8000-00000000a00b`);

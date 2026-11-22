@@ -13,10 +13,10 @@ import {
     ne,
     TABLE,
     text,
-    type DatabaseConnection,
     type Select,
     textEnum,
 } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 
 import { schema, Version } from "@destack/schema";
 

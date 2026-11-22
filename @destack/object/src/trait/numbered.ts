@@ -1,12 +1,12 @@
-import { type Snapshot, defineTable, identifier, integer, text, unique } from "@destack/db";
+import { defineTable, identifier, integer, text, unique } from "@destack/db";
+import type { Snapshot } from "@destack/db/database";
 import { present, schema } from "@destack/schema";
 import { field } from "../field/field.ts";
 import { ObjectError } from "../error/error.ts";
 import type { CallLocation, MethodContext } from "../method/context.ts";
 import { Execution, type StoreExecution } from "../method/execution.ts";
 import type { ObjectDefinition, ObjectType } from "../object/object.ts";
-import type { Erasure, TraitBehavior } from "./trait.ts";
-import { callableTrait, derivePermissions } from "./trait.ts";
+import { type Erasure, type TraitBehavior, callableTrait, derivePermissions } from "./trait.ts";
 
 /** The permission whose holders set numbers themselves, as an import keeping its numbers. */
 const ASSIGN = "assign";

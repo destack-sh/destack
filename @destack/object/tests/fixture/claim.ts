@@ -1,6 +1,6 @@
 import { none, universe } from "@destack/access";
 import { TestAccess } from "@destack/access/test";
-import type { DatabaseConnection } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf, TestObjectStore } from "../../src/test/index.ts";
 import { Scope } from "@destack/sync";

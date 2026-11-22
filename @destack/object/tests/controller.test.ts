@@ -1,24 +1,27 @@
 import { worldTelemetry } from "../src/test/world.ts";
-import { TestObjectStore } from "../src/test/index.ts";
-import { testSimulation } from "../src/test/index.ts";
+import {
+    TestObjectStore,
+    testSimulation,
+    testEvents,
+    serversOf,
+    auditedCalls,
+    settleControl,
+} from "../src/test/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { testCallKey } from "@destack/object/test";
 import { TestDatabase } from "@destack/db/test";
-import { testEvents, serversOf } from "../src/test/index.ts";
 import { AccessContext, Caller, none, principal, relation } from "@destack/access";
 
 import { Scope, RequestId } from "@destack/sync";
-import { asc, ControlLoop, defineDatabase, now } from "@destack/db";
+import { asc, defineDatabase, now } from "@destack/db";
+import { ControlLoop } from "@destack/db/database";
 import { Failure } from "@destack/error";
 import { schema, present, type Identifier } from "@destack/schema";
 
-import { defineObject, field } from "../src/index.ts";
+import { defineObject, field, tablesOf, controlled } from "../src/index.ts";
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { userContext, users } from "./fixture/user.ts";
-import { auditedCalls, settleControl } from "../src/test/index.ts";
-import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
-import { controlled } from "../src/index.ts";
 import { argument, plural, t } from "@destack/locale";
 
 /** The space with the reminders. */

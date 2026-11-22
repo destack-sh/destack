@@ -1,19 +1,24 @@
+import { ReplicaSet, RequestId, Scope } from "@destack/sync";
 import type { Environment } from "@destack/environment";
-import { testSimulation } from "../test/index.ts";
+import {
+    testSimulation,
+    followReplicas,
+    serversOf,
+    testEvents,
+    TestObjectStore,
+} from "../test/index.ts";
 import { testCallKey } from "../test/context.ts";
 import { TestDatabase } from "@destack/db/test";
 import { expect, onTestFinished, test, refusal } from "@destack/test";
 import { AccessContext, Caller, none, principal, relation } from "@destack/access";
 import { TestAccess } from "@destack/access/test";
-import { type DatabaseConnection, defineDatabase, eq } from "@destack/db";
-import { RequestId, Replica, Scope } from "@destack/sync";
+import { defineDatabase, eq } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { present, schema } from "@destack/schema";
 import { defineObject, defineShape, field, QUERIES_PUBLICATION, Shape } from "../index.ts";
-import { followReplicas, serversOf, testEvents } from "../test/index.ts";
 import { ObjectStore } from "./index.ts";
 import { tablesOf } from "../stack/db.ts";
 import objectPackage from "../package.ts";
-import { TestObjectStore } from "../test/index.ts";
 import { argument, plural, t } from "@destack/locale";
 
 /** The space whose store replicates the people it joined. */
@@ -185,8 +190,7 @@ async function serveHome(world: Environment) {
         await running;
     });
     expect(keys).toEqual([universeKey]);
-    await Replica.wait(
-        replicating.database,
+    await new ReplicaSet(replicating.database).wait(
         Scope.universe.id,
         await home.database.log.position(),
         world.clock.timeout(5000),

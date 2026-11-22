@@ -1,8 +1,8 @@
-import { LineExporter } from "@destack/environment";
+import { LineExporter } from "@destack/environment/line";
 import { Simulation } from "@destack/environment/simulation";
 import { PackageVersion, type PackageId } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
-import {} from "@destack/sync";
+import type {} from "@destack/sync";
 import { afterAll, expect, onTestFinished, test } from "@destack/test";
 import { Caller, principal } from "@destack/access";
 import { schema } from "@destack/schema";

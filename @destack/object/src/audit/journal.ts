@@ -1,17 +1,11 @@
 import { Failure } from "@destack/error";
-import {
-    asc,
-    eq,
-    isNull,
-    sql,
-    lte,
-    type DatabaseConnection,
-    type TransactionOptions,
-} from "@destack/db";
-import { type EventKind, type EventStore, EventTime } from "@destack/event";
+import { asc, eq, isNull, sql, lte } from "@destack/db";
+import type { DatabaseConnection, TransactionOptions } from "@destack/db/database";
+import { type EventKind, EventTime } from "@destack/event";
+import type { EventStore } from "@destack/event/store";
 import { canonicalize, Digest, Duration } from "@destack/schema";
 import { CallError } from "../error/call.ts";
-import { type CallKey } from "./key.ts";
+import type { CallKey } from "./key.ts";
 import {
     REQUEST_LIFETIME_MILLISECONDS,
     RequestId,

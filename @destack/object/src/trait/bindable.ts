@@ -1,4 +1,4 @@
-import { accessRelationship, principal, Relationship } from "@destack/access";
+import { principal, accessRelationship, Relationship } from "@destack/access";
 import { schema } from "@destack/schema";
 import { Subject } from "@destack/sync";
 import { MethodContext } from "../method/context.ts";

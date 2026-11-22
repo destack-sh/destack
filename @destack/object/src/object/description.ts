@@ -1,7 +1,7 @@
 import { Message } from "@destack/locale";
 import * as accessExports from "@destack/access";
 import { Policy, PolicySubject } from "@destack/access";
-import { DatabaseState, TABLE, type Table } from "@destack/db";
+import { TABLE, type Table, DatabaseState } from "@destack/db";
 import {
     defineKind,
     graph,
@@ -48,7 +48,7 @@ import * as layoutExports from "../layout/index.ts";
 import * as presentationExports from "../presentation/index.ts";
 import * as procedureExports from "../procedure/index.ts";
 import * as healthExports from "../health/index.ts";
-import * as bodyExports from "../server/body.ts";
+import * as bodyExports from "../http/body.ts";
 import * as hmacExports from "../webhook/hmac.ts";
 import * as webhookExports from "../webhook/standard.ts";
 

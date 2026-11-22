@@ -16,13 +16,10 @@ import {
     type RowSchema,
     type TargetFields,
 } from "../method/procedure.ts";
-import { ObjectRecord } from "../method/record.ts";
 import { Step } from "../method/step.ts";
 import type { ObjectType } from "../object/object.ts";
-import { idColumn } from "../field/field.ts";
-import type { FieldColumn } from "../field/field.ts";
-import type { TraitBehavior } from "./trait.ts";
-import { callableTrait } from "./trait.ts";
+import { idColumn, type FieldColumn } from "../field/field.ts";
+import { type TraitBehavior, callableTrait } from "./trait.ts";
 
 /** The parent a tree node refers to, null for a root. */
 export const PARENT = schema.string().nullable();
@@ -332,7 +329,7 @@ export const Nested = {
         // require a receiving parent outside the subtree
         if (parent !== undefined) {
             if (!execution.isPredicted) {
-                await ObjectRecord.requireReceiving(context, execution, parent);
+                await execution.store.record.requireReceiving(context, execution, parent);
             }
             await Nested.requireOutside(context, parent.id);
         }

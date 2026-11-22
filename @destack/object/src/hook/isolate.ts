@@ -1,7 +1,7 @@
 import type { FamilyFailure } from "@destack/error";
 import { PackageManifest } from "@destack/package/manifest";
 import { ObjectError } from "../error/error.ts";
-import { AccessContext, Caller, Decision, principal } from "@destack/access";
+import { AccessContext, Caller, principal, Decision } from "@destack/access";
 import { BranchEntry } from "../branch/entry.ts";
 import { DatabaseError, type DatabaseReason, type Row, TABLE } from "@destack/db";
 import type { EventKeyFields } from "@destack/event";

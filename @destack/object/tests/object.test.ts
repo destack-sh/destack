@@ -1,24 +1,34 @@
-import { TestObjectStore } from "../src/test/index.ts";
+import { TestObjectStore, testSimulation, testEvents, serversOf } from "../src/test/index.ts";
 import type { Environment } from "@destack/environment";
-import { testSimulation } from "../src/test/index.ts";
 import { expect, onTestFinished, refusal, single, test } from "@destack/test";
 import { TestDatabase } from "@destack/db/test";
-import { type DatabaseConnection, defineDatabase, eq } from "@destack/db";
+import { defineDatabase, eq } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { testCallKey } from "@destack/object/test";
-import { testEvents, serversOf } from "../src/test/index.ts";
 import { present, schema, type JsonObject } from "@destack/schema";
-import { defineObject, field, ObjectPolicy, type ObjectType } from "../src/index.ts";
+import {
+    defineObject,
+    field,
+    ObjectPolicy,
+    type ObjectType,
+    tablesOf,
+    archivable,
+    controlled,
+    nested,
+    provisioned,
+    recoverable,
+} from "../src/index.ts";
 import { installation } from "../src/test/installed.ts";
 import {
-    accessRole,
     contained,
-    Manager,
     principal,
     relation,
     through,
     none,
     union,
     Caller,
+    accessRole,
+    Manager,
 } from "@destack/access";
 import { RequestId, Scope } from "@destack/sync";
 import { ObjectStore, Stack } from "../src/server/index.ts";
@@ -27,9 +37,7 @@ import { ObjectDescription } from "../src/object/description.ts";
 import { label, note, objectDatabase, task } from "./schema.ts";
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { userContext, users } from "./fixture/user.ts";
-import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
-import { archivable, controlled, nested, provisioned, recoverable } from "../src/index.ts";
 import { argument, plural, t } from "@destack/locale";
 
 /** The space the declared objects live in. */

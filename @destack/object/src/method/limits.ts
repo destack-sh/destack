@@ -1,4 +1,5 @@
-import { Bucket, type DatabaseConnection } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
+import { Bucket } from "@destack/db";
 import { canonicalize, Duration, type JsonValue, schema } from "@destack/schema";
 import type { Subject } from "@destack/sync";
 

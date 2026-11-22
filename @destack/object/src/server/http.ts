@@ -1,4 +1,4 @@
-import type { DigestCrypto } from "@destack/schema";
+import { type DigestCrypto, Uuid } from "@destack/schema";
 import type { PackageId } from "@destack/package";
 import { type Health, STARTING_RETRY_MILLISECONDS } from "./health.ts";
 import { ObjectError } from "../error/error.ts";
@@ -28,7 +28,6 @@ import {
 import type { Hibernation, SocketHandler } from "../workload/socket.ts";
 import type { ProcedureContext } from "./procedure.ts";
 import { copyRequest, type Environment, LONGEST_DELAY } from "@destack/environment";
-import { Uuid } from "@destack/schema";
 
 import type {} from "@destack/package/import-meta";
 

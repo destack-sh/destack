@@ -1,15 +1,14 @@
-import * as access from "@destack/access";
 import { ObjectError } from "../error/error.ts";
+import * as access from "@destack/access";
 import { CallError } from "../error/call.ts";
 
 import {
-    ACCESS_MAPPINGS,
     type AccessExpression,
-    Authorizer,
     Policy,
     principal,
     type RelationInput,
     relationsOf,
+    ACCESS_MAPPINGS,
     type TableMapping,
 } from "@destack/access";
 import type { PackageVersion, PackageId } from "@destack/package";
@@ -18,10 +17,10 @@ import { Roles } from "../trait/shareable.ts";
 import { derivePermissions, type TraitObject, type TraitPolicy } from "../trait/trait.ts";
 import { Casing } from "./name.ts";
 import { AccessName, ObjectReference, ObjectTypeReference, Scope, Subject } from "@destack/sync";
-import { type DatabaseConnection, TABLE, type Table } from "@destack/db";
+import { TABLE, type Table } from "@destack/db";
 import { present, schema } from "@destack/schema";
-import { type MethodContext } from "../method/context.ts";
-import { type Method } from "../method/method.ts";
+import type { MethodContext } from "../method/context.ts";
+import type { Method } from "../method/method.ts";
 import { Page } from "../method/page.ts";
 import {
     ObjectPermissions,
@@ -125,63 +124,6 @@ export const ObjectPolicy = {
             ...propagated,
             ...placed,
         };
-    },
-
-    /** Build the authorizer of object types over the durable database its SQL runs in. */
-    authorizer(
-        objects: readonly ObjectType[],
-        others: readonly (Policy | ObjectType | TableMapping)[],
-        database: Pick<DatabaseConnection, "tables" | "replicates">,
-        options: {
-            /** The one partition whose scopes' access the database stores, else none. */
-            readonly partition?: string | undefined;
-            /** The mappings of subject set types, registered once a policy grants their sets. */
-            readonly sets?: readonly TableMapping[];
-            /** The package serving each type, by type key. */
-            readonly servers?: ReadonlyMap<string, PackageId>;
-        } = {},
-    ): Authorizer {
-        // collect each object type once and the types they relate to
-        const types: ObjectType[] = [];
-        for (const type of [...objects, ...others.filter((other) => other instanceof ObjectType)]) {
-            if (!types.some((each) => each.same(type))) {
-                types.push(type);
-            }
-        }
-        const related = [
-            ...new Set(
-                types
-                    .flatMap((object) => object.related)
-                    .filter((target) => !types.some((type) => type.same(target))),
-            ),
-        ];
-
-        return new Authorizer(
-            [
-                ...objects.flatMap((object) => [
-                    object.policy,
-                    ...object.scopes
-                        .flatMap((scope) => [scope, ...scope.ancestors])
-                        .map((scope) => scope.policy),
-                ]),
-                ...others.map((other) => (other instanceof Policy ? other : other.policy)),
-                ...related.map((object) => object.policy),
-            ],
-            [
-                ...[...types, ...related].map((object) => object.mapping),
-                ...others.flatMap((other) =>
-                    other instanceof Policy || other instanceof ObjectType ? [] : [other],
-                ),
-            ],
-            {
-                // compile only against the tables the database declares, as its SQL runs there alone
-                replicated: new Set(database.tables.filter((table) => database.replicates(table))),
-                tables: new Set(database.tables),
-                ...(options.partition === undefined ? {} : { partition: options.partition }),
-                ...(options.sets === undefined ? {} : { sets: options.sets }),
-                ...(options.servers === undefined ? {} : { servers: options.servers }),
-            },
-        );
     },
 
     /** Decide a subject's permission on an object the call's scope decides. */
@@ -302,9 +244,10 @@ export const ObjectPolicy = {
     async requireObject(
         object: ObjectReference,
         { deleted }: { readonly deleted: "exclude" | "include" },
-        { store, view }: StoreExecution,
+        execution: StoreExecution,
     ): Promise<void> {
         // read the object through its type's table, refusing a type the store does not serve
+        const { store } = execution;
         const key = ObjectTypeReference.key(object);
         const type = store.objects.find(
             (served) => ObjectTypeReference.key(served.typeReference) === key,
@@ -312,7 +255,7 @@ export const ObjectPolicy = {
         const [row] =
             type === undefined
                 ? []
-                : await view
+                : await Execution.snapshot(execution)
                       .read(type.table)
                       .findMany({ where: { id: object.id, scope: object.scope } });
 

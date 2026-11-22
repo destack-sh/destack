@@ -1,7 +1,7 @@
 import { type Identifier, schema } from "@destack/schema";
-import { Snapshot, Transaction } from "@destack/db";
-import type { Row, RowChange } from "@destack/db";
-import type { Manager, Permission } from "@destack/access";
+import type { Snapshot, Transaction, RowChange } from "@destack/db/database";
+import type { Row } from "@destack/db";
+import type { Permission, Manager } from "@destack/access";
 import type { ObjectType } from "../object/object.ts";
 import type { Authorization } from "../server/authorization.ts";
 import type { ObjectStore } from "../server/store.ts";
@@ -19,8 +19,8 @@ export type Execution = {
     readonly store: ObjectStore;
     /** The transaction of the call's writes, committed or recorded as a prediction. */
     readonly transaction: Transaction;
-    /** The call's reads: its transaction, or a snapshot at a requested position or branch. */
-    readonly view: Transaction | Snapshot;
+    /** The snapshot a call reads at a requested position or branch, absent for its transaction. */
+    readonly view?: Snapshot;
     /** The identifier the call's record takes. */
     readonly callId: Identifier<"call">;
     /** The call that ran this one inside its transaction, absent for a sent call. */
@@ -56,9 +56,7 @@ export const Execution = {
 
     /** Read the snapshot an execution's reads see: its transaction's, or the requested view. */
     snapshot(execution: Execution): Snapshot {
-        const { view } = execution;
-
-        return view instanceof Transaction ? view.view() : view;
+        return execution.view ?? execution.transaction.view();
     },
 
     /** Write rows through the store's transaction, clearing removed access at the home. */

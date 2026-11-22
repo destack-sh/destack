@@ -1,15 +1,6 @@
 import { ObjectError } from "../error/error.ts";
-import {
-    and,
-    type Controller,
-    eq,
-    isNotNull,
-    isNull,
-    lte,
-    now,
-    or,
-    type DatabaseConnection,
-} from "@destack/db";
+import { and, eq, isNotNull, isNull, lte, now, or } from "@destack/db";
+import type { Controller, DatabaseConnection } from "@destack/db/database";
 import { type JsonValue, Uuid } from "@destack/schema";
 
 import type { MethodContext } from "../method/context.ts";

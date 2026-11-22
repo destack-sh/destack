@@ -1,14 +1,7 @@
 import { Failure } from "@destack/error";
 import { accessRelationship } from "@destack/access";
-import {
-    and,
-    type BlobStore,
-    type DatabaseConnection,
-    eq,
-    now,
-    Table,
-    type Watch,
-} from "@destack/db";
+import { and, eq, now, Table } from "@destack/db";
+import type { BlobStore, DatabaseConnection, Watch } from "@destack/db/database";
 import {
     Address,
     Plan,
@@ -19,7 +12,7 @@ import {
 } from "@destack/resource";
 import { ResourceError } from "@destack/resource/error";
 import { nth, Digest, Duration, type Identifier, present, schema, zip } from "@destack/schema";
-import { type ObjectController, type ObjectReconciliation } from "../object/controller.ts";
+import type { ObjectController, ObjectReconciliation } from "../object/controller.ts";
 import {
     AWAITING_APPROVAL,
     type Condition,
@@ -28,9 +21,9 @@ import {
     SYNCED,
     SYNCED_CONDITION,
 } from "../object/condition.ts";
-import { type ObjectType } from "../object/object.ts";
+import type { ObjectType } from "../object/object.ts";
 import { CONSUMER } from "../trait/bindable.ts";
-import { type ResourceType, type Resource } from "../trait/provisioned.ts";
+import type { ResourceType, Resource } from "../trait/provisioned.ts";
 import type { MethodContext } from "../method/context.ts";
 import type { Kind, Provisioning } from "@destack/package";
 

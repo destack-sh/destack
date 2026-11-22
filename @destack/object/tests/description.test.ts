@@ -41,6 +41,8 @@ import {
     ObjectDescription,
     ObjectType,
     ObjectTypePool,
+    nested,
+    provisioned,
 } from "../src/index.ts";
 import { claim } from "./fixture/claim.ts";
 import { ExportIndex } from "../src/object/description.ts";
@@ -48,7 +50,7 @@ import * as objectRoot from "../src/index.ts";
 import * as accessRoot from "@destack/access";
 import { Execution } from "../src/method/execution.ts";
 import { expect, test } from "@destack/test";
-import { declareState, TABLE } from "@destack/db";
+import { TABLE, declareState } from "@destack/db";
 import { principal, through } from "@destack/access";
 import { argument, plural, t } from "@destack/locale";
 import { ResourceDeclaration } from "@destack/resource";
@@ -56,7 +58,6 @@ import { canonicalize, nth, schema, toJsonSchema } from "@destack/schema";
 import { Chunk } from "../src/text/index.ts";
 import { space } from "../src/test/space.ts";
 import { comment, folder, label, note, task, taskCopy, taskVersion, team, user } from "./schema.ts";
-import { nested, provisioned } from "../src/index.ts";
 import { defineKind } from "@destack/package";
 
 /** The bucket the sample's file field stores its files in. */

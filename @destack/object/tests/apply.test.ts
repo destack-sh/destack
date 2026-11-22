@@ -1,16 +1,15 @@
+import { notesPackage } from "../src/test/note.ts";
 import { principal } from "@destack/access";
 import { PackageVersion } from "@destack/package";
 import { schema } from "@destack/schema";
 import { RequestId, Scope } from "@destack/sync";
 import { expect, test } from "@destack/test";
-import { defineObject, definePackage, field } from "../src/index.ts";
+import { defineObject, definePackage, field, shareable } from "../src/index.ts";
 import { implementPackage } from "../src/server/index.ts";
 import { TestObjectStore, testSimulation, testIdentity } from "../src/test/index.ts";
-import { notesPackage } from "../src/test/note.ts";
 import { pagesPackage } from "./fixture/page.ts";
 import { space } from "../src/test/space.ts";
 import { users } from "./fixture/user.ts";
-import { shareable } from "../src/index.ts";
 import { argument, plural, t } from "@destack/locale";
 
 /** The handle of the labels package, which the store serves only once applied. */

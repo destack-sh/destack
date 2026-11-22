@@ -6,13 +6,13 @@ import { type Duration, schema } from "@destack/schema";
 import type { JsonCondition } from "@destack/db";
 import { testCallKey } from "@destack/object/test";
 import { TestDatabase } from "@destack/db/test";
-import type { DatabaseConnection } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { CallEvent, defineAuditAction } from "../../src/index.ts";
 import { AuditRecorder, Journal } from "../../src/server/index.ts";
 import { call, tablesOf } from "../../src/index.ts";
 import objectPackage from "../../src/package.ts";
 import { MemoryBucket } from "@destack/bucket/test";
-import { DatabasePersonalKeyring, EventStore } from "@destack/event";
+import { DatabasePersonalKeyring, EventStore } from "@destack/event/store";
 import { LocalKeyring } from "@destack/identity";
 
 import { Scope } from "@destack/sync";

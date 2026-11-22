@@ -1,16 +1,16 @@
-import { defineKind } from "@destack/package";
-import type { ObjectStore } from "../server/store.ts";
-import type { ControllerSet } from "@destack/db";
-import type { Environment } from "@destack/environment";
-import { type BlobStore, type DatabaseConnection, type Table } from "@destack/db";
-import type { Identifier, JsonValue } from "@destack/schema";
-import type { ObjectRemote } from "../replica/remote.ts";
 import {
+    defineKind,
     type SandboxName,
     type ComputeDefinition,
     ModuleMetadata,
     type PackageId,
 } from "@destack/package";
+import type { ObjectStore } from "../server/store.ts";
+import type { ControllerSet, BlobStore, DatabaseConnection } from "@destack/db/database";
+import type { Environment } from "@destack/environment";
+import type { Table } from "@destack/db";
+import type { Identifier, JsonValue } from "@destack/schema";
+import type { ObjectRemote } from "../replica/remote.ts";
 import type { Declaration } from "@destack/package/declare";
 import {
     type BuildLayer,
@@ -21,7 +21,7 @@ import {
 import type { ResourceContext } from "@destack/resource/context";
 import type { PackageHandler } from "../server/index.ts";
 import type { Deriver } from "@destack/identity";
-import { type CallKey } from "../audit/key.ts";
+import type { CallKey } from "../audit/key.ts";
 import type { Hibernation, SocketHandler } from "./socket.ts";
 
 /** The export of a server output's workload entry: the workload its runtime hosts. */

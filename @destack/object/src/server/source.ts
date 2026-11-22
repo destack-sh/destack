@@ -2,35 +2,35 @@ import { ObjectError } from "../error/error.ts";
 import { Shape } from "../replica/shape.ts";
 import {
     AccessContext,
+    Caller,
+    CONTAINED,
+    Credential,
+    principal,
+    CHAIN_PUBLICATION,
+    decisionTables,
     accessRelationship,
     accessRole,
     accessRolePermission,
-    Caller,
-    CHAIN_PUBLICATION,
-    ChainParameters,
-    CONTAINED,
-    Credential,
-    decisionTables,
-    principal,
     Relationship,
 } from "@destack/access";
+import { ChainParameters } from "@destack/access/authorizer";
 import { Scope, ObjectReference, RequestId, Subject, SyncError } from "@destack/sync";
-import type { JsonObject, JsonValue } from "@destack/schema";
 import {
-    type Condition,
-    type DatabaseConnection,
-    LogPosition,
-    Snapshot,
-    TABLE,
-    type Table,
-    Transaction,
-} from "@destack/db";
+    type JsonObject,
+    type JsonValue,
+    canonicalize,
+    Duration,
+    present,
+    schema,
+} from "@destack/schema";
+import { type Condition, TABLE, type Table, LogPosition } from "@destack/db";
+import { type DatabaseConnection, Transaction } from "@destack/db/database";
 
-import { canonicalize, Duration, present, schema } from "@destack/schema";
 import { CallError } from "../error/call.ts";
-import { type RequestContext } from "./context.ts";
+import type { RequestContext } from "./context.ts";
 import { RelationGraph } from "../query/query.ts";
 import * as sync from "@destack/sync";
+import * as syncDataflow from "@destack/sync/dataflow";
 import {
     ACCESS_PUBLICATION,
     EPHEMERAL_PUBLICATION,
@@ -80,7 +80,7 @@ export class ObjectSource {
             // follow every durable table for a follower without queries
             const named = parameters.queries;
             if (named === undefined) {
-                return new sync.Replica({
+                return new syncDataflow.Replica({
                     name,
                     scope,
                     tables: this.store.durable.map((object) => object.table),
@@ -125,7 +125,7 @@ export class ObjectSource {
                 ]),
             );
 
-            return new sync.Replica({
+            return new syncDataflow.Replica({
                 name,
                 scope,
                 tables,
@@ -143,7 +143,7 @@ export class ObjectSource {
         parameters: EphemeralParameters,
         audience: "caller",
         replica: ({ name, scope, parameters }) =>
-            new sync.Replica({
+            new syncDataflow.Replica({
                 name,
                 scope,
                 tables:
@@ -159,7 +159,7 @@ export class ObjectSource {
         parameters: QueriesParameters,
         audience: "caller",
         replica: ({ name, scope, parameters }) =>
-            new sync.Replica({
+            new syncDataflow.Replica({
                 name,
                 scope,
                 tables:
@@ -185,7 +185,8 @@ export class ObjectSource {
         name: ACCESS_PUBLICATION,
         parameters: schema.object({}),
         audience: "caller",
-        replica: ({ name, scope }) => new sync.Replica({ name, scope, tables: decisionTables }),
+        replica: ({ name, scope }) =>
+            new syncDataflow.Replica({ name, scope, tables: decisionTables }),
     });
 
     /** Stream the replicas of a store's objects. */
@@ -439,7 +440,7 @@ export class ObjectSource {
     /** Decide whether a caller outside a scope has `replicate` on it, as a relation grants it. */
     async #mayReplicate(target: string, context: RequestContext): Promise<boolean> {
         // decide the scope's permission, none for a scope type without replicas of its chain
-        const scope = await Scope.object(Snapshot.live(this.store.database), target);
+        const scope = await Scope.object(this.store.database.snapshot(), target);
         const policy = this.store.authorizer.policy(scope);
         if (!Object.hasOwn(policy.definition.permissions, REPLICATE)) {
             return false;
@@ -479,7 +480,7 @@ export class ObjectSource {
         );
 
         // add the scope's permission, and require the first one
-        const scope = await Scope.object(Snapshot.live(this.store.database), target);
+        const scope = await Scope.object(this.store.database.snapshot(), target);
         const policy = this.store.authorizer.policy(scope);
         const granting = [...personal];
         if (Object.hasOwn(policy.definition.permissions, REPLICATE)) {
@@ -585,7 +586,7 @@ export class ObjectSource {
         }
 
         // read the principal's row, and stand for the principal inside the scope of the row
-        const [row] = await Snapshot.live(database).select(object.table, ["id"], [[target]]);
+        const [row] = await database.snapshot().select(object.table, ["id"], [[target]]);
         if (row === undefined) {
             return undefined;
         }
@@ -660,7 +661,7 @@ export class ObjectSource {
         // follow the requested queries of rows homed elsewhere upstream for as long as the stream lasts
         const demand = this.#followQueries(scope);
         await demand?.take(subscription.parameters);
-        const follow = (feed: sync.Feed) =>
+        const follow = (feed: syncDataflow.Feed) =>
             this.#replicating(feed, {
                 subscription,
                 caller: Caller.principal(reader),
@@ -778,7 +779,7 @@ export class ObjectSource {
 
     /** Follow queries over their scope's chain and the replicas a caller sees below it. */
     async *#replicating(
-        feed: sync.Feed,
+        feed: syncDataflow.Feed,
         followed: {
             readonly subscription: sync.Subscription;
             readonly caller: Subject | undefined;
@@ -798,13 +799,13 @@ export class ObjectSource {
         const { subscription, caller, audience, generation, compile, signal } = followed;
         const { database } = this.store;
         const { scope } = subscription;
-        let held = await sync.Replica.tables(database, scope, caller);
+        let held = await new sync.ReplicaSet(database).tables(scope, caller);
         let parameters = subscription.parameters;
         const queries = (requested: JsonObject) =>
             ObjectSource.#withReplicas(compile(requested), held);
 
         // reshape the stream once the replicas the reader holds change, or the scope's chain grows or moves
-        let stream: sync.Stream | undefined;
+        let stream: syncDataflow.Stream | undefined;
         const names = new Set(
             [sync.replica, sync.replicaScope, sync.replicaSubscription].map(
                 (table) => table[TABLE].sqlName,
@@ -820,7 +821,7 @@ export class ObjectSource {
                     const current = canonicalize(held);
                     const chain = canonicalize(audience.chain);
                     if ([...tables].some((table) => names.has(table))) {
-                        held = await sync.Replica.tables(database, scope, caller);
+                        held = await new sync.ReplicaSet(database).tables(scope, caller);
                     }
                     if (tables.has(scopes)) {
                         await audience.refresh();
@@ -844,7 +845,7 @@ export class ObjectSource {
 
         // follow the queries, moving to a request's changed parameters in place, until the watch fails
         const { previous } = followed;
-        const request: sync.StreamRequest | undefined =
+        const request: syncDataflow.StreamRequest | undefined =
             followed.requested === undefined
                 ? undefined
                 : {
@@ -962,7 +963,7 @@ export class ObjectSource {
             this.store.external,
             Object.values(queries ?? {}).map((query) => query.object),
         );
-        const feed = new sync.Feed(
+        const feed = new syncDataflow.Feed(
             await external.open(scope),
             external.objects.map((object) => object.table),
             {},
@@ -1010,7 +1011,7 @@ export class ObjectSource {
                     where: Relationship.heldBy(subjects),
                 },
             };
-            const options = this.#feedOptions(subscription, sync.EVERYONE, chain, context, {
+            const options = this.#feedOptions(subscription, syncDataflow.EVERYONE, chain, context, {
                 requested,
                 compile: () => queries,
                 previous: undefined,
@@ -1154,7 +1155,7 @@ export class ObjectSource {
     }
 
     /** Build the replica a request of a served publication asks for. */
-    buildReplica(request: sync.SubscriptionRecord): sync.Replica {
+    buildReplica(request: sync.SubscriptionRecord): syncDataflow.Replica {
         return this.publication(request).replica(request);
     }
 
@@ -1316,7 +1317,8 @@ export class ObjectSource {
         const isElsewhere = outbox !== undefined && !this.store.isOwn(scope);
 
         // relay a replica the store has, else stream its own rows
-        const has = async () => (await sync.Replica.origin(database, name, scope)) !== undefined;
+        const has = async () =>
+            (await new sync.ReplicaSet(database).origin(name, scope)) !== undefined;
         if (!isFollowed && !isElsewhere && !(await has())) {
             return false;
         }
@@ -1341,7 +1343,7 @@ export class ObjectSource {
     /** Stream the store's own rows to an in-process follower, following its request. */
     async *#own(
         subscription: sync.Subscription,
-        replica: sync.Replica,
+        replica: syncDataflow.Replica,
         signal: AbortSignal,
         reshaped: ((parameters: JsonObject) => Promise<void>) | undefined,
     ): AsyncGenerator<sync.Page> {
@@ -1368,11 +1370,11 @@ export class ObjectSource {
         // read the chain of the store's replica of the scope, if it follows one
         const name = Shape.replicaName(QUERIES_PUBLICATION, subscription.scope);
         const { database } = this.store;
-        const followed = await sync.Replica.subscription(database, name, subscription.scope);
+        const followed = await new sync.ReplicaSet(database).subscription(name, subscription.scope);
         if (followed === undefined) {
             return {};
         }
-        const replica = new sync.Replica({ name, scope: subscription.scope, tables: [] });
+        const replica = new syncDataflow.Replica({ name, scope: subscription.scope, tables: [] });
 
         return { scopes: [...(await replica.chain(database))] };
     }
@@ -1417,7 +1419,10 @@ export class ObjectSource {
         // relay a replicated scope once its replica has a position, to followers other than its source
         const replica = publication.replica(request);
         const { previous, origin } = request;
-        await sync.Replica.requireRelayable(this.store.database, request.name, request.scope);
+        await new sync.ReplicaSet(this.store.database).requireRelayable(
+            request.name,
+            request.scope,
+        );
         if (origin !== undefined) {
             await replica.requireAcyclic(this.store.database, origin);
         }
@@ -1433,8 +1438,8 @@ export class ObjectSource {
             (parameters) => publication.replica({ ...request, parameters }).queries,
             serving.reshaped,
         );
-        let stream: sync.Stream | undefined;
-        const chain = await Scope.chain(Snapshot.live(this.store.database), request.target);
+        let stream: syncDataflow.Stream | undefined;
+        const chain = await Scope.chain(this.store.database.snapshot(), request.target);
         const targeted = chain.map((link) => link.object.id);
         const pages = this.store.feed.subscribe(replica.queries, after, signal, {
             audience,
@@ -1449,7 +1454,7 @@ export class ObjectSource {
 
         // send a relayed replica's home position with each completed page at this database's head
         const isRelayed =
-            (await sync.Replica.origin(this.store.database, request.name, request.scope)) !==
+            (await new sync.ReplicaSet(this.store.database).origin(request.name, request.scope)) !==
             undefined;
         yield* isRelayed ? this.#originating(pages, request, () => stream?.beat()) : pages;
     }
@@ -1470,13 +1475,17 @@ export class ObjectSource {
             for (;;) {
                 // wait for the pending page or a move of the relayed replica's mark
                 const moved = Promise.withResolvers<undefined>();
-                const unwatch = sync.Replica.watchMarked(database, request, () =>
+                const unwatch = new sync.ReplicaSet(database).watchMarked(request, () =>
                     moved.resolve(undefined),
                 );
                 next ??= iterator.next();
                 const result = await Promise.race([next, moved.promise]).finally(unwatch);
                 next = result === undefined ? next : undefined;
-                const isLive = sync.Replica.isLive(database, request.name, request.scope, lag);
+                const isLive = new sync.ReplicaSet(database).isLive(
+                    request.name,
+                    request.scope,
+                    lag,
+                );
 
                 // forward a moved home position, or beat a stream behind this log's head
                 if (result === undefined) {
@@ -1502,7 +1511,7 @@ export class ObjectSource {
                 else {
                     const page = result.value;
                     const origin = page.complete
-                        ? await sync.Replica.originAt(database, request, page.position)
+                        ? await new sync.ReplicaSet(database).originAt(request, page.position)
                         : undefined;
                     const sent = origin === undefined ? page : { ...page, origin };
                     caught = page.complete ? sent : undefined;
@@ -1524,7 +1533,7 @@ export class ObjectSource {
     ): Promise<sync.Page | undefined> {
         // forward nothing before a completed page, while stale, or for a mark that did not move
         const { database } = this.store;
-        const marked = sync.Replica.marked(database, request.name, request.scope)?.position;
+        const marked = new sync.ReplicaSet(database).marked(request.name, request.scope)?.position;
         const origin = caught?.origin;
         const isMoved =
             marked !== undefined &&
@@ -1573,12 +1582,12 @@ export class ObjectSource {
         // take the mark once the log has nothing past the position, else what the rows recorded
         const { database } = this.store;
         const head = await database.log.position();
-        const marked = sync.Replica.marked(database, request.name, request.scope);
+        const marked = new sync.ReplicaSet(database).marked(request.name, request.scope);
         const isCaughtUp = !LogPosition.isAfter(head, position);
 
         return marked !== undefined && isCaughtUp
             ? marked.position
-            : await sync.Replica.originAt(database, request, position);
+            : await new sync.ReplicaSet(database).originAt(request, position);
     }
 
     /** Require a chain replica's scope and claimed chain to contain the follower's scope. */
@@ -1609,10 +1618,7 @@ export class ObjectSource {
     async #containing(request: sync.Subscription, follower: ReplicaFollower): Promise<Set<string>> {
         // read the scopes containing the follower's
         const parent = "subject" in follower ? follower.parent : undefined;
-        const chain = await Scope.chain(
-            Snapshot.live(this.store.database),
-            parent ?? request.target,
-        );
+        const chain = await Scope.chain(this.store.database.snapshot(), parent ?? request.target);
         const scopes = new Set([
             request.target,
             Scope.universe.id,
@@ -1637,7 +1643,7 @@ export class ObjectSource {
         between: readonly string[],
     ): Promise<Set<string>> {
         // require each replicated scope's chain to contain the replicated scope
-        const chains = await Scope.chains(Snapshot.live(this.store.database), via);
+        const chains = await Scope.chains(this.store.database.snapshot(), via);
         const scopes = new Set<string>();
         for (const [relay, links] of chains) {
             const ids = links.map((link) => link.object.id);
@@ -1662,7 +1668,7 @@ export class ObjectSource {
     async requireReplicateVia(via: string, reader: AccessContext): Promise<void> {
         // require a scope type with replicas of its chain
         const { database } = this.store;
-        const scope = await Scope.object(Snapshot.live(database), via);
+        const scope = await Scope.object(database.snapshot(), via);
         const policy = this.store.authorizer.policy(scope);
         if (!Object.hasOwn(policy.definition.permissions, REPLICATE)) {
             throw ObjectError.of(
@@ -1685,12 +1691,12 @@ export class ObjectSource {
         publication: sync.Publication,
         request: sync.Subscription,
         follower: ReplicaFollower,
-    ): Promise<sync.Audience> {
+    ): Promise<syncDataflow.Audience> {
         // relay a chain's access rows to the store's principal whole, as their source published them to it
         const isPrincipal =
             "subject" in follower && Subject.same(follower.subject, this.store.principal);
         if (publication === this.accessPublication && isPrincipal) {
-            return sync.EVERYONE;
+            return syncDataflow.EVERYONE;
         }
 
         // read the scopes a follower outside the chains replicas them via
@@ -1741,7 +1747,7 @@ export class ObjectSource {
             const { tables } = publication.replica(request);
             const replicated = await Promise.all(
                 tables.map((table) =>
-                    sync.Replica.isReplicated(Snapshot.live(database), request.scope, table),
+                    sync.ReplicaSet.isReplicated(database.snapshot(), request.scope, table),
                 ),
             );
             const scope = replicated.every(Boolean) ? request.target : request.scope;
@@ -1755,7 +1761,7 @@ export class ObjectSource {
         scope: string,
         database: DatabaseConnection = this.store.database,
     ): Promise<ObjectReference[]> {
-        const links = await Scope.chain(Snapshot.live(database), scope);
+        const links = await Scope.chain(database.snapshot(), scope);
 
         return links.flatMap((link) => (link.object.id === Scope.universe.id ? [] : [link.object]));
     }
@@ -1871,7 +1877,7 @@ export class ObjectSource {
     /** Build a caller's replica feed options, following its request across its chain. */
     #feedOptions(
         subscription: sync.Subscription,
-        audience: sync.Audience,
+        audience: syncDataflow.Audience,
         scopes: readonly string[],
         context: RequestContext,
         serving: {
@@ -1879,7 +1885,7 @@ export class ObjectSource {
             readonly compile: (parameters: JsonObject) => Record<string, sync.Query>;
             readonly previous: Readonly<Record<string, sync.Query>> | undefined;
         },
-    ): sync.FeedOptions {
+    ): syncDataflow.FeedOptions {
         // follow the request, draining with the request's close
         const { refresh } = subscription;
         const { requested, compile, previous } = serving;
@@ -1901,7 +1907,7 @@ export class ObjectSource {
         parameters: JsonObject,
         compile: (parameters: JsonObject) => Record<string, sync.Query>,
         reshaped?: (parameters: JsonObject) => Promise<void>,
-    ): sync.StreamRequest | undefined {
+    ): syncDataflow.StreamRequest | undefined {
         return requested === undefined
             ? undefined
             : {
@@ -1955,7 +1961,7 @@ export class ObjectSource {
     /** Widen each query to the scopes a held replica has rows of a table of its tree for. */
     static #withReplicas(
         queries: Record<string, sync.Query>,
-        held: Awaited<ReturnType<typeof sync.Replica.tables>>,
+        held: Awaited<ReturnType<sync.ReplicaSet["tables"]>>,
     ): Record<string, sync.Query> {
         return Object.fromEntries(
             Object.entries(queries).map(([name, query]) => {
@@ -1980,7 +1986,7 @@ export class ObjectSource {
 }
 
 /** A follower's request as this source records it. */
-type Recorded = Pick<sync.StreamRequest, "key" | "lapsesAt">;
+type Recorded = Pick<syncDataflow.StreamRequest, "key" | "lapsesAt">;
 
 /** Who a relayed replica is decided for: a principal where its rows live, or the caller. */
 export type ReplicaFollower =

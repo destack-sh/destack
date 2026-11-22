@@ -1,5 +1,5 @@
-import type { RelationalQueryBuilder, Select, Table } from "@destack/db";
-import type { Decision, PermissionReference } from "@destack/access";
+import type { Select, Table, RelationalQueryBuilder } from "@destack/db";
+import type { PermissionReference, Decision } from "@destack/access";
 import type { JsonValue } from "@destack/schema";
 import type * as sync from "@destack/sync";
 import type { EventRequest, LookupRequest } from "../hook/record.ts";

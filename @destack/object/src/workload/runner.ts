@@ -5,7 +5,8 @@ import { ObjectError } from "../error/error.ts";
 import type { Deriver } from "@destack/identity";
 import { InstallationRoot } from "./root.ts";
 import { Symbolicator } from "@destack/package/stack";
-import { copyRequest, Environment, LineExporter } from "@destack/environment";
+import { copyRequest, Environment } from "@destack/environment";
+import { LineExporter } from "@destack/environment/line";
 import type { ObjectRemote } from "../replica/remote.ts";
 import type { Connector, ResourceDeclaration } from "@destack/resource";
 import { ResourceContext } from "@destack/resource/context";
@@ -22,7 +23,7 @@ import { PackageMount } from "../declare/mount.ts";
 import { WorkloadInstance } from "./instance.ts";
 import { HOOK_PATH, type WorkloadStart } from "./start.ts";
 import { Hibernation, SOCKET_PATH, type SocketHost } from "./socket.ts";
-import type { Alarm } from "@destack/db";
+import type { Alarm } from "@destack/db/database";
 import type { EphemeralHost, ServerContext, Workload } from "./workload.ts";
 import { CallKey } from "../audit/key.ts";
 

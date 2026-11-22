@@ -1,17 +1,15 @@
 import type { Environment } from "@destack/environment";
-import { testSimulation, testIdentity } from "../src/test/index.ts";
+import {
+    testSimulation,
+    testIdentity,
+    settleControl,
+    testEvents,
+    TestObjectStore,
+} from "../src/test/index.ts";
 import { users } from "./fixture/user.ts";
 import { Scope, RequestId } from "@destack/sync";
-import {
-    Change,
-    type DatabaseConnection,
-    Snapshot,
-    Transaction,
-    type Row,
-    type RelationalQueryBuilder,
-    defineDatabase,
-    sql,
-} from "@destack/db";
+import { type Row, defineDatabase, sql, Change, type RelationalQueryBuilder } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { claimReservation, type ClaimPrimary, implementPackage } from "../src/server/index.ts";
 import {
     Claim,
@@ -23,6 +21,8 @@ import {
     definePackage,
     field,
     RESERVATION_MILLISECONDS,
+    tablesOf,
+    recoverable,
 } from "../src/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TestDatabase } from "@destack/db/test";
@@ -33,13 +33,9 @@ import { AccessContext, Caller, none, principal, relation, universe } from "@des
 import { TestAccess } from "@destack/access/test";
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { testCallKey } from "@destack/object/test";
-import { settleControl, testEvents } from "../src/test/index.ts";
 
 import { claim, serveClaims } from "./fixture/claim.ts";
-import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
-import { TestObjectStore } from "../src/test/index.ts";
-import { recoverable } from "../src/index.ts";
 import { argument, plural, t } from "@destack/locale";
 
 /** Profiles as first released, before their type declared the handle index. */
@@ -208,7 +204,7 @@ test("reserve and confirm the names of a write the store makes inside a caller's
     spaceDatabase = east.database;
 
     // create a profile as alice in a transaction the caller opened and commits itself
-    const [created] = await Transaction.run(east.database, (transaction) =>
+    const [created] = await east.database.commit((transaction) =>
         east.store.mutate(
             AccessContext.of(
                 Caller.of(principal.user.reference(Scope.universe.id, users.alice)),
@@ -275,7 +271,7 @@ test("claim the names of writes outside the object store and finish expired rese
         const change = nth(changes, position);
         const image = Change.image(change);
         const object = { objectId: schema.string().parse(change.key.id), owner: east.spaceId };
-        const claimant = await Claimant.of(profile, object, image, Snapshot.live(east.database));
+        const claimant = await Claimant.of(profile, object, image, east.database.snapshot());
         const [replaced] = await present(claims.home, "the universe's claims").mutate({
             id: RequestId.create(world),
             calls: [claim.call("replace", claimant)],
@@ -681,7 +677,7 @@ test("key an index within the enclosing scope it is unique across", async () => 
     }
 
     // claim the same path in each folder
-    const snapshot = Snapshot.live(storage.database);
+    const snapshot = storage.database.snapshot();
     const keys = await Promise.all(
         ["folder-1", "folder-2", "folder-3"].map(async (scope, position) =>
             Claim.list(route, { id: `route-${position}`, scope, path: "/home" }, snapshot),
@@ -745,7 +741,7 @@ test("retain a trashed object's names, activate them on restore, and release the
     );
     onTestFinished(() => storage.close());
     const { database } = storage;
-    const snapshot = Snapshot.live(database);
+    const snapshot = database.snapshot();
 
     // write the tag's row as it stands, sits in the trash, is restored and is purged
     const [first, second] = [Identifier.create("tag", world), Identifier.create("tag", world)];
@@ -801,7 +797,7 @@ test("keep a renamed object's old name resolving to it until another object take
     );
     onTestFinished(() => storage.close());
     const { database } = storage;
-    const snapshot = Snapshot.live(database);
+    const snapshot = database.snapshot();
     const write = async (row: Row & { readonly id: string }) => {
         const object = { objectId: row.id, owner: "space-1" };
         const claimant = await Claimant.of(tag, object, row, snapshot);
@@ -881,7 +877,7 @@ function names(database: DatabaseConnection): ClaimLookup {
 
 /** Read the claims in a database, as store code reads them. */
 function readClaims(database: DatabaseConnection): RelationalQueryBuilder<typeof claimTable> {
-    return Snapshot.live(database).read(claimTable);
+    return database.snapshot().read(claimTable);
 }
 
 test("read a claim's indexed values back from its key, without the scope it is unique within", () => {

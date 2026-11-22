@@ -1,22 +1,22 @@
-import type { DatabaseConnection, Row } from "@destack/db";
+import { ReplicaSet } from "@destack/sync";
+import type { Row } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { ObjectError } from "../error/error.ts";
 import {
     Event,
     EventCursor,
-    type EventFilter,
     type EventKeyFields,
     type EventKind,
     type EventOrder,
-    type EventPage,
-    EventStore,
     type Series,
     type SeriesRequest,
+    type EventFilter,
 } from "@destack/event";
+import type { EventPage, EventStore } from "@destack/event/store";
 import { schema, type JsonValue } from "@destack/schema";
 import { Caller } from "@destack/access";
 
 import { Page } from "../method/page.ts";
-import { Replica } from "@destack/sync";
 import type { MethodContext } from "../method/context.ts";
 import type { Session } from "../method/reader.ts";
 import { type EventRequest, SeriesRecord } from "../hook/record.ts";
@@ -134,8 +134,7 @@ export const EventLog = {
         context: MethodContext,
         database: DatabaseConnection,
     ): Promise<readonly [string, ...string[]]> {
-        const replicated = await Replica.scopes(
-            database,
+        const replicated = await new ReplicaSet(database).scopes(
             context.object.table,
             context.scope,
             Caller.principal(context.caller),
@@ -165,15 +164,18 @@ export type EventOf<Type extends { readonly eventKind: () => EventKind }> =
         ? Event<Fields, Data>
         : never;
 
+/** Where a view reads events: the store's event log, or a hook's session. */
+export type EventSource = { readonly store: EventStore } | { readonly session: Session };
+
 /** A package's reads of its event kind: pages in time order, single events and series. */
 export class EventView<Fields extends EventKeyFields, Data extends JsonValue> {
     /** The event kind read. */
     readonly kind: EventKind<Fields, Data>;
     /** The store's event log, or a hook's session with its store. */
-    readonly #source: EventStore | Session;
+    readonly #source: EventSource;
 
     /** Read a kind's events through the store's event log or a hook's session. */
-    constructor(kind: EventKind<Fields, Data>, source: EventStore | Session) {
+    constructor(kind: EventKind<Fields, Data>, source: EventSource) {
         this.kind = kind;
         this.#source = source;
     }
@@ -185,10 +187,10 @@ export class EventView<Fields extends EventKeyFields, Data extends JsonValue> {
     ): Promise<EventPage<Fields, Data>> {
         // read through the event log, else through the session
         const source = this.#source;
-        if (source instanceof EventStore) {
-            return source.query(this.kind, filter, page);
+        if ("store" in source) {
+            return source.store.query(this.kind, filter, page);
         }
-        const answered = await source.events(this.kind.table, {
+        const answered = await source.session.events(this.kind.table, {
             verb: "query",
             filter: EventView.#filter(filter),
             page: {
@@ -210,10 +212,10 @@ export class EventView<Fields extends EventKeyFields, Data extends JsonValue> {
     ): Promise<Event<Fields, Data> | undefined> {
         // read through the event log, else through the session
         const source = this.#source;
-        if (source instanceof EventStore) {
-            return source.get(this.kind, key);
+        if ("store" in source) {
+            return source.store.get(this.kind, key);
         }
-        const answered = await source.events(this.kind.table, {
+        const answered = await source.session.events(this.kind.table, {
             verb: "get",
             scopes: [...key.scopes],
             id: key.id,
@@ -230,10 +232,10 @@ export class EventView<Fields extends EventKeyFields, Data extends JsonValue> {
     ): Promise<{ readonly events: readonly Event<Fields, Data>[]; readonly sequence: number }> {
         // read through the event log, else through the session
         const source = this.#source;
-        if (source instanceof EventStore) {
-            return source.changes(this.kind, filter, after, limit);
+        if ("store" in source) {
+            return source.store.changes(this.kind, filter, after, limit);
         }
-        const answered = await source.events(this.kind.table, {
+        const answered = await source.session.events(this.kind.table, {
             verb: "changes",
             filter: EventView.#filter(filter),
             after,
@@ -254,10 +256,10 @@ export class EventView<Fields extends EventKeyFields, Data extends JsonValue> {
     ): Promise<readonly Event<Fields, Data>[]> {
         // read through the event log, else through the session
         const source = this.#source;
-        if (source instanceof EventStore) {
-            return source.range(this.kind, filter, after, through);
+        if ("store" in source) {
+            return source.store.range(this.kind, filter, after, through);
         }
-        const answered = await source.events(this.kind.table, {
+        const answered = await source.session.events(this.kind.table, {
             verb: "range",
             filter: EventView.#filter(filter),
             after,
@@ -275,11 +277,11 @@ export class EventView<Fields extends EventKeyFields, Data extends JsonValue> {
     async series(filter: EventFilter, request: SeriesRequest<Fields>): Promise<Series[]> {
         // fold through the event log, else through the session
         const source = this.#source;
-        if (source instanceof EventStore) {
-            return source.series(this.kind, filter, request);
+        if ("store" in source) {
+            return source.store.series(this.kind, filter, request);
         }
         const { measure, fold, group, step } = request;
-        const answered = await source.events(this.kind.table, {
+        const answered = await source.session.events(this.kind.table, {
             verb: "series",
             filter: EventView.#filter(filter),
             series: {

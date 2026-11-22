@@ -1,28 +1,30 @@
 import { worldTelemetry } from "../src/test/world.ts";
-import { testSimulation, testIdentity } from "../src/test/index.ts";
+import {
+    testSimulation,
+    testIdentity,
+    testEvents,
+    serversOf,
+    TestObjectStore,
+} from "../src/test/index.ts";
 import { PackageVersion } from "@destack/package";
-import type { CallableName } from "../src/index.ts";
+import { type CallableName, defineObject, field, tablesOf, recoverable } from "../src/index.ts";
 import { expect, onTestFinished, refusal, Recording, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
 
-import { asc, defineDatabase, type DatabaseConnection } from "@destack/db";
+import { asc, defineDatabase } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { TestDatabase } from "@destack/db/test";
 import { definePackage } from "@destack/object";
 import { schema, nth, type Identifier } from "@destack/schema";
 import { RequestId, ObjectReference, Scope } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
-import { testEvents, serversOf } from "../src/test/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
-import { defineObject, field } from "../src/index.ts";
 import { implementPackage } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { userContext, users, userName } from "./fixture/user.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
 import { Environment } from "@destack/environment";
-import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
-import { TestObjectStore } from "../src/test/index.ts";
-import { recoverable } from "../src/index.ts";
 import { argument, plural, t } from "@destack/locale";
 import { ObjectRemote } from "../src/replica/remote.ts";
 

@@ -1,14 +1,13 @@
-import { type Permission } from "@destack/access";
+import type { Permission } from "@destack/access";
 import { Duration, present, type schema } from "@destack/schema";
-import { LogPosition, TABLE, type Row, Table } from "@destack/db";
+import { TABLE, type Row, Table, LogPosition } from "@destack/db";
 import type { ActivityTable } from "../history/activity.ts";
 import { defineMethod, type Method } from "../method/method.ts";
 import type { MethodContext } from "../method/context.ts";
 import { Step } from "../method/step.ts";
 import type { ObjectOf, ObjectType } from "../object/object.ts";
 import type { Procedure, ReplayFields, RowSchema, TargetFields } from "../method/procedure.ts";
-import type { TraitPermission, TraitBehavior } from "./trait.ts";
-import { callableTrait } from "./trait.ts";
+import { type TraitPermission, type TraitBehavior, callableTrait } from "./trait.ts";
 import { Execution, type StoreExecution } from "../method/execution.ts";
 import { t } from "@destack/locale";
 

@@ -1,9 +1,16 @@
 import { worldTelemetry } from "../src/test/world.ts";
-import { testSimulation, testIdentity } from "../src/test/index.ts";
+import {
+    testSimulation,
+    testIdentity,
+    testEvents,
+    serversOf,
+    TestObjectStore,
+} from "../src/test/index.ts";
 import { users, userContext } from "./fixture/user.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { principal, relation, union } from "@destack/access";
-import { type DatabaseConnection, defineDatabase, eq, Snapshot } from "@destack/db";
+import { defineDatabase, eq } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { TestDatabase } from "@destack/db/test";
 import { PackageVersion } from "@destack/package";
 import { definePackage } from "@destack/object";
@@ -22,18 +29,16 @@ import {
     TextSpan,
     TextTypes,
     type TextMark,
+    tablesOf,
+    shareable,
 } from "../src/index.ts";
 import { implementPackage } from "../src/server/index.ts";
 import { user } from "./schema.ts";
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { testCallKey } from "@destack/object/test";
-import { testEvents, serversOf } from "../src/test/index.ts";
 import { nth, schema, type Identifier } from "@destack/schema";
 import { Environment } from "@destack/environment";
-import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
-import { TestObjectStore } from "../src/test/index.ts";
-import { shareable } from "../src/index.ts";
 import { argument, plural, t } from "@destack/locale";
 
 /** The space with the documents. */
@@ -318,16 +323,12 @@ test("edit a text through chunk splits, read it assembled, undo exactly and guar
     // report which elements the text contains, deleted ones included
     const owner = document.reference(spaceId, created.id);
     const contained = [
-        await Chunk.contains(Snapshot.live(database), owner, "body", [
-            { run: "alice", offset: 2999 },
-        ]),
-        await Chunk.contains(Snapshot.live(database), owner, "body", [
+        await Chunk.contains(database.snapshot(), owner, "body", [{ run: "alice", offset: 2999 }]),
+        await Chunk.contains(database.snapshot(), owner, "body", [
             { run: "alice", offset: 3000 },
             { run: "alice", offset: 7999 },
         ]),
-        await Chunk.contains(Snapshot.live(database), owner, "body", [
-            { run: "alice", offset: 8000 },
-        ]),
+        await Chunk.contains(database.snapshot(), owner, "body", [{ run: "alice", offset: 8000 }]),
     ];
     expect(contained).toEqual([true, true, false]);
 

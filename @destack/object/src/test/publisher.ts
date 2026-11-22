@@ -1,4 +1,5 @@
-import type { Feed, Publisher, Query, Subscription } from "@destack/sync";
+import type { Query, Publisher, Subscription } from "@destack/sync";
+import type { Feed } from "@destack/sync/dataflow";
 import type { ObjectRemote } from "../replica/remote.ts";
 
 /** A home's feed published to followers in process. */

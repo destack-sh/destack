@@ -1,4 +1,5 @@
-import { Change, type Cursor, type Reconciliation, TABLE, Transaction } from "@destack/db";
+import { TABLE, Change } from "@destack/db";
+import type { Cursor, Reconciliation, Transaction } from "@destack/db/database";
 import type { Event } from "@destack/event";
 import { Duration, schema } from "@destack/schema";
 import type { ObjectType } from "./object.ts";
@@ -107,47 +108,40 @@ export class ObjectCursor implements Cursor {
     /** Hand the claimed page to the read scope by scope, moving past it in the same commit. */
     async #take(now: number, signal: AbortSignal): Promise<void> {
         const { database, events } = this.#store;
-        await Transaction.run(
-            database,
-            async (transaction) => {
-                // read the place and the claim as this attempt sees them, done once another host moved on
-                const after = (await transaction.database.log.checkpoint(this.name)) ?? 0;
-                const claim = await transaction.database.log.claimed(this.name);
-                if (claim === undefined) {
-                    return;
-                }
+        await database.commit(async (transaction) => {
+            // read the place and the claim as this attempt sees them, done once another host moved on
+            const after = (await transaction.database.log.checkpoint(this.name)) ?? 0;
+            const claim = await transaction.database.log.claimed(this.name);
+            if (claim === undefined) {
+                return;
+            }
 
-                // read the scopes the claimed page appended in, in commit order
-                const { through, claimedAt } = claim;
-                const changes = await transaction.database.log.range(
-                    { tables: this.tables, after },
-                    through,
-                );
-                const scopes = [
-                    ...new Set(
-                        changes
-                            .filter((change) => change.operation === "insert")
-                            .map((change) => schema.string().parse(Change.image(change)["scope"])),
-                    ),
-                ];
+            // read the scopes the claimed page appended in, in commit order
+            const { through, claimedAt } = claim;
+            const changes = await transaction.database.log.range(
+                { tables: this.tables, after },
+                through,
+            );
+            const scopes = [
+                ...new Set(
+                    changes
+                        .filter((change) => change.operation === "insert")
+                        .map((change) => schema.string().parse(Change.image(change)["scope"])),
+                ),
+            ];
 
-                // act on each scope's events, then move past the page as the transaction commits
-                const kind = this.#object.eventKind();
-                const context = { store: this.#store, transaction, now, signal };
-                for (const scope of scopes) {
-                    const page = await events.range(kind, { scopes: [scope] }, after, through);
-                    if (page.length > 0) {
-                        await this.#read(
-                            { scope, events: page, after, through, claimedAt },
-                            context,
-                        );
-                    }
+            // act on each scope's events, then move past the page as the transaction commits
+            const kind = this.#object.eventKind();
+            const context = { store: this.#store, transaction, now, signal };
+            for (const scope of scopes) {
+                const page = await events.range(kind, { scopes: [scope] }, after, through);
+                if (page.length > 0) {
+                    await this.#read({ scope, events: page, after, through, claimedAt }, context);
                 }
-                transaction.record((committed) =>
-                    committed.log.move(this, after, through, now + this.#hold),
-                );
-            },
-            signal,
-        );
+            }
+            transaction.record((committed) =>
+                committed.log.move(this, after, through, now + this.#hold),
+            );
+        }, signal);
     }
 }

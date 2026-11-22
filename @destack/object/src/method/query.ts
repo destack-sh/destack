@@ -1,9 +1,13 @@
-import type * as db from "@destack/db";
-import { Comparable, type Condition, type Row, type Table } from "@destack/db";
+import {
+    type RelationalQueryBuilder,
+    Comparable,
+    type Condition,
+    type Row,
+    type Table,
+} from "@destack/db";
 import { waitAborted } from "@destack/environment";
 import { included, type Item, type Query } from "@destack/sync";
-import type { LiveItems, Subscriber } from "../client/query.ts";
-import { ObjectQueryBuilder } from "../client/query.ts";
+import { type LiveItems, type Subscriber, ObjectQueryBuilder } from "../client/query.ts";
 import type { ObjectQueries } from "../client/client.ts";
 import { ObjectError } from "../error/error.ts";
 import type { RelationGraph } from "../query/query.ts";
@@ -11,7 +15,7 @@ import type { ObjectType } from "../object/object.ts";
 import type { ObjectQuery } from "../replica/replica.ts";
 
 /** Read a table's rows in a call's view, recording each read. */
-export type TableReader = (table: Table) => db.RelationalQueryBuilder<Table>;
+export type TableReader = (table: Table) => RelationalQueryBuilder<Table>;
 
 /** An item as a level reads it, before its relations are set. */
 type LevelItem = {

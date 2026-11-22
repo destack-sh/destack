@@ -8,7 +8,6 @@ import {
     universe,
     type GrantClaim,
 } from "@destack/access";
-import { Snapshot } from "@destack/db";
 import type { Environment } from "@destack/environment";
 import { PackageVersion } from "@destack/package";
 import { Identifier, schema } from "@destack/schema";
@@ -256,7 +255,7 @@ export async function openApprovals(): Promise<TestApproval> {
             });
         const signal = clock.timeout(REPLICA_MILLISECONDS);
         const isFollowed = async () =>
-            (await Grant.read(Snapshot.live(served.database), created.id)) !== undefined;
+            (await Grant.read(served.database.snapshot(), created.id)) !== undefined;
         if (!(await served.database.log.waitUntil(isFollowed, signal))) {
             throw new Error(`the space did not follow grant '${created.id}'`);
         }

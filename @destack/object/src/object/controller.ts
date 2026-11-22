@@ -1,22 +1,22 @@
-import type { Call } from "@destack/sync";
+import { type Call, RequestId, Scope } from "@destack/sync";
 import {
     type Condition,
-    type Controller,
-    type DatabaseConnection,
-    type Projection,
     eq,
-    type KeyFields,
-    type Reconciliation,
     type Relation,
     type RowImage,
     type Row,
-    Snapshot,
     TABLE,
     type Table,
-    type Watch,
 } from "@destack/db";
+import type {
+    Controller,
+    DatabaseConnection,
+    Projection,
+    KeyFields,
+    Reconciliation,
+    Watch,
+} from "@destack/db/database";
 import { AccessContext } from "@destack/access";
-import { RequestId, Scope } from "@destack/sync";
 import { Failure } from "@destack/error";
 import { found, schema } from "@destack/schema";
 import { waitAborted } from "@destack/environment";
@@ -31,7 +31,7 @@ import {
     type ObservedRecord,
     SYNCED_CONDITION,
 } from "./condition.ts";
-import { type ResultsOf } from "../method/context.ts";
+import type { ResultsOf } from "../method/context.ts";
 import type { MutateOptions, ObjectStore } from "../server/store.ts";
 import { CallSite } from "../method/site.ts";
 
@@ -341,7 +341,7 @@ export const ObjectController = {
         rows: readonly Row[],
     ): Promise<readonly Row[]> {
         // read each scope's chain once, and decide whether the store owns it
-        const snapshot = Snapshot.live(store.database);
+        const snapshot = store.database.snapshot();
         const isMoving = (object.policy.definition.moving ?? []).length > 0;
         const scopes = [...new Set(rows.map((row) => schema.string().parse(row["scope"])))];
         const chains = await Scope.chains(snapshot, scopes);
@@ -549,7 +549,8 @@ export const ObjectController = {
         }
 
         // read the objects by identifier
-        const fresh = await Snapshot.live(store.database)
+        const fresh = await store.database
+            .snapshot()
             .read(object.table)
             .findMany({ where: { id: { in: ids } } });
 

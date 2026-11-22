@@ -1,7 +1,11 @@
 import { AuditCaller } from "./actor.ts";
-import type { CallEvent, JournalEntry } from "./execution.ts";
+import {
+    type CallEvent,
+    type JournalEntry,
+    AuditExecution,
+    type AuditTarget,
+} from "./execution.ts";
 import { CallOrigin } from "./origin.ts";
-import { AuditExecution, type AuditTarget } from "./execution.ts";
 import {
     canonicalize,
     Identifier,
@@ -14,12 +18,12 @@ import { Outcome } from "@destack/sync";
 import { Failure } from "@destack/error";
 import { findDenial, CallError } from "../error/call.ts";
 import { AccessContext, Credential } from "@destack/access";
-import { type ProcedureAudit, type ProcedureContext } from "../server/procedure.ts";
+import type { ProcedureAudit, ProcedureContext } from "../server/procedure.ts";
 import { trace, isSpanContextValid } from "@destack/telemetry";
 import { type AuditAction, defineAuditAction } from "./action.ts";
 import type { PackageVersion } from "@destack/package";
 import { ObjectError } from "../error/index.ts";
-import type { DatabaseConnection } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import type { Journal, JournalRecord } from "./journal.ts";
 
 /** Invoke a procedure. */

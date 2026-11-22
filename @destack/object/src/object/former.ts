@@ -1,13 +1,5 @@
-import {
-    TABLE,
-    defineTable,
-    identifier,
-    index,
-    type RowChange,
-    type Snapshot,
-    text,
-    type Transaction,
-} from "@destack/db";
+import { TABLE, defineTable, identifier, index, text } from "@destack/db";
+import type { RowChange, Snapshot, Transaction } from "@destack/db/database";
 import { schema } from "@destack/schema";
 import type { ObjectType } from "./object.ts";
 import type { ObjectStore } from "../server/store.ts";

@@ -1,20 +1,21 @@
-import { testSimulation } from "./world.ts";
+import { testSimulation, worldTelemetry } from "./world.ts";
 import { MemoryBlobStorage } from "@destack/resource";
-import { type DatabaseConnection, defineDatabase, type Table, Transaction } from "@destack/db";
+import { defineDatabase, type Table } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import {
     AccessContext,
     anyone,
     type Authentication,
-    Authorization,
     Caller,
     principal,
     universe,
+    Authorization,
 } from "@destack/access";
 import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
 import { TestAccess } from "@destack/access/test";
 import { connectBunSqlite } from "@destack/db/bun";
 import { TestDatabase } from "@destack/db/test";
-import { Clock, type Environment, WebSocketUpgrade } from "@destack/environment";
+import { Clock, type Environment, WebSocketUpgrade, type ClientSocket } from "@destack/environment";
 import { Simulation, SimulatedScheduler } from "@destack/environment/simulation";
 import { PackageVersion, PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
@@ -22,15 +23,14 @@ import { Identifier, present } from "@destack/schema";
 import {
     type ObjectReference,
     ObjectTypeReference,
-    type Publisher,
     Scope,
     Subject,
+    type Publisher,
 } from "@destack/sync";
 import { ObjectType } from "../object/object.ts";
 import type { Package } from "../declare/package.ts";
 import { Health } from "../server/health.ts";
 import { type PackageHandler, Server } from "../server/http.ts";
-import type { ClientSocket } from "@destack/environment";
 import {
     implementPackage,
     type PackageImplementation,
@@ -38,7 +38,6 @@ import {
 } from "../server/implementation.ts";
 import { EphemeralStorage } from "../server/ephemeral.ts";
 import type { TestTelemetry } from "@destack/telemetry/test";
-import { worldTelemetry } from "./world.ts";
 import { ObjectStore, type ObjectStoreOptions } from "../server/store.ts";
 import { tablesOf } from "../stack/db.ts";
 import objectPackage from "../package.ts";
@@ -286,7 +285,7 @@ export class TestObjectStore implements TestScope, AsyncDisposable {
         // write the scope's row once, which the universe has without storing it
         const { environment } = store;
         const ancestors = scope.scope === Scope.universe.id ? [] : [scope.scope];
-        await Transaction.run(store.database, async (transaction) => {
+        await store.database.commit(async (transaction) => {
             // leave a scope received already, and the universe
             const [received] = await Scope.read(transaction.view(), [scope.id]);
             if (received !== undefined || scope.id === Scope.universe.id) {

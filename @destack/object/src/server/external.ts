@@ -1,4 +1,4 @@
-import type { DatabaseConnection } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { ObjectError } from "../error/error.ts";
 
 import type { ObjectType } from "../object/object.ts";

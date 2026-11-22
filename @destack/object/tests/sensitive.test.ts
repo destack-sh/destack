@@ -1,21 +1,24 @@
-import { testSimulation } from "../src/test/index.ts";
+import {
+    testSimulation,
+    testEvents,
+    serversOf,
+    auditedCalls,
+    TestObjectStore,
+} from "../src/test/index.ts";
 import { AccessContext, Caller, none, through } from "@destack/access";
-import { call, journal, defineObject, field } from "../src/index.ts";
-import { defineDatabase, TABLE, ControlLoop } from "@destack/db";
+import { call, journal, defineObject, field, tablesOf } from "../src/index.ts";
+import { defineDatabase, TABLE } from "@destack/db";
+import { ControlLoop } from "@destack/db/database";
 import { TestDatabase } from "@destack/db/test";
 import { schema, Uuid } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
-import { testEvents, serversOf } from "../src/test/index.ts";
 import { startTelemetry } from "@destack/telemetry/bun";
 import { OtlpExporter } from "@destack/telemetry/otlp";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { userContext, users } from "./fixture/user.ts";
-import { auditedCalls } from "../src/test/index.ts";
-import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
-import { TestObjectStore } from "../src/test/index.ts";
 import { argument, plural, t } from "@destack/locale";
 
 /** An API key a caller hands a method, which nothing derived from the call stores. */

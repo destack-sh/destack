@@ -1,27 +1,33 @@
 import { worldTelemetry } from "../src/test/world.ts";
-import { testSimulation, testIdentity } from "../src/test/index.ts";
+import { testSimulation, testIdentity, testEvents, TestObjectStore } from "../src/test/index.ts";
 import { users } from "./fixture/user.ts";
 import { PackageVersion } from "@destack/package";
 import { expect, onTestFinished, Recording, test } from "@destack/test";
-import { defineDatabase, eq, type DatabaseConnection } from "@destack/db";
+import { defineDatabase, eq } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { TestDatabase } from "@destack/db/test";
 import { definePackage } from "@destack/object";
 import { RequestId, Scope } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
-import { testEvents } from "../src/test/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
 import { undoEntry } from "../src/client/undo.ts";
-import { defineObject, field, type Step } from "../src/index.ts";
+import {
+    defineObject,
+    field,
+    type Step,
+    tablesOf,
+    archivable,
+    nested,
+    recoverable,
+    shareable,
+} from "../src/index.ts";
 import { implementPackage } from "../src/server/index.ts";
 import { found, schema } from "@destack/schema";
 import { serveNotes, spaceId } from "./fixture/device.ts";
 import { note, notebook } from "../src/test/note.ts";
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { principal } from "@destack/access";
-import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
-import { TestObjectStore } from "../src/test/index.ts";
-import { archivable, nested, recoverable, shareable } from "../src/index.ts";
 import { argument, plural, t } from "@destack/locale";
 
 /** Folders with pages. */

@@ -1,19 +1,20 @@
-import { JournalEntry } from "../audit/execution.ts";
 import {
-    bucket,
-    ControlLoop,
+    CONTROL_TABLES,
     defineTable,
     identifier,
     index,
     integer,
     json,
-    lease,
     text,
     TABLE,
     uniqueIndex,
     BLOB_TABLES,
+    bucket,
+    lease,
+    type DatabaseDefinition,
+    type Table,
 } from "@destack/db";
-import type { DatabaseDefinition, Table } from "@destack/db";
+import { JournalEntry } from "../audit/execution.ts";
 import { accessTables } from "@destack/access";
 import { settlement } from "../method/settlement.ts";
 import { claimReservation } from "../claim/reservation.ts";
@@ -60,7 +61,7 @@ export const journal = defineTable(
 export const STORE_TABLES: readonly Table[] = [
     ...accessTables,
     ...BLOB_TABLES,
-    ...ControlLoop.tables,
+    ...CONTROL_TABLES,
     followKey,
     replicaRequest,
 ];

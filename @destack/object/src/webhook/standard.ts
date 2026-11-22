@@ -1,6 +1,6 @@
 import type { Crypto } from "@destack/environment";
 import { ObjectError } from "../error/error.ts";
-import { RequestBody } from "../server/body.ts";
+import { RequestBody } from "../http/body.ts";
 import { HmacKey } from "./hmac.ts";
 import { nth } from "@destack/schema";
 

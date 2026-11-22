@@ -1,4 +1,5 @@
-import type { Select, Snapshot } from "@destack/db";
+import type { Select } from "@destack/db";
+import type { Snapshot } from "@destack/db/database";
 import type { Kind } from "@destack/package";
 import type { ObjectReference } from "@destack/sync";
 import type { ObjectType } from "../object/object.ts";

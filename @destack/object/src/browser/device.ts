@@ -1,4 +1,5 @@
-import type { Channel, DatabaseConnection } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
+import type { Channel } from "@destack/db";
 import type { Environment } from "@destack/environment";
 import type {} from "@destack/environment/browser";
 import type { Duration } from "@destack/schema";

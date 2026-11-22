@@ -1,4 +1,4 @@
-import { LineExporter, LOG_FORMAT_VARIABLE, LOG_LEVEL_VARIABLE } from "@destack/environment";
+import { LineExporter, LOG_FORMAT_VARIABLE, LOG_LEVEL_VARIABLE } from "@destack/environment/line";
 import { ObjectError } from "../error/error.ts";
 import {
     DATABASE_PATH,
@@ -12,7 +12,7 @@ import { present, schema } from "@destack/schema";
 import { TelemetryScope } from "@destack/telemetry";
 import { startTelemetry } from "@destack/telemetry/worker";
 import type {} from "@destack/package/import-meta";
-import type { Alarm } from "@destack/db";
+import type { Alarm } from "@destack/db/database";
 
 import { refusal } from "../error/report.ts";
 import {

@@ -1,4 +1,4 @@
-import { testSimulation } from "../src/test/index.ts";
+import { testSimulation, testEvents, serversOf, TestObjectStore } from "../src/test/index.ts";
 import {
     type CallableName,
     Claim,
@@ -6,22 +6,20 @@ import {
     defineObject,
     field,
     ObjectDescription,
+    tablesOf,
 } from "../src/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { none, through, union, universe } from "@destack/access";
 
-import { defineDatabase, Snapshot } from "@destack/db";
+import { defineDatabase } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
 import { RequestId, Scope } from "@destack/sync";
 import { subjectContext, testCallKey } from "@destack/object/test";
-import { testEvents, serversOf } from "../src/test/index.ts";
 import { claim } from "./fixture/claim.ts";
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
-import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
-import { TestObjectStore } from "../src/test/index.ts";
 import { argument, plural, t } from "@destack/locale";
 
 /** The space with the assets. */
@@ -98,7 +96,7 @@ test("map the relation of an object with an owner in the universe and record its
 
     // claim the asset's name under its owner, keyed within the universe
     const row = { id: "asset-1", scope: homeId, holderId, name: "lamp" };
-    const claims = await Claim.list(asset, row, Snapshot.live(storage.database));
+    const claims = await Claim.list(asset, row, storage.database.snapshot());
     expect({
         owner: asset.mapping.owner,
         relation: asset.mapping.relations["holder"],

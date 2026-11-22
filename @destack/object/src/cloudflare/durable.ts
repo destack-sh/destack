@@ -1,5 +1,5 @@
 import { type Clock, WebSocketUpgrade } from "@destack/environment";
-import type { Alarm } from "@destack/db";
+import type { Alarm } from "@destack/db/database";
 import { type HibernationHost, SOCKET_HEADER } from "../workload/socket.ts";
 import {
     DurableObjectHibernation,

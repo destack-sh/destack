@@ -6,19 +6,19 @@ import { Identifier, schema } from "@destack/schema";
 import { PackageId, PackageVersion } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
 import {
-    accessTables,
-    Authorizer,
     Policy,
     resource,
     relation,
     union,
     AccessContext,
     type Authentication,
-    Authorization,
     Caller,
     principal,
+    accessTables,
+    Authorization,
     Relationship,
 } from "@destack/access";
+import { Authorizer } from "@destack/access/authorizer";
 import { boolean, defineTable, eq, text } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { Jwt, KeyPair } from "@destack/identity";

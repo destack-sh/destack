@@ -1,15 +1,15 @@
 import type { Environment } from "@destack/environment";
 import {
-    accessRelationship,
     anyone,
     none,
     principal,
-    Relationship,
     relation,
+    accessRelationship,
+    Relationship,
 } from "@destack/access";
 import { Scope, type Subject } from "@destack/sync";
 import { TestAccess } from "@destack/access/test";
-import type { DatabaseConnection } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { Identifier } from "@destack/schema";
 import { defineObject, shareable } from "../index.ts";
 import { argument, plural, t } from "@destack/locale";

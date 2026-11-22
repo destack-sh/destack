@@ -1,11 +1,7 @@
 import { MemoryBucket } from "@destack/bucket/test";
-import type { DatabaseConnection } from "@destack/db";
-import {
-    DatabasePersonalKeyring,
-    type EventKind,
-    EventStore,
-    type SettingRetention,
-} from "@destack/event";
+import type { DatabaseConnection } from "@destack/db/database";
+import type { EventKind, SettingRetention } from "@destack/event";
+import { DatabasePersonalKeyring, EventStore } from "@destack/event/store";
 import { LocalKeyring } from "@destack/identity";
 import { call } from "../audit/call.ts";
 import type { Environment } from "@destack/environment";

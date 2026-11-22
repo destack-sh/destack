@@ -1,5 +1,23 @@
+import {
+    ReplicaSet,
+    RequestId,
+    ObjectReference,
+    Scope,
+    Subject,
+    replica,
+    replicaKey,
+    replicaSubscription,
+    replicaScope,
+    replicaTables,
+} from "@destack/sync";
 import { FOLLOWER_REVISION } from "@destack/sync/test";
-import { testSimulation, testIdentity } from "../src/test/index.ts";
+import {
+    testSimulation,
+    testIdentity,
+    testEvents,
+    serversOf,
+    TestObjectStore,
+} from "../src/test/index.ts";
 import { users } from "./fixture/user.ts";
 import {
     AccessContext,
@@ -13,18 +31,6 @@ import {
 import { TestAccess } from "@destack/access/test";
 import { defineDatabase, TABLE } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import {
-    RequestId,
-    ObjectReference,
-    replica,
-    Replica,
-    replicaKey,
-    replicaSubscription,
-    replicaScope,
-    replicaTables,
-    Scope,
-    Subject,
-} from "@destack/sync";
 import { subjectContext, testCallKey } from "@destack/object/test";
 import { RequestContext } from "@destack/object/server";
 import { ResourceContext } from "@destack/resource/context";
@@ -41,13 +47,11 @@ import {
 } from "../src/index.ts";
 import { implementPackage } from "../src/server/index.ts";
 import { definePackage } from "@destack/object";
-import { testEvents, serversOf } from "../src/test/index.ts";
 import { spaceId } from "./fixture/device.ts";
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
 import { tablesOf } from "../src/stack/db.ts";
 import objectPackage from "../src/package.ts";
-import { TestObjectStore } from "../src/test/index.ts";
 import { argument, plural, t } from "@destack/locale";
 
 /** A mention of a person in a space, readable by that person wherever a replica has it. */
@@ -238,7 +242,7 @@ test("list and follow the mentions a home has as replicas of another space, from
         await replicating.insert(replicaSubscription).values({
             name: "mentions",
             scope: other,
-            ...Replica.subscriptionColumns(
+            ...ReplicaSet.subscriptionColumns(
                 {
                     name: "mentions",
                     publication: QUERIES_PUBLICATION,

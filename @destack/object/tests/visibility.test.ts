@@ -1,26 +1,23 @@
-import { testSimulation } from "../src/test/index.ts";
+import { testSimulation, testEvents, serversOf, TestObjectStore } from "../src/test/index.ts";
 import { Scope, RequestId } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import {
-    accessRelationship,
     anyone,
     none,
     principal,
-    Relationship,
     relation,
+    accessRelationship,
+    Relationship,
 } from "@destack/access";
 import { TestAccess } from "@destack/access/test";
 import { TestDatabase } from "@destack/db/test";
 import { Identifier, schema, Uuid } from "@destack/schema";
 
-import { defineObject, field } from "../src/index.ts";
+import { defineObject, field, tablesOf } from "../src/index.ts";
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { testCallKey } from "@destack/object/test";
-import { testEvents, serversOf } from "../src/test/index.ts";
-import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
-import { TestObjectStore } from "../src/test/index.ts";
 import { argument, plural, t } from "@destack/locale";
 
 /** A private space nobody reads. */

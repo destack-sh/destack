@@ -1,4 +1,4 @@
-import { ControlLoop, type Controller, Snapshot } from "@destack/db";
+import { ControlLoop, type Controller } from "@destack/db/database";
 import { reconciliation } from "@destack/db/test";
 import { present } from "@destack/schema";
 import type { ObjectStore } from "../server/store.ts";
@@ -26,7 +26,7 @@ export async function followReplicas(
     // list the requests once as the sink's consumer does
     const subscriber = present(store.subscriber, "the store's subscriber");
     await store.sink.cursor(subscriber).take(reconciliation());
-    const rows = await Snapshot.live(store.database).read(replicaRequest).findMany();
+    const rows = await store.database.snapshot().read(replicaRequest).findMany();
     const keys = rows.map((row) => row.key).filter(options.isFollowed ?? (() => true));
 
     // follow the selected requests

@@ -1,27 +1,23 @@
 import {
-    type Affected,
-    ALL_ROWS,
-    NO_ROWS,
     ObjectReference,
-    type Audience,
-    Watch,
-    replica,
-    replicaPosition,
     Scope,
     Subject,
     SyncError,
     ObjectTypeReference,
+    replica,
+    replicaPosition,
 } from "@destack/sync";
+import { ALL_ROWS, NO_ROWS, type Affected, type Audience, Watch } from "@destack/sync/dataflow";
 import {
     AccessContext,
+    type Permission,
+    throughRelations,
+    decisionTables,
     accessRelationship,
     accessRole,
     accessRolePermission,
-    decisionTables,
-    earliest,
-    type Permission,
-    throughRelations,
 } from "@destack/access";
+import { earliest } from "@destack/access/authorizer";
 import { journal } from "../stack/db.ts";
 import {
     DatabaseError,
@@ -33,9 +29,8 @@ import {
     type Table,
     Change,
     type LogPosition,
-    Snapshot,
-    Transaction,
 } from "@destack/db";
+import { Transaction } from "@destack/db/database";
 import { canonicalize } from "@destack/schema";
 import { type ObjectStorage, ObjectType } from "../object/object.ts";
 import type { Authorization } from "./authorization.ts";
@@ -199,7 +194,7 @@ export class AccessAudience implements Audience {
         reader: AccessContext,
     ): Promise<Relay[]> {
         // read the scopes' chains at once
-        const chains = await Scope.chains(Snapshot.live(store.database), via);
+        const chains = await Scope.chains(store.database.snapshot(), via);
 
         return via.map((id) => {
             // read the scope's object, refusing an unknown scope

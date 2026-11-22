@@ -598,7 +598,7 @@ export const card = defineObject({
 import { argument, plural, t } from "@destack/locale";
 import { definePackage, defineObject, field, numbered, Numbered } from "@destack/object";
 import type { ClientOf } from "@destack/object/client";
-import type { Snapshot } from "@destack/db";
+import type { Snapshot } from "@destack/db/database";
 
 // address teams by their key, such as TRK
 const team = defineObject({

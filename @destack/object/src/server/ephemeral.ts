@@ -2,16 +2,9 @@ import { TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
 import { AccessContext, Caller } from "@destack/access";
 import { found, schema } from "@destack/schema";
-import {
-    Change,
-    Key,
-    TABLE,
-    Table,
-    type DatabaseConnection,
-    type Tracker,
-    type TrackerEvent,
-} from "@destack/db";
-import * as sync from "@destack/sync";
+import { Key, TABLE, Table, Change } from "@destack/db";
+import type { DatabaseConnection, Tracker, TrackerEvent } from "@destack/db/database";
+import * as syncDataflow from "@destack/sync/dataflow";
 import type { ObjectType } from "../object/object.ts";
 
 /** The tracker topic the ephemeral storages of a database replicate their rows on. */
@@ -62,7 +55,7 @@ export class EphemeralStorage implements AsyncDisposable {
     /** The tracker of the live instances and the owners they track. */
     readonly tracker: Tracker;
     /** The feed serving every sync of the ephemeral objects. */
-    readonly feed: sync.Feed;
+    readonly feed: syncDataflow.Feed;
     /** The ephemeral tables by SQL name. */
     readonly #tables: Map<string, Table>;
     /** The ephemeral object types by table. */
@@ -115,7 +108,7 @@ export class EphemeralStorage implements AsyncDisposable {
             database.state.environment.telemetry,
         );
         this.#linger = options.linger ?? LINGER_MILLISECONDS;
-        this.feed = new sync.Feed(database, tables);
+        this.feed = new syncDataflow.Feed(database, tables);
 
         // apply the other instances' rows in order, end their owners' rows, and drop stopped instances' rows
         this.#unwatch = [

@@ -1,16 +1,13 @@
-import { testSimulation } from "../src/test/index.ts";
+import { testSimulation, testEvents, serversOf, TestObjectStore } from "../src/test/index.ts";
 import { ObjectReference, type Call, RequestId, Scope } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { AccessContext, accessRole, Caller, none, Role, Manager } from "@destack/access";
+import { AccessContext, Caller, none, accessRole, Role, Manager } from "@destack/access";
 import { TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
 import { testCallKey } from "@destack/object/test";
-import { defineObject, field, ObjectPolicy, role } from "../src/index.ts";
-import { testEvents, serversOf } from "../src/test/index.ts";
+import { defineObject, field, ObjectPolicy, role, tablesOf } from "../src/index.ts";
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
-import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
-import { TestObjectStore } from "../src/test/index.ts";
 import { argument, plural, t } from "@destack/locale";
 
 /** The space the tiers live in. */

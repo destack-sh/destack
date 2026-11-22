@@ -1,4 +1,4 @@
-import { testSimulation } from "../src/test/index.ts";
+import { testSimulation, testEvents, serversOf, TestObjectStore } from "../src/test/index.ts";
 import { ObjectReference, Scope } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { principal, relation, through, union } from "@destack/access";
@@ -13,17 +13,17 @@ import {
     defineObject,
     field,
     type ObjectType,
+    tablesOf,
+    nested,
+    shareable,
+    tracked,
 } from "../src/index.ts";
 import { user } from "./schema.ts";
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { testCallKey, testServerContext } from "@destack/object/test";
-import { testEvents, serversOf } from "../src/test/index.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
-import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
-import { TestObjectStore } from "../src/test/index.ts";
-import { nested, shareable, tracked } from "../src/index.ts";
 import { argument, plural, t } from "@destack/locale";
 
 /** The space containing the pages. */

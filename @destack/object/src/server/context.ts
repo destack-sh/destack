@@ -5,17 +5,17 @@ import type { PackageId } from "@destack/package";
 import {
     AccessContext,
     type Authentication,
-    Authorization,
-    type Authorizer,
     Caller,
     Credential,
+    Authorization,
 } from "@destack/access";
-import { type DatabaseConnection, Transaction } from "@destack/db";
+import type { Authorizer } from "@destack/access/authorizer";
+import { type DatabaseConnection, Transaction } from "@destack/db/database";
 import type { ResourceContext } from "@destack/resource/context";
 import type { ProcedureContext } from "./procedure.ts";
 import { BOOKMARK_HEADER, Bookmark } from "../procedure/bookmark.ts";
 
-import { type Clock, type Environment } from "@destack/environment";
+import type { Clock, Environment } from "@destack/environment";
 
 import type {} from "@destack/package/import-meta";
 

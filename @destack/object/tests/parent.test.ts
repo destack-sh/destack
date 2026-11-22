@@ -1,7 +1,7 @@
 import { testSimulation } from "../src/test/index.ts";
 import { users } from "./fixture/user.ts";
 import { expect, onTestFinished, test } from "@destack/test";
-import { accessRelationship, principal, Relationship } from "@destack/access";
+import { principal, accessRelationship, Relationship } from "@destack/access";
 import { eq } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { schema, Uuid } from "@destack/schema";

@@ -1,6 +1,7 @@
-import { type Condition, type DatabaseConnection, type RowImage, type Snapshot } from "@destack/db";
+import { ReplicaSet, Subject, type SubscriptionRecord } from "@destack/sync";
+import type { Condition, RowImage } from "@destack/db";
+import type { DatabaseConnection, Snapshot } from "@destack/db/database";
 import { canonicalize, type Duration, nth, present, schema } from "@destack/schema";
-import { Replica, Subject, type SubscriptionRecord } from "@destack/sync";
 import type { ObjectType } from "../object/object.ts";
 import {
     EPHEMERAL_PUBLICATION,
@@ -154,8 +155,8 @@ export class Shape<Parameters extends object = object> {
         // require a synced replica of the key's scope
         const { scope, ...rest } = key;
         const name = Shape.replicaName(this.publication, scope, subject);
-        const recorded = await Replica.subscription(database, name, scope);
-        if (recorded === undefined || !(await Replica.isSynced(database, name, scope))) {
+        const recorded = await new ReplicaSet(database).subscription(name, scope);
+        if (recorded === undefined || !(await new ReplicaSet(database).isSynced(name, scope))) {
             return false;
         }
 

@@ -1,21 +1,19 @@
-import { TestObjectStore } from "../src/test/index.ts";
+import { TestObjectStore, testSimulation, testEvents, serversOf } from "../src/test/index.ts";
 import type { Environment } from "@destack/environment";
-import { testSimulation } from "../src/test/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { testCallKey } from "@destack/object/test";
 import { reconciliation, TestDatabase } from "@destack/db/test";
-import { testEvents, serversOf } from "../src/test/index.ts";
 
 import {
     AccessContext,
-    accessRelationship,
     Caller,
     none,
     principal,
+    accessRelationship,
     Relationship,
 } from "@destack/access";
-import { defineDatabase, eq, Transaction } from "@destack/db";
-import { PackageId } from "@destack/package";
+import { defineDatabase, eq } from "@destack/db";
+import { PackageId, defineKind } from "@destack/package";
 import { Plan, type Provider } from "@destack/resource";
 import { unreachablePlan } from "@destack/resource/error";
 import { Digest, present, schema } from "@destack/schema";
@@ -29,13 +27,12 @@ import {
     type ObjectType,
     provisioned,
     type Resource,
+    tablesOf,
 } from "../src/index.ts";
 import { DRAINING } from "../src/server/index.ts";
 import { claim, serveClaims } from "./fixture/claim.ts";
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
-import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
-import { defineKind } from "@destack/package";
 import { argument, plural, t } from "@destack/locale";
 
 /** The space with the boxes and links. */
@@ -341,7 +338,7 @@ async function serve(
         for (const state of [...states, ...drainingStates]) {
             await store.blobs.writeJson(state);
         }
-        await Transaction.run(database, async (transaction) => {
+        await database.commit(async (transaction) => {
             await store.mutate(
                 AccessContext.of(Caller.of(spacePrincipal(spaceId)), world.clock.now()),
                 {
@@ -386,22 +383,22 @@ test("provision a box once its space is unfenced and active, apply its consumers
     await reconcile("box", ids.first);
     const unset = present(await read(ids.first), "the box without a threshold");
     await want(ids.first, [{ size: 2 }]);
-    await Transaction.run(database, (transaction) =>
+    await database.commit((transaction) =>
         Scope.fence(transaction, spaceId, "machine-elsewhere", now),
     );
     await reconcile("box", ids.first);
     const fenced = present(await read(ids.first), "the fenced box");
 
     // leave it alone while a suspension holds its space too
-    await Transaction.run(database, (transaction) =>
+    await database.commit((transaction) =>
         Scope.change(transaction, spaceId, { suspendedAt: now }),
     );
-    await Transaction.run(database, (transaction) => Scope.unfence(transaction, spaceId));
+    await database.commit((transaction) => Scope.unfence(transaction, spaceId));
     await reconcile("box", ids.first);
     const suspended = present(await read(ids.first), "the suspended box");
 
     // provision it and grow it to the size its consumer requires once its space resumes
-    await Transaction.run(database, (transaction) =>
+    await database.commit((transaction) =>
         Scope.change(transaction, spaceId, { suspendedAt: null }),
     );
     await reconcile("box", ids.first);
@@ -793,7 +790,7 @@ test("reconcile a box inside a method call, applying its plan through the call's
 
     // pack the box, which reconciles it in the packer's call
     packed.length = 0;
-    await Transaction.run(database, async (transaction) => {
+    await database.commit(async (transaction) => {
         await store.mutate(
             AccessContext.of(Caller.of(spacePrincipal(spaceId)), world.clock.now()),
             {

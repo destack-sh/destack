@@ -1,21 +1,17 @@
-import { testSimulation } from "../src/test/index.ts";
+import { testSimulation, testEvents, serversOf, TestObjectStore } from "../src/test/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { AccessContext, Caller, none, principal, relation } from "@destack/access";
 import { TestAccess } from "@destack/access/test";
 
-import { Transaction } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { Identifier, schema } from "@destack/schema";
 
 import { RequestId, ObjectReference, Scope } from "@destack/sync";
-import { type MethodInput, defineObject, field, recoverable } from "../src/index.ts";
+import { type MethodInput, defineObject, field, recoverable, tablesOf } from "../src/index.ts";
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { testCallKey } from "@destack/object/test";
-import { testEvents, serversOf } from "../src/test/index.ts";
 import { userContext, users } from "./fixture/user.ts";
-import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
-import { TestObjectStore } from "../src/test/index.ts";
 import { argument, plural, t } from "@destack/locale";
 
 /** The public space containing the handles. */
@@ -778,7 +774,7 @@ test("create an object once for a request two transactions run, the one reading 
         const id = RequestId.create(world);
         const create = topic.call("create", { spaceId, holderId: users.alice, name: "ideas" });
         const step = (attempted: () => Promise<void>) =>
-            Transaction.run(storage.database, async (transaction) => {
+            storage.database.commit(async (transaction) => {
                 const [found] = await transaction
                     .view()
                     .read(topic.table)

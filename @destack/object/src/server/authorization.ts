@@ -1,29 +1,11 @@
+import { ReplicaSet, Scope, type ObjectReference } from "@destack/sync";
 import type { Environment } from "@destack/environment";
-import type { Manager } from "@destack/access";
+import { type Manager, AccessContext, Caller, type Permission } from "@destack/access";
 import { ObjectError } from "../error/error.ts";
 import * as access from "@destack/access";
-import { Replica, Scope, type ObjectReference } from "@destack/sync";
-import {
-    earliest,
-    AccessContext,
-    Caller,
-    type Authorizer,
-    type Reader,
-    type Access,
-    type Permission,
-} from "@destack/access";
-import {
-    and,
-    Key,
-    listed,
-    or,
-    sql,
-    TABLE,
-    type SQL,
-    Snapshot,
-    type Row,
-    type Transaction,
-} from "@destack/db";
+import { earliest, type Authorizer, type Reader, type Access } from "@destack/access/authorizer";
+import { and, Key, listed, or, sql, TABLE, type SQL, type Row } from "@destack/db";
+import { Snapshot, type Transaction } from "@destack/db/database";
 import { schema, zip } from "@destack/schema";
 import { conceal, CallError } from "../error/call.ts";
 import type { MethodContext } from "../method/context.ts";
@@ -227,8 +209,7 @@ export class Authorization extends access.Authorization {
             object.propagated === undefined &&
             others.length > 0
         ) {
-            const included = await Replica.keysIncluded(
-                this.transaction.database,
+            const included = await new ReplicaSet(this.transaction.database).keysIncluded(
                 table,
                 others.map((entry) => entry.row),
                 scope,

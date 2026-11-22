@@ -1,7 +1,21 @@
-import { testSimulation, testIdentity } from "../src/test/index.ts";
+import {
+    testSimulation,
+    testIdentity,
+    testEvents,
+    serversOf,
+    TestObjectStore,
+} from "../src/test/index.ts";
 import { MemoryBlobStorage } from "@destack/resource";
-import { defineDatabase, Snapshot } from "@destack/db";
-import { defineObject, field, ObjectDescription, type ObjectType } from "../src/index.ts";
+import { defineDatabase } from "@destack/db";
+import {
+    defineObject,
+    field,
+    ObjectDescription,
+    type ObjectType,
+    tablesOf,
+    shareable,
+    Shareable,
+} from "../src/index.ts";
 import { PackageVersion } from "@destack/package";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { none, principal, relation } from "@destack/access";
@@ -9,19 +23,14 @@ import { TestAccess } from "@destack/access/test";
 import { TestDatabase } from "@destack/db/test";
 import { present, schema } from "@destack/schema";
 import { definePackage } from "@destack/object";
-import { testServerContext } from "@destack/object/test";
-import { testEvents, serversOf } from "../src/test/index.ts";
+import { testServerContext, testCallKey } from "@destack/object/test";
 import { Scope } from "@destack/sync";
-import { testCallKey } from "@destack/object/test";
 import { QUERIES_PUBLICATION } from "../src/replica/replica.ts";
 import { ObjectStore, implementPackage } from "../src/server/index.ts";
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { request } from "./fixture/request.ts";
 import { userContext, users } from "./fixture/user.ts";
-import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
-import { TestObjectStore } from "../src/test/index.ts";
-import { shareable, Shareable } from "../src/index.ts";
 import { argument, plural, t } from "@destack/locale";
 import { TestRemote } from "../src/test/publisher.ts";
 import type { ObjectRemote } from "../src/replica/remote.ts";
@@ -193,7 +202,7 @@ test("follow an installation's root chain from its machine, and a partition's ch
             },
         });
         const subscriber = present(store.subscriber, "the store's subscriber");
-        const entries = await subscriber.subscriptions(Snapshot.live(storage.database));
+        const entries = await subscriber.subscriptions(storage.database.snapshot());
 
         return entries.map((entry) => {
             const publisher = subscriber.publisher(entry.home);
@@ -257,7 +266,7 @@ test("list the types a home and a follower decide in the chain subscription, add
                 connect: () => idles.root,
             },
         });
-        const listed = await store.sink.chains(spaceId, Snapshot.live(storage.database));
+        const listed = await store.sink.chains(spaceId, storage.database.snapshot());
 
         return listed
             .map((entry) => entry.subscription)

@@ -1,20 +1,19 @@
 import { FOLLOWER_REVISION } from "@destack/sync/test";
 import type { Environment } from "@destack/environment";
-import { testSimulation } from "../src/test/index.ts";
+import { testSimulation, testEvents, serversOf, TestObjectStore } from "../src/test/index.ts";
 import { users } from "./fixture/user.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { principal } from "@destack/access";
-import { type DatabaseConnection, TABLE } from "@destack/db";
+import { TABLE } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { TestDatabase } from "@destack/db/test";
 
 import { subjectContext, testCallKey } from "@destack/object/test";
-import { testEvents, serversOf } from "../src/test/index.ts";
 import { RequestId, Scope } from "@destack/sync";
 import type { RequestContext } from "@destack/object/server";
 import { notebook, note, notesDatabase } from "../src/test/note.ts";
 import { openSpace, spacePrincipal, space } from "../src/test/space.ts";
 import { spaceId } from "./fixture/device.ts";
-import { TestObjectStore } from "../src/test/index.ts";
 
 test("follow the changes one instance writes through another instance on a separate connection", async () => {
     // run in a world of its own

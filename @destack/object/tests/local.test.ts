@@ -1,25 +1,38 @@
 import type { Clock } from "@destack/environment";
 import { MemoryBlobStorage } from "@destack/resource";
-import { testSimulation, testIdentity } from "../src/test/index.ts";
-import { defineObject, device, field, nested, ObjectDescription } from "../src/index.ts";
+import {
+    testSimulation,
+    testIdentity,
+    testEvents,
+    serversOf,
+    TestObjectStore,
+} from "../src/test/index.ts";
+import {
+    defineObject,
+    device,
+    field,
+    nested,
+    ObjectDescription,
+    tablesOf,
+    propagated,
+} from "../src/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import {
     AccessContext,
-    accessTables,
     Caller,
     CONTAINED,
     principal,
     through,
+    accessTables,
 } from "@destack/access";
 import { TestAccess } from "@destack/access/test";
 import { RequestId, Scope, type Subject } from "@destack/sync";
 import { TestDatabase } from "@destack/db/test";
-import { type DatabaseConnection, Snapshot } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { BrowserSimulation } from "@destack/environment/browser/simulation";
 import { Identifier, nth } from "@destack/schema";
 import { definePackage } from "@destack/object";
 import { testCallKey } from "@destack/object/test";
-import { testEvents, serversOf } from "../src/test/index.ts";
 import { type BrowserDevice, BrowserTab } from "../src/browser/index.ts";
 import { deviceDatabase, deviceWorker, holdRemote } from "./fixture/browser.ts";
 import { WasmClient, connectWasmSqlite } from "@destack/db/browser";
@@ -29,10 +42,7 @@ import { serveNotes, spaceId } from "./fixture/device.ts";
 import { space, spacePrincipal } from "../src/test/space.ts";
 import { draft, memo, memosPackage, panel, sticky, user } from "./fixture/local.ts";
 import { note, notebook } from "../src/test/note.ts";
-import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
-import { TestObjectStore } from "../src/test/index.ts";
-import { propagated } from "../src/index.ts";
 import { argument, plural, t } from "@destack/locale";
 
 /** The module an app's device worker starts from, as its tabs resolve it. */
@@ -148,9 +158,7 @@ test("replicate the person's own scope chain to a tab opened before the device's
 
     // read the person's chain in the tab, relayed once the device's replica arrived
     expect(
-        (await Scope.chain(Snapshot.live(tab.client.database), alice)).map(
-            (link) => link.object.id,
-        ),
+        (await Scope.chain(tab.client.database.snapshot(), alice)).map((link) => link.object.id),
     ).toEqual([caller.id, Scope.universe.id]);
     await tab.close();
 });
@@ -515,7 +523,7 @@ test("refuse a tab's readiness with the reason its device worker could not open 
 
 /** Read the space's chain as a database holds its scope rows, nearest first. */
 async function readChain(database: DatabaseConnection): Promise<string[]> {
-    return (await Scope.chain(Snapshot.live(database), spaceId)).map((link) => link.object.id);
+    return (await Scope.chain(database.snapshot(), spaceId)).map((link) => link.object.id);
 }
 
 /** Serve a person's own scope with memos, opening tabs over a device answered once told. */

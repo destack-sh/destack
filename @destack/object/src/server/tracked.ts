@@ -1,7 +1,7 @@
-import { type Authorizer } from "@destack/access";
+import type { Authorizer } from "@destack/access/authorizer";
 import { Duration, Identifier, present } from "@destack/schema";
 import { ObjectReference, type ReferenceColumns } from "@destack/sync";
-import { TABLE, type Row, LogPosition, Table } from "@destack/db";
+import { TABLE, type Row, Table, LogPosition } from "@destack/db";
 import { type MethodContext, RecordedRow } from "../method/context.ts";
 import { Step } from "../method/step.ts";
 import type { ObjectType } from "../object/object.ts";

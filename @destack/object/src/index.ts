@@ -30,6 +30,6 @@ export {
 } from "./procedure/index.ts";
 export * from "./procedure/bookmark.ts";
 export * from "./health/index.ts";
-export * from "./server/body.ts";
+export * from "./http/body.ts";
 export * from "./webhook/hmac.ts";
 export * from "./webhook/standard.ts";

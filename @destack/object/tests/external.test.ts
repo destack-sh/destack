@@ -1,15 +1,21 @@
 import { worldTelemetry } from "../src/test/world.ts";
-import { testSimulation, testIdentity } from "../src/test/index.ts";
-import { defineObject, field, ObjectDescription } from "../src/index.ts";
+import {
+    testSimulation,
+    testIdentity,
+    testEvents,
+    serversOf,
+    TestObjectStore,
+} from "../src/test/index.ts";
+import { defineObject, field, ObjectDescription, tablesOf, nested } from "../src/index.ts";
 import { users } from "./fixture/user.ts";
 import { PackageVersion } from "@destack/package";
-import { defineDatabase, type DatabaseConnection } from "@destack/db";
+import { defineDatabase } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { TestDatabase } from "@destack/db/test";
 import { none, principal, through } from "@destack/access";
 import { schema, type Identifier, Uuid } from "@destack/schema";
 import { RequestId, Scope } from "@destack/sync";
 import { subjectContext, testCallKey } from "@destack/object/test";
-import { testEvents, serversOf } from "../src/test/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { implementPackage } from "../src/server/index.ts";
 import { ObjectClient } from "../src/client/index.ts";
@@ -17,9 +23,6 @@ import { definePackage, type MethodVisibility } from "@destack/object";
 import { notebook, notesPackage } from "../src/test/note.ts";
 import objectPackage from "../src/package.ts";
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
-import { tablesOf } from "../src/index.ts";
-import { TestObjectStore } from "../src/test/index.ts";
-import { nested } from "../src/index.ts";
 import { argument, plural, t } from "@destack/locale";
 
 /** An entry's natural key: the notebook's term, as a moniker identifies a symbol. */

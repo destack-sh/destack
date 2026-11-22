@@ -1,12 +1,12 @@
 import { TelemetryScope } from "@destack/telemetry";
-import { untilAborted } from "@destack/environment";
+import { untilAborted, type Environment } from "@destack/environment";
 import { Failure } from "@destack/error";
 import { present, Uuid } from "@destack/schema";
 import { ObjectError } from "../error/error.ts";
 import type { ResourceContext } from "@destack/resource/context";
 import { Server, type ServerOptions, type PackageHandler, type Voucher } from "../server/index.ts";
 import type { Package } from "../declare/package.ts";
-import { type Alarm, AlarmClock, AlarmStorage, type ControllerSet } from "@destack/db";
+import { type Alarm, AlarmClock, AlarmStorage, type ControllerSet } from "@destack/db/database";
 import { Health } from "../server/health.ts";
 
 import type {
@@ -20,7 +20,6 @@ import type {
 import { CallKey } from "../audit/key.ts";
 import type { Hibernation, Socket, SocketHandler } from "./socket.ts";
 import { ObjectConnectionAttachment } from "../server/connection.ts";
-import type { Environment } from "@destack/environment";
 
 import type {} from "@destack/package/import-meta";
 

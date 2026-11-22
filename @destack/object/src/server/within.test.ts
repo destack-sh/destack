@@ -1,28 +1,33 @@
+import { ReplicaSet, Scope } from "@destack/sync";
 import type { Environment } from "@destack/environment";
-import { testSimulation } from "../test/index.ts";
+import {
+    testSimulation,
+    followReplicas,
+    testEvents,
+    serversOf,
+    TestObjectStore,
+} from "../test/index.ts";
 import { testCallKey } from "../test/context.ts";
 import { TestDatabase } from "@destack/db/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import {
-    accessRelationship,
     none,
     permission,
     principal,
     relation,
     through,
     union,
+    accessRelationship,
 } from "@destack/access";
 import { call, defineObject, defineShape, field, relationship } from "../index.ts";
-import { followReplicas, testEvents, serversOf } from "../test/index.ts";
 import { TestAccess } from "@destack/access/test";
-import { asc, type DatabaseConnection, defineDatabase, eq } from "@destack/db";
+import { asc, defineDatabase, eq } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { schema, type Identifier } from "@destack/schema";
 
-import { Replica, Scope } from "@destack/sync";
 import { ObjectStore } from "./index.ts";
 import { tablesOf } from "../stack/db.ts";
 import objectPackage from "../package.ts";
-import { TestObjectStore } from "../test/index.ts";
 import { argument, plural, t } from "@destack/locale";
 import { TestRemote } from "../test/publisher.ts";
 import type { ObjectRemote } from "../replica/remote.ts";
@@ -249,8 +254,7 @@ test("replicate the profiles in the scopes of the people a space reads, each dec
         await running;
     });
     const replicated = async () => {
-        await Replica.wait(
-            space.database,
+        await new ReplicaSet(space.database).wait(
             Scope.universe.id,
             await home.database.log.position(),
             world.clock.timeout(5000),
@@ -572,8 +576,7 @@ test("replicate each person once the space may read them at the change's positio
     });
     await follow(replicating, home.database, space.database);
     const replicated = async () => {
-        await Replica.wait(
-            space.database,
+        await new ReplicaSet(space.database).wait(
             Scope.universe.id,
             await home.database.log.position(),
             world.clock.timeout(5000),
@@ -620,8 +623,7 @@ async function follow(
     });
 
     // wait for the replica to arrive at home
-    await Replica.wait(
-        space,
+    await new ReplicaSet(space).wait(
         Scope.universe.id,
         await home.log.position(),
         replicating.environment.clock.timeout(5000),

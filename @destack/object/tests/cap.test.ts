@@ -1,8 +1,7 @@
 import { BuildLayer } from "@destack/package/manifest";
 import { schema } from "@destack/schema";
 import { MemoryBlobStorage } from "@destack/resource";
-import { Transaction } from "@destack/db";
-import { testSimulation } from "../src/test/index.ts";
+import { testSimulation, testEvents, TestObjectStore } from "../src/test/index.ts";
 import { users } from "./fixture/user.ts";
 import { ResourceContext } from "@destack/resource/context";
 import { MemoryBuild } from "@destack/package/test";
@@ -11,14 +10,12 @@ import { TestDatabase } from "@destack/db/test";
 import { createClient } from "@destack/object/client";
 import { RequestId, Scope } from "@destack/sync";
 import { testCallKey, testKeys } from "@destack/object/test";
-import { testEvents } from "../src/test/index.ts";
 import type { ServerContext } from "@destack/object/workload";
 import { implementPackage, ObjectStore } from "../src/server/index.ts";
 import { spaceId } from "./fixture/device.ts";
 import { notebook, note, notesDatabase, notesPackage } from "../src/test/note.ts";
 import { openSpace } from "../src/test/space.ts";
 import { Environment } from "@destack/environment";
-import { TestObjectStore } from "../src/test/index.ts";
 import { TestRemote } from "../src/test/publisher.ts";
 
 /** Build a call's space and a new request. */
@@ -111,9 +108,7 @@ test("refuse an installation's writes in a space whose storage is capped, allowi
     const tickets = await alice.note.create({ ...request(world), title: "Tickets" });
 
     // cap the space's storage, as the replica of its scope row arrives from its machine
-    await Transaction.run(database, (transaction) =>
-        Scope.cap(transaction, spaceId, world.clock.now()),
-    );
+    await database.commit((transaction) => Scope.cap(transaction, spaceId, world.clock.now()));
     const created = await refusal(alice.note.create({ ...request(world), title: "Hotels" }));
     const updated = await refusal(
         alice.notebook.update({ ...request(world), id: book.id, name: "Trips" }),
@@ -125,7 +120,7 @@ test("refuse an installation's writes in a space whose storage is capped, allowi
     const restored = await refusal(alice.note.restore({ ...request(world), id: packing.id }));
 
     // lift the cap, writing again
-    await Transaction.run(database, (transaction) => Scope.cap(transaction, spaceId, null));
+    await database.commit((transaction) => Scope.cap(transaction, spaceId, null));
     const hotels = await alice.note.create({ ...request(world), title: "Hotels" });
 
     // state the refused method and the way out of the cap

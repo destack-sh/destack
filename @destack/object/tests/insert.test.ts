@@ -1,17 +1,20 @@
-import { testSimulation } from "../src/test/index.ts";
+import {
+    testSimulation,
+    serversOf,
+    testCallKey,
+    testEvents,
+    TestObjectStore,
+} from "../src/test/index.ts";
 import { principal, relation, through } from "@destack/access";
-import { Change, defineDatabase } from "@destack/db";
+import { defineDatabase, Change } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
 import { ObjectReference, RequestId } from "@destack/sync";
 import { refusal, expect, onTestFinished, test } from "@destack/test";
-import { defineObject, field, tablesOf } from "../src/index.ts";
+import { defineObject, field, tablesOf, nested } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
-import { serversOf, testCallKey, testEvents } from "../src/test/index.ts";
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { userContext, users } from "./fixture/user.ts";
-import { TestObjectStore } from "../src/test/index.ts";
-import { nested } from "../src/index.ts";
 import { argument, plural, t } from "@destack/locale";
 
 /** The time the store runs at: 2026-10-24, in Unix milliseconds. */

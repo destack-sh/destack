@@ -1,4 +1,4 @@
-import type { DatabaseConnection } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { CallEvent, call } from "../index.ts";
 
 /** Read the audited calls a database records as call events, in the order the log appended them. */

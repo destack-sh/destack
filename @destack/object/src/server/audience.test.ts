@@ -1,31 +1,27 @@
-import { testSimulation } from "../test/index.ts";
+import { testSimulation, testEvents, serversOf, TestObjectStore } from "../test/index.ts";
 import { testCallKey } from "../test/context.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import {
     AccessContext,
-    accessRelationship,
-    accessRole,
-    accessRolePermission,
     Caller,
     none,
     principal,
     relation,
-    Relationship,
     through,
     union,
+    accessRelationship,
+    accessRole,
+    accessRolePermission,
+    Relationship,
 } from "@destack/access";
-import { testEvents, serversOf } from "../test/index.ts";
 import { TestAccess } from "@destack/access/test";
 import { eq, type Table } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { schema, type Identifier, Uuid, type UuidEnvironment } from "@destack/schema";
 import { type Page, Scope, type Subject } from "@destack/sync";
-import { defineObject, field } from "../index.ts";
+import { defineObject, field, tablesOf, nested, propagated } from "../index.ts";
 import { AccessAudience } from "./audience.ts";
 import objectPackage from "../package.ts";
-import { tablesOf } from "../index.ts";
-import { TestObjectStore } from "../test/index.ts";
-import { nested, propagated } from "../index.ts";
 import { argument, plural, t } from "@destack/locale";
 
 /** The spaces the notebooks live in. */

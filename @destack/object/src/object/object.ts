@@ -29,7 +29,6 @@ import {
 import {
     Expression,
     Condition,
-    type Cursor,
     eq,
     inArray,
     DatabaseError,
@@ -42,8 +41,8 @@ import {
     TABLE,
     type Table,
     type TreeColumns,
-    type Snapshot,
 } from "@destack/db";
+import type { Cursor, Snapshot } from "@destack/db/database";
 import {
     type DigestCrypto,
     Duration,
@@ -65,7 +64,7 @@ import type { AuditAction } from "../audit/action.ts";
 import { ModuleMetadata, type PackageVersion } from "@destack/package";
 import { type Delivery, EventKind, type EventRetention, EventTable } from "@destack/event";
 import { Field, type FieldsByColumn, type ReferenceOf, type TextField } from "../field/field.ts";
-import { type Handler, type TypesOf } from "../method/context.ts";
+import type { Handler, TypesOf } from "../method/context.ts";
 import { CallSite } from "../method/site.ts";
 import { Method, METHOD_KINDS, type MethodKind, type Phase } from "../method/method.ts";
 import { MethodBuilder } from "../method/builder.ts";
@@ -86,7 +85,7 @@ import {
     type ObjectSchema,
 } from "../method/procedure.ts";
 import type { ObjectQuery } from "../replica/replica.ts";
-import { record } from "../trait/record.ts";
+import { record, type ManagedTable } from "../trait/record.ts";
 import { series, type SeriesMethodMap } from "../trait/series.ts";
 import {
     StackTarget,
@@ -179,7 +178,6 @@ import { type CursorRead, ObjectCursor, type CursorOptions } from "./cursor.ts";
 import type { ObjectStore } from "../server/store.ts";
 
 import type { DeclarationHandler } from "../server/stack.ts";
-import type { ManagedTable } from "../trait/record.ts";
 import { Casing } from "./name.ts";
 import { ObjectPolicy } from "./access.ts";
 import type { KnownDeclaration } from "./description.ts";

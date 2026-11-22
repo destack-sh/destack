@@ -1,54 +1,44 @@
-import type { Environment } from "@destack/environment";
+import { type Environment, waitAborted, yieldToEventLoop } from "@destack/environment";
 import { worldTelemetry } from "../src/test/world.ts";
 import { FOLLOWER_REVISION } from "@destack/sync/test";
-import { testSimulation, testIdentity } from "../src/test/index.ts";
-import { MemoryBlobStorage } from "@destack/resource";
 import {
-    BLOB_TABLES,
-    ControlLoop,
-    type DatabaseConnection,
-    defineDatabase,
-    eq,
-    Key,
-    lease,
-    lock,
-    ReadSet,
-    Snapshot,
-    TABLE,
-} from "@destack/db";
-import { subjectContext, testCallKey } from "@destack/object/test";
-import { TestDatabase } from "@destack/db/test";
-import {
+    testSimulation,
+    testIdentity,
     FeedPublisher,
     followReplicas,
     testEvents,
     testServerContext,
     serversOf,
+    TestObjectStore,
 } from "../src/test/index.ts";
-import { definePackage } from "@destack/object";
+import { MemoryBlobStorage } from "@destack/resource";
+import { defineDatabase, eq, Key, TABLE, BLOB_TABLES, lease, lock } from "@destack/db";
+import { ControlLoop, type DatabaseConnection, ReadSet } from "@destack/db/database";
+import { subjectContext, testCallKey } from "@destack/object/test";
+import { TestDatabase } from "@destack/db/test";
+import { definePackage, CallError } from "@destack/object";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import {
     AccessContext,
     accessGrant,
-    accessTables,
     Caller,
     contained,
-    accessRelationship,
     none,
     principal,
     relation,
-    Relationship,
     through,
     union,
+    accessTables,
+    accessRelationship,
+    Relationship,
 } from "@destack/access";
 
 import { TestAccess } from "@destack/access/test";
 import { canonicalize, Identifier, nth, present, schema, Uuid } from "@destack/schema";
 import { followKey, STORE_FOLLOWER } from "../src/replica/key.ts";
 
-import { CallError } from "@destack/object";
-import { RequestId, Scope, Feed, Replica, type Page, type Subscription } from "@destack/sync";
-import { waitAborted, yieldToEventLoop } from "@destack/environment";
+import { RequestId, Scope, type Page, ReplicaSet, type Subscription } from "@destack/sync";
+import { Feed } from "@destack/sync/dataflow";
 import * as sync from "@destack/sync";
 import { defineObject, defineShape, field, QUERIES_PUBLICATION, Shape } from "../src/index.ts";
 import { ObjectSink, ObjectStore } from "../src/server/index.ts";
@@ -56,7 +46,6 @@ import { userContext, users } from "./fixture/user.ts";
 import { spacePrincipal } from "../src/test/space.ts";
 import { tablesOf } from "../src/stack/db.ts";
 import objectPackage from "../src/package.ts";
-import { TestObjectStore } from "../src/test/index.ts";
 import { replicaRequest } from "../src/replica/request.ts";
 import { argument, plural, t } from "@destack/locale";
 import { TestRemote } from "../src/test/publisher.ts";
@@ -303,7 +292,7 @@ test("decide calls over a relayed replica of access as the holder does, through 
         await running;
     });
     for (const scope of [spaceId, accountId, Scope.universe.id]) {
-        await Replica.wait(installed.database, scope, head, controller.signal);
+        await new ReplicaSet(installed.database).wait(scope, head, controller.signal);
     }
     expect(keys.map(readScope)).toEqual([spaceId]);
 
@@ -411,7 +400,7 @@ test("record the reads of a replica listing, so only a change of a followed sour
     );
     const subscriber = present(store.subscriber, "the store's subscriber");
     const reads = new ReadSet();
-    await subscriber.subscriptions(Snapshot.live(machine.database).recording(reads));
+    await subscriber.subscriptions(machine.database.snapshot().recording(reads));
 
     // add a document the follow leaves out, then retitle the followed one out of the follow
     const after = (await machine.database.log.position()).sequence;
@@ -503,7 +492,7 @@ test("read a row follow's keys again only for the source rows a change touched, 
     const subscriber = present(store.subscriber, "the store's subscriber");
 
     // list every row's key, then list again for a retitled row and for an added one
-    await subscriber.subscriptions(Snapshot.live(machine.database));
+    await subscriber.subscriptions(machine.database.snapshot());
     const listed = keyReads;
     const relist = async (change: () => PromiseLike<unknown>) => {
         const after = (await machine.database.log.position()).sequence;
@@ -511,7 +500,7 @@ test("read a row follow's keys again only for the source rows a change touched, 
         const { changes } = await machine.database.log.read({ tables: [document.table], after });
         const before = keyReads;
         await subscriber.subscriptions(
-            Snapshot.live(machine.database).recording(new ReadSet()),
+            machine.database.snapshot().recording(new ReadSet()),
             changes,
         );
 
@@ -699,7 +688,7 @@ test("report a follow its source refuses, and drop its replica once a change of 
     });
     const head = await home.database.log.position();
     for (const scope of [spaceId, otherSpaceId, accountId, Scope.universe.id]) {
-        await Replica.wait(machine.database, scope, head, controller.signal);
+        await new ReplicaSet(machine.database).wait(scope, head, controller.signal);
     }
 
     // refuse the other space's documents at home, reported while a document still asks for them
@@ -819,7 +808,7 @@ test("finish a wait through a store's replica of a scope once it stops following
     });
     const followed = await home.database.log.position();
     for (const scope of [spaceId, otherSpaceId, accountId, Scope.universe.id]) {
-        await Replica.wait(machine.database, scope, followed, controller.signal);
+        await new ReplicaSet(machine.database).wait(scope, followed, controller.signal);
     }
 
     // commit a document of the first space at home, outside both replicas of the other space
@@ -901,7 +890,7 @@ test("record a wait that gives up with the late replica's position and how long 
     const simulation = testSimulation();
     const world = simulation.environment("test");
     const { homeDatabase, machine, store, documents } = await followDocuments(world);
-    const [replicated] = await Replica.homes(machine.database, [
+    const [replicated] = await new ReplicaSet(machine.database).homes([
         { name: documents, scope: otherSpaceId },
     ]);
 
@@ -1002,7 +991,7 @@ test("replicate a person's grant to an installation of the space from the univer
         await running;
     });
     const head = await home.database.log.position();
-    await Replica.wait(machine.database, Scope.universe.id, head, controller.signal);
+    await new ReplicaSet(machine.database).wait(Scope.universe.id, head, controller.signal);
 
     // retain only the grant to the space's installation
     const remaining = await machine.database.select({ id: accessGrant.id }).from(accessGrant);
@@ -1075,12 +1064,11 @@ test("serve a woken store only once the replicas it stored are live again", asyn
         const current = await Promise.all(
             gates.map(
                 async (subscription) =>
-                    Replica.isLive(
-                        installed.database,
+                    new ReplicaSet(installed.database).isLive(
                         subscription.name,
                         subscription.scope,
                         LAG_MILLISECONDS,
-                    ) && (await Replica.isCurrent(installed.database, subscription)),
+                    ) && (await new ReplicaSet(installed.database).isCurrent(subscription)),
             ),
         );
 
@@ -1167,7 +1155,7 @@ test("follow replicates as a server without methods, journal or call key", async
         await running;
     });
     const head = await home.database.log.position();
-    await Replica.wait(follower.database, Scope.universe.id, head, controller.signal);
+    await new ReplicaSet(follower.database).wait(Scope.universe.id, head, controller.signal);
 
     // run only compaction, the blob collection and the replica follow, with no event log
     const sets = store.control();
@@ -1277,7 +1265,7 @@ test("replicate the chains of an installation's two served spaces in one replica
 
     // request the universe's rows and one replica of both spaces' chains via them
     const requests = (
-        await replicating.sink.chains(followingSpaceId, Snapshot.live(replicating.database))
+        await replicating.sink.chains(followingSpaceId, replicating.database.snapshot())
     ).map((entry) => entry.subscription);
     const chains = present(
         requests.find((request) => request.name === ObjectSink.viaName(followingSpaceId)),
@@ -1611,7 +1599,7 @@ test("request no via chain for the rows a subject's follow brought, which their 
             await transaction.insert(sync.replicaSubscription).values({
                 name,
                 scope: spaceId,
-                ...sync.Replica.subscriptionColumns(
+                ...sync.ReplicaSet.subscriptionColumns(
                     {
                         name,
                         publication: "queries",
@@ -1645,7 +1633,7 @@ test("request no via chain for the rows a subject's follow brought, which their 
         events: await testEvents(database, world),
         origin: { package: document.package },
     });
-    const vias = (await store.sink.chains(followingSpaceId, Snapshot.live(database)))
+    const vias = (await store.sink.chains(followingSpaceId, database.snapshot()))
         .map((entry) => entry.subscription)
         .filter((subscription) =>
             subscription.name.startsWith(ObjectSink.viaName(followingSpaceId)),
@@ -1717,7 +1705,7 @@ test("wait before serving for the store's chain replicas, never for its followed
 
     // gate on the chain alone, listing the store's universe follows, the documents with the acquired accounts, and alice's two without gating
     const listed = await present(store.subscriber, "the store's subscriber").subscriptions(
-        Snapshot.live(database),
+        database.snapshot(),
     );
     const gates = (await store.sink.gates()).map((subscription) => subscription.name);
     expect([listed.length, gates]).toEqual([4, [ObjectSink.chainName(followingSpaceId)]]);
@@ -1933,7 +1921,7 @@ const LOCAL_REPLICAS = JSON.stringify([[ObjectSink.chainName(spaceId), spaceId]]
 
 /** List a database's replicas as their names and scopes, to compare with the store's. */
 async function localReplicas(database: DatabaseConnection): Promise<string> {
-    const replicas = (await Replica.subscriptions(Snapshot.live(database)))
+    const replicas = (await ReplicaSet.subscriptions(database.snapshot()))
         .map((replica) => [replica.name, replica.scope])
         .toSorted((left, right) => left.join().localeCompare(right.join()));
 
@@ -2025,7 +2013,7 @@ test("replicate the chains of the accounts an installation's rows relate to, bes
 
     // request one replica of the readable account's chain and the installation's space
     const requests = (
-        await replicating.sink.chains(followingSpaceId, Snapshot.live(replicating.database))
+        await replicating.sink.chains(followingSpaceId, replicating.database.snapshot())
     ).map((entry) => entry.subscription);
     const chains = present(
         requests.find((request) => request.name === ObjectSink.viaName(followingSpaceId)),
@@ -2161,8 +2149,7 @@ test("replicate the chain of an account another replica brought first, once the 
         },
     );
     const head = await home.database.log.position();
-    await Replica.wait(
-        installed.database,
+    await new ReplicaSet(installed.database).wait(
         Scope.universe.id,
         head,
         world.clock.timeout(REPLICA_MILLISECONDS),
@@ -2207,7 +2194,7 @@ async function followUniverse(
 
         return { name, scope };
     });
-    await Replica.waitAt(replicating.database, followed, head, controller.signal);
+    await new ReplicaSet(replicating.database).waitAt(followed, head, controller.signal);
 
     return controller;
 }
@@ -2364,7 +2351,7 @@ async function followDocuments(world: Environment) {
     });
     const documents = Shape.replicaName(QUERIES_PUBLICATION, otherSpaceId);
     await machine.database.log.waitUntil(
-        () => Replica.isSynced(machine.database, documents, otherSpaceId),
+        () => new ReplicaSet(machine.database).isSynced(documents, otherSpaceId),
         controller.signal,
     );
 

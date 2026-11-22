@@ -1,10 +1,11 @@
-import type { DatabaseConnection, Table } from "@destack/db";
-import { Snapshot, TABLE } from "@destack/db";
+import { type Table, TABLE } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { Failure } from "@destack/error";
 import { RetryPolicy } from "@destack/environment";
 import type { Subject } from "@destack/sync";
 import { canonicalize, found, type JsonValue, nth, present, schema, Uuid } from "@destack/schema";
 import * as sync from "@destack/sync";
+import * as syncDataflow from "@destack/sync/dataflow";
 import { Branch, BranchType } from "../branch/index.ts";
 import { CallError } from "../error/call.ts";
 import { Replay } from "../audit/replay.ts";
@@ -37,7 +38,7 @@ const MUTATION_RESULTS = schema.array(schema.json());
 /** A waiter for a queued mutation's outcome. */
 interface OutcomeWaiter {
     /** Settle with the outcome. */
-    readonly resolve: (outcome: sync.MutationState) => void;
+    readonly resolve: (outcome: syncDataflow.MutationState) => void;
     /** Fail once the outbox closes first. */
     readonly reject: (error: Error) => void;
 }
@@ -73,7 +74,7 @@ export interface OutboxOptions {
 /** A store's writes of rows homed elsewhere: predicted, queued and pushed until settled. */
 export class Outbox {
     /** What the replicas show over their homes' rows: the queued mutations and the branch. */
-    readonly prediction: sync.Prediction;
+    readonly prediction: syncDataflow.Prediction;
     /** The store predicting and recording the mutations. */
     readonly #store: ObjectStore;
     /** How the store's owner tunes the outbox and reacts to outcomes. */
@@ -124,7 +125,7 @@ export class Outbox {
             .filter((object) => object.storage === "durable")
             .map((object) => object.table);
         const { branch } = options;
-        this.prediction = new sync.Prediction({
+        this.prediction = new syncDataflow.Prediction({
             tables,
             predict: (transaction, pending) => this.#predict(transaction, pending),
             reads: (call) => this.#reads(call, tables),
@@ -200,7 +201,7 @@ export class Outbox {
     }
 
     /** End a mutation's waiters with its outcome, recording how long it took from its queueing. */
-    #end(id: string, outcome: sync.MutationState): void {
+    #end(id: string, outcome: syncDataflow.MutationState): void {
         // record the time from queueing to the outcome
         const seconds = (this.#store.clock.now() - Uuid.time(id)) / MILLISECONDS;
         this.#confirms.record(seconds, {
@@ -347,7 +348,7 @@ export class Outbox {
     /** Wait for a mutation's outcome, answering what its home answered or its rejection. */
     async outcome(id: string, origin: string): Promise<JsonValue | undefined> {
         // wait for the settle loop
-        const outcome = await new Promise<sync.MutationState>((resolve, reject) => {
+        const outcome = await new Promise<syncDataflow.MutationState>((resolve, reject) => {
             this.#waiting.set(id, [...(this.#waiting.get(id) ?? []), { resolve, reject }]);
             if (this.#settling === undefined) {
                 this.#settling = this.#settle();
@@ -415,7 +416,9 @@ export class Outbox {
     #chain(home: string): Promise<readonly string[]> {
         const name = Shape.replicaName(QUERIES_PUBLICATION, home);
 
-        return new sync.Replica({ name, scope: home, tables: [] }).chain(this.#store.database);
+        return new syncDataflow.Replica({ name, scope: home, tables: [] }).chain(
+            this.#store.database,
+        );
     }
 
     /** Wrap a queued mutation as pushed: a branch's edits as one call to the branch. */
@@ -441,21 +444,22 @@ export class Outbox {
     }
 
     /** Check branches out over the replicas: rows, openness and applied edits. */
-    #branches(types: BranchType): sync.BranchSource {
+    #branches(types: BranchType): syncDataflow.BranchSource {
         const branches = types.object.table;
         const objects = this.#store.replicated;
 
         return {
             tables: [branches[TABLE].sqlName, types.change.table[TABLE].sqlName],
             isOpen: async (transaction, id) => {
-                const row = await Snapshot.live(transaction)
+                const row = await transaction
+                    .snapshot()
                     .read(branches)
                     .findFirst({ where: { id } });
 
                 return row === undefined || BranchType.record(row).state === "open";
             },
             apply: (transaction, id) =>
-                new Branch(types, Snapshot.live(transaction), id).apply(transaction, objects),
+                new Branch(types, transaction.snapshot(), id).apply(transaction, objects),
         };
     }
 

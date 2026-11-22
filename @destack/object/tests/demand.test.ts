@@ -1,7 +1,14 @@
 import { worldTelemetry } from "../src/test/world.ts";
-import { testSimulation } from "../src/test/index.ts";
+import {
+    testSimulation,
+    serversOf,
+    subjectContext,
+    testEvents,
+    TestObjectStore,
+} from "../src/test/index.ts";
 import { CONTAINED, none, principal, through } from "@destack/access";
-import { asc, defineDatabase, ControlLoop } from "@destack/db";
+import { asc, defineDatabase } from "@destack/db";
+import { ControlLoop } from "@destack/db/database";
 import { TestDatabase } from "@destack/db/test";
 import { Package } from "@destack/object";
 import { testCallKey } from "@destack/object/test";
@@ -10,12 +17,10 @@ import { Scope, type Subscription } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import { defineObject, defineShape, field, followKey } from "../src/index.ts";
 import { implementPackage, ObjectStore } from "../src/server/index.ts";
-import { serversOf, subjectContext, testEvents } from "../src/test/index.ts";
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import type { Simulation } from "@destack/environment/simulation";
 import { tablesOf } from "../src/stack/db.ts";
 import objectPackage from "../src/package.ts";
-import { TestObjectStore } from "../src/test/index.ts";
 import { argument, plural, t } from "@destack/locale";
 import { TestRemote } from "../src/test/publisher.ts";
 

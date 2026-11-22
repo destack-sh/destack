@@ -1,7 +1,7 @@
 import { Caller, PermissionReference } from "@destack/access";
-import { BranchEntry } from "../branch/entry.ts";
-import { Condition, LogPosition, OrderBy, Row, Table, TABLE } from "@destack/db";
 import { SERIES_FOLDS } from "@destack/event";
+import { BranchEntry } from "../branch/entry.ts";
+import { Condition, OrderBy, Row, Table, TABLE, LogPosition } from "@destack/db";
 import { schema, type JsonValue } from "@destack/schema";
 
 import * as sync from "@destack/sync";

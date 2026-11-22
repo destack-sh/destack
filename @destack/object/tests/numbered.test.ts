@@ -2,13 +2,10 @@ import { isDeepStrictEqual } from "node:util";
 import type { Environment } from "@destack/environment";
 import { principal } from "@destack/access";
 import { RequestId, Scope } from "@destack/sync";
-import { expect, refusal, test } from "@destack/test";
-import { Snapshot } from "@destack/db";
+import { expect, refusal, test, onTestFinished } from "@destack/test";
 import { TestDatabase } from "@destack/db/test";
-import type { Identifier } from "@destack/schema";
+import { type Identifier, present, schema } from "@destack/schema";
 import { ObjectClient, type ObjectConnection } from "../src/client/index.ts";
-import { onTestFinished } from "@destack/test";
-import { present, schema } from "@destack/schema";
 import {
     ObjectAppearance,
     defineObject,
@@ -153,7 +150,7 @@ test("number issues within their team, never reusing a purged one's, and number 
     const after = await create(tracker.id, "Search");
 
     // read each issue's identifier, and find issues by identifier, billing also by its old one
-    const reader = Snapshot.live(objects.database);
+    const reader = objects.database.snapshot();
     const identifiers = await Promise.all(
         (await client.issue.list({ spaceId })).items.map((item) =>
             Numbered.identifier(issue, item, reader),
@@ -284,7 +281,7 @@ test("number orders across the space from #1001, and find one by its identifier"
     ];
 
     // read their identifiers, and find the second by its own
-    const reader = Snapshot.live(objects.database);
+    const reader = objects.database.snapshot();
     const identifiers = await Promise.all(
         orders.map((each) => Numbered.identifier(order, each, reader)),
     );
@@ -318,7 +315,7 @@ test("number an invoice once finalized, printing its identifier as issued and re
     const moved = await refusal(
         client.invoice.update({ ...request(), id: kept.id, teamId: other.id }),
     );
-    const reader = Snapshot.live(objects.database);
+    const reader = objects.database.snapshot();
 
     expect({
         draft: [kept.number, kept.identifier],

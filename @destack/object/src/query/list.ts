@@ -1,9 +1,12 @@
+import { ReplicaSet } from "@destack/sync";
 import { Caller } from "@destack/access";
 import { ObjectError } from "../error/error.ts";
-import { type Snapshot, TABLE, Transaction, Table } from "@destack/db";
+import { TABLE, Table } from "@destack/db";
+import type { Snapshot } from "@destack/db/database";
 import { nth, canonicalize, schema, type JsonObject } from "@destack/schema";
-import { Dataflow, EVERYONE, Replica, View } from "@destack/sync";
+import { Dataflow, EVERYONE, View } from "@destack/sync/dataflow";
 import type * as sync from "@destack/sync";
+import type * as syncDataflow from "@destack/sync/dataflow";
 import { Page } from "../method/page.ts";
 import { PageFields } from "../method/procedure.ts";
 import { QueryFields, ViewFields } from "../replica/replica.ts";
@@ -38,8 +41,7 @@ export async function list(call: MethodContext, execution: Execution) {
     );
 
     // compile the query with one extra row over the scopes the caller sees
-    const replicated = await Replica.scopes(
-        Execution.snapshot(execution).database,
+    const replicated = await new ReplicaSet(Execution.snapshot(execution).database).scopes(
         call.object.table,
         call.scope,
         Caller.principal(call.caller),
@@ -51,7 +53,7 @@ export async function list(call: MethodContext, execution: Execution) {
         ),
         scopes: [...new Set([...call.object.readScopes(call.chain), ...replicated])],
     };
-    const requested = requestedView(execution);
+    const requested = execution.view;
     const position = requested?.position;
     const read = await readList(
         call,
@@ -131,7 +133,7 @@ async function readList<Value>(
 /** Build the dataflow listing a call's query, materialized for the call's audience. */
 function listDataflow(
     compiled: sync.Query,
-    audience: sync.Audience,
+    audience: syncDataflow.Audience,
     execution: Execution,
 ): Dataflow {
     const { database } = Execution.snapshot(execution);
@@ -154,7 +156,7 @@ async function readableAt(
     execution: Execution,
 ): Promise<readonly sync.Item[]> {
     // take every item at the latest position
-    const snapshot = requestedView(execution);
+    const snapshot = execution.view;
     if (snapshot?.position === undefined || execution.isPredicted) {
         return read;
     }
@@ -170,11 +172,6 @@ async function readableAt(
     );
 
     return read.filter((item) => permitted.has(item.row));
-}
-
-/** Read the snapshot a store's call asked to read at a position or over a branch. */
-function requestedView(execution: Execution): Snapshot | undefined {
-    return execution.view instanceof Transaction ? undefined : execution.view;
 }
 
 /** Split listed items into their rows, their included rows and their computed values. */

@@ -3,16 +3,16 @@ import { ObjectReference, type ObjectTypeReference, Subject } from "@destack/syn
 import { ObjectError } from "../error/error.ts";
 import {
     AccessContext,
-    type Authorizer,
     Caller,
-    type Creation,
-    type Decision,
-    type Manager,
     type Permission,
     type PermissionReference,
     principal,
     Grant,
+    type Creation,
+    type Decision,
+    type Manager,
 } from "@destack/access";
+import type { Authorizer } from "@destack/access/authorizer";
 import {
     and,
     eq,
@@ -23,11 +23,11 @@ import {
     Row,
     type Select,
     TABLE,
+    Table,
     type LogPosition,
     type RelationalQueryBuilder,
-    type Transaction,
-    Table,
 } from "@destack/db";
+import type { Transaction } from "@destack/db/database";
 import type { EventKeyFields, EventKind } from "@destack/event";
 import type { BranchEntry } from "../branch/entry.ts";
 import { ViewSubscriber } from "./query.ts";
@@ -55,8 +55,7 @@ import { CallSite } from "./site.ts";
 import type { MethodKind } from "./kind.ts";
 import type { ServerContext } from "../workload/workload.ts";
 import type { SettlementContext } from "./settlement.ts";
-import { type IsSum } from "./builder.ts";
-import { ObjectRecord } from "./record.ts";
+import type { IsSum } from "./builder.ts";
 import type { list } from "../query/list.ts";
 import { ParentReference } from "../trait/nested.ts";
 import type { Session } from "./reader.ts";
@@ -473,9 +472,9 @@ export class MethodContext<
         // read through the home store's event log, else through the hook's session
         const location = this.#location;
         if (location.kind === "store" && !location.isPredicted) {
-            return new EventView(kind, location.store.events);
+            return new EventView(kind, { store: location.store.events });
         } else if (location.kind === "sandbox") {
-            return new EventView(kind, location.session);
+            return new EventView(kind, { session: location.session });
         }
 
         // refuse a prediction, whose replica has no event log
@@ -774,9 +773,11 @@ export class MethodContext<
         });
 
         // require the receiving parent and the creation, then write the row and record its access
-        await ObjectRecord.authorizeCreate(creating, location);
-        const { row } = await ObjectRecord.insertAuthorized(creating, location, (created) =>
-            ObjectRecord.createObject(created, location),
+        await location.store.record.authorizeCreate(creating, location);
+        const { row } = await location.store.record.insertAuthorized(
+            creating,
+            location,
+            (created) => location.store.record.createObject(created, location),
         );
 
         return Table.complete(type.table, Row.parse(row));

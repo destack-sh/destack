@@ -10,7 +10,8 @@ import type {
 } from "../workload/index.ts";
 import type { BuildReader } from "@destack/package/manifest";
 import { bunSqliteConnector, connectBunSqlite } from "@destack/db/bun";
-import { type Environment, LineExporter, SERVER_SOCKET_VARIABLE } from "@destack/environment";
+import { type Environment, SERVER_SOCKET_VARIABLE } from "@destack/environment";
+import { LineExporter } from "@destack/environment/line";
 import { ObjectConnection } from "../client/index.ts";
 import { BunEnvironment } from "@destack/environment/bun";
 

@@ -5,7 +5,6 @@ import {
     FindOptions,
     count,
     eq,
-    type DatabaseConnection,
     TABLE,
     type Table,
     Condition,
@@ -18,9 +17,8 @@ import {
     type Scalar,
     Expression,
     declareState,
-    Snapshot,
-    Transaction,
 } from "@destack/db";
+import { type DatabaseConnection, Transaction } from "@destack/db/database";
 import {
     canonicalize,
     Digest,
@@ -42,6 +40,7 @@ import { decisionTables } from "@destack/access";
 import { Observable } from "./observable.ts";
 import { RetryPolicy, type Clock, type Environment } from "@destack/environment";
 import * as sync from "@destack/sync";
+import * as syncDataflow from "@destack/sync/dataflow";
 import { Failure } from "@destack/error";
 import { Branch, type BranchChange, BranchType } from "../branch/index.ts";
 import { type StoredStep, UndoStack, undoEntry } from "./undo.ts";
@@ -73,10 +72,9 @@ import { MemoryBlobStorage } from "@destack/resource";
 import { ObjectStore } from "../server/store.ts";
 import { STORE_TABLES } from "../stack/db.ts";
 import { Outbox } from "../server/outbox.ts";
-import type { OnDemandFollow, FollowKey } from "../replica/shape.ts";
+import { type OnDemandFollow, type FollowKey, defineShape, Shape } from "../replica/shape.ts";
 import { implementPackage, type PackageImplementation } from "../server/implementation.ts";
 import { Package } from "../declare/package.ts";
-import { defineShape, Shape } from "../replica/shape.ts";
 /** The hexadecimal digest digits identifying a query: 64 bits, safe among a client's queries. */
 const QUERY_NAME_LENGTH = 16;
 
@@ -184,7 +182,7 @@ export interface ClientInspection {
         readonly expiresAt: number | null;
     }[];
     /** The replica of the scope. */
-    readonly replica: sync.ReplicaInspection;
+    readonly replica: syncDataflow.ReplicaInspection;
     /** The queued mutations by outcome. */
     readonly mutations: {
         /** The mutations waiting for the server. */
@@ -195,7 +193,7 @@ export interface ClientInspection {
         readonly rejected: number;
     };
     /** The local feed serving live queries. */
-    readonly feed: sync.FeedInspection;
+    readonly feed: syncDataflow.FeedInspection;
 }
 
 /** The relational queries of a client's object types, by key. */
@@ -310,13 +308,13 @@ export class ObjectClient<
     /** The principals whose partitions store the client's local objects: caller and client. */
     readonly #owners: readonly Subject[];
     /** The replica of the scope's durable objects. */
-    readonly replica: sync.Replica;
+    readonly replica: syncDataflow.Replica;
     /** The replica of the scope's ephemeral objects, absent when the client has none. */
-    readonly ephemeral: sync.Replica | undefined;
+    readonly ephemeral: syncDataflow.Replica | undefined;
     /** The replica of the scope's external objects, absent when the client has none. */
-    readonly external: sync.Replica | undefined;
+    readonly external: syncDataflow.Replica | undefined;
     /** The replica of the access rows the caller's checks read along the scope chain. */
-    readonly access: sync.Replica;
+    readonly access: syncDataflow.Replica;
     /** The node's queued mutations, predicted here and pushed to the remote. */
     readonly #outbox: Outbox;
     /** The scope's branch types, absent for a client without branches. */
@@ -336,7 +334,7 @@ export class ObjectClient<
     /** Whether the local objects live at the remote, as a tab's live at its device. */
     readonly #isLocalFollowed: boolean;
     /** The local feed of watched queries. */
-    readonly #local: sync.Feed;
+    readonly #local: syncDataflow.Feed;
     /** The environment the client runs in: its clock, network and randomness. */
     readonly environment: Environment;
     /** Aborts outcome waits, lookups and watches on close. */
@@ -416,7 +414,7 @@ export class ObjectClient<
         this.#outbox = present(this.store.outbox, "the client's outbox");
 
         // read the store's replicas of the scope: durable, ephemeral and external objects
-        this.replica = new sync.Replica({
+        this.replica = new syncDataflow.Replica({
             name: Shape.replicaName(QUERIES_PUBLICATION, options.scope),
             scope: options.scope,
             tables,
@@ -437,9 +435,13 @@ export class ObjectClient<
 
         // read every replica and the local objects through one local feed
         const others = SEPARATE_STORAGES.flatMap((each) => this.#stored(each));
-        this.#local = new sync.Feed(options.database, [...tables, ...others, sync.replicaResult], {
-            upstream: this.#upstream(this.objects),
-        });
+        this.#local = new syncDataflow.Feed(
+            options.database,
+            [...tables, ...others, sync.replicaResult],
+            {
+                upstream: this.#upstream(this.objects),
+            },
+        );
     }
 
     /** Serve each package's local object types, and follow the live queries' shapes on demand. */
@@ -506,7 +508,7 @@ export class ObjectClient<
     }
 
     /** Measure each query through the replica with its root. */
-    #upstream(objects: readonly ObjectType[]): sync.Upstream {
+    #upstream(objects: readonly ObjectType[]): syncDataflow.Upstream {
         // map tables to storages, events as durable, and storages to their replicas
         const storages = new Map(
             objects.map((object) => [
@@ -514,7 +516,7 @@ export class ObjectClient<
                 object.storage === "events" ? "durable" : object.storage,
             ]),
         );
-        const upstreams = new Map<ObjectStorage, sync.Upstream>([
+        const upstreams = new Map<ObjectStorage, syncDataflow.Upstream>([
             ["durable", this.replica.upstream(this.database, this.prediction)],
             ...(this.ephemeral === undefined
                 ? []
@@ -641,7 +643,7 @@ export class ObjectClient<
 
     /** Write a branch's rows from the client's replica over its other rows. */
     /** What the replicas show over their homes' rows: queued mutations and the branch. */
-    get prediction(): sync.Prediction {
+    get prediction(): syncDataflow.Prediction {
         return this.#outbox.prediction;
     }
 
@@ -929,7 +931,7 @@ export class ObjectClient<
         }
         const rows = this.#live(types.change, { where: { parentId: branch } });
         const read = () =>
-            new Branch(types, Snapshot.live(this.database), branch).changes(this.objects);
+            new Branch(types, this.database.snapshot(), branch).changes(this.objects);
 
         return {
             ready: rows.ready,
@@ -1354,10 +1356,12 @@ export class ObjectClient<
             const stopped = AbortSignal.any([signal, rescoping.signal]);
             const isRescoped = async () =>
                 canonicalize(await this.replica.chain(this.database)) !== scopes;
-            const watching = sync.Replica.waitMarked(this.database, isRescoped, stopped).then(
-                (isChanged) => isChanged && rescoping.abort(),
-                () => rescoping.abort(),
-            );
+            const watching = new sync.ReplicaSet(this.database)
+                .waitMarked(isRescoped, stopped)
+                .then(
+                    (isChanged) => isChanged && rescoping.abort(),
+                    () => rescoping.abort(),
+                );
             try {
                 yield* watch(name, read, stopped);
             } finally {
@@ -1388,20 +1392,20 @@ export class ObjectClient<
     }
 
     /** Load a query over the local database through the local feed's upstream. */
-    async #dataflow(name: string, query: sync.Query): Promise<sync.Dataflow> {
+    async #dataflow(name: string, query: sync.Query): Promise<syncDataflow.Dataflow> {
         // read through the local feed's upstream
         const upstream = present(this.#local.upstream, "the local feed's upstream");
-        const dataflow = new sync.Dataflow(
+        const dataflow = new syncDataflow.Dataflow(
             { [name]: await this.#read(query) },
             {
-                audience: sync.EVERYONE,
+                audience: syncDataflow.EVERYONE,
                 database: this.database,
                 upstream,
-                changesThrough: sync.Dataflow.changesThrough(this.database),
+                changesThrough: syncDataflow.Dataflow.changesThrough(this.database),
                 isMaterialized: true,
             },
         );
-        await dataflow.load(await sync.View.latest(this.database));
+        await dataflow.load(await syncDataflow.View.latest(this.database));
 
         return dataflow;
     }
@@ -1875,7 +1879,7 @@ export class ObjectClient<
     }
 
     /** Pick a storage's replica, events beside durable rows, refusing one the client lacks. */
-    #pickReplica(storage: ObjectStorage): sync.Replica {
+    #pickReplica(storage: ObjectStorage): syncDataflow.Replica {
         // pick the storage's replica
         const replicas = {
             durable: this.replica,
@@ -1928,8 +1932,8 @@ export class ObjectClient<
         name: string,
         scope: string,
         tables: readonly Table[],
-    ): sync.Replica | undefined {
-        return tables.length === 0 ? undefined : new sync.Replica({ name, scope, tables });
+    ): syncDataflow.Replica | undefined {
+        return tables.length === 0 ? undefined : new syncDataflow.Replica({ name, scope, tables });
     }
 
     /** Read the distinct keys of a lookup's parent rows, in their JSON form, sorted. */

@@ -1,12 +1,5 @@
-import {
-    type RowChange,
-    Key,
-    TABLE,
-    type DatabaseConnection,
-    type Row,
-    type Overlay,
-    Table,
-} from "@destack/db";
+import { Key, TABLE, type Row, Table } from "@destack/db";
+import type { RowChange, DatabaseConnection, Overlay } from "@destack/db/database";
 import { found, present, schema, type JsonObject } from "@destack/schema";
 import type { ObjectType } from "../object/index.ts";
 

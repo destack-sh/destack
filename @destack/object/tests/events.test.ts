@@ -1,4 +1,4 @@
-import { testSimulation } from "../src/test/index.ts";
+import { testSimulation, testEvents, serversOf, TestObjectStore } from "../src/test/index.ts";
 import { AccessContext, Caller, none, principal, relation, through } from "@destack/access";
 import { defineDatabase, TABLE } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
@@ -6,15 +6,13 @@ import { EventTime } from "@destack/event";
 import { present, schema, type Identifier } from "@destack/schema";
 import { RequestId, Scope } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
-import { testEvents, serversOf } from "../src/test/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { defineObject, EventView, field } from "../src/index.ts";
+import { defineObject, field, tablesOf } from "../src/index.ts";
+import { EventView } from "../src/query/event.ts";
 import { ObjectClient } from "../src/client/index.ts";
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { userContext, users } from "./fixture/user.ts";
-import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
-import { TestObjectStore } from "../src/test/index.ts";
 import { argument, plural, t } from "@destack/locale";
 
 /** The space the visits happen in. */
@@ -367,7 +365,7 @@ test("read the events a space appended after a log sequence, in commit order", a
     ]);
 
     // read only the later visits, and nothing past the sequence the read arrived at
-    const view = new EventView(visit.eventKind(), events);
+    const view = new EventView(visit.eventKind(), { store: events });
     const later = await view.changes({ scopes: [spaceId] }, before);
     const drained = await view.changes({ scopes: [spaceId] }, later.sequence);
     expect({
