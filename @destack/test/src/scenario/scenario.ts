@@ -287,9 +287,14 @@ export const Runner = {
         const directory = join(root, BENCH_DIRECTORY, baseline, scenario.package.name);
         const name = [scenario.name, ...Object.values(inject("targets") ?? {})].join("-");
         await files.mkdir(directory, { recursive: true });
+        // add this run's line to the earlier runs', as Go's -count does
+        const measurements = join(directory, `${name}.txt`);
+        const earlier = (await files.exists(measurements))
+            ? await files.readTextFile(measurements)
+            : "";
         await files.writeTextFile(
-            join(directory, `${name}.txt`),
-            Runner.format(scenario, measured, configuration),
+            measurements,
+            earlier + Runner.format(scenario, measured, configuration),
         );
         await files.writeTextFile(
             join(directory, `${name}.otlp.jsonl`),

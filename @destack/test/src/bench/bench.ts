@@ -23,17 +23,53 @@ export class BenchLine {
     readonly operation: string;
     /** The repetitions measured. */
     readonly times: number;
+    /** The runs measured, each in a fresh world, as Go's -count. */
+    readonly runs: number;
     /** The values by unit, such as sec/op. */
     readonly values: ReadonlyMap<string, number>;
 
     /** Take a line's fields. */
-    constructor(line: Pick<BenchLine, "package" | "scenario" | "operation" | "times" | "values">) {
+    constructor(
+        line: Pick<BenchLine, "package" | "scenario" | "operation" | "times" | "runs" | "values">,
+    ) {
         // keep the fields
         this.package = line.package;
         this.scenario = line.scenario;
         this.operation = line.operation;
         this.times = line.times;
+        this.runs = line.runs;
         this.values = line.values;
+    }
+
+    /** Merge one operation's runs: each unit's median and the repetitions summed, as benchstat. */
+    static median(lines: readonly BenchLine[]): BenchLine {
+        // take each unit's median across the runs
+        const [first] = lines;
+        if (first === undefined) {
+            throw new RangeError("a median needs at least one run");
+        }
+        const units = new Set(lines.flatMap((line) => [...line.values.keys()]));
+        const values = new Map<string, number>();
+        for (const unit of units) {
+            const sorted = lines
+                .map((line) => line.value(unit))
+                .toSorted((left, right) => left - right);
+            const middle = Math.floor(sorted.length / 2);
+            const median =
+                sorted.length % 2 === 1
+                    ? (sorted[middle] ?? 0)
+                    : ((sorted[middle - 1] ?? 0) + (sorted[middle] ?? 0)) / 2;
+            values.set(unit, median);
+        }
+
+        return new BenchLine({
+            package: first.package,
+            scenario: first.scenario,
+            operation: first.operation,
+            times: lines.reduce((total, line) => total + line.times, 0),
+            runs: lines.reduce((total, line) => total + line.runs, 0),
+            values,
+        });
     }
 
     /** Parse a benchmark line, absent for any other line. */
@@ -55,6 +91,7 @@ export class BenchLine {
             scenario,
             operation,
             times: Number(times),
+            runs: 1,
             values,
         });
     }
@@ -125,13 +162,32 @@ export class BenchRun {
             }
         }
 
-        return new BenchRun(basename(directory), lines);
+        // merge each operation's runs into their medians
+        const runs = new Map<string, BenchLine[]>();
+        for (const line of lines) {
+            const key = [line.package, line.scenario, line.operation].join(" ");
+            runs.set(key, [...(runs.get(key) ?? []), line]);
+        }
+
+        return new BenchRun(
+            basename(directory),
+            [...runs.values()].map((each) => BenchLine.median(each)),
+        );
     }
 
     /** Write the run as a table, slowest first, against a base run when given. */
     table(base?: BenchRun): string {
         // read each line's times and counters, and its base line's
-        const header = ["operation", "scenario", "package", "n", "p50 ms", "p95 ms", "world ms"];
+        const header = [
+            "operation",
+            "scenario",
+            "package",
+            "n",
+            "runs",
+            "p50 ms",
+            "p95 ms",
+            "world ms",
+        ];
         const work = ["queries", "rows", "tx"];
         const rows = this.lines
             .toSorted((left, right) => right.value("p50-sec/op") - left.value("p50-sec/op"))
@@ -146,6 +202,7 @@ export class BenchRun {
                     line.scenario,
                     line.package,
                     String(line.times),
+                    String(line.runs),
                     ...numbers.map((value, index) => change(value, baseNumbers?.[index])),
                 ];
             });

@@ -73,6 +73,8 @@ function tierOptions(tier: TestTier) {
         hookTimeout: hang,
         slowTestThreshold: slow,
         expect: { poll: { interval: POLL_INTERVAL, timeout: hang } },
+        // measure one file at a time, so no benchmark shares the machine with another
+        ...(tier === "bench" ? { fileParallelism: false } : {}),
     };
 }
 
