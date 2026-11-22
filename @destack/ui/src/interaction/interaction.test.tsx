@@ -11,6 +11,7 @@ import {
     type MoveOptions,
     Press,
     type PressOptions,
+    Sweep,
     Zoom,
     type ZoomEvent,
 } from "./index.ts";
@@ -917,5 +918,45 @@ test("place a press within its element, and leave a screen reader's pointer to i
         places: ["mouse 10,20", "virtual 50,50"],
         calls: ["start mouse", "end mouse", "start virtual", "end virtual"],
         touchAction: "pan-x pan-y pinch-zoom",
+    });
+});
+
+test("sweep a span out from the press in either direction, by an owner's span, handing on none when cancelled", () => {
+    // sweep right then left by a span that keeps ten at the least, then cancel one with Escape
+    const swept: string[] = [];
+    const sweep = rooted(
+        () =>
+            new Sweep(
+                {
+                    at: (x) => Math.round(x),
+                    span: (anchor, at) => ({
+                        start: Math.min(anchor, at),
+                        end: Math.max(anchor + 10, at),
+                    }),
+                    onSweep: (span) => swept.push(`${String(span.start)}-${String(span.end)}`),
+                },
+                new ManualClock(),
+            ),
+    );
+    const element = drawElement(() => sweep.attributes());
+    const during: (string | undefined)[] = [];
+    for (const to of [70, 20]) {
+        pointer(element, "pointerdown", 40, 50);
+        pointer(element, "pointermove", to, 50);
+        const span = sweep.span();
+        during.push(span === undefined ? undefined : `${String(span.start)}-${String(span.end)}`);
+        pointer(element, "pointerup", to, 50);
+    }
+    pointer(element, "pointerdown", 40, 50);
+    pointer(element, "pointermove", 90, 50);
+    key(element, "keydown", "Escape");
+    const cancelled = sweep.span();
+    pointer(element, "pointerup", 90, 50);
+
+    // the leftward sweep still runs ten past its anchor, and the cancelled one hands on nothing
+    expect({ during, swept, cancelled }).toEqual({
+        during: ["40-70", "20-50"],
+        swept: ["40-70", "20-50"],
+        cancelled: undefined,
     });
 });
