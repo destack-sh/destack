@@ -3,6 +3,9 @@ import * as schema from "../validate/index.ts";
 /** The minutes in an hour. */
 const HOUR_MINUTES = 60;
 
+/** The minutes in a day of the wall clock. */
+const DAY_MINUTES = 24 * HOUR_MINUTES;
+
 /** The days of a week. */
 export const WEEK_DAYS = 7;
 
@@ -155,6 +158,20 @@ export const PlainTime = Object.assign(schema.string().regex(/^(?:[01]\d|2[0-3])
         const minutes = Number(time.slice(3, 5));
 
         return hours * HOUR_MINUTES + minutes;
+    },
+
+    /** Write the time of day some minutes after midnight, within one day. */
+    of(minutes: number): string {
+        // refuse minutes outside the day
+        if (!Number.isInteger(minutes) || minutes < 0 || minutes >= DAY_MINUTES) {
+            throw new RangeError(
+                `time of day is invalid: '${String(minutes)}' minutes after midnight`,
+            );
+        }
+        const hours = String(Math.floor(minutes / HOUR_MINUTES)).padStart(2, "0");
+        const rest = String(minutes % HOUR_MINUTES).padStart(2, "0");
+
+        return `${hours}:${rest}`;
     },
 });
 /** A time of day, written HH:MM. */

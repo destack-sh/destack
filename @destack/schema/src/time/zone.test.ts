@@ -61,3 +61,53 @@ test("read wall times before 1970 at their exact instant, the minute floored tow
         new Date(TimeZone.instant("America/New_York", date, "16:17")).toISOString(),
     ]).toEqual(["1969-07-20T20:17:00.000Z", "1969-07-20T20:17:00.000Z"]);
 });
+
+test("read each quarter hour of the days summer time starts and ends at its wall time, minute by minute", () => {
+    // every quarter hour around Berlin's two changes of 2026, written out and read back
+    const walls = ["2026-03-29", "2026-10-25"].flatMap((date) => {
+        const midnight = TimeZone.instant("Europe/Berlin", date, "00:00");
+
+        return Array.from({ length: 4 * 4 }, (_, index) => {
+            const at = midnight + index * 15 * 60_000;
+
+            return `${TimeZone.date("Europe/Berlin", at)} ${TimeZone.time("Europe/Berlin", at)} ${String(TimeZone.offset("Europe/Berlin", at) / 3_600_000)}`;
+        });
+    });
+
+    expect(walls).toEqual([
+        // the clocks skip from two to three in March
+        "2026-03-29 00:00 1",
+        "2026-03-29 00:15 1",
+        "2026-03-29 00:30 1",
+        "2026-03-29 00:45 1",
+        "2026-03-29 01:00 1",
+        "2026-03-29 01:15 1",
+        "2026-03-29 01:30 1",
+        "2026-03-29 01:45 1",
+        "2026-03-29 03:00 2",
+        "2026-03-29 03:15 2",
+        "2026-03-29 03:30 2",
+        "2026-03-29 03:45 2",
+        "2026-03-29 04:00 2",
+        "2026-03-29 04:15 2",
+        "2026-03-29 04:30 2",
+        "2026-03-29 04:45 2",
+        // and go from three back to two in October, two o'clock happening twice
+        "2026-10-25 00:00 2",
+        "2026-10-25 00:15 2",
+        "2026-10-25 00:30 2",
+        "2026-10-25 00:45 2",
+        "2026-10-25 01:00 2",
+        "2026-10-25 01:15 2",
+        "2026-10-25 01:30 2",
+        "2026-10-25 01:45 2",
+        "2026-10-25 02:00 2",
+        "2026-10-25 02:15 2",
+        "2026-10-25 02:30 2",
+        "2026-10-25 02:45 2",
+        "2026-10-25 02:00 1",
+        "2026-10-25 02:15 1",
+        "2026-10-25 02:30 1",
+        "2026-10-25 02:45 1",
+    ]);
+});

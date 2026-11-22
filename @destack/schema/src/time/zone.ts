@@ -10,8 +10,20 @@ const HOUR_MINUTES = 60;
 /** The milliseconds in a minute. */
 const MINUTE_MILLISECONDS = 60_000;
 
+/** The first day of epoch time, which wall days count from. */
+const EPOCH: PlainDate = "1970-01-01";
+
+/** The milliseconds in a day of UTC. */
+const DAY_MILLISECONDS = 86_400_000;
+
+/** The UTC days whose offsets a zone remembers, about eleven years of days at 8 bytes each. */
+const ZONE_DAYS = 4096;
+
 /** The date formatters by time zone, since each takes tens of microseconds to build. */
 const formatters = new Map<string, Intl.DateTimeFormat>();
+
+/** The offset of each UTC day by zone, a day with a change of offset in it left out. */
+const dayOffsets = new Map<string, Map<number, number | undefined>>();
 
 /** The schema of an IANA time zone name. */
 const timeZoneSchema = schema
@@ -45,20 +57,18 @@ export const TimeZone = Object.assign(timeZoneSchema, {
 
     /** Read the date an instant falls on in a time zone. */
     date(zone: TimeZone, at: number): PlainDate {
-        const parts = formatter(zone).formatToParts(at);
-        const part = (type: Intl.DateTimeFormatPartTypes) => readPart(parts, type);
+        const wall = at + offset(zone, at);
 
-        return PlainDate.of(part("year"), part("month"), part("day"));
+        return PlainDate.add(EPOCH, { days: Math.floor(wall / DAY_MILLISECONDS) });
     },
 
     /** Read the time of day an instant falls on in a time zone, to the minute. */
     time(zone: TimeZone, at: number): PlainTime {
-        // write the hour and minute in two digits each
-        const parts = formatter(zone).formatToParts(at);
-        const hour = String(readPart(parts, "hour")).padStart(2, "0");
-        const minute = String(readPart(parts, "minute")).padStart(2, "0");
+        // read the wall clock's milliseconds into its day, as whole minutes
+        const wall = at + offset(zone, at);
+        const into = ((wall % DAY_MILLISECONDS) + DAY_MILLISECONDS) % DAY_MILLISECONDS;
 
-        return `${hour}:${minute}`;
+        return PlainTime.of(Math.floor(into / MINUTE_MILLISECONDS));
     },
 
     /** Read the instant of a date's time of day in a time zone, moving a time in a gap past it. */
@@ -91,8 +101,27 @@ export const TimeZone = Object.assign(timeZoneSchema, {
     },
 });
 
-/** Read the offset of a time zone from UTC at an instant, in milliseconds. */
+/** Read the offset of a time zone from UTC at an instant, a day's at once where it has one. */
 function offset(zone: TimeZone, at: number): number {
+    // read the day's offset, from its two midnights once, which agree on a day without a change
+    const days = dayOffsets.get(zone) ?? new Map<number, number | undefined>();
+    const day = Math.floor(at / DAY_MILLISECONDS);
+    if (!days.has(day)) {
+        const start = offsetAt(zone, day * DAY_MILLISECONDS);
+        const end = offsetAt(zone, (day + 1) * DAY_MILLISECONDS - 1);
+        if (days.size >= ZONE_DAYS) {
+            days.clear();
+        }
+        days.set(day, start === end ? start : undefined);
+        dayOffsets.set(zone, days);
+    }
+
+    // take the day's offset, else read the instant's own on a day the offset changes
+    return days.get(day) ?? offsetAt(zone, at);
+}
+
+/** Read the offset of a time zone from UTC at an instant from its formatted wall time. */
+function offsetAt(zone: TimeZone, at: number): number {
     // read the local wall time as UTC
     const parts = formatter(zone).formatToParts(at);
     const part = (type: Intl.DateTimeFormatPartTypes) => readPart(parts, type);
