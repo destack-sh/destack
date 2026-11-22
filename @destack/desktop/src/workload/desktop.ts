@@ -450,11 +450,11 @@ export class Desktop implements AsyncDisposable {
     /** Show whoever any program signs in on this computer, at every change until aborted. */
     async #followLogin(link: string | undefined, signal: AbortSignal): Promise<void> {
         // follow the signed-in people, the setting choosing among them and the machine's enrollment
-        const { logins, settings } = this.native;
+        const { local } = this.native;
         const followed = RelationalQuery.latest(
             {
-                signedIn: logins.query.login.findMany({}),
-                chosen: settings.query.deviceSetting.findMany({ where: currentLogin.reference }),
+                signedIn: local.query.login.findMany({}),
+                chosen: local.query.deviceSetting.findMany({ where: currentLogin.reference }),
                 computers: this.computers.query.computer.findMany({}),
             },
             signal,

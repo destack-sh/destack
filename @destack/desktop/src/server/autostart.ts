@@ -2,12 +2,16 @@ import { type Localization, t } from "@destack/locale";
 import type { Select } from "@destack/db";
 import { deviceSetting } from "@destack/setting/object";
 import type { Device } from "@destack/machine/device";
+import type { ObjectClient } from "@destack/object/client";
 import { autostart } from "../setting/index.ts";
 import type { Shell } from "../shell/index.ts";
 import type { Menu } from "./menu.ts";
 
 /** The device autostart reads and sets: its settings and its identity. */
-export type AutostartDevice = Pick<Device, "settings" | "set" | "id">;
+export type AutostartDevice = Pick<Device, "set" | "id"> & {
+    /** The device's client settings. */
+    readonly local: ObjectClient<{ readonly deviceSetting: typeof deviceSetting }>;
+};
 
 /** Open the desktop at login as this computer's `autostart` setting says, offering its toggle. */
 export class Autostart {
@@ -32,7 +36,7 @@ export class Autostart {
     /** Show the toggle as this computer's setting values say, at every change, until aborted. */
     async follow(signal: AbortSignal): Promise<void> {
         // watch this computer's values of the setting
-        const query = this.#native.settings.query.deviceSetting.findMany({
+        const query = this.#native.local.query.deviceSetting.findMany({
             where: autostart.reference,
         });
         for await (const values of query.watch(signal)) {

@@ -27,7 +27,7 @@ test("open the desktop at login by default, follow this computer's value and tog
     const menu = new Menu(shell, Localization.of(SOURCE_LOCALE, []));
     const atLogin = new Autostart(
         {
-            settings,
+            local: settings,
             id: device,
             set: async (declared, value) => void set.push([declared.name, value]),
         },
