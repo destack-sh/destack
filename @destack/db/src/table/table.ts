@@ -337,8 +337,8 @@ export class TableDefinition<
     #entries: readonly (readonly [string, Column])[] | undefined;
     /** The logged columns, read on first use. */
     #logged: Readonly<Record<string, Column>> | undefined;
-    /** The columns whose schemas mark personal values, read on first use. */
-    #personal: ReadonlySet<string> | undefined;
+    /** The redactions of the columns whose schemas mark personal values, read on first use. */
+    #personal: ReadonlyMap<string, schema.Redaction> | undefined;
     /** The constraints by dialect, collected on first use. */
     readonly #constraints = new Map<Dialect, readonly TableConstraint[]>();
     /** The built statements by name. */
@@ -503,12 +503,14 @@ export class TableDefinition<
         return this.#logged;
     }
 
-    /** The columns whose schemas mark personal values, which concealment masks. */
-    get personal(): ReadonlySet<string> {
-        this.#personal ??= new Set(
-            this.entries
-                .filter(([, column]) => schema.marksPersonal(column.definition.schema))
-                .map(([property]) => property),
+    /** The redactions of the columns marking personal values, which concealment masks. */
+    get personal(): ReadonlyMap<string, schema.Redaction> {
+        this.#personal ??= new Map(
+            this.entries.flatMap(([property, column]) => {
+                const redaction = new schema.Redaction(column.definition.schema);
+
+                return redaction.isPersonal ? [[property, redaction]] : [];
+            }),
         );
 
         return this.#personal;
@@ -524,10 +526,13 @@ export class TableDefinition<
         return Object.fromEntries(
             Object.entries(row).flatMap(([property, value]) => {
                 // show a shown column, mask a personal one and leave out the rest
+                const personal = this.personal.get(property);
                 if (!concealed.includes(property)) {
                     return [[property, value]];
-                } else if (this.personal.has(property)) {
-                    return [[property, maskOf(this.column(property), value)]];
+                } else if (personal !== undefined) {
+                    return [
+                        [property, value === null ? null : personal.mask(JSON_VALUE.parse(value))],
+                    ];
                 }
 
                 return [];
@@ -1061,11 +1066,6 @@ function encodeRow(
     }
 
     return encoded;
-}
-
-/** Mask the personal values a column's schema marks in its value. */
-function maskOf(column: Column, value: ColumnValue): ColumnValue {
-    return value === null ? null : schema.mask(column.definition.schema, JSON_VALUE.parse(value));
 }
 
 /** Read a table's full-text index, refusing non-text columns and an unlogged table. */
