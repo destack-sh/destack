@@ -6,7 +6,7 @@ import {
     SortableContainer,
     SortableHandle,
     SortableItem,
-    type SortableMove,
+    SortableMove,
 } from "./index.ts";
 
 /** Render a board of two columns, its moves collected. */
@@ -91,7 +91,7 @@ test("put a lifted item back on Escape without reporting a move", () => {
     expect({
         announcement: announced(container),
         moves,
-        dragging: container.querySelector("[data-state=dragging]"),
+        dragging: container.querySelector("[data-dragging]"),
     }).toEqual({
         announcement: "Moving Review was cancelled. It returned to position 2 of 3 in To do.",
         moves: [],
@@ -120,7 +120,9 @@ test("drag an item with the pointer past the middle of another, previewed above 
     pointer("pointerdown", 10);
     pointer("pointermove", 35);
     flush();
-    const state = container.querySelector("[data-slot=sortable-item]")?.getAttribute("data-state");
+    const isDragging = container
+        .querySelector("[data-slot=sortable-item]")
+        ?.hasAttribute("data-dragging");
     const reached = announced(container);
     const preview = container.querySelector<HTMLElement>("[data-slot=drag-preview]");
     const previewed = [
@@ -133,13 +135,13 @@ test("drag an item with the pointer past the middle of another, previewed above 
 
     // the copy stands where the item stood, moved by the pointer's 25 pixels
     expect({
-        state,
+        isDragging,
         reached,
         previewed,
         isPreviewedAfter: container.querySelector("[data-slot=drag-preview]") !== null,
         moves,
     }).toEqual({
-        state: "dragging",
+        isDragging: true,
         reached: "Write moved to position 2 of 3 in To do.",
         previewed: [
             true,
@@ -184,4 +186,32 @@ test("nest an item under the one before it with the right arrow, and move a nest
         { id: "faq", container: "guide", previous: "setup", next: undefined },
         { id: "setup", container: "root", previous: "guide", next: "faq" },
     ]);
+});
+
+/** Place an item before a neighbour its list lacks. */
+function placeBeforeMissing(): string[] {
+    const move = { id: "a", container: "second", previous: undefined, next: "q" };
+
+    return SortableMove.place(["x"], "a", move, (id) => id);
+}
+
+test("apply a move across keyed lists and within one list, refusing a neighbour the list lacks", () => {
+    // move b to the second list before y, move z to the start of its list, and aim at a missing one
+    const lists = { first: ["a", "b"], second: ["x", "y"] };
+    const across = SortableMove.apply(
+        lists,
+        { id: "b", container: "second", previous: "x", next: "y" },
+        (id) => id,
+    );
+    const within = SortableMove.place(
+        ["x", "y", "z"],
+        "z",
+        { id: "z", container: "second", previous: undefined, next: "x" },
+        (id) => id,
+    );
+    expect({ across, within }).toEqual({
+        across: { first: ["a"], second: ["x", "b", "y"] },
+        within: ["z", "x", "y"],
+    });
+    expect(placeBeforeMissing).toThrow(new RangeError("sortable neighbour 'q' not found"));
 });

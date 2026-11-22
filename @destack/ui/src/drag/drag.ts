@@ -10,6 +10,7 @@ import {
 } from "@destack/view";
 import { Move, type PointerType } from "../interaction/index.ts";
 import { mergeProperties } from "../part/index.ts";
+import { Scroll } from "../position/index.ts";
 
 /** The milliseconds a finger rests on an item before it lifts, as iOS and Android wait. */
 const LIFT_DELAY = 500;
@@ -21,7 +22,7 @@ const SCROLL_EDGE = 48;
 const SCROLL_SPEED = 20;
 
 /** What a drag does to its item. */
-export type DragKind = "move" | "resize-start" | "resize-end" | "create";
+export type DragKind = "move" | "resize-start" | "resize-end" | "create" | "link";
 
 /** A keyboard step along the flow of the text, in CSS's logical directions. */
 export type DragStep = "block-start" | "block-end" | "inline-start" | "inline-end";
@@ -51,6 +52,16 @@ export type DragTarget =
           readonly droppable: string;
           /** The time, in milliseconds since the epoch. */
           readonly at: number;
+      }
+    | {
+          /** An edge of an item, which a link starts or ends at. */
+          readonly kind: "edge";
+          /** The droppable. */
+          readonly droppable: string;
+          /** The item's key. */
+          readonly key: string;
+          /** Which edge: the item's start or its end. */
+          readonly edge: "start" | "end";
       };
 
 /** A place an announcement describes. */
@@ -370,9 +381,11 @@ export class DragManager {
 
     /** Lift a draggable where it stands. */
     lift(id: string, kind: DragKind, pointer: PointerType): void {
-        // lift a known draggable once
+        // refuse an unknown draggable, and leave a lift during another drag alone
         const draggable = this.#draggables.get(id);
-        if (draggable === undefined || this.#current !== undefined) {
+        if (draggable === undefined) {
+            throw new RangeError(`drag lift of unknown draggable '${id}'`);
+        } else if (this.#current !== undefined) {
             return;
         }
 
@@ -554,7 +567,7 @@ export class DragManager {
                       {
                           droppable,
                           bounds: element.getBoundingClientRect(),
-                          scroller: scrollerOf(element),
+                          scroller: Scroll.parentOf(element),
                       },
                   ];
         });
@@ -596,9 +609,15 @@ export class DragManager {
         if (scroller === undefined) {
             return;
         }
+        // scroll only along an axis the scroller lets people scroll
         const bounds = scroller.getBoundingClientRect();
-        const deltaX = edgeSpeed(pointer.x, bounds.left, bounds.right);
-        const deltaY = edgeSpeed(pointer.y, bounds.top, bounds.bottom);
+        const { overflowX, overflowY } = getComputedStyle(scroller);
+        const deltaX = Scroll.isScrolling(overflowX)
+            ? edgeSpeed(pointer.x, bounds.left, bounds.right)
+            : 0;
+        const deltaY = Scroll.isScrolling(overflowY)
+            ? edgeSpeed(pointer.y, bounds.top, bounds.bottom)
+            : 0;
         if (deltaX === 0 && deltaY === 0) {
             return;
         }
@@ -725,6 +744,8 @@ function isSameTarget(left: DragTarget, right: DragTarget): boolean {
         return right.kind === "list" && left.index === right.index;
     } else if (left.kind === "cell") {
         return right.kind === "cell" && left.key === right.key;
+    } else if (left.kind === "edge") {
+        return right.kind === "edge" && left.key === right.key && left.edge === right.edge;
     }
 
     return right.kind === "time" && left.at === right.at;
@@ -742,21 +763,6 @@ function order(left: HTMLElement | undefined, right: HTMLElement | undefined): n
     }
 
     return left.compareDocumentPosition(right) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1;
-}
-
-/** Find the nearest element around one that scrolls. */
-function scrollerOf(element: HTMLElement): HTMLElement | undefined {
-    // walk up to the first element whose overflow scrolls
-    for (let each: HTMLElement | null = element; each !== null; each = each.parentElement) {
-        const { overflowX, overflowY } = getComputedStyle(each);
-        if (
-            [overflowX, overflowY].some((overflow) => overflow === "auto" || overflow === "scroll")
-        ) {
-            return each;
-        }
-    }
-
-    return undefined;
 }
 
 /** Read the pixels to scroll along an axis, faster the deeper a point reaches into an edge. */

@@ -97,7 +97,7 @@ export const sortableCancelWithEscape = defineScenario({
                 {
                     observe: {
                         kind: "count",
-                        target: { css: "[data-slot=sortable-item][data-state=dragging]" },
+                        target: { css: "[data-slot=sortable-item][data-dragging]" },
                     },
                     is: 0,
                 },
@@ -114,7 +114,7 @@ export const sortableCancelWithEscape = defineScenario({
                 {
                     observe: {
                         kind: "count",
-                        target: { css: "[data-slot=sortable-item][data-state=dragging]" },
+                        target: { css: "[data-slot=sortable-item][data-dragging]" },
                     },
                     is: 1,
                 },
@@ -134,7 +134,7 @@ export const sortableCancelWithEscape = defineScenario({
                 {
                     observe: {
                         kind: "count",
-                        target: { css: "[data-slot=sortable-item][data-state=dragging]" },
+                        target: { css: "[data-slot=sortable-item][data-dragging]" },
                     },
                     is: 1,
                 },
@@ -154,7 +154,7 @@ export const sortableCancelWithEscape = defineScenario({
                 {
                     observe: {
                         kind: "count",
-                        target: { css: "[data-slot=sortable-item][data-state=dragging]" },
+                        target: { css: "[data-slot=sortable-item][data-dragging]" },
                     },
                     is: 0,
                 },

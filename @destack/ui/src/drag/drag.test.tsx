@@ -48,7 +48,7 @@ function drawMonth(): {
     readonly drops: DragOperation[];
     readonly manager: () => DragManager;
 } {
-    // keep the manager the grid creates and the drops it hands on
+    // record the manager the grid creates and the drops it hands on
     const drops: DragOperation[] = [];
     let created: DragManager | undefined;
     let grid: HTMLElement | undefined;

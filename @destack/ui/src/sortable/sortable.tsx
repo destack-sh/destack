@@ -112,6 +112,55 @@ export interface SortableMove {
     readonly next: string | undefined;
 }
 
+/** Apply a move to the owner's lists: take the item out and insert it before its next neighbour. */
+export const SortableMove = {
+    /** Move an item between keyed lists, before its next neighbour in the list it lands in. */
+    apply<Item>(
+        lists: Readonly<Record<string, readonly Item[]>>,
+        move: SortableMove,
+        idOf: (item: Item) => string,
+    ): Record<string, readonly Item[]> {
+        // take the item out of its list
+        const item = Object.values(lists)
+            .flat()
+            .find((each) => idOf(each) === move.id);
+        if (item === undefined) {
+            throw new RangeError(`sortable item '${move.id}' not found`);
+        }
+        const rest = Object.fromEntries(
+            Object.entries(lists).map(([id, items]) => [id, items.filter((each) => each !== item)]),
+        );
+
+        // place it in the list it lands in
+        const target = rest[move.container];
+        if (target === undefined) {
+            throw new RangeError(`sortable list '${move.container}' not found`);
+        }
+
+        return { ...rest, [move.container]: SortableMove.place(target, item, move, idOf) };
+    },
+
+    /** Place an item in a list before the move's next neighbour, at the end without one. */
+    place<Item>(
+        items: readonly Item[],
+        item: Item,
+        move: SortableMove,
+        idOf: (item: Item) => string,
+    ): Item[] {
+        // take the item out, then insert it before its neighbour
+        const others = items.filter((each) => idOf(each) !== move.id);
+        const at =
+            move.next === undefined
+                ? others.length
+                : others.findIndex((each) => idOf(each) === move.next);
+        if (at === -1) {
+            throw new RangeError(`sortable neighbour '${String(move.next)}' not found`);
+        }
+
+        return others.toSpliced(at, 0, item);
+    },
+};
+
 /** The side of an item a dragged item lands on, or inside an item without items of its own. */
 type SortableDrop = "before" | "after" | "inside";
 
@@ -146,7 +195,7 @@ interface SortableList {
 }
 
 /** The items of a sortable and the drags that move them. */
-class SortableControl {
+export class SortableControl {
     /** The drags of the sortable. */
     readonly manager: DragManager;
     /** The root's properties, read for nesting. */
@@ -522,7 +571,7 @@ export function Sortable(properties: SortableProperties): JSX.Element {
         <SortableContext value={control}>
             <div
                 data-slot="sortable"
-                data-state={manager.operation() === undefined ? "idle" : "dragging"}
+                data-dragging={manager.operation() === undefined ? undefined : ""}
                 {...rest}
                 {...style.attributes([properties.xstyle], properties.style)}
             >
@@ -589,7 +638,8 @@ export function SortableContainer(properties: SortableContainerProperties): JSX.
         >
             <div
                 data-slot="sortable-container"
-                data-state={stateOf()}
+                data-over={stateOf() === "over" ? "" : undefined}
+                data-refused={stateOf() === "refused" ? "" : undefined}
                 data-orientation={properties.orientation ?? "vertical"}
                 {...rest}
                 ref={(created) => {
@@ -682,7 +732,7 @@ export function SortableItem(properties: SortableItemProperties): JSX.Element {
         >
             <div
                 data-slot="sortable-item"
-                data-state={isDragging() ? "dragging" : "idle"}
+                data-dragging={isDragging() ? "" : undefined}
                 data-drop={control.dropOf(id)}
                 data-disabled={properties.disabled === true ? "" : undefined}
                 {...mergeProperties(
@@ -729,8 +779,8 @@ export function SortableHandle(properties: SortableHandleProperties): JSX.Elemen
             get "aria-pressed"(): "true" | "false" {
                 return isDragging() ? "true" : "false";
             },
-            get "data-state"(): "dragging" | "idle" {
-                return isDragging() ? "dragging" : "idle";
+            get "data-dragging"() {
+                return isDragging() ? "" : undefined;
             },
         },
         item.draggable.attributes([" ", "Enter"]),
@@ -759,7 +809,7 @@ export function SortableHandle(properties: SortableHandleProperties): JSX.Elemen
 }
 
 /** Read the nearest sortable, refusing a part outside one. */
-function useSortable(): SortableControl {
+export function useSortable(): SortableControl {
     const control = useContext(SortableContext);
     if (control === null) {
         throw new TypeError("a sortable part needs a sortable around it");
