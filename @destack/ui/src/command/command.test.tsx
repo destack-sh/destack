@@ -53,7 +53,7 @@ test("filter a command list by the search and its keywords, hiding empty groups"
     );
     typeInto(input, "zebra");
 
-    // the first enabled match is highlighted, and the input points at it
+    // the first enabled match is highlighted, and a search without matches shows only the note
     expect([
         all,
         matched,
@@ -64,7 +64,7 @@ test("filter a command list by the search and its keywords, hiding empty groups"
         ["[New note]", "Delete note", "Billing", "Appearance"],
         ["[Delete note]"],
         [false, true],
-        [],
+        ["No results"],
         true,
     ]);
 });

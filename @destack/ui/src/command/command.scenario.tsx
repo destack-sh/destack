@@ -1,6 +1,11 @@
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
-import { commandNoteCommands, commandControlledHighlight } from "./command.example.tsx";
+import {
+    commandControlledHighlight,
+    commandNoteCommands,
+    commandSearchDetail,
+    commandTaskActions,
+} from "./command.example.tsx";
 import { Command } from "./command.tsx";
 
 /** Move a command list's highlight with the arrow keys and choose with Enter. */
@@ -144,6 +149,81 @@ export const commandJumpToEnds = defineScenario({
                     is: "New note",
                 },
             ],
+        },
+    ],
+});
+
+/** The chip of an open page. */
+const pageChip = { css: "[data-slot=command-page-chip]" };
+
+/** Open a page from an option, leave it with Backspace, and run a choice on another. */
+export const commandPages = defineScenario({
+    of: Command,
+    interaction: viewInteraction,
+    name: "pages",
+    description: "open a page from an option, leave it with Backspace, and run a choice on it",
+    given: { examples: [commandTaskActions] },
+    parameters: {},
+    when: [
+        {
+            step: { action: "focus", target: { role: "combobox" } },
+            then: [{ observe: { kind: "count", target: pageChip }, is: 0 }],
+        },
+        {
+            step: { action: "press", key: "Enter" },
+            then: [
+                { observe: { kind: "count", target: pageChip }, is: 1 },
+                {
+                    observe: { kind: "visible", target: { role: "option", name: "Ada Lovelace" } },
+                    is: true,
+                },
+            ],
+        },
+        {
+            step: { action: "press", key: "Backspace" },
+            then: [
+                { observe: { kind: "count", target: pageChip }, is: 0 },
+                {
+                    observe: { kind: "visible", target: { role: "option", name: "Ada Lovelace" } },
+                    is: false,
+                },
+            ],
+        },
+        { step: { action: "press", key: "Enter" } },
+        { step: { action: "press", key: "ArrowDown" } },
+        {
+            step: { action: "press", key: "Enter" },
+            then: [
+                { observe: { kind: "count", target: pageChip }, is: 0 },
+                {
+                    observe: { kind: "visible", target: { text: "Assigned to Jonas Weber" } },
+                    is: true,
+                },
+            ],
+        },
+    ],
+});
+
+/** The detail beside a search's entries. */
+const detail = { css: "[data-slot=command-detail] h3" };
+
+/** Show the highlighted entry's detail beside the search's entries as the highlight moves. */
+export const commandDetailFollowsHighlight = defineScenario({
+    of: Command,
+    interaction: viewInteraction,
+    name: "detail-follows-highlight",
+    description:
+        "show the highlighted entry's detail beside the search's entries as the highlight moves",
+    given: { examples: [commandSearchDetail] },
+    parameters: {},
+    when: [
+        {
+            step: { action: "focus", target: { role: "combobox" } },
+            then: [{ observe: { kind: "name", target: detail }, is: "Trip to Lisbon" }],
+        },
+        {
+            step: { action: "press", key: "ArrowDown" },
+            then: [{ observe: { kind: "name", target: detail }, is: "Launch" }],
         },
     ],
 });

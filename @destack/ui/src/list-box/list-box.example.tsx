@@ -83,8 +83,11 @@ export const listBoxEmpty = defineExample({
     of: ListBox,
     name: "empty",
     description: "a list box without options, showing its empty note",
-    render: () => (
-        <ListBox aria-label="Notebook">
+    properties: {
+        "aria-label": "Notebook",
+    },
+    render: (properties) => (
+        <ListBox {...properties}>
             <ListBoxEmpty>No notebooks</ListBoxEmpty>
         </ListBox>
     ),

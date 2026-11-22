@@ -1,6 +1,7 @@
+import { state } from "@destack/theme/state";
 import type { Direction } from "@destack/locale";
 import * as style from "@destack/style";
-import { color, radius, space, stroke, weight } from "@destack/theme/tokens.stylex";
+import { color, radius, space, stroke, weight, size } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import {
     type Accessor,
@@ -32,6 +33,9 @@ export const ListBoxContext = createContext<ListBoxControl | null>(null);
 /** The section of the nearest list box section, null outside one. */
 const ListBoxSectionContext = createContext<ListBoxSectionControl | null>(null);
 
+/** The attributes of a note in place of options: an option nobody picks. */
+const NOTE = { role: "option", "aria-disabled": "true", "aria-selected": "false" } as const;
+
 /** The styles of a list box and its parts. */
 const styles = style.create({
     listBox: {
@@ -46,22 +50,12 @@ const styles = style.create({
         display: "flex",
         alignItems: "center",
         gap: space[2],
-        paddingBlock: space[2],
+        minHeight: size[2],
+        paddingBlock: space[1],
         paddingInline: space[2],
         borderRadius: radius[2],
         cursor: "default",
         userSelect: "none",
-        outlineStyle: { default: "none", ":focus-visible": "solid" },
-        outlineWidth: stroke.ring,
-        outlineColor: `color-mix(in oklab, ${color.ring} 50%, transparent)`,
-    },
-    active: {
-        backgroundColor: color.accent,
-        color: color.accentForeground,
-    },
-    disabled: {
-        opacity: 0.5,
-        pointerEvents: "none",
     },
     note: {
         paddingBlock: space[5],
@@ -240,6 +234,13 @@ export class ListBoxControl {
         return this.collection.keys().find((key) => this.collection.item(key)?.value() === value);
     }
 
+    /** Read the value of the option the highlight is on, undefined while none is. */
+    activeValue(): string | undefined {
+        const key = this.focus.current();
+
+        return key === undefined ? undefined : this.collection.item(key)?.value();
+    }
+
     /** Choose an available option: run its action, then select its value. */
     choose(key: string): void {
         // ignore an unavailable option
@@ -339,7 +340,7 @@ export function useListBox(): ListBoxControl {
 
 /** Render a list box of options, or a composite's list box state. */
 export function ListBox(properties: ListBoxProperties): JSX.Element {
-    // take a composite's state, else hold the list box's own selection and focus under any search around it
+    // take a composite's state, else the list box's selection and focus under any search around it
     const locale = useLocale();
     const autocomplete = useContext(AutocompleteContext) ?? undefined;
     const control = untrack(
@@ -523,9 +524,10 @@ export function ListBoxItem(properties: ListBoxItemProperties): JSX.Element {
             onClick={() => control.choose(option.key)}
             {...style.attributes(
                 [
+                    state.focus,
                     styles.option,
-                    isVirtual && isActive() && styles.active,
-                    properties.disabled === true && styles.disabled,
+                    isVirtual && isActive() && state.selected,
+                    properties.disabled === true && state.inert,
                     properties.xstyle,
                 ],
                 properties.style,
@@ -542,7 +544,7 @@ export function ListBoxEmpty(
 
     return (
         <Show when={control.collection.size() === 0}>
-            {renderPart("div", "list-box-empty", properties, styles.note, { role: "presentation" })}
+            {renderPart("div", "list-box-empty", properties, styles.note, NOTE)}
         </Show>
     );
 }
@@ -551,7 +553,10 @@ export function ListBoxEmpty(
 export function ListBoxLoading(
     properties: ListBoxElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
-    return renderPart("div", "list-box-loading", properties, styles.note, { role: "status" });
+    return renderPart("div", "list-box-loading", properties, styles.note, {
+        ...NOTE,
+        "aria-live": "polite",
+    });
 }
 
 /** Render a line between sections of options, hidden while a search filters them. */
@@ -563,13 +568,13 @@ export function ListBoxSeparator(
     return (
         <Show when={!control.isSearching()}>
             {renderPart("div", "list-box-separator", properties, styles.separator, {
-                role: "separator",
+                role: "presentation",
             })}
         </Show>
     );
 }
 
-/** Read the list box options a list box's properties hold, without its element's attributes. */
+/** Read the list box options a list box's properties have, without its element's attributes. */
 function ownOptions(properties: ListBoxProperties): ListBoxOptions {
     return {
         get selectionBehavior() {
