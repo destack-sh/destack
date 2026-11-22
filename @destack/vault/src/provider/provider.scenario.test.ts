@@ -1,4 +1,3 @@
-import { Snapshot } from "@destack/db";
 import { Binding, installation } from "@destack/stack/object";
 import { ids } from "@destack/machine/test";
 import { expect, refusal, single, test } from "@destack/test";
@@ -35,7 +34,7 @@ test("read a bound vault's secret in process as its installation, and refuse ano
     const bindingOf = async (installationId: typeof otherInstallation) =>
         single(
             await Binding.targeted(
-                Snapshot.live(fixture.space.database),
+                fixture.space.database.snapshot(),
                 fixture.space.id,
                 installationId,
             ),
@@ -46,7 +45,7 @@ test("read a bound vault's secret in process as its installation, and refuse ano
     // connect the application to its own vault and to the other application's, as its server in process
     const { database } = fixture.space;
     const store = fixture.space.store();
-    const snapshot = Snapshot.live(database);
+    const snapshot = database.snapshot();
     const rows = await snapshot
         .read(installation.table)
         .findMany({ where: { id: fixture.installation } });

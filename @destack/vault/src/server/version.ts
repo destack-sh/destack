@@ -1,6 +1,6 @@
-import { Numbered } from "@destack/object";
-import type { RowImage, Select, Snapshot } from "@destack/db";
-import type { MethodContext } from "@destack/object";
+import { Numbered, type MethodContext } from "@destack/object";
+import type { RowImage, Select } from "@destack/db";
+import type { Snapshot } from "@destack/db/database";
 import { Binding } from "@destack/stack/object";
 import { VaultError } from "../error/error.ts";
 import { secret, secretVersion } from "../object/secret.ts";

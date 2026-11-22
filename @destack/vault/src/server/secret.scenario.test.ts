@@ -1,4 +1,5 @@
-import { eq, Snapshot, type DatabaseConnection } from "@destack/db";
+import { eq } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { call, CallEvent, Numbered } from "@destack/object";
 import { Duration, type Identifier, schema } from "@destack/schema";
 import { Binding, installation } from "@destack/stack/object";
@@ -309,7 +310,7 @@ test("rotate a generated secret to a new key of its algorithm", async () => {
         .orderBy(secretVersion.table.number);
     const uses = await secretBindingKind.uses(
         { scope: ids.space, target: row.id, version: 2 },
-        Snapshot.live(database),
+        database.snapshot(),
     );
 
     // generate signing keys, keeping the first live for a day beside the new one
@@ -629,7 +630,7 @@ test("generate a declared key in the vault its installation binds", async () => 
     const bound = (await targetedBindings(database))
         .filter((entry) => entry.target === row.id)
         .map((entry) => ({ installationId: entry.installationId, name: entry.name }));
-    const snapshot = Snapshot.live(database);
+    const snapshot = database.snapshot();
     const uses = (captured: number | null) =>
         secretBindingKind.uses({ scope: ids.space, target: row.id, version: captured }, snapshot);
     expect({
@@ -669,14 +670,14 @@ test("read a bound secret in process as its installation, and refuse another ins
     // connect the application to its own key and to the other application's, as its server in process
     const { database } = fixture.space;
     const store = Promise.resolve(await fixture.space.store());
-    const snapshot = Snapshot.live(database);
+    const snapshot = database.snapshot();
     const rows = await snapshot
         .read(installation.table)
         .findMany({ where: { id: fixture.installation } });
     const row = single(rows);
     const keyOf = async (installationId: Identifier<"installation">) =>
         single(
-            (await Binding.targeted(Snapshot.live(database), ids.space, installationId)).filter(
+            (await Binding.targeted(database.snapshot(), ids.space, installationId)).filter(
                 (entry) => entry.name === "key",
             ),
         );
@@ -805,7 +806,7 @@ test("keep a declared secret's current version across a stack apply", async () =
 
 /** Read the bindings of the space's targeted revisions, with their installations. */
 async function targetedBindings(database: DatabaseConnection) {
-    const snapshot = Snapshot.live(database);
+    const snapshot = database.snapshot();
     const rollouts = await snapshot
         .read(installation.table)
         .findMany({ where: { scope: ids.space } });

@@ -1,18 +1,23 @@
 import { Numbered } from "@destack/object";
 import { SECRET_KIND } from "@destack/stack/declare";
-import { TestPackage, VAULT } from "@destack/machine/test";
+import {
+    TestPackage,
+    VAULT,
+    fixtureOutputs,
+    ids,
+    TestSpace,
+    workload,
+} from "@destack/machine/test";
 import type { Crypto, Environment } from "@destack/environment";
 import { AccessContext, Caller, type PermissionReference, principal } from "@destack/access";
 import * as account from "@destack/account/object";
 import type { TestPerson } from "@destack/account/test";
-import { Snapshot } from "@destack/db";
 import { SimulatedClock } from "@destack/environment/simulation";
 import type { TestCaller } from "@destack/object/test";
 import { type BuildReader, PackageVersion } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
 import type { Identifier } from "@destack/schema";
 import { Binding } from "@destack/stack/object";
-import { fixtureOutputs, ids, TestSpace, workload } from "@destack/machine/test";
 import { type Call, RequestId } from "@destack/sync";
 import { single } from "@destack/test";
 import { defineVault, type SecretDeclaration } from "../declare/index.ts";
@@ -218,7 +223,7 @@ export class TestVault {
 
     /** Find the vault the application's binding of a declared vault targets. */
     async vault(name = CREDENTIALS): Promise<Identifier<"vault">> {
-        const reader = Snapshot.live(this.space.database);
+        const reader = this.space.database.snapshot();
         const bound = await Binding.targeted(reader, this.space.id, this.installation);
 
         return vault.identifier(single(bound.filter((entry) => entry.name === name)).target);
