@@ -1,5 +1,4 @@
 import { FOLLOWER_REVISION } from "@destack/sync/test";
-import { Snapshot } from "@destack/db";
 import { message } from "@destack/message/object";
 import { journal, QueriesParameters, Shape } from "@destack/object";
 import objectPackage from "@destack/object/package";
@@ -127,7 +126,7 @@ test("follow the spaces of an account once the person owns it, and their activit
         const subscriptions = await present(
             store.subscriber,
             "the home's subscriber",
-        ).subscriptions(Snapshot.live(store.database));
+        ).subscriptions(store.database.snapshot());
 
         const listed = subscriptions
             .map((entry) => entry.subscription)

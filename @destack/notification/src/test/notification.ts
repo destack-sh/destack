@@ -2,7 +2,7 @@ import type { Crypto, Environment } from "@destack/environment";
 import * as account from "@destack/account/object";
 import accountPackage from "@destack/account/package";
 import type { TestPerson } from "@destack/account/test";
-import { asc, eq, Snapshot } from "@destack/db";
+import { asc, eq } from "@destack/db";
 import type { Simulation, SimulatedClock } from "@destack/environment/simulation";
 import type { LocaleTag } from "@destack/locale";
 import { type TestMailAnswer, TestMailTransport } from "@destack/mail/test";
@@ -519,7 +519,7 @@ export class TestNotification implements AsyncDisposable {
         const rows = await ViewSubscriber.queries(
             { notification, activity },
             store.relations,
-            (table) => Snapshot.live(database).read(table),
+            (table) => database.snapshot().read(table),
         ).notification.findMany({ with: { activity: true } });
 
         return new Inbox(rows, this.clock.now());

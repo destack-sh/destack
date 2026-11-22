@@ -1,8 +1,8 @@
-import { now, Snapshot } from "@destack/db";
+import { now } from "@destack/db";
 import { Account } from "@destack/account/object";
 import { Subject } from "@destack/sync";
 import { Destination } from "@destack/message/object";
-import { type MethodContextOf, type ObjectReconciliation, type ResultOf } from "@destack/object";
+import type { MethodContextOf, ObjectReconciliation, ResultOf } from "@destack/object";
 import { Duration, type Identifier, nth, present, schema } from "@destack/schema";
 import { Recipient, Routing, Settings } from "../message/index.ts";
 import { InboxEntry } from "../notification/inbox.ts";
@@ -37,7 +37,7 @@ async function plan(
     reconciliation: ObjectReconciliation<typeof notification>,
 ): Promise<void> {
     // read the activity, none once it left the home
-    const view = Snapshot.live(reconciliation.database);
+    const view = reconciliation.database.snapshot();
     const occurred = await view.read(activity.table).findFirst({ where: { id: activityId } });
     if (occurred === undefined) {
         return;
