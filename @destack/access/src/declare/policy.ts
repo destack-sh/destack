@@ -1,4 +1,4 @@
-import { JsonValue, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { PackageId, type PackageVersion } from "@destack/package";
 import {
     type ObjectReference,
@@ -41,6 +41,11 @@ export class Policy<
     /** The names of the request attributes conditions read. */
     readonly #context: ReadonlySet<string>;
 
+    /** Require a description the rules encode completely, as describing the policy does. */
+    requireValid(): void {
+        PolicyDescription.parse(this.definition);
+    }
+
     /** The permission to see relationships: the declared one, else `read` if the type has it. */
     get visibility(): string | undefined {
         const { relationships, permissions } = this.definition;
@@ -71,9 +76,7 @@ export class Policy<
         // retain the declaring package and a frozen copy of the rules
         this.package = owner;
         this.name = input.name;
-        this.definition = Policy.#freeze(
-            PolicyDescription.parse(Policy.#describe(owner, input, relations)),
-        );
+        this.definition = Policy.#freeze(Policy.#describe(owner, input, relations));
 
         // collect the names of the attributes conditions read
         this.#attributes = new Set(Object.keys(this.definition.attributes));
@@ -218,8 +221,8 @@ export class Policy<
         owner: PackageVersion,
         input: PolicyInput<Name>,
         relations: Readonly<Record<string, RelationDescription>>,
-    ): JsonValue {
-        return JsonValue.of({
+    ): PolicyDescription {
+        return {
             packageId: owner.id,
             name: input.name,
             attributes: input.attributes ?? {},
@@ -231,7 +234,16 @@ export class Policy<
                 ? {}
                 : { relationships: { read: input.relationships.read } }),
             ...(input.reserved === undefined ? {} : { reserved: [...input.reserved] }),
-            ...(input.elevated === undefined ? {} : { elevated: { ...input.elevated } }),
+            ...(input.elevated === undefined
+                ? {}
+                : {
+                      elevated: Object.fromEntries(
+                          Object.entries<Elevation | undefined>(input.elevated).flatMap(
+                              ([permission, elevation]): [string, Elevation][] =>
+                                  elevation === undefined ? [] : [[permission, elevation]],
+                          ),
+                      ),
+                  }),
             ...(input.suspended === undefined ? {} : { suspended: [...input.suspended] }),
             ...(input.moving === undefined ? {} : { moving: [...input.moving] }),
             ...(input.scope === true ? { scope: true } : {}),
@@ -247,7 +259,7 @@ export class Policy<
                           ...(entry.members === undefined ? {} : { members: entry.members }),
                       })),
                   }),
-        });
+        };
     }
 
     /** Freeze every declaration node after copying it. */
