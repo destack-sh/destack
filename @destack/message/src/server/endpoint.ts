@@ -1,7 +1,8 @@
 import type { Deriver } from "@destack/identity";
 import { ObjectReference, RequestId, Subject } from "@destack/sync";
 import { Caller } from "@destack/access";
-import { and, type DatabaseConnection, desc, eq, inArray, ne } from "@destack/db";
+import { and, desc, eq, inArray, ne } from "@destack/db";
+import type { DatabaseConnection } from "@destack/db/database";
 import { CallEvent, call, type MethodContext, type ObjectReconciliation } from "@destack/object";
 import { secret } from "@destack/vault/object";
 import { type DigestCrypto, nth, Identifier, present } from "@destack/schema";

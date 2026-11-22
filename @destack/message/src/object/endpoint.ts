@@ -1,11 +1,17 @@
-import { AuditActionName, call } from "@destack/object";
-import { type DatabaseConnection, type LogCursor, LogPosition, type Select } from "@destack/db";
+import {
+    AuditActionName,
+    call,
+    ConditionSet,
+    defineObject,
+    field,
+    controlled,
+} from "@destack/object";
+import { type Select, LogPosition } from "@destack/db";
+import type { DatabaseConnection, LogCursor } from "@destack/db/database";
 import type { ObjectStore } from "@destack/object/server";
-import { ConditionSet, defineObject, field } from "@destack/object";
 import { Duration, schema } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
 import { WEBHOOK_FORMATS, WebhookAuthentication } from "../webhook/message.ts";
-import { controlled } from "@destack/object";
 import { argument, plural, t } from "@destack/locale";
 
 /** The most event types one endpoint subscribes to, a screen of event names. */

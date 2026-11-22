@@ -1,7 +1,7 @@
 import { AccessContext, Caller, Grant, principal } from "@destack/access";
 import { client, type Recipient, user } from "@destack/account/object";
 import { ObjectReference, Scope } from "@destack/sync";
-import { count, eq, now, Snapshot } from "@destack/db";
+import { count, eq, now } from "@destack/db";
 import type { Deriver } from "@destack/identity";
 import type { ObjectReconciliation } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
@@ -209,7 +209,7 @@ async function deliver(whole: Message, store: ObjectStore): Promise<Delivery | u
     const time = store.clock.now();
     const delegator = principal.space.reference(Scope.universe.id, whole.scope);
     const delegate = Caller.principal(store.as(message, time));
-    const caller = await Grant.act(Snapshot.live(store.database), { delegator, delegate }, time);
+    const caller = await Grant.act(store.database.snapshot(), { delegator, delegate }, time);
     const call = user.call("recipient", { id: to.user });
     const recipient = await store.query(AccessContext.of(caller, time), call);
     const browser = findBrowser(recipient, to.client);
