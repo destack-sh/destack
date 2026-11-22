@@ -1,8 +1,9 @@
 import { media } from "@destack/style/media.stylex";
-import { color, font, stroke, weight } from "@destack/theme/tokens.stylex";
+import { color, font, stroke, weight, swatch } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import { present } from "@destack/schema";
 import { buttonVariants } from "@destack/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@destack/ui/select";
 import { For } from "@destack/view";
 
 import { allowance, currencies, plans } from "../content/generated/pricing";
@@ -119,24 +120,25 @@ export function PlansLabel(properties: {
                 {/* the currency the prices show in, guessed from the reader's region, and its tax */}
                 <span {...style.attrs(styles.currency)}>
                     In
-                    <span {...style.attrs(styles.picker)}>
-                        <select
-                            aria-label="Currency"
-                            title={`Prices in ${currencyNames[properties.currency]}`}
-                            value={properties.currency}
-                            onChange={(event) =>
-                                properties.onCurrency(currencyIn(event.currentTarget.value))
+                    <Select
+                        aria-label="Currency"
+                        title={`Prices in ${currencyNames[properties.currency]}`}
+                        value={properties.currency}
+                        onValueChange={(value) => {
+                            if (value !== undefined) {
+                                properties.onCurrency(currencyIn(value));
                             }
-                            {...style.attrs(styles.select)}
-                        >
+                        }}
+                    >
+                        <SelectTrigger>
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
                             {currencies.map((currency) => (
-                                <option value={currency}>{currency}</option>
+                                <SelectItem value={currency}>{currency}</SelectItem>
                             ))}
-                        </select>
-                        <svg aria-hidden="true" viewBox="0 0 24 24" {...style.attrs(styles.caret)}>
-                            <path d="m6 9 6 6 6-6" />
-                        </svg>
-                    </span>
+                        </SelectContent>
+                    </Select>
                     {taxNotes[properties.audience][properties.currency]}
                 </span>
                 <Toggle
@@ -416,43 +418,6 @@ const styles = style.create({
         textTransform: "uppercase",
         whiteSpace: "nowrap",
     },
-    picker: {
-        alignItems: "center",
-        borderColor: {
-            default: color.border,
-            ":hover": { default: null, [media.hover]: color.mutedForeground },
-        },
-        borderRadius: "5px",
-        borderStyle: "solid",
-        borderWidth: stroke.border,
-        color: color.foreground,
-        display: "inline-flex",
-        position: "relative",
-    },
-    select: {
-        appearance: "none",
-        backgroundColor: "transparent",
-        borderWidth: 0,
-        color: "inherit",
-        cursor: "pointer",
-        font: "inherit",
-        letterSpacing: "inherit",
-        paddingBlock: "0.25rem",
-        paddingInlineEnd: "1.375rem",
-        paddingInlineStart: "0.5rem",
-    },
-    caret: {
-        fill: "none",
-        height: "0.75rem",
-        insetInlineEnd: "0.375rem",
-        pointerEvents: "none",
-        position: "absolute",
-        stroke: "currentColor",
-        strokeLinecap: "round",
-        strokeLinejoin: "round",
-        strokeWidth: 2.5,
-        width: "0.75rem",
-    },
     card: {
         display: "grid",
         gridRow: `span ${CARD_ROWS}`,
@@ -467,7 +432,7 @@ const styles = style.create({
         gridColumn: { default: "span 4", [media.maxLg]: "span 6", [media.maxMd]: "1 / -1" },
     },
     picked: {
-        backgroundColor: `color-mix(in srgb, ${color.primary} 5%, ${color.background})`,
+        backgroundColor: `color-mix(in srgb, ${swatch.accentSolid} 5%, ${color.background})`,
     },
     head: {
         alignContent: "start",
@@ -549,7 +514,7 @@ const styles = style.create({
         margin: 0,
     },
     talk: {
-        color: color.primary,
+        color: swatch.accentSolid,
         fontSize: typeScale.body,
         fontWeight: weight.semibold,
         justifySelf: "start",
