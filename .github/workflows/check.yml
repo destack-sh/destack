@@ -104,9 +104,21 @@ jobs:
               uses: ./.github/actions/setup-apt
               with:
                   packages: zsh age
+            - name: Restore the browser scenarios' Chromium
+              id: chromium
+              uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+              with:
+                  path: ~/.cache/ms-playwright
+                  key: chromium-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('@destack/view/package.json') }}
             - name: Install the browser scenarios' Chromium
               working-directory: "@destack/view"
               run: bunx playwright install --with-deps chromium-headless-shell
+            - name: Save the browser scenarios' Chromium
+              if: steps.chromium.outputs.cache-hit != 'true'
+              uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+              with:
+                  path: ~/.cache/ms-playwright
+                  key: ${{ steps.chromium.outputs.cache-primary-key }}
             - name: Run the test PostgreSQL without durability
               env:
                   POSTGRES: ${{ job.services.postgres.id }}
