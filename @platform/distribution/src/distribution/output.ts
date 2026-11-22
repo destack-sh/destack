@@ -1,4 +1,5 @@
-import { Environment, type HostCapability, LineExporter, Telemetry } from "@destack/environment";
+import { Environment, type HostCapability } from "@destack/environment";
+import { LineExporter } from "@destack/environment/line";
 
 /** The width of the status lines' name column: the longest service, `eu-central-tail`. */
 const NAME_WIDTH = 15;
@@ -21,12 +22,10 @@ export const Command = {
         const [noun, verb, ...arguments_] = system.process.arguments;
         const host = Environment.instrument(
             system,
-            Telemetry.local(
-                system.clock,
+            new LineExporter(
                 (line) => printStatus(noun ?? name, line.trimEnd(), system),
-                system.telemetry.context,
                 LineExporter.options(system.process.variables),
-            ),
+            ).telemetry(system.clock, system.telemetry.context),
         );
 
         // run the selected command, refusing an unknown noun and verb
