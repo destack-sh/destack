@@ -28,11 +28,15 @@ Destack **standardises software production and deployment**:
  2. **Integrate every app and agent**: one account, one database, no walls.
  3. **Control your whole stack**: your data, context and code, on any machine you choose.
 
+_Your_ entire Destack - your own superapp, your personal context, your standardised apps, your custom tools - runs on a _single_ machine wherever you want: on your laptop, or on your server, or on our cloud.
+Destack integrates software along the matrix of durability and customisation:
+1. **"Category 1"**: Durable, pre-made, maybe lightly customised (e.g., docs and tasks like Notion and Linear)
+2. **"Category 2"**: Durable, custom made (e.g., internal tools, a dashboard for your shop)
+3. **"Category 3"**: Ephemeral, pre-made (e.g., a poll, a booking page, a sign-up sheet)
+4. **"Category 4"**: Ephemeral, custom made (e.g., a one-off visualisation, an artifact your agent makes)
+
 The Destack comprises both the platform core for building malleable software _and_ standard apps for common use cases (like Notion or Linear).
 All apps built on Destack get the advantages of standardisation and integration out of the box and are thus fully hackable and programmable by your agents.
-
-_Your_ entire Destack - your own personal superapp, with your personal context, your standardised apps, and your custom tools - runs on a _single_ machine wherever you want: on your laptop, or on your server, or on our cloud.
-Everything is as simple and portable as we could make it.
 
 ## Install
 
