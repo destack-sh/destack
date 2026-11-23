@@ -6,13 +6,16 @@
     "runtimes": ["browser", "bun", "workerd"],
     "exports": {
         "./inspect": {
-            "runtimes": ["bun"]
+            "runtimes": ["bun"],
+            "internal": true
         },
         "./local": {
-            "runtimes": ["bun"]
+            "runtimes": ["bun"],
+            "internal": true
         },
         "./cloudflare": {
-            "runtimes": ["bun", "workerd"]
+            "runtimes": ["bun", "workerd"],
+            "internal": true
         }
     },
     "declarations": {
