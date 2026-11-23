@@ -129,10 +129,10 @@ test("inherit a scope's relations onto the objects it encloses, through every sc
     });
     onTestFinished(() => storage.close());
     const { database } = storage;
-    const acme = org.reference("universe", "acme");
-    const plans = folder.reference("acme", "plans");
+    const example = org.reference("universe", "example");
+    const plans = folder.reference("example", "plans");
     const replicas = new TestAccess(database, environment);
-    await replicas.replicateScope(acme, org);
+    await replicas.replicateScope(example, org);
     await replicas.replicateScope(plans, folder);
     await database.transaction(
         async (transaction) =>
@@ -140,7 +140,7 @@ test("inherit a scope's relations onto the objects it encloses, through every sc
     );
 
     // make carol an editor of the organization, dave a viewer of the folder, and erin nothing
-    await relate(database, acme, "editor", people.carol);
+    await relate(database, example, "editor", people.carol);
     await relate(database, plans, "viewer", people.dave);
     const authorizer = new Authorizer([org, folder, document], [mapping]);
 
@@ -300,10 +300,10 @@ test("share an object with a scope's readers, including those of the scopes encl
         [org, folder, shared],
         [{ ...mapping, policy: shared, relations: {} }],
     );
-    const acme = org.reference("universe", "acme");
-    const plans = folder.reference("acme", "plans");
+    const example = org.reference("universe", "example");
+    const plans = folder.reference("example", "plans");
     const replicas = new TestAccess(database, environment);
-    await replicas.replicateScope(acme, org);
+    await replicas.replicateScope(example, org);
     await replicas.replicateScope(plans, folder);
     await database.transaction(
         async (transaction) =>
@@ -319,7 +319,7 @@ test("share an object with a scope's readers, including those of the scopes encl
                 protected: 0,
             }),
     );
-    await relate(database, acme, "editor", people.carol);
+    await relate(database, example, "editor", people.carol);
     await relate(database, plans, "viewer", people.dave);
     await relate(database, shared.reference("plans", "a"), "reader", {
         ...plans,
@@ -345,7 +345,7 @@ test("share an object with a scope's readers, including those of the scopes encl
         ).isAllowed;
 
         // decide the same row from the organization, descending into the folder
-        const above = await authorizer.resolve(database.snapshot(), "acme", context);
+        const above = await authorizer.resolve(database.snapshot(), "example", context);
         const below = await above.descend(database.snapshot(), ["plans"]);
         const descended = await authorizer.checkRows(
             database.snapshot(),
