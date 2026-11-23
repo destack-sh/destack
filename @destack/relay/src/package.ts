@@ -7,7 +7,7 @@ export default definePackage({
     title: t`Relay`,
     description: t`Relay HTTP requests for Destack names to the machines serving them.`,
     icon: "arrows-left-right",
-    color: "bronze",
+    color: "brown",
     mounts: [
         defineMount({ name: "tunnels", path: "/machines", callers: "self" }),
         defineMount({ name: "names", path: "/names" }),

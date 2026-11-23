@@ -6,5 +6,5 @@ export default definePackage({
     title: t`Regional`,
     description: t`Serve a region.`,
     icon: "globe",
-    color: "teal",
+    color: "cyan",
 });

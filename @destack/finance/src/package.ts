@@ -25,7 +25,7 @@ export default definePackage({
     title: t`Finance`,
     description: t`Sell products with features, bill accounts for subscriptions and usage, and derive their entitlements.`,
     icon: "receipt",
-    color: "violet",
+    color: "purple",
     objects: [
         customer,
         seller,

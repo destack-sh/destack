@@ -7,6 +7,6 @@ export default definePackage({
     title: t`Journal`,
     description: t`Keep a journal with its history.`,
     icon: "notebook",
-    color: "iris",
+    color: "purple",
     objects: [entry],
 });

@@ -7,7 +7,7 @@ export default definePackage({
     title: t`Board`,
     description: t`Pin cards to a board.`,
     icon: "kanban",
-    color: "iris",
+    color: "purple",
     objects: [cards],
     actions: [retitle, ideas],
 });

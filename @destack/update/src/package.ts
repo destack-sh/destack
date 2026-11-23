@@ -8,7 +8,7 @@ export default definePackage({
     title: t`Update`,
     description: t`Update installed Destack distributions from a signed release feed.`,
     icon: "arrows-clockwise",
-    color: "bronze",
+    color: "brown",
     objects: [distribution],
     actions: [checkForUpdates, restartToUpdate],
     errors: UpdateError,

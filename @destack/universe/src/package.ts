@@ -8,7 +8,7 @@ export default definePackage({
     title: t`Universe`,
     description: t`Run a universe: the account, object, setting and universe packages over one store at one origin.`,
     icon: "sliders-horizontal",
-    color: "bronze",
+    color: "brown",
     objects: apply.objects,
     errors: UniverseError,
 });

@@ -43,7 +43,7 @@ export default definePackage({
     title: t`Accounts`,
     description: t`Sign people and machines in, and manage their accounts, organizations and spaces.`,
     icon: "user-circle",
-    color: "amber",
+    color: "yellow",
     objects: [
         user,
         session,

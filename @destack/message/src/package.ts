@@ -16,7 +16,7 @@ export default definePackage({
     title: t`Messages`,
     description: t`Send messages on a channel, email, push, webhook or a desktop.`,
     icon: "chat-circle",
-    color: "violet",
+    color: "purple",
     objects: [message, messageAttempt, endpoint, ...task.objects],
     resources: [outboundMail],
     access: {

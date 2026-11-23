@@ -15,7 +15,7 @@ export default definePackage({
     title: t`Connections`,
     description: t`Connect external accounts once, and call their APIs with credentials kept in a vault.`,
     icon: "plugs-connected",
-    color: "amber",
+    color: "yellow",
     objects: [integration, connection, authorizationRequest],
     // the vault the connections keep their credentials in
     resources: [connectionVault],

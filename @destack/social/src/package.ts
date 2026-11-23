@@ -8,7 +8,7 @@ export default definePackage({
     title: t`Social`,
     description: t`Attach comments, reactions, receipts, favourites and presence to any object, notifying mentioned and participating principals.`,
     icon: "chats-teardrop",
-    color: "violet",
+    color: "purple",
     objects: [comment, reaction, receipt, favourite, presence],
     errors: SocialError,
 });

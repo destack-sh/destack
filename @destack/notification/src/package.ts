@@ -16,7 +16,7 @@ export default definePackage({
     title: t`Notifications`,
     description: t`Declare notifications, notify recipients, watch objects and deliver them as messages.`,
     icon: "bell",
-    color: "violet",
+    color: "purple",
     objects: [activity, announcement, subscription, notification, summary],
     access: {
         permissions: {

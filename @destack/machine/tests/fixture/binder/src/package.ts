@@ -7,6 +7,6 @@ export default definePackage({
     title: t`Binders`,
     description: t`Keep sheets in binders.`,
     icon: "folder",
-    color: "iris",
+    color: "purple",
     objects: [binder, sheet],
 });

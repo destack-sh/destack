@@ -8,7 +8,7 @@ export default definePackage({
     title: t`Settings`,
     description: t`Declare, place and resolve scoped settings.`,
     icon: "gear-six",
-    color: "violet",
+    color: "purple",
     objects: [setting],
     errors: SettingError,
 });
