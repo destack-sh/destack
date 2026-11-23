@@ -141,8 +141,8 @@ export interface BuildContent {
     readonly relationships?: readonly Edge[];
     /** The tables its object types keep in a database, by dialect, none when absent. */
     readonly tables?: JsonObject;
-    /** Whether the package extends its dependents' builds, whose interface then has every file. */
-    readonly isExtension?: boolean;
+    /** The digest of the modules a build extension's export loads, absent for other packages. */
+    readonly extension?: Digest;
 }
 
 /** Write a build for `BuildReader`: its files, then its lists, then its manifest. */
@@ -265,7 +265,7 @@ export class BuildWriter {
                     ]),
                 ),
                 declarations: lists.declarations.digest,
-                files: contents.isExtension === true ? lists.files.digest : null,
+                extension: contents.extension ?? null,
             },
             this.#crypto,
         );
