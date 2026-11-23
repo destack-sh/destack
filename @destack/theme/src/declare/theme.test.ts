@@ -1,3 +1,4 @@
+import { HUES } from "@destack/color";
 import { PackageVersion } from "@destack/package";
 import { expect, test } from "@destack/test";
 import { describeTheme } from "../inspect/index.ts";
@@ -8,6 +9,9 @@ import { defineTheme, destackTheme, THEMES } from "./index.ts";
 
 /** The least OKLab distance between two themes' pages, the mean of day and night. */
 const LEAST_DISTANCE = 0.025;
+
+/** The least OKLab distance between two hues of a theme, as graphics. */
+const LEAST_HUE_DISTANCE = 0.03;
 
 /** The package release declaring the fixture's theme. */
 const notes = PackageVersion.parse({
@@ -60,12 +64,33 @@ test("read every role of Destack's themes at its standard contrast", () => {
     expect(refused).toEqual([]);
 });
 
+test("draw every two hues of each of Destack's themes apart", () => {
+    // measure each pair of hues as graphics by day and by night, and list the pairs too close
+    const close = THEMES.flatMap((theme) =>
+        (["light", "dark"] as const).flatMap((scheme) => {
+            const marks = HUES.map((hue) => ({
+                hue,
+                color: Oklch.parse(theme.resolve(scheme, 0, theme.seed(hue)).color("mark")),
+            }));
+
+            return marks.flatMap((left, index) =>
+                marks
+                    .slice(index + 1)
+                    .filter((right) => left.color.distance(right.color) < LEAST_HUE_DISTANCE)
+                    .map((right) => `${theme.name} ${scheme} ${left.hue} ${right.hue}`),
+            );
+        }),
+    );
+
+    expect(close).toEqual([]);
+});
+
 test("set every two themes' pages apart, whatever accent a person chooses", () => {
     // measure each pair's pages by day and by night, and list the pairs closer than the least
     const close = THEMES.flatMap((left, index) =>
         THEMES.slice(index + 1).flatMap((right) => {
-            const day = distance(pageOf(left, "light"), pageOf(right, "light"));
-            const night = distance(pageOf(left, "dark"), pageOf(right, "dark"));
+            const day = pageOf(left, "light").distance(pageOf(right, "light"));
+            const night = pageOf(left, "dark").distance(pageOf(right, "dark"));
             const mean = (day + night) / 2;
 
             return mean < LEAST_DISTANCE
@@ -112,13 +137,4 @@ function pageOf(theme: Theme, scheme: "light" | "dark"): Oklch {
     }
 
     return Oklch.parse(page);
-}
-
-/** Measure the OKLab distance of two colors, by their lightness, chroma and the angle between. */
-function distance(left: Oklch, right: Oklch): number {
-    const angle = ((left.hue - right.hue) * Math.PI) / 180;
-    const chroma =
-        left.chroma ** 2 + right.chroma ** 2 - 2 * left.chroma * right.chroma * Math.cos(angle);
-
-    return Math.sqrt((left.lightness - right.lightness) ** 2 + chroma);
 }

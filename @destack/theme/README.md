@@ -4,13 +4,14 @@ Theme views with an accent, a base and roles solved for contrast, in light and d
 
 ## Overview
 
-`@destack/theme` is Radix Themes' settings over shadcn's neutral roles and one swatch per hue: themes, roles solved for contrast, display settings and StyleX tokens.
+`@destack/theme` is Radix Themes' settings over shadcn's neutral roles, with Notion's tag hues filled in by each theme as Obsidian's themes do: themes, roles solved for contrast, display settings and StyleX tokens.
 
 Packages declare a theme:
 
 - `Theme`: a ground, an accent, a base gray, a radius, a scaling and a density.
 - `ThemeDeclaration`: a theme a package declares, with `defineTheme`.
 - `Seed`: a palette's source color: a preset such as `"orange"`, or a hex color.
+- `Hue`: a color by its meaning, from `@destack/color`, which a theme fills in with a seed.
 - `RoleName`: a neutral role such as `background` or `mutedForeground`, or a swatch role such as `solid`.
 - `RoleOverride`: a theme's color for a role.
 - `Ground`: a theme's page, text and quiet fill at one time of day.
@@ -54,8 +55,7 @@ const variables = theme.variables({ ...DEFAULT_DISPLAY, appearance: "dark", cont
 | `base`    | the seed of surfaces, text and lines, `"slate"` by default                                             |
 | `accent`  | the seed of primary actions, checked controls, focus and the first chart series, `"indigo"` by default |
 | `ground`  | the `light` and `dark` `Ground`: page, text and quiet fill as hex colors, which lines follow           |
-| `status`  | the seeds of `destructive`, `success`, `warning` and `info`, red, green, amber and blue by default     |
-| `series`  | up to four seeds of the chart series after the accent, picked far apart in hue by default              |
+| `hues`    | the seeds of the ten hues of tags, statuses and charts, Destack's own by default, the base for gray    |
 | `radius`  | `"none"`, `"small"`, `"medium"`, the default, `"large"` or `"full"`                                    |
 | `scaling` | `"90%"`, `"95%"`, `"100%"`, the default, `"105%"` or `"110%"`                                          |
 | `density` | `"compact"`, `"regular"`, the default, or `"spacious"`                                                 |
@@ -69,7 +69,8 @@ A theme answers its colors and custom properties:
 | ----------------------------- | -------------------------------------------------------------------------------------------------- |
 | `variables(display)`          | computes the custom properties of a view's root, with `color-scheme`                               |
 | `resolve(scheme, level, hue)` | resolves the roles in `"light"` or `"dark"` at a contrast from 0 to 1, and `color(name)` reads one |
-| `hues(accent)`                | lists the theme's hues by token name: the accent, the statuses and the chart series                |
+| `hues(accent)`                | lists the swatches' seeds by token name: the accent, the statuses, the chart series and the hues   |
+| `seed(hue)`                   | reads the seed of a hue: the theme's, the base for gray, else Destack's                            |
 | `rebase(background)`          | derives the theme over another background, such as a selected row's                                |
 
 ### Roles
@@ -85,7 +86,7 @@ The neutral roles follow shadcn's names, each solved for its contrast on every s
 | `border`, `input`, `ring`       | lines, field borders and focus rings                    |
 | `scrim`                         | the shade behind a dialog                               |
 
-Every hue takes the same swatch, after Primer's functional colors: the accent, the statuses, the five chart series and every colorful preset.
+Every hue takes the same swatch, after Primer's functional colors: the accent, the statuses, the five chart series and the ten hues.
 
 | Swatch roles       | What they color                                                   |
 | ------------------ | ----------------------------------------------------------------- |
@@ -182,6 +183,22 @@ export const paper = defineTheme({
 });
 ```
 
+### Fill in the hues
+
+`hues` sets the seeds of tags, statuses and chart series: `destructive` is red, `success` green, `warning` yellow and `info` blue, and each series is the accent or a hue far from the others.
+
+```ts
+import { defineTheme } from "@destack/theme/declare";
+
+// draw tags, statuses and charts in Solarized's hues, the rest in Destack's
+export const solar = defineTheme({
+    name: "solar",
+    base: "#839496",
+    accent: "#2aa198",
+    hues: { red: "#dc322f", yellow: "#b58900", green: "#859900", blue: "#268bd2" },
+});
+```
+
 ### Tune the type scale
 
 `text` changes a style's size, weight, tracking or font, with fluid sizes growing from a 360px to a 1280px window.
@@ -209,9 +226,9 @@ import * as style from "@destack/style";
 import { text } from "@destack/theme/text";
 import { color, space, swatch } from "@destack/theme/tokens.stylex";
 
-// style a teal tag and a muted caption
+// style a cyan tag and a muted caption
 export const styles = style.create({
-    tag: { backgroundColor: swatch.tealTint, color: swatch.tealTintText, padding: space[1] },
+    tag: { backgroundColor: swatch.cyanTint, color: swatch.cyanTintText, padding: space[1] },
     muted: { color: color.mutedForeground },
 });
 export const caption = [text.xs, styles.muted];
@@ -253,7 +270,7 @@ Neutral roles follow shadcn/ui's CSS variables; its colored roles become swatche
 | shadcn/ui                              | `@destack/theme`                                    | Difference                                                     |
 | -------------------------------------- | --------------------------------------------------- | -------------------------------------------------------------- |
 | `--background`, `--card`, `--muted`, … | `--destack-color-background`, …                     | The same neutral roles; text tiers serve every surface.        |
-| `--primary`, `--primary-foreground`    | `--destack-swatch-accent-solid`, `…-accent-label`   | One swatch shape for the accent, statuses, series, presets.    |
+| `--primary`, `--primary-foreground`    | `--destack-swatch-accent-solid`, `…-accent-label`   | One swatch shape for the accent, statuses, series and hues.    |
 | `--accent`                             | `--destack-color-hover`, `--destack-color-selected` | State layers of the text color, after Material.                |
 | `--chart-1` to `--chart-5`             | `--destack-swatch-series1-mark`, …                  | Full swatches, so charts fill, label and tint from the theme.  |
 | hand-picked colors per theme           | roles solved for contrast                           | A theme gives seeds, and each role is solved to read.          |

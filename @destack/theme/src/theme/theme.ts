@@ -1,7 +1,7 @@
 import { PackageVersion, PackageError } from "@destack/package";
 import { present, schema } from "@destack/schema";
-import { HexColor, Palette, Seed, type ColorScheme, Srgb } from "../palette/index.ts";
-import { ACCENT_PRESETS } from "@destack/color";
+import { HexColor, Oklch, Palette, Seed, type ColorScheme } from "../palette/index.ts";
+import { DEFAULT_HUES, Hue, HUES } from "@destack/color";
 import {
     FONT_SIZE_ADJUST,
     MOTION_SCALE,
@@ -18,9 +18,7 @@ import {
     type Display,
 } from "./display.ts";
 import {
-    BACKGROUND_LIGHTNESS,
     COLOR_ROLES,
-    GRAPHIC_CONTRAST,
     LABEL_RATIO,
     Resolution,
     ROLE_NAMES,
@@ -45,13 +43,19 @@ const DEFAULT_ACCENT = "indigo";
 /** The statuses a theme colors. */
 const STATUS_NAMES = ["destructive", "success", "warning", "info"] as const;
 
-/** The status seeds of a theme that names none. */
-const DEFAULT_STATUS = {
+/** The hue of each status. */
+const STATUS_HUES = {
     destructive: "red",
     success: "green",
-    warning: "amber",
+    warning: "yellow",
     info: "blue",
-} as const;
+} as const satisfies Record<(typeof STATUS_NAMES)[number], Hue>;
+
+/** The swatches drawn in the accent, under the theme's overrides of its roles. */
+const ACCENT_SWATCHES: ReadonlySet<string> = new Set(["accent", "series1"]);
+
+/** The hues chart series take: the colorful ones, without red, which reads as an error. */
+const SERIES_HUES = ["orange", "yellow", "green", "cyan", "blue", "purple", "pink"] as const;
 
 /** The corner treatment of a theme that names none. */
 const DEFAULT_RADIUS = "medium";
@@ -173,24 +177,8 @@ export const ThemeDefinition = schema.object({
             dark: Ground,
         })
         .exactOptional(),
-    /** The seeds of the status swatches, red, green, amber and blue when absent. */
-    status: schema
-        .object({
-            /** The seed of destructive actions. */
-            destructive: Seed.exactOptional(),
-            /** The seed of success states. */
-            success: Seed.exactOptional(),
-            /** The seed of warning states. */
-            warning: Seed.exactOptional(),
-            /** The seed of informational states. */
-            info: Seed.exactOptional(),
-        })
-        .exactOptional(),
-    /** The seeds of the chart series after the accent, picked far apart in hue when absent. */
-    series: schema
-        .array(Seed)
-        .max(SERIES_COUNT - 1)
-        .exactOptional(),
+    /** The seeds of the hues, the base for gray and Destack's own for each other one left out. */
+    hues: schema.partialRecord(Hue, Seed).exactOptional(),
     /** The corner treatment, medium when absent. */
     radius: Radius.exactOptional(),
     /** The interface scale, 100% when absent. */
@@ -253,7 +241,7 @@ export class Theme {
         // set the definition, then apply its replacements under its accent
         this.definition = definition;
         this.#accent = definition.accent ?? DEFAULT_ACCENT;
-        this.roles = this.#rolesOf(this.#accent);
+        this.roles = this.#rolesOf();
     }
 
     /** The name. */
@@ -272,13 +260,13 @@ export class Theme {
     resolve(scheme: ColorScheme, level: number, hue?: Seed): Resolution {
         // reuse the resolution of this hue, appearance and level
         const seed = hue ?? this.#accent;
-        const key = `${seed}:${scheme}:${level}`;
+        const key = `${hue ?? ""}:${scheme}:${level}`;
         const known = this.#resolutions.get(key);
         if (known !== undefined) {
             return known;
         }
         const resolution = new Resolution(
-            this.#rolesOf(seed),
+            this.#rolesOf(hue),
             this.#palettesOf(seed),
             scheme,
             level,
@@ -298,16 +286,17 @@ export class Theme {
 
         // resolve the neutral roles under the person's accent over the theme's, at their contrast
         const accent = display.accent ?? this.#accent;
+        const own = accent === this.#accent ? undefined : accent;
         for (const entry of TOKENS.family("color").entries) {
-            style[entry.variable] = this.#css(RoleName.parse(entry.key), display.contrast, accent);
+            style[entry.variable] = this.#css(RoleName.parse(entry.key), display.contrast, own);
         }
 
-        // resolve the swatch of every hue: the theme's hues, then every colorful preset
-        const presets = ACCENT_PRESETS.map((preset) => [preset, preset] as const);
-        for (const [hue, seed] of [...this.hues(accent), ...presets]) {
+        // resolve the swatch of every hue, the accent's own under its overrides
+        for (const [hue, seed] of this.hues(accent)) {
             for (const name of SWATCH_COLORS) {
                 const entry = TOKENS.entry(["swatch", `${hue}${capitalize(name)}`]);
-                style[entry.variable] = this.#css(name, display.contrast, seed);
+                const shown = ACCENT_SWATCHES.has(hue) ? own : seed;
+                style[entry.variable] = this.#css(name, display.contrast, shown);
             }
         }
 
@@ -339,8 +328,9 @@ export class Theme {
         for (const { scheme, level } of checks) {
             for (const [hue, seed] of this.hues(this.#accent)) {
                 // check every role under the accent, and each other hue's swatch
-                const resolution = this.resolve(scheme, level, seed);
-                const roles = this.#rolesOf(seed);
+                const shown = ACCENT_SWATCHES.has(hue) ? undefined : seed;
+                const resolution = this.resolve(scheme, level, shown);
+                const roles = this.#rolesOf(shown);
                 const names = hue === "accent" ? ROLE_NAMES : SWATCH_COLORS;
                 const nameOf = (name: RoleName) => (isSwatchColor(name) ? `${hue} ${name}` : name);
                 for (const name of names) {
@@ -375,22 +365,29 @@ export class Theme {
         }
     }
 
-    /** List the theme's hues by token name: the accent, the statuses, then the chart series. */
+    /** Read the seed of a hue: the theme's, the base for gray, else Destack's. */
+    seed(hue: Hue): Seed {
+        const own = this.definition.hues?.[hue];
+
+        return own ?? (hue === "gray" ? (this.definition.base ?? DEFAULT_BASE) : DEFAULT_HUES[hue]);
+    }
+
+    /** List the swatches' seeds by token name: the accent, the statuses, the series, the hues. */
     hues(accent: Seed = this.#accent): readonly (readonly [string, Seed])[] {
-        const status = { ...DEFAULT_STATUS, ...this.definition.status };
         const series = this.#seriesOf(accent).map(
             (seed, index) => [`series${String(index + 1)}`, seed] as const,
         );
 
         return [
             ["accent", accent],
-            ...STATUS_NAMES.map((name) => [name, status[name]] as const),
+            ...STATUS_NAMES.map((name) => [name, this.seed(STATUS_HUES[name])] as const),
             ...series,
+            ...HUES.map((hue) => [hue, this.seed(hue)] as const),
         ];
     }
 
     /** Format a role's color under a hue in both appearances at a contrast. */
-    #css(name: RoleName, contrast: Contrast, hue: Seed): string {
+    #css(name: RoleName, contrast: Contrast, hue: Seed | undefined): string {
         // resolve both appearances at the explicit or the standard level
         const pair = (level: number) =>
             [
@@ -414,10 +411,10 @@ export class Theme {
         return lightDark(mix(light, lightMore), mix(dark, darkMore));
     }
 
-    /** List the roles under a hue, replacing the hue's roles only under the theme's accent. */
-    #rolesOf(hue: Seed): Roles {
+    /** List the roles under a hue, replacing the hue's roles only under the theme's own accent. */
+    #rolesOf(hue?: Seed): Roles {
         // replace each role the ground and the definition replace, skipping hue roles under another hue
-        const isOwn = hue === this.#accent;
+        const isOwn = hue === undefined;
         const ground = this.definition.ground;
         const overrides = {
             ...(ground === undefined ? {} : groundOf(ground)),
@@ -463,13 +460,14 @@ export class Theme {
             return known;
         }
 
-        // take the accent, the declared seeds, then the hues farthest apart
-        const background = Palette.of(this.definition.base ?? DEFAULT_BASE).tone(
-            BACKGROUND_LIGHTNESS.light,
-        );
-        const declared = (this.definition.series ?? []).map((seed) => Palette.of(seed));
-        const picked = seriesOf(Palette.of(accent), declared, background);
-        const series = [accent, ...picked.map((palette) => palette.seed)];
+        // take the accent, then the theme's own hues farthest apart
+        const series = [
+            accent,
+            ...seriesOf(
+                accent,
+                SERIES_HUES.map((hue) => this.seed(hue)),
+            ),
+        ];
         this.#series.set(accent, series);
 
         return series;
@@ -579,7 +577,7 @@ function groundOf(
     };
 }
 
-/** Capitalize a word's first letter, as token keys join a preset and a color: `tealSolid`. */
+/** Capitalize a word's first letter, as token keys join a hue and a color: `cyanSolid`. */
 function capitalize(word: string): string {
     return `${word.charAt(0).toUpperCase()}${word.slice(1)}`;
 }
@@ -604,43 +602,26 @@ function lightDark(light: string, dark: string): string {
     return light === dark ? light : `light-dark(${light}, ${dark})`;
 }
 
-/** Pick the chart series after the accent. */
-function seriesOf(accent: Palette, declared: readonly Palette[], background: Srgb): Palette[] {
-    // take the candidates whose seeds read as graphics on the light background
-    const isVisible = (palette: Palette) =>
-        Math.abs(Srgb.parse(palette.seed).contrast(background, "apca")) >=
-        GRAPHIC_CONTRAST.standard;
-    const candidates = ACCENT_PRESETS.map((name) => Palette.of(name)).filter((palette) =>
-        isVisible(palette),
-    );
-
-    // take the candidate farthest from every hue taken until the series are full, the earlier on a tie
-    const hues = [accent, ...declared].map((palette) => palette.hue);
-    const picked = [...declared];
-    while (picked.length < SERIES_COUNT - 1) {
-        const distanceOf = (palette: Palette) =>
-            Math.min(...hues.map((taken) => hueDistance(taken, palette.hue)));
-        const farthest = present(
-            candidates.reduce<Palette | undefined>(
-                (best, candidate) =>
-                    best === undefined || distanceOf(candidate) > distanceOf(best)
-                        ? candidate
-                        : best,
-                undefined,
-            ),
-            "a visible chart series candidate",
-        );
-        picked.push(farthest);
-        hues.push(farthest.hue);
-        candidates.splice(candidates.indexOf(farthest), 1);
-    }
-
-    return picked;
+/** Read the color a seed grows from. */
+function colorOf(seed: Seed): Oklch {
+    return Oklch.parse(Palette.of(seed).seed);
 }
 
-/** Measure the angle between two hues around the color wheel, in degrees. */
-function hueDistance(left: number, right: number): number {
-    const difference = Math.abs(left - right) % 360;
+/** Pick the chart series after the accent from the theme's hues. */
+function seriesOf(accent: Seed, hues: readonly Seed[]): Seed[] {
+    // start from the accent
+    const candidates = hues.map((seed) => ({ seed, color: colorOf(seed) }));
+    const taken = [colorOf(accent)];
 
-    return Math.min(difference, 360 - difference);
+    return Array.from({ length: SERIES_COUNT - 1 }, () => {
+        // take the hue farthest from every color taken, the earlier on a tie
+        const distances = candidates.map(({ color }) =>
+            Math.min(...taken.map((other) => color.distance(other))),
+        );
+        const farthest = distances.indexOf(Math.max(...distances));
+        const series = present(candidates.splice(farthest, 1)[0], "a hue for a chart series");
+        taken.push(series.color);
+
+        return series.seed;
+    });
 }

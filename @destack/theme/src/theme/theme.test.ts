@@ -2,8 +2,7 @@ import { PackageVersion } from "@destack/package";
 import { expect, refusal, test } from "@destack/test";
 import { defineTheme } from "../declare/index.ts";
 import { Oklch, Srgb } from "../palette/index.ts";
-import { ACCENT_PRESETS, GRAY_PRESETS, PRESET_NAMES, PRESETS } from "@destack/color";
-import { present } from "@destack/schema";
+import { GRAY_PRESETS, PRESET_NAMES, PRESETS } from "@destack/color";
 import {
     DEFAULT_DISPLAY,
     GRAPHIC_CONTRAST,
@@ -129,7 +128,7 @@ test("give every preset accent on every base five chart series of hues apart, st
                 dark: theme.resolve("dark", 0).color("background"),
             };
 
-            // require every series to stand out and every pair of hues to lie apart
+            // require every series to stand out and every two to lie apart
             const faint = series.filter((entry) =>
                 (["light", "dark"] as const).some(
                     (scheme) =>
@@ -141,13 +140,9 @@ test("give every preset accent on every base five chart series of hues apart, st
                         ) < GRAPHIC_CONTRAST.standard,
                 ),
             );
-            const hues = series.map((entry) => Oklch.parse(entry.light).hue);
-            const close = hues.flatMap((hue, index) =>
-                hues.slice(index + 1).filter((other) => {
-                    const difference = Math.abs(hue - other) % 360;
-
-                    return Math.min(difference, 360 - difference) < 20;
-                }),
+            const marks = series.map((entry) => Oklch.parse(entry.light));
+            const close = marks.flatMap((mark, index) =>
+                marks.slice(index + 1).filter((other) => mark.distance(other) < 0.06),
             );
 
             return faint.length === 0 && close.length === 0 ? [] : [`${base}/${accent}`];
@@ -257,21 +252,39 @@ test("raise every reading role's contrast continuously with the person's level",
     );
 });
 
-test("grow the status swatches and the second chart series from the theme's declared seeds", () => {
-    const declared = defineTheme(
-        { name: "declared", status: { destructive: "tomato" }, series: ["#d946ef"] },
+test("grow the tags, the statuses and the chart series from the theme's hues", () => {
+    const hued = defineTheme(
+        { name: "hued", hues: { red: "tomato", yellow: "#b58900", gray: "#839496" } },
         { package: notes },
     );
-    const hues = new Map(declared.hues());
-    const destructive = present(hues.get("destructive"), "the destructive hue");
-    const series = present(hues.get("series2"), "the second series");
+    const hues = new Map(hued.hues());
+    const named = ["red", "destructive", "yellow", "warning", "gray", "green", "success"];
 
     // the declared tomato deepens until its white label reads at 4.5 to 1
     expect([
-        destructive,
-        declared.resolve("light", 0, destructive).color("solid"),
-        declared.resolve("light", 0, series).color("mark"),
-    ]).toEqual(["tomato", "#d64121", "#d946ef"]);
+        named.map((name) => hues.get(name)),
+        hued.resolve("light", 0, "tomato").color("solid"),
+    ]).toEqual([
+        ["tomato", "tomato", "#b58900", "#b58900", "#839496", PRESETS.green, PRESETS.green],
+        "#d64121",
+    ]);
+});
+
+test("draw five chart series apart from hues too pale to read as given", () => {
+    // give every hue a pastel, which a mark darkens until it reads
+    const hues = Object.fromEntries(
+        ["red", "orange", "yellow", "green", "cyan", "blue", "purple", "pink"].map(
+            (name, index) => [name, new Oklch(0.92, 0.05, index * 45).hex()] as const,
+        ),
+    );
+    const pale = new Theme({ name: "pale", hues });
+    const series = pale.hues().filter(([name]) => name.startsWith("series"));
+    const marks = series.map(([, seed]) => pale.resolve("light", 0, seed).contrast("mark", "apca"));
+
+    expect([
+        new Set(series.map(([, seed]) => seed)).size,
+        marks.map((mark) => mark >= GRAPHIC_CONTRAST.standard),
+    ]).toEqual([5, [true, true, true, true, true]]);
 });
 
 test("apply a replaced solid under the theme's own accent alone", () => {
@@ -283,12 +296,12 @@ test("apply a replaced solid under the theme's own accent alone", () => {
     // another accent and every other hue's swatch take the solid their palette grows
     expect([
         branded.resolve("light", 0).color("solid"),
-        branded.resolve("light", 0, "teal").color("solid"),
-        branded.variables(DEFAULT_DISPLAY)["--destack-swatch-teal-solid"],
+        branded.resolve("light", 0, "cyan").color("solid"),
+        branded.variables(DEFAULT_DISPLAY)["--destack-swatch-cyan-solid"],
     ]).toEqual([
         "#c54e0d",
-        standard.resolve("light", 0, "teal").color("solid"),
-        standard.variables(DEFAULT_DISPLAY)["--destack-swatch-teal-solid"],
+        standard.resolve("light", 0, "cyan").color("solid"),
+        standard.variables(DEFAULT_DISPLAY)["--destack-swatch-cyan-solid"],
     ]);
 });
 
@@ -398,21 +411,21 @@ test("emit one swatch per hue as the roles it takes, at the values tokens.json s
 
     expect({
         hues: swatches.length / SWATCH_COLORS.length,
-        teal: swatches.filter(([name]) => String(name).includes("-teal-")).map(([name]) => name),
+        cyan: swatches.filter(([name]) => String(name).includes("-cyan-")).map(([name]) => name),
         matching: swatches.every(([, isMatching]) => isMatching === true),
-        solid: standard.resolve("light", 0, "teal").color("solid"),
+        solid: standard.resolve("light", 0, "cyan").color("solid"),
     }).toEqual({
-        hues: 35,
-        teal: [
-            "--destack-swatch-teal-solid",
-            "--destack-swatch-teal-label",
-            "--destack-swatch-teal-tint",
-            "--destack-swatch-teal-tint-text",
-            "--destack-swatch-teal-text",
-            "--destack-swatch-teal-mark",
+        hues: 20,
+        cyan: [
+            "--destack-swatch-cyan-solid",
+            "--destack-swatch-cyan-label",
+            "--destack-swatch-cyan-tint",
+            "--destack-swatch-cyan-tint-text",
+            "--destack-swatch-cyan-text",
+            "--destack-swatch-cyan-mark",
         ],
         matching: true,
-        solid: "#008577",
+        solid: "#00819f",
     });
 });
 
@@ -573,9 +586,9 @@ test("emit the default theme's custom properties for the system appearance", () 
 test("resolve a seed accent's roles from the palette grown from it", () => {
     const seeded = defineTheme({ name: "violet", accent: "#7c3aed" }, { package: notes });
 
-    // only the ring, the accent's swatch and the chart series picked around it change, its white label staying
+    // only the ring, the accent's swatch and the first chart series change, its white label staying
     const changed = changes(seeded.variables(DEFAULT_DISPLAY), standard.variables(DEFAULT_DISPLAY));
-    const hues = ["accent", "series1", "series2", "series3", "series4", "series5"];
+    const hues = ["accent", "series1"];
     expect(Object.keys(changed)).toEqual([
         "--destack-color-ring",
         ...hues.flatMap((hue) =>
@@ -671,7 +684,7 @@ test("apply the theme's radius, scaling and fonts", () => {
 });
 
 test("cover every color token with one neutral role and every swatch token with one hue's role", () => {
-    const hues = [...standard.hues().map(([name]) => name), ...ACCENT_PRESETS];
+    const hues = standard.hues().map(([name]) => name);
     expect([
         TOKENS.family("color").entries.map((entry) => entry.key),
         TOKENS.family("swatch").entries.map((entry) => entry.key),

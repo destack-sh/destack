@@ -49,6 +49,12 @@ const TINT_TEXT_LIGHTNESS: Lightness = { light: 0.335, dark: 0.915 };
 /** The OKLCH lightness of subtle fills relative to the background in each appearance. */
 const SUBTLE_OFFSET: Lightness = { light: -0.034, dark: 0.077 };
 
+/** The OKLCH lightness of a tint over the background, above the cards by night as Notion's tags. */
+const TINT_OFFSET: Lightness = { light: -0.034, dark: 0.16 };
+
+/** The least OKLCH lightness of a tint, where a hue still shows on true black. */
+const TINT_LEAST = 0.28;
+
 /** The light label candidate on solid colors. */
 const WHITE = Srgb.parse("#ffffff");
 
@@ -157,6 +163,8 @@ export type RoleSource =
           readonly lightness: Lightness;
           /** The role whose lightness the lightness offsets, absolute when absent. */
           readonly from?: RoleName;
+          /** The least lightness, none when absent. */
+          readonly least?: number;
           /** The opacity from 0 to 1, opaque when absent. */
           readonly alpha?: number;
       }
@@ -380,7 +388,10 @@ export class Resolution {
                 const start =
                     source.from === undefined
                         ? offset
-                        : Oklch.parse(this.color(source.from)).lightness + offset;
+                        : Math.max(
+                              Oklch.parse(this.color(source.from)).lightness + offset,
+                              source.least ?? 0,
+                          );
 
                 // settle an opaque tone in lightness, a translucent one in opacity
                 return source.alpha === undefined
@@ -522,7 +533,7 @@ export const COLOR_ROLES: Roles = {
     // the hue as a solid fill with its label, as a tint with its text, and as text and marks on the page
     solid: solid("hue"),
     label: label("solid"),
-    tint: tone("hue", SUBTLE_OFFSET, { from: "background" }),
+    tint: tone("hue", TINT_OFFSET, { from: "background", least: TINT_LEAST }),
     tintText: readable("hue", TINT_TEXT_LIGHTNESS, ["tint"], BODY_CONTRAST),
     text: readable("hue", MUTED_LIGHTNESS, SURFACES, CONTENT_CONTRAST),
     mark: mark("hue"),
@@ -541,7 +552,7 @@ function shift(from: RoleName, lightness: Lightness, alpha?: number): Role {
 function tone(
     palette: PaletteName,
     lightness: Lightness,
-    placement: { from?: RoleName; alpha?: number } = {},
+    placement: { from?: RoleName; least?: number; alpha?: number } = {},
 ): Role {
     return new Role({ kind: "tone", palette, lightness, ...placement });
 }

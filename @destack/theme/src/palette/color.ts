@@ -115,6 +115,15 @@ export class Oklch {
         return new Oklch(lightness, Math.hypot(greenRed, blueYellow), (hue + 360) % 360);
     }
 
+    /** Measure the OKLab distance to a color, by lightness, chroma and the angle between. */
+    distance(other: Oklch): number {
+        const angle = ((this.hue - other.hue) * Math.PI) / 180;
+        const chroma =
+            this.chroma ** 2 + other.chroma ** 2 - 2 * this.chroma * other.chroma * Math.cos(angle);
+
+        return Math.sqrt((this.lightness - other.lightness) ** 2 + Math.max(0, chroma));
+    }
+
     /** Convert to a six-digit sRGB hex color. */
     hex(): string {
         // search the largest displayable chroma
