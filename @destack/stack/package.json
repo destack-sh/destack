@@ -23,28 +23,40 @@
         "@destack/bucket": "workspace:*",
         "@destack/build": "workspace:*",
         "@destack/db": "workspace:*",
-        "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
-        "@destack/event": "workspace:*",
         "@destack/git": "workspace:*",
-        "@destack/identity": "workspace:*",
         "@destack/locale": "workspace:*",
         "@destack/mail": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/registry": "workspace:*",
         "@destack/resource": "workspace:*",
-        "@destack/sandbox": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/setting": "workspace:*",
         "@destack/sync": "workspace:*",
         "@destack/view": "workspace:*"
     },
     "peerDependencies": {
+        "@destack/environment": "workspace:*",
+        "@destack/event": "workspace:*",
+        "@destack/identity": "workspace:*",
+        "@destack/sandbox": "workspace:*",
         "@destack/test": "workspace:*",
         "@destack/universe": "workspace:*"
     },
     "peerDependenciesMeta": {
+        "@destack/environment": {
+            "optional": true
+        },
+        "@destack/event": {
+            "optional": true
+        },
+        "@destack/identity": {
+            "optional": true
+        },
+        "@destack/sandbox": {
+            "optional": true
+        },
         "@destack/test": {
             "optional": true
         },
@@ -54,6 +66,10 @@
     },
     "devDependencies": {
         "@destack/check": "workspace:*",
+        "@destack/environment": "workspace:*",
+        "@destack/event": "workspace:*",
+        "@destack/identity": "workspace:*",
+        "@destack/sandbox": "workspace:*",
         "@destack/test": "workspace:*",
         "@destack/universe": "workspace:*",
         "@types/bun": "1.4.4",
