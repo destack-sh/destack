@@ -73,6 +73,7 @@ const styles = style.create({
     dialog: {
         // open and close at once, as a palette opened many times a day should
         transitionDuration: "0s",
+        "::backdrop": { transitionDuration: "0s" },
         width: {
             default: `min(100% - 2 * ${space[4]}, ${DIALOG_WIDTH})`,
             ':has([data-slot="command-detail"])': `min(100% - 2 * ${space[4]}, ${DIALOG_DETAIL_WIDTH})`,
