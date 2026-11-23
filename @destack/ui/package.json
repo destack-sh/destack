@@ -33,6 +33,7 @@
         "./palette": "./src/palette/index.ts",
         "./action": "./src/action/index.ts",
         "./context-menu": "./src/context-menu/index.ts",
+        "./data-list": "./src/data-list/index.ts",
         "./data-table": "./src/data-table/index.ts",
         "./date-field": "./src/date-field/index.ts",
         "./date-picker": "./src/date-picker/index.ts",
