@@ -6,10 +6,12 @@
     "runtimes": ["browser", "bun", "workerd"],
     "exports": {
         "./inspect": {
-            "runtimes": ["bun"]
+            "runtimes": ["bun"],
+            "internal": true
         },
         "./smtp": {
-            "runtimes": ["bun"]
+            "runtimes": ["bun"],
+            "internal": true
         }
     },
     "declarations": {
