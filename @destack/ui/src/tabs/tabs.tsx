@@ -41,6 +41,9 @@ const DEFAULTS: Required<Pick<TabsProperties, "orientation" | "activationMode">>
 /** The tabs of the nearest tabs root, null outside one. */
 const TabsContext = createContext<TabsControl | null>(null);
 
+/** The look of the nearest tab list. */
+const TabsVariantContext = createContext<Accessor<TabsVariant>>(() => "default");
+
 /** The styles of tabs and their elements. */
 const styles = style.create({
     tabs: {
@@ -52,16 +55,11 @@ const styles = style.create({
         alignItems: "center",
         justifyContent: "center",
         width: "fit-content",
-        padding: stroke.ring,
-        borderRadius: radius[4],
-        backgroundColor: color.muted,
         color: color.mutedForeground,
     },
     trigger: {
         display: "inline-flex",
-        flex: 1,
         alignItems: "center",
-        justifyContent: "center",
         gap: space[2],
         height: size[2],
         paddingInline: space[3],
@@ -76,25 +74,60 @@ const styles = style.create({
         transitionTimingFunction: motion.easingStandard,
     },
     selected: {
-        backgroundColor: color.background,
         color: color.foreground,
-        boxShadow: shadow.raised,
     },
     content: {
         flex: 1,
     },
 });
 
+/** The ground of each variant's list. */
+const variants = style.create({
+    default: {
+        padding: stroke.ring,
+        borderRadius: radius[4],
+        backgroundColor: color.muted,
+    },
+    line: {
+        gap: space[1],
+    },
+});
+
+/** The mark of each variant's selected tab: a raised ground, or a line along the list. */
+const marks = style.create({
+    default: {
+        backgroundColor: color.card,
+        boxShadow: shadow.raised,
+    },
+    line: {
+        borderRadius: 0,
+        boxShadow: {
+            default: `inset 0 calc(-1 * ${stroke.ring}) 0 ${color.foreground}`,
+            ":is([data-orientation=vertical])": `inset ${stroke.ring} 0 0 ${color.foreground}`,
+            ":is([data-orientation=vertical]:dir(rtl))": `inset calc(-1 * ${stroke.ring}) 0 0 ${color.foreground}`,
+        },
+    },
+});
+
 /** The direction of each orientation's list above or beside the panels. */
 const orientations = style.create({
     horizontal: { flexDirection: "column" },
-    vertical: { flexDirection: "row" },
+    vertical: { flexDirection: "row", gap: space[4] },
 });
 
 /** The direction of each orientation's tabs within the list. */
 const lists = style.create({
     horizontal: { flexDirection: "row" },
-    vertical: { flexDirection: "column", alignItems: "stretch" },
+    vertical: { flexDirection: "column", alignItems: "stretch", alignSelf: "flex-start" },
+});
+
+/** The look of a tab list: tabs on a muted ground, or tabs the selected one is underlined in. */
+export type TabsVariant = keyof typeof variants;
+
+/** The room and alignment of each orientation's tabs: sharing the row, or set at their start. */
+const triggers = style.create({
+    horizontal: { flex: 1, justifyContent: "center" },
+    vertical: { flexShrink: 0, justifyContent: "flex-start" },
 });
 
 /** Whether moving the focus to a tab selects it, or Enter and Space do. */
@@ -227,10 +260,16 @@ export function Tabs(properties: TabsProperties): JSX.Element {
     );
 }
 
+/** The properties of a tab list, the native element's attributes included. */
+export interface TabsListProperties extends TabsElementProperties<
+    JSX.HTMLAttributes<HTMLDivElement>
+> {
+    /** The look, tabs on a muted ground by default. */
+    readonly variant?: TabsVariant;
+}
+
 /** Render the tab list, which arrow keys, Home and End move through. */
-export function TabsList(
-    properties: TabsElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
-): JSX.Element {
+export function TabsList(properties: TabsListProperties): JSX.Element {
     // move the focus among the list's tabs, selecting them when activation is automatic
     const control = useTabs();
     const locale = useLocale();
@@ -242,22 +281,32 @@ export function TabsList(
         }
     };
 
-    return renderPart(
-        "div",
-        "tabs-list",
-        properties,
-        () => [styles.list, lists[control.properties.orientation]],
-        {
-            role: "tablist",
-            get "data-orientation"() {
-                return control.properties.orientation;
-            },
-            get "aria-orientation"() {
-                return control.properties.orientation;
-            },
-            onKeyDown: move,
-            onFocusOut: (event) => control.list.focus.focusOut(event),
-        },
+    // share the look with the tabs
+    const variant = () => properties.variant ?? "default";
+
+    return (
+        <TabsVariantContext value={variant}>
+            {renderPart(
+                "div",
+                "tabs-list",
+                omit(properties, "variant"),
+                () => [styles.list, variants[variant()], lists[control.properties.orientation]],
+                {
+                    role: "tablist",
+                    get "data-variant"() {
+                        return variant();
+                    },
+                    get "data-orientation"() {
+                        return control.properties.orientation;
+                    },
+                    get "aria-orientation"() {
+                        return control.properties.orientation;
+                    },
+                    onKeyDown: move,
+                    onFocusOut: (event) => control.list.focus.focusOut(event),
+                },
+            )}
+        </TabsVariantContext>
     );
 }
 
@@ -273,6 +322,7 @@ export type TabsTriggerProperties = TabsValueProperties<
 export function TabsTrigger(properties: TabsTriggerProperties): JSX.Element {
     // join the tabs and read whether this one is selected
     const control = useTabs();
+    const variant = useContext(TabsVariantContext);
     let element: HTMLElement | undefined;
     control.list.add({
         key: properties.value,
@@ -320,7 +370,8 @@ export function TabsTrigger(properties: TabsTriggerProperties): JSX.Element {
                     state.focus,
                     state.disabled,
                     styles.trigger,
-                    isSelected() && styles.selected,
+                    triggers[control.properties.orientation],
+                    isSelected() && [styles.selected, marks[variant()]],
                     properties.xstyle,
                 ],
                 properties.style,

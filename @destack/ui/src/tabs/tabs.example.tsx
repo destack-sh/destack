@@ -22,6 +22,51 @@ export const tabsEditorPreview = defineExample({
     ),
 });
 
+/** A space's views as underlined tabs. */
+export const tabsUnderlined = defineExample({
+    of: Tabs,
+    name: "underlined",
+    description: "a space's views as underlined tabs",
+    properties: {
+        defaultValue: "overview",
+    },
+    render: (properties) => (
+        <Tabs {...properties}>
+            <TabsList aria-label="Space" variant="line">
+                <TabsTrigger value="overview">Overview</TabsTrigger>
+                <TabsTrigger value="members">Members</TabsTrigger>
+                <TabsTrigger value="settings">Settings</TabsTrigger>
+            </TabsList>
+            <TabsContent value="overview">What changed this week</TabsContent>
+            <TabsContent value="members">Who is here</TabsContent>
+            <TabsContent value="settings">How it is set up</TabsContent>
+        </Tabs>
+    ),
+});
+
+/** A space's settings as tabs beside their panels. */
+export const tabsVertical = defineExample({
+    of: Tabs,
+    name: "vertical",
+    description: "a space's settings as tabs beside their panels",
+    properties: {
+        defaultValue: "general",
+        orientation: "vertical",
+    },
+    render: (properties) => (
+        <Tabs {...properties}>
+            <TabsList aria-label="Settings" variant="line">
+                <TabsTrigger value="general">General</TabsTrigger>
+                <TabsTrigger value="access">Access</TabsTrigger>
+                <TabsTrigger value="billing">Billing</TabsTrigger>
+            </TabsList>
+            <TabsContent value="general">Name and icon</TabsContent>
+            <TabsContent value="access">Who may do what</TabsContent>
+            <TabsContent value="billing">Plan and invoices</TabsContent>
+        </Tabs>
+    ),
+});
+
 /** A note's tabs that select as the focus moves, its history tab unavailable. */
 export const tabsHistoryUnavailable = defineExample({
     of: Tabs,
