@@ -25,8 +25,9 @@ export const dataTableFilterAndRename = defineScenario({
             then: [{ observe: { kind: "count", target: rows }, is: 2 }],
         },
         { step: { action: "press", key: "Escape" } },
+        { step: { action: "click", target: { text: "Record the demo" } } },
         {
-            step: { action: "click", target: { role: "button", name: "Record the demo" } },
+            step: { action: "press", key: "Enter" },
             then: [{ observe: { kind: "focused" }, is: "Title" }],
         },
         {
@@ -42,7 +43,7 @@ export const dataTableFilterAndRename = defineScenario({
                 {
                     observe: {
                         kind: "visible",
-                        target: { role: "button", name: "Record the launch demo" },
+                        target: { text: "Record the launch demo" },
                     },
                     is: true,
                 },

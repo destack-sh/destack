@@ -9,9 +9,11 @@ import caretUp from "@destack/icon/phosphor/caret-up";
 import caretUpDown from "@destack/icon/phosphor/caret-up-down";
 import slidersHorizontal from "@destack/icon/phosphor/sliders-horizontal";
 import { type Direction, plural, t } from "@destack/locale";
+import { present } from "@destack/schema";
 import * as style from "@destack/style";
+import { state } from "@destack/theme/state";
 import { media } from "@destack/style/media.stylex";
-import { color, radius, space, stroke, swatch } from "@destack/theme/tokens.stylex";
+import { color, size, space, stroke, swatch, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import {
     type Accessor,
@@ -19,10 +21,10 @@ import {
     createEffect,
     createMemo,
     createSignal,
-    flush,
     For,
     type JSX,
     omit,
+    onCleanup,
     onSettled,
     Show,
     untrack,
@@ -34,6 +36,7 @@ import type {
     Cell_ColumnGrouping,
     Cell_RowAggregation,
     CellContext,
+    CellSelectionDirection,
     Column,
     Column_ColumnVisibility,
     Column_ColumnFaceting,
@@ -49,6 +52,7 @@ import type {
     Header_ColumnSizing,
     HeaderContext,
     PaginationState,
+    Row_Core,
     Row_CoreProperties,
     Row_RowExpanding,
     Row_RowSelection,
@@ -57,12 +61,16 @@ import type {
     Table_RowPagination,
     Table_RowSelection,
     TableFeatures,
+    TableState_ColumnGrouping,
     TableState_GlobalFiltering,
+    TableState_RowExpanding,
     TableState_RowPagination,
+    TableState_RowSelection,
+    TableState_RowSorting,
 } from "@tanstack/table-core";
 import { Button } from "../button/index.ts";
 import { Checkbox } from "../checkbox/index.ts";
-import { Focus, type GridMove, gridMoveOf, type KeyboardDelegate } from "../focus/index.ts";
+import { mergeProperties } from "../part/index.ts";
 import {
     DropdownMenu,
     DropdownMenuCheckboxItem,
@@ -72,6 +80,9 @@ import {
     DropdownMenuTrigger,
 } from "../dropdown-menu/index.ts";
 import { Badge } from "../badge/index.ts";
+import type { Action } from "../action/index.ts";
+import { Menu, MenuAction, MenuControl } from "../menu/index.ts";
+import { ContextMenuContent } from "../context-menu/index.ts";
 import {
     Command,
     CommandEmpty,
@@ -84,37 +95,105 @@ import {
 import { Input } from "../input/index.ts";
 import { Popover, PopoverContent, PopoverTrigger } from "../popover/index.ts";
 import { Select, SelectItem } from "../select/index.ts";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../table/index.ts";
+import {
+    tableStyle,
+    TableBody,
+    TableCell,
+    TableFooter,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "../table/index.ts";
+import {
+    Sortable,
+    SortableContainer,
+    SortableHandle,
+    SortableItem,
+    SortableMove,
+} from "../sortable/index.ts";
+import {
+    type CellKey,
+    type DataTableCellChange,
+    DataTableControl,
+    type DataTableEditor,
+    type DataTableEditorKind,
+    type DataTableRowMove,
+    type DataTableSpan,
+    type DataTableSummary,
+    FOCUSABLE,
+    focusOf,
+    isGroupCell,
+    isGroupRow,
+    isSelectableCell,
+    keyText,
+    metaOf,
+} from "./control.ts";
 import type { DataTableInstance } from "./table.ts";
-import { Virtualizer } from "../virtualizer/index.ts";
-import { VisuallyHidden } from "../visually-hidden/index.ts";
-
-/** The rows a page jump moves by with Page Up and Page Down. */
-const PAGE_ROWS = 10;
+import { Length, Virtualizer } from "../virtualizer/index.ts";
+import { VisuallyHidden, visuallyHiddenStyle } from "../visually-hidden/index.ts";
 
 /** The page sizes a pagination offers without its own. */
 const PAGE_SIZES: readonly number[] = [10, 20, 50, 100];
 
-/** The elements inside a cell that take the focus in its place. */
-const FOCUSABLE = "a[href], button, input, select, textarea, [tabindex]:not(td, th)";
+/** The directions an arrow key extends a block of cells in, a row's in the reading direction. */
+const ARROWS: Readonly<Partial<Record<string, (direction: Direction) => CellSelectionDirection>>> =
+    {
+        ArrowUp: () => "up",
+        ArrowDown: () => "down",
+        ArrowLeft: (direction) => (direction === "rtl" ? "right" : "left"),
+        ArrowRight: (direction) => (direction === "rtl" ? "left" : "right"),
+    };
 
-/** The state of the nearest data table, read to track it, null outside one. */
-const DataTableContext = createContext<Accessor<unknown> | null>(null);
+/** The elements in a cell whose presses start no block of cells: controls, handles, the resizer. */
+const PRESSED =
+    "a[href], button, input, select, textarea, [role=checkbox], [data-slot=sortable-handle], [data-slot=data-table-resizer]";
 
-/** The focused cell of the nearest data table, null outside one. */
-const DataTableFocusContext = createContext<Focus<string> | null>(null);
+/** The state of the nearest data table and its slices, read to track them, null outside one. */
+const DataTableContext = createContext<DataTableSlices | null>(null);
 
-/** The columns that only select or expand rows, which stay as narrow as their control. */
-const CONTROL_COLUMNS: ReadonlySet<string> = new Set(["select", "expand"]);
+/** The line a row's cells show along the edge a dragged row lands on, as sortable items show it. */
+const LINE = `calc(2 * ${stroke.border})`;
+
+/** The prefix of a row's id among the sortable items, apart from the columns'. */
+const ROW_PREFIX = "row:";
+
+/** The prefix of a column's id among the sortable items, apart from the rows'. */
+const COLUMN_PREFIX = "column:";
+
+/** The sortable list of a table's rows, which a row's move reports. */
+const ROWS = "data-table-rows";
+
+/** The sortable row of a table's columns, which a column's move reports. */
+const COLUMNS = "data-table-columns";
+
+/** The drag type of a table's rows. */
+const ROW_TYPE = "data-table-row";
+
+/** The drag type of a table's columns. */
+const COLUMN_TYPE = "data-table-column";
 
 /** The styles of a data table and its toolbar and footer. */
 const styles = style.create({
     frame: {
         overflow: "auto",
-        borderWidth: stroke.border,
-        borderStyle: "solid",
-        borderColor: color.border,
-        borderRadius: radius[3],
+    },
+    row: {
+        borderBottomWidth: 0,
+        backgroundColor: "transparent",
+    },
+    fixed: {
+        height: size[2],
+        paddingBlock: 0,
+    },
+    lined: {
+        borderBlockEndWidth: stroke.border,
+        borderBlockEndStyle: "solid",
+        borderBlockEndColor: color.border,
+    },
+    lidded: {
+        borderBlockStartWidth: stroke.border,
+        borderBlockStartStyle: "solid",
+        borderBlockStartColor: color.border,
     },
     scroller: {
         overflowY: "auto",
@@ -126,14 +205,49 @@ const styles = style.create({
         top: 0,
         zIndex: 2,
         backgroundColor: color.background,
+        color: color.mutedForeground,
+        fontWeight: weight.regular,
     },
-    pinned: (start: string, end: string) => ({
+    divided: {
+        borderInlineEndWidth: { default: 0, ":not(:last-child)": stroke.border },
+        borderInlineEndStyle: "solid",
+        borderInlineEndColor: color.border,
+    },
+    rowControl: {
+        opacity: {
+            default: 1,
+            [media.hover]: {
+                default: 0,
+                ":is(tr:hover *)": 1,
+                ":focus-visible": 1,
+                ":is([data-checked])": 1,
+            },
+        },
+    },
+    footer: {
+        backgroundColor: "transparent",
+        fontWeight: weight.regular,
+    },
+    pinnedStart: (pixels: string, controls: string) => ({
+        insetInlineStart: `calc(${pixels} + ${controls} * ${size[1]})`,
+        insetInlineEnd: "auto",
+    }),
+    pinnedEnd: (pixels: string, controls: string) => ({
+        insetInlineStart: "auto",
+        insetInlineEnd: `calc(${pixels} + ${controls} * ${size[1]})`,
+    }),
+    pinned: {
         position: "sticky",
-        insetInlineStart: start,
-        insetInlineEnd: end,
         zIndex: 1,
         backgroundColor: color.background,
-    }),
+        backgroundImage: {
+            default: null,
+            ":is(tbody tr:hover > *)": {
+                default: null,
+                [media.hover]: `linear-gradient(color-mix(in oklab, ${color.muted} 50%, transparent), color-mix(in oklab, ${color.muted} 50%, transparent))`,
+            },
+        },
+    },
     sized: (width: string) => ({ width, minWidth: width, maxWidth: width }),
     resizer: {
         position: "absolute",
@@ -168,10 +282,68 @@ const styles = style.create({
     check: (isChecked: boolean) => ({
         visibility: isChecked ? "visible" : "hidden",
     }),
-    editable: {
-        width: "100%",
-        textAlign: "start",
-        justifyContent: "flex-start",
+    bulkBar: {
+        display: "flex",
+        alignItems: "center",
+        gap: space[2],
+        paddingBlock: space[2],
+    },
+    sortable: {
+        display: "contents",
+    },
+    headerContent: {
+        display: "flex",
+        alignItems: "center",
+        gap: space[1],
+    },
+    columnHeader: {
+        display: "inline-flex",
+        alignItems: "center",
+        gap: space[1],
+    },
+    priority: {
+        color: color.mutedForeground,
+        fontVariantNumeric: "tabular-nums",
+    },
+    summary: {
+        color: color.mutedForeground,
+        fontVariantNumeric: "tabular-nums",
+        whiteSpace: "nowrap",
+    },
+    cell: {
+        backgroundColor: {
+            default: null,
+            ":is(tbody tr:hover > *)": {
+                default: null,
+                [media.hover]: `color-mix(in oklab, ${color.muted} 50%, transparent)`,
+            },
+            ":is([data-in-range])": swatch.accentTint,
+        },
+        boxShadow: {
+            default: null,
+            ":is([data-drop=before] > *)": `inset 0 ${LINE} 0 ${swatch.accentMark}`,
+            ":is([data-drop=after] > *)": `inset 0 calc(-1 * ${LINE}) 0 ${swatch.accentMark}`,
+        },
+    },
+    unmarked: {
+        "::after": { content: "none" },
+        "::before": { content: "none" },
+    },
+    selecting: {
+        userSelect: "none",
+    },
+    refused: {
+        outlineStyle: "solid",
+        outlineWidth: stroke.ring,
+        outlineOffset: `calc(-1 * ${stroke.ring})`,
+        outlineColor: swatch.destructiveMark,
+    },
+
+    editor: {
+        width: `calc(100% + 2 * ${space[2]})`,
+        height: size[2],
+        marginInline: `calc(-1 * ${space[2]})`,
+        paddingInline: `calc(${space[2]} - ${stroke.border})`,
     },
     empty: {
         height: `calc(6 * ${space[4]})`,
@@ -180,15 +352,46 @@ const styles = style.create({
     },
     sort: {
         marginInlineStart: `calc(-1 * ${space[3]})`,
+        color: "inherit",
+        fontWeight: "inherit",
+    },
+    quiet: {
+        opacity: {
+            default: 1,
+            [media.hover]: {
+                default: 0,
+                ":is(th:hover *)": 1,
+                ":focus-visible": 1,
+                ":is([aria-expanded=true])": 1,
+            },
+        },
     },
     selection: {
         width: space[6],
     },
     box: {
-        verticalAlign: "middle",
+        display: "block",
+    },
+    tableQuiet: {
+        opacity: {
+            default: 1,
+            [media.hover]: {
+                default: 0,
+                ":is(table:hover *)": 1,
+                ":focus-visible": 1,
+                ":is([data-checked], [aria-checked=mixed])": 1,
+            },
+        },
     },
     control: {
-        width: 0,
+        width: size[1],
+        minWidth: size[1],
+        maxWidth: size[1],
+        paddingInline: 0,
+        textAlign: "center",
+    },
+    gutter: {
+        backgroundImage: "none",
     },
     toggle: (depth: string) => ({
         display: "inline-flex",
@@ -196,6 +399,9 @@ const styles = style.create({
         gap: space[1],
         paddingInlineStart: `calc(${depth} * ${space[4]})`,
     }),
+    expand: {
+        marginInlineStart: `calc(-1 * ${space[2]})`,
+    },
     members: {
         color: color.mutedForeground,
     },
@@ -234,8 +440,14 @@ export interface DataTableProperties<
     readonly table: DataTableInstance<Features, Row>;
     /** The content shown while no row matches, a message by default. */
     readonly empty?: JSX.Element;
-    /** The height each row is estimated at. */
-    readonly rowHeight?: number | undefined;
+    /** Whether only the rows in view render, the table scrolling inside its box, read once. */
+    readonly isVirtual?: boolean | undefined;
+    /** Take changed cells from an edit or a paste, in one call each. */
+    readonly onCellsChange?: (changes: readonly DataTableCellChange[]) => void;
+    /** Take a row a person moved between two rows, which lets rows move by their handles. */
+    readonly onRowMove?: (move: DataTableRowMove) => void;
+    /** List what can be done with rows, which a right click on a row offers in a menu. */
+    readonly rowActions?: (rows: readonly string[]) => Action[];
     /** The StyleX styles applied after the table's styles. */
     readonly xstyle?: style.Styles;
 }
@@ -244,9 +456,19 @@ export interface DataTableProperties<
 export function DataTable<Features extends TableFeatures, Row extends RowData>(
     properties: DataTableProperties<Features, Row>,
 ): JSX.Element {
-    // read the header groups and rows as the table changes
+    // read the header groups, the rows and the shown columns as the table changes
     const locale = useLocale();
-    const rest = omit(properties, "table", "empty", "rowHeight", "xstyle", "style");
+    const rest = omit(
+        properties,
+        "table",
+        "empty",
+        "isVirtual",
+        "onCellsChange",
+        "onRowMove",
+        "rowActions",
+        "xstyle",
+        "style",
+    );
     const headerGroups = createMemo(() => {
         properties.table.tracked();
 
@@ -257,179 +479,594 @@ export function DataTable<Features extends TableFeatures, Row extends RowData>(
 
         return properties.table.getRowModel().rows;
     });
-    const width = (): number => headerGroups().at(-1)?.headers.length ?? 1;
+    const leafHeaders = () => headerGroups().at(-1)?.headers ?? [];
+    const columns = createMemo(() => leafHeaders().map((header) => header.column.id), {
+        equals: isSameList,
+    });
+    const width = (): number => Math.max(columns().length, 1);
+
+    // lay the headers and rows out as a grid that edits, copies, pastes and selects blocks
+    const [root, setRoot] = createSignal<HTMLElement | undefined>(undefined, { ownedWrite: true });
+    const isVirtual = untrack(() => properties.isVirtual === true);
+    const control = new DataTableControl({
+        table: untrack(() => properties.table),
+        rows,
+        columns,
+        headers: createMemo(
+            () => headerGroups().map((group) => group.headers.map((header) => header.colSpan)),
+            { equals: (previous, next) => JSON.stringify(previous) === JSON.stringify(next) },
+        ),
+        root,
+        reveal: (row) => {
+            if (isVirtual) {
+                virtualizer.scrollToIndex(row);
+            }
+        },
+        onCellsChange: untrack(() => properties.onCellsChange),
+    });
+
+    // mount the focused and the edited row out of view, as their elements have the focus
+    const persisted = createMemo(
+        () => {
+            const focused = control.focus.current();
+            const ids = new Set([
+                focused?.kind === "body" ? focused.row : undefined,
+                control.edit()?.row,
+            ]);
+
+            return rows().flatMap((row, index) => (ids.has(row.id) ? [index] : []));
+        },
+        { equals: isSameList },
+    );
 
     // render only the rows in view when the rows have a height
     const [scroller, setScroller] = createSignal<HTMLElement | undefined>(undefined, {
         ownedWrite: true,
     });
+    const rowLength = new Length(() => size[2]);
+    const estimate = createMemo(() => {
+        // estimate every row at the measured row height, a new height laying the rows out again
+        const pixels = rowLength.pixels();
+
+        return () => present(pixels, "the data table's row height");
+    });
     const virtualizer = new Virtualizer({
         count: () => rows().length,
-        estimateSize: () => properties.rowHeight ?? 0,
+        estimateSize: estimate,
         scrollElement: scroller,
+        persisted: () => persisted(),
+        isEnabled: () => isVirtual && rowLength.pixels() !== undefined,
     });
     const shown = createMemo(() =>
-        properties.rowHeight === undefined
-            ? rows().map((row, index) => ({ row, index, start: 0, end: 0 }))
+        !isVirtual
+            ? rows().map((row, index) => ({ row, index }))
             : virtualizer.items().flatMap((item) => {
                   const row = rows()[item.index];
 
-                  return row === undefined
-                      ? []
-                      : [{ row, index: item.index, start: item.start, end: item.end }];
+                  return row === undefined ? [] : [{ row, index: item.index }];
               }),
     );
-    const spacers = () =>
-        properties.rowHeight === undefined ? { before: 0, after: 0 } : virtualizer.spacers();
-    const before = (): number => spacers().before;
-    const after = (): number => spacers().after;
+    const spacers = () => (isVirtual ? virtualizer.spacers() : { before: 0, after: 0 });
 
-    // move one focused cell through the headers and rows, bringing a row out of view into it
-    const headerWidths = createMemo(() => headerGroups().map((group) => group.headers.length));
-    const rowWidths = createMemo(() => rows().map((row) => row.getAllCells().length));
-    const focus = new Focus<string>({
-        delegate: new TableDelegate(headerWidths, rowWidths),
-        mode: "roving",
-        reveal: (key) => {
-            const body = cellOf(key).row - headerGroups().length;
-            if (properties.rowHeight !== undefined && body >= 0) {
-                virtualizer.scrollToIndex(body);
-            }
+    // announce a refused paste by its text and the column that refused it
+    const refusalText = () => {
+        // say nothing without a refusal
+        const refusal = control.refusal();
+        if (refusal === undefined) {
+            return undefined;
+        }
+
+        // read the column of the refused cell
+        const cell = present(
+            control.cellAt({ kind: "body", row: refusal.row, column: refusal.column }),
+            `the refused cell '${refusal.row}' '${refusal.column}'`,
+        );
+
+        return locale.render(t`Can't paste “${refusal.text}” into ${labelOf(cell.column)}`);
+    };
+
+    // follow the state, and the slices of it the rows read apart from the cells' selection
+    const tracked: Accessor<DataTableState> = untrack(() => properties.table.tracked);
+    const slices: DataTableSlices = {
+        state: tracked,
+        rowSelection: createMemo(() => tracked().rowSelection),
+        expanded: createMemo(() => tracked().expanded),
+        isArranged: createMemo(() => isArranged(tracked())),
+        hasRowMenu: untrack(() => properties.rowActions !== undefined),
+        changeColumn: (column, run) => control.changeColumn(column, run),
+    };
+
+    // move rows by their handles where the owner takes moves, and columns where the table orders them
+    const isRowOrdered = untrack(() => properties.onRowMove !== undefined);
+    const table: object = untrack(() => properties.table);
+    const isColumnOrdered = isOrderedTable(table);
+    const onMove = (move: SortableMove) => {
+        // hand a row's move to the owner, and place a column in the table's order
+        if (move.container === ROWS) {
+            properties.onRowMove?.({
+                id: idOf(move.id),
+                previous: move.previous === undefined ? undefined : idOf(move.previous),
+                next: move.next === undefined ? undefined : idOf(move.next),
+            });
+        } else if (isOrderedTable(table)) {
+            placeColumn(table, move);
+        }
+    };
+
+    // open a menu of the owner's actions on a row, with its selection, from a cell at a point
+    const menu = new MenuControl(null);
+    const [menuRows, setMenuRows] = createSignal<readonly string[]>([]);
+    const openRowMenu = (id: string, cell: HTMLElement, point: { x: number; y: number }) => {
+        // act on the selection a selected row is in, else on the row alone
+        const selected = isSelectableTable(table)
+            ? table.getSelectedRowModel().rows.map((row) => row.id)
+            : [];
+        const targets = selected.includes(id) ? selected : [id];
+        if (properties.rowActions === undefined || properties.rowActions(targets).length === 0) {
+            return false;
+        }
+        setMenuRows(targets);
+        menu.setTrigger(cell);
+        menu.open("first", point);
+
+        return true;
+    };
+
+    // place each pinned column at its edge, once per change of the pinning or the sizes
+    const pins = createMemo(
+        () => {
+            properties.table.tracked();
+
+            return pinsOf(leafHeaders().map((header) => header.column));
         },
-    });
+        { equals: isSamePins },
+    );
 
     return (
         <div
             data-slot="data-table"
             {...rest}
-            ref={(element) => setScroller(properties.rowHeight === undefined ? undefined : element)}
-            onKeyDown={(event) => navigate(event, focus, locale.direction)}
-            onFocusOut={(event) => focus.focusOut(event)}
+            ref={(element) => {
+                setRoot(element);
+                setScroller(isVirtual ? element : undefined);
+            }}
+            onKeyDown={(event) => keyDown(event, control, openRowMenu, locale.direction)}
+            onClick={(event) => {
+                // open a row's menu under its grip on a click
+                const handle =
+                    event.target instanceof Element
+                        ? event.target.closest<HTMLElement>("[data-slot=data-table-row-handle]")
+                        : null;
+                if (handle !== null) {
+                    const cell = present(handle.closest("td"), "the row grip's cell");
+                    const row = present(handle.closest("tr"), "the row grip's row").dataset["row"];
+                    const bounds = handle.getBoundingClientRect();
+                    openRowMenu(present(row, "the row grip's row id"), cell, {
+                        x: bounds.left,
+                        y: bounds.bottom,
+                    });
+                }
+            }}
+            onCopy={(event) => control.copy(event)}
+            onPaste={(event) => control.paste(event)}
+            onFocusOut={(event) => control.focus.focusOut(event)}
             {...style.attributes(
-                [
-                    styles.frame,
-                    properties.rowHeight !== undefined && styles.scroller,
-                    properties.xstyle,
-                ],
+                [styles.frame, isVirtual && styles.scroller, properties.xstyle],
                 properties.style,
             )}
         >
-            <DataTableContext value={properties.table.tracked}>
-                <DataTableFocusContext value={focus}>
-                    <Table
-                        role={follow(properties.table.tracked, () =>
-                            rows().some(isExpandableRow) ? "treegrid" : "grid",
-                        )}
-                        aria-rowcount={rows().length + headerGroups().length}
-                    >
-                        <TableHeader>
-                            <For each={headerGroups()}>
-                                {(group, row) => (
-                                    <TableRow>
-                                        <For each={group.headers}>
-                                            {(header, column) => (
-                                                <DataTableHeaderCell
-                                                    header={header}
-                                                    cell={cellKey(row(), column())}
+            {/* Refused paste */}
+            <div
+                role="status"
+                data-slot="data-table-refusal"
+                {...style.attrs(visuallyHiddenStyle())}
+            >
+                {refusalText()}
+            </div>
+
+            {/* Row height */}
+            <Show when={isVirtual}>{rowLength.element}</Show>
+
+            <Menu control={menu}>
+                <DataTableContext value={slices}>
+                    <Sortable onMove={onMove} xstyle={styles.sortable}>
+                        <table
+                            data-slot="table"
+                            {...style.attrs(tableStyle())}
+                            role={follow(properties.table.tracked, () =>
+                                rows().some(isExpandableRow) ? "treegrid" : "grid",
+                            )}
+                            aria-multiselectable={control.isSelecting() ? "true" : undefined}
+                            aria-rowcount={rows().length + headerGroups().length}
+                        >
+                            <TableHeader>
+                                <For each={headerGroups()}>
+                                    {(group, row) => (
+                                        <HeaderRow
+                                            isOrdered={
+                                                isColumnOrdered &&
+                                                row() === headerGroups().length - 1
+                                            }
+                                            aria-rowindex={row() + 1}
+                                        >
+                                            <For each={group.headers}>
+                                                {(header, column) => (
+                                                    <DataTableHeaderCell
+                                                        control={control}
+                                                        pins={pins}
+                                                        header={header}
+                                                        cell={{
+                                                            kind: "head",
+                                                            row: row(),
+                                                            column: column(),
+                                                        }}
+                                                        isOrdered={
+                                                            isColumnOrdered &&
+                                                            row() === headerGroups().length - 1
+                                                        }
+                                                    />
+                                                )}
+                                            </For>
+                                        </HeaderRow>
+                                    )}
+                                </For>
+                            </TableHeader>
+                            <BodyRows isOrdered={isRowOrdered}>
+                                <SpacerRow height={spacers().before} width={width()} />
+                                <For
+                                    each={shown()}
+                                    keyed={(entry) => entry.row.id}
+                                    fallback={
+                                        <TableRow>
+                                            <TableCell colspan={width()} xstyle={styles.empty}>
+                                                {properties.empty ?? locale.render(t`No results.`)}
+                                            </TableCell>
+                                        </TableRow>
+                                    }
+                                >
+                                    {(entry) => (
+                                        <BodyRow
+                                            control={control}
+                                            pins={pins}
+                                            row={entry().row}
+                                            index={headerGroups().length + entry().index + 1}
+                                            isOrdered={isRowOrdered}
+                                            onContextMenu={(id, event) => {
+                                                // open the row's menu at the pointer, from the cell it is on
+                                                const cell =
+                                                    event.target instanceof Element
+                                                        ? event.target.closest<HTMLElement>("td")
+                                                        : null;
+                                                const point = {
+                                                    x: event.clientX,
+                                                    y: event.clientY,
+                                                };
+                                                if (cell !== null && openRowMenu(id, cell, point)) {
+                                                    event.preventDefault();
+                                                }
+                                            }}
+                                        />
+                                    )}
+                                </For>
+                                <SpacerRow height={spacers().after} width={width()} />
+                            </BodyRows>
+                            <Show
+                                when={leafHeaders().some(
+                                    (header) => metaOf(header.column).summary !== undefined,
+                                )}
+                            >
+                                <TableFooter xstyle={styles.footer}>
+                                    <TableRow data-slot="data-table-summaries" xstyle={styles.row}>
+                                        <For each={leafHeaders()}>
+                                            {(header) => (
+                                                <DataTableSummaryCell
+                                                    pins={pins}
+                                                    table={properties.table}
+                                                    column={header.column}
                                                 />
                                             )}
                                         </For>
                                     </TableRow>
-                                )}
+                                </TableFooter>
+                            </Show>
+                        </table>
+                    </Sortable>
+                </DataTableContext>
+                <Show when={properties.rowActions}>
+                    {(rowActions) => (
+                        <ContextMenuContent data-slot="data-table-row-menu">
+                            <For each={rowActions()(menuRows())} keyed={(action) => action.id}>
+                                {(action) => <MenuAction action={action()} />}
                             </For>
-                        </TableHeader>
-                        <TableBody>
-                            <SpacerRow height={before()} width={width()} />
-                            <For
-                                each={shown()}
-                                keyed={(entry) => entry.row}
-                                fallback={
-                                    <TableRow>
-                                        <TableCell colspan={width()} xstyle={styles.empty}>
-                                            {properties.empty ?? locale.render(t`No results.`)}
-                                        </TableCell>
-                                    </TableRow>
-                                }
-                            >
-                                {(entry) => (
-                                    <DataTableRow
-                                        row={entry().row}
-                                        place={headerGroups().length + entry().index}
-                                    />
-                                )}
-                            </For>
-                            <SpacerRow height={after()} width={width()} />
-                        </TableBody>
-                    </Table>
-                </DataTableFocusContext>
-            </DataTableContext>
+                        </ContextMenuContent>
+                    )}
+                </Show>
+            </Menu>
         </div>
     );
 }
 
 /** Render a header cell of a data table, marked with its column's sort. */
 function DataTableHeaderCell<Features extends TableFeatures, Data extends RowData>(properties: {
+    /** The grid the cell is a place of. */
+    readonly control: DataTableControl<Features, Data>;
+    /** Each pinned column's offsets at its edges, by column id. */
+    readonly pins: Accessor<ReadonlyMap<string, PinPlace | undefined>>;
     /** The header the cell shows. */
     readonly header: Header<Features, Data>;
-    /** The key of the cell's place in the grid. */
-    readonly cell: string;
+    /** The key of the cell's place among the header rows. */
+    readonly cell: CellKey;
+    /** Whether the header moves along its row, dragged by pointer. */
+    readonly isOrdered: boolean;
 }): JSX.Element {
+    // render the header, as an item of the sortable row where columns move by a drag of the header
     const tracked = useDataTableState();
+    const pins = properties.pins;
     const header = properties.header;
-
-    return (
+    const cell = (attributes: object) => (
         <TableHead
+            {...mergeProperties(
+                attributes,
+                useGridCell(
+                    properties.control,
+                    () => properties.cell,
+                    () => undefined,
+                ),
+            )}
             colspan={header.colSpan}
             xstyle={[
+                state.focusInset,
                 styles.head,
-                CONTROL_COLUMNS.has(header.column.id) && styles.control,
-                follow(tracked, () => sizeOf(header)),
-                follow(tracked, () => pinOf(header.column)),
+                styles.fixed,
+                metaOf(header.column).isControl !== true && [
+                    styles.divided,
+                    styles.lined,
+                    styles.lidded,
+                ],
+                metaOf(header.column).isControl === true
+                    ? styles.control
+                    : follow(tracked, () => sizeOf(header)),
+                pinStyleOf(pins().get(header.column.id)),
             ]}
             aria-sort={follow(tracked, () => sortOf(header))}
             data-column={header.column.id}
-            {...useGridCell(() => properties.cell)}
         >
-            <Show when={!header.isPlaceholder}>
-                {renderTemplate(header.column.columnDef.header, header.getContext())}
-            </Show>
+            <span {...style.attrs(styles.headerContent)}>
+                <Show when={!header.isPlaceholder}>
+                    {renderTemplate(header.column.columnDef.header, header.getContext())}
+                </Show>
+            </span>
             <ColumnResizer header={header} />
         </TableHead>
     );
-}
 
-/** Render a row of a data table, marked with its selection, level and expansion. */
-function DataTableRow<Features extends TableFeatures, Data extends RowData>(properties: {
-    /** The row the table row shows, with its cells. */
-    readonly row: { readonly getAllCells: () => Cell<Features, Data>[] };
-    /** The row's place among every row of the grid, the headers' included. */
-    readonly place: number;
-}): JSX.Element {
-    const tracked = useDataTableState();
-    const row = untrack(() => properties.row);
+    // move the header while its column moves, a pinned one standing out of the moving headers
+    const isMoving = () => properties.isOrdered && follow(tracked, () => isMovable(header));
 
     return (
+        <Show when={isMoving()} fallback={cell({})}>
+            <SortableItem
+                id={`${COLUMN_PREFIX}${header.column.id}`}
+                type={COLUMN_TYPE}
+                label={labelOf(header.column)}
+                activator="item"
+                sensors={["pointer"]}
+                render={(attributes) => cell(attributes)}
+            />
+        </Show>
+    );
+}
+
+/** Render a body row of a data table, marked with its selection, level and expansion. */
+function BodyRow<Features extends TableFeatures, Data extends RowData>(properties: {
+    /** The grid the row is part of. */
+    readonly control: DataTableControl<Features, Data>;
+    /** Each pinned column's offsets at its edges, by column id. */
+    readonly pins: Accessor<ReadonlyMap<string, PinPlace | undefined>>;
+    /** The row, with its cells, the same record's newest row as the data changes. */
+    readonly row: Row_Core<Features, Data>;
+    /** The row's place among every row of the grid from one, the headers' included. */
+    readonly index: number;
+    /** Whether the row moves among the rows by its handle. */
+    readonly isOrdered: boolean;
+    /** Open the row's menu at a right click. */
+    readonly onContextMenu: (id: string, event: MouseEvent) => void;
+}): JSX.Element {
+    // read the row's cells in the columns' order, its edited column, and its selected runs
+    const control = properties.control;
+    const slices = useDataTableSlices();
+    const id = untrack(() => properties.row.id);
+    const cells = createMemo(() => control.cellsOf(properties.row));
+    const edited = createMemo(() => {
+        const edit = control.edit();
+
+        return edit?.row === id ? edit.column : undefined;
+    });
+    const spans = createMemo(() => control.spansOf(properties.row), { equals: isSameSpans });
+    const element = (attributes: object) => (
         <TableRow
-            data-selected={follow(tracked, () => (isSelectedRow(row) ? "" : undefined))}
-            aria-selected={follow(tracked, () => selectionOf(row))}
-            aria-level={levelOf(row)}
-            aria-expanded={follow(tracked, () => expansionOf(row))}
+            {...attributes}
+            xstyle={styles.row}
+            aria-rowindex={properties.index}
+            data-row={id}
+            onContextMenu={(event: MouseEvent) => properties.onContextMenu(id, event)}
+            data-selected={follow(slices.rowSelection, () =>
+                isSelectedRow(properties.row) ? "" : undefined,
+            )}
+            aria-selected={follow(slices.rowSelection, () => selectionOf(properties.row))}
+            aria-level={levelOf(properties.row)}
+            aria-expanded={follow(slices.expanded, () => expansionOf(properties.row))}
         >
-            <For each={row.getAllCells()}>
-                {(cell, column) => (
-                    <TableCell
-                        data-column={cell.column.id}
-                        xstyle={[
-                            CONTROL_COLUMNS.has(cell.column.id) && styles.control,
-                            follow(tracked, () => pinOf(cell.column)),
-                        ]}
-                        {...useGridCell(() => cellKey(properties.place, column()))}
-                    >
-                        {renderCell(cell)}
-                    </TableCell>
+            <For each={cells()} keyed={(cell) => cell.column.id}>
+                {(cell) => (
+                    <DataTableBodyCell
+                        control={control}
+                        pins={properties.pins}
+                        cell={cell()}
+                        isEditing={edited() === cell().column.id}
+                        isInBlock={isInSpans(spans(), control.columnPlaceOf(cell().column.id))}
+                    />
                 )}
             </For>
         </TableRow>
+    );
+
+    // render the row, as an item of the sortable body where rows move while no sort or group applies
+    return untrack(() => properties.isOrdered) ? (
+        <SortableItem
+            id={`${ROW_PREFIX}${id}`}
+            type={ROW_TYPE}
+            disabled={slices.isArranged()}
+            xstyle={styles.unmarked}
+            render={(attributes) => element(attributes)}
+        />
+    ) : (
+        element({})
+    );
+}
+
+/** Render a body cell: its content, its editor while edited, a checkbox for a yes or no. */
+function DataTableBodyCell<Features extends TableFeatures, Data extends RowData>(properties: {
+    /** The grid the cell is a place of. */
+    readonly control: DataTableControl<Features, Data>;
+    /** Each pinned column's offsets at its edges, by column id. */
+    readonly pins: Accessor<ReadonlyMap<string, PinPlace | undefined>>;
+    /** The cell, the same column's newest cell as the data changes. */
+    readonly cell: Cell<Features, Data>;
+    /** Whether the cell is the one being edited. */
+    readonly isEditing: boolean;
+    /** Whether the cell lies in the selected block. */
+    readonly isInBlock: boolean;
+}): JSX.Element {
+    // read the cell anew only for a changed record or value, which spares its content's elements
+    const { control, pins } = properties;
+    const cell = createMemo(() => properties.cell, {
+        equals: (previous, next) =>
+            previous.row.original === next.row.original && previous.getValue() === next.getValue(),
+    });
+
+    // read the cell's key, how it shows its value, and its editor where it edits
+    const key = (): CellKey => ({ kind: "body", row: cell().row.id, column: cell().column.id });
+    const isRefused = () => {
+        const refusal = control.refusal();
+
+        return refusal?.row === cell().row.id && refusal.column === cell().column.id;
+    };
+    const isBox = () =>
+        metaOf(cell().column).editor?.kind === "checkbox" &&
+        !isGroupRow(cell().row) &&
+        !isGroupCell(cell());
+    const editor = () => control.editorOf(cell());
+    const label = () => labelOf(cell().column);
+    const isSelectable = (): boolean => {
+        const each: object = cell();
+
+        return isSelectableCell(each) && each.getCanSelect();
+    };
+
+    return (
+        <TableCell
+            data-column={cell().column.id}
+            data-in-range={properties.isInBlock ? "" : undefined}
+            data-editing={properties.isEditing ? "" : undefined}
+            aria-selected={
+                control.isSelecting() && isSelectable()
+                    ? properties.isInBlock
+                        ? "true"
+                        : "false"
+                    : undefined
+            }
+            onDblClick={() => {
+                // edit a cell that edits in a field
+                const each = editor();
+                if (each !== undefined && each.kind !== "checkbox") {
+                    control.begin(cell());
+                }
+            }}
+            xstyle={[
+                state.focusInset,
+                styles.cell,
+                styles.fixed,
+                metaOf(cell().column).isControl !== true && [styles.divided, styles.lined],
+                control.isSelecting() && styles.selecting,
+                isRefused() && styles.refused,
+                metaOf(cell().column).isControl === true && styles.control,
+                pinStyleOf(pins().get(cell().column.id)),
+                metaOf(cell().column).isControl === true && styles.gutter,
+            ]}
+            aria-invalid={isRefused() ? "true" : undefined}
+            {...useGridCell(control, key, cell)}
+        >
+            {/* A checkbox for a yes or no outside groups, disabled in a read-only cell */}
+            <Show
+                when={isBox()}
+                fallback={
+                    <Show
+                        when={properties.isEditing ? editor() : undefined}
+                        fallback={renderCell(cell())}
+                        keyed
+                    >
+                        {(each) => (
+                            <DataTableCellEditor
+                                control={control}
+                                editor={each}
+                                value={cell().getValue()}
+                                label={label()}
+                            />
+                        )}
+                    </Show>
+                }
+            >
+                <Checkbox
+                    aria-label={label()}
+                    checked={cell().getValue() === true}
+                    disabled={editor() === undefined}
+                    onCheckedChange={(checked) => control.set(cell(), checked)}
+                    xstyle={styles.box}
+                />
+            </Show>
+        </TableCell>
+    );
+}
+
+/** Render a column's summary in the footer: its count, sum, average, smallest or largest. */
+function DataTableSummaryCell<Features extends TableFeatures, Data extends RowData>(properties: {
+    /** Each pinned column's offsets at its edges, by column id. */
+    readonly pins: Accessor<ReadonlyMap<string, PinPlace | undefined>>;
+    /** The table whose rows the summary reads. */
+    readonly table: DataTableInstance<Features, Data>;
+    /** The column. */
+    readonly column: Column<Features, Data>;
+}): JSX.Element {
+    // read the column's values only where it has a summary, once per change of the rows
+    const locale = useLocale();
+    const pins = properties.pins;
+    const column = untrack(() => properties.column);
+    const meta = metaOf(column);
+    const summary = meta.summary;
+    const model = createMemo(() =>
+        follow(properties.table.tracked, () => properties.table.getPrePaginatedRowModel()),
+    );
+    const line = createMemo(() =>
+        summary === undefined
+            ? undefined
+            : summaryText(
+                  summary,
+                  meta.editor?.kind,
+                  model()
+                      .flatRows.filter((row) => !isGroupRow(row))
+                      .map((row) => row.getValue(column.id)),
+                  locale,
+              ),
+    );
+
+    return (
+        <TableCell
+            data-column={column.id}
+            xstyle={[text.xs, styles.summary, styles.fixed, pinStyleOf(pins().get(column.id))]}
+        >
+            {line()}
+        </TableCell>
     );
 }
 
@@ -453,6 +1090,7 @@ function ColumnResizer<Features extends TableFeatures, Data extends RowData>(pro
             <div
                 aria-hidden="true"
                 data-slot="data-table-resizer"
+                onPointerDown={(event) => event.stopPropagation()}
                 onMouseDown={drag}
                 onTouchStart={drag}
                 onDblClick={() => isSizable(column) && column.resetSize()}
@@ -471,19 +1109,108 @@ function sizeOf(header: object): style.Styles {
     return isSizedHeader(header) ? styles.sized(`${String(header.getSize())}px`) : null;
 }
 
-/** Read a pinned column's place at its edge, none for a column that scrolls. */
-function pinOf(column: object): style.Styles {
-    if (!isPinnable(column)) {
-        return null;
-    }
-    const pin = column.getIsPinned();
-    if (pin === "start") {
-        return styles.pinned(`${String(column.getStart("start"))}px`, "auto");
-    } else if (pin === "end") {
-        return styles.pinned("auto", `${String(column.getAfter("end"))}px`);
+/** A pinned column's offset from its edge: the columns pinned between it and the edge. */
+interface PinPlace {
+    /** The edge it sticks to. */
+    readonly edge: "start" | "end";
+    /** The widths of the sized columns between it and its edge, in pixels. */
+    readonly pixels: number;
+    /** The number of control columns between it and its edge, each a control's size wide. */
+    readonly controls: number;
+}
+
+/** Place each pinned column past the pinned columns between it and its edge, none for the rest. */
+function pinsOf<Features extends TableFeatures, Data extends RowData>(
+    columns: readonly Column<Features, Data>[],
+): ReadonlyMap<string, PinPlace | undefined> {
+    // start with every column scrolling, then place the pinned ones edge by edge
+    const pins = new Map<string, PinPlace | undefined>(
+        columns.map((column) => [column.id, undefined]),
+    );
+    for (const edge of ["start", "end"] as const) {
+        // walk in from the edge, each column widening the offset of the next
+        const pinned = columns.filter(
+            (
+                column,
+            ): column is Column<Features, Data> & Column_ColumnPinning & Column_ColumnSizing =>
+                isPinnable(column) && column.getIsPinned() === edge,
+        );
+        let pixels = 0;
+        let controls = 0;
+        for (const column of edge === "start" ? pinned : pinned.toReversed()) {
+            pins.set(column.id, { edge, pixels, controls });
+            if (metaOf(column).isControl === true) {
+                controls += 1;
+            }
+            // add a sized column's width
+            else {
+                pixels += column.getSize();
+            }
+        }
     }
 
-    return null;
+    return pins;
+}
+
+/** Read the styles that place a pinned column at its edge, none for a column that scrolls. */
+function pinStyleOf(place: PinPlace | undefined): style.Styles {
+    // leave a column that scrolls in place
+    if (place === undefined) {
+        return null;
+    }
+    const pixels = `${String(place.pixels)}px`;
+    const controls = String(place.controls);
+
+    return [
+        styles.pinned,
+        place.edge === "start"
+            ? styles.pinnedStart(pixels, controls)
+            : styles.pinnedEnd(pixels, controls),
+    ];
+}
+
+/** Report whether two maps of pinned columns place every column alike. */
+function isSamePins(
+    previous: ReadonlyMap<string, PinPlace | undefined>,
+    next: ReadonlyMap<string, PinPlace | undefined>,
+): boolean {
+    return (
+        previous.size === next.size &&
+        [...previous].every(([id, place]) => {
+            const other = next.get(id);
+
+            return (
+                place?.edge === other?.edge &&
+                place?.pixels === other?.pixels &&
+                place?.controls === other?.controls &&
+                next.has(id)
+            );
+        })
+    );
+}
+
+/** Report whether two lists have the same values in the same order. */
+function isSameList<Value>(previous: readonly Value[], next: readonly Value[]): boolean {
+    return (
+        previous.length === next.length && previous.every((value, index) => value === next[index])
+    );
+}
+
+/** Report whether two lists of selected runs have the same edges. */
+function isSameSpans(previous: readonly DataTableSpan[], next: readonly DataTableSpan[]): boolean {
+    return (
+        previous.length === next.length &&
+        previous.every(
+            (span, index) => span.left === next[index]?.left && span.right === next[index]?.right,
+        )
+    );
+}
+
+/** Report whether a column's place lies in one of a row's selected runs. */
+function isInSpans(spans: readonly DataTableSpan[], column: number | undefined): boolean {
+    return (
+        column !== undefined && spans.some((span) => column >= span.left && column <= span.right)
+    );
 }
 
 /** Read a value of a table's state, following the table as it changes. */
@@ -512,14 +1239,43 @@ function SpacerRow(properties: {
     );
 }
 
+/** The state of a data table a template reads: its sorting, grouping, selection and expansion. */
+export type DataTableState = Partial<
+    TableState_RowSorting &
+        TableState_ColumnGrouping &
+        TableState_RowSelection &
+        TableState_RowExpanding
+>;
+
+/** A table's state, and the slices of it its rows read, each changing apart. */
+interface DataTableSlices {
+    /** The whole state. */
+    readonly state: Accessor<DataTableState>;
+    /** The selected rows. */
+    readonly rowSelection: Accessor<DataTableState["rowSelection"]>;
+    /** The expanded rows. */
+    readonly expanded: Accessor<DataTableState["expanded"]>;
+    /** Whether a sort or grouping sets the rows' order. */
+    readonly isArranged: Accessor<boolean>;
+    /** Whether each row opens a menu of its actions. */
+    readonly hasRowMenu: boolean;
+    /** Run a change to a column, then focus its header, else the header that takes its place. */
+    readonly changeColumn: (column: string, run: () => void) => void;
+}
+
 /** Read the nearest data table's state in a header or cell template. */
-export function useDataTableState(): Accessor<unknown> {
-    const tracked = useContext(DataTableContext);
-    if (tracked === null) {
+export function useDataTableState(): Accessor<DataTableState> {
+    return useDataTableSlices().state;
+}
+
+/** Read the nearest data table's state and its slices, refusing a template outside one. */
+function useDataTableSlices(): DataTableSlices {
+    const slices = useContext(DataTableContext);
+    if (slices === null) {
         throw new TypeError("a data table template needs a data table around it");
     }
 
-    return tracked;
+    return slices;
 }
 
 /** The properties of a sortable column's header. */
@@ -528,50 +1284,198 @@ export interface DataTableColumnHeaderProperties<
     Row extends RowData,
     Value,
 > {
-    /** The column the header sorts. */
+    /** The column the header sorts and shows by its label. */
     readonly column: Column<Features, Row, Value> & Column_RowSorting<Features, Row>;
-    /** The column's name. */
-    readonly title: string;
 }
 
-/** Render a column's name as a button that cycles its sort ascending, descending and off. */
+/** Render a column's name as a sort button, its sort's place among several, and its menu. */
 export function DataTableColumnHeader<Features extends TableFeatures, Row extends RowData, Value>(
     properties: DataTableColumnHeaderProperties<Features, Row, Value>,
 ): JSX.Element {
-    // show the name alone for a column that does not sort
+    // read the column's sort and its place among the sorted columns
     const tracked = useDataTableState();
+    const locale = useLocale();
     const column = properties.column;
-    if (!column.getCanSort()) {
-        return <span data-slot="data-table-column-header">{properties.title}</span>;
-    }
+    const sorted = () => follow(tracked, () => column.getIsSorted());
+    const priority = () =>
+        (tracked().sorting ?? []).length > 1 ? column.getSortIndex() + 1 : undefined;
+    const slices = useDataTableSlices();
+    const actions = () =>
+        follow(tracked, () =>
+            columnActions(column, locale).map((action) => ({
+                ...action,
+                run: () => slices.changeColumn(column.id, () => void action.run()),
+            })),
+        );
 
     return (
-        <Button
-            variant="ghost"
-            data-slot="data-table-column-header"
-            xstyle={styles.sort}
-            onClick={(event) => {
-                // toggle the sort beside the other sorted columns on Shift
-                const next = column.getNextSortingOrder(event.shiftKey);
-                if (next === false) {
-                    column.clearSorting();
-                } else {
-                    column.toggleSorting(next === "desc", event.shiftKey);
-                }
-            }}
-        >
-            {properties.title}
-            <Icon
-                icon={sortIconOf(
-                    (() => {
-                        tracked();
+        <span data-slot="data-table-column-header" {...style.attrs(styles.columnHeader)}>
+            {/* The name, which sorts a sortable column */}
+            <Show when={column.getCanSort()} fallback={labelOf(column)}>
+                <Button
+                    variant="ghost"
+                    xstyle={styles.sort}
+                    onClick={(event) => {
+                        // toggle the sort beside the other sorted columns on Shift
+                        const next = column.getNextSortingOrder(event.shiftKey);
+                        if (next === false) {
+                            column.clearSorting();
+                        } else {
+                            column.toggleSorting(next === "desc", event.shiftKey);
+                        }
+                    }}
+                >
+                    {labelOf(column)}
+                    <Icon icon={sortIconOf(sorted())} xstyle={sorted() === false && styles.quiet} />
+                    <Show when={priority()}>
+                        {(place) => (
+                            <span {...style.attrs(text.xs, styles.priority)}>{place()}</span>
+                        )}
+                    </Show>
+                </Button>
+            </Show>
 
-                        return column.getIsSorted();
-                    })(),
-                )}
-            />
-        </Button>
+            {/* The column's menu */}
+            <Show when={actions().length > 0}>
+                <DropdownMenu>
+                    <DropdownMenuTrigger
+                        render={(attributes) => (
+                            <Button
+                                {...attributes}
+                                variant="ghost"
+                                size="icon-sm"
+                                tabindex={-1}
+                                xstyle={styles.quiet}
+                            />
+                        )}
+                        aria-label={locale.render(t`${labelOf(column)} options`)}
+                        data-slot="data-table-column-menu"
+                        isOpenedByArrows={false}
+                    >
+                        <Icon icon={caretDown} />
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                        <For each={actions()} keyed={(action) => action.id}>
+                            {(action) => <MenuAction action={action()} />}
+                        </For>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </Show>
+        </span>
     );
+}
+
+/** List what a column's menu offers: sort it, hide it, pin it, or move it along the row. */
+function columnActions<Features extends TableFeatures, Row extends RowData, Value>(
+    column: Column<Features, Row, Value> & Column_RowSorting<Features, Row>,
+    locale: ReturnType<typeof useLocale>,
+): Action[] {
+    // sort the column either way, or clear its sort
+    const columnObject: object = column;
+    const table: object = column.table;
+    const sorting: Action[] = column.getCanSort()
+        ? [
+              {
+                  id: "sort-ascending",
+                  title: locale.render(t`Sort ascending`),
+                  run: () => column.toggleSorting(false, false),
+              },
+              {
+                  id: "sort-descending",
+                  title: locale.render(t`Sort descending`),
+                  run: () => column.toggleSorting(true, false),
+              },
+              ...(column.getIsSorted() === false
+                  ? []
+                  : [
+                        {
+                            id: "clear-sort",
+                            title: locale.render(t`Clear sort`),
+                            run: () => column.clearSorting(),
+                        },
+                    ]),
+          ]
+        : [];
+
+    // hide the column, and pin it to either edge or unpin it
+    const hiding: Action[] =
+        isHideable(columnObject) && columnObject.getCanHide()
+            ? [
+                  {
+                      id: "hide",
+                      title: locale.render(t`Hide`),
+                      run: () => columnObject.toggleVisibility(false),
+                  },
+              ]
+            : [];
+    const pinning: Action[] =
+        isPinning(columnObject) && columnObject.getCanPin()
+            ? columnObject.getIsPinned() === false
+                ? [
+                      {
+                          id: "pin-start",
+                          title: locale.render(t`Pin to start`),
+                          run: () => columnObject.pin("start"),
+                      },
+                      {
+                          id: "pin-end",
+                          title: locale.render(t`Pin to end`),
+                          run: () => columnObject.pin("end"),
+                      },
+                  ]
+                : [
+                      {
+                          id: "unpin",
+                          title: locale.render(t`Unpin`),
+                          run: () => columnObject.pin(false),
+                      },
+                  ]
+            : [];
+
+    // move a movable column past its movable neighbour where the table orders its columns
+    const isMoving = isOrderedTable(table) && isMovable({ isPlaceholder: false, column });
+    const moving: Action[] = isMoving
+        ? [
+              {
+                  id: "move-left",
+                  title: locale.render(t`Move left`),
+                  isDisabled: neighbourOf(table, column.id, -1) === undefined,
+                  run: () => moveColumn(table, column.id, -1),
+              },
+              {
+                  id: "move-right",
+                  title: locale.render(t`Move right`),
+                  isDisabled: neighbourOf(table, column.id, 1) === undefined,
+                  run: () => moveColumn(table, column.id, 1),
+              },
+          ]
+        : [];
+
+    return [...sorting, ...hiding, ...pinning, ...moving];
+}
+
+/** Find a column's nearest movable, shown neighbour in a step's direction, none at the end. */
+function neighbourOf(table: OrderedTable, id: string, step: -1 | 1): string | undefined {
+    // look along the row from the column, its way
+    const columns = table.getAllLeafColumns();
+    const index = columns.findIndex((column) => column.id === id);
+    const side = step === 1 ? columns.slice(index + 1) : columns.slice(0, index).toReversed();
+
+    return side.find(
+        (column) =>
+            (!isHideable(column) || column.getIsVisible()) &&
+            isMovable({ isPlaceholder: false, column }),
+    )?.id;
+}
+
+/** Move a column past its movable neighbour in a step's direction. */
+function moveColumn(table: OrderedTable, id: string, step: -1 | 1): void {
+    // place the column on the far side of its neighbour
+    const neighbour = present(neighbourOf(table, id, step), `the neighbour of column '${id}'`);
+    const order = table.getAllLeafColumns().map((column) => column.id);
+    const rest = order.filter((each) => each !== id);
+    const index = rest.indexOf(neighbour) + (step === 1 ? 1 : 0);
+    table.setColumnOrder(rest.toSpliced(index, 0, id));
 }
 
 /** The properties of a data table's pagination. */
@@ -585,7 +1489,7 @@ export interface DataTablePaginationProperties<
         readonly tracked: Accessor<TableState_RowPagination>;
     };
     /** The page sizes offered, ten to a hundred by default. */
-    readonly pageSizes?: readonly number[];
+    readonly pageSizes?: readonly number[] | undefined;
 }
 
 /** Render the selected row count, the page size, the page number and the steps between pages. */
@@ -597,6 +1501,17 @@ export function DataTablePagination<Features extends TableFeatures, Row extends 
     const table = properties.table;
     const page = (): PaginationState => table.tracked().pagination;
     const count = (): number => follow(table.tracked, () => table.getPageCount());
+
+    // read the page size among the sizes offered, refusing a size the menu leaves out
+    const sizes = (): readonly number[] => properties.pageSizes ?? PAGE_SIZES;
+    const pageSize = (): string => {
+        const current = page().pageSize;
+        if (!sizes().includes(current)) {
+            throw new TypeError(`data table page size '${String(current)}' is not offered`);
+        }
+
+        return String(current);
+    };
     const selected = (): number | undefined =>
         follow(table.tracked, () =>
             isSelectableTable(table) ? table.getSelectedRowModel().rows.length : undefined,
@@ -621,11 +1536,11 @@ export function DataTablePagination<Features extends TableFeatures, Row extends 
             <label {...style.attrs(styles.size)}>
                 {locale.render(t`Rows per page`)}
                 <Select
-                    value={String(page().pageSize)}
-                    onValueChange={(size) => table.setPageSize(Number(size))}
+                    value={pageSize()}
+                    onValueChange={(chosen) => table.setPageSize(Number(chosen))}
                 >
-                    <For each={properties.pageSizes ?? PAGE_SIZES}>
-                        {(size) => <SelectItem value={String(size)}>{size}</SelectItem>}
+                    <For each={sizes()}>
+                        {(each) => <SelectItem value={String(each)}>{each}</SelectItem>}
                     </For>
                 </Select>
             </label>
@@ -741,7 +1656,7 @@ export interface DataTableFacetedFilterProperties<
     readonly options: readonly DataTableFacetOption[];
 }
 
-/** The chosen values a faceted filter's trigger names before it counts the rest. */
+/** The chosen values a faceted filter's trigger lists before it counts the rest. */
 const NAMED_FACETS = 2;
 
 /** Render a filter that narrows a column to chosen values, each with its count, after shadcn's. */
@@ -851,117 +1766,62 @@ export function DataTableFacetedFilter<Features extends TableFeatures, Row exten
     );
 }
 
-/** The properties of a row's actions menu: its items, such as links and buttons. */
-export interface DataTableRowActionsProperties {
-    /** The menu's items. */
-    readonly children?: JSX.Element;
-}
-
-/** Render a row's actions behind a button at its end, after shadcn's tasks table. */
-export function DataTableRowActions(properties: DataTableRowActionsProperties): JSX.Element {
-    const locale = useLocale();
-
-    return (
-        <DropdownMenu>
-            <DropdownMenuTrigger
-                render={(attributes) => <Button {...attributes} variant="ghost" size="icon-sm" />}
-                aria-label={locale.render(t`Open row actions`)}
-                data-slot="data-table-row-actions"
-            >
-                <Icon name="dots-three" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">{properties.children}</DropdownMenuContent>
-        </DropdownMenu>
-    );
-}
-
-/** The properties of a cell edited in place. */
-export interface DataTableEditableCellProperties {
-    /** The cell's value. */
-    readonly value: string;
-    /** Take a changed value when the edit ends with Enter or by leaving the field. */
-    readonly onCommit: (value: string) => void;
-    /** The name of the value, which labels the field while editing. */
-    readonly label: string;
-}
-
-/** Render a cell's text that Enter, F2 or a click edits in place, after Airtable. */
-export function DataTableEditableCell(properties: DataTableEditableCellProperties): JSX.Element {
-    // edit from the button that has the cell's focus, and hand it back when done
-    const [isEditing, setEditing] = createSignal(false, { ownedWrite: true });
-    let button: HTMLButtonElement | undefined;
-    const finish = (value: string | undefined) => {
-        // commit a changed value, then return to the text
-        if (value !== undefined && value !== properties.value) {
-            properties.onCommit(value);
-        }
-        setEditing(false);
-        flush();
-        button?.focus();
+/** The properties of a data table's bulk bar. */
+export interface DataTableBulkBarProperties<Features extends TableFeatures, Row extends RowData> {
+    /** The table whose selected rows the bar acts on. */
+    readonly table: Table_RowSelection<Features, Row> & {
+        /** The table's state, read to track it. */
+        readonly tracked: Accessor<unknown>;
     };
+    /** List what can be done with the selected rows. */
+    readonly actions: (rows: readonly string[]) => Action[];
+}
+
+/** Render the selected rows' count and actions while rows are selected, after Linear's bar. */
+export function DataTableBulkBar<Features extends TableFeatures, Row extends RowData>(
+    properties: DataTableBulkBarProperties<Features, Row>,
+): JSX.Element {
+    // read the selected rows as the table changes
+    const locale = useLocale();
+    const rows = () =>
+        follow(properties.table.tracked, () =>
+            properties.table.getSelectedRowModel().rows.map((row) => row.id),
+        );
 
     return (
-        <Show
-            when={isEditing()}
-            fallback={
+        <Show when={rows().length > 0}>
+            <div
+                role="group"
+                aria-label={locale.render(t`Selected rows`)}
+                data-slot="data-table-bulk-bar"
+                {...style.attrs(text.sm, styles.bulkBar)}
+            >
+                <span {...style.attrs(styles.count)}>
+                    {locale.render(
+                        t`${plural(rows().length, { one: "# row", other: "# rows" })} selected`,
+                    )}
+                </span>
+                <For each={properties.actions(rows())}>
+                    {(action) => (
+                        <Button
+                            variant={action.isDestructive === true ? "destructive" : "outline"}
+                            size="sm"
+                            disabled={action.isDisabled === true}
+                            onClick={() => void action.run()}
+                        >
+                            {action.title}
+                        </Button>
+                    )}
+                </For>
                 <Button
-                    ref={(element) => (button = element)}
                     variant="ghost"
                     size="sm"
-                    data-slot="data-table-editable-cell"
-                    xstyle={styles.editable}
-                    onClick={() => setEditing(true)}
-                    onKeyDown={(event) => {
-                        // start editing on F2, as spreadsheets do; Enter clicks the button
-                        if (event.key === "F2") {
-                            event.preventDefault();
-                            setEditing(true);
-                        }
-                    }}
+                    onClick={() => properties.table.resetRowSelection()}
                 >
-                    {properties.value}
+                    {locale.render(t`Clear selection`)}
                 </Button>
-            }
-        >
-            <EditField
-                label={properties.label}
-                value={properties.value}
-                onFinish={(value) => isEditing() && finish(value)}
-            />
+            </div>
         </Show>
-    );
-}
-
-/** Render the field of a cell being edited, its text selected once it shows. */
-function EditField(properties: {
-    /** The name of the value, which labels the field. */
-    readonly label: string;
-    /** The value the edit starts from. */
-    readonly value: string;
-    /** End the edit with the value to commit, none to cancel. */
-    readonly onFinish: (value: string | undefined) => void;
-}): JSX.Element {
-    // select the text once the field is on the page
-    let field: HTMLInputElement | undefined;
-    onSettled(() => field?.select());
-
-    return (
-        <Input
-            ref={(element) => (field = element)}
-            aria-label={properties.label}
-            value={properties.value}
-            onKeyDown={(event) => {
-                // commit on Enter and cancel on Escape, stopping the keys reaching the table
-                if (event.key === "Enter") {
-                    event.preventDefault();
-                    properties.onFinish(event.currentTarget.value);
-                } else if (event.key === "Escape") {
-                    event.preventDefault();
-                    properties.onFinish(undefined);
-                }
-            }}
-            onBlur={(event) => properties.onFinish(event.currentTarget.value)}
-        />
     );
 }
 
@@ -970,10 +1830,8 @@ export interface DataTableViewOptionsProperties<
     Features extends TableFeatures,
     Row extends RowData,
 > {
-    /** The table whose columns the menu shows and hides. */
+    /** The table whose columns the menu shows and hides, each by its label. */
     readonly table: DataTableInstance<Features, Row>;
-    /** Label a column by its id, the id by default. */
-    readonly label?: (id: string) => string;
 }
 
 /** Render a menu that shows and hides a table's hideable columns. */
@@ -1006,7 +1864,7 @@ export function DataTableViewOptions<Features extends TableFeatures, Row extends
                             onCheckedChange={(isVisible) => column.toggleVisibility(isVisible)}
                             onSelect={(event) => event.preventDefault()}
                         >
-                            {properties.label?.(column.id) ?? column.id}
+                            {labelOf(column)}
                         </DropdownMenuCheckboxItem>
                     )}
                 </For>
@@ -1027,6 +1885,10 @@ export function selectionColumn<Features extends TableFeatures, Row extends RowD
     readonly enableSorting: false;
     /** The column neither sorts nor hides. */
     readonly enableHiding: false;
+    /** The column stays out of blocks of cells. */
+    readonly enableCellSelection: false;
+    /** The column only controls rows. */
+    readonly meta: { readonly isControl: true };
 } {
     return {
         id: "select",
@@ -1034,6 +1896,8 @@ export function selectionColumn<Features extends TableFeatures, Row extends RowD
         cell: (context) => <RowSelection row={context.row} />,
         enableSorting: false,
         enableHiding: false,
+        enableCellSelection: false,
+        meta: { isControl: true },
     };
 }
 
@@ -1049,6 +1913,10 @@ export function expansionColumn<Features extends TableFeatures, Row extends RowD
     readonly enableSorting: false;
     /** The column neither sorts nor hides. */
     readonly enableHiding: false;
+    /** The column stays out of blocks of cells. */
+    readonly enableCellSelection: false;
+    /** The column only controls rows. */
+    readonly meta: { readonly isControl: true };
 } {
     return {
         id: "expand",
@@ -1056,6 +1924,8 @@ export function expansionColumn<Features extends TableFeatures, Row extends RowD
         cell: (context) => <RowToggle row={context.row} />,
         enableSorting: false,
         enableHiding: false,
+        enableCellSelection: false,
+        meta: { isControl: true },
     };
 }
 
@@ -1075,13 +1945,13 @@ function RowToggle(properties: {
 }): JSX.Element {
     // read the row's expansion where rows expand
     const locale = useLocale();
-    const tracked = useDataTableState();
+    const { expanded } = useDataTableSlices();
     const row = properties.row;
     if (!isExpandableRow(row)) {
         return properties.children;
     }
     const isExpanded = (): boolean => {
-        tracked();
+        expanded();
 
         return row.getIsExpanded();
     };
@@ -1092,8 +1962,9 @@ function RowToggle(properties: {
             <Show when={row.getCanExpand()} fallback={<span {...style.attrs(styles.selection)} />}>
                 <Button
                     variant="ghost"
-                    size="icon"
+                    size="icon-sm"
                     aria-expanded={isExpanded() ? "true" : "false"}
+                    xstyle={styles.expand}
                     aria-label={locale.render(isExpanded() ? t`Collapse row` : t`Expand row`)}
                     onClick={() => row.toggleExpanded()}
                 >
@@ -1134,7 +2005,7 @@ function PageSelection(properties: {
             checked={isAll()}
             indeterminate={isSome() && !isAll()}
             onCheckedChange={(isSelected) => table.toggleAllPageRowsSelected(isSelected)}
-            xstyle={styles.box}
+            xstyle={[styles.box, styles.tableQuiet]}
         />
     );
 }
@@ -1146,13 +2017,13 @@ function RowSelection(properties: {
 }): JSX.Element {
     // read the row's selection where rows select
     const locale = useLocale();
-    const tracked = useDataTableState();
+    const { rowSelection } = useDataTableSlices();
     const row = properties.row;
     if (!isSelectableRow(row)) {
         return null;
     }
     const isSelected = (): boolean => {
-        tracked();
+        rowSelection();
 
         return row.getIsSelected();
     };
@@ -1163,7 +2034,7 @@ function RowSelection(properties: {
             checked={isSelected()}
             disabled={!row.getCanSelect()}
             onCheckedChange={(isChecked) => row.toggleSelected(isChecked)}
-            xstyle={styles.box}
+            xstyle={[styles.box, styles.rowControl]}
         />
     );
 }
@@ -1252,6 +2123,20 @@ function isElement(value: unknown): value is JSX.Element {
     );
 }
 
+/** Read a column's name: its meta's label, else its header's text, refusing a column of neither. */
+function labelOf<Features extends TableFeatures, Data extends RowData, Value>(
+    column: Column<Features, Data, Value>,
+): string {
+    // take the meta's label, else the header's text, refusing a column of neither
+    const header = column.columnDef.header;
+    const label = metaOf(column).label ?? (typeof header === "string" ? header : undefined);
+    if (label === undefined) {
+        throw new TypeError(`data table column '${column.id}' is invalid: it has no label`);
+    }
+
+    return label;
+}
+
 /** Report whether a column sorts through the sorting feature. */
 function isSortable(column: object): column is Column_RowSorting<TableFeatures, RowData> {
     return "getCanSort" in column && typeof column.getCanSort === "function";
@@ -1264,6 +2149,19 @@ function isHideable<Value extends object>(
     Column_ColumnVisibility &
     Pick<Column_CoreProperties<TableFeatures, RowData>, "id"> {
     return "getCanHide" in column && typeof column.getCanHide === "function";
+}
+
+/** A table that orders its columns. */
+interface OrderedTable {
+    /** Read every leaf column in the table's order. */
+    readonly getAllLeafColumns: () => readonly (object & { readonly id: string })[];
+    /** Set the order of the columns. */
+    readonly setColumnOrder: (order: string[]) => void;
+}
+
+/** Report whether a table orders its columns. */
+function isOrderedTable(table: object): table is OrderedTable {
+    return "setColumnOrder" in table;
 }
 
 /** Report whether a table selects rows through the selection feature. */
@@ -1304,6 +2202,11 @@ function isResizingHeader(header: object): header is Header_ColumnResizing {
 /** Report whether a column belongs to a table whose columns a drag resizes. */
 function isResizable(column: object): column is Column_ColumnResizing {
     return "getCanResize" in column && typeof column.getCanResize === "function";
+}
+
+/** Report whether a column belongs to a table whose columns pin. */
+function isPinning(column: object): column is Column_ColumnPinning {
+    return "getIsPinned" in column && typeof column.getIsPinned === "function";
 }
 
 /** Report whether a column belongs to a table whose columns pin, with their offsets. */
@@ -1381,146 +2284,417 @@ function sortIconOf(direction: false | "asc" | "desc"): IconBodies {
     return direction === "asc" ? caretUp : direction === "desc" ? caretDown : caretUpDown;
 }
 
-/** A cell's place in a data table's grid. */
-interface GridCell {
-    /** The row among every row. */
-    readonly row: number;
-    /** The column within the row. */
-    readonly column: number;
+/** Report whether a header's column moves: a data column with an accessor, and not pinned. */
+function isMovable(header: {
+    readonly isPlaceholder: boolean;
+    readonly column: object & { readonly id: string };
+}): boolean {
+    const column = header.column;
+    const isData = "accessorFn" in column && column.accessorFn !== undefined;
+
+    return (
+        !header.isPlaceholder && isData && !(isPinning(column) && column.getIsPinned() !== false)
+    );
 }
 
-/** The cells of a data table's header and body rows, moved through by row and column. */
-class TableDelegate implements KeyboardDelegate<string> {
-    /** The number of cells in each header row. */
-    readonly #headers: Accessor<readonly number[]>;
-    /** The number of cells in each body row, every row of the table and not only those in view. */
-    readonly #rows: Accessor<readonly number[]>;
+/** Render a header row: a sortable row where its columns move, else a plain one. */
+function HeaderRow(properties: {
+    /** Whether the row's columns move along it. */
+    readonly isOrdered: boolean;
+    /** The row's place among every row of the grid, from one. */
+    readonly "aria-rowindex": number;
+    /** The header cells. */
+    readonly children?: JSX.Element;
+}): JSX.Element {
+    const locale = useLocale();
 
-    /** Lay out the cells of the header and body rows. */
-    constructor(headers: Accessor<readonly number[]>, rows: Accessor<readonly number[]>) {
-        this.#headers = headers;
-        this.#rows = rows;
+    return untrack(() => properties.isOrdered) ? (
+        <SortableContainer
+            id={COLUMNS}
+            orientation="horizontal"
+            label={locale.render(t`Columns`)}
+            accepts={[COLUMN_TYPE]}
+            render={(attributes) => (
+                <TableRow
+                    {...attributes}
+                    xstyle={styles.row}
+                    aria-rowindex={properties["aria-rowindex"]}
+                />
+            )}
+        >
+            {properties.children}
+        </SortableContainer>
+    ) : (
+        <TableRow xstyle={styles.row} aria-rowindex={properties["aria-rowindex"]}>
+            {properties.children}
+        </TableRow>
+    );
+}
+
+/** Render the body: a sortable list where rows move by their handles, else a plain body. */
+function BodyRows(properties: {
+    /** Whether the rows move. */
+    readonly isOrdered: boolean;
+    /** The rows. */
+    readonly children?: JSX.Element;
+}): JSX.Element {
+    const locale = useLocale();
+
+    return untrack(() => properties.isOrdered) ? (
+        <SortableContainer
+            id={ROWS}
+            label={locale.render(t`Rows`)}
+            accepts={[ROW_TYPE]}
+            xstyle={styles.unmarked}
+            render={(attributes) => <TableBody {...attributes} />}
+        >
+            {properties.children}
+        </SortableContainer>
+    ) : (
+        <TableBody>{properties.children}</TableBody>
+    );
+}
+
+/** Place a moved column in a table's order, before the column it lands before. */
+function placeColumn(table: OrderedTable, move: SortableMove): void {
+    const order = table.getAllLeafColumns().map((column) => column.id);
+    const place = {
+        id: idOf(move.id),
+        previous: move.previous === undefined ? undefined : idOf(move.previous),
+        next: move.next === undefined ? undefined : idOf(move.next),
+    };
+    table.setColumnOrder(SortableMove.place(order, place.id, place, (id) => id));
+}
+
+/** Read an item's id without the prefix that sets rows and columns apart among sortable items. */
+function idOf(item: string): string {
+    // strip a row's prefix
+    if (item.startsWith(ROW_PREFIX)) {
+        return item.slice(ROW_PREFIX.length);
+    }
+    // strip a column's prefix
+    else if (item.startsWith(COLUMN_PREFIX)) {
+        return item.slice(COLUMN_PREFIX.length);
     }
 
-    /** Read the cell a key press moves the focus to. */
-    target(event: KeyboardEvent, from: string, direction: Direction): string | undefined {
-        // read the move and the cell it starts from
-        const move = gridMoveOf(event, direction);
-        if (move === undefined) {
-            return undefined;
-        }
-        const place = placeOf(move, cellOf(from), this.#count() - 1);
+    throw new TypeError(`data table sortable item '${item}' is neither a row nor a column`);
+}
 
-        // land on the cell the move reaches, the row's last for a column past its end
-        const width = this.#width(place.row);
-        if (width === undefined || (place.column !== "last" && place.column < 0)) {
-            return undefined;
-        }
+/** Report whether a table's sort or grouping sets its rows' order, which rows then follow. */
+function isArranged(table: DataTableState): boolean {
+    return (table.sorting ?? []).length > 0 || (table.grouping ?? []).length > 0;
+}
 
-        return cellKey(
-            place.row,
-            Math.min(place.column === "last" ? width - 1 : place.column, width - 1),
+/** Render a row's handle, which lists the key that opens the row's menu where rows have one. */
+function RowHandle(): JSX.Element {
+    const slices = useDataTableSlices();
+
+    return (
+        <SortableHandle
+            data-slot="data-table-row-handle"
+            aria-haspopup={slices.hasRowMenu ? "menu" : undefined}
+            aria-keyshortcuts={slices.hasRowMenu ? "Shift+F10" : undefined}
+            xstyle={styles.rowControl}
+        />
+    );
+}
+
+/** The column that moves rows: a handle per row, which lifts it by pointer, touch and Space. */
+export function orderColumn(): {
+    /** The column's id. */
+    readonly id: "order";
+    /** The column's header, empty. */
+    readonly header: () => JSX.Element;
+    /** The handle that moves the row. */
+    readonly cell: () => JSX.Element;
+    /** The column neither sorts nor hides. */
+    readonly enableSorting: false;
+    /** The column neither sorts nor hides. */
+    readonly enableHiding: false;
+    /** The column stays out of blocks of cells. */
+    readonly enableCellSelection: false;
+    /** The column only controls rows. */
+    readonly meta: { readonly isControl: true };
+} {
+    return {
+        id: "order",
+        header: () => null,
+        cell: () => <RowHandle />,
+        enableSorting: false,
+        enableHiding: false,
+        enableCellSelection: false,
+        meta: { isControl: true },
+    };
+}
+
+/** Write a column's summary of its values in a locale, a date column's earliest or latest. */
+function summaryText(
+    summary: DataTableSummary,
+    kind: DataTableEditorKind | undefined,
+    values: readonly unknown[],
+    locale: ReturnType<typeof useLocale>,
+): string {
+    // count the filled values, an unchecked box as empty, and read the numbers and dates among them
+    const filled = values.filter(
+        (value) => value !== undefined && value !== null && value !== "" && value !== false,
+    );
+    const numbers = filled.filter((value) => typeof value === "number");
+    const dates = filled
+        .filter((value) => kind === "date" && typeof value === "string")
+        .map(String)
+        .toSorted((left, right) => left.localeCompare(right));
+
+    // count the filled cells
+    if (summary === "count") {
+        return locale.render(t`Count ${locale.number(filled.length)}`);
+    }
+    // take the earliest or latest of dates
+    else if (numbers.length === 0 && dates.length > 0 && (summary === "min" || summary === "max")) {
+        const date = summary === "min" ? dates[0] : dates.at(-1);
+
+        return locale.render(
+            summary === "min" ? t`Earliest ${String(date)}` : t`Latest ${String(date)}`,
         );
     }
-
-    /** Read the first cell, the first header's. */
-    first(): string | undefined {
-        return this.#count() > 0 ? cellKey(0, 0) : undefined;
+    // say a column has no numbers to sum
+    else if (numbers.length === 0) {
+        return locale.render(t`No numbers`);
     }
+    // sum, average, or take the smallest or largest number
+    else if (summary === "sum") {
+        return locale.render(
+            t`Sum ${locale.number(numbers.reduce((total, each) => total + each, 0))}`,
+        );
+    } else if (summary === "average") {
+        const average = numbers.reduce((total, each) => total + each, 0) / numbers.length;
 
-    /** Report whether a cell stands in the grid. */
-    has(key: string): boolean {
-        const cell = cellOf(key);
-        const width = this.#width(cell.row);
-
-        return width !== undefined && cell.column < width;
-    }
-
-    /** The number of rows, the headers' included. */
-    #count(): number {
-        return this.#headers().length + this.#rows().length;
-    }
-
-    /** Read the number of cells in a row, undefined past the ends. */
-    #width(row: number): number | undefined {
-        const headers = this.#headers();
-
-        return row < headers.length ? headers[row] : this.#rows()[row - headers.length];
-    }
-}
-
-/** Build the key of a cell from its row and column. */
-function cellKey(row: number, column: number): string {
-    return `${String(row)}:${String(column)}`;
-}
-
-/** Read the row and column of a cell's key. */
-function cellOf(key: string): GridCell {
-    const [row = "0", column = "0"] = key.split(":");
-
-    return { row: Number(row), column: Number(column) };
-}
-
-/** Read the row and column a grid move lands the focus on, the last column of a row as `last`. */
-function placeOf(
-    move: GridMove,
-    cell: GridCell,
-    last: number,
-): { readonly row: number; readonly column: number | "last" } {
-    // step a cell along a row or a column
-    const { row, column } = cell;
-    if (move === "next") {
-        return { row, column: column + 1 };
-    } else if (move === "previous") {
-        return { row, column: column - 1 };
-    } else if (move === "down") {
-        return { row: row + 1, column };
-    } else if (move === "up") {
-        return { row: row - 1, column };
-    }
-    // jump a page of rows
-    else if (move === "pageDown") {
-        return { row: Math.min(row + PAGE_ROWS, last), column };
-    } else if (move === "pageUp") {
-        return { row: Math.max(row - PAGE_ROWS, 0), column };
-    }
-    // the ends of the row or of the grid
-    else if (move === "rowStart") {
-        return { row, column: 0 };
-    } else if (move === "rowEnd") {
-        return { row, column: "last" };
-    } else if (move === "gridStart") {
-        return { row: 0, column: 0 };
+        return locale.render(t`Average ${locale.number(average, { maximumFractionDigits: 2 })}`);
+    } else if (summary === "min") {
+        return locale.render(t`Min ${locale.number(Math.min(...numbers))}`);
     } else {
-        return { row: last, column: "last" };
+        return locale.render(t`Max ${locale.number(Math.max(...numbers))}`);
     }
 }
 
-/** Move the focused cell on arrow keys, Home, End, Page Up and Page Down. */
-function navigate(event: KeyboardEvent, focus: Focus<string>, direction: Direction): void {
+/** Take a key on a data table's grid: toggle, edit, clear, open a menu, or move and extend. */
+function keyDown<Features extends TableFeatures, Data extends RowData>(
+    event: KeyboardEvent,
+    control: DataTableControl<Features, Data>,
+    openRowMenu: (id: string, cell: HTMLElement, point: { x: number; y: number }) => boolean,
+    direction: Direction,
+): void {
+    // leave keys from outside the cells, a field's keys, and every key during an edit
     const target = event.target;
+    const key = control.focus.current();
+    const element = target instanceof Element ? target.closest<HTMLElement>("th, td") : null;
+    const isField =
+        target instanceof Element && target.matches("input:not([type=checkbox]), textarea, select");
     if (
-        target instanceof Element &&
-        target.closest("th, td") !== null &&
-        !target.matches("input:not([type=checkbox]), textarea, select")
+        event.defaultPrevented ||
+        element === null ||
+        isField ||
+        control.edit() !== undefined ||
+        key === undefined
     ) {
-        focus.move(event, direction);
+        return;
+    }
+    const cell = control.cellAt(key);
+    const editor = cell === undefined ? undefined : control.editorOf(cell);
+    const isPlain = !event.ctrlKey && !event.metaKey && !event.altKey;
+    const arrow = ARROWS[event.key];
+
+    // open the column's menu with Alt and the down arrow, as grids do
+    if (event.altKey && event.key === "ArrowDown" && cell === undefined) {
+        const menu = element.querySelector<HTMLElement>("[data-slot=data-table-column-menu]");
+        if (menu !== null) {
+            event.preventDefault();
+            menu.click();
+        }
+    }
+    // open the row's menu with the menu key or Shift and F10, under the cell
+    else if (
+        cell !== undefined &&
+        (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10"))
+    ) {
+        const bounds = element.getBoundingClientRect();
+        if (openRowMenu(cell.row.id, element, { x: bounds.left, y: bounds.bottom })) {
+            event.preventDefault();
+        }
+    }
+    // toggle a checkbox cell with Enter, as Space does
+    else if (cell !== undefined && editor?.kind === "checkbox" && event.key === "Enter") {
+        event.preventDefault();
+        control.set(cell, cell.getValue() !== true);
+    }
+    // edit a cell with Enter or F2, as spreadsheets do
+    else if (
+        cell !== undefined &&
+        editor !== undefined &&
+        editor.kind !== "checkbox" &&
+        (event.key === "Enter" || event.key === "F2")
+    ) {
+        event.preventDefault();
+        control.begin(cell);
+    }
+    // edit a text or number cell by typing over it
+    else if (
+        cell !== undefined &&
+        (editor?.kind === "text" || editor?.kind === "number") &&
+        isPlain &&
+        event.key.length === 1 &&
+        event.key !== " "
+    ) {
+        event.preventDefault();
+        control.begin(cell, event.key);
+    }
+    // clear the selected block, else the cell, with Delete or Backspace
+    else if (cell !== undefined && (event.key === "Delete" || event.key === "Backspace")) {
+        event.preventDefault();
+        control.clear();
+    }
+    // extend the selected block with Shift and an arrow, the focus staying where it began
+    else if (cell !== undefined && control.isSelecting() && event.shiftKey && arrow !== undefined) {
+        event.preventDefault();
+        control.extend(cell, arrow(direction));
+    }
+    // drop the block back to the focused cell with Escape
+    else if (cell !== undefined && control.isSelecting() && event.key === "Escape") {
+        control.select(cell);
+    }
+    // move the focus, selecting the body cell it lands on
+    else {
+        const moved = control.focus.move(event, direction);
+        const landed = moved === undefined ? undefined : control.cellAt(moved);
+        if (landed !== undefined) {
+            control.select(landed);
+        }
     }
 }
 
-/** The reference and handler that make a header or body cell one place of a data table's grid. */
+/** Render the field a cell is edited in: text, a number, a date, or a choice. */
+function DataTableCellEditor<Features extends TableFeatures, Data extends RowData>(properties: {
+    /** The grid whose edit the field is. */
+    readonly control: DataTableControl<Features, Data>;
+    /** The column's editor. */
+    readonly editor: DataTableEditor;
+    /** The cell's value. */
+    readonly value: unknown;
+    /** The column's name, which labels the field. */
+    readonly label: string;
+}): JSX.Element {
+    // begin from typed text, else from the value, the caret at its end once the field shows
+    const locale = useLocale();
+    const control = properties.control;
+    const editor = untrack(() => properties.editor);
+    const initial = untrack(() => control.edit()?.initial);
+    let field: HTMLInputElement | HTMLSelectElement | undefined;
+    onSettled(() => {
+        field?.focus();
+        if (field instanceof HTMLInputElement && field.type === "text") {
+            field.setSelectionRange(field.value.length, field.value.length);
+        }
+    });
+
+    // follow the person's choice in a select until Enter or the focus leaving commits it
+    const [choice, setChoice] = createSignal(
+        untrack(() => (typeof properties.value === "string" ? properties.value : "")),
+    );
+
+    // read the field's text: a select's choice, none for an input the browser cannot read
+    const textOf = (element: HTMLInputElement | HTMLSelectElement): string | undefined =>
+        element instanceof HTMLSelectElement
+            ? choice()
+            : element.validity.badInput
+              ? undefined
+              : element.value;
+
+    // end an edit whose row leaves the table with the text it has
+    onCleanup(() => {
+        if (field !== undefined && control.edit() !== undefined) {
+            control.leave(textOf(field));
+        }
+    });
+
+    // commit on Enter and move down, on Tab and move across, and cancel on Escape
+    const onKeyDown = (
+        event: KeyboardEvent & { readonly currentTarget: HTMLInputElement | HTMLSelectElement },
+    ) => {
+        if (event.key === "Enter") {
+            event.preventDefault();
+            control.commit(textOf(event.currentTarget), "down");
+        } else if (event.key === "Tab") {
+            event.preventDefault();
+            control.commit(textOf(event.currentTarget), event.shiftKey ? "previous" : "next");
+        } else if (event.key === "Escape") {
+            event.preventDefault();
+            control.cancel();
+        }
+    };
+
+    // end the edit where the focus leaves it with a value, else mark the text and go on editing
+    const onBlur = (
+        event: FocusEvent & { readonly currentTarget: HTMLInputElement | HTMLSelectElement },
+    ) => (control.edit() === undefined ? undefined : control.leave(textOf(event.currentTarget)));
+    const isInvalid = () => (control.edit()?.isInvalid === true ? "true" : undefined);
+
+    return (
+        <Show
+            when={editor.kind === "select"}
+            fallback={
+                <Input
+                    ref={(element) => {
+                        // set the text once, the field changing it until the edit ends
+                        field = element;
+                        element.value = initial ?? editor.format(untrack(() => properties.value));
+                    }}
+                    type={editor.kind === "date" ? "date" : "text"}
+                    inputmode={editor.kind === "number" ? "decimal" : undefined}
+                    aria-label={properties.label}
+                    aria-invalid={isInvalid()}
+                    onKeyDown={onKeyDown}
+                    onBlur={onBlur}
+                    xstyle={styles.editor}
+                />
+            }
+        >
+            <Select
+                ref={(element) => (field = element)}
+                aria-label={properties.label}
+                aria-invalid={isInvalid()}
+                value={choice()}
+                onValueChange={(value) => setChoice(typeof value === "string" ? value : "")}
+                onKeyDown={onKeyDown}
+                onBlur={onBlur}
+            >
+                <SelectItem value="">{locale.render(t`None`)}</SelectItem>
+                <For each={editor.options}>
+                    {(option) => <SelectItem value={option.value}>{option.label}</SelectItem>}
+                </For>
+            </Select>
+        </Show>
+    );
+}
+
+/** The reference and handlers that make a header or body cell one place of a data table's grid. */
 interface GridCellAttributes extends Record<"ref", (element: HTMLTableCellElement) => void> {
-    /** Follow the focus into the cell. */
+    /** The text of the cell's key, which focusing the cell by its key finds. */
+    readonly "data-cell": string;
+    /** Follow the focus into the cell, selecting a body cell outside the selected block. */
     readonly onFocusIn: () => void;
+    /** Start a block of cells at a body cell, or extend it there with Shift. */
+    readonly onMouseDown: (event: MouseEvent) => void;
+    /** Extend the block over the body cells a pressed pointer sweeps. */
+    readonly onMouseEnter: (event: MouseEvent) => void;
 }
 
-/** Make a cell one place of its data table's grid. */
-function useGridCell(key: () => string): GridCellAttributes {
-    // read the table's focus and take the cell's element
-    const focus = useContext(DataTableFocusContext);
-    if (focus === null) {
-        throw new TypeError("a data table cell needs a data table around it");
-    }
+/** Make a cell one place of its data table's grid, a body cell a place of its cell selection. */
+function useGridCell<Features extends TableFeatures, Data extends RowData>(
+    control: DataTableControl<Features, Data>,
+    key: () => CellKey,
+    cell: () => object | undefined,
+): GridCellAttributes {
+    // read the grid's focus and take the cell's element
+    const focus = control.focus;
     let element: HTMLTableCellElement | undefined;
 
     // focus the cell's single control, else the cell, unless the focus already rests inside it
@@ -1530,33 +2704,69 @@ function useGridCell(key: () => string): GridCellAttributes {
             : focusOf(element),
     );
 
-    // put the focused cell's single control, else the cell, alone in the tab order once its content renders
+    // put the focused cell's single control, else the cell, alone in the tab order, as its content renders
     createEffect(
-        () => focus.isActive(key()),
+        () => {
+            cell();
+
+            return focus.isActive(key());
+        },
         (isActive) => {
             if (element === undefined) {
                 return;
             }
             const target = focusOf(element);
             element.tabIndex = isActive && target === element ? 0 : -1;
-            for (const control of element.querySelectorAll<HTMLElement>(FOCUSABLE)) {
-                control.tabIndex = isActive && target === control ? 0 : -1;
+            for (const inner of element.querySelectorAll<HTMLElement>(FOCUSABLE)) {
+                inner.tabIndex = isActive && target === inner ? 0 : -1;
             }
         },
     );
 
     return {
-        ref: (cell) => {
-            element = cell;
+        ref: (created) => {
+            element = created;
         },
-        onFocusIn: () => focus.focusIn(key()),
+        get "data-cell"() {
+            return keyText(key());
+        },
+        onFocusIn: () => {
+            // hand the focus back to an open edit's field, which only Escape or a value ends
+            const edit = control.edit();
+            if (edit !== undefined && !control.isEditing(key())) {
+                control.focusCell({ kind: "body", row: edit.row, column: edit.column });
+
+                return;
+            }
+
+            // follow the focus in, selecting a body cell the selected block leaves out
+            focus.focusIn(key());
+            const each = cell();
+            const body = control.cellAt(key());
+            if (
+                each !== undefined &&
+                body !== undefined &&
+                isSelectableCell(each) &&
+                !each.getIsSelected()
+            ) {
+                control.select(body);
+            }
+        },
+        onMouseDown: (event) => {
+            // start or extend the block from the cell, leaving presses on the cell's controls
+            const each = cell();
+            const isControl =
+                event.target instanceof Element && event.target.closest(PRESSED) !== null;
+            if (each !== undefined && isSelectableCell(each) && !isControl && event.button === 0) {
+                each.getSelectionStartHandler(element?.ownerDocument)(event);
+            }
+        },
+        onMouseEnter: (event) => {
+            // extend the block over a cell the pressed pointer reaches
+            const each = cell();
+            if (each !== undefined && isSelectableCell(each)) {
+                each.getSelectionExtendHandler()(event);
+            }
+        },
     };
-}
-
-/** Find the element that takes a cell's focus: its single control, else the cell. */
-function focusOf(cell: HTMLElement): HTMLElement {
-    const controls = cell.querySelectorAll<HTMLElement>(FOCUSABLE);
-    const [control] = controls;
-
-    return controls.length === 1 && control !== undefined ? control : cell;
 }

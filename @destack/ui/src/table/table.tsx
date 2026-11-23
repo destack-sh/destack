@@ -57,13 +57,18 @@ const styles = style.create({
 /** The properties of an element of a table, the native element's attributes included. */
 export type TableElementProperties<Attributes> = Omit<Attributes, "class"> & ElementPartProperties;
 
+/** Return the StyleX styles of a table, for a table inside another scroller. */
+export function tableStyle(): style.Styles {
+    return [text.sm, styles.table];
+}
+
 /** Render a native table that scrolls sideways when wider than its container. */
 export function Table(
     properties: TableElementProperties<JSX.HTMLAttributes<HTMLTableElement>>,
 ): JSX.Element {
     return (
         <div data-slot="table-container" {...style.attrs(styles.container)}>
-            {renderPart("table", "table", properties, [text.sm, styles.table])}
+            {renderPart("table", "table", properties, tableStyle())}
         </div>
     );
 }

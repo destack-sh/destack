@@ -2,7 +2,9 @@ import * as style from "@destack/style";
 import { defineExample } from "@destack/package/declare";
 import {
     aggregationFn_sum,
+    cellSelectionFeature,
     columnFacetingFeature,
+    columnOrderingFeature,
     columnFilteringFeature,
     columnPinningFeature,
     columnResizingFeature,
@@ -31,21 +33,24 @@ import {
     tableFeatures,
 } from "./index.ts";
 import { createSignal, type JSX } from "@destack/view";
-import { DropdownMenuItem } from "../dropdown-menu/index.ts";
+import { present } from "@destack/schema";
+import type { Action } from "../action/index.ts";
+import { SortableMove } from "../sortable/index.ts";
 import { Cluster } from "../cluster/index.ts";
 import { Stack } from "../stack/index.ts";
 import {
     DataTable,
     DataTableColumnHeader,
-    DataTableEditableCell,
     DataTableFacetedFilter,
     DataTableFilter,
-    DataTableRowActions,
     DataTablePagination,
     DataTableViewOptions,
+    DataTableBulkBar,
     expansionColumn,
+    orderColumn,
     selectionColumn,
 } from "./data-table.tsx";
+import { type DataTableCellChange, DataTableEditor } from "./control.ts";
 import { createTable } from "./table.ts";
 
 /** The styles of the examples' tables. */
@@ -87,10 +92,12 @@ const COLUMN = createColumnHelper<typeof FEATURES, NoteRow>();
 const COLUMNS = COLUMN.columns([
     selectionColumn<typeof FEATURES, NoteRow>(),
     COLUMN.accessor("title", {
-        header: (context) => <DataTableColumnHeader column={context.column} title="Title" />,
+        header: (context) => <DataTableColumnHeader column={context.column} />,
+        meta: { label: "Title" },
     }),
     COLUMN.accessor("words", {
-        header: (context) => <DataTableColumnHeader column={context.column} title="Words" />,
+        header: (context) => <DataTableColumnHeader column={context.column} />,
+        meta: { label: "Words" },
         enableGlobalFilter: false,
     }),
 ]);
@@ -109,8 +116,10 @@ function NotesTable(properties: {
     readonly notes: NoteRow[];
     /** The rows on each page. */
     readonly pageSize: number;
-    /** The height each row is estimated at, which renders only the rows in view. */
-    readonly rowHeight?: number;
+    /** The page sizes the pagination offers, the pagination's by default. */
+    readonly pageSizes?: readonly number[];
+    /** Whether only the rows in view render. */
+    readonly isVirtual?: boolean;
     /** The ids of the notes that cannot be selected. */
     readonly locked?: readonly string[];
 }): JSX.Element {
@@ -133,10 +142,10 @@ function NotesTable(properties: {
             </Cluster>
             <DataTable
                 table={table}
-                rowHeight={properties.rowHeight}
-                xstyle={properties.rowHeight !== undefined && styles.scrolling}
+                isVirtual={properties.isVirtual}
+                xstyle={properties.isVirtual === true && styles.scrolling}
             />
-            <DataTablePagination table={table} />
+            <DataTablePagination table={table} pageSizes={properties.pageSizes} />
         </Stack>
     );
 }
@@ -184,7 +193,8 @@ export const dataTableNotesVirtual = defineExample({
                 words: (index * 37) % 1000,
             }))}
             pageSize={1000}
-            rowHeight={40}
+            pageSizes={[100, 1000]}
+            isVirtual
         />
     ),
 });
@@ -325,6 +335,12 @@ interface LaunchTask {
     readonly status: (typeof LAUNCH_STATUSES)[number]["value"];
     /** The task's priority. */
     readonly priority: (typeof LAUNCH_PRIORITIES)[number]["value"];
+    /** The days the task is estimated to take. */
+    readonly estimate: number;
+    /** The day the task is due, written YYYY-MM-DD. */
+    readonly due: string;
+    /** Whether the task waits on something outside the team. */
+    readonly isBlocked: boolean;
 }
 
 /** The features of the tasks table: faceted filters, sized and pinned columns. */
@@ -338,6 +354,9 @@ const LAUNCH_FEATURES = tableFeatures({
     columnSizingFeature,
     columnResizingFeature,
     columnPinningFeature,
+    columnOrderingFeature,
+    rowSelectionFeature,
+    cellSelectionFeature,
 });
 
 /** The statuses a task moves through. */
@@ -355,10 +374,42 @@ const LAUNCH_PRIORITIES = [
 
 /** The launch's tasks. */
 const LAUNCH_TASKS: LaunchTask[] = [
-    { id: "LAU-21", title: "Write the changelog", status: "backlog", priority: "low" },
-    { id: "LAU-14", title: "Record the demo", status: "doing", priority: "high" },
-    { id: "LAU-15", title: "Pricing page", status: "doing", priority: "high" },
-    { id: "LAU-11", title: "Sign-up flow copy", status: "done", priority: "low" },
+    {
+        id: "LAU-21",
+        title: "Write the changelog",
+        status: "backlog",
+        priority: "low",
+        estimate: 1,
+        due: "2026-11-27",
+        isBlocked: false,
+    },
+    {
+        id: "LAU-14",
+        title: "Record the demo",
+        status: "doing",
+        priority: "high",
+        estimate: 2,
+        due: "2026-11-24",
+        isBlocked: false,
+    },
+    {
+        id: "LAU-15",
+        title: "Pricing page",
+        status: "doing",
+        priority: "high",
+        estimate: 3,
+        due: "2026-11-25",
+        isBlocked: true,
+    },
+    {
+        id: "LAU-11",
+        title: "Sign-up flow copy",
+        status: "done",
+        priority: "low",
+        estimate: 0.5,
+        due: "2026-11-20",
+        isBlocked: false,
+    },
 ];
 
 /** The column helper of the tasks table. */
@@ -379,45 +430,66 @@ const PRIORITY_LABELS: Readonly<Record<LaunchTask["priority"], string>> = {
 
 /** Render the launch's tasks with faceted filters, editable titles and row actions. */
 function LaunchTasksTable(): JSX.Element {
-    // store the tasks, renaming one in place
+    // store the tasks, changing the cells people edit or paste
     const [tasks, setTasks] = createSignal(LAUNCH_TASKS);
-    const rename = (id: string, title: string) =>
-        setTasks((current) => current.map((task) => (task.id === id ? { ...task, title } : task)));
+    const change = (changes: readonly DataTableCellChange[]) =>
+        setTasks((current) =>
+            current.map((task) => {
+                // copy only the tasks that change, so the others reuse their rows' elements
+                const changed = changes.filter((each) => each.row === task.id);
+
+                return changed.length === 0
+                    ? task
+                    : {
+                          ...task,
+                          ...Object.fromEntries(changed.map((each) => [each.column, each.value])),
+                      };
+            }),
+        );
+    const remove = (ids: readonly string[]): void => {
+        setTasks((current) => current.filter((task) => !ids.includes(task.id)));
+    };
+    const actionsOf = (ids: readonly string[]): Action[] => [
+        { id: "archive", title: "Archive", run: () => remove(ids) },
+        { id: "delete", title: "Delete", isDestructive: true, run: () => remove(ids) },
+    ];
     const columns = LAUNCH.columns([
+        LAUNCH.display(orderColumn()),
+        LAUNCH.display(selectionColumn()),
         LAUNCH.accessor("id", { header: "Task", size: 96, enableResizing: false }),
         LAUNCH.accessor("title", {
             header: "Title",
             size: 240,
-            cell: (context) => (
-                <DataTableEditableCell
-                    value={context.getValue()}
-                    label="Title"
-                    onCommit={(title) => rename(context.row.original.id, title)}
-                />
-            ),
+            meta: { label: "Title", editor: DataTableEditor.text() },
         }),
         LAUNCH.accessor("status", {
             header: "Status",
             size: 120,
             filterFn: "arrHas",
+            meta: { label: "Status", editor: DataTableEditor.select(LAUNCH_STATUSES) },
             cell: (context) => STATUS_LABELS[context.getValue()],
         }),
         LAUNCH.accessor("priority", {
             header: "Priority",
             size: 120,
             filterFn: "arrHas",
+            meta: { label: "Priority", editor: DataTableEditor.select(LAUNCH_PRIORITIES) },
             cell: (context) => PRIORITY_LABELS[context.getValue()],
         }),
-        LAUNCH.display({
-            id: "actions",
-            size: 48,
-            enableResizing: false,
-            cell: () => (
-                <DataTableRowActions>
-                    <DropdownMenuItem>Copy link</DropdownMenuItem>
-                    <DropdownMenuItem>Archive</DropdownMenuItem>
-                </DataTableRowActions>
-            ),
+        LAUNCH.accessor("estimate", {
+            header: "Estimate",
+            size: 96,
+            meta: { label: "Estimate", editor: DataTableEditor.number(), summary: "sum" },
+        }),
+        LAUNCH.accessor("due", {
+            header: "Due",
+            size: 128,
+            meta: { label: "Due", editor: DataTableEditor.date(), summary: "min" },
+        }),
+        LAUNCH.accessor("isBlocked", {
+            header: "Blocked",
+            size: 88,
+            meta: { label: "Blocked", editor: DataTableEditor.checkbox(), summary: "count" },
         }),
     ]);
     const table = createTable({
@@ -427,8 +499,9 @@ function LaunchTasksTable(): JSX.Element {
             return tasks();
         },
         getRowId: (row) => row.id,
+        enableRowSelection: true,
         columnResizeMode: "onChange",
-        initialState: { columnPinning: { start: ["id"], end: [] } },
+        initialState: { columnPinning: { start: ["order", "select", "id"], end: [] } },
     });
 
     return (
@@ -447,7 +520,25 @@ function LaunchTasksTable(): JSX.Element {
                     options={LAUNCH_PRIORITIES}
                 />
             </Cluster>
-            <DataTable table={table} />
+            <DataTableBulkBar table={table} actions={actionsOf} />
+            <DataTable
+                table={table}
+                onCellsChange={change}
+                rowActions={actionsOf}
+                onRowMove={(move) =>
+                    setTasks((current) =>
+                        SortableMove.place(
+                            current,
+                            present(
+                                current.find((task) => task.id === move.id),
+                                `the task '${move.id}'`,
+                            ),
+                            move,
+                            (task) => task.id,
+                        ),
+                    )
+                }
+            />
         </Stack>
     );
 }
