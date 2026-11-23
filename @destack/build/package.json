@@ -16,36 +16,96 @@
         "./test": "./src/test/index.ts"
     },
     "dependencies": {
+        "@destack/db": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/schema": "workspace:*"
+    },
+    "peerDependencies": {
         "@cloudflare/workers-types": "5.20260917.1",
         "@destack/bucket": "workspace:*",
         "@destack/check": "workspace:*",
-        "@destack/db": "workspace:*",
         "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
         "@destack/locale": "workspace:*",
         "@destack/object": "workspace:*",
-        "@destack/package": "workspace:*",
         "@destack/resource": "workspace:*",
         "@destack/sandbox": "workspace:*",
-        "@destack/schema": "workspace:*",
         "@destack/telemetry": "workspace:*",
+        "@destack/test": "workspace:*",
         "@destack/update": "workspace:*",
         "cjs-module-lexer": "2.3.0",
         "magic-string": "1.4.1",
         "rolldown": "1.2.19",
         "vite": "8.3.8"
     },
-    "peerDependencies": {
-        "@destack/test": "workspace:*"
-    },
     "peerDependenciesMeta": {
+        "@cloudflare/workers-types": {
+            "optional": true
+        },
+        "@destack/bucket": {
+            "optional": true
+        },
+        "@destack/check": {
+            "optional": true
+        },
+        "@destack/environment": {
+            "optional": true
+        },
+        "@destack/error": {
+            "optional": true
+        },
+        "@destack/locale": {
+            "optional": true
+        },
+        "@destack/object": {
+            "optional": true
+        },
+        "@destack/resource": {
+            "optional": true
+        },
+        "@destack/sandbox": {
+            "optional": true
+        },
+        "@destack/telemetry": {
+            "optional": true
+        },
         "@destack/test": {
+            "optional": true
+        },
+        "@destack/update": {
+            "optional": true
+        },
+        "cjs-module-lexer": {
+            "optional": true
+        },
+        "magic-string": {
+            "optional": true
+        },
+        "rolldown": {
+            "optional": true
+        },
+        "vite": {
             "optional": true
         }
     },
     "devDependencies": {
+        "@cloudflare/workers-types": "5.20260917.1",
+        "@destack/bucket": "workspace:*",
+        "@destack/check": "workspace:*",
+        "@destack/environment": "workspace:*",
+        "@destack/error": "workspace:*",
+        "@destack/locale": "workspace:*",
+        "@destack/object": "workspace:*",
+        "@destack/resource": "workspace:*",
+        "@destack/sandbox": "workspace:*",
+        "@destack/telemetry": "workspace:*",
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.4"
+        "@destack/update": "workspace:*",
+        "@types/bun": "1.4.4",
+        "cjs-module-lexer": "2.3.0",
+        "magic-string": "1.4.1",
+        "rolldown": "1.2.19",
+        "vite": "8.3.8"
     },
     "scripts": {
         "update": "UPDATE_BUILD_FIXTURES=1 bun run --cwd ../cli dev test ../build --update"

@@ -22,13 +22,31 @@
     },
     "exports": {
         "./browser": {
-            "runtimes": ["browser"]
+            "runtimes": ["browser"],
+            "internal": true
         },
         "./store": {
-            "runtimes": ["bun", "workerd"]
+            "runtimes": ["bun", "workerd"],
+            "internal": true
         },
         "./table": {
-            "runtimes": ["bun", "workerd", "browser"]
+            "runtimes": ["bun", "workerd", "browser"],
+            "internal": true
+        },
+        "./main": {
+            "internal": true
+        },
+        "./local": {
+            "internal": true
+        },
+        "./template": {
+            "internal": true
+        },
+        ".": {
+            "internal": true
+        },
+        "./error": {
+            "internal": true
         }
     }
 }
