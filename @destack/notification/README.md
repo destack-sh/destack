@@ -169,7 +169,7 @@ A notification offers a declared action calling a method of the source's type, h
 ```ts
 import { argument, plural, t } from "@destack/locale";
 import { defineNotification } from "@destack/notification/declare";
-import { defineAction, defineObject, field } from "@destack/object";
+import { defineAction, defineObject, field, selected } from "@destack/object";
 import { schema } from "@destack/schema";
 
 // declare documents people reply to
@@ -195,7 +195,8 @@ const document = defineObject(
 export const reply = defineAction({
     name: "reply",
     title: t`Reply`,
-    call: { object: document, method: "reply" },
+    input: { documents: selected(document), text: schema.string().min(1) },
+    call: ({ documents, text }) => documents.prepare("reply", { text }),
 });
 
 // ask for a review that breaks through focus, answered with a reply

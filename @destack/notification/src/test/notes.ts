@@ -1,7 +1,7 @@
 import { space, user } from "@destack/account/object";
 import { principal, relation, union } from "@destack/access";
 import { argument, type Catalog, Message, plural, t } from "@destack/locale";
-import { defineAction, defineObject, definePackage, field } from "@destack/object";
+import { defineAction, defineObject, definePackage, field, selected } from "@destack/object";
 import { implementPackage } from "@destack/object/server";
 import { testBuild, testIdentity } from "@destack/object/test";
 import type { Crypto } from "@destack/environment";
@@ -212,13 +212,23 @@ export const changes = write`${plural(argument("count"), { one: "# change", othe
 
 /** Reply to a document's thread from a notification. */
 export const reply = defineAction(
-    { name: "reply", title: t`Reply`, call: { object: document, method: "reply" } },
+    {
+        name: "reply",
+        title: t`Reply`,
+        input: { documents: selected(document), text: schema.string().min(1) },
+        call: ({ documents, text }) => documents.prepare("reply", { text }),
+    },
     { package: NOTES },
 );
 
 /** Approve a document from a notification. */
 export const approve = defineAction(
-    { name: "approve", title: t`Approve`, call: { object: document, method: "approve" } },
+    {
+        name: "approve",
+        title: t`Approve`,
+        input: { documents: selected(document) },
+        call: ({ documents }) => documents.prepare("approve", {}),
+    },
     { package: NOTES },
 );
 
