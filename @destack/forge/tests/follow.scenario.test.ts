@@ -2,7 +2,7 @@ import registryPackage from "@destack/registry/package";
 import { fileURLToPath } from "node:url";
 import forgePackage from "../src/package.ts";
 import { History } from "@destack/git/test";
-import { FORGE_WORLD_OPTIONS, FOLLOW_TEMPLATE } from "../src/test/index.ts";
+import { FOLLOWER_ACCOUNT_ID, FORGE_WORLD_OPTIONS, FOLLOW_TEMPLATE } from "../src/test/index.ts";
 import { PackageId } from "@destack/package";
 import type { DatabaseConnection } from "@destack/db/database";
 import { reference, referenceShape } from "@destack/registry/object";
@@ -61,7 +61,7 @@ async function serveCommits() {
         .client(registryPackage, forgePackage);
     const created = await forge.repository.create({
         spaceId: home,
-        accountId: ids.account,
+        accountId: FOLLOWER_ACCOUNT_ID,
         requestId: RequestId.create(environment),
         name: "library",
         hosting: "platform",

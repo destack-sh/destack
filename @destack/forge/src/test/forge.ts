@@ -146,14 +146,19 @@ export const FORGE_TEMPLATE = TestSpace.template(FORGE_WORLD_OPTIONS, {
     write: (home) => TestForge.write(home),
 });
 
-/** The forge's residency home beside a space of the fixture's account, which follows its forge. */
+/** The account of the space following the forge, apart from the account publishing at it. */
+export const FOLLOWER_ACCOUNT_ID = schema
+    .identifier("account")
+    .parse("account-00000000-0000-7000-8000-000000000002");
+
+/** The forge's residency home beside a space of its own account, which follows its forge. */
 export const FOLLOW_TEMPLATE = TestSpace.template(FORGE_WORLD_OPTIONS, {
     name: "forge-follow",
     value: ForgeWorld,
     spaces: [
         { residency: RESIDENCY },
         // the tenant's space serves none of the home's packages, following the forge's rows
-        { id: ids.space, account: ids.account, name: "space", packages: [] },
+        { id: ids.space, account: FOLLOWER_ACCOUNT_ID, name: "space", packages: [] },
     ],
     write: (home) => TestForge.write(home),
 });
