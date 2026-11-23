@@ -1,135 +1,151 @@
 import { DESTACK_FONTS, DESTACK_TEXT, destackTheme } from "./destack.ts";
 import { defineTheme } from "./theme.ts";
 
-/** Io: Jupiter's sulfur moon, in Solarized's cream and deep teal with its yellow. */
-export const ioTheme = defineTheme({
-    name: "io",
-    base: "#839496",
-    accent: "#b58900",
-    status: { destructive: "#dc322f", success: "#859900", warning: "#cb4b16", info: "#268bd2" },
-    series: ["#268bd2", "#2aa198", "#d33682", "#6c71c4"],
-    ground: {
-        light: { background: "#fdf6e3", foreground: "#3d5157", muted: "#eee8d5" },
-        dark: { background: "#002b36", foreground: "#eee8d5", muted: "#073642" },
-    },
-    fonts: DESTACK_FONTS,
-    text: DESTACK_TEXT,
-});
-
-/** Europa: Jupiter's ice moon, in GitHub's cool white and near-black with its blue. */
-export const europaTheme = defineTheme({
-    name: "europa",
+/** Enceladus: Saturn's bright ice moon, in GitHub's white and near-black with its blue. */
+export const enceladusTheme = defineTheme({
+    name: "enceladus",
     base: "#8c959f",
     accent: "#0969da",
     status: { destructive: "#cf222e", success: "#1a7f37", warning: "#9a6700", info: "#0969da" },
     series: ["#8250df", "#1a7f37", "#bc4c00", "#bf3989"],
     ground: {
-        light: { background: "#ffffff", foreground: "#1f2328", muted: "#f6f8fa" },
-        dark: { background: "#0d1117", foreground: "#e6edf3", muted: "#161b22" },
+        light: { background: "#ffffff", foreground: "#1f2328", muted: "#eff0f0" },
+        dark: { background: "#0d1117", foreground: "#e6edf3", muted: "#21252b" },
     },
     fonts: DESTACK_FONTS,
     text: DESTACK_TEXT,
 });
 
-/** Pandora: Saturn's shepherd moon of its F ring, in Everforest's forest greens. */
+/** Umbriel: Uranus's dark moon, in Vercel's true black and near-white with its blue. */
+export const umbrielTheme = defineTheme({
+    name: "umbriel",
+    base: "#8a8a8a",
+    accent: "#52a9ff",
+    status: { destructive: "#e5484d", success: "#63c174", warning: "#f1a10d", info: "#52a9ff" },
+    series: ["#52a9ff", "#63c174", "#bf7af0", "#0ac5b3"],
+    ground: {
+        light: { background: "#fbfbfa", foreground: "#24292f", muted: "#ececec" },
+        dark: { background: "#000000", foreground: "#ededed", muted: "#151515" },
+    },
+    fonts: DESTACK_FONTS,
+    text: DESTACK_TEXT,
+});
+
+/** Triton: Neptune's pink ice moon, in Ubuntu's aubergine and Horizon's blush with orange. */
+export const tritonTheme = defineTheme({
+    name: "triton",
+    base: "#a18993",
+    accent: "#e95420",
+    status: { destructive: "#cc0000", success: "#4e9a06", warning: "#c4a000", info: "#3465a4" },
+    series: ["#3465a4", "#4e9a06", "#75507b", "#06989a"],
+    ground: {
+        light: { background: "#fdf0ed", foreground: "#16161d", muted: "#ede1de" },
+        dark: { background: "#300a24", foreground: "#eeeeec", muted: "#411f36" },
+    },
+    fonts: DESTACK_FONTS,
+    text: DESTACK_TEXT,
+});
+
+/** Iapetus: Saturn's moon of one bright and one dark half, in Lumina's parchment and coffee. */
+export const iapetusTheme = defineTheme({
+    name: "iapetus",
+    base: "#9c9282",
+    accent: "#c08a2e",
+    status: { destructive: "#d47169", success: "#92d3b9", warning: "#e0ba6a", info: "#97bdf4" },
+    series: ["#97bdf4", "#92d3b9", "#d4a3dc", "#85cbd3"],
+    ground: {
+        light: { background: "#faf1de", foreground: "#352516", muted: "#ece3d0" },
+        dark: { background: "#2a2116", foreground: "#efe5d0", muted: "#3c3327" },
+    },
+    fonts: DESTACK_FONTS,
+    text: DESTACK_TEXT,
+});
+
+/** Pandora: Saturn's shepherd moon of its F ring, in Lumina's canopy greens. */
 export const pandoraTheme = defineTheme({
     name: "pandora",
-    base: "#859289",
-    accent: "#8da101",
-    status: { destructive: "#f85552", success: "#35a77c", warning: "#dfa000", info: "#3a94c5" },
-    series: ["#3a94c5", "#df69ba", "#f57d26", "#35a77c"],
+    base: "#8a958b",
+    accent: "#337545",
+    status: { destructive: "#d57068", success: "#99d0a4", warning: "#d1cca8", info: "#9acaf1" },
+    series: ["#9acaf1", "#99d0a4", "#e2acdd", "#86cfd7"],
     ground: {
-        light: { background: "#fdf6e3", foreground: "#46535a", muted: "#f4f0d9" },
-        dark: { background: "#2d353b", foreground: "#f5efe0", muted: "#343f44" },
+        light: { background: "#f1f9ef", foreground: "#1e3323", muted: "#e2ebe1" },
+        dark: { background: "#0c1b10", foreground: "#d8e3d6", muted: "#1e2d22" },
     },
     fonts: DESTACK_FONTS,
     text: DESTACK_TEXT,
 });
 
-/** Enceladus: Saturn's bright ice moon, in Nord's polar night and snow with its frost. */
-export const enceladusTheme = defineTheme({
-    name: "enceladus",
+/** Titan: Saturn's hazy moon of methane seas, in Solarized's cream and deep teal. */
+export const titanTheme = defineTheme({
+    name: "titan",
+    base: "#839496",
+    accent: "#b58900",
+    status: { destructive: "#dc322f", success: "#859900", warning: "#cb4b16", info: "#268bd2" },
+    series: ["#268bd2", "#2aa198", "#d33682", "#6c71c4"],
+    ground: {
+        light: { background: "#fdf6e3", foreground: "#4f6369", muted: "#f1ecda" },
+        dark: { background: "#002b36", foreground: "#eee8d5", muted: "#153c44" },
+    },
+    fonts: DESTACK_FONTS,
+    text: DESTACK_TEXT,
+});
+
+/** Europa: Jupiter's ice moon over an ocean, in Nord's snow and slate with its frost. */
+export const europaTheme = defineTheme({
+    name: "europa",
     base: "#4c566a",
     accent: "#88c0d0",
     status: { destructive: "#bf616a", success: "#a3be8c", warning: "#ebcb8b", info: "#81a1c1" },
     series: ["#b48ead", "#a3be8c", "#d08770", "#8fbcbb"],
     ground: {
-        light: { background: "#f3f5f8", foreground: "#2e3440", muted: "#e5e9f0" },
-        dark: { background: "#2e3440", foreground: "#eceff4", muted: "#3b4252" },
+        light: { background: "#eef1f5", foreground: "#414858", muted: "#e2e5ea" },
+        dark: { background: "#2e3440", foreground: "#e2e6ef", muted: "#3e4450" },
     },
     fonts: DESTACK_FONTS,
     text: DESTACK_TEXT,
 });
 
-/** Titan: Saturn's hazy moon, in Gruvbox's warm earth with its orange. */
-export const titanTheme = defineTheme({
-    name: "titan",
-    base: "#928374",
-    accent: "#d65d0e",
-    status: { destructive: "#cc241d", success: "#98971a", warning: "#d79921", info: "#458588" },
-    series: ["#458588", "#98971a", "#b16286", "#689d6a"],
-    ground: {
-        light: { background: "#f9f5d7", foreground: "#3c3836", muted: "#f2e5bc" },
-        dark: { background: "#282828", foreground: "#f2e5bc", muted: "#3c3836" },
-    },
-    fonts: DESTACK_FONTS,
-    text: DESTACK_TEXT,
-});
-
-/** Ariel: Uranus's bright airy moon, in Catppuccin's latte and mocha with its pink. */
-export const arielTheme = defineTheme({
-    name: "ariel",
-    base: "#7f849c",
-    accent: "#ea76cb",
-    status: { destructive: "#d20f39", success: "#40a02b", warning: "#df8e1d", info: "#1e66f5" },
-    series: ["#8839ef", "#1e66f5", "#179299", "#fe640b"],
-    ground: {
-        light: { background: "#f5f6f9", foreground: "#4c4f69", muted: "#e6e9ef" },
-        dark: { background: "#1e1e2e", foreground: "#e2e7fa", muted: "#313244" },
-    },
-    fonts: DESTACK_FONTS,
-    text: DESTACK_TEXT,
-});
-
-/** Triton: Neptune's pink ice moon, in Rosé Pine's dawn and night with its rose. */
-export const tritonTheme = defineTheme({
-    name: "triton",
-    base: "#908caa",
-    accent: "#d7827e",
-    status: { destructive: "#b4637a", success: "#286983", warning: "#ea9d34", info: "#56949f" },
-    series: ["#907aa9", "#56949f", "#ea9d34", "#286983"],
-    ground: {
-        light: { background: "#faf4ed", foreground: "#575279", muted: "#f2e9e1" },
-        dark: { background: "#191724", foreground: "#e0def4", muted: "#26233a" },
-    },
-    fonts: DESTACK_FONTS,
-    text: DESTACK_TEXT,
-});
-
-/** Nyx: Pluto's moon named for the night, in Dracula's purple night and Alucard. */
-export const nyxTheme = defineTheme({
-    name: "nyx",
+/** Charon: Pluto's moon named for the ferryman of the dead, in Dracula's night and Alucard. */
+export const charonTheme = defineTheme({
+    name: "charon",
     base: "#6272a4",
     accent: "#bd93f9",
     status: { destructive: "#ff5555", success: "#50fa7b", warning: "#ffb86c", info: "#8be9fd" },
     series: ["#ff79c6", "#8be9fd", "#50fa7b", "#ffb86c"],
     ground: {
-        light: { background: "#fffbeb", foreground: "#1f1f1f", muted: "#f2ecd6" },
-        dark: { background: "#282a36", foreground: "#f8f8f2", muted: "#343746" },
+        light: { background: "#fffbeb", foreground: "#1f1f1f", muted: "#efecdd" },
+        dark: { background: "#282a36", foreground: "#f8f8f2", muted: "#3b3d47" },
     },
     fonts: DESTACK_FONTS,
     text: DESTACK_TEXT,
 });
 
-/** Destack's themes: the brand, then its moons by their planets from the sun outward. */
+/** Ariel: Uranus's moon named for an airy spirit, in Catppuccin's latte and mocha. */
+export const arielTheme = defineTheme({
+    name: "ariel",
+    base: "#7f849c",
+    accent: "#8839ef",
+    status: { destructive: "#d20f39", success: "#40a02b", warning: "#df8e1d", info: "#1e66f5" },
+    series: ["#ea76cb", "#1e66f5", "#179299", "#fe640b"],
+    ground: {
+        light: { background: "#f0f2f6", foreground: "#4c4f69", muted: "#e5e7ec" },
+        dark: { background: "#1e1e2e", foreground: "#d2daf5", muted: "#2e2f40" },
+    },
+    fonts: DESTACK_FONTS,
+    text: DESTACK_TEXT,
+});
+
+/** Destack's themes: the brand, the neutrals, then the others around the hues of their nights. */
 export const THEMES = [
     destackTheme,
-    ioTheme,
-    europaTheme,
-    pandoraTheme,
     enceladusTheme,
-    titanTheme,
-    arielTheme,
+    umbrielTheme,
     tritonTheme,
-    nyxTheme,
+    iapetusTheme,
+    pandoraTheme,
+    titanTheme,
+    europaTheme,
+    charonTheme,
+    arielTheme,
 ] as const;
