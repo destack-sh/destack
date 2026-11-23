@@ -18,21 +18,14 @@
     "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
-        "@destack/bucket": "workspace:*",
-        "@destack/build": "workspace:*",
         "@destack/connection": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/error": "workspace:*",
         "@destack/event": "workspace:*",
-        "@destack/forge": "workspace:*",
         "@destack/locale": "workspace:*",
-        "@destack/message": "workspace:*",
         "@destack/notification": "workspace:*",
         "@destack/object": "workspace:*",
-        "@destack/observability": "workspace:*",
         "@destack/package": "workspace:*",
-        "@destack/registry": "workspace:*",
-        "@destack/resource": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/setting": "workspace:*",
         "@destack/stack": "workspace:*",
@@ -42,16 +35,51 @@
         "@destack/workflow": "workspace:*"
     },
     "peerDependencies": {
-        "@destack/environment": "workspace:*"
+        "@destack/bucket": "workspace:*",
+        "@destack/build": "workspace:*",
+        "@destack/environment": "workspace:*",
+        "@destack/forge": "workspace:*",
+        "@destack/message": "workspace:*",
+        "@destack/observability": "workspace:*",
+        "@destack/registry": "workspace:*",
+        "@destack/resource": "workspace:*"
     },
     "peerDependenciesMeta": {
+        "@destack/bucket": {
+            "optional": true
+        },
+        "@destack/build": {
+            "optional": true
+        },
         "@destack/environment": {
+            "optional": true
+        },
+        "@destack/forge": {
+            "optional": true
+        },
+        "@destack/message": {
+            "optional": true
+        },
+        "@destack/observability": {
+            "optional": true
+        },
+        "@destack/registry": {
+            "optional": true
+        },
+        "@destack/resource": {
             "optional": true
         }
     },
     "devDependencies": {
+        "@destack/bucket": "workspace:*",
+        "@destack/build": "workspace:*",
         "@destack/environment": "workspace:*",
+        "@destack/forge": "workspace:*",
         "@destack/machine": "workspace:*",
+        "@destack/message": "workspace:*",
+        "@destack/observability": "workspace:*",
+        "@destack/registry": "workspace:*",
+        "@destack/resource": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.4"
     }

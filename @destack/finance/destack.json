@@ -6,16 +6,22 @@
     "runtimes": ["browser", "bun", "workerd"],
     "exports": {
         "./server": {
-            "runtimes": ["bun", "workerd"]
+            "runtimes": ["bun", "workerd"],
+            "internal": true
         },
         "./inspect": {
-            "runtimes": ["bun", "workerd"]
+            "runtimes": ["bun", "workerd"],
+            "internal": true
         },
         "./provider/stripe": {
-            "runtimes": ["bun", "workerd"]
+            "runtimes": ["bun", "workerd"],
+            "internal": true
         },
         "./package": {
             "runtimes": ["bun", "workerd"]
+        },
+        "./provider": {
+            "internal": true
         }
     },
     "declarations": {
