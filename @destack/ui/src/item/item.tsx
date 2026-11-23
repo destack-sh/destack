@@ -1,7 +1,7 @@
 import { state } from "@destack/theme/state";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
-import { color, motion, radius, size, space, stroke, weight } from "@destack/theme/tokens.stylex";
+import { color, radius, size, space, stroke, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import { createContext, type JSX, merge, omit, useContext } from "@destack/view";
 import { Separator, type SeparatorProperties } from "../separator/index.ts";
@@ -22,9 +22,6 @@ const styles = style.create({
         borderWidth: stroke.border,
         borderColor: { default: "transparent", ":focus-visible": color.ring },
         borderRadius: radius[3],
-        transitionProperty: "background-color, border-color",
-        transitionDuration: motion.durationShort,
-        transitionTimingFunction: motion.easingStandard,
     },
     group: {
         display: "flex",

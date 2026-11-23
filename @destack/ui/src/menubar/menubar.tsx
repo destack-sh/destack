@@ -1,7 +1,7 @@
 import { media } from "@destack/style/media.stylex";
 import { state } from "@destack/theme/state";
 import * as style from "@destack/style";
-import { color, motion, radius, size, space, stroke, weight } from "@destack/theme/tokens.stylex";
+import { color, radius, size, space, stroke, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import { createContext, type JSX, onCleanup, useContext, useLocale } from "@destack/view";
 import { Hover } from "../interaction/index.ts";
@@ -68,8 +68,6 @@ const styles = style.create({
         fontWeight: weight.medium,
         cursor: "default",
         outlineStyle: "none",
-        transitionProperty: "background-color",
-        transitionDuration: motion.durationShort,
     },
 });
 

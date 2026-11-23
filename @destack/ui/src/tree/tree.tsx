@@ -52,8 +52,6 @@ const styles = style.create({
         borderRadius: radius[2],
         cursor: "default",
         userSelect: "none",
-        transitionProperty: "background-color",
-        transitionDuration: motion.durationShort,
     },
     focused: {
         outlineStyle: "solid",
