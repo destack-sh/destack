@@ -150,6 +150,9 @@ const styles = style.create({
         paddingBlock: space[1],
         color: color.mutedForeground,
     },
+    weekNumber: {
+        paddingInline: space[2],
+    },
     zoneLabel: {
         flexGrow: 1,
         flexBasis: 0,
@@ -502,7 +505,10 @@ export function EventCalendarDayHeader(
             {/* The week of the year and the zones' labels above the hour labels */}
             <div {...style.attrs(text.xs, styles.gutter, places.column(1))}>
                 <Show when={control.options.weekNumbers === true}>
-                    <span data-slot="event-calendar-week-number">
+                    <span
+                        data-slot="event-calendar-week-number"
+                        {...style.attrs(styles.weekNumber)}
+                    >
                         {locale.render(control.weekNumber(nth(control.days(), 0)))}
                     </span>
                 </Show>

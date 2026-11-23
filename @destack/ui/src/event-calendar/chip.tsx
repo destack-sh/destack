@@ -2,7 +2,15 @@ import { state } from "@destack/theme/state";
 import type { Hue } from "@destack/color";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
-import { color, radius, space, stroke, swatch, weight } from "@destack/theme/tokens.stylex";
+import type { IconBodies } from "@destack/icon";
+import arrowSquareOut from "@destack/icon/phosphor/arrow-square-out";
+import calendarBlank from "@destack/icon/phosphor/calendar-blank";
+import clock from "@destack/icon/phosphor/clock";
+import copy from "@destack/icon/phosphor/copy";
+import trash from "@destack/icon/phosphor/trash";
+import user from "@destack/icon/phosphor/user";
+import { Icon } from "@destack/ui/icon";
+import { color, radius, size, space, stroke, swatch, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import {
     useActions,
@@ -31,28 +39,60 @@ const LIST_TIME_WIDTH = "9rem";
 /** The heights of a placed event too short for a second line: two lines of extra-small text. */
 const SHORT_QUERY = "@container (max-height: 2.5rem)";
 
-/** The actions an event's preview offers. */
-const PREVIEW_ACTIONS = [openItem, duplicateItems, removeItems];
+/** The actions an event's preview offers, each by its icon. */
+const PREVIEW_ACTIONS = [
+    { action: openItem, icon: arrowSquareOut },
+    { action: duplicateItems, icon: copy },
+    { action: removeItems, icon: trash },
+];
 
 /** The styles of an event. */
 const styles = style.create({
     preview: {
         display: "flex",
         flexDirection: "column",
+        gap: space[3],
+        width: "100%",
+    },
+    head: {
+        display: "flex",
+        alignItems: "flex-start",
+        gap: space[2],
+    },
+    mark: {
+        flexShrink: 0,
+        width: space[1],
+        minHeight: "1lh",
+        alignSelf: "stretch",
+        borderRadius: radius.full,
+    },
+    heading: {
+        flex: 1,
+        minWidth: 0,
+        fontWeight: weight.semibold,
+        overflowWrap: "anywhere",
+    },
+    details: {
+        display: "flex",
+        flexDirection: "column",
         gap: space[1],
-        minWidth: "14rem",
-        maxWidth: "20rem",
     },
     detail: {
         display: "flex",
-        alignItems: "center",
+        alignItems: "flex-start",
         gap: space[2],
         color: color.mutedForeground,
     },
+    sign: {
+        flexShrink: 0,
+        marginBlockStart: "0.15lh",
+    },
     actions: {
         display: "flex",
-        gap: space[2],
-        marginBlockStart: space[2],
+        flexShrink: 0,
+        marginBlock: `calc((1lh - ${size[1]}) / 2)`,
+        marginInlineEnd: `calc(-1 * ${space[1]})`,
+        color: color.mutedForeground,
     },
     busy: {
         backgroundColor: color.muted,
@@ -87,9 +127,10 @@ const styles = style.create({
     block: {
         flexWrap: { default: "wrap", [SHORT_QUERY]: "nowrap" },
         alignContent: "flex-start",
+        alignItems: { default: null, [SHORT_QUERY]: "center" },
         rowGap: 0,
         columnGap: space[1],
-        paddingBlock: space[1],
+        paddingBlock: { default: space[1], [SHORT_QUERY]: 0 },
         paddingInlineStart: `calc(${space[2]} - ${stroke.ring})`,
         paddingInlineEnd: space[2],
         borderInlineStartWidth: stroke.ring,
@@ -396,44 +437,67 @@ export function EventCalendarPreview(properties: {
 
     return (
         <div data-slot="event-calendar-preview" {...style.attrs(styles.preview, properties.xstyle)}>
-            <strong {...style.attrs(text.sm)}>{properties.event.title}</strong>
-            <span {...style.attrs(text.xs, styles.detail)}>{times()}</span>
-            <Show when={source()}>
-                {(current) => (
-                    <span {...style.attrs(text.xs, styles.detail)}>
-                        <span
-                            aria-hidden="true"
-                            {...style.attrs(
-                                styles.dot,
-                                fills.dot(swatch[`${control.colorOf(properties.event)}Mark`]),
-                            )}
-                        />
-                        {current().label}
-                    </span>
-                )}
-            </Show>
-            <Show when={resource()}>
-                {(current) => (
-                    <span {...style.attrs(text.xs, styles.detail)}>{current().label}</span>
-                )}
-            </Show>
-
-            {/* What can be done with the event */}
-            <div {...style.attrs(styles.actions)}>
-                <For each={PREVIEW_ACTIONS}>
-                    {(action) => (
-                        <Show when={actions.has(action.reference, chip())}>
-                            <ActionButton
-                                action={action}
-                                element={chip()}
-                                size="sm"
-                                variant={action.isDestructive ? "destructive" : "outline"}
-                            />
-                        </Show>
+            {/* The title by its color, with what can be done */}
+            <div {...style.attrs(text.sm, styles.head)}>
+                <span
+                    aria-hidden="true"
+                    {...style.attrs(
+                        styles.mark,
+                        fills.dot(swatch[`${control.colorOf(properties.event)}Mark`]),
                     )}
-                </For>
+                />
+                <strong data-slot="event-calendar-preview-title" {...style.attrs(styles.heading)}>
+                    {properties.event.title}
+                </strong>
+                <div {...style.attrs(styles.actions)}>
+                    <For each={PREVIEW_ACTIONS}>
+                        {({ action, icon }) => (
+                            <Show when={actions.has(action.reference, chip())}>
+                                <ActionButton
+                                    action={action}
+                                    element={chip()}
+                                    icon={icon}
+                                    size="icon-sm"
+                                    variant="ghost"
+                                />
+                            </Show>
+                        )}
+                    </For>
+                </div>
+            </div>
+
+            {/* When, in which calendar and for whom */}
+            <div {...style.attrs(text.sm, styles.details)}>
+                <EventCalendarDetail icon={clock}>{times()}</EventCalendarDetail>
+                <Show when={source()}>
+                    {(current) => (
+                        <EventCalendarDetail icon={calendarBlank}>
+                            {current().label}
+                        </EventCalendarDetail>
+                    )}
+                </Show>
+                <Show when={resource()}>
+                    {(current) => (
+                        <EventCalendarDetail icon={user}>{current().label}</EventCalendarDetail>
+                    )}
+                </Show>
             </div>
         </div>
+    );
+}
+
+/** Render a line of an event's preview behind its icon. */
+function EventCalendarDetail(properties: {
+    /** The icon. */
+    readonly icon: IconBodies;
+    /** The line. */
+    readonly children: JSX.Element;
+}): JSX.Element {
+    return (
+        <span data-slot="event-calendar-preview-detail" {...style.attrs(styles.detail)}>
+            <Icon icon={properties.icon} xstyle={styles.sign} />
+            {properties.children}
+        </span>
     );
 }
 

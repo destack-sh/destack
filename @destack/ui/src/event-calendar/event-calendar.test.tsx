@@ -1374,10 +1374,12 @@ test("preview an event on focus with its times, calendar and actions, a busy eve
     actions.find((action) => action.dataset["action"] === "open-item")?.click();
 
     expect({
-        text: [...(preview?.children ?? [])]
-            .filter((child) => child.tagName !== "DIV")
-            .map((child) => plain(child.textContent)),
-        actions: actions.map((action) => action.textContent),
+        text: [
+            ...(preview?.querySelectorAll(
+                "[data-slot=event-calendar-preview-title], [data-slot=event-calendar-preview-detail]",
+            ) ?? []),
+        ].map((child) => plain(child.textContent)),
+        actions: actions.map((action) => action.getAttribute("aria-label")),
         opened,
     }).toEqual({
         text: ["Meeting", "Wed 18 Nov, 11:00 – 12:00", "Work"],
