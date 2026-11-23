@@ -17,6 +17,7 @@ const joined = style.create({
         borderInlineStartWidth: { default: null, ":not(:nth-child(1 of :not([popover])))": 0 },
     },
     vertical: {
+        width: "100%",
         position: "relative",
         zIndex: { default: "auto", ":focus-visible": 1 },
         borderStartStartRadius: { default: null, ":not(:nth-child(1 of :not([popover])))": 0 },

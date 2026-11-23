@@ -1,5 +1,5 @@
 import * as style from "@destack/style";
-import { space, weight } from "@destack/theme/tokens.stylex";
+import { color, space, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import { type JSX } from "@destack/view";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
@@ -12,6 +12,10 @@ const styles = style.create({
         gap: space[2],
         fontWeight: weight.medium,
         lineHeight: 1,
+        color: {
+            default: null,
+            ":has(:disabled, [aria-disabled=true])": color.mutedForeground,
+        },
         userSelect: "none",
     },
 });

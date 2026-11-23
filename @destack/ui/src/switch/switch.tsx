@@ -1,6 +1,15 @@
 import { state } from "@destack/theme/state";
 import * as style from "@destack/style";
-import { color, motion, radius, size, space, stroke, swatch } from "@destack/theme/tokens.stylex";
+import {
+    color,
+    motion,
+    radius,
+    shadow,
+    size,
+    space,
+    stroke,
+    swatch,
+} from "@destack/theme/tokens.stylex";
 import {
     type Accessor,
     createContext,
@@ -57,7 +66,8 @@ const styles = style.create({
         width: space[4],
         height: space[4],
         borderRadius: radius.full,
-        backgroundColor: color.background,
+        backgroundColor: "white",
+        boxShadow: shadow.raised,
         pointerEvents: "none",
         transform: "none",
         transitionProperty: "transform",

@@ -34,6 +34,7 @@ const styles = style.create({
     button: {
         display: "inline-flex",
         flexShrink: 0,
+        verticalAlign: "middle",
         alignItems: "center",
         justifyContent: "center",
         gap: space[2],
