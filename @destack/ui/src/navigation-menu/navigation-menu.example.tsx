@@ -1,4 +1,8 @@
 import { defineExample } from "@destack/package/declare";
+import * as style from "@destack/style";
+import { text } from "@destack/theme/text";
+import { color, weight } from "@destack/theme/tokens.stylex";
+import type { JSX } from "@destack/view";
 import {
     NavigationMenu,
     NavigationMenuContent,
@@ -9,6 +13,31 @@ import {
     NavigationMenuTrigger,
     navigationMenuTriggerStyle,
 } from "./navigation-menu.tsx";
+
+/** The styles of the products panel's links. */
+const styles = style.create({
+    link: { width: "16rem" },
+    title: { fontWeight: weight.medium },
+    detail: { color: color.mutedForeground },
+});
+
+/** Render the links of a products panel, each with what the product is for. */
+function Products(): JSX.Element {
+    return (
+        <>
+            <NavigationMenuLink href="/notes" xstyle={styles.link}>
+                <span {...style.attrs(text.sm, styles.title)}>Notes</span>
+                <span {...style.attrs(text.sm, styles.detail)}>
+                    Write things down and find them again
+                </span>
+            </NavigationMenuLink>
+            <NavigationMenuLink href="/tasks" xstyle={styles.link}>
+                <span {...style.attrs(text.sm, styles.title)}>Tasks</span>
+                <span {...style.attrs(text.sm, styles.detail)}>Plan the work with your team</span>
+            </NavigationMenuLink>
+        </>
+    );
+}
 
 /** A site's main navigation with a products panel, on its pricing page. */
 export const navigationMenuSiteNavigation = defineExample({
@@ -24,8 +53,7 @@ export const navigationMenuSiteNavigation = defineExample({
                 <NavigationMenuItem>
                     <NavigationMenuTrigger>Products</NavigationMenuTrigger>
                     <NavigationMenuContent>
-                        <NavigationMenuLink href="/notes">Notes</NavigationMenuLink>
-                        <NavigationMenuLink href="/tasks">Tasks</NavigationMenuLink>
+                        <Products />
                     </NavigationMenuContent>
                 </NavigationMenuItem>
                 <NavigationMenuItem>
@@ -56,8 +84,7 @@ export const navigationMenuTwoPanels = defineExample({
                 <NavigationMenuItem>
                     <NavigationMenuTrigger>Products</NavigationMenuTrigger>
                     <NavigationMenuContent>
-                        <NavigationMenuLink href="/notes">Notes</NavigationMenuLink>
-                        <NavigationMenuLink href="/tasks">Tasks</NavigationMenuLink>
+                        <Products />
                     </NavigationMenuContent>
                 </NavigationMenuItem>
                 <NavigationMenuItem>
@@ -87,8 +114,7 @@ export const navigationMenuProductsOpen = defineExample({
                 <NavigationMenuItem value="products">
                     <NavigationMenuTrigger>Products</NavigationMenuTrigger>
                     <NavigationMenuContent>
-                        <NavigationMenuLink href="/notes">Notes</NavigationMenuLink>
-                        <NavigationMenuLink href="/tasks">Tasks</NavigationMenuLink>
+                        <Products />
                     </NavigationMenuContent>
                 </NavigationMenuItem>
                 <NavigationMenuItem value="company">

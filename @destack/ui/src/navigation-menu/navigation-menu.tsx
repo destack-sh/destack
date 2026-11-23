@@ -124,7 +124,8 @@ const styles = style.create({
     indicator: {
         position: "absolute",
         positionAnchor: ACTIVE_ANCHOR,
-        positionArea: "block-end",
+        insetBlockStart: "anchor(end)",
+        justifySelf: "anchor-center",
         zIndex: 2,
         width: space[2],
         height: space[2],
