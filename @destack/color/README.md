@@ -1,31 +1,35 @@
 # @destack/color
 
-Name the preset color palettes and the seed each one grows from.
+Name the hues colors mean things in, and the preset palettes accents grow from.
 
 ## Overview
 
-`@destack/color` is the palette vocabulary of [Radix Colors](https://www.radix-ui.com/colors): the names a theme, a package or an object type picks a color by.
-Themes grow each preset's scale from its seed; declarations store the name alone.
+`@destack/color` is Notion's tag colors with cyan, and [Radix Colors](https://www.radix-ui.com/colors)' names and seeds:
 
-## Reference
+- `Hue`: a color by its meaning, such as a tag's or a package's, which each theme fills in.
+- `Preset`: a Radix palette name, for a person's accent or a theme's base.
 
-| Export | What it is |
-|---|---|
-| `PRESET_NAMES` | The preset palette names, neutral grays first. |
-| `PRESETS` | The seed each preset palette grows from. |
-| `GRAY_PRESETS` | The neutral presets, for a theme's base. |
-| `ACCENT_PRESETS` | The colorful presets, which accents, chart series and swatches take. |
-| `Preset` | A preset palette name. |
-| `SwatchName` | A colorful preset a declaration picks, such as a package's color. |
+## Examples
 
-## Example
+### Pick a hue
 
-Validate a declared color and read its seed:
+`Hue` validates the hue a declaration stores, and `DEFAULT_HUES` has Destack's seed of each.
 
 ```ts
-import { PRESETS, SwatchName } from "@destack/color";
+import { Hue, DEFAULT_HUES } from "@destack/color";
 
-// validate the color a package declares and read the seed its scale grows from
-const color = SwatchName.parse("teal");
-const seed = PRESETS[color];
+// validate the hue a package declares, and read the seed it has where no theme fills it in
+const hue = Hue.parse("cyan");
+const seed = DEFAULT_HUES[hue];
+```
+
+### Offer accents
+
+`ACCENT_PRESETS` lists the colorful presets, and `PRESETS` has the seed of each.
+
+```ts
+import { ACCENT_PRESETS, PRESETS } from "@destack/color";
+
+// list the accents a person chooses from, each with the color it grows from
+const accents = ACCENT_PRESETS.map((name) => ({ name, seed: PRESETS[name] }));
 ```

@@ -78,18 +78,40 @@ export const Preset = schema.enum(PRESET_NAMES);
 /** A preset palette name. */
 export type Preset = schema.Infer<typeof Preset>;
 
-/** A neutral preset. */
-export type GrayPreset = (typeof GRAY_PRESETS)[number];
-
-/** A colorful preset. */
-export type AccentPreset = Exclude<Preset, GrayPreset>;
-
-/** The colorful presets, in preset order, which accents, chart series and swatches take. */
+/** The colorful presets, in preset order, which accents take. */
 export const ACCENT_PRESETS = PRESET_NAMES.filter(
-    (name): name is AccentPreset => !GRAY_PRESETS.some((gray) => gray === name),
+    (name) => !GRAY_PRESETS.some((gray) => gray === name),
 );
 
-/** A preset the swatch tokens draw, such as a package's color: one of the colorful presets. */
-export const SwatchName = schema.enum(ACCENT_PRESETS);
-/** A preset the swatch tokens draw. */
-export type SwatchName = schema.Infer<typeof SwatchName>;
+/** The hues colors mean things in, which each theme fills in: Notion's tag colors and cyan. */
+export const HUES = [
+    "gray",
+    "brown",
+    "red",
+    "orange",
+    "yellow",
+    "green",
+    "cyan",
+    "blue",
+    "purple",
+    "pink",
+] as const;
+
+/** A hue, such as of a tag, a status, a calendar or a package. */
+export const Hue = schema.enum(HUES);
+/** A hue. */
+export type Hue = schema.Infer<typeof Hue>;
+
+/** Destack's own seed of each hue, which a theme may replace: gray slate, as its base. */
+export const DEFAULT_HUES = {
+    gray: PRESETS.slate,
+    brown: PRESETS.brown,
+    red: PRESETS.red,
+    orange: PRESETS.orange,
+    yellow: PRESETS.amber,
+    green: PRESETS.green,
+    cyan: PRESETS.cyan,
+    blue: PRESETS.blue,
+    purple: PRESETS.purple,
+    pink: PRESETS.pink,
+} as const satisfies Record<Hue, string>;
