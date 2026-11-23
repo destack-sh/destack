@@ -3,13 +3,13 @@ import type { SettingSelection } from "@destack/setting";
 import { defineSetting, type SettingDefinition } from "@destack/setting/declare";
 import type { DeviceSettingValue, SettingValue } from "@destack/setting/object";
 import {
+    Accent,
     Appearance,
     Contrast,
     DEFAULT_DISPLAY,
     Density,
     Motion,
     type Display,
-    Seed,
     TextSize,
     ThemeDefinition,
     Typeface,
@@ -95,7 +95,7 @@ export const accent = defineSetting({
     name: "accent",
     title: t`Accent color`,
     description: t`Use the theme's accent, or another accent color.`,
-    schema: Seed.nullable(),
+    schema: Accent.nullable(),
     default: DEFAULT_DISPLAY.accent,
     ...LOOK,
 });

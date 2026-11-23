@@ -295,6 +295,24 @@ export function Appearance() {
 }
 ```
 
+### Show a person's theme
+
+`theme` is the theme a person sees in every app, Destack's when null, and a page's visitors see its package's theme instead.
+
+```ts
+import { theme } from "@destack/view/setting";
+import { titanTheme } from "@destack/theme/declare";
+
+// change Titan's page
+export const chosen = theme.definition.schema.parse({
+    ...titanTheme.definition,
+    ground: {
+        light: { background: "#fff8e7", foreground: "#3d5157", muted: "#f1e9d2" },
+        dark: { background: "#00242e", foreground: "#eee8d5", muted: "#06323d" },
+    },
+});
+```
+
 ### Prerender a static site
 
 A static view prerenders its pages, and only its islands hydrate.

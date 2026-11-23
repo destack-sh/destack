@@ -5,7 +5,7 @@ import type { Example } from "@destack/package/declare";
 import { type JsonValue, nth, schema } from "@destack/schema";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
-import { ACCENT_PRESETS } from "@destack/color";
+import { HUES } from "@destack/color";
 import { DEFAULT_DISPLAY, Radius, TEXT_SCALES, Theme, TYPEFACES } from "@destack/theme";
 import { THEMES } from "@destack/theme/declare";
 import { text } from "@destack/theme/text";
@@ -501,7 +501,7 @@ function Settings(properties: {
                 name="accent"
                 label="Accent"
                 value={textOf(theme()?.["accent"])}
-                options={ACCENT_PRESETS}
+                options={HUES}
             />
             <Picker
                 settings={settings}

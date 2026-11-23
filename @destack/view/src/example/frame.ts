@@ -11,12 +11,12 @@ import { View } from "../declare/view.ts";
 import { ViewExample } from "./view.ts";
 import { schema } from "@destack/schema";
 import {
+    Accent,
     Appearance,
     Contrast,
     DEFAULT_DISPLAY,
     Density,
     Motion,
-    Seed,
     TextSize,
     type Theme,
     Typeface,
@@ -39,7 +39,7 @@ export const GlobalsDisplay = schema.object({
     /** The motion. */
     motion: Motion.exactOptional(),
     /** The accent, or null for the theme's own. */
-    accent: Seed.nullable().exactOptional(),
+    accent: Accent.nullable().exactOptional(),
 });
 
 /** What an example frame shows. */
