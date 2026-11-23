@@ -53,7 +53,7 @@ export function Footer() {
                 <span aria-hidden="true" {...style.attrs(lattice.stave)} />
                 <div {...style.attrs(lattice.frame, styles.colophon)}>
                     {/* the verb's dictionary entry, as each section heads with one */}
-                    <Entry form={closing} isAnchor={false} />
+                    <Entry form={closing} anchor={null} />
 
                     {/* the link columns and the ways to install */}
                     {columns.map(([title, destinations], index) => (

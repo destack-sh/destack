@@ -54,17 +54,8 @@ export function Syllables(properties: { syllables: readonly string[] }) {
     );
 }
 
-/** Set a part of speech as a bracketed tag in small capitals, such as [ VERB ]. */
-export function PartOfSpeech(properties: { children: string }) {
-    return (
-        <span data-part-of-speech={properties.children} {...style.attrs(styles.partOfSpeech)}>
-            [ {properties.children} ]
-        </span>
-    );
-}
-
-/** Head a section with a dictionary entry, anchored by its part of speech unless told not to be. */
-export function Entry(properties: { form: Form; isTitle?: boolean; isAnchor?: boolean }) {
+/** Head a section with a dictionary entry, anchored by its part of speech, another id or none. */
+export function Entry(properties: { form: Form; isTitle?: boolean; anchor?: string | null }) {
     // draw the definition's underline once, the first time the entry rises past the screen's bottom fifth
     let header: HTMLElement | undefined;
     const [isSeen, setIsSeen] = createSignal(false);
@@ -89,7 +80,12 @@ export function Entry(properties: { form: Form; isTitle?: boolean; isAnchor?: bo
     return (
         <header
             ref={header}
-            id={properties.isAnchor === false ? undefined : anchorOf(properties.form)}
+            id={
+                properties.anchor === undefined
+                    ? anchorOf(properties.form)
+                    : (properties.anchor ?? undefined)
+            }
+            data-part-of-speech={properties.form.partOfSpeech}
             {...style.attrs(lattice.cell, styles.entry)}
         >
             {/* the rule between the word and its meaning, from the section's top to its bottom */}
@@ -328,13 +324,6 @@ const styles = style.create({
         gridArea: { default: "pronunciation", [media.maxLg]: "auto" },
         justifySelf: { default: "end", [media.maxLg]: "auto" },
         lineHeight: 1.45,
-    },
-    partOfSpeech: {
-        fontFamily: font.code,
-        fontSize: typeScale.label,
-        letterSpacing: tracking.label,
-        textTransform: "uppercase",
-        whiteSpace: "nowrap",
     },
     headword: {
         color: swatch.accentSolid,

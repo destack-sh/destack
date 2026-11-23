@@ -96,7 +96,7 @@ export function Pricing() {
 
             {/* the plans */}
             <section {...style.attrs(lattice.frame, lattice.ruled, styles.plans, styles.drawn)}>
-                <Entry form={pricing} isTitle />
+                <Entry form={pricing} isTitle anchor="pricing" />
                 <Hosts />
                 <PlansLabel
                     audience={audience()}
@@ -117,7 +117,7 @@ export function Pricing() {
 
             {/* the rate card */}
             <section {...style.attrs(lattice.frame, lattice.ruled, styles.drawn)}>
-                <Entry form={rate} />
+                <Entry form={rate} anchor="rate" />
                 <Gauge />
                 <Rates currency={currency()} />
             </section>
@@ -133,7 +133,7 @@ export function Pricing() {
                     styles.drawn,
                 )}
             >
-                <Entry form={bill} />
+                <Entry form={bill} anchor="bill" />
                 <Silos isOpen={isOpen()} />
                 <Tally
                     number={4}
