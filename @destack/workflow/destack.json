@@ -14,7 +14,8 @@
     },
     "exports": {
         "./inspect": {
-            "runtimes": ["bun"]
+            "runtimes": ["bun"],
+            "internal": true
         }
     },
     "declarations": {
