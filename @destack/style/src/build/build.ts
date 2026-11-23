@@ -1,9 +1,10 @@
 import { unplugin } from "@stylexjs/unplugin";
 import type { Environment } from "@destack/environment";
-import type { ViteDevServer } from "vite";
+import type { Rollup, ViteDevServer } from "vite";
 import { basename, join, relative } from "node:path";
 import { type BuildExtension, LIGHT_DARK_FEATURE, type Plugin } from "@destack/package/build";
-import { schema } from "@destack/schema";
+import { Digest, schema } from "@destack/schema";
+import type { TransformCache } from "@destack/package/build";
 import { BuildListCache, BuildReader } from "@destack/package/manifest";
 
 /** The stylesheet module that carries the StyleX rules a document uses. */
@@ -51,9 +52,22 @@ interface StylexPlugin extends Plugin {
     readonly __stylexGetSharedStore: () => { readonly rulesById: Map<string, unknown> };
 }
 
+/**
+ * The rules each dependency build keeps, read once per process by its directory.
+ *
+ * A dependency's directory is named by its build's digest, so its rules never change.
+ */
+const RULES = new Map<string, Promise<schema.Infer<typeof RuleFile>>>();
+
+/** The directory a dependency's modules lie below in its build's tree. */
+const NODE_MODULES = "/node_modules/";
+
+/** The code of StyleX's plugin and of lightningcss, read once for the sheet's cache key. */
+let SHEET_IDENTITY: Promise<readonly string[]> | undefined;
+
 /** Compile StyleX styles in builds of packages that depend on `@destack/style`. */
 export const styleExtension = {
-    transform: ({ directory, dependencies, environment }) => {
+    transform: ({ directory, dependencies, environment, cache }) => {
         // read the plugin StyleX declares without a type, with the base layer before its own
         const sheet: SheetTarget = { file: undefined };
         const plugin: unknown = unplugin.vite({
@@ -69,19 +83,29 @@ export const styleExtension = {
             throw new TypeError("stylex returned no vite plugin");
         }
 
-        // drop the server hook serving the sheet a second way and polling it, as the sheet module does both
-        const { configureServer: _polling, generateBundle, ...compiler } = plugin;
+        // drop the server hook serving the sheet a second way and polling it, as the sheet module does both, and the
+        //  write hook, which collects the whole sheet again for a build without one
+        const {
+            configureServer: _polling,
+            writeBundle: _written,
+            generateBundle: _generated,
+            ...compiler
+        } = plugin;
 
         // let the bundler skip each module without an import source before StyleX reads it
         const filtered: Plugin = {
             ...compiler,
             transform: { filter: { code: IMPORT_SOURCE_PATTERN }, handler: plugin.transform },
             // inject the rules only into a sheet, as a build without one keeps them for its dependents
-            generateBundle(...args) {
-                const handler =
-                    typeof generateBundle === "function" ? generateBundle : generateBundle?.handler;
+            async generateBundle(_options, bundle) {
+                // leave a build without a sheet
+                if (sheet.file === undefined) {
+                    return;
+                }
 
-                return sheet.file === undefined ? undefined : handler?.apply(this, args);
+                // append the sheet its rules make, read from the cache by their digest
+                const css = await cachedSheet(plugin, cache, environment);
+                injectSheet(this, bundle, sheet.file, css);
             },
         };
 
@@ -123,7 +147,12 @@ function sheetPlugin(
 
             // add the rules each dependency's build keeps under its modules, ordered with this build's own
             for (const dependency of dependencies) {
-                for (const [module, rule] of await readRules(dependency, environment)) {
+                let read = RULES.get(dependency);
+                if (read === undefined) {
+                    read = readRules(dependency, environment);
+                    RULES.set(dependency, read);
+                }
+                for (const [module, rule] of await read) {
                     rules.set(join(dependency, module), rule);
                 }
             }
@@ -220,6 +249,108 @@ async function readRules(
     );
 
     return rules.flat();
+}
+
+/** Read the sheet a build's rules make from the cache by their digest, else collect and keep it. */
+async function cachedSheet(
+    plugin: StylexPlugin,
+    cache: TransformCache | undefined,
+    environment: Pick<Environment<"files">, "files" | "crypto">,
+): Promise<string> {
+    // key the sheet by StyleX's and lightningcss's code and the rules, in module order
+    SHEET_IDENTITY ??= Promise.all(
+        [import.meta.resolve("@stylexjs/unplugin"), import.meta.resolve("lightningcss")].map(
+            (url) => environment.files.readTextFile(new URL(url).pathname),
+        ),
+    );
+    const rules = [...plugin.__stylexGetSharedStore().rulesById]
+        .map(([id, rule]) => [packagePath(id), rule] as const)
+        .toSorted(([left], [right]) => (left < right ? -1 : Number(left > right)));
+    const key = await Digest.of(
+        [...(await SHEET_IDENTITY), JSON.stringify(rules)].join("\0"),
+        environment.crypto,
+    );
+
+    // take the kept sheet, else collect it and keep it for later builds
+    const kept = await cache?.read(key);
+    if (kept !== undefined) {
+        return new TextDecoder().decode(kept);
+    }
+    const css = plugin.__stylexCollectCss();
+    await cache?.write(key, new TextEncoder().encode(css));
+
+    return css;
+}
+
+/** Append CSS to a stylesheet under a name its content hashes to, renamed where it is named. */
+function injectSheet(
+    context: Pick<Rollup.PluginContext, "emitFile" | "getFileName">,
+    bundle: Rollup.OutputBundle,
+    file: string,
+    css: string,
+): void {
+    // emit the stylesheet with the CSS appended, under the name its content hashes to
+    const asset = bundle[file];
+    if (asset?.type !== "asset") {
+        throw new TypeError(`stylesheet '${file}' is not an asset of the bundle`);
+    }
+    const current =
+        typeof asset.source === "string" ? asset.source : new TextDecoder().decode(asset.source);
+    const source = current === "" ? css : `${current}\n${css}`;
+    const renamed = context.getFileName(
+        context.emitFile({ type: "asset", name: asset.names[0] ?? basename(file), source }),
+    );
+    if (renamed === file) {
+        asset.source = source;
+
+        return;
+    }
+
+    // find the chunks importing it, and those reaching them by static imports, whose loads preload it
+    const chunks = Object.values(bundle).filter((output) => output.type === "chunk");
+    const holders = new Set(
+        chunks
+            .filter((chunk) => chunk.viteMetadata?.importedCss.has(file) === true)
+            .map((chunk) => chunk.fileName),
+    );
+    const reaching = new Set(holders);
+    for (let size = 0; size !== reaching.size;) {
+        size = reaching.size;
+        for (const chunk of chunks) {
+            if (chunk.imports.some((imported) => reaching.has(imported))) {
+                reaching.add(chunk.fileName);
+            }
+        }
+    }
+
+    // rename it in the chunks importing it and in those preloading them, reading no other chunk's code
+    for (const chunk of chunks) {
+        const isNaming =
+            holders.has(chunk.fileName) ||
+            chunk.dynamicImports.some((imported) => reaching.has(imported));
+        if (isNaming) {
+            chunk.code = chunk.code.replaceAll(file, renamed);
+            chunk.viteMetadata?.importedCss.delete(file);
+            if (holders.has(chunk.fileName)) {
+                chunk.viteMetadata?.importedCss.add(renamed);
+            }
+        }
+    }
+
+    // rename it in the text assets, such as a manifest, and drop the old one
+    for (const output of Object.values(bundle)) {
+        if (output.type === "asset" && typeof output.source === "string") {
+            output.source = output.source.replaceAll(file, renamed);
+        }
+    }
+    Reflect.deleteProperty(bundle, file);
+}
+
+/** Read a module's path within its package, a dependency's below its build's digest-named tree. */
+function packagePath(id: string): string {
+    const below = id.lastIndexOf(NODE_MODULES);
+
+    return below === -1 ? id : id.slice(below + NODE_MODULES.length);
 }
 
 /** Remove a module identifier's query, such as the `?direct` of a stylesheet's text. */
