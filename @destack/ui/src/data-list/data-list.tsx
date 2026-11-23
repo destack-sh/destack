@@ -7,6 +7,9 @@ import { type ElementPartProperties, renderPart } from "../part/index.ts";
 /** The orientation of a data list that sets none. */
 const DEFAULTS: Required<Pick<DataListProperties, "orientation">> = { orientation: "horizontal" };
 
+/** The alignment of a data list's item that sets none. */
+const ITEM_DEFAULTS: Required<Pick<DataListItemProperties, "align">> = { align: "baseline" };
+
 /** The selector of an item in a vertical data list. */
 const VERTICAL = ":is([data-orientation=vertical] > *)";
 
@@ -27,7 +30,6 @@ const styles = style.create({
     },
     item: {
         display: "grid",
-        alignItems: "baseline",
         gridColumn: "1 / -1",
         gridTemplateColumns: { default: "subgrid", [VERTICAL]: "1fr" },
         rowGap: { default: 0, [VERTICAL]: space[1] },
@@ -42,6 +44,15 @@ const styles = style.create({
         overflowWrap: "anywhere",
         color: color.foreground,
     },
+});
+
+/** The alignment of a data list item's label with its value. */
+const alignments = style.create({
+    start: { alignItems: "start" },
+    center: { alignItems: "center" },
+    end: { alignItems: "end" },
+    baseline: { alignItems: "baseline" },
+    stretch: { alignItems: "stretch" },
 });
 
 /** The axis a data list sets each label and value along: side by side, or the label above. */
@@ -78,9 +89,20 @@ export function DataList(properties: DataListProperties): JSX.Element {
     );
 }
 
+/** The properties of a data list's item, the native element's attributes included. */
+export interface DataListItemProperties extends DataListElementProperties<HTMLDivElement> {
+    /** The alignment of the label with its value, on their baseline by default. */
+    readonly align?: keyof typeof alignments;
+}
+
 /** Render one label and its value of a data list, laid along the list's orientation. */
-export function DataListItem(properties: DataListElementProperties<HTMLDivElement>): JSX.Element {
-    return renderPart("div", "data-list-item", properties, styles.item);
+export function DataListItem(properties: DataListItemProperties): JSX.Element {
+    const item = merge(ITEM_DEFAULTS, properties);
+
+    return renderPart("div", "data-list-item", omit(item, "align"), () => [
+        styles.item,
+        alignments[item.align],
+    ]);
 }
 
 /** Render the label of a data list's item. */
