@@ -151,7 +151,8 @@ test("create, list, lease and delete an Artifacts repository through its namespa
     await storage.delete("repository-site");
 
     // answer the remote Artifacts gave, and lease it with Bearer tokens Artifacts issued
-    const created = "https://acme.artifacts.cloudflare.net/git/sites/git-site.repository-site.git";
+    const created =
+        "https://example.artifacts.cloudflare.net/git/sites/git-site.repository-site.git";
     expect([remote, again, listing, lease]).toEqual([
         created,
         created,
@@ -376,7 +377,7 @@ class TestArtifactsNamespace implements ArtifactsNamespace {
 
     /** Build the remote the fake gives a repository. */
     static remote(name: string): string {
-        return `https://acme.artifacts.cloudflare.net/git/sites/${name}.git`;
+        return `https://example.artifacts.cloudflare.net/git/sites/${name}.git`;
     }
 }
 
