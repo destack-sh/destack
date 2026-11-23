@@ -1,11 +1,14 @@
 import * as style from "@destack/style";
-import { color, motion, radius, size, space } from "@destack/theme/tokens.stylex";
+import { transition } from "@destack/theme/motion";
+import { color, motion, radius, shadow, size, space } from "@destack/theme/tokens.stylex";
 import {
     type Accessor,
     createContext,
     createControllableSignal,
+    createSignal,
     type JSX,
     omit,
+    onSettled,
     Show,
     useContext,
     useEnvironment,
@@ -17,6 +20,7 @@ import {
     type DialogElementProperties,
     type DialogProperties,
 } from "../dialog/index.ts";
+import { scrim } from "../dialog/scrim.stylex.ts";
 import {
     Sheet,
     SheetClose,
@@ -29,10 +33,10 @@ import {
 } from "../sheet/index.ts";
 import { Swipe, type SwipeEvent } from "../interaction/index.ts";
 import type { Side } from "../position/index.ts";
-import { renderPart } from "../part/index.ts";
+import { mergeProperties, renderPart } from "../part/index.ts";
 
 /** The share of the viewport a drawer grows to at most. */
-const DRAWER_EXTENT = "80vh";
+const DRAWER_EXTENT = "80dvh";
 
 /** The time a released drag's speed moves it on, in milliseconds. */
 const PROJECTION_TIME = 0.998 / (1 - 0.998);
@@ -42,6 +46,12 @@ const CLOSE_SHARE = 0.25;
 
 /** The distance a drag passes below the smallest snap point to close the drawer, in pixels. */
 const CLOSE_DISTANCE = 48;
+
+/** The speed of a flick that closes a drawer, in pixels per millisecond, as Vaul's. */
+const FLICK_SPEED = 0.4;
+
+/** The room a drawer over a phone's keyboard leaves above it, in pixels, as Vaul's. */
+const TOP_OFFSET = 26;
 
 /** A CSS pixel length, as snap points write them. */
 const PIXELS = /^(\d+(?:\.\d+)?)px$/u;
@@ -73,6 +83,21 @@ const styles = style.create({
         transitionDuration: "0s",
         userSelect: "none",
     },
+    fade: (opacity: string) => ({
+        [scrim.opacity]: opacity,
+        "::backdrop": { transitionDuration: "0s" },
+    }),
+    scrim: {
+        "::backdrop": { transitionDuration: motion.durationLong },
+    },
+    fill: (x: string, y: string) => ({
+        // cover the gap a drawer leaves at its edge as it gives way
+        boxShadow: `${x} ${y} 0 0 ${color.popover}, ${shadow.overlay}`,
+    }),
+    above: (inset: string) => ({
+        bottom: inset,
+        maxHeight: `calc(100dvh - ${inset} - ${String(TOP_OFFSET)}px)`,
+    }),
     height: (length: string) => ({ height: length }),
     width: (length: string) => ({ width: length }),
 });
@@ -83,6 +108,14 @@ const corners = style.create({
     right: { borderTopLeftRadius: radius[5], borderBottomLeftRadius: radius[5] },
     bottom: { borderTopLeftRadius: radius[5], borderTopRightRadius: radius[5] },
     left: { borderTopRightRadius: radius[5], borderBottomRightRadius: radius[5] },
+});
+
+/** The border of a drawer against each edge, hidden over the gap it leaves there. */
+const seams = style.create({
+    top: { borderTopColor: color.popover },
+    right: { borderRightColor: color.popover },
+    bottom: { borderBottomColor: color.popover },
+    left: { borderLeftColor: color.popover },
 });
 
 /** A length a drawer snaps to. */
@@ -235,9 +268,16 @@ export function DrawerContent(properties: DrawerContentProperties): JSX.Element 
             side: () => drawer.direction(),
             onSwipeEnd: (event) => drawer.settle(event, viewportOf(drawer), () => dialog.close()),
             canStart: (event) => canSwipe(drawer, event),
+            flickSpeed: FLICK_SPEED,
+            isElastic: true,
         },
         useEnvironment().clock,
     );
+
+    // stay above a phone's keyboard
+    const keyboard = createKeyboardInset();
+    let content: HTMLElement | undefined;
+    const measure = (element: HTMLElement) => (content = element);
 
     return (
         <SheetContent
@@ -245,12 +285,17 @@ export function DrawerContent(properties: DrawerContentProperties): JSX.Element 
             data-snap-point={drawer.activeIndex()}
             side={drawer.direction()}
             showCloseButton={false}
-            {...rest}
+            {...mergeProperties({ ref: measure }, rest)}
             {...swipe.attributes()}
             xstyle={[
                 styles.drawer,
+                transition.drawer,
+                styles.scrim,
                 corners[drawer.direction()],
-                extentStyle(drawer, swipe),
+                extentStyle(drawer, swipe, content),
+                drawer.direction() === "bottom" &&
+                    keyboard() > 0 &&
+                    styles.above(`${String(keyboard())}px`),
                 properties.xstyle,
             ]}
         >
@@ -290,13 +335,17 @@ export function DrawerDescription(
 }
 
 /** Return the StyleX styles that size a drawer to its active snap point or a running drag. */
-function extentStyle(drawer: DrawerControl, swipe: Swipe): style.Styles {
+function extentStyle(
+    drawer: DrawerControl,
+    swipe: Swipe,
+    content: HTMLElement | undefined,
+): style.Styles {
     // move a drawer without snap points with the swipe
     const point = drawer.activeSnapPoint();
     const offset = swipe.offset();
     const extent = drawer.isVertical() ? styles.height : styles.width;
     if (point === undefined) {
-        return swipe.style();
+        return [swipe.style(), dragStyle(drawer, swipe, content)];
     }
     // rest at the active snap point
     else if (offset === undefined) {
@@ -309,6 +358,61 @@ function extentStyle(drawer: DrawerControl, swipe: Swipe): style.Styles {
     const dragged = Math.min(Math.max(extentOf(point, viewport) - offset, 0), largest);
 
     return [styles.snapping, styles.dragging, extent(`${String(dragged)}px`)];
+}
+
+/** Return the StyleX styles of a drawer's backdrop and edge while a drag moves it. */
+function dragStyle(
+    drawer: DrawerControl,
+    swipe: Swipe,
+    content: HTMLElement | undefined,
+): style.Styles {
+    // rest without a drag
+    const offset = swipe.offset();
+    if (offset === undefined || content === undefined) {
+        return null;
+    }
+    // fade the backdrop with the part of the drawer dragged off
+    else if (offset > 0) {
+        const extent = drawer.isVertical() ? content.offsetHeight : content.offsetWidth;
+
+        return styles.fade(String(Math.max(0, 1 - offset / extent)));
+    }
+
+    // fill the gap at the edge the drawer gives way from
+    const direction = drawer.direction();
+    const gap = swipe.resisted() * (direction === "bottom" || direction === "right" ? 1 : -1);
+    const length = `${String(gap)}px`;
+
+    return [
+        seams[direction],
+        drawer.isVertical() ? styles.fill("0px", length) : styles.fill(length, "0px"),
+    ];
+}
+
+/** Follow the height of a phone's keyboard over the page, in pixels, zero without one. */
+function createKeyboardInset(): Accessor<number> {
+    const [inset, setInset] = createSignal(0, { ownedWrite: true });
+    onSettled(() => {
+        // measure what the keyboard covers, leaving a zoomed page alone
+        const viewport = window.visualViewport ?? undefined;
+        if (viewport === undefined) {
+            return;
+        }
+        const measure = () => {
+            const covered = window.innerHeight - viewport.height - viewport.offsetTop;
+            setInset(viewport.scale === 1 ? Math.max(0, Math.round(covered)) : 0);
+        };
+        measure();
+        viewport.addEventListener("resize", measure);
+        viewport.addEventListener("scroll", measure);
+
+        return () => {
+            viewport.removeEventListener("resize", measure);
+            viewport.removeEventListener("scroll", measure);
+        };
+    });
+
+    return inset;
 }
 
 /** Report whether a press may swipe a drawer. */
