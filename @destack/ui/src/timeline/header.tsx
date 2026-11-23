@@ -299,7 +299,7 @@ export function TimelineAxis(properties: TimelinePartProperties): JSX.Element {
     const rest = omit(properties, "xstyle", "style");
     const share = (at: number) => control.window.share(at);
 
-    // sweep a span across the axis and zoom to it on release, as Bryntum's header zooms
+    // sweep a span across the axis and zoom to it on release
     let element: HTMLElement | undefined;
     const shareAt = (clientX: number): number => {
         // read the pointer's share of the measured axis, mirrored right to left

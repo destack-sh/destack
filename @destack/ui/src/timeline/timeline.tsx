@@ -72,7 +72,7 @@ export interface TimelineProperties
     readonly xstyle?: style.Styles;
 }
 
-/** Render items on a time axis as a tree of bars, after Linear's timeline and Jaeger's traces. */
+/** Render items on a time axis as a tree of bars, after Jaeger's traces. */
 export function Timeline(properties: TimelineProperties): JSX.Element {
     // share the window, folds and drags with the parts
     const locale = useLocale();
@@ -133,7 +133,7 @@ export function Timeline(properties: TimelineProperties): JSX.Element {
                 event.preventDefault();
                 control.open(focused);
             }
-            // move the focused row a place up or down with Mod+Shift and the arrows, as Notion does
+            // move the focused row a place up or down with Mod+Shift and the arrows
             else if (
                 focused !== undefined &&
                 control.options.onRowMove !== undefined &&
@@ -264,7 +264,7 @@ export function TimelineBody(properties: TimelinePartProperties): JSX.Element {
         },
     };
 
-    // pan by dragging empty track, the window following the pointer as in Linear
+    // pan by dragging empty track, the window following the pointer
     const drag = new Move(
         {
             keys: [],

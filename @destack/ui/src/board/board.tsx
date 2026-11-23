@@ -657,7 +657,7 @@ export class BoardControl {
             },
         );
 
-        // move one focused card across the shown cells, and select several as Finder does
+        // move one focused card across the shown cells, and select several
         this.focus = new Focus({
             delegate: new BoardDelegate(this),
             mode: "roving",
@@ -1100,7 +1100,7 @@ export class BoardControl {
             : [key];
     }
 
-    /** List what keys do on a card, after Linear's and Trello's shortcuts. */
+    /** List what keys do on a card. */
     cardActions(key: string, direction: Direction): Action[] {
         // toggle the card, write a card into its cell, and remove the cards
         const locale = this.#locale;
@@ -1549,7 +1549,7 @@ const BoardLaneContext = createContext<BoardTrack | null>(null);
 /** The nearest cell, which its cards read. */
 const BoardCellContext = createContext<BoardCell | null>(null);
 
-/** Render a board of columns of cards, in lanes where it has them, after Linear and Trello. */
+/** Render a board of columns of cards, in lanes where it has them. */
 export function Board(properties: BoardProperties): JSX.Element {
     // move one focus across the cards and run the board's keys, after the keys a drag takes
     const locale = useLocale();
@@ -1638,7 +1638,7 @@ export function BoardColumnList(
     );
 }
 
-/** Render the list of hidden columns, after Notion's hidden groups, each a place cards drop. */
+/** Render the list of hidden columns, each a place cards drop. */
 export function BoardHiddenList(
     properties: SortableElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {

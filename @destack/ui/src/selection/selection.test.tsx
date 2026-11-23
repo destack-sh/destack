@@ -127,7 +127,7 @@ test("rerun only the readers of the values a change selects or drops", () => {
     }).toEqual({ runs: { bold: 1, italic: 2, code: 1 }, selected: [true, false] });
 });
 
-test("select by press as Finder does: replace on a plain press, toggle with command, extend a range with shift", () => {
+test("select by press: replace on a plain press, toggle with command, extend a range with shift", () => {
     // lay out six files, the fourth unavailable, and press through them
     const files = ["a", "b", "c", "d", "e", "f"];
     const collection = createRoot((dispose) => {

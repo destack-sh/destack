@@ -61,7 +61,7 @@ const styles = style.create({
     },
 });
 
-/** Render the shown week's days with their events in order, after Google Calendar's schedule. */
+/** Render the shown week's days with their events in order. */
 export function EventCalendarAgenda(): JSX.Element {
     return <OfferedView views={AGENDA_VIEWS}>{() => <AgendaView />}</OfferedView>;
 }

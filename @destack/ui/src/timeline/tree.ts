@@ -22,7 +22,7 @@ export interface TimelineItem {
     readonly key: string;
     /** The item's label. */
     readonly label: string;
-    /** The start, in epoch milliseconds, unknown when absent as in Linear's open-ended projects. */
+    /** The start, in epoch milliseconds, unknown when absent. */
     readonly start?: number;
     /** The end, in epoch milliseconds, at or after the start, unknown when absent. */
     readonly end?: number;
@@ -34,13 +34,13 @@ export interface TimelineItem {
     readonly color?: Hue;
     /** How much of it is done, from 0 to 1, drawn as a fill. */
     readonly progress?: number;
-    /** The dates it was planned for, drawn beneath it after MS Project's baselines. */
+    /** The dates it was planned for, drawn beneath it. */
     readonly baseline?: TimeScale;
     /** The time it can slip without moving the plan's end, drawn as a line after it. */
     readonly slack?: number;
     /** The time it is due, in epoch milliseconds, past which its bar shows as late. */
     readonly deadline?: number;
-    /** The milestones along it, drawn as diamonds in its row, after Linear's project milestones. */
+    /** The milestones along it, drawn as diamonds in its row. */
     readonly milestones?: readonly TimelineMilestone[];
 }
 
@@ -183,7 +183,7 @@ export class TimelineTree {
 
     /** Read the span an item's bar draws, a missing date open by a share of the items' span. */
     drawn(item: TimelineItem): TimeScale {
-        // open a missing date by a share of the span, after Linear's fading bars
+        // open a missing date by a share of the span
         const span = this.span();
         const open = (span.end - span.start) * OPEN_SHARE;
         if (item.start !== undefined && item.end !== undefined) {

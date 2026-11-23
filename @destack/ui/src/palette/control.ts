@@ -10,7 +10,7 @@ import type { CommandControl } from "../command/index.ts";
 /** How strongly a query matching a title from its start, a word's start or inside it ranks. */
 const MATCHES = { start: 3, word: 2, inside: 1 } as const;
 
-/** The recent entries the root page lists while the search is empty, as Raycast's. */
+/** The recent entries the root page lists while the search is empty. */
 const RECENT_SHOWN = 5;
 
 /** The uses a palette remembers, the least frecent dropping out past it. */
@@ -37,13 +37,13 @@ const SavedUses = schema.array(
 /** The remembered uses of a palette's entries. */
 type Uses = schema.Infer<typeof SavedUses>;
 
-/** Something an entry does, after Raycast's actions: the first opens it, the rest in a panel. */
+/** Something an entry does: the first opens it, the rest in a panel. */
 export interface PaletteAction extends Action {
     /** Whether the palette stays open after the action runs, closing by default. */
     readonly isStayingOpen?: boolean;
 }
 
-/** A detail at an entry's end, after Raycast's accessories: text, or a tag in a swatch's tint. */
+/** A detail at an entry's end: text, or a tag in a swatch's tint. */
 export interface PaletteAccessory {
     /** The text. */
     readonly text: string;

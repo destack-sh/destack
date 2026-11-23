@@ -405,7 +405,7 @@ const searchStyles = style.create({
     },
 });
 
-/** A space's search after Raycast and Linear: groups, the highlighted entry's detail and keys. */
+/** A space's search: groups, the highlighted entry's detail and keys. */
 export const commandSearchDetail = defineExample({
     of: Command,
     name: "search-detail",

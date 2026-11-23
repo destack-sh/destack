@@ -52,13 +52,13 @@ import { Focus, type KeyboardDelegate } from "../focus/index.ts";
 /** The kind of item a calendar's draggable events are. */
 export const EVENT_TYPE = "event";
 
-/** The minutes a timed event snaps to by default, as Google's does. */
+/** The minutes a timed event snaps to by default. */
 const SNAP_MINUTES = 15;
 
-/** The minutes between the time grid's lines by default: an hour, as Google Calendar draws them. */
+/** The minutes between the time grid's lines by default: an hour. */
 const SLOT_MINUTES = 60;
 
-/** The days the days view shows by default, as Google Calendar's custom view does. */
+/** The days the days view shows by default. */
 export const DAY_COUNT = 4;
 
 /** The time the day and week views open scrolled to by default, the start of a working day. */
@@ -84,7 +84,7 @@ const VIEW_TITLES: Readonly<Record<Exclude<EventCalendarView, "days">, Message>>
     agenda: t`Agenda`,
 };
 
-/** The color of an event whose calendar sets none, as Google's default calendar color. */
+/** The color of an event whose calendar sets none. */
 export const DEFAULT_COLOR: Hue = "blue";
 
 /** The events a day of a month shows at most by default, as FullCalendar's dayMaxEvents. */
@@ -93,7 +93,7 @@ const DAY_MAX_EVENTS = 3;
 /** The milliseconds of a minute. */
 const MINUTE = 60_000;
 
-/** The key that switches to each view, after Google Calendar's shortcuts, x for its custom days. */
+/** The key that switches to each view, x for the custom days. */
 const VIEW_KEYS: Readonly<Record<EventCalendarView, string>> = {
     day: "d",
     days: "x",
@@ -115,7 +115,7 @@ const HOUR = Duration.milliseconds({ hours: 1 });
 /** The group of the time grid's day columns, which a keyboard drag crosses between. */
 export const COLUMNS = "event-calendar-columns";
 
-/** The views a calendar offers, as Google Calendar and FullCalendar name them, shortest first. */
+/** The views a calendar offers, as in FullCalendar, shortest first. */
 export const EVENT_CALENDAR_VIEWS = ["day", "days", "week", "month", "year", "agenda"] as const;
 
 /** A view of a calendar: days of hours, a month, a year, or a list of days. */
@@ -165,13 +165,13 @@ export interface EventCalendarOptions extends CalendarAvailabilityOptions {
     readonly defaultHiddenSources?: readonly string[];
     /** Handle the person showing or hiding a calendar. */
     readonly onHiddenSourcesChange?: (keys: readonly string[]) => void;
-    /** What a sweep over empty time does: create an event, or mark time free, after Cron. */
+    /** What a sweep over empty time does: create an event, or mark time free. */
     readonly mode?: EventCalendarMode;
     /** The kinds of items from other views the calendar takes, such as a board's cards. */
     readonly dropTypes?: readonly string[];
     /** Handle the person dropping another view's item on a time or a day, after FullCalendar. */
     readonly onReceive?: (drop: CalendarDrop) => void;
-    /** The selection of events, several by modifier presses by default, after Google Calendar. */
+    /** The selection of events, several by modifier presses by default. */
     readonly selection?: MultipleSelection;
     /** The resources the day views give columns side by side, such as people, none by default. */
     readonly resources?: readonly CalendarResource[];
@@ -179,7 +179,7 @@ export interface EventCalendarOptions extends CalendarAvailabilityOptions {
     readonly dayCount?: number;
     /** Whether the month and time views show the week of the year, after FullCalendar. */
     readonly weekNumbers?: boolean;
-    /** The zones the day views write hours in beside the calendar's zone, after Google Calendar. */
+    /** The zones the day views write hours in beside the calendar's zone. */
     readonly timeZones?: readonly CalendarTimeZone[];
     /** The IANA time zone the days and hours run in, the environment's by default. */
     readonly timeZone?: string;
@@ -504,7 +504,7 @@ export class EventCalendarControl {
         return this.options.scrollTime ?? SCROLL_TIME;
     }
 
-    /** Open a day in the day view, as a press on its date does in Google Calendar. */
+    /** Open a day in the day view, as a press on its date does. */
     open(day: PlainDate): void {
         this.setDate(day);
         this.setView("day");
@@ -1114,7 +1114,7 @@ export class EventCalendarControl {
         }
     }
 
-    /** List what the person can do with the calendar by keys, after Google Calendar's shortcuts. */
+    /** List what the person can do with the calendar by keys. */
     actions(): Action[] {
         // offer nothing during a drag, whose keys move the event
         if (this.manager.operation() !== undefined) {
@@ -1290,7 +1290,7 @@ export class EventCalendarControl {
         }
     }
 
-    /** Add a copy of an event at its times, as Google's duplicate does. */
+    /** Add a copy of an event at its times. */
     duplicate(key: string): void {
         this.options.onEventAdd?.(CalendarEvent.draft(this.eventOf(key)));
     }

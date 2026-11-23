@@ -53,16 +53,16 @@ const DIALOG_OFFSET = "12vh";
 /** The size of a command dialog's search: the base text style's, a step above the options'. */
 const DIALOG_INPUT_SIZE = "var(--destack-text-base-font-size)";
 
-/** The widest a command dialog grows, 720px as Linear's palette. */
+/** The widest a command dialog grows, 720px. */
 const DIALOG_WIDTH = "45rem";
 
-/** The widest a command dialog grows beside a detail, 960px, near Notion's 1006px search. */
+/** The widest a command dialog grows beside a detail, 960px. */
 const DIALOG_DETAIL_WIDTH = "60rem";
 
 /** The viewport height a command dialog's search, footer and offsets take. */
 const DIALOG_CHROME = `(2 * ${DIALOG_OFFSET} + 2 * ${size[4]})`;
 
-/** The tallest a command dialog's options grow, and their fixed height in a body, as Linear's. */
+/** The tallest a command dialog's options grow, and their fixed height in a body. */
 const DIALOG_LIST_HEIGHT = `min(25rem, 100dvh - ${DIALOG_CHROME})`;
 
 /** The inset of a command dialog's icons, headings and footer: the list's and an option's. */
@@ -71,7 +71,7 @@ const DIALOG_INSET = `calc(${space[2]} + ${space[3]})`;
 /** The styles of a command and its elements. */
 const styles = style.create({
     dialog: {
-        // open and close at once, as a palette opened many times a day should, after Raycast
+        // open and close at once, as a palette opened many times a day should
         transitionDuration: "0s",
         width: {
             default: `min(100% - 2 * ${space[4]}, ${DIALOG_WIDTH})`,
@@ -197,7 +197,7 @@ const styles = style.create({
     },
 });
 
-/** The styles a command and its elements add inside a dialog, roomier after Linear and Notion. */
+/** The styles a command and its elements add inside a dialog. */
 const dialogStyles = style.create({
     command: {
         borderRadius: radius[4],
@@ -639,7 +639,7 @@ export function CommandDialog(properties: CommandDialogProperties): JSX.Element 
     );
 }
 
-/** Render a line after an option's title, such as where it lives, after Raycast's subtitle. */
+/** Render a line after an option's title, such as where it lives. */
 export function CommandItemDescription(
     properties: CommandElementProperties<JSX.HTMLAttributes<HTMLSpanElement>>,
 ): JSX.Element {
@@ -713,7 +713,7 @@ export interface CommandDetailProperties {
     readonly xstyle?: style.Styles;
 }
 
-/** Render the detail of the highlighted option beside the options, after Raycast's list detail. */
+/** Render the detail of the highlighted option beside the options. */
 export function CommandDetail(properties: CommandDetailProperties): JSX.Element {
     const list = useListBox();
     const isDialog = useContext(CommandDialogContext);
@@ -728,7 +728,7 @@ export function CommandDetail(properties: CommandDetailProperties): JSX.Element 
     );
 }
 
-/** Render the fields of a detail, label beside value, after Raycast's detail metadata. */
+/** Render the fields of a detail, label beside value. */
 export function CommandDetailMetadata(
     properties: CommandElementProperties<JSX.HTMLAttributes<HTMLDListElement>>,
 ): JSX.Element {

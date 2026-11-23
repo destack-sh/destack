@@ -1,7 +1,7 @@
 import { PlainDate, Recurrence, type Week } from "@destack/schema";
 import { CalendarEvent } from "./event.ts";
 
-/** A changed repeat of a repeating event and what it may change, after Google Calendar. */
+/** A changed repeat of a repeating event and what it may change. */
 export class CalendarRepeatChange {
     /** The repeating event. */
     readonly event: CalendarEvent;
@@ -97,7 +97,7 @@ export class CalendarRepeatChange {
     }
 }
 
-/** A removed repeat of a repeating event and what it may remove, after Google Calendar. */
+/** A removed repeat of a repeating event and what it may remove. */
 export class CalendarRepeatRemoval {
     /** The repeating event. */
     readonly event: CalendarEvent;

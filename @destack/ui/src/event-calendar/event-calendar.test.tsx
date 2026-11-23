@@ -1462,7 +1462,7 @@ test("take a card of another view dropped on a day, with the day it landed on", 
     expect(received).toEqual([{ item: "copy", type: "card", start: days[16]?.dataset["date"] }]);
 });
 
-test("move, switch views, create and select by the calendar's keys, after Google Calendar's shortcuts", () => {
+test("move, switch views, create and select by the calendar's keys", () => {
     // a meeting on Wednesday, the week shown, keys pressed on the calendar itself
     const { container, created } = drawCalendar(
         "en-GB",

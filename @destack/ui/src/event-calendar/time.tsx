@@ -56,7 +56,7 @@ import {
 import { OfferedView } from "./view.tsx";
 import { CalendarEvent, type TimedCalendarEvent } from "./event.ts";
 
-/** The height of an hour in the time grid, as Google Calendar's default zoom shows about twelve. */
+/** The height of an hour in the time grid, about twelve in view. */
 const HOUR_HEIGHT = "3rem";
 
 /** The width of the hour labels beside the day columns. */
@@ -866,7 +866,7 @@ export function EventCalendarTimeAxis(properties: EventCalendarPartProperties): 
     );
 }
 
-/** Render a line across a column at the wall time under the pointer, as Cron marks every zone. */
+/** Render a line across a column at the wall time under the pointer, in every zone. */
 export function EventCalendarHoverLine(properties: EventCalendarPartProperties): JSX.Element {
     // take the pointer's wall time on this column's day
     const control = useEventCalendar();

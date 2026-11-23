@@ -24,7 +24,7 @@ import { createElementSize } from "@destack/view/primitives/resize-observer";
 import type { TimelineOptions } from "./control.ts";
 import type { TimelineItem, TimelineTree } from "./tree.ts";
 
-/** The zoom levels of a timeline, after Linear's: a week, a month or a quarter per column. */
+/** The zoom levels of a timeline: a week, a month or a quarter per column. */
 export const TIMELINE_ZOOM_LEVELS = ["week", "month", "quarter"] as const;
 
 /** A zoom level of a timeline. */

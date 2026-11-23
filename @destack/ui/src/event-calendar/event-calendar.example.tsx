@@ -102,7 +102,7 @@ function LaunchCalendar(
             ...changed.filter((each) => !current.some((event) => event.key === each.key)),
         ]);
 
-    // ask what a moved repeat changes, as Google Calendar asks
+    // ask what a moved repeat changes
     const [move, setMove] = createSignal<CalendarRepeatChange | undefined>(undefined);
     const choose = (changed: readonly CalendarEvent[]) => {
         save(...changed);

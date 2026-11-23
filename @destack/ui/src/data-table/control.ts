@@ -43,10 +43,10 @@ const SHOWS_TEXT: Readonly<Record<DataTableEditorKind, boolean>> = {
     checkbox: false,
 };
 
-/** A summary a column's footer shows of its values, after Airtable's summary bar. */
+/** A summary a column's footer shows of its values. */
 export type DataTableSummary = "count" | "sum" | "average" | "min" | "max";
 
-/** The kinds of values a column edits in place, after Airtable's field types. */
+/** The kinds of values a column edits in place. */
 export type DataTableEditorKind = "text" | "number" | "date" | "select" | "checkbox";
 
 /** A value read from text, or the mark of text that is no value of the column's kind. */

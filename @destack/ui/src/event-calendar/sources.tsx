@@ -31,7 +31,7 @@ const places = style.create({
     swatch: (mark: string) => ({ backgroundColor: mark }),
 });
 
-/** Render the calendars in their colors, each shown or hidden by its box, after Google. */
+/** Render the calendars in their colors, each shown or hidden by its box. */
 export function EventCalendarSourceList(properties: EventCalendarPartProperties): JSX.Element {
     // list each calendar with a box that shows or hides its events
     const control = useEventCalendar();

@@ -294,7 +294,7 @@ function Mark(properties: {
     );
 }
 
-/** Render an entry's actions in a panel over the palette's corner, after Raycast's action panel. */
+/** Render an entry's actions in a panel over the palette's corner. */
 function ActionsPanel(properties: {
     /** The entry whose actions the panel lists. */
     readonly item: PaletteItem;

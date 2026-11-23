@@ -31,7 +31,7 @@ export interface CalendarAvailabilityOptions {
     readonly resources?: readonly CalendarResource[];
 }
 
-/** The time a person marks free to share, after Calendly's and Google's booking availability. */
+/** The time a person marks free to share. */
 export class CalendarAvailability {
     /** The free spans: each resource's in order, joined where they meet. */
     readonly spans: Accessor<readonly AvailabilitySpan[]>;

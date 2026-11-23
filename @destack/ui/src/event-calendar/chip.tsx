@@ -334,7 +334,7 @@ export function EventCalendarEvent(properties: EventCalendarEventProperties): JS
     );
 }
 
-/** Render the card that previews the event a pointer rests on or the focus is on, after Google. */
+/** Render the card that previews the event a pointer rests on or the focus is on. */
 export function EventCalendarPreviewCard(
     properties: Omit<HoverCardContentProperties, "children">,
 ): JSX.Element {

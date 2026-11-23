@@ -400,7 +400,7 @@ export function TimelineBar(properties: TimelineBarProperties): JSX.Element {
     );
 }
 
-/** Render the track of an item without dates, on which a sweep sets them, after Linear. */
+/** Render the track of an item without dates, on which a sweep sets them. */
 function UndatedTrack(properties: {
     /** The StyleX styles applied after the track's styles. */
     readonly xstyle: style.Styles | undefined;

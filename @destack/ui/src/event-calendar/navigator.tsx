@@ -9,7 +9,7 @@ export type EventCalendarNavigatorProperties = Omit<
     "mode" | "selected" | "defaultSelected" | "onSelect" | "defaultMonth" | "today"
 >;
 
-/** Render a month that moves the calendar to the day pressed, after Google Calendar's sidebar. */
+/** Render a month that moves the calendar to the day pressed. */
 export function EventCalendarNavigator(properties: EventCalendarNavigatorProperties): JSX.Element {
     // show the month of the calendar's date, again whenever the date leaves it
     const control = useEventCalendar();

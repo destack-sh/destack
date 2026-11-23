@@ -382,7 +382,7 @@ export class SidebarControl {
 
     /** Follow a drag to a width in pixels, collapsing below half the narrowest. */
     resize(pixels: number): void {
-        // collapse a sidebar dragged well past its narrowest, as Linear's does
+        // collapse a sidebar dragged well past its narrowest
         if (pixels < this.#minimum() / 2) {
             if (this.isOpen()) {
                 this.setOpen(false);

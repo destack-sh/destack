@@ -63,7 +63,7 @@ const styles = style.create({
     },
 });
 
-/** Render a calendar of events in the views its parts offer, after Google Calendar. */
+/** Render a calendar of events in the views its parts offer. */
 export function EventCalendar(properties: EventCalendarProperties): JSX.Element {
     // share the view, date and drags with the parts
     const drags = useDragManager();

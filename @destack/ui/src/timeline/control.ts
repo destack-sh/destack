@@ -35,7 +35,7 @@ import {
 } from "./tree.ts";
 import { type TimelineAxisMode, TimelineWindow } from "./window.ts";
 
-/** The height of a row in pixels by default, as Jaeger's and Linear's timelines run about. */
+/** The height of a row in pixels by default, about Jaeger's. */
 const ROW_HEIGHT = 32;
 
 /** The width of the labels' column by default. */
@@ -63,13 +63,13 @@ export interface TimelineOptions {
     readonly onWindowChange?: (window: TimeScale) => void;
     /** Handle the person changing items as one change set, which makes the bars movable. */
     readonly onItemsChange?: (items: readonly TimelineItem[]) => void;
-    /** Read every item a change moves, such as the tasks a schedule pushes, after Bryntum. */
+    /** Read every item a change moves, such as the tasks a schedule pushes. */
     readonly propagate?: (changed: readonly TimelineItem[]) => readonly TimelineItem[];
     /** Handle the person moving a row, which makes the rows movable by a grip and keys. */
     readonly onRowMove?: (move: TimelineRowMove) => void;
     /** Handle the person opening an item. */
     readonly onAction?: (key: string) => void;
-    /** The selection of items, several replaced by a plain press by default, after Linear. */
+    /** The selection of items, several replaced by a plain press by default. */
     readonly selection?: MultipleSelection;
     /** Report whether the person may draw a link, such as one closing no cycle, any by default. */
     readonly canLink?: (link: ScheduleLink) => boolean;
@@ -200,7 +200,7 @@ export class TimelineControl {
             }),
         });
 
-        // move one focus through the rows, and select several as Finder and Linear do
+        // move one focus through the rows, and select several
         this.focus = new Focus({ delegate: new RowsDelegate(this.tree), mode: "roving" });
         this.selection = new Selection(
             untrack(() => options.selection) ?? { multiple: true, behavior: "replace" },
@@ -249,7 +249,7 @@ export class TimelineControl {
         return link !== undefined && (link.from === key || link.to === key);
     }
 
-    /** Move a row a place up or down among the rows, as Notion moves blocks. */
+    /** Move a row a place up or down among the rows. */
     stepRow(key: string, direction: 1 | -1): void {
         const move = this.tree.step(key, direction);
         if (move !== undefined) {

@@ -1782,7 +1782,7 @@ export interface DataTableBulkBarProperties<Features extends TableFeatures, Row 
     readonly actions: (rows: readonly string[]) => Action[];
 }
 
-/** Render the selected rows' count and actions while rows are selected, after Linear's bar. */
+/** Render the selected rows' count and actions while rows are selected. */
 export function DataTableBulkBar<Features extends TableFeatures, Row extends RowData>(
     properties: DataTableBulkBarProperties<Features, Row>,
 ): JSX.Element {
