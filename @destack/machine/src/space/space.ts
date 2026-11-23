@@ -920,7 +920,8 @@ export class Space {
                     );
                 }
 
-                // stop the instance, which closes each start's connections
+                // release the store's sockets and stop its instance
+                this.machine.hibernation?.release(this.id);
                 await this.#instance?.close();
 
                 // destroy each resource this machine provisioned apart from the main database

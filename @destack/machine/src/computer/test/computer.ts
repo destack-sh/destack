@@ -217,6 +217,11 @@ export class TestComputer implements AsyncDisposable {
         return Refusal.captured(this.world.telemetry, (record) => TestComputer.#isDial(record));
     }
 
+    /** Take the failures the world captured as refusals, but the tunnel's retried dials. */
+    takeRefusals(): Refusal[] {
+        return Refusal.take(this.world.telemetry, (record) => TestComputer.#isDial(record));
+    }
+
     /** Wait until the world captures a failure, but the tunnel's dials, answering the first. */
     async refused(): Promise<CapturedRecord> {
         await this.world.simulation.waitUntil(() => this.captured().length > 0);

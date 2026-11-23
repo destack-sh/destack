@@ -70,19 +70,20 @@ async function pushHome() {
             requestId: RequestId.create(home.environment),
         });
 
-    // commit a version of the site, push it to main and list the references
-    const push = async (version: number) => {
-        await files.writeTextFile(
-            join(worktree, "src/version.ts"),
-            `/** The site's version. */\nexport const version = ${version};\n`,
-        );
+    // commit a source of the site's version module, push it to main and list the references
+    const pushSource = async (source: string) => {
+        await files.writeTextFile(join(worktree, "src/version.ts"), source);
         await git(worktree, "add", ".");
-        await git(worktree, "commit", "--quiet", "--message", `write version ${version}`);
+        await git(worktree, "commit", "--quiet", "--message", "write the version");
         await git(worktree, "push", "--quiet", present(created.remote, "the remote"), "main");
         await list();
 
         return await git(worktree, "rev-parse", "HEAD");
     };
+
+    // commit a version of the site
+    const push = (version: number) =>
+        pushSource(`/** The site's version. */\nexport const version = ${version};\n`);
 
     // install the site in the owner's home following the repository's main branch
     const service = createClient(
@@ -118,6 +119,7 @@ async function pushHome() {
         repository: created,
         list,
         push,
+        pushSource,
         install,
         followed: follow,
     };
@@ -346,6 +348,49 @@ test("build and deploy each commit a push moves main to", async () => {
         builds[1]?.id,
         [false, true],
     ]);
+});
+
+test("fail the installation of a branch whose commit does not build, with the build's failure", async () => {
+    // push a version module that does not compile, and install the site following main
+    const site = await pushHome();
+    const commit = await site.pushSource("export const version = ;\n");
+    const installed = await site.install();
+    const served = (await site.home.machine.space(site.space)).database;
+
+    // wait until its reconcile fails on the commit's failed build
+    const read = async () =>
+        present(
+            (
+                await served
+                    .select()
+                    .from(stackObject.installation.table)
+                    .where(eq(stackObject.installation.table.id, installed.id))
+            )[0],
+            "the installation",
+        );
+    const isFailing = async () => (await read()).conditions["Synced"]?.status === "false";
+    expect(
+        await site.home.world.simulation.wait(
+            served.log.waitUntil(isFailing, site.home.clock.timeout(DEPLOY_MILLISECONDS)),
+        ),
+    ).toBe(true);
+
+    // report the build's failure on the installation and as the controller's refusal
+    const built = (await served.select().from(build.table)).find(
+        (row) => row.source.kind === "commit",
+    );
+    const failure = present(built?.failure, "the build's failure").message;
+    const message = `cannot deploy commit '${commit}' of 'site': its build failed: ${failure}`;
+    const refused = site.home.takeRefusals().map((each) => each.join(" | "));
+    expect({
+        state: built?.state,
+        synced: (await read()).conditions["Synced"]?.message,
+        refused: [...new Set(refused)],
+    }).toEqual({
+        state: "failed",
+        synced: `@destack/stack BUILD_BLOCKED: ${message}`,
+        refused: [`PRECONDITION_FAILED | BUILD_BLOCKED | ${message}`],
+    });
 });
 
 test("replicate the branch an installation follows into its space", async () => {

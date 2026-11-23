@@ -474,10 +474,10 @@ function followedWatches(): ObjectWatch[] {
     return [
         { table: tag.table, fields: ["version"], path: [FOLLOWERS], on: { id: "id" } },
         { table: reference.table, fields: ["commit"], path: [FOLLOWERS], on: { id: "id" } },
-        // the followers of a reference once the build of its commit succeeds
+        // the followers of a reference once the build of its commit succeeds or fails
         {
             table: build.table,
-            where: { state: "succeeded" },
+            where: { state: { in: ["succeeded", "failed"] } },
             fields: ["state"],
             path: [
                 {

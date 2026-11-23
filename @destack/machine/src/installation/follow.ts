@@ -136,7 +136,17 @@ export class CommitBuild {
             directory,
         };
         const built = await this.#create(reconciliation, source);
-        if (
+
+        // fail the pass with the failed build's failure
+        if (built.state === "failed") {
+            const { message } = present(built.failure, `the failure of build '${built.id}'`);
+            throw StackError.of(
+                "BUILD_BLOCKED",
+                `cannot deploy commit '${commit}' of '${target.name}': its build failed: ${message}`,
+            );
+        }
+        // leave a build still running, an installation its manager deploys, and one deployed already
+        else if (
             built.state !== "succeeded" ||
             Manager.isManaged(target) ||
             (await this.#isTargeted(built.id, database))
