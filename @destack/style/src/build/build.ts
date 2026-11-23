@@ -4,7 +4,7 @@ import type { ViteDevServer } from "vite";
 import { basename, join, relative } from "node:path";
 import { type BuildExtension, LIGHT_DARK_FEATURE, type Plugin } from "@destack/package/build";
 import { schema } from "@destack/schema";
-import { BuildReader } from "@destack/package/manifest";
+import { BuildListCache, BuildReader } from "@destack/package/manifest";
 
 /** The stylesheet module that carries the StyleX rules a document uses. */
 const SHEET_ID = "virtual:stylex.css";
@@ -205,7 +205,12 @@ async function readRules(
     environment: Pick<Environment<"files">, "files" | "crypto">,
 ): Promise<schema.Infer<typeof RuleFile>> {
     // read the build's file list, then each output's rules file
-    const build = await BuildReader.openDirectory(directory, environment.files, environment.crypto);
+    const build = await BuildReader.openDirectory(
+        directory,
+        environment.files,
+        environment.crypto,
+        new BuildListCache(),
+    );
     const listed = (await build.files()).filter((file) => basename(file.path) === RULES_FILE);
     const decoder = new TextDecoder();
     const rules = await Promise.all(
