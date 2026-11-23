@@ -6,16 +6,40 @@
     "runtimes": ["browser", "bun", "workerd"],
     "entrypoints": ["src/bun/test/linked.ts"],
     "exports": {
-        "./build": { "runtimes": ["bun"] },
-        "./locator": { "runtimes": ["bun"] },
-        "./bun": { "runtimes": ["bun"] },
-        "./bun/preload": { "runtimes": ["bun"] },
-        "./transform": { "runtimes": ["bun"] },
-        "./vite": { "runtimes": ["bun"] }
+        "./build": {
+            "runtimes": ["bun"],
+            "internal": true
+        },
+        "./locator": {
+            "runtimes": ["bun"],
+            "internal": true
+        },
+        "./bun": {
+            "runtimes": ["bun"],
+            "internal": true
+        },
+        "./bun/preload": {
+            "runtimes": ["bun"]
+        },
+        "./transform": {
+            "runtimes": ["bun"],
+            "internal": true
+        },
+        "./vite": {
+            "runtimes": ["bun"],
+            "internal": true
+        },
+        "./workerd": {
+            "internal": true
+        }
     },
     "stamps": {
-        "defineExample": { "module": 1 },
-        "defineScenario": { "module": 1 },
+        "defineExample": {
+            "module": 1
+        },
+        "defineScenario": {
+            "module": 1
+        },
         "defineKind": {
             "module": 1
         }

@@ -33,14 +33,17 @@
         "@destack/schema": "workspace:*",
         "@jridgewell/trace-mapping": "0.3.31",
         "es-module-lexer": "3.0.4",
-        "lightningcss": "1.33.0",
         "magic-string": "1.4.1"
     },
     "peerDependencies": {
+        "lightningcss": "1.33.0",
         "rolldown": "1.2.19",
         "vite": "8.3.8"
     },
     "peerDependenciesMeta": {
+        "lightningcss": {
+            "optional": true
+        },
         "vite": {
             "optional": true
         }
@@ -48,6 +51,7 @@
     "devDependencies": {
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.4",
+        "lightningcss": "1.33.0",
         "rolldown": "1.2.19",
         "vite": "8.3.8"
     }
