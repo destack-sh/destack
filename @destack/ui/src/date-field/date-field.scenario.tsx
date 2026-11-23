@@ -19,7 +19,7 @@ export const dateFieldTypeDigits = defineScenario({
                 { observe: { kind: "focused" }, is: "Month" },
                 {
                     observe: { kind: "text", target: { role: "group", name: "Birthday" } },
-                    is: "––/––/––––",
+                    is: "mm/dd/yyyy",
                 },
             ],
         },
@@ -29,7 +29,7 @@ export const dateFieldTypeDigits = defineScenario({
                 { observe: { kind: "focused" }, is: "Month" },
                 {
                     observe: { kind: "text", target: { role: "group", name: "Birthday" } },
-                    is: "01/––/––––",
+                    is: "01/dd/yyyy",
                 },
             ],
         },
@@ -39,7 +39,7 @@ export const dateFieldTypeDigits = defineScenario({
                 { observe: { kind: "focused" }, is: "Day" },
                 {
                     observe: { kind: "text", target: { role: "group", name: "Birthday" } },
-                    is: "10/––/––––",
+                    is: "10/dd/yyyy",
                 },
             ],
         },
@@ -49,7 +49,7 @@ export const dateFieldTypeDigits = defineScenario({
                 { observe: { kind: "focused" }, is: "Year" },
                 {
                     observe: { kind: "text", target: { role: "group", name: "Birthday" } },
-                    is: "10/07/––––",
+                    is: "10/07/yyyy",
                 },
             ],
         },
@@ -162,7 +162,7 @@ export const dateFieldStepSegments = defineScenario({
                 { observe: { kind: "focused" }, is: "Day" },
                 {
                     observe: { kind: "text", target: { role: "group", name: "Archived" } },
-                    is: "01/––/2026",
+                    is: "01/dd/2026",
                 },
             ],
         },
@@ -172,7 +172,7 @@ export const dateFieldStepSegments = defineScenario({
                 { observe: { kind: "focused" }, is: "Month" },
                 {
                     observe: { kind: "text", target: { role: "group", name: "Archived" } },
-                    is: "01/––/2026",
+                    is: "01/dd/2026",
                 },
             ],
         },

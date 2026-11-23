@@ -8,8 +8,8 @@ import { For, type JSX, omit, Show, untrack, useEnvironment, useLocale } from "@
 import { type FieldControl, useFieldControl } from "../field/control.ts";
 import { ListState } from "../focus/index.ts";
 
-/** The text an empty segment shows in place of each digit. */
-const PLACEHOLDER_DIGIT = "–";
+/** The text an empty hour, minute or day period shows. */
+const PLACEHOLDER_TIME = "––";
 
 /** The kinds of the parts `formatToParts` lists that a segment edits. */
 const KINDS: ReadonlySet<string> = new Set<DateSegmentKind>([
@@ -351,6 +351,19 @@ export function DateSegmentGroup(properties: DateSegmentGroupProperties): JSX.El
     );
 }
 
+/** Write what an empty segment shows: the letters of a date's part, or dashes for a time's. */
+function placeholderOf(kind: DateSegmentKind, locale: Localization): string {
+    if (kind === "year") {
+        return locale.render(t`yyyy`);
+    } else if (kind === "month") {
+        return locale.render(t`mm`);
+    } else if (kind === "day") {
+        return locale.render(t`dd`);
+    } else {
+        return PLACEHOLDER_TIME;
+    }
+}
+
 /** Render one segment as a spinbutton named by its part, showing its value or a placeholder. */
 function DateSegment(properties: {
     /** The segments of its group, which it joins. */
@@ -371,6 +384,7 @@ function DateSegment(properties: {
     readonly onBlur: () => void;
 }): JSX.Element {
     // join the group's segments, which move the focus to this one by its kind
+    const locale = useLocale();
     let element: HTMLElement | undefined;
     const kind = untrack(() => properties.kind);
     properties.list.add({
@@ -389,7 +403,7 @@ function DateSegment(properties: {
         const current = value();
 
         return current === undefined
-            ? PLACEHOLDER_DIGIT.repeat(properties.kind === "year" ? 4 : 2)
+            ? placeholderOf(properties.kind, locale)
             : properties.format.text(properties.kind, current);
     };
     const spoken = (): string => {

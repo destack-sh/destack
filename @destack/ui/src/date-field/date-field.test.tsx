@@ -51,18 +51,18 @@ test("lay out an empty date as a group of spinbuttons in the locale's order, the
     const austrian = drawIn("de-AT", () => <DateField aria-label="Due" />);
     expect([markup(american), markup(austrian)]).toEqual([
         '<div role="group" data-slot="date-field" aria-label="Due">' +
-            emptySegment("month", "Month", 12, "––") +
+            emptySegment("month", "Month", 12, "mm") +
             literal("/") +
-            emptySegment("day", "Day", 31, "––") +
+            emptySegment("day", "Day", 31, "dd") +
             literal("/") +
-            emptySegment("year", "Year", 9999, "––––") +
+            emptySegment("year", "Year", 9999, "yyyy") +
             "</div>",
         '<div role="group" data-slot="date-field" aria-label="Due">' +
-            emptySegment("day", "Day", 31, "––") +
+            emptySegment("day", "Day", 31, "dd") +
             literal(".") +
-            emptySegment("month", "Month", 12, "––") +
+            emptySegment("month", "Month", 12, "mm") +
             literal(".") +
-            emptySegment("year", "Year", 9999, "––––") +
+            emptySegment("year", "Year", 9999, "yyyy") +
             "</div>",
     ]);
 });
@@ -107,7 +107,7 @@ test("step segments with the arrow keys, wrapping, and report undefined for an i
     expect([changes, impossible, container.textContent]).toEqual([
         ["2026-01-31", "2026-12-31", undefined],
         "11/31/2026",
-        "11/––/2026",
+        "11/dd/2026",
     ]);
 });
 
