@@ -4,7 +4,7 @@ import caretLeft from "@destack/icon/phosphor/caret-left";
 import caretRight from "@destack/icon/phosphor/caret-right";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
-import { color, size, space, weight } from "@destack/theme/tokens.stylex";
+import { color, size, space, swatch, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import {
     type Accessor,
@@ -40,13 +40,18 @@ import {
 } from "./selection.ts";
 import { VisuallyHidden, visuallyHiddenStyle } from "../visually-hidden/index.ts";
 
+/** The query of a page too narrow for two months beside each other. */
+const NARROW_QUERY = "@media (max-width: 47.999rem)";
+
 /** The styles of a calendar and its days. */
 const styles = style.create({
     calendar: {
         position: "relative",
         display: "inline-flex",
-        flexWrap: "wrap",
+        // stack the months where they do not fit beside each other
+        flexDirection: { default: "row", [NARROW_QUERY]: "column" },
         gap: space[4],
+        maxWidth: "100%",
         padding: space[3],
     },
     header: {
@@ -65,6 +70,7 @@ const styles = style.create({
         display: "flex",
         flexDirection: "column",
         gap: space[3],
+        minWidth: 0,
     },
     caption: {
         display: "flex",
@@ -75,16 +81,18 @@ const styles = style.create({
         fontWeight: weight.medium,
     },
     week: {
-        width: size[3],
         color: color.mutedForeground,
         fontWeight: weight.regular,
         fontVariantNumeric: "tabular-nums",
     },
     grid: {
+        // shrink the days where the week does not fit
+        tableLayout: "fixed",
+        maxWidth: "100%",
         borderCollapse: "collapse",
     },
+    columns: (count: string) => ({ width: `calc(${count} * ${size[3]})` }),
     weekday: {
-        width: size[3],
         paddingBottom: space[1],
         color: color.mutedForeground,
         fontWeight: weight.regular,
@@ -92,8 +100,12 @@ const styles = style.create({
     cell: {
         textAlign: "center",
     },
+    today: {
+        color: swatch.accentText,
+        fontWeight: weight.semibold,
+    },
     day: {
-        width: size[3],
+        width: "100%",
         height: size[3],
         fontWeight: weight.regular,
         fontVariantNumeric: "tabular-nums",
@@ -583,7 +595,7 @@ function CalendarGrid(properties: CalendarGridProperties): JSX.Element {
             role="grid"
             aria-labelledby={properties.captionId}
             onKeyDown={(event) => properties.focus.move(event, locale.direction)}
-            {...style.attrs(styles.grid)}
+            {...style.attrs(styles.grid, styles.columns(properties.weekNumbers ? "8" : "7"))}
         >
             <CalendarWeekdays
                 week={properties.weeks[0] ?? []}
@@ -751,7 +763,7 @@ function CalendarCell(properties: {
                     buttonVariants({ variant: "ghost", size: "icon" }),
                     styles.day,
                     isOutside() && styles.outside,
-                    properties.isToday && state.selected,
+                    properties.isToday && styles.today,
                     isSolid() && state.checked,
                     isMiddle() && styles.middle,
                 )}
