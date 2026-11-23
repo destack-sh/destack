@@ -204,9 +204,9 @@ An update downloads only the files that changed.
 
 Daily checks, background staging and restart prompts follow Sparkle.
 
-| Sparkle                 | `@destack/update`           | Difference                                                |
-| ----------------------- | --------------------------- | --------------------------------------------------------- |
-| the appcast             | the TUF feed                | Signed metadata with key rotation instead of an RSS feed. |
-| "Check for Updates…"    | `check-for-updates`         | The same, as a command of the device's `distribution`.    |
-| "Install and Relaunch"  | `restart-to-update`         | Restarts the machine and relaunches the desktop.          |
-| automatic checks, daily | the machine's daily `stage` | The same.                                                 |
+| Sparkle                 | `@destack/update`              | Difference                                                |
+| ----------------------- | ------------------------------ | --------------------------------------------------------- |
+| the appcast             | the TUF feed                   | Signed metadata with key rotation instead of an RSS feed. |
+| "Check for Updates…"    | `distribution.checkForUpdates` | The same, as a command of the device's `distribution`.    |
+| "Install and Relaunch"  | `distribution.restartToUpdate` | Restarts the machine and relaunches the desktop.          |
+| automatic checks, daily | the machine's daily `stage`    | The same.                                                 |

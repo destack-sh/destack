@@ -52,7 +52,7 @@ export const distribution = defineObject(
 
 /** The action staging the newest release of a current distribution, when one is newer. */
 export const checkForUpdates = defineAction({
-    name: "check-for-updates",
+    name: "distribution.checkForUpdates",
     title: t`Check for Updates…`,
     input: { distributions: selected(distribution, { status: "current" }) },
     call: ({ distributions }) => distributions.prepare("stage", {}),
@@ -60,7 +60,7 @@ export const checkForUpdates = defineAction({
 
 /** The action restarting a distribution into the release it staged. */
 export const restartToUpdate = defineAction({
-    name: "restart-to-update",
+    name: "distribution.restartToUpdate",
     title: t`Restart to Update`,
     input: { distributions: selected(distribution, { status: "staged" }) },
     call: ({ distributions }) => distributions.prepare("activate", {}),
