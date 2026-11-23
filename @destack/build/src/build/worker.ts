@@ -2,7 +2,9 @@ import { ModuleTransformer } from "@destack/package/transform";
 import type { Program } from "@destack/package/bun";
 import { Environment, FileSystemError, type Output, Telemetry } from "@destack/environment";
 import { BuildTree } from "../dependency/tree.ts";
+import { createHash } from "node:crypto";
 import { dirname, join, resolve } from "node:path";
+import { HOST_RUNTIME } from "@destack/package/runtime";
 import { fileURLToPath } from "node:url";
 import {
     graph,
@@ -11,7 +13,7 @@ import {
     PackageJson,
     TEST_EXPORT,
 } from "@destack/package";
-import { found, type JsonObject, present, schema } from "@destack/schema";
+import { Digest, found, type JsonObject, present, schema } from "@destack/schema";
 import { ObjectDescription } from "@destack/object";
 import type { BuildExtension, TransformCache } from "@destack/package/build";
 import { type SourceMapReference } from "@destack/package/source";
@@ -59,6 +61,9 @@ import {
     TracerProvider,
 } from "@destack/telemetry/trace";
 import { OtlpExport } from "@destack/telemetry/otlp";
+
+/** A relative module specifier an emitted chunk imports, statically or dynamically. */
+const RELATIVE_IMPORT = /(?:\bfrom\s*|\bimport\s*\(?\s*)["'](\.\.?\/[^"']+)["']/gu;
 
 /** The Destack version this toolchain builds with: its own release's. */
 const DESTACK_VERSION = import.meta.destack.package.version;
@@ -326,8 +331,53 @@ export class CompilerWorker {
             declarations: described.list(),
             relationships: described.relationships(),
             tables,
-            isExtension: opened.packageJson.definition.build !== undefined,
+            ...(opened.packageJson.definition.build === undefined
+                ? {}
+                : {
+                      extension: await this.#extensionDigest(
+                          opened.packageJson.definition.build,
+                          compiled.outputs,
+                          files.directory,
+                      ),
+                  }),
         });
+    }
+
+    /** Digest the modules a build extension's export loads, which its dependents' compiles run. */
+    async #extensionDigest(
+        build: string,
+        outputs: ReadonlyMap<string, Pick<OutputBuild, "output">>,
+        directory: string,
+    ): Promise<Digest> {
+        // find the export's file in the host runtime's output, which dependents' compiles import
+        const subpath = build.slice(0, build.indexOf("#"));
+        const entry = [...outputs.values()]
+            .map(({ output }) => output)
+            .find((output) => output.runtime === HOST_RUNTIME && subpath in output.exports)
+            ?.exports[subpath]?.path;
+        if (entry === undefined) {
+            throw BuildError.of(
+                "EXTENSION_INVALID",
+                `build '${build}' is invalid: no ${HOST_RUNTIME} output exports '${subpath}'`,
+            );
+        }
+
+        // walk its relative imports through the emitted chunks, hashing each module once
+        const hash = createHash("sha256");
+        const seen = new Set<string>();
+        const pending = [entry];
+        for (let path = pending.pop(); path !== undefined; path = pending.pop()) {
+            if (!seen.has(path)) {
+                seen.add(path);
+                const text = await this.environment.files.readTextFile(join(directory, path));
+                hash.update(`${path}\0${text}\0`);
+                for (const [, specifier] of text.matchAll(RELATIVE_IMPORT)) {
+                    pending.push(join(dirname(path), present(specifier, "a relative specifier")));
+                }
+            }
+        }
+
+        return Digest.parse(hash.digest("hex"));
     }
 
     /** Describe the tables the package's object types keep, with its dependencies' types. */
