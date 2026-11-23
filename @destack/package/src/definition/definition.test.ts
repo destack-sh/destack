@@ -60,13 +60,13 @@ function readEntrypoints(entrypoints: readonly string[]) {
 
 test("refuse an app's server and providers, test kits and any app in a builtin, outside the importing package and its tests", () => {
     // import each subpath from a builtin, an app and a test, refusing as the layout says
-    const app = { name: "@acme/notes", role: "app" } as const;
-    const library = { name: "@acme/kit", role: "library" } as const;
+    const app = { name: "@example/notes", role: "app" } as const;
+    const library = { name: "@example/kit", role: "library" } as const;
     const importers = {
         builtin: { name: "@destack/machine", role: "builtin", isTest: false },
-        app: { name: "@acme/board", role: "app", isTest: false },
-        test: { name: "@acme/board", role: "app", isTest: true },
-        own: { name: "@acme/notes", role: "app", isTest: false },
+        app: { name: "@example/board", role: "app", isTest: false },
+        test: { name: "@example/board", role: "app", isTest: true },
+        own: { name: "@example/notes", role: "app", isTest: false },
     } as const;
     const imports = [
         [app, "./client"],
@@ -93,17 +93,17 @@ test("refuse an app's server and providers, test kits and any app in a builtin, 
     // allow the importing package and tests everything, and an app only interfaces and libraries
     expect(outcomes).toEqual({
         builtin: [
-            "builtin '@destack/machine' is invalid: it imports app '@acme/notes/client'",
-            "'@destack/machine' is invalid: it imports '@acme/notes/server', private to its app",
-            "'@destack/machine' is invalid: it imports '@acme/notes/provider/stripe', private to its app",
-            "'@destack/machine' is invalid: it imports '@acme/kit/test' outside its tests",
+            "builtin '@destack/machine' is invalid: it imports app '@example/notes/client'",
+            "'@destack/machine' is invalid: it imports '@example/notes/server', private to its app",
+            "'@destack/machine' is invalid: it imports '@example/notes/provider/stripe', private to its app",
+            "'@destack/machine' is invalid: it imports '@example/kit/test' outside its tests",
             "allowed",
         ],
         app: [
             "allowed",
-            "'@acme/board' is invalid: it imports '@acme/notes/server', private to its app",
-            "'@acme/board' is invalid: it imports '@acme/notes/provider/stripe', private to its app",
-            "'@acme/board' is invalid: it imports '@acme/kit/test' outside its tests",
+            "'@example/board' is invalid: it imports '@example/notes/server', private to its app",
+            "'@example/board' is invalid: it imports '@example/notes/provider/stripe', private to its app",
+            "'@example/board' is invalid: it imports '@example/kit/test' outside its tests",
             "allowed",
         ],
         test: ["allowed", "allowed", "allowed", "allowed", "allowed"],
@@ -111,7 +111,7 @@ test("refuse an app's server and providers, test kits and any app in a builtin, 
             "allowed",
             "allowed",
             "allowed",
-            "'@acme/notes' is invalid: it imports '@acme/kit/test' outside its tests",
+            "'@example/notes' is invalid: it imports '@example/kit/test' outside its tests",
             "allowed",
         ],
     });
@@ -127,7 +127,7 @@ test("refuse an app without its package or with a free subpath, and a library wi
     });
     const outcome = (role: PackageDefinition["role"], entries: readonly string[]) => {
         try {
-            PackageDefinition.requireExports({ ...notes, role }, "@acme/notes", entries);
+            PackageDefinition.requireExports({ ...notes, role }, "@example/notes", entries);
 
             return "allowed";
         } catch (error) {
@@ -151,10 +151,10 @@ test("refuse an app without its package or with a free subpath, and a library wi
         builtin: outcome("builtin", [".", "./package", "./cloudflare"]),
     }).toEqual({
         app: "allowed",
-        unpackaged: "app '@acme/notes' is invalid: it exports no ./package",
-        root: "app '@acme/notes' is invalid: it exports '.', outside the standard subpaths",
-        free: "app '@acme/notes' is invalid: it exports './oauth', outside the standard subpaths",
-        library: "library '@acme/notes' is invalid: it exports ./package",
+        unpackaged: "app '@example/notes' is invalid: it exports no ./package",
+        root: "app '@example/notes' is invalid: it exports '.', outside the standard subpaths",
+        free: "app '@example/notes' is invalid: it exports './oauth', outside the standard subpaths",
+        library: "library '@example/notes' is invalid: it exports ./package",
         builtin: "allowed",
     });
 });
@@ -189,7 +189,7 @@ test("refuse a declaration or kind comparison whose export leaves out a server r
     const outcome = (runtimes: PackageDefinition["runtimes"]) => {
         try {
             const exports = runtimes === undefined ? {} : { "./inspect": { runtimes } };
-            PackageDefinition.requireExports({ ...objects, exports }, "@acme/objects", [
+            PackageDefinition.requireExports({ ...objects, exports }, "@example/objects", [
                 "./inspect",
             ]);
 
@@ -207,6 +207,6 @@ test("refuse a declaration or kind comparison whose export leaves out a server r
     }).toEqual({
         inherited: "allowed",
         both: "allowed",
-        bun: "package '@acme/objects' is invalid: './inspect' compares setting declarations without 'workerd', where machines compare releases",
+        bun: "package '@example/objects' is invalid: './inspect' compares setting declarations without 'workerd', where machines compare releases",
     });
 });

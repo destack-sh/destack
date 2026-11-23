@@ -176,27 +176,15 @@ export const PackageRelease = Object.assign(packageRelease, {
             )[0];
     },
 
-    /** Select the release at an exact version, else the newest build of a named release. */
+    /** Select a package's release at a version. */
     select(
         releases: readonly PackageRelease[],
         packageId: PackageId,
-        release: string,
+        version: string,
     ): PackageRelease | undefined {
-        // take the exact version
-        const builds = releases.filter((each) => each.package.id === packageId);
-        const exact = builds.find((each) => each.package.version === release);
-        if (exact !== undefined) {
-            return exact;
-        }
-
-        // take the newest build of a release, a dev build among them, named by its version alone
-        const parsed = Version.safeParse(release);
-        const isRelease = parsed.success && Version.release(parsed.data) === parsed.data;
-        const named = builds.filter(
-            (each) => isRelease && Version.release(Version.parse(each.package.version)) === release,
+        return releases.find(
+            (each) => each.package.id === packageId && each.package.version === version,
         );
-
-        return PackageRelease.newest(named, packageId);
     },
 });
 /** An immutable Destack package release. */

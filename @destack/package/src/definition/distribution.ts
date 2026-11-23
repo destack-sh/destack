@@ -47,6 +47,8 @@ const manifest = schema.object({
             images: schema.partialRecord(platformSchema, Digest),
         }),
     ),
+    /** Whether the distribution ships its releases' builds beside the manifest as a layer. */
+    isLayered: schema.boolean(),
 });
 
 /** The releases a Destack distribution ships, each with its role, wherever their builds lie. */
@@ -70,15 +72,22 @@ export const DistributionManifest = Object.assign(manifest, {
         const builtins = value.releases.filter((release) => release.role === "builtin");
 
         return new Map(
-            DistributionManifest.releases({ releases: builtins }, platform).map((release) => [
-                release.package.id,
-                release,
-            ]),
+            DistributionManifest.releases({ ...value, releases: builtins }, platform).map(
+                (release) => [release.package.id, release],
+            ),
         );
     },
 
     /** Merge the manifests of one distribution built on several platforms. */
     merge(left: DistributionManifest, right: DistributionManifest): DistributionManifest {
+        // refuse a layer only one platform ships
+        if (left.isLayered !== right.isLayered) {
+            throw PackageError.of(
+                "DISTRIBUTION_INVALID",
+                "distribution is invalid: only one platform ships a layer",
+            );
+        }
+
         // refuse a release only one manifest ships
         const lefts = new Set(left.releases.map((release) => release.package.id));
         const rights = new Map(right.releases.map((release) => [release.package.id, release]));
@@ -121,7 +130,7 @@ export const DistributionManifest = Object.assign(manifest, {
             return { ...release, images: { ...release.images, ...other.images } };
         });
 
-        return { releases };
+        return { releases, isLayered: left.isLayered };
     },
 });
 /** The releases a Destack distribution ships. */

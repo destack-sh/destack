@@ -32,6 +32,7 @@ const ARM: DistributionManifest = {
         { package: VAULT, role: "builtin", images: { "darwin-arm64": LOCKS.vaultArm } },
         { package: START, role: "app", images: { "darwin-arm64": LOCKS.startArm } },
     ],
+    isLayered: false,
 };
 
 /** The x64 slice's vault release. */
@@ -49,7 +50,7 @@ const INTEL_START: DistributionManifest["releases"][number] = {
 };
 
 /** The x64 slice's manifest, in another order. */
-const INTEL: DistributionManifest = { releases: [INTEL_START, INTEL_VAULT] };
+const INTEL: DistributionManifest = { releases: [INTEL_START, INTEL_VAULT], isLayered: false };
 
 test("merge two slices' manifests into each release's images on both platforms", () => {
     // merge, then read each platform's releases and builtins back
@@ -67,6 +68,7 @@ test("merge two slices' manifests into each release's images on both platforms",
                 images: { "darwin-arm64": LOCKS.startArm, "darwin-x64": LOCKS.startIntel },
             },
         ],
+        isLayered: false,
     });
     expect(DistributionManifest.releases(merged, "darwin-x64")).toEqual([
         { package: VAULT, image: LOCKS.vaultIntel },
@@ -81,9 +83,17 @@ test("merge a slice's manifest with itself unchanged", () => {
     expect(DistributionManifest.merge(ARM, ARM)).toEqual(ARM);
 });
 
-test("refuse to merge manifests of different packages, versions, roles or images", () => {
+test("refuse to merge manifests of different layers, packages, versions, roles or images", () => {
+    // ship a layer in one slice only
+    expect(() => DistributionManifest.merge(ARM, { ...INTEL, isLayered: true })).toThrow(
+        PackageError.of(
+            "DISTRIBUTION_INVALID",
+            "distribution is invalid: only one platform ships a layer",
+        ),
+    );
+
     // ship the start page in one slice only
-    expect(() => DistributionManifest.merge(ARM, { releases: [INTEL_VAULT] })).toThrow(
+    expect(() => DistributionManifest.merge(ARM, { ...INTEL, releases: [INTEL_VAULT] })).toThrow(
         PackageError.of(
             "DISTRIBUTION_INVALID",
             "distribution is invalid: only one platform ships 'start@2.0.0 (app)'",
@@ -92,14 +102,18 @@ test("refuse to merge manifests of different packages, versions, roles or images
 
     // ship another version, then another role
     const newer = { ...INTEL_START, package: { ...START, version: "2.0.1" } };
-    expect(() => DistributionManifest.merge(ARM, { releases: [INTEL_VAULT, newer] })).toThrow(
+    expect(() =>
+        DistributionManifest.merge(ARM, { ...INTEL, releases: [INTEL_VAULT, newer] }),
+    ).toThrow(
         PackageError.of(
             "DISTRIBUTION_INVALID",
             "distribution is invalid: its platforms ship 'start@2.0.0 (app)' and 'start@2.0.1 (app)'",
         ),
     );
     const library = { ...INTEL_START, role: "library" as const };
-    expect(() => DistributionManifest.merge(ARM, { releases: [INTEL_VAULT, library] })).toThrow(
+    expect(() =>
+        DistributionManifest.merge(ARM, { ...INTEL, releases: [INTEL_VAULT, library] }),
+    ).toThrow(
         PackageError.of(
             "DISTRIBUTION_INVALID",
             "distribution is invalid: its platforms ship 'start@2.0.0 (app)' and 'start@2.0.0 (library)'",
@@ -108,7 +122,9 @@ test("refuse to merge manifests of different packages, versions, roles or images
 
     // ship another image on the same platform
     const rebuilt = { ...INTEL_START, images: { "darwin-arm64": LOCKS.startIntel } };
-    expect(() => DistributionManifest.merge(ARM, { releases: [INTEL_VAULT, rebuilt] })).toThrow(
+    expect(() =>
+        DistributionManifest.merge(ARM, { ...INTEL, releases: [INTEL_VAULT, rebuilt] }),
+    ).toThrow(
         PackageError.of(
             "DISTRIBUTION_INVALID",
             "distribution is invalid: it has two 'darwin-arm64' images of 'start@2.0.0 (app)'",
