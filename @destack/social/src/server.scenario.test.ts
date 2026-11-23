@@ -125,7 +125,7 @@ test("record activities for mentioned principals, announce threads and replies t
         activity.call("act", {
             ...scope,
             id: bobMentioned.id,
-            action: "reply",
+            action: "comment.reply",
             text: "Shipping",
         }),
     );

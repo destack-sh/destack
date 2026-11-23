@@ -315,7 +315,7 @@ export type Excerpt = schema.Infer<typeof Excerpt>;
 
 /** Reply in a comment's thread. */
 export const answer = defineAction({
-    name: "reply",
+    name: "comment.reply",
     title: t`Reply`,
     input: { comments: selected(comment), text: Body.shape.text },
     call: ({ comments, text }) => comments.prepare("reply", { text }),
