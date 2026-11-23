@@ -239,12 +239,13 @@ export class Deployment {
 
     /** Select each residency home's stack with its relay's settings and its hostnames' routes. */
     homes(build: Pick<PlatformBuild, "released">): Record<string, StackRelease> {
-        // serve the universe's root from Home's start, and the site's pages at its own domain
+        // serve the universe's pages from Home, and the site at its own domain
         const { domain, domains } = this.universe;
         const platform = {
             spaces: Deployment.#relayRoute(`*.${domains.space}`),
             machines: Deployment.#relayRoute(`*.${domains.machine}`),
-            start: Deployment.#viewRoute(domain, "home", "start"),
+            start: Deployment.#startRoute(domain, "home"),
+            home: Deployment.#originRoute(domain, "home"),
             site: Deployment.#viewRoute(domains.site, "site", "site"),
         };
 
@@ -269,7 +270,29 @@ export class Deployment {
         return homes;
     }
 
-    /** Route a hostname's every path to a view of an installation. */
+    /** Route a hostname's root alone to an installation's start view, before its other paths. */
+    static #startRoute(hostname: string, installation: string) {
+        return {
+            hostname,
+            path: "/",
+            match: "exact",
+            installation,
+            rules: [{ entry: { kind: "view", view: "start" } }],
+        };
+    }
+
+    /** Route a hostname's every path to an installation's whole origin. */
+    static #originRoute(hostname: string, installation: string) {
+        return {
+            hostname,
+            path: "/",
+            match: "prefix",
+            installation,
+            rules: [{ entry: { kind: "origin" } }],
+        };
+    }
+
+    /** Route a hostname's every path to one view of an installation. */
     static #viewRoute(hostname: string, installation: string, view: string) {
         return {
             hostname,
