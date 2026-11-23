@@ -24,6 +24,8 @@ export interface Navigation {
     readonly navigate: (url: string, options?: NavigateOptions) => void;
     /** Load a URL as a new document, as `Location.assign`. */
     readonly assign: (url: string) => void;
+    /** Load the current entry again as a new document, as `Navigation.reload`. */
+    readonly reload: () => void;
     /** Move through history by a number of entries at once, back for a negative one. */
     readonly go: (delta: number) => void;
     /** Call a listener on each change of the current entry until the subscription disposes. */
@@ -65,6 +67,11 @@ class BrowserNavigation implements Navigation {
     /** Load a URL as a new document. */
     assign(url: string): void {
         location.assign(url);
+    }
+
+    /** Load the current entry again as a new document. */
+    reload(): void {
+        location.reload();
     }
 
     /** Move through history by a number of entries at once. */

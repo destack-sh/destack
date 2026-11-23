@@ -308,6 +308,11 @@ export class SimulatedNavigation implements Navigation {
         this.#loads.push(this.currentEntry.url);
     }
 
+    /** Load the current entry again as a new document, recorded among the loads. */
+    reload(): void {
+        this.#loads.push(this.currentEntry.url);
+    }
+
     /** The URLs loaded as new documents, oldest first. */
     get loads(): readonly string[] {
         return this.#loads;
