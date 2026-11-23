@@ -49,7 +49,14 @@ test("declare the token families with their text styles and motion tokens", () =
 
     // the text styles a theme names, one custom property per typography member
     const styles = TextStyleName.options;
-    const members = ["FontFamily", "FontSize", "FontWeight", "LineHeight", "LetterSpacing"];
+    const members = [
+        "FontFamily",
+        "FontSize",
+        "FontWeight",
+        "LineHeight",
+        "LetterSpacing",
+        "FontSizeAdjust",
+    ];
     expect(keys("text")).toEqual(
         styles.flatMap((style) => members.map((member) => style + member)),
     );

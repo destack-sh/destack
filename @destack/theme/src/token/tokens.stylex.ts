@@ -558,7 +558,7 @@ export const stroke = defineConsts({
 
 /** Elevation shadows of the surface levels. */
 export const shadow = defineConsts({
-    /** The hairline around raised and overlaid surfaces, the gray's alpha steps 3 and 6. */
+    /** The hairline around raised and overlaid surfaces, the gray's alpha step 3. */
     edge: "var(--destack-shadow-edge)",
     /** The cast shadow color, black's alpha steps 2 and 6. */
     cast: "var(--destack-shadow-cast)",

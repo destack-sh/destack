@@ -55,11 +55,11 @@ const WHITE = Srgb.parse("#ffffff");
 /** The halvings of the opacity search, enough for a step below one 8-bit alpha level. */
 const OPACITY_STEPS = 9;
 
-/** The OKLCH lightness of a card relative to the background in each appearance. */
-const CARD_OFFSET: Lightness = { light: -0.011, dark: 0.026 };
+/** The OKLCH lightness of a card over the background: white by day, above the panels by night. */
+const CARD_OFFSET: Lightness = { light: 0.02, dark: 0.09 };
 
-/** The OKLCH lightness of a popover relative to the background in each appearance. */
-const POPOVER_OFFSET: Lightness = { light: 0, dark: 0.073 };
+/** The OKLCH lightness of a popover over the background: white by day, above the cards by night. */
+const POPOVER_OFFSET: Lightness = { light: 0.02, dark: 0.115 };
 
 /** No lightness offset: another role's own color. */
 const SAME: Lightness = { light: 0, dark: 0 };

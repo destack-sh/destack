@@ -11,6 +11,7 @@ import {
     ROLE_NAMES,
     RoleName,
     SWATCH_COLORS,
+    TEXT_SCALES,
     Theme,
     type ThemeStyle,
 } from "../theme/index.ts";
@@ -222,7 +223,7 @@ test("read every text, line and graphic role against a nested surface's backgrou
 
     // the surfaces above the background follow it
     const card = Oklch.parse(row.resolve("light", 0).color("card")).lightness;
-    expect(card - Oklch.parse("#c9d8ff").lightness).toBeCloseTo(-0.011, 2);
+    expect(card - Oklch.parse("#c9d8ff").lightness).toBeCloseTo(0.02, 2);
 });
 
 test("raise every reading role's contrast continuously with the person's level", () => {
@@ -306,7 +307,10 @@ test("check the roles a theme replaces like every other role", async () => {
     expect([
         style["--destack-color-background"],
         style["--destack-color-muted-foreground"],
-    ]).toEqual(["light-dark(#f8f5ee, #0b2029)", "light-dark(#1f1f22, #ededf2)"]);
+    ]).toEqual([
+        "light-dark(#f8f5ee, #0b2029)",
+        "light-dark(#1f1f22, color-mix(in oklab, #ededf2, #eff0f4 calc(var(--destack-contrast, 0) * 100%)))",
+    ]);
 
     // a background too close to its text is refused
     const illegible = Promise.resolve().then(() =>
@@ -417,11 +421,11 @@ test("emit the default theme's custom properties for the system appearance", () 
     expect(withoutSwatches(standard.variables(DEFAULT_DISPLAY))).toEqual({
         "color-scheme": "light dark",
         "--destack-color-background": "light-dark(#fcfdfe, #131315)",
-        "--destack-color-card": "light-dark(#f8f9fa, #19191b)",
-        "--destack-color-popover": "light-dark(#fcfdfe, #242426)",
+        "--destack-color-card": "light-dark(#ffffff, #28282a)",
+        "--destack-color-popover": "light-dark(#ffffff, #2e2e30)",
         "--destack-color-foreground": "light-dark(#1f1f22, #ededf2)",
         "--destack-color-muted-foreground":
-            "light-dark(color-mix(in oklab, #62636c, #3f4046 calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #b4b6bf, #e7e8ed calc(var(--destack-contrast, 0) * 100%)))",
+            "light-dark(color-mix(in oklab, #62636c, #46474e calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #b7b9c2, #eaebf0 calc(var(--destack-contrast, 0) * 100%)))",
         "--destack-color-muted": "light-dark(#f1f2f3, #252527)",
         "--destack-color-hover": "light-dark(#1f1f220a, #ededf20a)",
         "--destack-color-selected": "light-dark(#1f1f220f, #ededf20f)",
@@ -432,72 +436,86 @@ test("emit the default theme's custom properties for the system appearance", () 
         "--destack-color-ring":
             "light-dark(color-mix(in oklab, #83a6ff, #5f85f3 calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #6b92fa, #91b1ff calc(var(--destack-contrast, 0) * 100%)))",
         "--destack-color-scrim": "light-dark(#1f1f2280, #00000080)",
+        "--destack-font-text-adjust": "none",
         "--destack-font-text":
             '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji"',
         "--destack-font-code":
             'Menlo, Consolas, "Bitstream Vera Sans Mono", monospace, "Apple Color Emoji", "Segoe UI Emoji"',
         "--destack-text-2xl-font-family": "var(--destack-font-text)",
         "--destack-text-2xl-font-size": "24px",
+        "--destack-text-2xl-font-size-adjust": "var(--destack-font-text-adjust, none)",
         "--destack-text-2xl-font-weight": "400",
         "--destack-text-2xl-letter-spacing": "-0.48px",
         "--destack-text-2xl-line-height": "1.3333",
         "--destack-text-3xl-font-family": "var(--destack-font-text)",
         "--destack-text-3xl-font-size": "30px",
+        "--destack-text-3xl-font-size-adjust": "var(--destack-font-text-adjust, none)",
         "--destack-text-3xl-font-weight": "400",
         "--destack-text-3xl-letter-spacing": "-0.6px",
         "--destack-text-3xl-line-height": "1.2",
         "--destack-text-4xl-font-family": "var(--destack-font-text)",
         "--destack-text-4xl-font-size": "36px",
+        "--destack-text-4xl-font-size-adjust": "var(--destack-font-text-adjust, none)",
         "--destack-text-4xl-font-weight": "400",
         "--destack-text-4xl-letter-spacing": "-0.72px",
         "--destack-text-4xl-line-height": "1.1111",
         "--destack-text-5xl-font-family": "var(--destack-font-text)",
         "--destack-text-5xl-font-size": "48px",
+        "--destack-text-5xl-font-size-adjust": "var(--destack-font-text-adjust, none)",
         "--destack-text-5xl-font-weight": "400",
         "--destack-text-5xl-letter-spacing": "-0.96px",
         "--destack-text-5xl-line-height": "1",
         "--destack-text-6xl-font-family": "var(--destack-font-text)",
         "--destack-text-6xl-font-size": "60px",
+        "--destack-text-6xl-font-size-adjust": "var(--destack-font-text-adjust, none)",
         "--destack-text-6xl-font-weight": "400",
         "--destack-text-6xl-letter-spacing": "-1.2px",
         "--destack-text-6xl-line-height": "1",
         "--destack-text-7xl-font-family": "var(--destack-font-text)",
         "--destack-text-7xl-font-size": "72px",
+        "--destack-text-7xl-font-size-adjust": "var(--destack-font-text-adjust, none)",
         "--destack-text-7xl-font-weight": "400",
         "--destack-text-7xl-letter-spacing": "-1.44px",
         "--destack-text-7xl-line-height": "1",
         "--destack-text-8xl-font-family": "var(--destack-font-text)",
         "--destack-text-8xl-font-size": "96px",
+        "--destack-text-8xl-font-size-adjust": "var(--destack-font-text-adjust, none)",
         "--destack-text-8xl-font-weight": "400",
         "--destack-text-8xl-letter-spacing": "-1.92px",
         "--destack-text-8xl-line-height": "1",
         "--destack-text-9xl-font-family": "var(--destack-font-text)",
         "--destack-text-9xl-font-size": "128px",
+        "--destack-text-9xl-font-size-adjust": "var(--destack-font-text-adjust, none)",
         "--destack-text-9xl-font-weight": "400",
         "--destack-text-9xl-letter-spacing": "-2.56px",
         "--destack-text-9xl-line-height": "1",
         "--destack-text-base-font-family": "var(--destack-font-text)",
         "--destack-text-base-font-size": "16px",
+        "--destack-text-base-font-size-adjust": "var(--destack-font-text-adjust, none)",
         "--destack-text-base-font-weight": "400",
         "--destack-text-base-letter-spacing": "0px",
         "--destack-text-base-line-height": "1.5",
         "--destack-text-lg-font-family": "var(--destack-font-text)",
         "--destack-text-lg-font-size": "18px",
+        "--destack-text-lg-font-size-adjust": "var(--destack-font-text-adjust, none)",
         "--destack-text-lg-font-weight": "400",
         "--destack-text-lg-letter-spacing": "0px",
         "--destack-text-lg-line-height": "1.5556",
         "--destack-text-sm-font-family": "var(--destack-font-text)",
         "--destack-text-sm-font-size": "14px",
+        "--destack-text-sm-font-size-adjust": "var(--destack-font-text-adjust, none)",
         "--destack-text-sm-font-weight": "400",
         "--destack-text-sm-letter-spacing": "0px",
         "--destack-text-sm-line-height": "1.4286",
         "--destack-text-xl-font-family": "var(--destack-font-text)",
         "--destack-text-xl-font-size": "20px",
+        "--destack-text-xl-font-size-adjust": "var(--destack-font-text-adjust, none)",
         "--destack-text-xl-font-weight": "400",
         "--destack-text-xl-letter-spacing": "-0.2px",
         "--destack-text-xl-line-height": "1.4",
         "--destack-text-xs-font-family": "var(--destack-font-text)",
         "--destack-text-xs-font-size": "12px",
+        "--destack-text-xs-font-size-adjust": "var(--destack-font-text-adjust, none)",
         "--destack-text-xs-font-weight": "400",
         "--destack-text-xs-letter-spacing": "0px",
         "--destack-text-xs-line-height": "1.3333",
@@ -536,7 +554,7 @@ test("emit the default theme's custom properties for the system appearance", () 
         "--destack-radius-full": "9999px",
         "--destack-stroke-border": "1px",
         "--destack-stroke-ring": "2px",
-        "--destack-shadow-edge": "light-dark(#0000000f, #ffffff2c)",
+        "--destack-shadow-edge": "light-dark(#0000000f, #ffffff18)",
         "--destack-shadow-cast": "light-dark(#0000001a, #00000066)",
         "--destack-shadow-raised":
             "0px 0px 0px 1px var(--destack-shadow-edge), 0px 1px 3px 0px var(--destack-shadow-cast)",
@@ -576,6 +594,7 @@ test("override the theme with the person's accent, density, text size, contrast 
     );
     const display = {
         textSize: "xxxLarge",
+        typeface: null,
         density: "spacious",
         contrast: 1,
         motion: "reduced",
@@ -603,8 +622,9 @@ test("override the theme with the person's accent, density, text size, contrast 
     ).toEqual({
         "color-scheme": "dark",
         ...LARGEST_TEXT,
-        ...Object.fromEntries(scaled("space", SPACE, 1.125)),
-        ...Object.fromEntries(scaled("size", SIZE, 1.125)),
+        // spacing and control heights grow with density and the text, widths with density alone
+        ...Object.fromEntries(scaled("space", SPACE, 1.125 * TEXT_SCALES.xxxLarge)),
+        ...Object.fromEntries(scaled("size", SIZE, 1.125 * TEXT_SCALES.xxxLarge)),
         ...Object.fromEntries(widths(1.125)),
         "--destack-motion-scale": "0",
     });
@@ -700,5 +720,6 @@ test("change the size, weight, tracking and font of the text styles a theme over
         "--destack-text-2xl-font-weight": "var(--destack-weight-medium)",
         "--destack-text-xs-font-family": "var(--destack-font-code)",
         "--destack-text-xs-letter-spacing": "0.1em",
+        "--destack-text-xs-font-size-adjust": "none",
     });
 });

@@ -47,6 +47,30 @@ export const Contrast = schema.union([schema.literal("system"), schema.number().
 /** How far text, lines and graphics stand out. */
 export type Contrast = schema.Infer<typeof Contrast>;
 
+/** The interface typeface a person chooses, after Notion's default, serif and mono faces. */
+export const Typeface = schema.enum([
+    "plex",
+    "inter",
+    "geist",
+    "system",
+    "atkinson",
+    "newsreader",
+    "plexMono",
+]);
+/** The interface typeface a person chooses. */
+export type Typeface = schema.Infer<typeof Typeface>;
+
+/** The CSS font stack of each interface typeface, IBM Plex first. */
+export const TYPEFACES: Readonly<Record<Typeface, string>> = {
+    plex: '"IBM Plex Sans", "Helvetica", "Arial", sans-serif',
+    inter: '"Inter", "Helvetica", "Arial", sans-serif',
+    geist: '"Geist", "Helvetica", "Arial", sans-serif',
+    system: 'system-ui, -apple-system, "Segoe UI", "Roboto", "Helvetica Neue", sans-serif',
+    atkinson: '"Atkinson Hyperlegible Next", "Helvetica", "Arial", sans-serif',
+    newsreader: '"Newsreader", "Georgia", serif',
+    plexMono: '"IBM Plex Mono", ui-monospace, "SFMono-Regular", "Menlo", monospace',
+};
+
 /** The motion of transitions: the device preference, full or reduced to none. */
 export const Motion = schema.enum(["system", "full", "reduced"]);
 /** The motion of transitions. */
@@ -66,6 +90,8 @@ export const Display = schema.object({
     motion: Motion,
     /** The accent, or null for the theme's. */
     accent: Seed.nullable(),
+    /** The interface typeface, or null for the theme's. */
+    typeface: Typeface.nullable(),
 });
 /** How a person wants pages displayed. */
 export type Display = schema.Infer<typeof Display>;
@@ -78,4 +104,5 @@ export const DEFAULT_DISPLAY: Display = {
     contrast: "system",
     motion: "system",
     accent: null,
+    typeface: null,
 };

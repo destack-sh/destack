@@ -27,7 +27,11 @@ const TYPOGRAPHY_MEMBERS = [
     "fontWeight",
     "lineHeight",
     "letterSpacing",
+    "fontSizeAdjust",
 ] as const;
+
+/** The custom property a chosen face sizes its lowercase by, read by text in the text face. */
+export const FONT_SIZE_ADJUST = "--destack-font-text-adjust";
 
 /** The decimal places of every computed CSS number, below a thousandth of a pixel. */
 const PRECISION = 3;
@@ -276,6 +280,7 @@ export class TokenEntry {
                     [member("fontWeight"), String(style.fontWeight)],
                     [member("lineHeight"), String(style.lineHeight)],
                     [member("letterSpacing"), length(style.letterSpacing.value * factor)],
+                    [member("fontSizeAdjust"), adjustOf(style.fontFamily)],
                 ];
             }
             case "shadow":
@@ -430,6 +435,11 @@ function rgba(color: schema.Infer<typeof ColorValue>): string {
 /** Format a font stack, quoting family names with spaces. */
 function fontStack(names: readonly string[]): string {
     return names.map((name) => (name.includes(" ") ? `"${name}"` : name)).join(", ");
+}
+
+/** Read the size adjustment of a text style's face: a chosen face's in the text face, else none. */
+function adjustOf(font: string): string {
+    return aliasPath(font).join(".") === "font.text" ? `var(${FONT_SIZE_ADJUST}, none)` : "none";
 }
 
 /** Format a shadow layer. */

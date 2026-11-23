@@ -11,6 +11,7 @@ export const text = style.create({
         fontWeight: "var(--destack-text-xs-font-weight)",
         lineHeight: "var(--destack-text-xs-line-height)",
         letterSpacing: "var(--destack-text-xs-letter-spacing)",
+        fontSizeAdjust: "var(--destack-text-xs-font-size-adjust)",
     },
     /** Small text, the default in controls and lists. */
     sm: {
@@ -19,6 +20,7 @@ export const text = style.create({
         fontWeight: "var(--destack-text-sm-font-weight)",
         lineHeight: "var(--destack-text-sm-line-height)",
         letterSpacing: "var(--destack-text-sm-letter-spacing)",
+        fontSizeAdjust: "var(--destack-text-sm-font-size-adjust)",
     },
     /** Base text, for reading. */
     base: {
@@ -27,6 +29,7 @@ export const text = style.create({
         fontWeight: "var(--destack-text-base-font-weight)",
         lineHeight: "var(--destack-text-base-line-height)",
         letterSpacing: "var(--destack-text-base-letter-spacing)",
+        fontSizeAdjust: "var(--destack-text-base-font-size-adjust)",
     },
     /** Large text, such as a dialog's title. */
     lg: {
@@ -35,6 +38,7 @@ export const text = style.create({
         fontWeight: "var(--destack-text-lg-font-weight)",
         lineHeight: "var(--destack-text-lg-line-height)",
         letterSpacing: "var(--destack-text-lg-letter-spacing)",
+        fontSizeAdjust: "var(--destack-text-lg-font-size-adjust)",
     },
     /** Extra large text. */
     xl: {
@@ -43,6 +47,7 @@ export const text = style.create({
         fontWeight: "var(--destack-text-xl-font-weight)",
         lineHeight: "var(--destack-text-xl-line-height)",
         letterSpacing: "var(--destack-text-xl-letter-spacing)",
+        fontSizeAdjust: "var(--destack-text-xl-font-size-adjust)",
     },
     /** Headings. */
     "2xl": {
@@ -51,6 +56,7 @@ export const text = style.create({
         fontWeight: "var(--destack-text-2xl-font-weight)",
         lineHeight: "var(--destack-text-2xl-line-height)",
         letterSpacing: "var(--destack-text-2xl-letter-spacing)",
+        fontSizeAdjust: "var(--destack-text-2xl-font-size-adjust)",
     },
     /** Headings, such as a view's title. */
     "3xl": {
@@ -59,6 +65,7 @@ export const text = style.create({
         fontWeight: "var(--destack-text-3xl-font-weight)",
         lineHeight: "var(--destack-text-3xl-line-height)",
         letterSpacing: "var(--destack-text-3xl-letter-spacing)",
+        fontSizeAdjust: "var(--destack-text-3xl-font-size-adjust)",
     },
     /** Large headings. */
     "4xl": {
@@ -67,6 +74,7 @@ export const text = style.create({
         fontWeight: "var(--destack-text-4xl-font-weight)",
         lineHeight: "var(--destack-text-4xl-line-height)",
         letterSpacing: "var(--destack-text-4xl-letter-spacing)",
+        fontSizeAdjust: "var(--destack-text-4xl-font-size-adjust)",
     },
     /** Display text. */
     "5xl": {
@@ -75,6 +83,7 @@ export const text = style.create({
         fontWeight: "var(--destack-text-5xl-font-weight)",
         lineHeight: "var(--destack-text-5xl-line-height)",
         letterSpacing: "var(--destack-text-5xl-letter-spacing)",
+        fontSizeAdjust: "var(--destack-text-5xl-font-size-adjust)",
     },
     /** Display text. */
     "6xl": {
@@ -83,6 +92,7 @@ export const text = style.create({
         fontWeight: "var(--destack-text-6xl-font-weight)",
         lineHeight: "var(--destack-text-6xl-line-height)",
         letterSpacing: "var(--destack-text-6xl-letter-spacing)",
+        fontSizeAdjust: "var(--destack-text-6xl-font-size-adjust)",
     },
     /** Display text. */
     "7xl": {
@@ -91,6 +101,7 @@ export const text = style.create({
         fontWeight: "var(--destack-text-7xl-font-weight)",
         lineHeight: "var(--destack-text-7xl-line-height)",
         letterSpacing: "var(--destack-text-7xl-letter-spacing)",
+        fontSizeAdjust: "var(--destack-text-7xl-font-size-adjust)",
     },
     /** Display text. */
     "8xl": {
@@ -99,6 +110,7 @@ export const text = style.create({
         fontWeight: "var(--destack-text-8xl-font-weight)",
         lineHeight: "var(--destack-text-8xl-line-height)",
         letterSpacing: "var(--destack-text-8xl-letter-spacing)",
+        fontSizeAdjust: "var(--destack-text-8xl-font-size-adjust)",
     },
     /** Display text, the largest. */
     "9xl": {
@@ -107,5 +119,6 @@ export const text = style.create({
         fontWeight: "var(--destack-text-9xl-font-weight)",
         lineHeight: "var(--destack-text-9xl-line-height)",
         letterSpacing: "var(--destack-text-9xl-letter-spacing)",
+        fontSizeAdjust: "var(--destack-text-9xl-font-size-adjust)",
     },
 });

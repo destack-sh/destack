@@ -1,8 +1,9 @@
+import { TYPEFACES } from "../theme/index.ts";
 import { defineTheme } from "./theme.ts";
 
 /** Destack's type: IBM Plex for interface and code text. */
 export const DESTACK_FONTS = {
-    text: '"IBM Plex Sans", "Helvetica", "Arial", "sans-serif"',
+    text: TYPEFACES.plex,
     code: '"IBM Plex Mono", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"',
 } as const;
 

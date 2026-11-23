@@ -2,8 +2,21 @@ import { PackageVersion, PackageError } from "@destack/package";
 import { present, schema } from "@destack/schema";
 import { HexColor, Palette, Seed, type ColorScheme, Srgb } from "../palette/index.ts";
 import { ACCENT_PRESETS } from "@destack/color";
-import { MOTION_SCALE, TOKENS, VARIABLE_PREFIX, type Variable } from "../token/index.ts";
-import { DENSITY_SCALES, Density, TEXT_SCALES, type Contrast, type Display } from "./display.ts";
+import {
+    FONT_SIZE_ADJUST,
+    MOTION_SCALE,
+    TOKENS,
+    VARIABLE_PREFIX,
+    type Variable,
+} from "../token/index.ts";
+import {
+    DENSITY_SCALES,
+    Density,
+    TEXT_SCALES,
+    TYPEFACES,
+    type Contrast,
+    type Display,
+} from "./display.ts";
 import {
     BACKGROUND_LIGHTNESS,
     COLOR_ROLES,
@@ -218,6 +231,9 @@ export type ThemeStyle = {
     /** The token values. */
     [variable: Variable]: string;
 };
+
+/** IBM Plex Sans's x-height over its em, 516 of its 1000 units, which other faces are sized to. */
+const PLEX_EX_HEIGHT = 0.516;
 
 /** A theme: seeds, ground, roles, corners, scaling, fonts and density. */
 export class Theme {
@@ -469,8 +485,10 @@ export class Theme {
             case "color":
             case "swatch":
                 return undefined;
+            // grow spacing and control heights with the text, so rows fit larger text
             case "space":
             case "size":
+                return scaling * density * TEXT_SCALES[display.textSize];
             case "width":
                 return scaling * density;
             case "radius":
@@ -490,10 +508,20 @@ export class Theme {
 
     /** Set the theme's font stacks and full radius, and the person's motion. */
     #customize(style: ThemeStyle, display: Display): void {
-        // replace the token text font with the theme's, dropping the tracking that fits only the token font
+        // replace the token text font with the person's face, else the theme's
         const fonts = this.definition.fonts;
-        if (fonts?.text !== undefined) {
-            style[TOKENS.entry(["font", "text"]).variable] = fonts.text;
+        const chosen = display.typeface === null ? undefined : TYPEFACES[display.typeface];
+        const isThemeFace = chosen === undefined || chosen === fonts?.text;
+        const face = chosen ?? fonts?.text;
+        if (face !== undefined) {
+            style[TOKENS.entry(["font", "text"]).variable] = face;
+        }
+
+        // size a face other than the theme's to Plex's lowercase, so faces read at one size
+        style[FONT_SIZE_ADJUST] = isThemeFace ? "none" : `ex-height ${String(PLEX_EX_HEIGHT)}`;
+
+        // drop the tracking that fits only the token font
+        if (face !== undefined) {
             for (const entry of TOKENS.family("text").entries) {
                 style[entry.member("letterSpacing")] = "0px";
             }
@@ -515,12 +543,14 @@ export class Theme {
                 const weight = TOKENS.entry(["weight", override.weight]).variable;
                 style[entry.member("fontWeight")] = `var(${weight})`;
             }
-            if (override.tracking !== undefined) {
+            if (override.tracking !== undefined && isThemeFace) {
                 style[entry.member("letterSpacing")] = `${override.tracking}em`;
             }
             if (override.font !== undefined) {
                 style[entry.member("fontFamily")] =
                     `var(${TOKENS.entry(["font", override.font]).variable})`;
+                style[entry.member("fontSizeAdjust")] =
+                    override.font === "text" ? `var(${FONT_SIZE_ADJUST}, none)` : "none";
             }
         }
 

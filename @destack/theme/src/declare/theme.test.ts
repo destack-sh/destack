@@ -1,7 +1,9 @@
 import { PackageVersion } from "@destack/package";
 import { expect, test } from "@destack/test";
 import { describeTheme } from "../inspect/index.ts";
-import { defineTheme, THEMES } from "./index.ts";
+import { DEFAULT_DISPLAY, TYPEFACES } from "../theme/index.ts";
+import { TOKENS } from "../token/index.ts";
+import { defineTheme, destackTheme, THEMES } from "./index.ts";
 
 /** The package release declaring the fixture's theme. */
 const notes = PackageVersion.parse({
@@ -25,17 +27,44 @@ test("describe a declared theme with its package", () => {
     });
 });
 
-test("declare Destack's themes, the brand and one per planet from the sun outward", () => {
+test("declare Destack's themes, the brand and its moons by their planets from the sun outward", () => {
     // every theme passed its contrast check when its module declared it
     expect(THEMES.map((theme) => theme.definition.name)).toEqual([
         "destack",
-        "mercury",
-        "venus",
-        "earth",
-        "mars",
-        "jupiter",
-        "saturn",
-        "uranus",
-        "neptune",
+        "io",
+        "europa",
+        "pandora",
+        "enceladus",
+        "titan",
+        "ariel",
+        "triton",
+        "nyx",
     ]);
+});
+
+test("read the person's typeface over the theme's font, without the tracking fit to the theme's", () => {
+    // read the brand's Plex with its tight headings, then Inter as a person chooses it
+    const brand = destackTheme.variables(DEFAULT_DISPLAY);
+    const chosen = destackTheme.variables({ ...DEFAULT_DISPLAY, typeface: "inter" });
+    const font = TOKENS.entry(["font", "text"]).variable;
+    const tracking = TOKENS.entry(["text", "2xl"]).member("letterSpacing");
+    const adjust = "--destack-font-text-adjust";
+
+    // the chosen face is sized to Plex's lowercase, the theme's face left as it is
+    expect([
+        brand[font],
+        brand[tracking],
+        brand[adjust],
+        chosen[font],
+        chosen[tracking],
+        chosen[adjust],
+    ]).toEqual([TYPEFACES.plex, "-0.02em", "none", TYPEFACES.inter, "0px", "ex-height 0.516"]);
+});
+
+test("read the brand's face chosen by name as the theme's face, its tracking and size intact", () => {
+    // choose Plex on the Destack theme, whose face it is
+    const chosen = destackTheme.variables({ ...DEFAULT_DISPLAY, typeface: "plex" });
+    const tracking = TOKENS.entry(["text", "2xl"]).member("letterSpacing");
+
+    expect([chosen[tracking], chosen["--destack-font-text-adjust"]]).toEqual(["-0.02em", "none"]);
 });
