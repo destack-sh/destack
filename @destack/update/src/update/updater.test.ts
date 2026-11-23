@@ -399,7 +399,7 @@ test("preserve the installed release when signed replacements contradict its ide
             {
                 kind: "release",
                 target,
-                version: "2026.9.2-dev",
+                version: "dev",
                 commit: COMMIT,
                 directory: source,
             },
@@ -411,7 +411,7 @@ test("preserve the installed release when signed replacements contradict its ide
         expect(await refusal(updater.check())).toEqual([
             "INTERNAL_SERVER_ERROR",
             "RELEASE_BROKEN",
-            "could not use dev build '2026.9.2-dev' from the feed",
+            "could not use a dev build from the feed",
         ]);
         expect(await updater.current()).toEqual(installed);
         expect(await updater.staged()).toBeUndefined();

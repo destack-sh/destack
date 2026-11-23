@@ -174,11 +174,8 @@ export class UpdateRepository {
 
         // refuse a dev build, which no feed publishes
         const release = new Release(custom.data.version, target);
-        if (Version.isPrerelease(release.version)) {
-            throw UpdateError.of(
-                "RELEASE_BROKEN",
-                `could not use dev build '${release.version}' from the feed`,
-            );
+        if (!Version.isRelease(release.version)) {
+            throw UpdateError.of("RELEASE_BROKEN", "could not use a dev build from the feed");
         }
 
         // retain the exact signed target even if the repository publishes another release
