@@ -496,7 +496,7 @@ test("refuse an installation origin's unsigned request, and grant what its space
             grant: {
                 delegate: notes,
                 installation: "notes",
-                package: "@acme/notes",
+                package: "@example/notes",
                 space: `${HOME_SPACE}--${owner.handle}`,
                 permissions: [{ ...asked, within: "home", description, isGranted: false }],
             },
@@ -546,7 +546,7 @@ test("list a person's consent with the grant it gave an installation, and revoke
                     grant: {
                         delegate: notes,
                         installation: "notes",
-                        package: "@acme/notes",
+                        package: "@example/notes",
                         space: `${HOME_SPACE}--${owner.handle}`,
                         permissions: [{ ...asked, within: "home", description }],
                         lifetime: "lasting",
@@ -587,7 +587,7 @@ test("list an app allowed for this sign-in alone, and remove its grant with its 
         listed: {
             delegate: notes,
             installation: "notes",
-            package: "@acme/notes",
+            package: "@example/notes",
             space: `${HOME_SPACE}--${owner.handle}`,
             permissions: [{ ...asked, within: "home", description }],
             lifetime: "sign-in",
@@ -687,7 +687,7 @@ async function askGrant(fixture: TestAccountStore, named = "notes") {
                     type: "destack_grant",
                     delegate: notes,
                     installation: named,
-                    package: "@acme/notes",
+                    package: "@example/notes",
                     space: `${HOME_SPACE}--${owner.handle}`,
                     permissions: [{ ...asked, within: "home", description }],
                 },

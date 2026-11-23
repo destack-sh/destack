@@ -98,7 +98,7 @@ export class MachineKey implements Signer {
         );
     }
 
-    /** Tell whether an issuer takes the stored key, as ACME's onlyReturnExisting does. */
+    /** Tell whether an issuer takes the stored key, as EXAMPLE's onlyReturnExisting does. */
     async isStanding(issuer: string, fetch: Fetch): Promise<boolean> {
         // stand nowhere without a stored key
         if ((await this.#keys.load(this.machineId)) === undefined) {

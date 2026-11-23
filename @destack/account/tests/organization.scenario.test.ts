@@ -15,7 +15,7 @@ async function foundOrganization(fixture: TestAccountStore, founder: TestPerson)
     // create the organization with its account
     const created = await founder.client(accountPackage).organization.create({
         requestId: RequestId.create(fixture.store.environment),
-        name: "Acme",
+        name: "Example",
         handle: "initech",
         residencyId: "eu",
     });
@@ -270,7 +270,7 @@ test("serve an organization's accounts on hostnames below the domains it verifie
     const claimed = await founder.client(accountPackage).domain.create({
         scope: organizationId,
         requestId: RequestId.create(fixture.store.environment),
-        name: "acme.com",
+        name: "example.com",
     });
 
     // verify it through its published challenge record
@@ -285,12 +285,12 @@ test("serve an organization's accounts on hostnames below the domains it verifie
     const served = await founder.client(accountPackage).hostname.create({
         accountId,
         requestId: RequestId.create(fixture.store.environment),
-        name: "notes.acme.com",
+        name: "notes.example.com",
     });
     expect(served).toEqual({
         id: served.id,
         scope: accountId,
-        name: "notes.acme.com",
+        name: "notes.example.com",
         revision: 1,
         tags: {},
         createdAt: fixture.clock.now(),

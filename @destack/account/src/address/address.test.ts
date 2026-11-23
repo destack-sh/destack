@@ -14,8 +14,8 @@ test("cover the universe's domains and the hostnames and wildcards below them, b
             "destack.app",
             "*.destack.space",
             "relay-eu.destack.computer",
-            "notes.acme.com",
-            "destack.app.acme.com",
+            "notes.example.com",
+            "destack.app.example.com",
             "notdestack.app",
         ].map((hostname) => UNIVERSE.covers(hostname)),
     ).toEqual([true, true, true, false, false, false]);

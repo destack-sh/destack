@@ -218,7 +218,7 @@ test("read space addresses as one label, refusing other shapes, and write them b
     const longest = `${"c".repeat(20)}--${"d".repeat(24)}`;
     const addresses = [
         "personal--florian",
-        "work-2--acme",
+        "work-2--example",
         "xn-a--b-xn",
         longest,
         "personal.florian",
@@ -248,9 +248,9 @@ test("read space addresses as one label, refusing other shapes, and write them b
     ]);
 
     // read the origin of an address and write the address of the origin with a branch
-    const origin = SpaceAddress.origin("work-2--acme");
+    const origin = SpaceAddress.origin("work-2--example");
     expect([origin, SpaceAddress.of({ branch: "feature", ...origin })]).toEqual([
-        { space: "work-2", handle: "acme" },
-        "work-2--acme",
+        { space: "work-2", handle: "example" },
+        "work-2--example",
     ]);
 });

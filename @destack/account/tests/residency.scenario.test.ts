@@ -435,12 +435,12 @@ test("find the account selling a handle's packages to the buyers of the asking i
 
     // sell a person's packages through their account, and the platform's through each residency space's account
     expect([
-        await publisher("acme", "eu"),
+        await publisher("example", "eu"),
         await publisher("destack", "eu"),
         await publisher("destack", "us"),
         await publisher("destack-us", "eu"),
         await publisher("unclaimed", "eu"),
-        await refusal(owner.client(accountPackage).residency.publisher({ handle: "acme" })),
+        await refusal(owner.client(accountPackage).residency.publisher({ handle: "example" })),
     ]).toEqual([
         ids.account,
         Account.ofHome(europe),

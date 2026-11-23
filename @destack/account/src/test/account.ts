@@ -122,8 +122,8 @@ export const OPERATOR_EMAIL = "operator@example.com";
 /** The installation a residency's space provides entitlements as in tests, as finance does. */
 const BILLING_INSTALLATION = "billing";
 
-/** The email of the person owning the fixture's accounts, the handle acme's. */
-export const OWNER_EMAIL = "acme@example.test";
+/** The email of the person owning the fixture's accounts, the handle example's. */
+export const OWNER_EMAIL = "example@example.test";
 
 /** The email of a person outside the fixture's accounts. */
 export const STRANGER_EMAIL = "stranger@example.test";
@@ -219,7 +219,7 @@ const RESIDENCIES: readonly ResidencyDefinition[] = [
 
 /** The people who sign up at the account package's start, and whether they step up. */
 export const PEOPLE = [
-    { id: ids.owner, name: "Owner", email: OWNER_EMAIL, handle: "acme", isEnrolled: true },
+    { id: ids.owner, name: "Owner", email: OWNER_EMAIL, handle: "example", isEnrolled: true },
     {
         id: ids.stranger,
         name: "Stranger",

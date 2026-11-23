@@ -13,7 +13,7 @@ export const hostname = defineObject(
         title: t`${plural(argument("count"), { one: "Hostname", other: "Hostnames" })}`,
         scope: account,
         fields: {
-            /** The canonical lowercase hostname, such as notes.acme.com. */
+            /** The canonical lowercase hostname, such as notes.example.com. */
             name: field.string(HostnamePattern),
         },
         indexes: {

@@ -204,7 +204,7 @@ test("read a space's address in its account for those reading the account, an or
     const founder = await fixture.signIn("founder@example.com");
     const organization = await founder.client(accountPackage).organization.create({
         requestId: RequestId.create(fixture.store.environment),
-        name: "Acme",
+        name: "Example",
         handle: "initech",
         residencyId: "eu",
     });

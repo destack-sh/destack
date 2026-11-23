@@ -70,7 +70,7 @@ export const domain = defineObject(
         title: t`${plural(argument("count"), { one: "Domain", other: "Domains" })}`,
         scope: [account, organization],
         fields: {
-            /** The canonical lowercase domain, such as acme.com. */
+            /** The canonical lowercase domain, such as example.com. */
             name: field.string(Hostname),
             /** The time the owner proved its claim through the domain's TXT record. */
             verifiedAt: field.time().optional(),

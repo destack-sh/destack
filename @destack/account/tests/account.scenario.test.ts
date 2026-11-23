@@ -223,7 +223,7 @@ test("let another signed-in user find a person's accounts by their profile alone
         ],
         listed: [
             profile(ids.other, "rival", "rival", "shared"),
-            profile(Account.personal(owner.id), "acme", "acme", "personal"),
+            profile(Account.personal(owner.id), "example", "example", "personal"),
             profile(shared.id, shared.handle, shared.name, "shared"),
         ],
     });
@@ -378,17 +378,17 @@ test("resolve the paying account: an organization's payer for it and its account
     const founder = await fixture.signIn("founder@example.com");
 
     // create an organization paying through its account, with a second account in it
-    const acme = await founder.client(accountPackage).organization.create({
+    const example = await founder.client(accountPackage).organization.create({
         requestId: RequestId.create(fixture.store.environment),
-        name: "Acme",
-        handle: "acme-pays",
+        name: "Example",
+        handle: "example-pays",
         residencyId: "us",
     });
     const second = await founder.client(accountPackage).account.create({
-        scope: acme.id,
+        scope: example.id,
         requestId: RequestId.create(fixture.store.environment),
-        handle: "acme-second",
-        name: "Acme",
+        handle: "example-second",
+        name: "Example",
         kind: "shared",
         residencyId: "us",
     });
@@ -396,12 +396,12 @@ test("resolve the paying account: an organization's payer for it and its account
     // charge the organization and both its accounts to its payer, the person's account and home space to the account
     const snapshot = fixture.database.snapshot();
     expect([
-        await Account.payer(snapshot, acme.id),
+        await Account.payer(snapshot, example.id),
         await Account.payer(snapshot, second.id),
-        await Account.payer(snapshot, acme.payer),
+        await Account.payer(snapshot, example.payer),
         await Account.payer(snapshot, founder.account),
         await Account.payer(snapshot, founder.home),
-    ]).toEqual([acme.payer, acme.payer, acme.payer, founder.account, founder.account]);
+    ]).toEqual([example.payer, example.payer, example.payer, founder.account, founder.account]);
 });
 
 test("create accounts in an organization, administered by its owner members", async () => {
@@ -410,17 +410,17 @@ test("create accounts in an organization, administered by its owner members", as
     const partner = await fixture.signIn("partner@example.com");
 
     // create an organization with its account, and another account in it
-    const acme = await founder.client(accountPackage).organization.create({
+    const example = await founder.client(accountPackage).organization.create({
         requestId: RequestId.create(fixture.store.environment),
-        name: "Acme",
-        handle: "acme-inc",
+        name: "Example",
+        handle: "example-inc",
         residencyId: "us",
     });
     const created = await founder.client(accountPackage).account.create({
-        scope: acme.id,
+        scope: example.id,
         requestId: RequestId.create(fixture.store.environment),
         handle: "initech",
-        name: "Acme",
+        name: "Example",
         kind: "shared",
         residencyId: "us",
     });
@@ -438,21 +438,21 @@ test("create accounts in an organization, administered by its owner members", as
         revision: 1,
         tags: {},
         handle: "initech",
-        name: "Acme",
+        name: "Example",
         residencyId: (await fixture.residency("us")).id,
         kind: "shared",
         deletedAt: null,
-        scope: acme.id,
+        scope: example.id,
     });
 
     // hide the account from the partner until the partner is an owner
     const rename = (person: TestPerson) =>
         person.client(accountPackage).account.update({
-            scope: acme.id,
+            scope: example.id,
             id: created.id,
             requestId: RequestId.create(fixture.store.environment),
             revision: created.revision,
-            name: "Acme Inc",
+            name: "Example Inc",
         });
     expect(await refusal(rename(partner))).toEqual([
         "NOT_FOUND",
@@ -461,15 +461,15 @@ test("create accounts in an organization, administered by its owner members", as
     ]);
     founder = await fixture.elevate(founder);
     await founder.client(accountPackage).organization.update({
-        id: acme.id,
+        id: example.id,
         requestId: RequestId.create(fixture.store.environment),
         payer: created.id,
     });
-    await fixture.join(founder, partner, acme.id, "owner");
+    await fixture.join(founder, partner, example.id, "owner");
     const renamed = await rename(partner);
     expect(renamed).toEqual({
         ...created,
-        name: "Acme Inc",
+        name: "Example Inc",
         revision: 2,
         updatedAt: renamed.updatedAt,
         ...ObjectReference.columns("updatedBy", partner.subject),

@@ -21,7 +21,7 @@ const ENDPOINT = `${ISSUER}${TOKEN_PATH}`;
 const WORKFLOW_ISSUER = "https://issuer.test";
 
 /** The workflow the account trusts to publish. */
-const WORKFLOW = "repo:acme/notes:environment:release";
+const WORKFLOW = "repo:example/notes:environment:release";
 
 /** The package the workflow asks a token for, as the registry is one. */
 const AUDIENCE = PackageId.parse("package-019f7480-0000-7000-8000-00000000e003");
@@ -111,7 +111,9 @@ test("grant a trusted workflow a token once by its issuer's OIDC token, refusing
     const answers = [
         await ask(trustedToken),
         await ask(trustedToken),
-        await ask(await sign(signing.privateKey, "repo:acme/other:environment:release", ENDPOINT)),
+        await ask(
+            await sign(signing.privateKey, "repo:example/other:environment:release", ENDPOINT),
+        ),
         await ask(await sign(signing.privateKey, WORKFLOW, "https://elsewhere.test/token")),
         await ask(await sign(forger.privateKey, WORKFLOW, ENDPOINT)),
     ];
@@ -152,7 +154,7 @@ test("grant a trusted workflow a token once by its issuer's OIDC token, refusing
         requestId: RequestId.create(fixture.environment),
         name: "Another",
         issuer: WORKFLOW_ISSUER,
-        subject: "repo:acme/other:environment:release",
+        subject: "repo:example/other:environment:release",
     });
     expect(await refusal(another)).toEqual(["NOT_FOUND", "NOT_FOUND", "client not found"]);
 

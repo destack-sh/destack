@@ -41,8 +41,8 @@ export async function createWorkspace(
     const account = await client.account.create({
         scope: user,
         requestId,
-        handle: "acme",
-        name: "Acme",
+        handle: "example",
+        name: "Example",
         kind: "shared",
         residencyId: "eu",
     });

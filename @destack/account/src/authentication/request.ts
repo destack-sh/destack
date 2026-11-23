@@ -47,7 +47,7 @@ const grantRequestSchema = schema.object({
     delegate: Subject,
     /** The installation's address in its space, absent for a base one, which its package names. */
     installation: schema.string().min(1).exactOptional(),
-    /** The installed package's name, such as @acme/notes. */
+    /** The installed package's name, such as @example/notes. */
     package: schema.string().min(1),
     /** The address of the installation's space. */
     space: schema.string().min(1),

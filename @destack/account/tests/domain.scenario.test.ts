@@ -102,7 +102,7 @@ test("refuse IP literals and wildcards as domain claims", async () => {
         "INPUT_INVALID",
         "invalid input: name: hostnames are lowercase ASCII labels, punycode for others",
     ];
-    expect(await refusal(claim("*.acme.com"))).toEqual(malformed);
+    expect(await refusal(claim("*.example.com"))).toEqual(malformed);
     expect(await refusal(claim("192.168.0.1"))).toEqual([
         "BAD_REQUEST",
         "INPUT_INVALID",

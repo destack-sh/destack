@@ -31,7 +31,7 @@ export class TestDomain implements AsyncDisposable {
     ) {
         this.accounts = accounts;
         this.dns = dns;
-        this.name = `acme-${Uuid.v4(accounts.environment.random).slice(0, 8)}.example.com`;
+        this.name = `example-${Uuid.v4(accounts.environment.random).slice(0, 8)}.example.com`;
         this.owner = people.owner;
         this.rival = people.rival;
         this.stranger = people.stranger;
