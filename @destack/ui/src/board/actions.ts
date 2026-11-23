@@ -4,7 +4,7 @@ import { schema } from "@destack/schema";
 
 /** Move the cards a column to the left. */
 export const moveCardLeft = defineAction({
-    name: "move-card-left",
+    name: "card.moveLeft",
     title: t`Move left`,
     category: t`Board`,
     keybinding: "shift+alt+left",
@@ -12,7 +12,7 @@ export const moveCardLeft = defineAction({
 
 /** Move the cards a column to the right. */
 export const moveCardRight = defineAction({
-    name: "move-card-right",
+    name: "card.moveRight",
     title: t`Move right`,
     category: t`Board`,
     keybinding: "shift+alt+right",
@@ -20,7 +20,7 @@ export const moveCardRight = defineAction({
 
 /** Move the cards a lane up. */
 export const moveCardUp = defineAction({
-    name: "move-card-up",
+    name: "card.moveUp",
     title: t`Move up`,
     category: t`Board`,
     keybinding: "shift+alt+up",
@@ -28,7 +28,7 @@ export const moveCardUp = defineAction({
 
 /** Move the cards a lane down. */
 export const moveCardDown = defineAction({
-    name: "move-card-down",
+    name: "card.moveDown",
     title: t`Move down`,
     category: t`Board`,
     keybinding: "shift+alt+down",
@@ -36,7 +36,7 @@ export const moveCardDown = defineAction({
 
 /** Move the cards to a column. */
 export const moveCardTo = defineAction({
-    name: "move-card-to",
+    name: "card.moveTo",
     title: t`Move to…`,
     category: t`Board`,
     input: { column: schema.string() },

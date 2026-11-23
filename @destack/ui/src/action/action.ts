@@ -3,7 +3,7 @@ import { defineAction } from "@destack/object";
 
 /** Select everything the list shows. */
 export const selectAll = defineAction({
-    name: "select-all",
+    name: "item.selectAll",
     title: t`Select all`,
     category: t`Edit`,
     keybinding: "mod+a",
@@ -11,7 +11,7 @@ export const selectAll = defineAction({
 
 /** Clear the selection of the list. */
 export const clearSelection = defineAction({
-    name: "clear-selection",
+    name: "item.clearSelection",
     title: t`Clear selection`,
     category: t`Edit`,
     keybinding: "escape",
@@ -19,7 +19,7 @@ export const clearSelection = defineAction({
 
 /** Select the item, or take it out of the selection. */
 export const toggleSelection = defineAction({
-    name: "toggle-selection",
+    name: "item.toggleSelection",
     title: t`Select`,
     category: t`Edit`,
     keybinding: "x",
@@ -27,7 +27,7 @@ export const toggleSelection = defineAction({
 
 /** Open the item. */
 export const openItem = defineAction({
-    name: "open-item",
+    name: "item.open",
     title: t`Open`,
     category: t`Edit`,
     keybinding: "enter",
@@ -35,7 +35,7 @@ export const openItem = defineAction({
 
 /** Add an item where the person is. */
 export const createItem = defineAction({
-    name: "create-item",
+    name: "item.create",
     title: t`Add`,
     category: t`Edit`,
     keybinding: "c",
@@ -43,7 +43,7 @@ export const createItem = defineAction({
 
 /** Add a copy of the selected items. */
 export const duplicateItems = defineAction({
-    name: "duplicate-items",
+    name: "item.duplicate",
     title: t`Duplicate`,
     category: t`Edit`,
     keybinding: "mod+d",
@@ -51,7 +51,7 @@ export const duplicateItems = defineAction({
 
 /** Remove the selected items. */
 export const removeItems = defineAction({
-    name: "remove-items",
+    name: "item.remove",
     title: t`Delete`,
     category: t`Edit`,
     keybinding: "delete",
@@ -60,7 +60,7 @@ export const removeItems = defineAction({
 
 /** Open the menu of what the person is on, as the menu key does. */
 export const openMenu = defineAction({
-    name: "open-menu",
+    name: "item.openMenu",
     title: t`Open menu`,
     category: t`Edit`,
     keybinding: "shift+f10",
@@ -68,7 +68,7 @@ export const openMenu = defineAction({
 
 /** Hide the column. */
 export const hideColumn = defineAction({
-    name: "hide-column",
+    name: "column.hide",
     title: t`Hide`,
     category: t`View`,
 });

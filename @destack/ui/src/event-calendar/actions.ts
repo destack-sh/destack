@@ -3,7 +3,7 @@ import { defineAction } from "@destack/object";
 
 /** Show the next dates. */
 export const showNext = defineAction({
-    name: "calendar-next",
+    name: "calendar.next",
     title: t`Next`,
     category: t`Calendar`,
     keybinding: "j",
@@ -11,7 +11,7 @@ export const showNext = defineAction({
 
 /** Show the previous dates. */
 export const showPrevious = defineAction({
-    name: "calendar-previous",
+    name: "calendar.previous",
     title: t`Previous`,
     category: t`Calendar`,
     keybinding: "k",
@@ -19,7 +19,7 @@ export const showPrevious = defineAction({
 
 /** Show today. */
 export const showToday = defineAction({
-    name: "calendar-today",
+    name: "calendar.today",
     title: t`Today`,
     category: t`Calendar`,
     keybinding: "t",
@@ -27,7 +27,7 @@ export const showToday = defineAction({
 
 /** Show a day. */
 export const showDay = defineAction({
-    name: "calendar-day",
+    name: "calendar.day",
     title: t`Show day`,
     category: t`Calendar`,
     keybinding: "d",
@@ -35,7 +35,7 @@ export const showDay = defineAction({
 
 /** Show some days. */
 export const showDays = defineAction({
-    name: "calendar-days",
+    name: "calendar.days",
     title: t`Show days`,
     category: t`Calendar`,
     keybinding: "x",
@@ -43,7 +43,7 @@ export const showDays = defineAction({
 
 /** Show a week. */
 export const showWeek = defineAction({
-    name: "calendar-week",
+    name: "calendar.week",
     title: t`Show week`,
     category: t`Calendar`,
     keybinding: "w",
@@ -51,7 +51,7 @@ export const showWeek = defineAction({
 
 /** Show a month. */
 export const showMonth = defineAction({
-    name: "calendar-month",
+    name: "calendar.month",
     title: t`Show month`,
     category: t`Calendar`,
     keybinding: "m",
@@ -59,7 +59,7 @@ export const showMonth = defineAction({
 
 /** Show a year. */
 export const showYear = defineAction({
-    name: "calendar-year",
+    name: "calendar.year",
     title: t`Show year`,
     category: t`Calendar`,
     keybinding: "y",
@@ -67,7 +67,7 @@ export const showYear = defineAction({
 
 /** Show an agenda. */
 export const showAgenda = defineAction({
-    name: "calendar-agenda",
+    name: "calendar.agenda",
     title: t`Show agenda`,
     category: t`Calendar`,
     keybinding: "a",
@@ -75,7 +75,7 @@ export const showAgenda = defineAction({
 
 /** Copy the free time marked. */
 export const copyAvailability = defineAction({
-    name: "copy-availability",
+    name: "availability.copy",
     title: t`Copy availability`,
     category: t`Calendar`,
     keybinding: "mod+shift+c",
@@ -83,7 +83,7 @@ export const copyAvailability = defineAction({
 
 /** Clear the free time marked. */
 export const clearAvailability = defineAction({
-    name: "clear-availability",
+    name: "availability.clear",
     title: t`Clear availability`,
     category: t`Calendar`,
 });
