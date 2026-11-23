@@ -185,7 +185,7 @@ test("capture handled failures and messages as exceptions with their error type 
             toCallError: () => ({
                 code: "CONFLICT" as const,
                 reason: "NOTE_LOCKED",
-                domain: "@acme/notes",
+                domain: "@example/notes",
                 message: "note is locked",
             }),
         });

@@ -35,13 +35,13 @@ import { TelemetryScope } from "@destack/telemetry";
 /** Save a page, recording what happened on every signal. */
 export async function savePage(environment: Environment, text: string) {
     const { log, span } = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
-    const attributes = { "acme.page.kind": "note" };
+    const attributes = { "example.page.kind": "note" };
 
     await span(
-        "acme.page.save",
+        "example.page.save",
         attributes,
-        async () => log.info("acme.page.saved", { "acme.page.length": text.length }),
-        { duration: { attributes } }, // acme.page.save.duration
+        async () => log.info("example.page.saved", { "example.page.length": text.length }),
+        { duration: { attributes } }, // example.page.save.duration
     );
 }
 ```
@@ -51,7 +51,7 @@ export async function savePage(environment: Environment, text: string) {
 ### TelemetryScope
 
 `TelemetryScope.of(package, telemetry)` is OpenTelemetry's `getTracer`, `getMeter` and `getLogger` for one package.
-It names the package's signals under its scope, such as `acme` for `@acme/pages`.
+It names the package's signals under its scope, such as `example` for `@example/pages`.
 
 | Verb                               | What it does                                                              |
 | ---------------------------------- | ------------------------------------------------------------------------- |
@@ -220,12 +220,12 @@ test("save a page once", async () => {
         simulation.environment("host").telemetry,
     );
     const before = await simulation.telemetry.counts();
-    await span("acme.page.save", {}, async () => "saved");
+    await span("example.page.save", {}, async () => "saved");
     const after = await simulation.telemetry.counts();
 
     expect(
-        (after["acme.page.save.duration.count"] ?? 0) -
-            (before["acme.page.save.duration.count"] ?? 0),
+        (after["example.page.save.duration.count"] ?? 0) -
+            (before["example.page.save.duration.count"] ?? 0),
     ).toBe(1);
 });
 ```
