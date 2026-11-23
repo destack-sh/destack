@@ -28,19 +28,23 @@
         "@destack/schema": "workspace:*",
         "@destack/telemetry": "workspace:*",
         "@noble/ciphers": "2.4.0",
-        "@sqlite.org/sqlite-wasm": "3.53.4-build1",
         "postgres": "3.4.9"
     },
     "peerDependencies": {
-        "@destack/test": "workspace:*"
+        "@destack/test": "workspace:*",
+        "@sqlite.org/sqlite-wasm": "3.53.4-build1"
     },
     "peerDependenciesMeta": {
         "@destack/test": {
+            "optional": true
+        },
+        "@sqlite.org/sqlite-wasm": {
             "optional": true
         }
     },
     "devDependencies": {
         "@destack/test": "workspace:*",
+        "@sqlite.org/sqlite-wasm": "3.53.4-build1",
         "@types/bun": "1.4.4",
         "miniflare": "4.20260730.0",
         "rolldown": "1.2.19"

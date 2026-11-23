@@ -11,25 +11,35 @@
     "runtimes": ["browser", "bun", "workerd"],
     "exports": {
         "./postgres": {
-            "runtimes": ["bun", "workerd"]
+            "runtimes": ["bun", "workerd"],
+            "internal": true
         },
         "./bun": {
-            "runtimes": ["bun"]
+            "runtimes": ["bun"],
+            "internal": true
         },
         "./cloudflare": {
-            "runtimes": ["bun", "workerd"]
+            "runtimes": ["bun", "workerd"],
+            "internal": true
         },
         "./cloudflare/durable": {
-            "runtimes": ["workerd"]
+            "runtimes": ["workerd"],
+            "internal": true
         },
         "./browser": {
-            "runtimes": ["browser"]
+            "runtimes": ["browser"],
+            "internal": true
         },
         "./inspect": {
-            "runtimes": ["bun", "workerd"]
+            "runtimes": ["bun", "workerd"],
+            "internal": true
         },
         "./channel/socket": {
-            "runtimes": ["bun"]
+            "runtimes": ["bun"],
+            "internal": true
+        },
+        "./scenario": {
+            "internal": true
         }
     },
     "declarations": {
@@ -45,8 +55,12 @@
         }
     },
     "stamps": {
-        "defineDatabase": { "module": 1 },
-        "defineTable": { "module": 3 }
+        "defineDatabase": {
+            "module": 1
+        },
+        "defineTable": {
+            "module": 3
+        }
     },
     "test": {
         "databases": ["sqlite", "postgresql"]
