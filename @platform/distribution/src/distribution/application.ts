@@ -1,8 +1,12 @@
 import { Profile } from "@destack/update/release";
 import type { Environment } from "@destack/environment";
+import { Version } from "@destack/schema";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { run } from "./command.ts";
+
+/** The bundle version of a dev build, as Tauri requires a semantic version. */
+const DEVELOPMENT_BUNDLE_VERSION = "0.0.0";
 
 /** Generate the native identity and artwork for a distribution or interactive run. */
 export async function configureApplication(
@@ -12,12 +16,15 @@ export async function configureApplication(
     version: string,
     environment: Environment<"files" | "process" | "host">,
 ): Promise<string> {
+    // map dev to a bundle version Tauri accepts
+    const bundled = Version.isRelease(version) ? version : DEVELOPMENT_BUNDLE_VERSION;
+
     // take the brand's macOS icons as built once, so every slice of a universal build carries the same bytes
     const isMac = environment.host.os === "darwin";
     if (isMac) {
         return JSON.stringify({
             productName: profile.title,
-            version,
+            version: bundled,
             identifier: profile.applicationIdentifier,
             bundle: {
                 icon: [

@@ -26,12 +26,11 @@ export async function readWorkspace(
     return WorkspaceManifest.parse(JSON.parse(text));
 }
 
-/** Read the version the distribution ships at: the release's, else the month's first. */
+/** Read the version the distribution ships at: the release's, else dev. */
 export function releaseVersion(host: Environment<"process" | "host">): string {
-    // take the release's version, else this month's first for a build no release asked for
+    // take the release's version, else dev
     const { os, architecture } = host.host;
-    const given =
-        host.process.variables["DESTACK_RELEASE_VERSION"] ?? Version.first(host.clock.now());
+    const given = host.process.variables["DESTACK_RELEASE_VERSION"] ?? Version.development;
 
     return new Release(given, Release.target(os, architecture)).version;
 }

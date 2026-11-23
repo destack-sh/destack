@@ -57,7 +57,7 @@ export async function buildDistribution(
     }
 
     // refuse a dev build's version, which the feed never publishes
-    if (Version.isPrerelease(release.version)) {
+    if (!Version.isRelease(release.version)) {
         throw new Error(`a distribution requires a release version, not '${release.version}'`);
     }
 
@@ -128,7 +128,7 @@ async function compileExecutable(
     // build the first-party releases from the checkout, reusing their store across builds
     await using releases = await PlatformBuild.build(CHECKOUT, environment);
     const shipped = DistributionPlatform.parse(`${platform.system}-${platform.architecture}`);
-    await releases.writeDistribution(join(bin, DISTRIBUTION_DIRECTORY), shipped);
+    await releases.writeDistribution(join(bin, DISTRIBUTION_DIRECTORY), shipped, false);
 }
 
 /** Bundle the native desktop with Tauri and return its application directory. */

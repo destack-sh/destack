@@ -13,7 +13,6 @@ import {
     Workspace,
     type WorkspaceUnitOptions,
 } from "@destack/build";
-import { COMPUTER_RUNTIMES } from "@destack/machine/computer";
 import { CLOUD_RUNTIMES } from "@destack/machine/cloudflare";
 import type { Clock, Environment } from "@destack/environment";
 import {
@@ -24,6 +23,7 @@ import {
     PackageName,
 } from "@destack/package";
 import { type BuildReader, LAYER_INDEX, PackageManifest } from "@destack/package/manifest";
+import { Runtime } from "@destack/package/runtime";
 import { Digest, found, present, schema } from "@destack/schema";
 import { RemoteBuildStore } from "@destack/build/store";
 import { createClient } from "@destack/object/client";
@@ -428,7 +428,7 @@ export class PlatformBuild implements AsyncDisposable {
             images: { [platform]: found(this.images, name) },
         }));
 
-        return { releases };
+        return { releases, isLayered: false };
     }
 
     /** Map each shipped package a machine runs in its process to its server's specifier. */
@@ -490,24 +490,29 @@ export class PlatformBuild implements AsyncDisposable {
         return layer;
     }
 
-    /** Write the manifest of the releases computers of a platform run to a directory. */
-    async writeDistribution(directory: string, platform: DistributionPlatform): Promise<void> {
-        // write the platform's manifest into the directory, created if new
+    /** Write the manifest of the releases a platform's computers run, and their layer. */
+    async writeDistribution(
+        directory: string,
+        platform: DistributionPlatform,
+        isLayered: boolean,
+    ): Promise<void> {
+        // write the layer with every runtime's files
         const { files } = this.store.environment;
-        const distribution = this.distribution(platform);
+        if (isLayered) {
+            const layer = join(directory, DISTRIBUTION_LAYER);
+            await this.store.writeLayer(
+                [...this.images.values()],
+                Runtime.options,
+                layer,
+                "linked",
+            );
+        }
+
+        // write the platform's manifest
+        const distribution = { ...this.distribution(platform), isLayered };
         const text = JSON.stringify(DistributionManifest.parse(distribution));
         await files.mkdir(directory, { recursive: true });
         await files.writeTextFile(join(directory, DISTRIBUTION_MANIFEST), text);
-    }
-
-    /** Write the releases with what computers run as a layer, as local cloud machines read it. */
-    async writeLayer(directory: string): Promise<void> {
-        await this.store.writeLayer(
-            [...this.images.values()],
-            COMPUTER_RUNTIMES,
-            join(directory, DISTRIBUTION_LAYER),
-            "linked",
-        );
     }
 
     /** List the stacks spaces people create are born with, as their host ships them. */

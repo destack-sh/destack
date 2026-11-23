@@ -35,7 +35,7 @@ export async function signUpdate(
     );
 
     // refuse a dev build, which the feed never publishes
-    if (Version.isPrerelease(version)) {
+    if (!Version.isRelease(version)) {
         throw new Error(`the feed publishes no dev build: '${version}'`);
     }
 
