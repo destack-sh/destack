@@ -3,5 +3,22 @@
     "id": "package-01a0e787-4dd2-71d6-9f43-ab1eb076c56e",
     "role": "app",
     "language": "typescript",
-    "runtimes": ["bun", "workerd"]
+    "runtimes": ["bun", "workerd"],
+    "exports": {
+        "./client": {
+            "internal": true
+        },
+        "./error": {
+            "internal": true
+        },
+        "./declare": {
+            "internal": true
+        },
+        "./server": {
+            "internal": true
+        },
+        "./package": {
+            "internal": true
+        }
+    }
 }
