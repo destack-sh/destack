@@ -56,7 +56,7 @@ test("offer an action only on targets meeting its call's condition, and run it o
         .open({ link: "destack://home--personal--florian/command", kind: "palette" }).predicted;
     const focus = defineAction(
         {
-            name: "focus-view",
+            name: "window.focusView",
             title: t`Focus`,
             input: { windows: selected(window, { kind: "view" }) },
             call: ({ windows }) => windows.prepare("focus", {}),
