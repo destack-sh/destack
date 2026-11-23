@@ -9,7 +9,7 @@ import type { Presentation } from "../browser/presentation.ts";
 import { ACTION_PARAMETER, FOCUS_PARAMETER } from "../declare/context.ts";
 import { type Localization, Shortcut, t } from "@destack/locale";
 import * as style from "@destack/style";
-import { color, radius, shadow } from "@destack/theme/tokens.stylex";
+import { color, radius, shadow, stroke } from "@destack/theme/tokens.stylex";
 import type { Navigation } from "@destack/environment/browser";
 
 /** The event a standard action the desktop's Edit menu chooses arrives as, its name the detail. */
@@ -29,7 +29,9 @@ const styles = style.create({
         maxWidth: "none",
         marginBlockStart: "15vh",
         padding: 0,
-        borderWidth: 0,
+        borderWidth: stroke.border,
+        borderStyle: "solid",
+        borderColor: color.border,
         borderRadius: radius[5],
         overflow: "hidden",
         backgroundColor: "Canvas",
