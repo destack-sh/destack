@@ -6,6 +6,9 @@ import type { Runtime } from "../runtime/index.ts";
 import { isHostModule, isRuntimeModule } from "./runtime.ts";
 import { PackageError } from "../error/index.ts";
 
+/** A bare module specifier, the only kind a host module or a `browser` field replacement has. */
+const BARE_SPECIFIER = /^[^./\0]/u;
+
 /** The module standing in for a host module a package's `browser` field replaces with nothing. */
 const EMPTY_MODULE = "\0virtual:destack/empty";
 
@@ -80,21 +83,25 @@ export class HostModuleResolver {
         return {
             name: "@destack/package/host",
             enforce: "pre",
-            resolveId: async (specifier, importer) => {
-                const resolution = await this.resolve(specifier, importer);
+            resolveId: {
+                // call back only for bare specifiers, as no path or virtual module is a host module
+                filter: { id: BARE_SPECIFIER },
+                handler: async (specifier, importer) => {
+                    const resolution = await this.resolve(specifier, importer);
 
-                // keep a supplied host module external
-                if (resolution === "external") {
-                    return { id: specifier, external: true };
-                }
-                // take the empty module for a replaced one
-                else if (resolution === "empty") {
-                    return EMPTY_MODULE;
-                }
-                // leave every other module to the build
-                else {
-                    return null;
-                }
+                    // keep a supplied host module external
+                    if (resolution === "external") {
+                        return { id: specifier, external: true };
+                    }
+                    // take the empty module for a replaced one
+                    else if (resolution === "empty") {
+                        return EMPTY_MODULE;
+                    }
+                    // leave every other module to the build
+                    else {
+                        return null;
+                    }
+                },
             },
             load: (id) => (id === EMPTY_MODULE ? "export default {};\n" : null),
         };
