@@ -43,7 +43,10 @@ test("place concurrent indexes in one gap apart from each other and between thei
     const gaps: readonly [string | undefined, string | undefined][] = [
         ["a0", "a1"],
         ["a0", "a0V"],
+        ["a0", "a0V0001"],
+        ["Zz", "a0Vb3x"],
         [undefined, "a0"],
+        [undefined, "a0Vb3x"],
         ["a0", undefined],
     ];
     const { random } = testSimulation().environment("test");
@@ -65,5 +68,5 @@ test("place concurrent indexes in one gap apart from each other and between thei
                 )
             );
         }),
-    ).toEqual([true, true, true, true]);
+    ).toEqual(gaps.map(() => true));
 });

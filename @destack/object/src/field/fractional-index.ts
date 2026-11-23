@@ -1,9 +1,9 @@
 import type { Random } from "@destack/environment";
-import { BASE_62_DIGITS, generateKeyBetween } from "fractional-indexing";
+import { generateKeyBetween } from "fractional-indexing";
 import { schema } from "@destack/schema";
 
-/** The random digits a placed index ends in, so that two placements in one gap differ. */
-const JITTER_DIGITS = 4;
+/** The random bytes of a placed index: at 24 bits, two placements in one gap tie once in 16M. */
+const JITTER_BYTES = 3;
 
 /** A key ordering siblings by bytes, with room for a new key between any two. */
 export const FractionalIndex = Object.assign(schema.string().regex(/^[A-Za-z][0-9A-Za-z]*$/u), {
@@ -12,20 +12,23 @@ export const FractionalIndex = Object.assign(schema.string().regex(/^[A-Za-z][0-
         return generateKeyBetween(before ?? null, after ?? null);
     },
 
-    /** Place an index between two others with final digits drawn from some randomness. */
+    /** Place an index between two others at random, by halving the gap once per random bit. */
     place(before: string | undefined, after: string | undefined, random: Random): string {
-        // extend the shortest index between them with random digits, the last never zero, staying below the upper end
-        const middle = FractionalIndex.between(before, after);
-        const jitter = [...random.bytes(JITTER_DIGITS)].map((value, index) =>
-            BASE_62_DIGITS.charAt(
-                index === JITTER_DIGITS - 1
-                    ? 1 + (value % (BASE_62_DIGITS.length - 1))
-                    : value % BASE_62_DIGITS.length,
-            ),
-        );
-        const placed = middle + jitter.join("");
+        // go on in the lower or the upper half of the gap at each bit
+        let [lower, upper] = [before, after];
+        let placed = FractionalIndex.between(lower, upper);
+        for (const byte of random.bytes(JITTER_BYTES)) {
+            for (let bit = 0; bit < 8; bit++) {
+                if (((byte >> bit) & 1) === 0) {
+                    upper = placed;
+                } else {
+                    lower = placed;
+                }
+                placed = FractionalIndex.between(lower, upper);
+            }
+        }
 
-        return after === undefined || placed < after ? placed : middle;
+        return placed;
     },
 });
 /** A key ordering siblings. */
