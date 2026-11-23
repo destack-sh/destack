@@ -35,6 +35,7 @@ import {
     Board,
     BoardColumn,
     BoardColumnContent,
+    BoardColumnList,
     BoardColumnHeader,
     BoardItem,
 } from "@destack/ui/board";
@@ -944,37 +945,39 @@ function Canvas(properties: { isRemixed: boolean }) {
                 ) : undefined}
             </Toolbar>
             <Board data-xray="Database" label="This week" xstyle={styles.board}>
-                {board.map(([column, notes]) => (
-                    <BoardColumn id={column} label={column} xstyle={styles.boardColumn}>
-                        <BoardColumnHeader xstyle={appText.meta}>{column}</BoardColumnHeader>
-                        <BoardColumnContent>
-                            {notes.map((note) => {
-                                const task = story().tasks.find(([id]) => id === note);
+                <BoardColumnList>
+                    {board.map(([column, notes]) => (
+                        <BoardColumn id={column} label={column} xstyle={styles.boardColumn}>
+                            <BoardColumnHeader xstyle={appText.meta}>{column}</BoardColumnHeader>
+                            <BoardColumnContent>
+                                {notes.map((note) => {
+                                    const task = story().tasks.find(([id]) => id === note);
 
-                                return task === undefined ? (
-                                    <BoardItem id={note} xstyle={[appText.body, styles.sticky]}>
-                                        {note}
-                                    </BoardItem>
-                                ) : (
-                                    <BoardItem
-                                        id={note}
-                                        label={task[1]}
-                                        xstyle={[appText.body, styles.card]}
-                                    >
-                                        <span {...style.attrs(styles.inline)}>
-                                            <StateMark state={task[2]} />
-                                            <b {...style.attrs(appText.meta)}>{task[0]}</b>
-                                        </span>
-                                        {task[1]}
-                                        <span {...style.attrs(appText.meta, styles.quiet)}>
-                                            Tasks · due {story().label(task[5])}
-                                        </span>
-                                    </BoardItem>
-                                );
-                            })}
-                        </BoardColumnContent>
-                    </BoardColumn>
-                ))}
+                                    return task === undefined ? (
+                                        <BoardItem id={note} xstyle={[appText.body, styles.sticky]}>
+                                            {note}
+                                        </BoardItem>
+                                    ) : (
+                                        <BoardItem
+                                            id={note}
+                                            label={task[1]}
+                                            xstyle={[appText.body, styles.card]}
+                                        >
+                                            <span {...style.attrs(styles.inline)}>
+                                                <StateMark state={task[2]} />
+                                                <b {...style.attrs(appText.meta)}>{task[0]}</b>
+                                            </span>
+                                            {task[1]}
+                                            <span {...style.attrs(appText.meta, styles.quiet)}>
+                                                Tasks · due {story().label(task[5])}
+                                            </span>
+                                        </BoardItem>
+                                    );
+                                })}
+                            </BoardColumnContent>
+                        </BoardColumn>
+                    ))}
+                </BoardColumnList>
             </Board>
         </Paned>
     );
