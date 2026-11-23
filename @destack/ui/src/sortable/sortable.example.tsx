@@ -1,6 +1,35 @@
 import { defineExample } from "@destack/package/declare";
+import * as style from "@destack/style";
+import { space } from "@destack/theme/tokens.stylex";
 import { createSignal, For } from "@destack/view";
-import { Sortable, SortableContainer, SortableHandle, SortableItem } from "./sortable.tsx";
+import { VirtualList } from "../virtual-list/index.ts";
+import {
+    Sortable,
+    SortableContainer,
+    SortableHandle,
+    SortableItem,
+    SortableMove,
+} from "./sortable.tsx";
+
+/** The height of a long list's row, in pixels. */
+const ROW_HEIGHT = 36;
+
+/** The styles of a long list. */
+const styles = style.create({
+    list: {
+        width: "20rem",
+        height: "18rem",
+    },
+    row: {
+        display: "flex",
+        alignItems: "center",
+        gap: space[2],
+        height: `${String(ROW_HEIGHT)}px`,
+    },
+});
+
+/** A thousand tasks to order. */
+const TASKS = Array.from({ length: 1000 }, (_, index) => `Task ${String(index + 1)}`);
 
 /** A checklist whose steps a drag or the keyboard reorders. */
 export const sortableChecklist = defineExample({
@@ -91,4 +120,48 @@ export const sortableBoard = defineExample({
             </SortableContainer>
         </Sortable>
     ),
+});
+
+/** A thousand tasks in a virtual list that mounts only those in view, ordered by drags and keys. */
+export const sortableLongList = defineExample({
+    of: Sortable,
+    name: "long-list",
+    description:
+        "a thousand tasks in a virtual list whose rows mount only in view, reordered by drags and keys",
+    render: () => {
+        // follow the tasks' order
+        const [tasks, setTasks] = createSignal(TASKS);
+
+        return (
+            <Sortable
+                onMove={(move) =>
+                    setTasks((current) =>
+                        SortableMove.place(current, move.id, move, (task) => task),
+                    )
+                }
+            >
+                <SortableContainer id="tasks" label="Tasks">
+                    <VirtualList
+                        each={tasks()}
+                        estimateSize={() => ROW_HEIGHT}
+                        itemKey={(task) => task}
+                        itemProperties={(_, index) => ({
+                            role: "listitem",
+                            "aria-posinset": index + 1,
+                            "aria-setsize": tasks().length,
+                        })}
+                        role="list"
+                        aria-label="Tasks"
+                        xstyle={styles.list}
+                    >
+                        {(task) => (
+                            <SortableItem id={task} xstyle={styles.row}>
+                                <SortableHandle /> {task}
+                            </SortableItem>
+                        )}
+                    </VirtualList>
+                </SortableContainer>
+            </Sortable>
+        );
+    },
 });

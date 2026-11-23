@@ -1,6 +1,8 @@
 import { expect, test } from "@destack/test";
-import { flush } from "@destack/view";
+import { Errored, flush } from "@destack/view";
 import { render, stubPopovers } from "@destack/view/test";
+import { VirtualList } from "../virtual-list/index.ts";
+import { layOutElements } from "../virtualizer/test/layout.ts";
 import {
     Sortable,
     SortableContainer,
@@ -76,7 +78,7 @@ test("lift an item with Space, move it down and across with the arrow keys, anno
         moved: "Write moved to position 2 of 3 in To do.",
         marked: "Ship",
         dropped: "Write dropped at position 2 of 2 in Done.",
-        moves: [{ id: "a", container: "done", previous: "d", next: undefined }],
+        moves: [{ id: "a", type: "item", container: "done", previous: "d", next: undefined }],
     });
 });
 
@@ -149,7 +151,7 @@ test("drag an item with the pointer past the middle of another, previewed above 
             "--x-width: 200px; --x-height: 20px; --x-translate: 0px 25px;",
         ],
         isPreviewedAfter: false,
-        moves: [{ id: "a", container: "todo", previous: "b", next: "c" }],
+        moves: [{ id: "a", type: "item", container: "todo", previous: "b", next: "c" }],
     });
 });
 
@@ -183,14 +185,14 @@ test("nest an item under the one before it with the right arrow, and move a nest
     press(container, " ");
 
     expect(moves).toEqual([
-        { id: "faq", container: "guide", previous: "setup", next: undefined },
-        { id: "setup", container: "root", previous: "guide", next: "faq" },
+        { id: "faq", type: "item", container: "guide", previous: "setup", next: undefined },
+        { id: "setup", type: "item", container: "root", previous: "guide", next: "faq" },
     ]);
 });
 
 /** Place an item before a neighbour its list lacks. */
 function placeBeforeMissing(): string[] {
-    const move = { id: "a", container: "second", previous: undefined, next: "q" };
+    const move = { id: "a", type: "item", container: "second", previous: undefined, next: "q" };
 
     return SortableMove.place(["x"], "a", move, (id) => id);
 }
@@ -200,18 +202,85 @@ test("apply a move across keyed lists and within one list, refusing a neighbour 
     const lists = { first: ["a", "b"], second: ["x", "y"] };
     const across = SortableMove.apply(
         lists,
-        { id: "b", container: "second", previous: "x", next: "y" },
+        { id: "b", type: "item", container: "second", previous: "x", next: "y" },
         (id) => id,
     );
-    const within = SortableMove.place(
-        ["x", "y", "z"],
-        "z",
-        { id: "z", container: "second", previous: undefined, next: "x" },
-        (id) => id,
-    );
+    const within = SortableMove.place(["x", "y", "z"], "z", { id: "z", next: "x" }, (id) => id);
     expect({ across, within }).toEqual({
         across: { first: ["a"], second: ["x", "b", "y"] },
         within: ["z", "x", "y"],
     });
     expect(placeBeforeMissing).toThrow(new RangeError("sortable neighbour 'q' not found"));
+});
+
+test("refuse an item whose id is none of its virtual list's keys", () => {
+    layOutElements({ client: 100, scroll: 1000 });
+    const { container } = render(() => (
+        <Errored fallback={(error) => String(error())}>
+            <Sortable>
+                <SortableContainer id="tasks">
+                    <VirtualList
+                        each={["Pack"]}
+                        estimateSize={() => 20}
+                        itemKey={(task) => `task ${task}`}
+                    >
+                        {(task) => <SortableItem id={task}>{task}</SortableItem>}
+                    </VirtualList>
+                </SortableContainer>
+            </Sortable>
+        </Errored>
+    ));
+    flush();
+
+    expect(container.textContent).toBe(
+        "TypeError: sortable item 'Pack' is not among its virtual list's keys",
+    );
+});
+
+test("leave a virtual list inside an item to the item, apart from the container's items", () => {
+    // render an item whose content scrolls a list inside it, then lift it by the keyboard
+    layOutElements({ client: 100, scroll: 1000 });
+    const { container } = render(() => (
+        <Sortable>
+            <SortableContainer id="steps" label="Steps">
+                <SortableItem id="Pack" label="Pack">
+                    <SortableHandle /> Pack
+                    <VirtualList each={["socks", "map"]} estimateSize={() => 20}>
+                        {(thing) => thing}
+                    </VirtualList>
+                </SortableItem>
+                <SortableItem id="Board">
+                    <SortableHandle /> Board
+                </SortableItem>
+            </SortableContainer>
+        </Sortable>
+    ));
+    flush();
+    container.querySelector<HTMLElement>("[data-slot=sortable-handle]")?.focus();
+    press(container, " ");
+
+    expect(announced(container)).toBe("Picked up Pack, position 1 of 2 in Steps.");
+});
+
+test("refuse two virtual lists in one container", () => {
+    layOutElements({ client: 100, scroll: 1000 });
+    const { container } = render(() => (
+        <Errored fallback={(error) => String(error())}>
+            <Sortable>
+                <SortableContainer id="tasks">
+                    <VirtualList each={["Pack"]} estimateSize={() => 20} itemKey={(task) => task}>
+                        {(task) => <SortableItem id={task}>{task}</SortableItem>}
+                    </VirtualList>
+                    <VirtualList each={["Board"]} estimateSize={() => 20} itemKey={(task) => task}>
+                        {(task) => <SortableItem id={task}>{task}</SortableItem>}
+                    </VirtualList>
+                </SortableContainer>
+            </Sortable>
+        </Errored>
+    ));
+    flush();
+
+    expect(container.textContent).toBe(
+        "TypeError: sortable container 'tasks' has several virtual lists",
+    );
 });
