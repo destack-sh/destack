@@ -5,13 +5,13 @@ import {
     createSignal,
     type JSX,
     omit,
-    onCleanup,
     untrack,
     useContext,
     useLocale,
 } from "@destack/view";
 import type { Focus } from "../focus/index.ts";
 import { Input, type InputProperties } from "../input/index.ts";
+import { CollectionBuilder } from "../collection/index.ts";
 
 /** The keys a search field takes from its collection. */
 const MOVES: ReadonlySet<string> = new Set([
@@ -93,27 +93,23 @@ export class AutocompleteControl {
     readonly #properties: AutocompleteProperties;
     /** Replace the typed text and tell the owner. */
     readonly #setValue: (value: string) => void;
-    /** Replace the field whose properties set the typed text in place of the root's. */
-    readonly #setField: (field: AutocompleteValueProperties | undefined) => void;
-    /** Replace the collection the search field drives. */
-    readonly #setTarget: (target: AutocompleteTarget | undefined) => void;
+    /** The fields whose properties set the typed text in place of the root's. */
+    readonly #fields: CollectionBuilder<AutocompleteValueProperties>;
+    /** The collections the search field may drive, driving the latest. */
+    readonly #targets: CollectionBuilder<AutocompleteTarget>;
 
     /** Follow the search of an autocomplete's properties. */
     constructor(properties: AutocompleteProperties) {
         // follow the field's or the root's controlled text, else the autocomplete's own
-        const [field, setField] = createSignal<AutocompleteValueProperties | undefined>(undefined, {
-            ownedWrite: true,
-        });
-        const source = (): AutocompleteValueProperties => field() ?? properties;
+        this.#fields = new CollectionBuilder();
+        this.#targets = new CollectionBuilder();
+        const source = (): AutocompleteValueProperties => this.#fields.items().at(-1) ?? properties;
         const initial = untrack(() => properties.defaultValue);
         const [typed, setTyped] = createSignal<string | undefined>(undefined);
         const value = (): string =>
             source().value ?? typed() ?? source().defaultValue ?? initial ?? "";
-        const [target, setTarget] = createSignal<AutocompleteTarget | undefined>(undefined, {
-            ownedWrite: true,
-        });
         this.value = value;
-        this.target = target;
+        this.target = () => this.#targets.items().at(-1);
         this.#properties = properties;
         this.#setValue = (next) => {
             // store an uncontrolled text, and tell the owner either way
@@ -122,20 +118,16 @@ export class AutocompleteControl {
             }
             source().onValueChange?.(next);
         };
-        this.#setField = setField;
-        this.#setTarget = setTarget;
     }
 
     /** Take the typed text from a field's properties until the field unmounts, as cmdk's input. */
     follow(field: AutocompleteValueProperties): void {
-        this.#setField(field);
-        onCleanup(() => this.#setField(undefined));
+        this.#fields.add(field);
     }
 
     /** Drive a collection until it unmounts. */
     connect(target: AutocompleteTarget): void {
-        this.#setTarget(target);
-        onCleanup(() => this.#setTarget(undefined));
+        this.#targets.add(target);
     }
 
     /** Replace the typed text, focusing the first match again. */

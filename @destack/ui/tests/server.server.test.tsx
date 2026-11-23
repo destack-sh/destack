@@ -1,5 +1,5 @@
 import { testSimulation } from "@destack/test/world";
-import { expect, test } from "@destack/test";
+import { afterAll, expect, test, vi } from "@destack/test";
 import { BrowserEnvironment } from "@destack/environment/browser";
 import { EnvironmentContext, type JSX, renderToString } from "@destack/view";
 import type { Example } from "@destack/package/declare";
@@ -41,6 +41,10 @@ const EXAMPLES: readonly (readonly [string, object])[] = await Promise.all(
     ),
 );
 
+/** The warnings of every render, among them Solid's one warning of a server write per process. */
+const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+afterAll(() => warn.mockRestore());
+
 test("render a sidebar and a toaster to a string without a browser, open and with no toasts", async () => {
     // render on a server's environment in a world of its own
     await using simulation = testSimulation();
@@ -69,7 +73,7 @@ test("render a sidebar and a toaster to a string without a browser, open and wit
     );
 });
 
-test("render every exported component's examples to strings without a browser", async () => {
+test("render every exported component's examples to strings without a browser, writing no state", async () => {
     // render the examples of each component the package exports on a server's environment
     await using simulation = testSimulation();
     const server = BrowserEnvironment.server(simulation.environment("server"));
@@ -97,8 +101,8 @@ test("render every exported component's examples to strings without a browser", 
         }
     }
 
-    // render every example, and at least one of each component
-    expect([failures, [...rendered]]).toEqual([[], COMPONENTS]);
+    // render every example without a write, which Solid warns of, and at least one of each component
+    expect([failures, warn.mock.calls, [...rendered]]).toEqual([[], [], COMPONENTS]);
 });
 
 /** Report whether an export is an example, which renders an element. */

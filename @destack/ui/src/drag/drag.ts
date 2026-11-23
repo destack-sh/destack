@@ -13,6 +13,7 @@ import {
 import { Move, type PointerType } from "../interaction/index.ts";
 import { mergeProperties } from "../part/index.ts";
 import { Scroll } from "../position/index.ts";
+import { inDocumentOrder } from "../collection/index.ts";
 
 /** The milliseconds a finger rests on an item before it lifts, as iOS and Android wait. */
 const LIFT_DELAY = 500;
@@ -676,15 +677,16 @@ export class DragManager {
         const operation = this.#current;
         const draggable =
             operation === undefined ? undefined : this.#draggables.get(operation.draggable);
-        const siblings = [...this.#droppables.values()]
-            .filter(
+        const siblings = inDocumentOrder(
+            [...this.#droppables.values()].filter(
                 (each) =>
                     each.group === droppable.group &&
                     operation !== undefined &&
                     draggable !== undefined &&
                     each.accepts(draggable, operation.kind),
-            )
-            .toSorted((left, right) => order(left.element(), right.element()));
+            ),
+            (each) => each.element(),
+        );
         const offset = step === "block-end" || step === "inline-end" ? 1 : -1;
         const neighbour = siblings[siblings.indexOf(droppable) + offset];
 
@@ -930,15 +932,6 @@ function stepOf(key: string, direction: Direction): DragStep | undefined {
 /** Report whether a point lies within bounds. */
 function contains(bounds: DOMRect, x: number, y: number): boolean {
     return x >= bounds.left && x <= bounds.right && y >= bounds.top && y <= bounds.bottom;
-}
-
-/** Compare two elements by their place in the document. */
-function order(left: HTMLElement | undefined, right: HTMLElement | undefined): number {
-    if (left === undefined || right === undefined || left === right) {
-        return 0;
-    }
-
-    return left.compareDocumentPosition(right) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1;
 }
 
 /** Read the pixels to scroll along an axis, faster the deeper a point reaches into an edge. */

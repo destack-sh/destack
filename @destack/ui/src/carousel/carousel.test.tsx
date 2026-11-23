@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { createSignal, flush } from "@destack/view";
+import { createSignal, flush, For, Show } from "@destack/view";
 import {
     Carousel,
     type CarouselApi,
@@ -40,6 +40,76 @@ test("move between a carousel's slides with its buttons, naming each slide by it
         ),
     ).toEqual(["1 of 3", "2 of 3", "3 of 3"]);
     expect(container.firstElementChild?.getAttribute("aria-roledescription")).toBe("carousel");
+});
+
+test("name each slide by its place as slides come and go among the others", async () => {
+    // show a slide before the others, then hide it again
+    const [isFirst, setFirst] = createSignal(false);
+    const { container } = render(() => (
+        <Carousel aria-label="Photos">
+            <CarouselContent>
+                <Show when={isFirst()}>
+                    <CarouselItem>Braga</CarouselItem>
+                </Show>
+                <CarouselItem>Lisbon</CarouselItem>
+                <CarouselItem>Porto</CarouselItem>
+            </CarouselContent>
+        </Carousel>
+    ));
+    const labels = () =>
+        [...container.querySelectorAll("[role=group]")].map((slide) => [
+            slide.textContent,
+            slide.getAttribute("aria-label"),
+        ]);
+    setFirst(true);
+    flush();
+    await Promise.resolve();
+    flush();
+    const shown = labels();
+    setFirst(false);
+    flush();
+
+    expect([shown, labels()]).toEqual([
+        [
+            ["Braga", "1 of 3"],
+            ["Lisbon", "2 of 3"],
+            ["Porto", "3 of 3"],
+        ],
+        [
+            ["Lisbon", "1 of 2"],
+            ["Porto", "2 of 2"],
+        ],
+    ]);
+});
+
+test("name each slide by its place after the slides move without mounting", async () => {
+    // move the last slide first, which moves its element and mounts nothing
+    const [cities, setCities] = createSignal(["Lisbon", "Porto", "Faro"]);
+    const { container } = render(() => (
+        <Carousel aria-label="Photos">
+            <CarouselContent>
+                <For each={cities()}>{(city) => <CarouselItem>{city}</CarouselItem>}</For>
+            </CarouselContent>
+        </Carousel>
+    ));
+    const slides = () => [...container.querySelectorAll("[role=group]")];
+    const before = new Set(slides());
+    setCities(["Faro", "Lisbon", "Porto"]);
+    flush();
+    await wait(0);
+    flush();
+
+    expect({
+        labels: slides().map((slide) => [slide.textContent, slide.getAttribute("aria-label")]),
+        isMoved: slides().every((slide) => before.has(slide)),
+    }).toEqual({
+        labels: [
+            ["Faro", "1 of 3"],
+            ["Lisbon", "2 of 3"],
+            ["Porto", "3 of 3"],
+        ],
+        isMoved: true,
+    });
 });
 
 test("follow a controlled index, reporting each move the API, buttons or keys ask for", () => {

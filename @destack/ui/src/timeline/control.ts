@@ -14,7 +14,6 @@ import {
     createMemo,
     createSignal,
     type JSX,
-    onCleanup,
     untrack,
     useContext,
     type useEnvironment,
@@ -34,6 +33,7 @@ import {
     TimelineTree,
 } from "./tree.ts";
 import { type TimelineAxisMode, TimelineWindow } from "./window.ts";
+import { CollectionBuilder } from "../collection/index.ts";
 
 /** The height of a row in pixels by default, about Jaeger's. */
 const ROW_HEIGHT = 32;
@@ -132,9 +132,7 @@ export class TimelineControl {
     /** The observer of the bars' sizes, created with the first bar. */
     #clipObserver: ResizeObserver | undefined;
     /** The headers of the columns beside the labels, with their widths, as they mounted. */
-    readonly #headers: Accessor<readonly TimelineColumnHeader[]>;
-    /** Replace the headers of the columns beside the labels. */
-    readonly #setHeaders: (headers: readonly TimelineColumnHeader[]) => void;
+    readonly #headers: CollectionBuilder<TimelineColumnHeader>;
 
     /** Follow a timeline's options in a locale on an environment. */
     constructor(
@@ -159,12 +157,8 @@ export class TimelineControl {
         this.#setLabelWidth = setLabelWidth;
 
         // lay out the columns beside the labels in their headers' order
-        const [headers, setHeaders] = createSignal<readonly TimelineColumnHeader[]>([], {
-            ownedWrite: true,
-        });
-        this.#headers = headers;
-        this.#setHeaders = setHeaders;
-        this.columns = createMemo(() => columnsOf(headers()));
+        this.#headers = new CollectionBuilder((header) => header.element());
+        this.columns = () => this.#headers.items().map((header) => header.width());
 
         // stack the rows, each as high as its lanes
         this.tops = createMemo(() => {
@@ -287,8 +281,7 @@ export class TimelineControl {
 
     /** Add a column beside the labels until its header unmounts. */
     addColumn(header: TimelineColumnHeader): void {
-        this.#setHeaders([...untrack(this.#headers), header]);
-        onCleanup(() => this.#setHeaders(untrack(this.#headers).filter((each) => each !== header)));
+        this.#headers.add(header);
     }
 
     /** Place an item without dates in the window's middle, a step long. */
@@ -413,23 +406,4 @@ export function useTimelineRow(): TimelineRowControl {
 export interface TimelinePartProperties extends Omit<JSX.HTMLAttributes<HTMLDivElement>, "class"> {
     /** The StyleX styles applied after the part's. */
     readonly xstyle?: style.Styles;
-}
-
-/** List the widths of mounted column headers in their document order. */
-function columnsOf(headers: readonly TimelineColumnHeader[]): string[] {
-    // order the headers as the document does, an unmounted one last
-    const ordered = headers.toSorted((left, right) => {
-        // sort an unmounted header last, else by document position
-        const leftElement = left.element();
-        const rightElement = right.element();
-        if (leftElement === undefined || rightElement === undefined) {
-            return Number(leftElement === undefined) - Number(rightElement === undefined);
-        }
-
-        return leftElement.compareDocumentPosition(rightElement) & Node.DOCUMENT_POSITION_FOLLOWING
-            ? -1
-            : 1;
-    });
-
-    return ordered.map((header) => header.width());
 }

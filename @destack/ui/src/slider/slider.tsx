@@ -15,20 +15,17 @@ import {
     type Accessor,
     createContext,
     createControllableSignal,
-    createSignal,
-    createUniqueId,
     For,
     type JSX,
     omit,
-    onCleanup,
     Repeat,
-    type Setter,
     Show,
     useContext,
     useLocale,
 } from "@destack/view";
 import { type FieldControl, useFieldControl } from "../field/control.ts";
-import { type ElementPartProperties, renderPart } from "../part/index.ts";
+import { type ElementPartProperties, mergeProperties, renderPart } from "../part/index.ts";
+import { CollectionBuilder } from "../collection/index.ts";
 
 /** The range a slider covers without its own minimum and maximum, the native default. */
 const RANGE = { min: 0, max: 100 };
@@ -149,12 +146,10 @@ export class SliderControl {
     readonly field: FieldControl | null;
     /** The values of the thumbs. */
     readonly values: Accessor<readonly number[]>;
-    /** The ids of the thumbs in the order they joined. */
-    readonly #thumbs: Accessor<readonly string[]>;
+    /** The thumbs in document order, by their elements. */
+    readonly #thumbs: CollectionBuilder<Accessor<Element | undefined>>;
     /** Replace the values and tell the change handler. */
     readonly #setValues: (values: readonly number[]) => void;
-    /** Replace the ids of the thumbs. */
-    readonly #setThumbs: Setter<readonly string[]>;
 
     /** Create the state of a slider from its root's properties. */
     constructor(properties: SliderProperties, field: FieldControl | null) {
@@ -166,13 +161,11 @@ export class SliderControl {
             defaultValue: properties.defaultValue ?? [middle],
             onChange: (next) => properties.onValueChange?.(next),
         });
-        const [thumbs, setThumbs] = createSignal<readonly string[]>([], { ownedWrite: true });
         this.properties = properties;
         this.field = field;
         this.values = values;
-        this.#thumbs = thumbs;
+        this.#thumbs = new CollectionBuilder((element) => element());
         this.#setValues = setValues;
-        this.#setThumbs = setThumbs;
     }
 
     /** The lowest value. */
@@ -206,13 +199,8 @@ export class SliderControl {
     }
 
     /** Add a thumb until it unmounts, returning its place among the thumbs. */
-    join(): Accessor<number> {
-        // list the thumb until it unmounts and read its place among the others
-        const id = createUniqueId();
-        this.#setThumbs((thumbs) => [...thumbs, id]);
-        onCleanup(() => this.#setThumbs((thumbs) => thumbs.filter((entry) => entry !== id)));
-
-        return () => this.#thumbs().indexOf(id);
+    addThumb(element: Accessor<Element | undefined>): Accessor<number> {
+        return this.#thumbs.add(element);
     }
 
     /** Move a thumb between its neighbours and show the owner's value until the owner takes it. */
@@ -409,7 +397,8 @@ export function SliderThumb(properties: SliderThumbProperties): JSX.Element {
     // take the thumb's place, label a range's thumbs by the end they set and one thumb as its slider
     const control = useSlider();
     const locale = useLocale();
-    const place = control.join();
+    let element: HTMLInputElement | undefined;
+    const place = control.addThumb(() => element);
     const index = (): number => properties.index ?? place();
     const rest = omit(properties, "index", "xstyle", "style");
     const isRange = () => control.values().length === 2;
@@ -434,7 +423,7 @@ export function SliderThumb(properties: SliderThumbProperties): JSX.Element {
             aria-labelledby={isRange() ? undefined : control.properties["aria-labelledby"]}
             aria-orientation={control.properties.orientation}
             {...(index() === 0 ? control.field?.attributes() : undefined)}
-            {...rest}
+            {...mergeProperties({ ref: (created: HTMLInputElement) => (element = created) }, rest)}
             value={control.valueAt(index())}
             onInput={(event) => control.move(index(), event.currentTarget)}
             onChange={() => control.properties.onValueCommitted?.(control.values())}

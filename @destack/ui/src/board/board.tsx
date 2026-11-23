@@ -33,7 +33,6 @@ import {
     type JSX,
     omit,
     onCleanup,
-    type Setter,
     Show,
     untrack,
     useContext,
@@ -391,10 +390,20 @@ export interface BoardColumnTrack extends BoardTrack {
 
 /** A cell's virtual list: its window, and its cards in order, mounted or not. */
 interface BoardWindow {
+    /** The cell's id. */
+    readonly cellId: string;
     /** The virtual list's window of cards. */
     readonly window: VirtualWindow;
     /** The cell's cards in order, those out of view by their text alone. */
     readonly cards: Accessor<readonly BoardCard[]>;
+}
+
+/** A hidden column's row in the hidden list. */
+interface BoardHiddenRow {
+    /** The column's key. */
+    readonly column: string;
+    /** The row's element, which drags aim at. */
+    readonly element: Accessor<HTMLElement | undefined>;
 }
 
 /** What opened a composer, which takes the focus back as it closes: a card by c, or a button. */
@@ -555,25 +564,15 @@ export class BoardControl {
     /** The keys of each cell's cards in document order, by cell id. */
     readonly #byCell: Accessor<ReadonlyMap<string, readonly string[]>>;
     /** The cells' virtual lists by cell id. */
-    readonly #windows: Accessor<ReadonlyMap<string, BoardWindow>>;
-    /** Replace the cells' virtual lists. */
-    readonly #setWindows: Setter<ReadonlyMap<string, BoardWindow>>;
-    /** The mounted composers by their ids, counted as a remount adds before its earlier goes. */
-    readonly #composers: Accessor<ReadonlyMap<string, number>>;
-    /** Replace the mounted composers. */
-    readonly #setComposers: Setter<ReadonlyMap<string, number>>;
+    readonly #windows: CollectionBuilder<BoardWindow>;
+    /** The mounted composers. */
+    readonly #composers: CollectionBuilder<string>;
+    /** The mounted list of hidden columns, none or one. */
+    readonly #hiddenLists: CollectionBuilder<object>;
     /** The hidden list's row of each hidden column, which drags aim at, none without a list. */
-    readonly #hiddenRows: Accessor<
-        ReadonlyMap<string, Accessor<HTMLElement | undefined>> | undefined
-    >;
-    /** Replace the hidden list's rows. */
-    readonly #setHiddenRows: Setter<
-        ReadonlyMap<string, Accessor<HTMLElement | undefined>> | undefined
-    >;
-    /** The number of column menus mounted, whose Hide needs a hidden list. */
-    readonly #columnMenus: Accessor<number>;
-    /** Replace the number of column menus mounted. */
-    readonly #setColumnMenus: Setter<number>;
+    readonly #hiddenRows: CollectionBuilder<BoardHiddenRow>;
+    /** The column menus mounted, whose Hide needs a hidden list. */
+    readonly #columnMenus: CollectionBuilder<object>;
     /** The number of mounted card menus, the board opening one only while one is mounted. */
     #menus = 0;
     /** Set the card the card menu opened on. */
@@ -613,10 +612,7 @@ export class BoardControl {
 
             return cells;
         });
-        [this.#windows, this.#setWindows] = createSignal<ReadonlyMap<string, BoardWindow>>(
-            new Map(),
-            { ownedWrite: true },
-        );
+        this.#windows = new CollectionBuilder(undefined, (entry) => entry.cellId);
         this.#shownCellIds = createMemo(
             () => new Set(this.shownCells().map((cell) => this.cellId(cell))),
         );
@@ -629,7 +625,7 @@ export class BoardControl {
                     // take a virtual list's cards, mounted or not, else the mounted cards
                     const cellId = this.cellId(cell);
                     const items =
-                        this.#windows().get(cellId)?.cards() ??
+                        this.#windows.item(cellId)?.cards() ??
                         this.keysIn(cell).map((key) =>
                             present(cards.get(key), `the board card '${key}'`),
                         );
@@ -669,17 +665,13 @@ export class BoardControl {
 
         // open one composer at a time, and one card menu for every card
         [this.composing, this.setComposing] = createSignal<BoardComposition | undefined>(undefined);
-        [this.#composers, this.#setComposers] = createSignal<ReadonlyMap<string, number>>(
-            new Map(),
-            { ownedWrite: true },
-        );
+        this.#composers = new CollectionBuilder(undefined, (id) => id);
         [this.menuKey, this.#setMenuKey] = createSignal<string | undefined>(undefined);
 
         // follow the hidden list's rows and count the column menus as they mount
-        [this.#hiddenRows, this.#setHiddenRows] = createSignal<
-            ReadonlyMap<string, Accessor<HTMLElement | undefined>> | undefined
-        >(undefined, { ownedWrite: true });
-        [this.#columnMenus, this.#setColumnMenus] = createSignal(0, { ownedWrite: true });
+        this.#hiddenLists = new CollectionBuilder();
+        this.#hiddenRows = new CollectionBuilder(undefined, (row) => row.column);
+        this.#columnMenus = new CollectionBuilder();
         this.menu = new MenuControl(null, {
             onOpenChange: (isOpen) => (isOpen ? undefined : this.#setMenuKey(undefined)),
         });
@@ -744,7 +736,7 @@ export class BoardControl {
     keysIn(cell: BoardCell): readonly string[] {
         const id = this.cellId(cell);
 
-        return this.#windows().get(id)?.window.keys() ?? this.#byCell().get(id) ?? [];
+        return this.#windows.item(id)?.window.keys() ?? this.#byCell().get(id) ?? [];
     }
 
     /** Report whether a card shows and takes the focus: one outside collapsed tracks. */
@@ -757,9 +749,9 @@ export class BoardControl {
     /** Read the id of a card's cell, a virtual list's card out of view included. */
     cellIdOf(key: string): string | undefined {
         // find the card among the virtual lists' cards, else among the mounted cards
-        for (const [cellId, each] of this.#windows()) {
+        for (const each of this.#windows.items()) {
             if (each.window.positions().has(key)) {
-                return cellId;
+                return each.cellId;
             }
         }
 
@@ -768,7 +760,7 @@ export class BoardControl {
 
     /** Read a card's place among its virtual list's cards and their number, none elsewhere. */
     placeOf(key: string): { readonly index: number; readonly size: number } | undefined {
-        for (const each of this.#windows().values()) {
+        for (const each of this.#windows.items()) {
             const index = each.window.positions().get(key);
             if (index !== undefined) {
                 return { index, size: each.window.positions().size };
@@ -781,7 +773,7 @@ export class BoardControl {
     /** List the cards a cell's virtual list mounts out of view: the focused card. */
     persistedIn(cell: BoardCell): readonly string[] {
         const key = this.focus.current();
-        const each = this.#windows().get(this.cellId(cell));
+        const each = this.#windows.item(this.cellId(cell));
 
         return key !== undefined && each?.window.positions().has(key) === true ? [key] : [];
     }
@@ -799,7 +791,7 @@ export class BoardControl {
     /** Add a card until it unmounts, a virtual list's card among its mounted ones. */
     addCard(card: BoardCard): void {
         // add a virtual list's card apart, refusing a card its list lacks
-        const windowed = untrack(() => this.#windows().get(card.cellId));
+        const windowed = untrack(() => this.#windows.item(card.cellId));
         if (windowed !== undefined && untrack(() => !windowed.window.positions().has(card.key))) {
             throw new TypeError(`board card '${card.key}' is not among its virtual list's keys`);
         }
@@ -833,39 +825,12 @@ export class BoardControl {
         );
 
         // add the list under its cell until it unmounts
-        const entry = { window, cards };
-        this.#setWindows((current) => new Map(current).set(cellId, entry));
-        onCleanup(() =>
-            this.#setWindows((current) => {
-                const next = new Map(current);
-                next.delete(cellId);
-
-                return current.get(cellId) === entry ? next : current;
-            }),
-        );
+        this.#windows.add({ cellId, window, cards });
     }
 
     /** Add a cell's composer at a position until it unmounts. */
     addComposer(cell: BoardCell, position: BoardPosition): void {
-        // count the composer under its id, forgetting the id with its last composer
-        const id = this.composerId(cell, position);
-        const counted = (change: number) =>
-            this.#setComposers((current) => {
-                // count up or down, dropping the id at none
-                const next = new Map(current);
-                const count = (current.get(id) ?? 0) + change;
-                if (count === 0) {
-                    next.delete(id);
-                }
-                // else take the new count
-                else {
-                    next.set(id, count);
-                }
-
-                return next;
-            });
-        counted(1);
-        onCleanup(() => counted(-1));
+        this.#composers.add(this.composerId(cell, position));
     }
 
     /** Count a card menu until it unmounts, which lets a right click open it. */
@@ -889,29 +854,29 @@ export class BoardControl {
                     ? [this.composerId(cell, "start"), this.composerId(cell, "end")]
                     : [],
             )
-            .find((id) => this.#composers().has(id));
+            .find((id) => this.#hasComposer(id));
     }
 
-    /** Add the board's one list of hidden columns until it unmounts, refusing a second. */
+    /** Add the board's list of hidden columns until it unmounts. */
     addHiddenList(): void {
-        if (untrack(this.#hiddenRows) !== undefined) {
-            throw new TypeError("a board has one BoardHiddenList, and this board has two");
-        }
-        this.#setHiddenRows(new Map());
-        onCleanup(() => this.#setHiddenRows(undefined));
+        this.#hiddenLists.add({});
     }
 
     /** Add a column menu until it unmounts, whose Hide needs a list of hidden columns. */
     addColumnMenu(): void {
-        this.#setColumnMenus((count) => count + 1);
-        onCleanup(() => this.#setColumnMenus((count) => count - 1));
+        this.#columnMenus.add({});
+    }
+
+    /** Read the number of lists of hidden columns. */
+    hiddenListCount(): number {
+        return this.#hiddenLists.size();
     }
 
     /** Report whether columns hide, by a menu or by the owner, with no hidden list to go into. */
     isMissingHiddenList(): boolean {
-        const isHiding = this.#columnMenus() > 0 || this.hiddenColumns().length > 0;
+        const isHiding = this.#columnMenus.size() > 0 || this.hiddenColumns().length > 0;
 
-        return isHiding && this.#hiddenRows() === undefined;
+        return isHiding && this.#hiddenLists.size() === 0;
     }
 
     /** Read a column by its key, refusing a key of none. */
@@ -979,18 +944,7 @@ export class BoardControl {
 
     /** Add a hidden column's row in the hidden list until it unmounts. */
     addHiddenRow(column: string, element: Accessor<HTMLElement | undefined>): void {
-        // add the row to the mounted list's rows, and remove it while the list stands
-        this.#setHiddenRows((rows) =>
-            new Map(present(rows, "the board's hidden list")).set(column, element),
-        );
-        onCleanup(() =>
-            this.#setHiddenRows((rows) => {
-                const rest = new Map(rows);
-                rest.delete(column);
-
-                return rows === undefined ? undefined : rest;
-            }),
-        );
+        this.#hiddenRows.add({ column, element });
     }
 
     /** Read the element drags aim at to land in a cell: its hidden column's row while hidden. */
@@ -1001,7 +955,7 @@ export class BoardControl {
         }
 
         return present(
-            untrack(this.#hiddenRows)?.get(cell.column)?.(),
+            untrack(() => this.#hiddenRows.item(cell.column))?.element(),
             `the hidden list's row of column '${cell.column}'`,
         );
     }
@@ -1356,10 +1310,15 @@ export class BoardControl {
         return after ?? before ?? this.collection.keys().find((key) => !removing.has(key));
     }
 
+    /** Report whether a composer has an id. */
+    #hasComposer(id: string): boolean {
+        return this.#composers.item(id) !== undefined;
+    }
+
     /** Read the composer the c key opens in a cell: its end's, else its start's. */
     #composerIn(cell: BoardCell): string | undefined {
         return [this.composerId(cell, "end"), this.composerId(cell, "start")].find((id) =>
-            this.#composers().has(id),
+            this.#hasComposer(id),
         );
     }
 
@@ -1434,7 +1393,7 @@ export class BoardControl {
 
     /** Bring a virtual list's card into view, which mounts it to take the focus. */
     #reveal(key: string): void {
-        for (const each of this.#windows().values()) {
+        for (const each of this.#windows.items()) {
             if (each.window.positions().has(key)) {
                 each.window.reveal(key);
             }
@@ -1555,6 +1514,16 @@ export function Board(properties: BoardProperties): JSX.Element {
     const locale = useLocale();
     const control = new BoardControl(properties, locale);
     const isCommand = useCommandPlatform();
+
+    // refuse a second hidden list once one replacing another has settled
+    createEffect(
+        () => control.hiddenListCount(),
+        (count) => {
+            if (count > 1) {
+                throw new TypeError("a board has one BoardHiddenList, and this board has two");
+            }
+        },
+    );
 
     // refuse columns that hide with no list to hide into, as menus mount and columns hide
     createEffect(
@@ -1744,7 +1713,7 @@ export function BoardColumn(properties: BoardColumnProperties): JSX.Element {
                     )}
                     xstyle={[
                         styles.column,
-                        control.lanes.items().length > 0 && styles.columnBare,
+                        control.lanes.size() > 0 && styles.columnBare,
                         control.isHidden(id) && styles.hidden,
                         control.isOver(id) && styles.over,
                         properties.xstyle,

@@ -1,6 +1,6 @@
 import { testSimulation } from "@destack/test/world";
 import { expect, test } from "@destack/test";
-import { flush } from "@destack/view";
+import { createSignal, flush, Show } from "@destack/view";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "./index.ts";
 import { BrowserSimulation } from "@destack/environment/browser/simulation";
 import { render } from "@destack/view/test";
@@ -42,6 +42,40 @@ function press(container: Element, key: string): void {
         ?.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
     flush();
 }
+
+test("move the panels beside a handle after a panel mounts between others", async () => {
+    // show the list between the notebooks and the note, then move its handle a step
+    const [isListed, setListed] = createSignal(false);
+    const layouts: (readonly number[])[] = [];
+    const { container } = render(() => (
+        <ResizablePanelGroup onLayout={(layout) => layouts.push(layout)}>
+            <ResizablePanel defaultSize={20}>Notebooks</ResizablePanel>
+            <ResizableHandle />
+            <Show when={isListed()}>
+                <ResizablePanel defaultSize={30}>List</ResizablePanel>
+                <ResizableHandle />
+            </Show>
+            <ResizablePanel defaultSize={50}>Note</ResizablePanel>
+        </ResizablePanelGroup>
+    ));
+    setListed(true);
+    flush();
+    await Promise.resolve();
+    flush();
+    const panels = [...container.querySelectorAll("[data-slot=resizable-panel]")];
+    const handles = [...container.querySelectorAll("[role=separator]")];
+    const controlled = handles.map((handle) =>
+        panels.findIndex((panel) => panel.id === handle.getAttribute("aria-controls")),
+    );
+    handles[1]?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    flush();
+
+    expect({ controlled, shares: shares(container), layouts }).toEqual({
+        controlled: [0, 1],
+        shares: ["20", "40", "40"],
+        layouts: [[20, 40, 40]],
+    });
+});
 
 test("collapse a collapsible panel on Enter and restore it to its smallest share, reporting each layout", () => {
     const layouts: (readonly number[])[] = [];

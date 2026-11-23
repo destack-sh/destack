@@ -11,7 +11,6 @@ import {
     createUniqueId,
     type JSX,
     omit,
-    onCleanup,
     onSettled,
     Show,
     untrack,
@@ -279,7 +278,7 @@ interface ListBoxSectionControl {
     /** Whether a heading labels the section. */
     readonly isLabelled: Accessor<boolean>;
     /** Label the section by its heading until the heading unmounts. */
-    readonly label: () => void;
+    readonly label: (id: string) => void;
 }
 
 /** The properties of an element of a list box, the native element's attributes included. */
@@ -409,13 +408,12 @@ export function ListBox(properties: ListBoxProperties): JSX.Element {
 export function ListBoxSection(properties: ListBoxSectionProperties): JSX.Element {
     // label the section by its heading and hide it once none of its options show
     const control = useListBox();
-    const [isLabelled, setLabelled] = createSignal(false, { ownedWrite: true });
+    const headings = new CollectionBuilder<string>();
     const section: ListBoxSectionControl = {
         key: createUniqueId(),
-        isLabelled,
-        label: () => {
-            setLabelled(true);
-            onCleanup(() => setLabelled(false));
+        isLabelled: () => headings.size() > 0,
+        label: (id) => {
+            headings.add(id);
         },
     };
     const rest = omit(properties, "heading", "forceMount", "xstyle", "style", "children");
@@ -448,7 +446,7 @@ export function ListBoxSectionHeading(
     if (section === null) {
         throw new TypeError("a list box section heading needs a list box section around it");
     }
-    section.label();
+    section.label(`${section.key}-heading`);
 
     return renderPart("div", "list-box-section-heading", properties, [text.xs, styles.heading], {
         get id() {

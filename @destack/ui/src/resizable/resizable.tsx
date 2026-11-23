@@ -13,7 +13,6 @@ import {
     type JSX,
     merge,
     omit,
-    onCleanup,
     onSettled,
     type Setter,
     Show,
@@ -25,6 +24,7 @@ import {
 import { createElementSize } from "@destack/view/primitives/resize-observer";
 import { Move } from "../interaction/index.ts";
 import { mergeProperties } from "../part/index.ts";
+import { CollectionBuilder } from "../collection/index.ts";
 
 /** The storage key prefix of saved layouts. */
 const LAYOUT_KEY = "destack-resizable:";
@@ -100,6 +100,8 @@ export type ResizableSize = number | `${number}px`;
 export interface ResizablePanelState {
     /** The id of the panel element. */
     readonly id: string;
+    /** The panel's element, which orders the panels. */
+    readonly element: () => Element | undefined;
     /** The panel's share when set. */
     readonly size: Accessor<number | undefined>;
     /** Set the panel's share. */
@@ -126,23 +128,22 @@ export class ResizableControl {
     readonly #stored: StoredItem | undefined;
     /** The package's telemetry, reporting garbled saved layouts. */
     readonly #telemetry: TelemetryScope;
-    /** Replace the panels. */
-    readonly #setPanels: Setter<readonly ResizablePanelState[]>;
+    /** The panels as they mount. */
+    readonly #panels: CollectionBuilder<ResizablePanelState>;
     /** Replace the group element. */
     readonly #setElement: Setter<HTMLElement | undefined>;
     /** The group element's measured size. */
     readonly #size: { readonly width: number | null; readonly height: number | null };
-    /** The number of handles joined so far, which numbers the next handle. */
-    #handles: number;
+    /** The handles as they mount. */
+    readonly #handles: CollectionBuilder<Accessor<Element | undefined>>;
 
     /** Create a group without panels, restoring the layout it saved under its id. */
     constructor(direction: () => Axis, properties: ResizablePanelGroupProperties) {
         // start without panels or handles on the saved layout
-        const [panels, setPanels] = createSignal<readonly ResizablePanelState[]>([], {
-            ownedWrite: true,
-        });
+        this.#panels = new CollectionBuilder((panel) => panel.element());
+        this.#handles = new CollectionBuilder((element) => element());
         this.direction = direction;
-        this.panels = panels;
+        this.panels = () => this.#panels.items();
         this.#properties = properties;
         const environment = useEnvironment();
         this.#telemetry = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
@@ -151,8 +152,6 @@ export class ResizableControl {
             autoSaveId === undefined
                 ? undefined
                 : new StoredItem(`${LAYOUT_KEY}${autoSaveId}`, environment, this.#telemetry);
-        this.#setPanels = setPanels;
-        this.#handles = 0;
         const [element, setElement] = createSignal<HTMLElement>();
         this.#setElement = setElement;
         this.#size = createElementSize(element);
@@ -192,10 +191,8 @@ export class ResizableControl {
     }
 
     /** Add a panel until it unmounts. */
-    register(panel: ResizablePanelState): void {
-        // add the panel and number it
-        this.#setPanels((panels) => [...panels, panel]);
-        onCleanup(() => this.#setPanels((panels) => panels.filter((entry) => entry !== panel)));
+    addPanel(panel: ResizablePanelState): void {
+        this.#panels.add(panel);
     }
 
     /** Set the panels' shares to the saved layout, which the server never reads. */
@@ -206,11 +203,9 @@ export class ResizableControl {
         }
     }
 
-    /** Number the next handle, the one after that many panels. */
-    nextHandle(): number {
-        this.#handles += 1;
-
-        return this.#handles - 1;
+    /** Add a handle until it unmounts, returning its place, the number of the panel before it. */
+    addHandle(element: Accessor<Element | undefined>): Accessor<number> {
+        return this.#handles.add(element);
     }
 
     /** Read a panel's share: its own, else an even part of what the panels with shares leave. */
@@ -413,8 +408,10 @@ export function ResizablePanel(properties: ResizablePanelProperties): JSX.Elemen
     // join the group with the panel's share and limits
     const control = useResizable();
     const [share, resize] = createSignal(properties.defaultSize, { ownedWrite: true });
+    let element: HTMLElement | undefined;
     const panel: ResizablePanelState = {
         id: createUniqueId(),
+        element: () => element,
         size: share,
         resize,
         minimum: properties.minSize ?? 0,
@@ -422,7 +419,7 @@ export function ResizablePanel(properties: ResizablePanelProperties): JSX.Elemen
         collapsible: properties.collapsible === true,
         collapsedSize: properties.collapsedSize ?? 0,
     };
-    control.register(panel);
+    control.addPanel(panel);
     const rest = omit(
         properties,
         "defaultSize",
@@ -446,7 +443,7 @@ export function ResizablePanel(properties: ResizablePanelProperties): JSX.Elemen
             data-slot="resizable-panel"
             data-collapsed={isCollapsed() ? "" : undefined}
             data-expanded={isCollapsible() && !isCollapsed() ? "" : undefined}
-            {...rest}
+            {...mergeProperties({ ref: (created: HTMLDivElement) => (element = created) }, rest)}
             {...style.attributes(
                 [styles.panel, styles.share(control.sizeOf(panel)), properties.xstyle],
                 properties.style,
@@ -460,9 +457,10 @@ export function ResizableHandle(properties: ResizableHandleProperties): JSX.Elem
     // read the group, this handle's place and the panel before it
     const control = useResizable();
     const locale = useLocale();
-    const handle = control.nextHandle();
+    let element: HTMLElement | undefined;
+    const handle = control.addHandle(() => element);
     const rest = omit(properties, "withHandle", "xstyle", "style");
-    const before = (): ResizablePanelState | undefined => control.panels()[handle];
+    const before = (): ResizablePanelState | undefined => control.panels()[handle()];
     let start: { readonly extent: number; readonly layout: number[] } = { extent: 0, layout: [] };
 
     // move by the pointer's share of the group since it pressed
@@ -480,7 +478,7 @@ export function ResizableHandle(properties: ResizableHandleProperties): JSX.Elem
                 if (event.pointerType === "keyboard") {
                     const mirror = isHorizontal && locale.direction === "rtl" ? -1 : 1;
                     const steps = isHorizontal ? event.deltaX * mirror : event.deltaY;
-                    control.move(handle, steps * KEYBOARD_STEP);
+                    control.move(handle(), steps * KEYBOARD_STEP);
 
                     return;
                 }
@@ -489,7 +487,7 @@ export function ResizableHandle(properties: ResizableHandleProperties): JSX.Elem
                 const offset = isHorizontal ? event.offsetX : event.offsetY;
                 if (start.extent > 0) {
                     control.apply(start.layout);
-                    control.move(handle, (offset / start.extent) * 100);
+                    control.move(handle(), (offset / start.extent) * 100);
                 }
             },
         },
@@ -502,11 +500,11 @@ export function ResizableHandle(properties: ResizableHandleProperties): JSX.Elem
             const panel = before();
             if (event.key === "Enter") {
                 event.preventDefault();
-                control.toggle(handle);
+                control.toggle(handle());
             } else if (panel !== undefined && (event.key === "Home" || event.key === "End")) {
                 event.preventDefault();
                 const limit = event.key === "Home" ? panel.minimum : panel.maximum;
-                control.move(handle, control.share(limit) - control.sizeOf(panel));
+                control.move(handle(), control.share(limit) - control.sizeOf(panel));
             }
         },
     };
@@ -521,7 +519,7 @@ export function ResizableHandle(properties: ResizableHandleProperties): JSX.Elem
             aria-valuemin={limitOf(control, before()?.minimum ?? 0)}
             aria-valuemax={limitOf(control, before()?.maximum ?? 100)}
             data-slot="resizable-handle"
-            {...rest}
+            {...mergeProperties({ ref: (created: HTMLDivElement) => (element = created) }, rest)}
             {...mergeProperties(move.attributes(), keys)}
             {...style.attributes(
                 [state.focus, styles.handle, handles[control.direction()], properties.xstyle],

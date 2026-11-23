@@ -1,13 +1,5 @@
-import {
-    createContext,
-    createEffect,
-    createSignal,
-    createUniqueId,
-    onCleanup,
-    useContext,
-    type Accessor,
-    type Setter,
-} from "@destack/view";
+import { createContext, createUniqueId, useContext, type Accessor } from "@destack/view";
+import { CollectionBuilder } from "../collection/index.ts";
 
 /** The control of the nearest field, null outside a field. */
 export const FieldContext = createContext<FieldControl | null>(null);
@@ -26,47 +18,35 @@ export class FieldControl {
     readonly isDisabled: Accessor<boolean>;
     /** The ids of the descriptions and errors on screen, in the order they appeared. */
     readonly descriptions: Accessor<readonly string[]>;
-    /** Replace the ids of the descriptions and errors on screen. */
-    readonly #setDescriptions: Setter<readonly string[]>;
-    /** Replace whether a group of controls is named by the field's label. */
-    readonly #setGrouped: Setter<boolean>;
+    /** The descriptions and errors mounted in the field. */
+    readonly #descriptions: CollectionBuilder<FieldDescriptionState>;
+    /** The groups of controls on screen. */
+    readonly #groups: CollectionBuilder<string>;
 
     /** Create the control of a field with a fresh id. */
     constructor(isInvalid: Accessor<boolean>, isDisabled: Accessor<boolean>) {
         // start without descriptions under a fresh id, which descriptions leave as they unmount
-        const [descriptions, setDescriptions] = createSignal<readonly string[]>([], {
-            ownedWrite: true,
-        });
-        const [isGrouped, setGrouped] = createSignal(false, { ownedWrite: true });
         this.id = createUniqueId();
         this.labelId = createUniqueId();
-        this.isGrouped = isGrouped;
+        this.isGrouped = () => this.#groups.size() > 0;
         this.isInvalid = isInvalid;
         this.isDisabled = isDisabled;
-        this.descriptions = descriptions;
-        this.#setDescriptions = setDescriptions;
-        this.#setGrouped = setGrouped;
+        this.#descriptions = new CollectionBuilder();
+        this.descriptions = () =>
+            this.#descriptions
+                .items()
+                .flatMap((description) => (description.isShown() ? [description.id] : []));
+        this.#groups = new CollectionBuilder();
     }
 
     /** Describe the control by an element's id while the element is on screen. */
     describe(id: string, isShown: Accessor<boolean>): void {
-        createEffect(isShown, (shown) => {
-            // leave a hidden element out
-            if (!shown) {
-                return undefined;
-            }
-
-            // add the id until the element hides or unmounts
-            this.#setDescriptions((ids) => [...ids, id]);
-
-            return () => this.#setDescriptions((ids) => ids.filter((entry) => entry !== id));
-        });
+        this.#descriptions.add({ id, isShown });
     }
 
     /** Label a group of controls by the field's label until the group unmounts. */
     group(): void {
-        this.#setGrouped(true);
-        onCleanup(() => this.#setGrouped(false));
+        this.#groups.add(this.id);
     }
 
     /** Return the attributes that connect a group of controls to its field. */
@@ -93,6 +73,14 @@ export class FieldControl {
             disabled: this.isDisabled() ? true : undefined,
         };
     }
+}
+
+/** A description or an error of a field's control. */
+interface FieldDescriptionState {
+    /** The id of its element. */
+    readonly id: string;
+    /** Whether its element is on screen. */
+    readonly isShown: Accessor<boolean>;
 }
 
 /** The attributes that connect a control element to its field. */

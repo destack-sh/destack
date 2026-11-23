@@ -13,7 +13,6 @@ import {
     type JSX,
     omit,
     onCleanup,
-    type Setter,
     Show,
     untrack,
     useContext,
@@ -36,6 +35,7 @@ import {
 } from "../drag/index.ts";
 import { type ElementPartProperties, mergeProperties, renderPart } from "../part/index.ts";
 import { type VirtualHost, VirtualHostContext, type VirtualWindow } from "../virtual-list/index.ts";
+import { CollectionBuilder, inDocumentOrder } from "../collection/index.ts";
 
 /** The distance in pixels a pointer moves past an item's start to nest under it in a tree. */
 const NEST_DISTANCE = 32;
@@ -248,9 +248,7 @@ export class SortableControl {
     /** The bounds of each container's items as the drag lifted, none for a virtual list's. */
     readonly #measured = new Map<string, readonly SortableBounds[]>();
     /** Count each item that mounts or unmounts, which the marked item follows. */
-    readonly #mounts: Accessor<number>;
-    /** Count an item mounting or unmounting. */
-    readonly #setMounts: Setter<number>;
+    readonly #mounts: CollectionBuilder<string>;
 
     /** Create the state of a sortable from its root's properties. */
     constructor(
@@ -262,7 +260,7 @@ export class SortableControl {
         this.properties = properties;
         this.#environment = environment;
         this.manager = manager;
-        [this.#mounts, this.#setMounts] = createSignal(0, { ownedWrite: true });
+        this.#mounts = new CollectionBuilder();
 
         // mark the item a drag lands beside once per target, and again as items mount
         const target = createMemo(() => manager.operation()?.target, {
@@ -273,7 +271,7 @@ export class SortableControl {
         });
         this.#marked = createMemo(
             () => {
-                this.#mounts();
+                this.#mounts.items();
 
                 return this.#markedOf(target());
             },
@@ -335,12 +333,11 @@ export class SortableControl {
 
         // add the item, counting its mount and its unmount
         this.#items.set(entry.id, entry);
-        this.#setMounts((count) => count + 1);
+        this.#mounts.add(entry.id);
         onCleanup(() => {
             if (this.#items.get(entry.id) === entry) {
                 this.#items.delete(entry.id);
             }
-            this.#setMounts((count) => count + 1);
         });
     }
 
@@ -381,10 +378,15 @@ export class SortableControl {
         // else read the mounted items in document order
         const dragged = this.dragged();
 
-        return [...this.#items.values()]
-            .filter((entry) => entry.container === container && entry.id !== dragged)
-            .toSorted((left, right) => order(left.element(), right.element()))
-            .map((entry) => entry.id);
+        return this.#entriesOf(container).flatMap(({ id }) => (id === dragged ? [] : [id]));
+    }
+
+    /** List a container's mounted items in document order. */
+    #entriesOf(container: string): readonly SortableEntry[] {
+        return inDocumentOrder(
+            [...this.#items.values()].filter((entry) => entry.container === container),
+            (entry) => entry.element(),
+        );
     }
 
     /** Read the id at a place among a container's items without the dragged one. */
@@ -426,12 +428,7 @@ export class SortableControl {
         }
 
         // else read its place among its siblings in document order
-        const index =
-            position ??
-            [...this.#items.values()]
-                .filter((each) => each.container === entry.container)
-                .toSorted((left, right) => order(left.element(), right.element()))
-                .indexOf(entry);
+        const index = position ?? this.#entriesOf(entry.container).indexOf(entry);
 
         return { kind: "list", droppable: entry.container, index };
     }
@@ -841,9 +838,8 @@ export function SortableContainer(properties: SortableContainerProperties): JSX.
 
     // take the window of the one virtual list inside
     const outer = useContext(VirtualHostContext);
-    const [window, setWindow] = createSignal<VirtualWindow | undefined>(undefined, {
-        ownedWrite: true,
-    });
+    const windows = new CollectionBuilder<VirtualWindow>();
+    const window = (): VirtualWindow | undefined => windows.items()[0];
     const [focused, setFocused] = createSignal<string | undefined>(undefined, { ownedWrite: true });
     const host: VirtualHost = {
         add: (each) => {
@@ -855,8 +851,7 @@ export function SortableContainer(properties: SortableContainerProperties): JSX.
             else if (untrack(window) !== undefined) {
                 throw new TypeError(`sortable container '${id}' has several virtual lists`);
             }
-            setWindow(each);
-            onCleanup(() => setWindow(undefined));
+            windows.add(each);
             outer?.add(each);
         },
         persisted: () => {
@@ -1132,15 +1127,6 @@ function dropStyle(drop: SortableDrop | undefined, isVertical: boolean): style.S
     }
 
     return false;
-}
-
-/** Compare two elements by their place in the document. */
-function order(left: HTMLElement | undefined, right: HTMLElement | undefined): number {
-    if (left === undefined || right === undefined || left === right) {
-        return 0;
-    }
-
-    return left.compareDocumentPosition(right) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1;
 }
 
 /** Read the attributes that lift a draggable by its sensors, the keys only with the keyboard. */

@@ -22,8 +22,6 @@ import {
     merge,
     omit,
     onCleanup,
-    type Setter,
-    untrack,
     useContext,
     useEnvironment,
     useLocale,
@@ -31,6 +29,7 @@ import {
 import { Hover } from "../interaction/index.ts";
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
+import { CollectionBuilder } from "../collection/index.ts";
 
 /** The orientation of a carousel that sets none. */
 const DEFAULTS: Required<Pick<CarouselProperties, "orientation">> = { orientation: "horizontal" };
@@ -140,8 +139,8 @@ export class CarouselControl {
     readonly #setPlaying: (isPlaying: boolean) => void;
     /** Whether the pointer or the focus rests in the carousel, which pauses autoplay. */
     #isResting: boolean;
-    /** Replace the number of slides. */
-    readonly #setCount: Setter<number>;
+    /** The slides in document order, by their elements. */
+    readonly #slides: CollectionBuilder<Accessor<Element | undefined>>;
     /** The scrolling viewport. */
     #viewport: HTMLElement | undefined;
     /** Whether the index follows a person's scrolling, which needs no scroll back. */
@@ -159,16 +158,15 @@ export class CarouselControl {
         const [isPlaying, setPlaying] = createSignal(properties.autoplay !== undefined, {
             ownedWrite: true,
         });
-        const [count, setCount] = createSignal(0, { ownedWrite: true });
         this.orientation = orientation;
-        this.count = count;
+        this.count = () => this.#slides.size();
         this.index = index;
         this.isPlaying = isPlaying;
         this.#properties = properties;
         this.#setIndex = setIndex;
         this.#setPlaying = setPlaying;
         this.#isResting = false;
-        this.#setCount = setCount;
+        this.#slides = new CollectionBuilder((element) => element());
         this.#viewport = undefined;
         this.#isFollowing = false;
     }
@@ -184,14 +182,9 @@ export class CarouselControl {
         };
     }
 
-    /** Count a slide until it unmounts, returning its index. */
-    register(): number {
-        // take the next index and count the slide until it unmounts
-        const index = untrack(this.count);
-        this.#setCount((count) => count + 1);
-        onCleanup(() => this.#setCount((count) => count - 1));
-
-        return index;
+    /** Add a slide until it unmounts, returning its place among the slides. */
+    addSlide(element: Accessor<Element | undefined>): Accessor<number> {
+        return this.#slides.add(element);
     }
 
     /** Set the scrolling viewport. */
@@ -393,15 +386,17 @@ export function CarouselItem(
     // read the carousel, the locale and the reading direction
     const control = useCarousel();
     const locale = useLocale();
-    const index = control.register();
+    let element: HTMLElement | undefined;
+    const index = control.addSlide(() => element);
 
     return renderPart("div", "carousel-item", properties, styles.item, {
         role: "group",
+        ref: (created: HTMLElement) => (element = created),
         get "aria-roledescription"() {
             return locale.render(t`slide`);
         },
         get "aria-label"() {
-            return locale.render(t`${index + 1} of ${control.count()}`);
+            return locale.render(t`${index() + 1} of ${control.count()}`);
         },
     });
 }

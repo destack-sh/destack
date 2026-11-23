@@ -1012,6 +1012,34 @@ test("land a card dropped on a hidden column's row in its lane on a board with l
     expect(board.moves.map(moveOf)).toEqual(["g → grace/doing after x before -"]);
 });
 
+test("replace a board's list of hidden columns with another in one change", () => {
+    // swap one hidden list for another, the new one mounting as the old one leaves
+    const [isCompact, setCompact] = createSignal(false);
+    const { container } = render(() => (
+        <Errored fallback={(error) => String(error())}>
+            <Board defaultHiddenColumns={["todo"]}>
+                <BoardColumnList>
+                    <BoardColumn id="todo" label="todo">
+                        <BoardColumnHeader>todo</BoardColumnHeader>
+                    </BoardColumn>
+                    <Show when={isCompact()} fallback={<BoardHiddenList data-place="wide" />}>
+                        <BoardHiddenList data-place="compact" />
+                    </Show>
+                </BoardColumnList>
+            </Board>
+        </Errored>
+    ));
+    flush();
+    setCompact(true);
+    flush();
+
+    expect(
+        [...container.querySelectorAll("[data-slot=board-hidden-list]")].map((list) =>
+            list.getAttribute("data-place"),
+        ),
+    ).toEqual(["compact"]);
+});
+
 test("refuse a second list of hidden columns on one board", () => {
     // mount two hidden lists in the columns row
     const { container } = render(() => (

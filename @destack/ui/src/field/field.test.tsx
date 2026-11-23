@@ -66,7 +66,7 @@ test("mark an invalid field's control and describe it by its error", () => {
     expect(markup(container)).toBe(
         '<div role="group" data-slot="field" data-orientation="vertical" data-invalid="">' +
             '<label data-slot="field-label" for="id-1">Title</label>' +
-            '<textarea data-slot="textarea" id="id-1" aria-invalid="true" aria-describedby="id-2"></textarea>' +
+            '<textarea data-slot="textarea" id="id-1" aria-describedby="id-2" aria-invalid="true"></textarea>' +
             '<div id="id-2" role="alert" data-slot="field-error">enter a title</div></div>',
     );
     expect(classes(container)).not.toEqual(validClasses);

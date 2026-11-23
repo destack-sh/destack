@@ -29,7 +29,6 @@ import {
     createMemo,
     createSignal,
     createUniqueId,
-    onCleanup,
 } from "@destack/view";
 import type { Action } from "../action/index.ts";
 import { writeClipboard } from "@destack/view/primitives/clipboard";
@@ -48,6 +47,7 @@ import { CalendarAvailability, type CalendarAvailabilityOptions } from "./availa
 import type { CalendarResource, CalendarSource } from "./source.ts";
 import type { Hue } from "@destack/color";
 import { Focus, type KeyboardDelegate } from "../focus/index.ts";
+import { CollectionBuilder } from "../collection/index.ts";
 
 /** The kind of item a calendar's draggable events are. */
 export const EVENT_TYPE = "event";
@@ -310,9 +310,7 @@ export class EventCalendarControl {
     /** The views the calendar's parts offer, in the order of the calendar's views. */
     readonly views: Accessor<readonly EventCalendarView[]>;
     /** The views each mounted view part offers. */
-    readonly #offered: Accessor<readonly (readonly EventCalendarView[])[]>;
-    /** Replace the views the mounted view parts offer. */
-    readonly #setOffered: (offered: readonly (readonly EventCalendarView[])[]) => void;
+    readonly #offered: CollectionBuilder<readonly EventCalendarView[]>;
     /** The drags of the events. */
     readonly manager: DragManager;
     /** The calendar's id, which tells its draggables and droppables from another calendar's. */
@@ -391,16 +389,11 @@ export class EventCalendarControl {
         });
 
         // list the views the mounted view parts offer
-        const [offered, setOffered] = createSignal<readonly (readonly EventCalendarView[])[]>([], {
-            ownedWrite: true,
-        });
-        this.#offered = offered;
-        this.#setOffered = setOffered;
-        this.views = createMemo(() => {
-            const all = new Set(offered().flat());
-
-            return EVENT_CALENDAR_VIEWS.filter((view) => all.has(view));
-        });
+        this.#offered = new CollectionBuilder();
+        this.views = () =>
+            EVENT_CALENDAR_VIEWS.filter((view) =>
+                this.#offered.items().some((views) => views.includes(view)),
+            );
 
         // select several events at once
         this.selection = new Selection(
@@ -485,8 +478,7 @@ export class EventCalendarControl {
 
     /** Offer a view part's views until it unmounts. */
     addViews(views: readonly EventCalendarView[]): void {
-        this.#setOffered([...untrack(this.#offered), views]);
-        onCleanup(() => this.#setOffered(untrack(this.#offered).filter((each) => each !== views)));
+        this.#offered.add(views);
     }
 
     /** Read the milliseconds between the time grid's lines. */

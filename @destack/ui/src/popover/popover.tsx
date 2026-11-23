@@ -6,13 +6,11 @@ import {
     createContext,
     createControllableSignal,
     createEffect,
-    createSignal,
     createUniqueId,
     type JSX,
     merge,
     omit,
     onCleanup,
-    type Setter,
     Show,
     untrack,
     useContext,
@@ -22,6 +20,7 @@ import { LayerStack, TopLayer } from "../layer/index.ts";
 import { Timeout } from "@destack/view/primitives/timer";
 import { type Align, Position, type Side } from "../position/index.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
+import { CollectionBuilder } from "../collection/index.ts";
 
 /** The side and alignment of a popover that sets neither. */
 const DEFAULTS: Required<Pick<PopoverContentProperties, "side" | "align">> = {
@@ -78,10 +77,10 @@ export class PopoverControl {
     readonly isDescribed: Accessor<boolean>;
     /** Replace the open state and tell the change handler. */
     readonly #setOpen: (isOpen: boolean) => void;
-    /** Replace whether a title labels the popover. */
-    readonly #setTitled: Setter<boolean>;
-    /** Replace whether a description describes the popover. */
-    readonly #setDescribed: Setter<boolean>;
+    /** The titles on screen. */
+    readonly #titles: CollectionBuilder<string>;
+    /** The descriptions on screen. */
+    readonly #descriptions: CollectionBuilder<string>;
     /** The button that opens the popover and takes the focus back. */
     #trigger: HTMLElement | undefined;
     /** The element the popover is placed beside in place of its trigger. */
@@ -104,16 +103,14 @@ export class PopoverControl {
             defaultValue: untrack(() => properties.defaultOpen === true),
             onChange: (isNext) => properties.onOpenChange?.(isNext),
         });
-        const [isTitled, setTitled] = createSignal(false, { ownedWrite: true });
-        const [isDescribed, setDescribed] = createSignal(false, { ownedWrite: true });
         this.id = createUniqueId();
         this.isOpen = isOpen;
         this.isModal = () => properties.modal === true;
-        this.isTitled = isTitled;
-        this.isDescribed = isDescribed;
+        this.isTitled = () => this.#titles.size() > 0;
+        this.isDescribed = () => this.#descriptions.size() > 0;
         this.#setOpen = setOpen;
-        this.#setTitled = setTitled;
-        this.#setDescribed = setDescribed;
+        this.#titles = new CollectionBuilder();
+        this.#descriptions = new CollectionBuilder();
         this.#trigger = undefined;
         this.#anchor = undefined;
         this.#content = undefined;
@@ -142,14 +139,12 @@ export class PopoverControl {
 
     /** Label the popover by its title until the title unmounts. */
     title(): void {
-        this.#setTitled(true);
-        onCleanup(() => this.#setTitled(false));
+        this.#titles.add(`${this.id}-title`);
     }
 
     /** Describe the popover by its description until the description unmounts. */
     describe(): void {
-        this.#setDescribed(true);
-        onCleanup(() => this.#setDescribed(false));
+        this.#descriptions.add(`${this.id}-description`);
     }
 
     /** Set the popover element. */

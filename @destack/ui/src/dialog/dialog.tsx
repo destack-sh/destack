@@ -9,12 +9,10 @@ import {
     createContext,
     createControllableSignal,
     createEffect,
-    createSignal,
     createUniqueId,
     type JSX,
     omit,
     onCleanup,
-    type Setter,
     Show,
     untrack,
     useContext,
@@ -23,6 +21,7 @@ import {
 import { Button } from "../button/index.ts";
 import { LayerStack, TopLayer } from "../layer/index.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
+import { CollectionBuilder } from "../collection/index.ts";
 
 /** The widest a dialog grows. */
 const DIALOG_WIDTH = "32rem";
@@ -90,8 +89,8 @@ export class DialogControl {
     readonly isModal: Accessor<boolean>;
     /** Replace the open state and tell the change handler. */
     readonly #setOpen: (isOpen: boolean) => void;
-    /** Replace whether a description is on screen. */
-    readonly #setDescribed: Setter<boolean>;
+    /** The descriptions on screen. */
+    readonly #descriptions: CollectionBuilder<string>;
 
     /** Create the state of a dialog root, open when its properties ask for it. */
     constructor(properties: DialogProperties) {
@@ -102,15 +101,14 @@ export class DialogControl {
             defaultValue: untrack(() => properties.defaultOpen === true),
             onChange: (isNext) => properties.onOpenChange?.(isNext),
         });
-        const [isDescribed, setDescribed] = createSignal(false, { ownedWrite: true });
         this.id = createUniqueId();
         this.titleId = createUniqueId();
         this.descriptionId = createUniqueId();
         this.isOpen = isOpen;
-        this.isDescribed = isDescribed;
+        this.isDescribed = () => this.#descriptions.size() > 0;
         this.isModal = () => properties.modal !== false;
         this.#setOpen = setOpen;
-        this.#setDescribed = setDescribed;
+        this.#descriptions = new CollectionBuilder();
     }
 
     /** Open the dialog and tell the root's change handler. */
@@ -125,8 +123,7 @@ export class DialogControl {
 
     /** Describe the dialog by its description until the description unmounts. */
     describe(): void {
-        this.#setDescribed(true);
-        onCleanup(() => this.#setDescribed(false));
+        this.#descriptions.add(this.descriptionId);
     }
 }
 

@@ -1,5 +1,6 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { createEffect, createRoot, createSignal, flush } from "@destack/view";
+import { createEffect, createMemo, createRoot, createSignal, flush, Show } from "@destack/view";
+import { render, wait } from "@destack/view/test";
 import { Collection, CollectionBuilder, type CollectionSection, Load } from "./collection.ts";
 
 /** A note of a test collection. */
@@ -190,6 +191,65 @@ test("list the items child components add in mount order, dropping each as it un
     });
 });
 
+test("list each mount of equal items, one remounting before the items are read again", () => {
+    // mount the same name twice, unmount one, then unmount the other and mount it again unread
+    const builder = rooted(() => new CollectionBuilder<string>());
+    const mount = () =>
+        rooted(() =>
+            createRoot((dispose) => {
+                builder.add("Ada");
+
+                return dispose;
+            }),
+        );
+    const [first, second] = [mount(), mount()];
+    flush();
+    const both = builder.items();
+    first();
+    flush();
+    const one = builder.items();
+    second();
+    mount();
+    flush();
+
+    expect([both, one, builder.items()]).toEqual([["Ada", "Ada"], ["Ada"], ["Ada"]]);
+});
+
+test("read no item of a child whose frame waits for a load, then read it with the frame", async () => {
+    // show a child and start a load in one change, and rerun a reader while the load runs
+    const load = Promise.withResolvers<string>();
+    const [isShown, setShown] = createSignal(false);
+    const [ticks, setTicks] = createSignal(0);
+    const { container } = render(() => {
+        const builder = new CollectionBuilder<string>();
+        const data = createMemo(() => (isShown() ? load.promise : "none"));
+        const Child = () => {
+            builder.add("child");
+
+            return <i />;
+        };
+
+        return (
+            <p>
+                {ticks()}:{builder.size()}:{data()}
+                <Show when={isShown()}>
+                    <Child />
+                </Show>
+            </p>
+        );
+    });
+    setShown(true);
+    flush();
+    setTicks(1);
+    flush();
+    const held = container.textContent;
+    load.resolve("loaded");
+    await wait(0);
+    flush();
+
+    expect([held, container.textContent]).toEqual(["1:0:none", "1:1:loaded"]);
+});
+
 test("replace an earlier item of a key with the one a move remounts before the earlier unmounts", () => {
     // add a card in one column, remount it in another before the first unmounts, then unmount the first
     const builder = rooted(
@@ -216,6 +276,30 @@ test("replace an earlier item of a key with the one a move remounts before the e
         during: [{ key: "post", column: "doing" }],
         after: [{ key: "post", column: "doing" }],
     });
+});
+
+test("read the earlier item of a key again once the newer one unmounts first", () => {
+    // remount a card, then unmount the newer mount while the earlier one stays
+    const builder = rooted(
+        () => new CollectionBuilder<{ readonly column: string }>(undefined, () => "post"),
+    );
+    rooted(() => builder.add({ column: "todo" }));
+    const disposeDoing = rooted(() =>
+        createRoot((dispose) => {
+            builder.add({ column: "doing" });
+
+            return dispose;
+        }),
+    );
+    flush();
+    const during = [builder.items(), builder.item("post")];
+    disposeDoing();
+    flush();
+
+    expect([during, [builder.items(), builder.item("post")]]).toEqual([
+        [[{ column: "doing" }], { column: "doing" }],
+        [[{ column: "todo" }], { column: "todo" }],
+    ]);
 });
 
 test("order the items by their elements' places in the document once they settle", async () => {

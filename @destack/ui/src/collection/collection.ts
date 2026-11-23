@@ -1,11 +1,15 @@
 import {
     type Accessor,
+    createEffect,
     createMemo,
     createProjection,
     createSignal,
+    isHydrating,
+    isServer,
     onCleanup,
     onSettled,
 } from "@destack/view";
+import { inDocumentOrder, observeDocumentOrder } from "./order.ts";
 
 /** A section of a collection: its items under an optional heading. */
 export interface CollectionSection<Item> {
@@ -189,92 +193,148 @@ type LoadOutcome<Value> =
 
 /** The items child components add as they mount, in the order of their elements. */
 export class CollectionBuilder<Item> {
-    /** The items in the order of their elements in the document, else in mount order. */
-    readonly items: Accessor<readonly Item[]>;
-    /** The items as they mount, the unmounted ones dropped once per change. */
-    #items: Item[];
-    /** The items unmounted since the last change. */
-    readonly #unmounted: Set<Item>;
-    /** Count each change to the items. */
-    readonly #revision: Accessor<number>;
-    /** Count a change to the items. */
-    readonly #setRevision: (revise: (revision: number) => number) => void;
-    /** Read an item's key, a newer item of a key replacing an earlier one, as a move remounts. */
+    /** The mounts so far, only appended to, so a snapshot of their first stays as it was. */
+    #mounts: CollectionMount<Item>[] = [];
+    /** The number of mounts unmounted since. */
+    #unmounted = 0;
+    /** The latest snapshot, which a server and a hydrating page read, whose signals stand still. */
+    #latest: CollectionSnapshot<Item>;
+    /** The snapshot of the frame on screen. */
+    readonly #shown: Accessor<CollectionSnapshot<Item>>;
+    /** Replace the snapshot. */
+    readonly #show: (snapshot: CollectionSnapshot<Item>) => void;
+    /** Read an item's element, the items staying in mount order without one. */
+    readonly #element: ((item: Item) => Element | undefined) | undefined;
+    /** Read an item's key, the latest item of a key standing for it, as a move remounts. */
     readonly #key: ((item: Item) => string) | undefined;
-    /** The latest item of each key, which a newer item of the key replaces at once. */
-    readonly #byKey = new Map<string, Item>();
+    /** The items laid out last, and the snapshot they came from. */
+    #layout: CollectionLayout<Item> | undefined;
 
     /** Start without items, ordering them by their elements and replacing them by their keys. */
     constructor(element?: (item: Item) => Element | undefined, key?: (item: Item) => string) {
-        // count each change to the items, which start empty
-        const [revision, setRevision] = createSignal(0, { ownedWrite: true });
-        this.#items = [];
-        this.#unmounted = new Set();
-        this.#revision = revision;
-        this.#setRevision = setRevision;
+        // start without items
+        this.#latest = { mounts: this.#mounts, length: 0 };
+        const [shown, show] = createSignal(this.#latest, { ownedWrite: true });
+        this.#shown = shown;
+        this.#show = show;
+        this.#element = element;
         this.#key = key;
-        this.items = createMemo(() => {
-            // drop the unmounted items in one pass however many leave at once
-            revision();
-            if (this.#unmounted.size > 0) {
-                this.#items = this.#items.filter((item) => !this.#unmounted.has(item));
-                this.#unmounted.clear();
+
+        // order the items again as their elements move, after Base UI's CompositeList
+        if (element !== undefined) {
+            createEffect(
+                () => this.items().flatMap((item) => element(item) ?? []),
+                (elements) => observeDocumentOrder(elements, () => this.#change()),
+            );
+        }
+    }
+
+    /** List the items in the order of their elements in the document, else in mount order. */
+    items(): readonly Item[] {
+        return this.#layOut().items;
+    }
+
+    /** Read the number of items. */
+    size(): number {
+        return this.#layOut().items.length;
+    }
+
+    /** Read the latest item of a key, none for a key of none. */
+    item(key: string): Item | undefined {
+        return this.#layOut().byKey.get(key);
+    }
+
+    /** Add an item until the component adding it unmounts, returning its place among the items. */
+    add(item: Item): Accessor<number> {
+        // add a mount until the component unmounts
+        const mount = { item, isMounted: true };
+        this.#mounts.push(mount);
+        this.#change();
+        onCleanup(() => {
+            // mark it unmounted
+            mount.isMounted = false;
+            this.#unmounted += 1;
+
+            // drop the unmounted ones once they are half of all
+            if (this.#unmounted * 2 > this.#mounts.length) {
+                this.#mounts = this.#mounts.filter((each) => each.isMounted);
+                this.#unmounted = 0;
             }
 
-            // order the items as their elements stand in the document
-            return element === undefined
-                ? [...this.#items]
-                : this.#items.toSorted((left, right) =>
-                      documentOrder(element(left), element(right)),
-                  );
+            // show what is left
+            this.#change();
         });
-    }
-
-    /** Read the latest item of a key, read at once as items mount, none for a key of none. */
-    item(key: string): Item | undefined {
-        this.#revision();
-
-        return this.#byKey.get(key);
-    }
-
-    /** Add an item until the component adding it unmounts, replacing an earlier one of its key. */
-    add(item: Item): void {
-        // drop an earlier item of the key, which a move remounts before the earlier one unmounts
-        const name = this.#key?.(item);
-        const earlier = name === undefined ? undefined : this.#byKey.get(name);
-        if (earlier !== undefined) {
-            this.#unmounted.add(earlier);
-        }
-        if (name !== undefined) {
-            this.#byKey.set(name, item);
-        }
-
-        // append in place, one copy per flush however many items mount
-        this.#items.push(item);
-        this.#setRevision((revision) => revision + 1);
 
         // order the items again once the item's element stands in the document
-        onSettled(() => {
-            this.#setRevision((revision) => revision + 1);
-        });
-        onCleanup(() => {
-            this.#unmounted.add(item);
-            if (name !== undefined && this.#byKey.get(name) === item) {
-                this.#byKey.delete(name);
-            }
-            this.#setRevision((revision) => revision + 1);
-        });
+        if (this.#element !== undefined) {
+            onSettled(() => this.#change());
+        }
+
+        return () => this.items().indexOf(item);
+    }
+
+    /** Take a new snapshot, and show it with the frame of the browser's change. */
+    #change(): void {
+        this.#latest = { mounts: this.#mounts, length: this.#mounts.length };
+        if (!isServer) {
+            this.#show(this.#latest);
+        }
+    }
+
+    /** Lay the mounted items out once per change. */
+    #layOut(): CollectionLayout<Item> {
+        // reuse the layout of the same snapshot
+        const shown = this.#shown();
+        const snapshot = isServer || isHydrating() ? this.#latest : shown;
+        if (this.#layout?.snapshot === snapshot) {
+            return this.#layout;
+        }
+
+        // take the mounted items, the latest of each key
+        const key = this.#key;
+        const byKey = new Map<string, Item>();
+        let items: readonly Item[] = snapshot.mounts
+            .slice(0, snapshot.length)
+            .flatMap((mount) => (mount.isMounted ? [mount.item] : []));
+        if (key !== undefined) {
+            items.forEach((item) => byKey.set(key(item), item));
+            items = items.filter((item) => byKey.get(key(item)) === item);
+        }
+
+        // order the items as their elements stand in the document
+        if (this.#element !== undefined) {
+            items = inDocumentOrder(items, this.#element);
+        }
+        this.#layout = { snapshot, items, byKey };
+
+        return this.#layout;
     }
 }
 
-/** Compare two elements by their place in the document, leaving a missing one in its order. */
-function documentOrder(left: Element | undefined, right: Element | undefined): number {
-    // leave an item without an element in the document in its order
-    if (left === undefined || right === undefined || !left.isConnected || !right.isConnected) {
-        return 0;
-    }
+/** One mount of an item. */
+interface CollectionMount<Item> {
+    /** The item. */
+    readonly item: Item;
+    /** Whether the component that added it is still mounted. */
+    isMounted: boolean;
+}
 
-    return left.compareDocumentPosition(right) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1;
+/** The mounts up to a change. */
+interface CollectionSnapshot<Item> {
+    /** The mounts, with later ones past the length. */
+    readonly mounts: readonly CollectionMount<Item>[];
+    /** The number of mounts up to the change. */
+    readonly length: number;
+}
+
+/** The mounted items laid out for lookups by place and by key. */
+interface CollectionLayout<Item> {
+    /** The snapshot laid out. */
+    readonly snapshot: CollectionSnapshot<Item>;
+    /** The items in order. */
+    readonly items: readonly Item[];
+    /** The latest item of each key. */
+    readonly byKey: ReadonlyMap<string, Item>;
 }
 
 /** Lay sections out by key and place. */
