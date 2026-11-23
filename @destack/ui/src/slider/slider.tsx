@@ -42,7 +42,7 @@ const THUMB = {
     borderWidth: stroke.border,
     borderColor: swatch.accentMark,
     borderRadius: radius.full,
-    backgroundColor: color.background,
+    backgroundColor: "white",
     pointerEvents: "auto",
     cursor: "pointer",
     transitionProperty: "box-shadow",
@@ -72,7 +72,7 @@ const styles = style.create({
         height: space[1],
         overflow: "hidden",
         borderRadius: radius.full,
-        backgroundColor: color.muted,
+        backgroundColor: color.border,
     },
     verticalTrack: {
         width: space[1],
@@ -93,6 +93,7 @@ const styles = style.create({
         insetBlockStart: to,
     }),
     thumb: {
+        position: "relative",
         gridArea: "1 / 1",
         appearance: "none",
         width: "100%",
