@@ -128,6 +128,7 @@ import {
     keyText,
     metaOf,
 } from "./control.ts";
+import { createGutter, type DataTableGutter } from "./gutter.ts";
 import type { DataTableInstance } from "./table.ts";
 import { Length, Virtualizer } from "../virtualizer/index.ts";
 import { VisuallyHidden, visuallyHiddenStyle } from "../visually-hidden/index.ts";
@@ -177,6 +178,10 @@ const styles = style.create({
     frame: {
         overflow: "auto",
     },
+    hung: (gutter: string) => ({
+        width: `calc(100% + ${gutter})`,
+        marginInlineStart: `calc(-1 * ${gutter})`,
+    }),
     row: {
         borderBottomWidth: 0,
         backgroundColor: "transparent",
@@ -297,6 +302,13 @@ const styles = style.create({
         alignItems: "center",
         gap: space[1],
     },
+    end: {
+        justifyContent: "flex-end",
+        textAlign: "end",
+    },
+    nested: (depth: string) => ({
+        paddingInlineStart: `calc(${space[2]} + ${depth} * ${space[4]})`,
+    }),
     columnHeader: {
         display: "inline-flex",
         alignItems: "center",
@@ -356,6 +368,14 @@ const styles = style.create({
         color: "inherit",
         fontWeight: "inherit",
     },
+    reversed: {
+        flexDirection: "row-reverse",
+    },
+    sortEnd: {
+        flexDirection: "row-reverse",
+        marginInlineStart: 0,
+        marginInlineEnd: `calc(-1 * ${space[3]})`,
+    },
     quiet: {
         opacity: {
             default: 1,
@@ -392,6 +412,7 @@ const styles = style.create({
         textAlign: "center",
     },
     gutter: {
+        backgroundColor: "transparent",
         backgroundImage: "none",
     },
     toggle: (depth: string) => ({
@@ -449,6 +470,8 @@ export interface DataTableProperties<
     readonly onRowMove?: (move: DataTableRowMove) => void;
     /** List what can be done with rows, which a right click on a row offers in a menu. */
     readonly rowActions?: (rows: readonly string[]) => Action[];
+    /** Where the row controls stand, in the margin by default where it has room. */
+    readonly gutter?: DataTableGutter;
     /** The StyleX styles applied after the table's styles. */
     readonly xstyle?: style.Styles;
 }
@@ -467,6 +490,7 @@ export function DataTable<Features extends TableFeatures, Row extends RowData>(
         "onCellsChange",
         "onRowMove",
         "rowActions",
+        "gutter",
         "xstyle",
         "style",
     );
@@ -489,6 +513,7 @@ export function DataTable<Features extends TableFeatures, Row extends RowData>(
     // lay the headers and rows out as a grid that edits, copies, pastes and selects blocks
     const [root, setRoot] = createSignal<HTMLElement | undefined>(undefined, { ownedWrite: true });
     const isVirtual = untrack(() => properties.isVirtual === true);
+    const gutter = createGutter(root, columns, () => properties.gutter ?? "outside");
     const control = new DataTableControl({
         table: untrack(() => properties.table),
         rows,
@@ -652,7 +677,12 @@ export function DataTable<Features extends TableFeatures, Row extends RowData>(
             onPaste={(event) => control.paste(event)}
             onFocusOut={(event) => control.focus.focusOut(event)}
             {...style.attributes(
-                [styles.frame, isVirtual && styles.scroller, properties.xstyle],
+                [
+                    styles.frame,
+                    gutter() > 0 && styles.hung(`${String(gutter())}px`),
+                    isVirtual && styles.scroller,
+                    properties.xstyle,
+                ],
                 properties.style,
             )}
         >
@@ -832,8 +862,9 @@ function DataTableHeaderCell<Features extends TableFeatures, Data extends RowDat
                 ]}
                 aria-sort={follow(tracked, () => sortOf(header))}
                 data-column={header.column.id}
+                data-control={metaOf(header.column).isControl === true ? "" : undefined}
             >
-                <span {...style.attrs(styles.headerContent)}>
+                <span {...style.attrs(styles.headerContent, isEnd(header.column) && styles.end)}>
                     <Show when={!header.isPlaceholder}>
                         {renderTemplate(header.column.columnDef.header, header.getContext())}
                     </Show>
@@ -886,6 +917,9 @@ function BodyRow<Features extends TableFeatures, Data extends RowData>(propertie
         return edit?.row === id ? edit.column : undefined;
     });
     const spans = createMemo(() => control.spansOf(properties.row), { equals: isSameSpans });
+    const first = createMemo(
+        () => cells().find((each) => metaOf(each.column).isControl !== true)?.column.id,
+    );
     const element = (attributes: object) => (
         <TableRow
             {...attributes}
@@ -906,6 +940,7 @@ function BodyRow<Features extends TableFeatures, Data extends RowData>(propertie
                         control={control}
                         pins={properties.pins}
                         cell={cell()}
+                        depth={cell().column.id === first() ? depthOf(properties.row) : 0}
                         isEditing={edited() === cell().column.id}
                         isInBlock={isInSpans(spans(), control.columnPlaceOf(cell().column.id))}
                     />
@@ -936,6 +971,8 @@ function DataTableBodyCell<Features extends TableFeatures, Data extends RowData>
     readonly pins: Accessor<ReadonlyMap<string, PinPlace | undefined>>;
     /** The cell, the same column's newest cell as the data changes. */
     readonly cell: Cell<Features, Data>;
+    /** The levels its value is indented by, for the first value of a sub row. */
+    readonly depth: number;
     /** Whether the cell is the one being edited. */
     readonly isEditing: boolean;
     /** Whether the cell lies in the selected block. */
@@ -993,6 +1030,8 @@ function DataTableBodyCell<Features extends TableFeatures, Data extends RowData>
                 state.focusInset,
                 styles.cell,
                 styles.fixed,
+                isEnd(cell().column) && styles.end,
+                properties.depth > 0 && styles.nested(String(properties.depth)),
                 metaOf(cell().column).isControl !== true && [styles.divided, styles.lined],
                 control.isSelecting() && styles.selecting,
                 isRefused() && styles.refused,
@@ -1069,7 +1108,13 @@ function DataTableSummaryCell<Features extends TableFeatures, Data extends RowDa
     return (
         <TableCell
             data-column={column.id}
-            xstyle={[text.xs, styles.summary, styles.fixed, pinStyleOf(pins().get(column.id))]}
+            xstyle={[
+                text.xs,
+                styles.summary,
+                styles.fixed,
+                isEnd(column) && styles.end,
+                pinStyleOf(pins().get(column.id)),
+            ]}
         >
             {line()}
         </TableCell>
@@ -1315,12 +1360,15 @@ export function DataTableColumnHeader<Features extends TableFeatures, Row extend
         );
 
     return (
-        <span data-slot="data-table-column-header" {...style.attrs(styles.columnHeader)}>
+        <span
+            data-slot="data-table-column-header"
+            {...style.attrs(styles.columnHeader, isEnd(column) && styles.reversed)}
+        >
             {/* The name, which sorts a sortable column */}
             <Show when={column.getCanSort()} fallback={labelOf(column)}>
                 <Button
                     variant="ghost"
-                    xstyle={styles.sort}
+                    xstyle={[text.xs, styles.sort, isEnd(column) && styles.sortEnd]}
                     onClick={(event) => {
                         // toggle the sort beside the other sorted columns on Shift
                         const next = column.getNextSortingOrder(event.shiftKey);
@@ -2482,6 +2530,20 @@ function summaryText(
     }
 }
 
+/** Read how many rows a sub row lies under, none for a group's. */
+function depthOf(row: object): number {
+    return isExpandableRow(row) && !isGroupRow(row) ? row.depth : 0;
+}
+
+/** Report whether a column's values stand at its end, as numbers do. */
+function isEnd<Features extends TableFeatures, Data extends RowData, Value>(
+    column: Column<Features, Data, Value>,
+): boolean {
+    const meta = metaOf(column);
+
+    return (meta.align ?? (meta.editor?.kind === "number" ? "end" : "start")) === "end";
+}
+
 /** Take a key on a data table's grid: toggle, edit, clear, open a menu, or move and extend. */
 function keyDown<Features extends TableFeatures, Data extends RowData>(
     event: KeyboardEvent,
@@ -2495,8 +2557,10 @@ function keyDown<Features extends TableFeatures, Data extends RowData>(
     const element = target instanceof Element ? target.closest<HTMLElement>("th, td") : null;
     const isField =
         target instanceof Element && target.matches("input:not([type=checkbox]), textarea, select");
+    const isBoxEnter =
+        event.key === "Enter" && target instanceof Element && target.matches("[role=checkbox]");
     if (
-        event.defaultPrevented ||
+        (event.defaultPrevented && !isBoxEnter) ||
         element === null ||
         isField ||
         control.edit() !== undefined ||

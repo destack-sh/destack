@@ -174,6 +174,8 @@ export interface DataTableColumnMeta {
     readonly label?: string;
     /** Whether the column only selects, expands or moves rows, as narrow as its control. */
     readonly isControl?: boolean;
+    /** The edge its values stand at, the end for a column that edits numbers. */
+    readonly align?: "start" | "end";
     /** How the column's cells show and edit their values, none for plain values. */
     readonly editor?: DataTableEditor;
     /** The summary its footer shows, none for no summary. */

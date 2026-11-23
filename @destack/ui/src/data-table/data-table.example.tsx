@@ -1,4 +1,5 @@
 import * as style from "@destack/style";
+import { space } from "@destack/theme/tokens.stylex";
 import { defineExample } from "@destack/package/declare";
 import {
     aggregationFn_sum,
@@ -55,6 +56,10 @@ import { createTable } from "./table.ts";
 
 /** The styles of the examples' tables. */
 const styles = style.create({
+    margin: {
+        // leave room for the grip and the checkbox before each row
+        paddingInlineStart: space[5],
+    },
     scrolling: {
         maxHeight: "24rem",
     },
@@ -97,7 +102,7 @@ const COLUMNS = COLUMN.columns([
     }),
     COLUMN.accessor("words", {
         header: (context) => <DataTableColumnHeader column={context.column} />,
-        meta: { label: "Words" },
+        meta: { label: "Words", align: "end" },
         enableGlobalFilter: false,
     }),
 ]);
@@ -228,7 +233,11 @@ const GROUPED_COLUMN = createColumnHelper<typeof GROUPED_FEATURES, FiledNote>();
 const GROUPED_COLUMNS = GROUPED_COLUMN.columns([
     GROUPED_COLUMN.accessor("notebook", { header: "Notebook" }),
     GROUPED_COLUMN.accessor("title", { header: "Title" }),
-    GROUPED_COLUMN.accessor("words", { header: "Words", aggregationFn: "sum" }),
+    GROUPED_COLUMN.accessor("words", {
+        header: "Words",
+        aggregationFn: "sum",
+        meta: { align: "end" },
+    }),
 ]);
 
 /** Notes filed in notebooks. */
@@ -505,7 +514,7 @@ function LaunchTasksTable(): JSX.Element {
     });
 
     return (
-        <Stack>
+        <Stack xstyle={styles.margin}>
             <Cluster>
                 <DataTableFacetedFilter
                     table={table}
