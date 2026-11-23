@@ -33,13 +33,21 @@
         "@destack/error": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/style": "workspace:*",
-        "@destack/theme": "workspace:*",
         "@destack/view": "workspace:*"
     },
     "devDependencies": {
         "@destack/check": "workspace:*",
         "@destack/environment": "workspace:*",
         "@destack/test": "workspace:*",
+        "@destack/theme": "workspace:*",
         "@types/bun": "1.4.4"
+    },
+    "peerDependencies": {
+        "@destack/theme": "workspace:*"
+    },
+    "peerDependenciesMeta": {
+        "@destack/theme": {
+            "optional": true
+        }
     }
 }
