@@ -13,7 +13,7 @@ import { eventTables } from "../src/stack/db.ts";
 /** The package declaring the test kinds. */
 const meters = PackageVersion.parse({
     id: "package-019f5530-8000-7000-8000-000000000301",
-    name: "@acme/meters",
+    name: "@example/meters",
     version: "2026.10.0",
 });
 
@@ -72,10 +72,10 @@ const line = testKind({
 
 /** The driver's failure writing a log line once its table is gone, by dialect. */
 const MISSING_LINE_TABLE = {
-    sqlite: { name: "SQLiteError", message: "no such table: acme__meters__event_line" },
+    sqlite: { name: "SQLiteError", message: "no such table: example__meters__event_line" },
     postgresql: {
         name: "PostgresError",
-        message: 'relation "acme__meters__event_line" does not exist',
+        message: 'relation "example__meters__event_line" does not exist',
     },
 };
 
