@@ -89,7 +89,7 @@ const styles = style.create({
     columns: {
         display: "flex",
         flexGrow: 1,
-        alignItems: "flex-start",
+        alignItems: "stretch",
         gap: space[3],
     },
     column: {
