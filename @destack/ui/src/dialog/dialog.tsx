@@ -2,7 +2,7 @@ import { Icon } from "@destack/ui/icon";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
 import { transition } from "@destack/theme/motion";
-import { color, radius, shadow, space, stroke, weight } from "@destack/theme/tokens.stylex";
+import { color, motion, radius, shadow, space, stroke, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import {
     type Accessor,
@@ -22,9 +22,13 @@ import { Button } from "../button/index.ts";
 import { LayerStack, TopLayer } from "../layer/index.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
 import { CollectionBuilder } from "../collection/index.ts";
+import { scrim } from "./scrim.stylex.ts";
 
 /** The widest a dialog grows. */
 const DIALOG_WIDTH = "32rem";
+
+/** The time a backdrop fades for, kept when reduced motion drops movement. */
+const SCRIM_FADE = `max(${motion.durationMedium}, 150ms)`;
 
 /** The styles of a dialog and its elements. */
 const styles = style.create({
@@ -43,8 +47,14 @@ const styles = style.create({
         boxShadow: shadow.overlay,
         // take the focus without a ring where nothing inside takes it
         outlineStyle: "none",
+        // fade the backdrop with the dialog, which a drag may fade further
+        [scrim.opacity]: { default: "0", ":modal": "1" },
         "::backdrop": {
             backgroundColor: color.scrim,
+            opacity: { default: scrim.opacity, "@starting-style": 0 },
+            transitionProperty: "opacity, display, overlay",
+            transitionDuration: SCRIM_FADE,
+            transitionBehavior: "allow-discrete",
         },
     },
     close: {
