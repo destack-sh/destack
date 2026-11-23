@@ -95,7 +95,7 @@ export const ObjectTypeEntry = Object.assign(
         packageId: PackageId,
         /** The type's name, its singular. */
         type: schema.string().min(1),
-        /** The name of the package defining the type, such as @acme/notes. */
+        /** The name of the package defining the type, such as @example/notes. */
         packageName: schema.string().min(1),
         /** The type's plural, which lists its objects. */
         plural: schema.string().min(1),

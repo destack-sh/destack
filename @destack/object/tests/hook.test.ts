@@ -1009,7 +1009,7 @@ test("describe a isolated installation that serves no objects, such as one shipp
     // install a package whose build declares one view and no objects, its hooks in a isolate
     const pages = PackageVersion.parse({
         id: OTHER_PACKAGE,
-        name: "@acme/pages",
+        name: "@example/pages",
         version: "2026.9.0",
     });
     const view = {

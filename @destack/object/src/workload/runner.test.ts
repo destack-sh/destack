@@ -92,7 +92,7 @@ const refusingEphemeral: EphemeralHost = {
 /** The runner's package. */
 const NOTES = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000a1",
-    name: "@acme/notes",
+    name: "@example/notes",
     version: "2026.9.0",
 });
 
@@ -103,7 +103,7 @@ const notes = Package.of(NOTES, {});
 const events = Package.of(
     PackageVersion.parse({
         id: "package-01996ab0-0000-7000-8000-0000000000e1",
-        name: "@acme/events",
+        name: "@example/events",
         version: "2026.10.0",
     }),
     {},
