@@ -36,7 +36,14 @@ import * as stackObject from "@destack/stack/object";
 import objectPackage from "@destack/object/package";
 import stackPackage from "@destack/stack/package";
 import { expect, refusal, test } from "@destack/test";
-import { type Address, ScopePath, ViewAddress } from "@destack/view/declare";
+import {
+    type Address,
+    BUILD_PARAMETER,
+    RELOAD_EVENT,
+    ScopePath,
+    ViewAddress,
+    ViewContext,
+} from "@destack/view/declare";
 import viewPackage from "@destack/view/destack.json" with { type: "json" };
 import { LINK_COOKIE, SESSION_COOKIE } from "./origin.ts";
 import { OWNER_EMAIL, PUBLISHER, TestComputer } from "../computer/test/index.ts";
@@ -142,9 +149,9 @@ const Titled = schema.looseObject({ title: schema.string() });
 const Launched = schema.looseObject({ view: schema.string(), target: ObjectReference });
 
 /** Write a notes build with a home view listing notes and an editor presenting them. */
-function notesBuild(crypto: Crypto): Promise<BuildReader> {
+function notesBuild(crypto: Crypto, built: PackageVersion = notes): Promise<BuildReader> {
     return TestViewBuild.of(
-        notes,
+        built,
         {
             home: {
                 entrypoint: "browser/home.js",
@@ -533,12 +540,51 @@ function firstCookie(response: Response): string {
     return nth(header(response, "set-cookie").split(";"), 0);
 }
 
+/** List the events of a server-sent event stream by name, skipping its comments. */
+function eventsOf(stream: string): string[] {
+    return stream
+        .split("\n\n")
+        .flatMap((frame) => frame.split("\n").filter((line) => line.startsWith("event: ")))
+        .map((line) => line.slice("event: ".length));
+}
+
 /** Read the context in a view's document. */
 async function contextOf(document: Response): Promise<unknown> {
     const embedded = /id="destack-view">(.*)<\/script>/u.exec(await document.text());
 
     return embedded === null ? undefined : JSON.parse(nth(embedded, 1));
 }
+
+test("stream a page's reload once its installation serves another build", async () => {
+    // install notes and load its page as a visitor, from the build it serves
+    const opened = await openHome();
+    const { computer, spaceId } = opened;
+    const { world } = computer;
+    const listener = computer.computer;
+    await install(opened, await notesBuild(computer.environment.crypto), "notes");
+    const port = new URL(await computer.device.origin()).port;
+    const origin = `http://notes--${opened.address}.space.localhost:${port}`;
+    const loaded = ViewContext.parse(
+        await contextOf(await listener.fetch(new Request(`${origin}/home`))),
+    );
+
+    // follow the page's reload stream while notes moves to its next release, then load the page again
+    const reload = `${origin}${OriginPath.reload}?${BUILD_PARAMETER}=${loaded.build}`;
+    const reloading = listener.fetch(new Request(reload)).then((response) => response.text());
+    const next = await notesBuild(computer.environment.crypto, { ...notes, version: "2026.9.1" });
+    await opened.cloud.publish(await world.distribution.image(next, []), world.owner);
+    await computer.update(opened.login, spaceId, "notes", next);
+    const event = await reloading;
+    const reloaded = ViewContext.parse(
+        await contextOf(await listener.fetch(new Request(`${origin}/home`))),
+    );
+
+    // end the stream with one change event, the page loading the next release's build after it
+    expect([eventsOf(event), reloaded.build]).toEqual([
+        [RELOAD_EVENT],
+        await world.distribution.image(next),
+    ]);
+});
 
 test("launch a view onto a session cookie serving its document", async () => {
     // install notes in the owner's home
@@ -547,11 +593,9 @@ test("launch a view onto a session cookie serving its document", async () => {
     const { device: native, world } = computer;
     const listener = computer.computer;
     const { owner } = world;
-    const installation = await install(
-        opened,
-        await notesBuild(computer.environment.crypto),
-        "notes",
-    );
+    const build = await notesBuild(computer.environment.crypto);
+    const installation = await install(opened, build, "notes");
+    const image = await world.distribution.image(build);
     const login = await native.launcher(opened.login);
     const address = { space: opened.address, installation: "notes", view: "home", path: "/" };
 
@@ -653,6 +697,7 @@ test("launch a view onto a session cookie serving its document", async () => {
             residencyHome: opened.residencyHome,
             home: owner.home,
             view: "home",
+            build: image,
             base: "",
             universe: computer.world.universe.origin,
             catalogs: [],
@@ -679,11 +724,9 @@ test("serve anonymous visitors and refuse forged credentials", async () => {
     const opened = await openHome();
     const { computer, spaceId } = opened;
     const listener = computer.computer;
-    const installation = await install(
-        opened,
-        await notesBuild(computer.environment.crypto),
-        "notes",
-    );
+    const build = await notesBuild(computer.environment.crypto);
+    const installation = await install(opened, build, "notes");
+    const image = await computer.world.distribution.image(build);
     const port = new URL(await computer.device.origin()).port;
     const origin = `http://notes--${opened.address}.space.localhost:${port}`;
 
@@ -716,6 +759,7 @@ test("serve anonymous visitors and refuse forged credentials", async () => {
                 account: computer.world.owner.account,
                 residencyHome: opened.residencyHome,
                 view: "home",
+                build: image,
                 base: "",
                 universe: computer.world.universe.origin,
                 catalogs: [],

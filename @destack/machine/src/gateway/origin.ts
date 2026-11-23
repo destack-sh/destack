@@ -20,7 +20,7 @@ import {
     RequestBody,
     refusal,
 } from "@destack/object";
-import { Build, InstallationRevision, Installation } from "@destack/stack/object";
+import { Build, InstallationRevision, Installation, installation } from "@destack/stack/object";
 import type { ExchangeSubject, Gateway, GatewaySpace } from "./gateway.ts";
 import { PageCredential } from "./credential.ts";
 import { OtlpSignal } from "@destack/telemetry/otlp";
@@ -48,8 +48,10 @@ import {
 import type { PackageFile } from "@destack/package/file";
 import { Bookmark, createClient, type ClientOf } from "@destack/object/client";
 import {
+    BUILD_PARAMETER,
     INSTALLATION_PARAMETER,
     LINK_PARAMETER,
+    RELOAD_EVENT,
     ScopePath,
     TARGET_PARAMETER,
     TOKEN_PARAMETER,
@@ -69,6 +71,15 @@ export const SESSION_COOKIE = "destack-session";
 
 /** The authorization detail type of a grant an installation asks (RFC 9396 2). */
 const GRANT_DETAIL = "destack_grant";
+
+/** The server-sent event a reload stream ends with, as live reload servers send it. */
+const RELOAD_FRAME = `event: ${RELOAD_EVENT}\ndata:\n\n`;
+
+/** The comment a reload stream sends to keep its idle connection open, which readers skip. */
+const KEEPALIVE_FRAME = ":\n\n";
+
+/** How often a reload stream sends its comment: half the machine's idle timeout of 31 s. */
+const KEEPALIVE_MILLISECONDS = 15_000;
 
 /** The cookie remembering a sign-in an origin started at the issuer, until it returns. */
 const SIGN_IN_COOKIE = "destack-sign-in";
@@ -178,6 +189,10 @@ export class InstallationOriginServer {
                 url.pathname.startsWith(`${OriginPath.session}/`)
             ) {
                 return await this.#client(request, url, page);
+            }
+            // stream a reload once the origin serves another build than the page's
+            else if (url.pathname === OriginPath.reload) {
+                return await this.#reload(request, url, page);
             }
             // append the page's telemetry
             else if (OtlpSignal.at(url.pathname) !== undefined) {
@@ -581,7 +596,17 @@ export class InstallationOriginServer {
         const linkSecrets =
             mount === undefined ? InstallationOriginServer.#linkSecrets(request, url) : [];
 
-        // read the revision the installation follows and its build
+        // serve the image of the revision the installation follows
+        const { image, reader } = await this.#image(found);
+
+        return { installation: found, image, reader, visitor, linkSecrets, mount: mount ?? ROOT };
+    }
+
+    /** Read the image an installation serves and its root, once per revision. */
+    async #image(
+        found: Installation,
+    ): Promise<{ readonly image: Digest; readonly reader: BuildReader }> {
+        // read the revision the installation follows
         const revision = await InstallationRevision.followed(this.#space.database, found);
         if (revision === undefined) {
             throw MachineError.of(
@@ -589,25 +614,92 @@ export class InstallationOriginServer {
                 `'${found.name}' is unavailable: it has no revision to serve yet`,
             );
         }
+
         // read the revision's image and its root once per revision
-        const { image, reader } = await InstallationOriginServer.#memo(
-            this.#builds,
-            revision.id,
-            async () => {
-                // pull the revision's image and open its root
-                const built = await Build.require(
-                    this.#space.database.snapshot(),
-                    this.#space.id,
-                    revision.buildId,
-                );
-                const packageId = PackageId.parse(found.packageId);
-                const root = await this.#space.root(packageId, built.image);
+        return await InstallationOriginServer.#memo(this.#builds, revision.id, async () => {
+            // pull the revision's image and open its root
+            const built = await Build.require(
+                this.#space.database.snapshot(),
+                this.#space.id,
+                revision.buildId,
+            );
+            const packageId = PackageId.parse(found.packageId);
+            const root = await this.#space.root(packageId, built.image);
 
-                return { image: built.image, reader: root };
-            },
+            return { image: built.image, reader: root };
+        });
+    }
+
+    /** Stream a change once the origin serves another build than the page's. */
+    async #reload(request: Request, url: URL, page: Page): Promise<Response> {
+        // compare the build the origin serves with the page's, at once and after each change of its installation
+        const loaded = Digest.parse(url.searchParams.get(BUILD_PARAMETER));
+        const { database } = this.#space;
+        const { sequence } = await database.log.position();
+        const target = { spaceId: this.#space.id, installation: page.installation.id };
+        const isLoaded = async () => {
+            const current = await Installation.requireServed(database, target);
+
+            return (await this.#image(current)).image === loaded;
+        };
+
+        // send one change event once the served build differs, ending with the page's request
+        const changes = database.log.follow(
+            { tables: [installation.table], after: sequence },
+            request.signal,
         );
+        const encoder = new TextEncoder();
+        const body = new ReadableStream<Uint8Array>({
+            start: async (controller) => {
+                // keep the idle stream open until it ends
+                const ended = new AbortController();
+                const keeping = this.#keepAlive(
+                    () => controller.enqueue(encoder.encode(KEEPALIVE_FRAME)),
+                    AbortSignal.any([ended.signal, request.signal]),
+                );
+                try {
+                    // wait while the page's build is still the served one
+                    if (await isLoaded()) {
+                        for await (const changed of changes) {
+                            if (changed.changes.length > 0 && !(await isLoaded())) {
+                                break;
+                            }
+                        }
+                    }
+                    controller.enqueue(encoder.encode(RELOAD_FRAME));
+                    controller.close();
+                } catch (error) {
+                    // end quietly once the page leaves, failing the stream otherwise
+                    if (request.signal.aborted) {
+                        controller.close();
+                    } else {
+                        controller.error(error);
+                    }
+                } finally {
+                    ended.abort();
+                    await keeping;
+                }
+            },
+        });
 
-        return { installation: found, image, reader, visitor, linkSecrets, mount: mount ?? ROOT };
+        return new Response(body, {
+            headers: { "content-type": "text/event-stream", "cache-control": "no-store" },
+        });
+    }
+
+    /** Send a stream's keep-alive at each period on the machine's clock until a signal aborts. */
+    async #keepAlive(send: () => void, signal: AbortSignal): Promise<void> {
+        const { clock } = this.#space.machine;
+        while (!signal.aborted) {
+            // send once a full period passed, ending once the signal aborts the sleep
+            const isSlept = await clock.sleep(KEEPALIVE_MILLISECONDS, signal).then(
+                () => true,
+                () => false,
+            );
+            if (isSlept) {
+                send();
+            }
+        }
     }
 
     /** Read the person of a session cookie, anonymous on a page load without a valid one. */
@@ -707,8 +799,8 @@ export class InstallationOriginServer {
             (installed !== undefined || mounted.packageId === page.installation.packageId)
         ) {
             const packageId = PackageId.parse(mounted.packageId);
-            const installation = installed?.installation ?? page.installation.id;
-            const mount = InstallationMount.url(request.url, this.#space.id, installation);
+            const routed = installed?.installation ?? page.installation.id;
+            const mount = InstallationMount.url(request.url, this.#space.id, routed);
             const below = new URL(mounted.request.url);
             const served = copyRequest(
                 called,
@@ -1222,6 +1314,7 @@ export class InstallationOriginServer {
                     schema.identifier("account").parse(space.scope),
                 ),
                 view: name,
+                build: page.image,
                 base,
                 universe: this.#space.universe.origin,
                 catalogs: await InstallationOriginServer.#memo(
