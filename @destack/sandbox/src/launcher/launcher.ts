@@ -13,6 +13,9 @@ import { SandboxError } from "../error/index.ts";
 import { LauncherRequest, type SandboxExit, type SandboxOptions } from "../sandbox/message.ts";
 import { SandboxTool } from "../sandbox/tools.ts";
 
+/** The macOS service delivering file events, which file watchers such as a bundler's read. */
+const FILE_EVENTS_SERVICE = "com.apple.FSEvents";
+
 /** The system files every process reads, by platform. */
 export const RUNTIME_PATHS: Partial<Record<OperatingSystem, readonly string[]>> = {
     darwin: [
@@ -127,6 +130,8 @@ export async function runLauncher(
                     allowAllUnixSockets: host.os === "linux",
                     // bind loopback ports for the workload's own processes when it may serve
                     allowLocalBinding: options.listening === "loopback",
+                    // watch readable files through macOS file events, as Linux's inotify watches them in the mounts
+                    allowMachLookup: [FILE_EVENTS_SERVICE],
                 },
             },
             undefined,
