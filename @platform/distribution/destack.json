@@ -16,7 +16,11 @@
     "entrypoints": ["src/main.ts", "src/key/tests/bitwarden.ts"],
     "exports": {
         "./catalog": {
-            "runtimes": ["browser", "bun", "workerd"]
+            "runtimes": ["browser", "bun", "workerd"],
+            "internal": true
+        },
+        ".": {
+            "internal": true
         }
     }
 }
