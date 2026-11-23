@@ -46,6 +46,12 @@ const NOTICE_MOVE_EXIT = `calc(${motion.durationMedium} * 2 / 3)`;
 /** A notice's fade leaving: its slide out, and at least two thirds of the reduced fade. */
 const NOTICE_FADE_EXIT = `max(${NOTICE_MOVE_EXIT}, calc(${REDUCED_FADE} * 2 / 3))`;
 
+/** A drawer's movement, as long and on the curve of Vaul's, which follow iOS sheets. */
+const DRAWER_EASING = "cubic-bezier(0.32, 0.72, 0, 1)";
+
+/** A drawer's fade: its slide, and at least the reduced fade. */
+const DRAWER_FADE = `max(${motion.durationLong}, ${REDUCED_FADE})`;
+
 /** The fade and scale of overlays entering and leaving the top layer, after Emil Kowalski. */
 export const transition = style.create({
     /** A popover over the page, growing from the side it is anchored to. */
@@ -92,16 +98,22 @@ export const transition = style.create({
         transitionTimingFunction: motion.easingEmphasised,
         transitionBehavior: "allow-discrete",
     },
+    /** A drawer, sliding with the swipe it was let go from, after Vaul. */
+    drawer: {
+        transitionProperty: "opacity, transform, translate, display, overlay",
+        transitionDuration: `${DRAWER_FADE}, ${motion.durationLong}, ${motion.durationLong}, ${DRAWER_FADE}, ${DRAWER_FADE}`,
+        transitionTimingFunction: DRAWER_EASING,
+    },
     /** A notice such as a toast, fading as it slides in from the edge it sits at, after Sonner. */
     notice: {
         opacity: { default: 1, "@starting-style": 0 },
-        transitionProperty: "opacity, transform, height",
-        transitionDuration: `${NOTICE_FADE}, ${NOTICE_MOVE}, ${NOTICE_MOVE}`,
+        transitionProperty: "opacity, transform, translate, height",
+        transitionDuration: `${NOTICE_FADE}, ${NOTICE_MOVE}, ${NOTICE_MOVE}, ${NOTICE_MOVE}`,
         transitionTimingFunction: "ease",
     },
     /** A notice leaving, faster than it came. */
     noticeLeaving: {
         opacity: 0,
-        transitionDuration: `${NOTICE_FADE_EXIT}, ${NOTICE_MOVE_EXIT}, ${NOTICE_MOVE_EXIT}`,
+        transitionDuration: `${NOTICE_FADE_EXIT}, ${NOTICE_MOVE_EXIT}, ${NOTICE_MOVE_EXIT}, ${NOTICE_MOVE_EXIT}`,
     },
 });
