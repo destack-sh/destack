@@ -1,7 +1,7 @@
 import type { Rule } from "@oxlint/plugins";
 
-/** The builder whose `optional` method makes a nullable object field. */
-const FIELD_BUILDER = "field";
+/** The builders whose `optional` method makes a nullable field or an action's optional input. */
+const BUILDERS: ReadonlySet<string> = new Set(["field", "selected", "current", "picked"]);
 
 /** Require schema properties that may be absent to reject an explicit undefined. */
 export const exactOptional: Rule = {
@@ -31,8 +31,8 @@ export const exactOptional: Rule = {
                     root = root.type === "CallExpression" ? root.callee : root.object;
                 }
 
-                // report every chain other than an object field's
-                if (root.type !== "Identifier" || root.name !== FIELD_BUILDER) {
+                // report every chain other than a field's or an action input's
+                if (root.type !== "Identifier" || !BUILDERS.has(root.name)) {
                     context.report({ node: callee.property, messageId: "optional" });
                 }
             },
