@@ -26,7 +26,7 @@ import type { ServerContext, PackageContext } from "@destack/object/workload";
 import type { WebhookDelivery } from "@destack/workflow";
 import { GITHUB_API, GitHubApp, GitHubHosting } from "../github/index.ts";
 import { packageObject, reference, release, repository, tag } from "@destack/registry/object";
-import { NpmPackument } from "@destack/registry/npm";
+import { NpmPackument, NpmTarball } from "@destack/registry/npm";
 import forgePackage from "../package.ts";
 import { github } from "../stack/setting.ts";
 import {
@@ -98,6 +98,19 @@ const RECEIVE_PACK = "git-receive-pack";
 /** The path npm clients ask below the mount: a package, or a release's tarball below `/-/`. */
 const NPM_PATH = /\/@([^/]+)\/([^/]+?)(\/-\/[^/]+?-(\d[^/]*)\.tgz)?$/u;
 
+/** The version npm clients see a host's dev build at, a prerelease before every release. */
+const NPM_DEVELOPMENT = "0.0.0-dev";
+
+/** A builtin the host ships, packed once as npm clients install it. */
+interface Builtin {
+    /** The version npm clients see it at. */
+    readonly version: string;
+    /** The tags pointing at it: latest, and dev for a dev build. */
+    readonly tags: Readonly<Record<string, string>>;
+    /** The packed tarball and what a listing says of it. */
+    readonly packed: Awaited<ReturnType<typeof NpmTarball.pack>>;
+}
+
 /** The forge's repositories and packages as objects. */
 export class Forge {
     /** The handled types the forge serves. */
@@ -110,6 +123,8 @@ export class Forge {
     readonly #github: GitHubHosting | undefined;
     /** Where repositories live: the forge's storage, GitHub and Git remotes. */
     readonly #repositories: RepositoryHosting;
+    /** The host's builtins npm clients install, each packed on first ask, by name. */
+    #builtins: Promise<ReadonlyMap<string, () => Promise<Builtin>>> | undefined;
 
     /** Serve the forge over its home's storage, stores and GitHub App. */
     constructor(options: ForgeOptions) {
@@ -448,8 +463,30 @@ export class Forge {
         const full = `@${handle}/${name}`;
         const home = schema.identifier("space").parse(objects.scope);
         const found = (await Forge.find(full, reader, home)).package;
+        const mount = `${this.#options.endpoint.href}${forgePackage.mounts.npm.path}`;
+
+        // answer a builtin the host ships where no package claims its name
         if (found === undefined) {
-            throw ForgeError.of("PACKAGE_NOT_FOUND", "package not found");
+            const builtin = await (await this.#builtinsOnce()).get(full)?.();
+            if (builtin === undefined) {
+                throw ForgeError.of("PACKAGE_NOT_FOUND", "package not found");
+            } else if (version !== undefined && version !== builtin.version) {
+                throw ForgeError.of("RELEASE_NOT_FOUND", `release '${version}' not found`);
+            } else if (version !== undefined) {
+                return new Response(builtin.packed.bytes, {
+                    headers: { "content-type": "application/octet-stream" },
+                });
+            }
+
+            return Response.json(
+                NpmPackument.of(full, builtin.tags, [
+                    {
+                        version: builtin.version,
+                        listed: builtin.packed.listed,
+                        tarball: `${mount}/${full}/-/${name}-${builtin.version}.tgz`,
+                    },
+                ]),
+            );
         }
         await Forge.conceal("PACKAGE_NOT_FOUND", "package not found", () =>
             objects.query(
@@ -479,7 +516,6 @@ export class Forge {
             .read(release.table)
             .findMany({ where: { parentId, yankedAt: { isNull: true } } });
         const tags = await snapshot.read(tag.table).findMany({ where: { parentId } });
-        const mount = `${this.#options.endpoint.href}${forgePackage.mounts.npm.path}`;
         const listing = NpmPackument.of(
             full,
             Object.fromEntries(tags.map((each) => [each.name, each.version])),
@@ -492,6 +528,47 @@ export class Forge {
         );
 
         return Response.json(listing);
+    }
+
+    /** Map each builtin the host ships to its packing once, each packed on its first ask. */
+    #builtinsOnce(): Promise<ReadonlyMap<string, () => Promise<Builtin>>> {
+        this.#builtins ??= this.#readBuiltins();
+
+        return this.#builtins;
+    }
+
+    /** Read the name of each release image the host's distribution ships. */
+    async #readBuiltins(): Promise<ReadonlyMap<string, () => Promise<Builtin>>> {
+        // read every shipped release at once
+        const { store } = this;
+        const { environment } = this.#options;
+        const entries = await Promise.all(
+            this.#options.distribution.releases.map(async (image) => {
+                // read the release's name and version, npm seeing a dev build as a prerelease
+                const opened = await store.image(image);
+                const { name, version } = (await store.get(opened.root)).package;
+                const listed = Version.isRelease(version) ? version : NPM_DEVELOPMENT;
+                const tags = Version.isRelease(version)
+                    ? { latest: listed }
+                    : { latest: listed, [Version.development]: listed };
+
+                // pack it on its first ask, once
+                let packing: Promise<Builtin> | undefined;
+                const pack = () => {
+                    packing ??= NpmTarball.pack(store, image, environment).then((packed) => ({
+                        version: listed,
+                        tags,
+                        packed,
+                    }));
+
+                    return packing;
+                };
+
+                return [name, pack] as const;
+            }),
+        );
+
+        return new Map(entries);
     }
 
     /** Answer Git's smart HTTP below a repository, as the caller's open of it allows. */
