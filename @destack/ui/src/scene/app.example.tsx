@@ -14,6 +14,7 @@ import {
     width,
     swatch,
 } from "@destack/theme/tokens.stylex";
+import { DataList, DataListItem, DataListLabel, DataListValue } from "../data-list/index.ts";
 import { Icon } from "@destack/ui/icon";
 import { createSignal, For, type JSX, Show, useLocale } from "@destack/view";
 import { Alert, AlertDescription, AlertTitle } from "../alert/index.ts";
@@ -54,10 +55,13 @@ import {
     InputGroup,
     InputGroupAddon,
     InputGroupButton,
+    InputGroupInput,
     InputGroupTextarea,
 } from "../input-group/index.ts";
 import { Kbd, KbdShortcut } from "../kbd/index.ts";
 import { Label } from "../label/index.ts";
+import { Prose } from "../prose/index.ts";
+import "../prose/prose.css";
 import {
     Sidebar,
     SidebarContent,
@@ -78,7 +82,6 @@ import { Cluster } from "../cluster/index.ts";
 import { Stack } from "../stack/index.ts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../table/index.ts";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../tabs/index.ts";
-import { Textarea } from "../textarea/index.ts";
 import {
     Timeline,
     TimelineBody,
@@ -319,30 +322,46 @@ const styles = style.create({
     },
     document: {
         display: "grid",
-        gridTemplateColumns: `minmax(0, 40rem) ${width.popover}`,
+        gridTemplateColumns: `minmax(0, 44rem) ${width.popover}`,
         justifyContent: "center",
         alignItems: "start",
-        columnGap: space[6],
+        columnGap: space[8],
+        rowGap: space[6],
+        paddingBlock: space[8],
+    },
+    pageHeader: {
+        display: "flex",
+        flexDirection: "column",
+        gridColumn: "1 / -1",
+        gap: space[4],
     },
     title: {
         margin: 0,
         fontWeight: weight.semibold,
     },
+    prose: {
+        maxInlineSize: "none",
+    },
     paragraph: {
         margin: 0,
     },
     properties: {
+        rowGap: space[3],
+    },
+    comments: {
+        // center the first author on the text's first line
+        paddingBlockStart: `calc(${space[1]} / 2)`,
+    },
+    comment: {
         display: "grid",
-        gridTemplateColumns: "6rem 1fr",
+        gridTemplateColumns: `${space[5]} 1fr`,
+        columnGap: space[2],
+        rowGap: space[1],
         alignItems: "center",
-        rowGap: space[2],
-        margin: 0,
     },
-    value: {
+    commentText: {
+        gridColumn: "2",
         margin: 0,
-    },
-    send: {
-        alignSelf: "flex-end",
     },
     thread: {
         width: "100%",
@@ -765,6 +784,27 @@ function TaskCalendar(): JSX.Element {
     );
 }
 
+/** Render a comment: who wrote it and when, and its text below. */
+function Comment(properties: {
+    /** The person who wrote the comment. */
+    readonly person: Person;
+    /** The time it was written. */
+    readonly time: string;
+    /** The text. */
+    readonly children: JSX.Element;
+}): JSX.Element {
+    return (
+        <div {...style.attrs(styles.comment)}>
+            <Face person={properties.person} />
+            <Cluster space="2" xstyle={styles.person}>
+                <span {...style.attrs(styles.cardTitle)}>{properties.person.name}</span>
+                <span {...style.attrs(text.xs, styles.muted)}>{properties.time}</span>
+            </Cluster>
+            <p {...style.attrs(styles.commentText)}>{properties.children}</p>
+        </div>
+    );
+}
+
 /** Render the launch's tasks as a table: one row each, with its tag, owner and due day. */
 function TaskTable(): JSX.Element {
     return (
@@ -926,30 +966,44 @@ export const appDocument = defineExample({
                 </>
             }
         >
-            <div {...style.attrs(styles.document)}>
-                <Stack space="4" render={(attributes) => <article {...attributes} />}>
-                    <h1 {...style.attrs(text["3xl"], styles.title)}>Launch brief</h1>
-                    <dl {...style.attrs(styles.properties)}>
-                        <dt {...style.attrs(styles.muted)}>Status</dt>
-                        <dd {...style.attrs(styles.value)}>
-                            <Badge color="blue">In review</Badge>
-                        </dd>
-                        <dt {...style.attrs(styles.muted)}>Owner</dt>
-                        <dd {...style.attrs(styles.value)}>
-                            <Cluster
-                                space="2"
-                                align="center"
-                                xstyle={styles.person}
-                                render={(attributes) => <span {...attributes} />}
-                            >
-                                <Face person={PEOPLE.ada} />
-                                {PEOPLE.ada.name}
-                            </Cluster>
-                        </dd>
-                        <dt {...style.attrs(styles.muted)}>Launch day</dt>
-                        <dd {...style.attrs(styles.value)}>Friday 27 November</dd>
-                    </dl>
-                    <p {...style.attrs(text.base, styles.paragraph)}>
+            <article {...style.attrs(styles.document)}>
+                {/* Icon, title and properties */}
+                <header {...style.attrs(styles.pageHeader)}>
+                    <span aria-hidden="true" {...style.attrs(text["5xl"])}>
+                        🚀
+                    </span>
+                    <h1 {...style.attrs(text["4xl"], styles.title)}>Launch brief</h1>
+                    <DataList xstyle={styles.properties}>
+                        <DataListItem>
+                            <DataListLabel>Status</DataListLabel>
+                            <DataListValue>
+                                <Badge color="blue">In review</Badge>
+                            </DataListValue>
+                        </DataListItem>
+                        <DataListItem align="center">
+                            <DataListLabel>Owner</DataListLabel>
+                            <DataListValue>
+                                <Cluster
+                                    space="2"
+                                    align="center"
+                                    xstyle={styles.person}
+                                    render={(attributes) => <span {...attributes} />}
+                                >
+                                    <Face person={PEOPLE.ada} />
+                                    {PEOPLE.ada.name}
+                                </Cluster>
+                            </DataListValue>
+                        </DataListItem>
+                        <DataListItem>
+                            <DataListLabel>Launch day</DataListLabel>
+                            <DataListValue>Friday 27 November</DataListValue>
+                        </DataListItem>
+                    </DataList>
+                </header>
+
+                {/* Text */}
+                <Prose xstyle={styles.prose}>
+                    <p>
                         We open sign-ups on Friday. The page, the demo and the first email go out
                         together, and the team watches the first day in one room.
                     </p>
@@ -960,62 +1014,47 @@ export const appDocument = defineExample({
                             No discount on launch day. The price on the page is the price.
                         </AlertDescription>
                     </Alert>
-                    <h2 {...style.attrs(text.xl, styles.title)}>What has to be true</h2>
-                    <Stack space="2">
-                        <Label>
+                    <h2>What has to be true</h2>
+                    <Stack space="3">
+                        <Label xstyle={text.base}>
                             <Checkbox name="domain" defaultChecked /> The domain resolves everywhere
                         </Label>
-                        <Label>
+                        <Label xstyle={text.base}>
                             <Checkbox name="pricing" /> The pricing page says what each plan costs
                         </Label>
-                        <Label>
+                        <Label xstyle={text.base}>
                             <Checkbox name="demo" /> The demo is under two minutes
                         </Label>
                     </Stack>
-                    <h2 {...style.attrs(text.xl, styles.title)}>Open tasks</h2>
+                    <h2>Open tasks</h2>
                     <TaskTable />
-                </Stack>
+                </Prose>
+                {/* Comments */}
                 <Stack
-                    space="4"
+                    space="5"
                     aria-label="Comments"
+                    xstyle={styles.comments}
                     render={(attributes) => <aside {...attributes} />}
                 >
-                    <Stack space="2">
-                        <Cluster
-                            space="2"
-                            align="center"
-                            xstyle={styles.person}
-                            render={(attributes) => <span {...attributes} />}
-                        >
-                            <Face person={PEOPLE.jonas} />
-                            <span {...style.attrs(styles.cardTitle)}>{PEOPLE.jonas.name}</span>
-                            <span {...style.attrs(text.xs, styles.muted)}>10:42</span>
-                        </Cluster>
-                        <p {...style.attrs(styles.paragraph)}>
-                            Monthly and yearly, or only monthly on day one?
-                        </p>
-                    </Stack>
-                    <Stack space="2">
-                        <Cluster
-                            space="2"
-                            align="center"
-                            xstyle={styles.person}
-                            render={(attributes) => <span {...attributes} />}
-                        >
-                            <Face person={PEOPLE.grace} />
-                            <span {...style.attrs(styles.cardTitle)}>{PEOPLE.grace.name}</span>
-                            <span {...style.attrs(text.xs, styles.muted)}>Yesterday</span>
-                        </Cluster>
-                        <p {...style.attrs(styles.paragraph)}>
-                            The demo is at 2:10 now. Cutting the intro.
-                        </p>
-                    </Stack>
-                    <Textarea placeholder="Reply" aria-label="Reply" />
-                    <Button size="sm" xstyle={styles.send}>
-                        Comment
-                    </Button>
+                    <Comment person={PEOPLE.jonas} time="10:42">
+                        Monthly and yearly, or only monthly on day one?
+                    </Comment>
+                    <Comment person={PEOPLE.grace} time="Yesterday">
+                        The demo is at 2:10 now. Cutting the intro.
+                    </Comment>
+                    <div {...style.attrs(styles.comment)}>
+                        <Face person={PEOPLE.ada} />
+                        <InputGroup>
+                            <InputGroupInput placeholder="Reply" aria-label="Reply" />
+                            <InputGroupAddon align="inline-end">
+                                <InputGroupButton size="icon-sm" aria-label="Send">
+                                    <Icon name="arrow-up" />
+                                </InputGroupButton>
+                            </InputGroupAddon>
+                        </InputGroup>
+                    </div>
                 </Stack>
-            </div>
+            </article>
         </App>
     ),
 });
