@@ -3447,8 +3447,8 @@ export type MethodsOf<Definition extends ObjectDefinition> = Definition extends 
           Listed<DefinedPermissions<Definition>>
       >;
 
-/** The object type over another package's table, with its declared methods. */
-export type ForeignType<Definition extends ObjectDefinition, Methods> = ObjectType<{
+/** The configuration of an object type over another package's table, with its declared methods. */
+type MappingConfiguration<Definition extends ObjectDefinition, Methods> = {
     readonly name: Definition["name"];
     readonly plural: Definition["plural"];
     readonly identity: Definition["name"];
@@ -3465,7 +3465,7 @@ export type ForeignType<Definition extends ObjectDefinition, Methods> = ObjectTy
     readonly events: undefined;
     readonly supplied: Option<Definition, "declarable", readonly never[]>[number];
     readonly guardedColumns: never;
-}>;
+};
 
 /** Read a definition's option, or a default where it sets none. */
 type Option<Definition, Key extends PropertyKey, Default = undefined> = Key extends keyof Definition
@@ -3631,8 +3631,15 @@ type KindMethodsOf<Definition extends ObjectDefinition, Methods> = Omit<
     keyof Methods
 >;
 
-/** The object type a definition declares with its methods. */
-export type DefinedType<Definition extends ObjectDefinition, Methods> = ObjectType<{
+/** The object type a definition declares with its methods, over its own table or a mapped one. */
+export interface ObjectTypeOf<Definition extends ObjectDefinition, Methods> extends ObjectType<
+    Definition extends { readonly mapping: { readonly table: Table } }
+        ? MappingConfiguration<Definition, Methods>
+        : TableConfiguration<Definition, Methods>
+> {}
+
+/** The configuration of an object type over its own table, with its declared methods. */
+type TableConfiguration<Definition extends ObjectDefinition, Methods> = {
     readonly name: Definition["name"];
     readonly plural: Definition["plural"];
     readonly identity: DefinedIdentity<Definition>;
@@ -3680,7 +3687,7 @@ export type DefinedType<Definition extends ObjectDefinition, Methods> = ObjectTy
         : undefined;
     readonly supplied: Option<Definition, "declarable", readonly never[]>[number];
     readonly guardedColumns: DeclaredGuardedColumn<Definition, DefinedTable<Definition>>;
-}>;
+};
 
 /** The columns a definition's guard conceals: all but the identity and the shown columns. */
 type DeclaredGuardedColumn<Definition, Defined extends Table> = Definition extends {
@@ -3884,9 +3891,7 @@ export function defineObject<
     options: Options & Fitting<Options>,
     methods?: (method: MethodsOf<DefinitionFrom<Options>>) => Methods,
     module?: ModuleMetadata,
-): DefinitionFrom<Options> extends { readonly mapping: { readonly table: Table } }
-    ? ForeignType<DefinitionFrom<Options>, Methods>
-    : DefinedType<DefinitionFrom<Options>, Methods>;
+): ObjectTypeOf<DefinitionFrom<Options>, Methods>;
 /** Declare an object type, its type computed from its options by the signature above. */
 export function defineObject(
     options: ObjectOptions,
