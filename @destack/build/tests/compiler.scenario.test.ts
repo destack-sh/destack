@@ -1,4 +1,3 @@
-import { yieldToEventLoop } from "@destack/environment";
 import { testSimulation } from "../src/test/world.ts";
 import { expect, refusal, test } from "@destack/test";
 import { testHost } from "@destack/test/host";
@@ -12,6 +11,9 @@ import { present } from "@destack/schema";
 import { LocalBuildStore } from "../src/store/local.ts";
 import { BuildStore } from "../src/store/store.ts";
 import { Toolchain } from "@destack/check/toolchain";
+
+/** The real time the shutdown test's compiler waits to exit after its input ends. */
+const SHUTDOWN_MILLISECONDS = 300;
 
 /** How long a cancelled build runs before it aborts: well inside the library's build. */
 const CANCEL_MILLISECONDS = 100;
@@ -200,20 +202,18 @@ test("terminate compilation on cancellation and deadline, and build again with t
     expect(rebuilt.manifest.package.name).toBe("@destack/build-library-fixture");
 });
 
-test("close a compiler once it exits, however long its shutdown takes", async () => {
-    // start a compiler that exits only once the test releases it, after the end of its input
+test("close a compiler only once it exits, reporting the status of its delayed exit", async () => {
+    // start a compiler that fails a while after the end of its input
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
     const { files } = environment;
     const directory = await files.realPath(await files.makeTemporaryDirectory("destack-shutdown-"));
-    const release = join(directory, "release");
     const script = join(directory, "compiler.ts");
     await files.writeTextFile(
         script,
         `for await (const _chunk of process.stdin) {}
-while (!(await Bun.file(${JSON.stringify(release)}).exists())) {
-    await Bun.sleep(10);
-}
+await Bun.sleep(${SHUTDOWN_MILLISECONDS});
+process.exit(3);
 `,
     );
     const source = fileURLToPath(new URL("./fixture/library/source/", import.meta.url));
@@ -229,18 +229,14 @@ while (!(await Bun.file(${JSON.stringify(release)}).exists())) {
         toolchain: async () => Toolchain.workspace(),
     });
 
-    // stay open an hour past the end of its input, then close once it exits
+    // close it, reporting the exit status it can know only once the shutdown has run
     try {
-        let isClosed = false;
-        const closing = builder[Symbol.asyncDispose]().then(() => {
-            isClosed = true;
-        });
-        await simulation.jump(simulation.clock.now() + 3_600_000);
-        await yieldToEventLoop();
-        const isClosedEarly = isClosed;
-        await files.writeTextFile(release, "");
-        await closing;
-        expect([isClosedEarly, isClosed]).toEqual([false, true]);
+        const closing = simulation.wait(builder[Symbol.asyncDispose]());
+        expect(await refusal(closing)).toEqual([
+            "INTERNAL_SERVER_ERROR",
+            "COMPILER_BROKEN",
+            "compiler exited ('3'): ''",
+        ]);
     } finally {
         await files.remove(directory, { recursive: true });
     }
