@@ -1,4 +1,5 @@
 import { Icon } from "@destack/ui/icon";
+import caretDown from "@destack/icon/phosphor/caret-down";
 import { type Direction, t } from "@destack/locale";
 import * as style from "@destack/style";
 import { color, radius, shadow, size, space, stroke } from "@destack/theme/tokens.stylex";
@@ -10,7 +11,6 @@ import {
     createEffect,
     For,
     type JSX,
-    merge,
     omit,
     onCleanup,
     Show,
@@ -21,8 +21,7 @@ import {
 import { AutocompleteContext, AutocompleteControl } from "../autocomplete/index.ts";
 import { badgeVariants } from "../badge/index.ts";
 import { CollectionBuilder } from "../collection/index.ts";
-import { useFieldControl } from "../field/control.ts";
-import { inputStyle } from "../input/index.ts";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "../input-group/index.ts";
 import { TopLayer } from "../layer/index.ts";
 import {
     ListBox,
@@ -38,7 +37,6 @@ import {
 } from "../list-box/index.ts";
 import { Position } from "../position/index.ts";
 import { Selection, type SelectionProperties } from "../selection/index.ts";
-import { renderPart } from "../part/index.ts";
 
 /** The combobox of the nearest combobox root, null outside one. */
 const ComboboxContext = createContext<ComboboxControl | null>(null);
@@ -58,10 +56,9 @@ const styles = style.create({
         display: "inline-flex",
         cursor: "pointer",
     },
-    input: {
-        width: "100%",
-        height: size[2],
-        cursor: { default: "text", ":disabled": "not-allowed" },
+    trigger: {
+        display: "inline-flex",
+        cursor: { default: "pointer", ":disabled": "not-allowed" },
     },
     content: {
         width: "anchor-size(width)",
@@ -96,8 +93,10 @@ export class ComboboxControl {
     readonly #labels: Map<string, string>;
     /** Replace whether the list is open and tell the change handler. */
     readonly #setOpen: (isOpen: boolean) => void;
-    /** The input that anchors the list. */
+    /** The input. */
     #input: HTMLInputElement | undefined;
+    /** The frame around the input, which anchors the list. */
+    #anchor: HTMLElement | undefined;
     /** The list element. */
     #content: HTMLElement | undefined;
     /** Stop placing the shown list below the input. */
@@ -137,6 +136,7 @@ export class ComboboxControl {
         this.#labels = new Map();
         this.#setOpen = setOpen;
         this.#input = undefined;
+        this.#anchor = undefined;
         this.#content = undefined;
         this.#unplace = () => undefined;
 
@@ -149,9 +149,14 @@ export class ComboboxControl {
         return this.#labels.get(value) ?? value;
     }
 
-    /** Set the input that anchors the list. */
+    /** Set the input. */
     setInput(element: HTMLInputElement): void {
         this.#input = element;
+    }
+
+    /** Set the frame the list is placed beside, as wide as it. */
+    setAnchor(element: HTMLElement): void {
+        this.#anchor = element;
     }
 
     /** Set the list element. */
@@ -166,16 +171,26 @@ export class ComboboxControl {
         }
     }
 
+    /** Open or close the list from its button, focusing the input. */
+    toggle(): void {
+        this.#input?.focus();
+        this.open(!this.isOpen());
+    }
+
     /** Show or hide the list element below the input. */
     sync(isOpen: boolean): void {
-        if (this.#content === undefined || this.#input === undefined) {
+        if (
+            this.#content === undefined ||
+            this.#input === undefined ||
+            this.#anchor === undefined
+        ) {
             return;
         }
-        // attach the list to its input before showing, and place by script once it has a size
+        // attach the list to its frame before showing, and place by script once it has a size
         if (isOpen) {
-            const detach = Position.attach(this.#content, this.#input, this.list.id);
+            const detach = Position.attach(this.#content, this.#anchor, this.list.id);
             this.#content.showPopover({ source: this.#input });
-            const unplace = Position.place(this.#content, this.#input);
+            const unplace = Position.place(this.#content, this.#anchor);
             this.#unplace = () => {
                 detach();
                 unplace();
@@ -265,7 +280,7 @@ export function Combobox(properties: ComboboxProperties): JSX.Element {
     );
 }
 
-/** Render the input that filters the list. */
+/** Render the input that filters the list, framed with the button that shows every option. */
 export function ComboboxInput(
     properties: ComboboxElementProperties<
         Omit<
@@ -274,41 +289,68 @@ export function ComboboxInput(
         >
     >,
 ): JSX.Element {
-    // read the combobox and its list
+    // read the combobox and the reader's direction
     const control = useCombobox();
     const locale = useLocale();
-    const field = useFieldControl();
-    const isInvalid = (): boolean =>
-        field?.isInvalid() === true || properties["aria-invalid"] === "true";
+    const rest = omit(properties, "xstyle", "style");
 
-    return renderPart(
-        "input",
-        "combobox-input",
-        properties,
-        () => [inputStyle({ invalid: isInvalid() }), styles.input],
-        merge(() => field?.attributes() ?? {}, {
-            role: "combobox",
-            get "aria-expanded"() {
-                return control.isOpen() ? "true" : "false";
-            },
-            "aria-controls": control.list.id,
-            "aria-autocomplete": "list",
-            get "aria-activedescendant"() {
-                return control.isOpen() ? control.list.focus.descendant() : undefined;
-            },
-            autocomplete: "off",
-            ref: (element: HTMLInputElement) => control.setInput(element),
-            get value() {
-                return control.autocomplete.value();
-            },
-            onInput: (event: InputEvent & { readonly currentTarget: HTMLInputElement }) => {
-                // filter by the typed text and show the matches
-                control.autocomplete.type(event.currentTarget.value);
-                control.open(true);
-            },
-            onKeyDown: (event: KeyboardEvent) => steer(event, control, locale.direction),
-            onBlur: () => control.open(false),
-        } as const),
+    return (
+        <InputGroup
+            ref={(element) => control.setAnchor(element)}
+            xstyle={properties.xstyle}
+            style={properties.style}
+        >
+            <InputGroupInput
+                data-slot="combobox-input"
+                role="combobox"
+                aria-expanded={control.isOpen() ? "true" : "false"}
+                aria-controls={control.list.id}
+                aria-autocomplete="list"
+                aria-activedescendant={
+                    control.isOpen() ? control.list.focus.descendant() : undefined
+                }
+                autocomplete="off"
+                {...rest}
+                ref={(element: HTMLInputElement) => control.setInput(element)}
+                value={control.autocomplete.value()}
+                onInput={(event) => {
+                    // filter by the typed text and show the matches
+                    control.autocomplete.type(event.currentTarget.value);
+                    control.open(true);
+                }}
+                onKeyDown={(event) => steer(event, control, locale.direction)}
+                onBlur={() => control.open(false)}
+            />
+            <InputGroupAddon align="inline-end">
+                <ComboboxTrigger disabled={properties.disabled === true} />
+            </InputGroupAddon>
+        </InputGroup>
+    );
+}
+
+/** Render the button that shows or hides every option, leaving the focus in the input. */
+function ComboboxTrigger(properties: { readonly disabled: boolean }): JSX.Element {
+    const control = useCombobox();
+    const locale = useLocale();
+
+    return (
+        <button
+            type="button"
+            tabindex={-1}
+            disabled={properties.disabled}
+            aria-label={locale.render(t`Show options`)}
+            aria-expanded={control.isOpen() ? "true" : "false"}
+            aria-controls={control.list.id}
+            data-slot="combobox-trigger"
+            onPointerDown={(event) => {
+                // open from the input, which takes the focus and the keys
+                event.preventDefault();
+                control.toggle();
+            }}
+            {...style.attrs(styles.trigger)}
+        >
+            <Icon icon={caretDown} />
+        </button>
     );
 }
 

@@ -11,6 +11,31 @@ import {
     ComboboxItemIndicator,
 } from "./index.ts";
 
+test("show and hide every option from the trigger, the focus in the input", () => {
+    // press the trigger twice without typing
+    const { container } = render(() => (
+        <Combobox>
+            <ComboboxInput aria-label="Notebook" />
+            <ComboboxItem value="trips">Trips</ComboboxItem>
+        </Combobox>
+    ));
+    const input = container.querySelector("[data-slot=combobox-input]");
+    const trigger = container.querySelector("[data-slot=combobox-trigger]");
+    const press = () => {
+        trigger?.dispatchEvent(
+            new PointerEvent("pointerdown", { bubbles: true, cancelable: true }),
+        );
+        flush();
+
+        return [input?.getAttribute("aria-expanded"), document.activeElement === input];
+    };
+
+    expect([press(), press()]).toEqual([
+        ["true", true],
+        ["false", true],
+    ]);
+});
+
 test("follow a controlled input text, reporting what the person types and filtering by the owner's text", () => {
     const [text, setText] = createSignal("wo");
     const { container } = render(() => (
