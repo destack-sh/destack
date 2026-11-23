@@ -74,8 +74,8 @@
         width: 0.45em;
         height: 0.45em;
         margin-inline-end: 0.15em;
-        border-inline-end: calc(1.5 * var(--destack-stroke-border)) solid;
-        border-block-end: calc(1.5 * var(--destack-stroke-border)) solid;
+        border-right: calc(1.5 * var(--destack-stroke-border)) solid;
+        border-bottom: calc(1.5 * var(--destack-stroke-border)) solid;
         color: var(--destack-color-muted-foreground);
         transform: translateY(-25%) rotate(45deg);
     }
