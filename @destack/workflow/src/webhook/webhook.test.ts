@@ -135,16 +135,16 @@ test("match a path's parameters, refusing paths outside the template", async () 
     };
 
     expect([
-        matched("/repositories/acme%20site"),
+        matched("/repositories/example%20site"),
         matched("/repositories"),
-        matched("/repositories/acme/site"),
-        matched("/projects/acme"),
+        matched("/repositories/example/site"),
+        matched("/projects/example"),
         matched("/repositories/%E0"),
     ]).toEqual([
-        { repository: "acme site" },
+        { repository: "example site" },
         "webhook path '/repositories' not found",
-        "webhook path '/repositories/acme/site' not found",
-        "webhook path '/projects/acme' not found",
+        "webhook path '/repositories/example/site' not found",
+        "webhook path '/projects/example' not found",
         "webhook path '/repositories/%E0' not found",
     ]);
 });
