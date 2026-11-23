@@ -1,5 +1,5 @@
 import { isBuiltin } from "node:module";
-import { dirname, extname, join, relative, sep } from "node:path";
+import { dirname, extname, join, sep } from "node:path";
 import { type Environment, type FileSystem, FileSystemError } from "@destack/environment";
 import { Digest, type DigestCrypto, schema } from "@destack/schema";
 import { BuildError } from "../error/index.ts";
@@ -35,21 +35,21 @@ const ModulePackage = schema.looseObject({
     version: schema.string().exactOptional(),
 });
 
-/** The modules an entry loads, as Bun resolves its imports: workspace sources and npm releases. */
+/** The npm releases an entry loads, as Bun resolves its imports through workspace sources. */
 export class ModuleClosure {
-    /** The identity of each module: a source's package, path and digest, or an npm release. */
-    readonly modules: ReadonlyMap<string, string>;
+    /** The releases, as `name@version`, sorted. */
+    readonly releases: readonly string[];
 
-    /** Store the identities of a closure's modules. */
-    private constructor(modules: ReadonlyMap<string, string>) {
-        this.modules = modules;
+    /** Keep the releases of a closure. */
+    private constructor(releases: readonly string[]) {
+        this.releases = releases;
     }
 
-    /** Read the modules an entry imports, sources by their bytes and npm releases by name. */
+    /** Read the npm releases an entry loads, following the imports of the sources it reaches. */
     static async read(entry: string, environment: Environment<"files">): Promise<ModuleClosure> {
-        // follow each source's imports once, keying a module under node_modules by its release
-        const { files, crypto } = environment;
-        const modules = new Map<string, string>();
+        // follow each source's imports once, keeping a module under node_modules as its release
+        const { files } = environment;
+        const releases = new Set<string>();
         const visited = new Set<string>();
         const pending = [entry];
         for (let file = pending.pop(); file !== undefined; file = pending.pop()) {
@@ -57,50 +57,35 @@ export class ModuleClosure {
                 continue;
             }
             visited.add(file);
-            const owner = await ModuleClosure.#package(file, files);
-            const path = relative(owner.directory, file).split(sep).join("/");
-            // identify an installed release by its name and version, without reading its modules
-            if (file.split(sep).includes("node_modules") && owner.version !== undefined) {
-                modules.set(`${owner.name}@${owner.version}`, "release");
+            const owner = file.split(sep).includes("node_modules")
+                ? await ModuleClosure.#package(file, files)
+                : undefined;
+            // keep an installed release by its name and version, without reading its modules
+            if (owner?.version !== undefined) {
+                releases.add(`${owner.name}@${owner.version}`);
             }
-            // identify a source by its package, path and bytes, and follow its imports
+            // follow a source's imports
             else {
-                const bytes = await files.readFile(file);
-                modules.set(`${owner.name}/${path}`, await Digest.of(bytes, crypto));
-                pending.push(...ModuleClosure.#imports(new TextDecoder().decode(bytes), file));
+                const text = await files.readTextFile(file);
+                pending.push(...ModuleClosure.#imports(text, file));
             }
         }
 
-        return new ModuleClosure(
-            new Map([...modules].toSorted(([left], [right]) => (left < right ? -1 : 1))),
-        );
+        return new ModuleClosure([...releases].toSorted());
     }
 
-    /** Select the npm releases and the sources below some prefixes, leaving other sources out. */
-    select(prefixes: ReadonlySet<string>): ModuleClosure {
-        const isSelected = (key: string, identity: string) =>
-            identity === "release" || [...prefixes].some((prefix) => key.startsWith(prefix));
-
+    /** Select the releases of some packages by name. */
+    select(names: ReadonlySet<string>): ModuleClosure {
         return new ModuleClosure(
-            new Map([...this.modules].filter(([key, identity]) => isSelected(key, identity))),
-        );
-    }
-
-    /** Select the npm releases of some packages by name, leaving every source out. */
-    releases(names: ReadonlySet<string>): ModuleClosure {
-        return new ModuleClosure(
-            new Map(
-                [...this.modules].filter(
-                    ([key, identity]) =>
-                        identity === "release" && names.has(key.slice(0, key.lastIndexOf("@"))),
-                ),
+            this.releases.filter((release) =>
+                names.has(release.slice(0, release.lastIndexOf("@"))),
             ),
         );
     }
 
-    /** Digest the closure by its modules' identities. */
+    /** Digest the releases. */
     async digest(crypto: DigestCrypto): Promise<Digest> {
-        return await Digest.json([...this.modules], crypto);
+        return await Digest.json(this.releases, crypto);
     }
 
     /** Resolve the imports Bun loads of a module to files, leaving runtime modules out. */
@@ -130,11 +115,11 @@ export class ModuleClosure {
         });
     }
 
-    /** Find the package a module belongs to: its directory, its name and a release's version. */
+    /** Find the package a module belongs to: its name and a release's version. */
     static async #package(
         file: string,
         files: FileSystem,
-    ): Promise<{ readonly directory: string; readonly name: string; readonly version?: string }> {
+    ): Promise<{ readonly name: string; readonly version?: string }> {
         // take the nearest manifest declaring a package
         for (
             let directory = dirname(file);
@@ -152,7 +137,7 @@ export class ModuleClosure {
             const parsed =
                 text === undefined ? undefined : ModulePackage.safeParse(JSON.parse(text));
             if (parsed?.success === true) {
-                return { directory, ...parsed.data };
+                return parsed.data;
             }
         }
         throw BuildError.of(

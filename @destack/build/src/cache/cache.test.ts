@@ -39,7 +39,7 @@ async function identify(revision: string, bundle: string, manifest: string): Pro
     return await CompilerFingerprint.of(environment).digest();
 }
 
-test("identify a release compiler by its runtime build, its bundle and its toolchain, the same alike", async () => {
+test("identify a release compiler by its version, runtime build and toolchain, a changed bundle alike", async () => {
     // identify one compiler twice, then change its bundle, its runtime build and its toolchain one at a time
     const runtime = "a".repeat(40);
     const manifest = "c".repeat(64);
@@ -51,11 +51,10 @@ test("identify a release compiler by its runtime build, its bundle and its toolc
         await identify(runtime, "compile(1)", "d".repeat(64)),
     ];
 
-    // key the same compiler alike and every change apart
-    const [first, again, ...changed] = identified;
+    // key a changed bundle of the same version alike, as its version says what it outputs, and the rest apart
+    const [first, again, bundled, runtimed, tooled] = identified;
     expect({
-        isAlike: first === again,
-        distinct: new Set(identified).size,
-        isEachApart: changed.every((each) => each !== first),
-    }).toEqual({ isAlike: true, distinct: 4, isEachApart: true });
+        isAlike: first === again && first === bundled,
+        isEachApart: runtimed !== first && tooled !== first && runtimed !== tooled,
+    }).toEqual({ isAlike: true, isEachApart: true });
 });

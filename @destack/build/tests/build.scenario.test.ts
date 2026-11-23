@@ -2,6 +2,8 @@ import { testSimulation } from "../src/test/world.ts";
 import { refusal, test } from "@destack/test";
 import { join } from "node:path";
 import { PackageBuild } from "../src/index.ts";
+import { COMPILER_VERSION } from "../src/cache/cache.ts";
+import { Digest } from "@destack/schema";
 import {
     Fixture,
     expectFiles,
@@ -96,4 +98,21 @@ test.concurrent("ship a package's catalogs in its build, refusing a misnamed one
         "catalog 'locale/de.json' is invalid: it does not parse",
     ]);
     expect(shipped).toEqual([german]);
+});
+
+test.concurrent("keep the compiler's version with the output it compiles, so changed output needs a bump", async ({
+    expect,
+}) => {
+    // build the library and digest its manifest, which has the digest of every file it outputs
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    await using input = await Fixture.open("library", environment);
+    const build = await input.build(library.request);
+    const output = await Digest.json(build.manifest, environment.crypto);
+
+    // pair the version with its output: changed output takes a new COMPILER_VERSION and this digest
+    expect({ version: COMPILER_VERSION, output }).toEqual({
+        version: 1,
+        output: "b20bf9d4590a35467c33b006f83e366790924a271429ff82a82d4cd4358f8753",
+    });
 });

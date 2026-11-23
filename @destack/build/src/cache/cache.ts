@@ -5,29 +5,11 @@ import { Distribution } from "@destack/update";
 import { join } from "node:path";
 import { ModuleClosure } from "./closure.ts";
 
-/** The entry a compiler process starts from, whose module closure identifies the compiler. */
+/** The entry a compiler process starts from, whose npm releases identify the compiler. */
 const COMPILER_ENTRY = new URL("../main.ts", import.meta.url);
 
-/** The layout of cache keys, changed whenever keys derive from different inputs. */
-const KEY_LAYOUT = 5;
-
-/** The workspace sources that shape build output and keys: the compiler, digests and catalogs. */
-const COMPILER_SOURCES: ReadonlySet<string> = new Set([
-    "@destack/build/",
-    "@destack/package/",
-    "@destack/schema/src/digest/",
-    "@destack/schema/src/json/",
-    "@destack/locale/src/message/catalog.ts",
-]);
-
-/** The modules converting npm packages, whose bytes shape an npm unit's build. */
-const CONVERSION_MODULES = [
-    new URL("../compile/conversion.ts", import.meta.url),
-    new URL("../dependency/npm.ts", import.meta.url),
-];
-
-/** The writer of build manifests, whose output-shaping sources decide every manifest's bytes. */
-const MANIFEST_WRITER = new URL("../../../package/src/manifest/writer.ts", import.meta.url);
+/** The version of the compiler's output and keys, bumped whenever either changes. */
+export const COMPILER_VERSION = 1;
 
 /** The npm releases converting npm packages: the bundler and the CommonJS lexer. */
 const CONVERSION_RELEASES: ReadonlySet<string> = new Set(["rolldown", "cjs-module-lexer"]);
@@ -87,59 +69,47 @@ export class CompilerFingerprint {
             return await this.digest();
         }
 
-        // identify Bun, the conversion's modules, the writer's output-shaping sources and the releases they run
+        // identify Bun, the compiler's version and the releases the conversion runs
         const compiler = await ModuleClosure.read(fileURLToPath(COMPILER_ENTRY), this.environment);
-        const modules = await Promise.all(
-            CONVERSION_MODULES.map((module) => this.#file(fileURLToPath(module))),
-        );
-        const writer = (
-            await ModuleClosure.read(fileURLToPath(MANIFEST_WRITER), this.environment)
-        ).select(COMPILER_SOURCES);
 
         return await Digest.json(
             {
-                layout: KEY_LAYOUT,
+                version: COMPILER_VERSION,
                 bun: this.environment.process.runtime.revision,
-                modules,
-                manifest: await writer.digest(this.environment.crypto),
                 releases: await compiler
-                    .releases(CONVERSION_RELEASES)
+                    .select(CONVERSION_RELEASES)
                     .digest(this.environment.crypto),
             },
             this.environment.crypto,
         );
     }
 
-    /** Identify the compiler by runtime, bundle and toolchain, else Bun, TypeScript and modules. */
+    /** Identify the compiler by its version and runtime, with its toolchain or its npm releases. */
     async #identifyCompiler(): Promise<Digest> {
-        // identify a release's compiler by its runtime's build, its program's bundle and the toolchain manifest it ships
-        const { runtime, script, executable } = this.environment.process;
+        // identify a release's compiler by its version, its runtime's build and the toolchain manifest it ships
+        const { runtime, executable } = this.environment.process;
         if (runtime.isStandalone) {
             const resources = Distribution.resources(executable);
             const manifest = Distribution.toolchainManifest(this.environment.host.architecture);
 
             return await Digest.json(
                 {
-                    layout: KEY_LAYOUT,
+                    version: COMPILER_VERSION,
                     bun: runtime.revision,
-                    program: await this.#file(script),
                     toolchain: await this.#file(join(resources, manifest)),
                 },
                 this.environment.crypto,
             );
         }
 
-        // identify Bun, TypeScript and the compiler's modules that shape output, with every release
-        const entry = fileURLToPath(COMPILER_ENTRY);
-        const compiler = (await ModuleClosure.read(entry, this.environment)).select(
-            COMPILER_SOURCES,
-        );
+        // identify the compiler's version, Bun and the npm releases the compiler runs
+        const compiler = await ModuleClosure.read(fileURLToPath(COMPILER_ENTRY), this.environment);
 
         return await Digest.json(
             {
-                layout: KEY_LAYOUT,
-                bun: this.environment.process.runtime.revision,
-                compiler: await compiler.digest(this.environment.crypto),
+                version: COMPILER_VERSION,
+                bun: runtime.revision,
+                releases: await compiler.digest(this.environment.crypto),
             },
             this.environment.crypto,
         );

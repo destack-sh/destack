@@ -1,7 +1,6 @@
 import { testSimulation } from "../test/world.ts";
 import type { FileSystem } from "@destack/environment";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { expect, test } from "@destack/test";
 import { ModuleClosure } from "./closure.ts";
 
@@ -17,7 +16,7 @@ async function writeFiles(
     }
 }
 
-test("key an entry's closure by the sources it loads and the npm releases it requires", async () => {
+test("list the npm releases an entry loads through its sources, a release's version changing them", async () => {
     // write an application importing a module and a linked workspace library, which imports an npm release
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -30,8 +29,7 @@ test("key an entry's closure by the sources it loads and the npm releases it req
             "app/entry.ts":
                 'import "./used.ts";\nimport { lib } from "lib";\nimport type { Unused } from "./typed.ts";\n',
             "app/used.ts": "export {};\n",
-            "app/typed.ts": "export type Unused = string;\n",
-            "app/unused.ts": "export {};\n",
+            "app/typed.ts": 'import "typed-only";\nexport type Unused = string;\n',
             "lib/package.json": JSON.stringify({
                 name: "lib",
                 version: "1.0.0",
@@ -49,25 +47,12 @@ test("key an entry's closure by the sources it loads and the npm releases it req
     );
     await files.mkdir(join(root, "app", "node_modules"));
     await files.symlink(join(root, "lib"), join(root, "app", "node_modules", "lib"));
-    const digest = async () =>
-        await (
-            await ModuleClosure.read(join(root, "app", "entry.ts"), environment)
-        ).digest(environment.crypto);
-    const initial = await digest();
+    const read = () => ModuleClosure.read(join(root, "app", "entry.ts"), environment);
+    const initial = await read();
 
-    // edit what the entry does not load, then the npm release's bytes, then a loaded source and the release's version
-    await writeFiles(
-        root,
-        {
-            "app/unused.ts": "export const edited = 1;\n",
-            "app/typed.ts": "export type Unused = number;\n",
-            "node_modules/dep/index.js": "module.exports = 2;\n",
-        },
-        files,
-    );
-    const unloaded = await digest();
+    // edit a loaded source, then the npm release's version
     await writeFiles(root, { "lib/index.ts": 'import "dep";\nexport const lib = 2;\n' }, files);
-    const source = await digest();
+    const edited = await read();
     await writeFiles(
         root,
         {
@@ -79,41 +64,18 @@ test("key an entry's closure by the sources it loads and the npm releases it req
         },
         files,
     );
-    const release = await digest();
+    const released = await read();
 
-    // ignore unloaded modules and a release's bytes, change the digest for a loaded source and a version
+    // list the release the sources reach, the same after a source edit, another after its version moves
     expect({
-        isUnloadedUnchanged: unloaded === initial,
-        isSourceChanged: source !== unloaded,
-        isReleaseChanged: release !== source,
-        modules: [
-            ...(
-                await ModuleClosure.read(join(root, "app", "entry.ts"), environment)
-            ).modules.keys(),
-        ],
+        initial: initial.releases,
+        edited: edited.releases,
+        released: released.releases,
+        selected: released.select(new Set(["other"])).releases,
     }).toEqual({
-        isUnloadedUnchanged: true,
-        isSourceChanged: true,
-        isReleaseChanged: true,
-        modules: ["app/entry.ts", "app/used.ts", "dep@1.0.1", "lib/index.ts"],
+        initial: ["dep@1.0.0"],
+        edited: ["dep@1.0.0"],
+        released: ["dep@1.0.1"],
+        selected: [],
     });
-});
-
-test("key the toolchain by the compiler's modules, leaving the modules only its host loads out", async () => {
-    // read the closure of the entry a compiler process starts from, in a world
-    await using simulation = testSimulation();
-    const environment = simulation.environment("test");
-    const closure = await ModuleClosure.read(
-        fileURLToPath(new URL("../main.ts", import.meta.url)),
-        environment,
-    );
-    const modules = new Set(closure.modules.keys());
-
-    // include the compiler, and leave the host's npm conversion, the local store and its bucket out
-    expect({
-        worker: modules.has("@destack/build/src/build/worker.ts"),
-        conversion: modules.has("@destack/build/src/compile/conversion.ts"),
-        store: modules.has("@destack/build/src/store/local.ts"),
-        bucket: [...modules].some((module) => module.startsWith("@destack/bucket/")),
-    }).toEqual({ worker: true, conversion: false, store: false, bucket: false });
 });

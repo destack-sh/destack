@@ -11,6 +11,7 @@ import { LocalBuildStore } from "../src/store/local.ts";
 import { countObjects, exported, importBuilt, property } from "./fixture.ts";
 import { copySource } from "../src/test/source.ts";
 import { Toolchain } from "@destack/check/toolchain";
+import { COMPILER_VERSION } from "../src/cache/cache.ts";
 
 /** One module output per unit, its dependencies external. */
 const OUTPUTS = { bun: { kind: "module", runtime: "bun" } } as const;
@@ -99,6 +100,24 @@ async function installLeftPad(
 function isGreeter(value: unknown): value is () => unknown {
     return typeof value === "function";
 }
+
+test("keep the compiler's version with the workspace image it compiles, so changed output needs a bump", async () => {
+    // build the application with its library unit and its npm release, then make an image of them
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { application } = await layOut(environment);
+    await using store = await LocalBuildStore.temporary(environment);
+    await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
+    const opened = await (await Workspace.open(application, compilers)).package();
+    const built = await opened.build({ outputs: OUTPUTS });
+    const image = await opened.image(await built.digest());
+
+    // pair the version with its image: changed output takes a new COMPILER_VERSION and this digest
+    expect({ version: COMPILER_VERSION, image }).toEqual({
+        version: 1,
+        image: "40eae3663eef6d0e06ac31b48c95bc62ef6cdeb58b32552187a2d6708dfe188e",
+    });
+});
 
 test("build a workspace's units once, keep the application's build on a library edit, and make an image of the edited library", async () => {
     // lay out a workspace whose application links its library unit
