@@ -1,5 +1,5 @@
 import type { DeclarationDescription, graph } from "@destack/package";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { type Environment, Telemetry } from "@destack/environment";
 import { fileURLToPath } from "node:url";
 import { Sandbox } from "@destack/sandbox";
@@ -401,7 +401,11 @@ export class Compiler implements AsyncDisposable {
 
     /** Build a package's current source in one request: evaluate its declarations, compile it. */
     build(options: PackageBuildOptions): Promise<BuildReader> {
-        return this.#scope.span("destack.compiler.build", {}, () => this.#storeBuild(options));
+        return this.#scope.span(
+            "destack.compiler.build",
+            { "destack.package.directory": relative(this.workspace, options.directory) },
+            () => this.#storeBuild(options),
+        );
     }
 
     /** Compile after the requests before it, then move the written build into the store. */
