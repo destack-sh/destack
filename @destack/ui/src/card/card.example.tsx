@@ -26,6 +26,7 @@ const USES = [
 const storage = style.create({
     card: {
         width: width.popover,
+        maxWidth: "100%",
     },
     content: {
         display: "flex",
