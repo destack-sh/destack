@@ -55,7 +55,7 @@ export async function answer(machine: Machine, spaceId: Identifier<"space">, req
 ### Space
 
 `space.fetch(request)` answers probes, else hands a request to the gateway.
-The gateway routes each call to the deployment whose `Destack-Version` header matches, as Vercel's skew protection does.
+The gateway routes each call to the deployment whose `Destack-Version` header matches.
 
 ### MachineProcess and Device
 
@@ -130,4 +130,4 @@ A machine converges the spaces placed on it, as a kubelet does with its pods.
 | -------- | ------------- | ---------------------------------------------------------------- |
 | pods     | placed spaces | A space runs its installations in one process over one database. |
 | a node   | a machine     | Also a person's computer, or Cloudflare.                         |
-| services | the gateway   | Routes by deployment version, as Vercel's skew protection.       |
+| services | the gateway   | Routes by deployment version.       |

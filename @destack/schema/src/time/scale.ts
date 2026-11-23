@@ -47,7 +47,7 @@ export type TickUnit =
     | "month"
     | "year";
 
-/** The unit a two-tier axis groups each unit's marks under, after Linear's and Notion's headers. */
+/** The unit a two-tier axis groups each unit's marks under. */
 const PERIOD_UNITS: Readonly<Record<TickUnit, TickUnit | undefined>> = {
     millisecond: "second",
     second: "minute",

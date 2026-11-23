@@ -43,7 +43,7 @@ export const ActionFocus = schema.enum(["page", "any"]);
 /** Where focus may be for a key combination to run an action. */
 export type ActionFocus = schema.Infer<typeof ActionFocus>;
 
-/** One input a person gives an action, as in Raycast: its name, kind and choices. */
+/** One input a person gives an action: its name, kind and choices. */
 export type ActionArgument =
     | {
           readonly name: string;

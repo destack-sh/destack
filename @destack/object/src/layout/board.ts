@@ -16,7 +16,7 @@ const boardLayout = schema.object({
     kind: schema.literal("board"),
     /** The enum or state field grouping the objects. */
     by: schema.string().min(1),
-    /** Whether the columns without objects show, as Linear's empty groups. */
+    /** Whether the columns without objects show. */
     empty: schema.enum(["show", "hide"]),
 });
 /** One column per value of a field. */
