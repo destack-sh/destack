@@ -17,7 +17,6 @@
         "./test": "./src/test/index.ts"
     },
     "dependencies": {
-        "@destack/db": "workspace:*",
         "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
         "@destack/identity": "workspace:*",
@@ -33,16 +32,21 @@
         "@aws-sdk/client-s3": "3.1141.0",
         "@aws-sdk/s3-request-presigner": "3.1141.0",
         "@cloudflare/workers-types": "5.20260917.1",
+        "@destack/db": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.4",
         "miniflare": "4.20260730.0",
         "rolldown": "1.2.19"
     },
     "peerDependencies": {
-        "@cloudflare/workers-types": "5.20260917.1"
+        "@cloudflare/workers-types": "5.20260917.1",
+        "@destack/db": "workspace:*"
     },
     "peerDependenciesMeta": {
         "@cloudflare/workers-types": {
+            "optional": true
+        },
+        "@destack/db": {
             "optional": true
         }
     }

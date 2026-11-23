@@ -22,22 +22,27 @@
     },
     "exports": {
         "./inspect": {
-            "runtimes": ["bun"]
+            "runtimes": ["bun"],
+            "internal": true
         },
         "./bun": {
-            "runtimes": ["bun"]
+            "runtimes": ["bun"],
+            "internal": true
         },
         "./cloudflare": {
-            "runtimes": ["workerd"]
+            "runtimes": ["workerd"],
+            "internal": true
         },
         "./s3": {
-            "runtimes": ["bun", "workerd"]
+            "runtimes": ["bun", "workerd"],
+            "internal": true
         },
         "./blob": {
             "runtimes": ["bun", "workerd"]
         },
         "./provider": {
-            "runtimes": ["bun", "workerd"]
+            "runtimes": ["bun", "workerd"],
+            "internal": true
         }
     },
     "declarations": {
