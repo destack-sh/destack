@@ -112,7 +112,7 @@ test.concurrent("keep the compiler's version with the output it compiles, so cha
 
     // pair the version with its output: changed output takes a new COMPILER_VERSION and this digest
     expect({ version: COMPILER_VERSION, output }).toEqual({
-        version: 1,
-        output: "b20bf9d4590a35467c33b006f83e366790924a271429ff82a82d4cd4358f8753",
+        version: 2,
+        output: "a684e738c96f2feaedb40169a6f13058bdd09d753e96e3212eaa43515c5d79d0",
     });
 });

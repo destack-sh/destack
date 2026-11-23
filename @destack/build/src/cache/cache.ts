@@ -9,7 +9,7 @@ import { ModuleClosure } from "./closure.ts";
 const COMPILER_ENTRY = new URL("../main.ts", import.meta.url);
 
 /** The version of the compiler's output and keys, bumped whenever either changes. */
-export const COMPILER_VERSION = 1;
+export const COMPILER_VERSION = 2;
 
 /** The npm releases converting npm packages: the bundler and the CommonJS lexer. */
 const CONVERSION_RELEASES: ReadonlySet<string> = new Set(["rolldown", "cjs-module-lexer"]);

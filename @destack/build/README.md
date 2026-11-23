@@ -55,7 +55,7 @@ Each unit compiles only on a key miss, once per workspace, and the host's packag
 | `image(root, options)`   | makes an image of a root build with every build it requires |
 | `declarations(…)`, `index(…)` | evaluates the root's declarations or indexes its code |
 
-`isPrerelease` stamps each build as a dev version, `<release>-dev.<time>.<key>`.
+`isUnreleased` stamps each unit's build at `dev`, the version of unreleased code.
 
 ### BuildStore
 

@@ -888,10 +888,9 @@ export class WorkspacePackage {
 
         // build it once when missing
         return await this.#store.cachedBuild(key, async () => {
-            // mark unreleased source a dev build of the release it is given, else of its package file's
+            // stamp unreleased source at dev
             const given = WorkspacePackage.#versionsOf(options);
-            const release = given[unit.name] ?? unit.packageJson.package.version;
-            const versions = isUnreleased ? { ...given, [unit.name]: Version.dev(release) } : given;
+            const versions = isUnreleased ? { ...given, [unit.name]: Version.development } : given;
             const stamped = { ...options, versions };
 
             // evaluate its declarations and compile it on them, in one request
