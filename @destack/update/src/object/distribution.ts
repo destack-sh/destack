@@ -1,7 +1,7 @@
 import type { Select } from "@destack/db";
 import { contained, principal } from "@destack/access";
 import { argument, plural, t } from "@destack/locale";
-import { defineAction, defineObject, device, field } from "@destack/object";
+import { defineAction, defineObject, device, field, selected } from "@destack/object";
 import { schema, Version } from "@destack/schema";
 
 /** What staging found: the installed release, and the release staged for activation. */
@@ -54,14 +54,16 @@ export const distribution = defineObject(
 export const checkForUpdates = defineAction({
     name: "check-for-updates",
     title: t`Check for Updates…`,
-    call: { object: distribution, method: "stage", when: { status: "current" } },
+    input: { distributions: selected(distribution, { status: "current" }) },
+    call: ({ distributions }) => distributions.prepare("stage", {}),
 });
 
 /** The action restarting a distribution into the release it staged. */
 export const restartToUpdate = defineAction({
     name: "restart-to-update",
     title: t`Restart to Update`,
-    call: { object: distribution, method: "activate", when: { status: "staged" } },
+    input: { distributions: selected(distribution, { status: "staged" }) },
+    call: ({ distributions }) => distributions.prepare("activate", {}),
 });
 
 /** A distribution as its table stores it. */
