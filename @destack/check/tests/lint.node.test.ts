@@ -17,7 +17,7 @@ const SETTINGS = {
         roles: {
             "@destack/check": "library",
             "@destack/machine": "builtin",
-            "@acme/notes": "app",
+            "@example/notes": "app",
         },
     },
 };
@@ -1014,18 +1014,22 @@ tester.run("no-manifest-import", rules["no-manifest-import"], {
 
 tester.run("package-layout", rules["package-layout"], {
     valid: [
-        { code: 'import notes from "@acme/notes/client";', filename: SOURCE, settings: SETTINGS },
+        {
+            code: 'import notes from "@example/notes/client";',
+            filename: SOURCE,
+            settings: SETTINGS,
+        },
         {
             code: 'import { Machine } from "@destack/machine";',
             filename: SOURCE,
             settings: SETTINGS,
         },
         {
-            code: 'import type { NotesHost } from "@acme/notes/server";',
+            code: 'import type { NotesHost } from "@example/notes/server";',
             filename: SOURCE,
             settings: SETTINGS,
         },
-        { code: 'import server from "@acme/notes/server";', filename: TEST, settings: SETTINGS },
+        { code: 'import server from "@example/notes/server";', filename: TEST, settings: SETTINGS },
         {
             code: 'import { viewTests } from "@destack/view/test";',
             filename: TEST_CONFIGURATION,
@@ -1035,13 +1039,13 @@ tester.run("package-layout", rules["package-layout"], {
     ],
     invalid: [
         {
-            code: 'import server from "@acme/notes/server";',
+            code: 'import server from "@example/notes/server";',
             filename: SOURCE,
             settings: SETTINGS,
             errors: [
                 {
                     message:
-                        "'@destack/check' is invalid: it imports '@acme/notes/server', private to its app",
+                        "'@destack/check' is invalid: it imports '@example/notes/server', private to its app",
                 },
             ],
         },

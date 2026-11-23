@@ -22,11 +22,11 @@ test("read a workspace's members from its lockfile and walk their workspace depe
         `{
   "lockfileVersion": 1,
   "workspaces": {
-    "": { "name": "@acme/workspace", "devDependencies": { "@acme/library": "workspace:*" }, },
-    "packages/library": { "name": "@acme/library", "dependencies": { "uuid": "14.0.2" }, },
-    "packages/app": { "name": "@acme/app", "dependencies": { "@acme/library": "workspace:*" }, },
-    "packages/app/fixture": { "name": "@acme/fixture", },
-    "tools/check": { "name": "@acme/check", "devDependencies": { "@acme/app": "workspace:^" }, },
+    "": { "name": "@example/workspace", "devDependencies": { "@example/library": "workspace:*" }, },
+    "packages/library": { "name": "@example/library", "dependencies": { "uuid": "14.0.2" }, },
+    "packages/app": { "name": "@example/app", "dependencies": { "@example/library": "workspace:*" }, },
+    "packages/app/fixture": { "name": "@example/fixture", },
+    "tools/check": { "name": "@example/check", "devDependencies": { "@example/app": "workspace:^" }, },
   },
   "packages": {},
 }
@@ -52,15 +52,15 @@ test("read a workspace's members from its lockfile and walk their workspace depe
     }).toEqual({
         root,
         members: [
-            { directory: ".", name: "@acme/workspace", dependencies: ["packages/library"] },
-            { directory: "packages/library", name: "@acme/library", dependencies: [] },
+            { directory: ".", name: "@example/workspace", dependencies: ["packages/library"] },
+            { directory: "packages/library", name: "@example/library", dependencies: [] },
             {
                 directory: "packages/app",
-                name: "@acme/app",
+                name: "@example/app",
                 dependencies: ["packages/library"],
             },
-            { directory: "packages/app/fixture", name: "@acme/fixture", dependencies: [] },
-            { directory: "tools/check", name: "@acme/check", dependencies: ["packages/app"] },
+            { directory: "packages/app/fixture", name: "@example/fixture", dependencies: [] },
+            { directory: "tools/check", name: "@example/check", dependencies: ["packages/app"] },
         ],
         dependents: [".", "packages/app", "packages/library", "tools/check"],
         dependencies: ["packages/app", "packages/library", "tools/check"],
@@ -82,9 +82,9 @@ test("select a member's existing changed modules, leaving out deleted ones, othe
         `{
   "lockfileVersion": 1,
   "workspaces": {
-    "": { "name": "@acme/workspace" },
-    "packages/app": { "name": "@acme/app" },
-    "packages/app/fixture": { "name": "@acme/fixture" },
+    "": { "name": "@example/workspace" },
+    "packages/app": { "name": "@example/app" },
+    "packages/app/fixture": { "name": "@example/fixture" },
   },
   "packages": {},
 }
