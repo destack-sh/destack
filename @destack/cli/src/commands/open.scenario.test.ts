@@ -16,7 +16,7 @@ async function output(terminal: TerminalFixture, words: readonly string[]): Prom
 test("open a link as a window of the running desktop", async () => {
     const terminal = await TerminalFixture.open({ DESTACK_PROFILE: "local" });
     const { native } = terminal;
-    const link = "destack-local://home--home--example/home/inbox";
+    const link = "destack-local://example/home/inbox";
 
     // open the link while a desktop runs
     await using desktop = await new DesktopLock(
@@ -100,6 +100,6 @@ test("open a view's page in the browser on its installation's origin", async () 
     }).toEqual({
         printed: { code: 0, output: `${JSON.stringify({ url })}\n`, error: `Opening  ${url}\n` },
         opened: 1,
-        page: [`start--${terminal.address("work")}.localhost`, "/start", ""],
+        page: [`start--${terminal.address("work")}.space.localhost`, "/start", ""],
     });
 });
