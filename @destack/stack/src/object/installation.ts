@@ -87,7 +87,7 @@ export const InstallationView = schema.object({
     image: Digest,
     /** The view's name. */
     view: DeclarationName,
-    /** The installed package's name, such as @acme/notes. */
+    /** The installed package's name, such as @example/notes. */
     package: schema.string().min(1),
     /** The view as the build's output mounts it. */
     description: ViewDescription,
