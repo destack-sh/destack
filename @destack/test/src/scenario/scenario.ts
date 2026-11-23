@@ -12,6 +12,7 @@ import { Clock } from "@destack/environment";
 import type { SimulatedTelemetry } from "@destack/environment/simulation";
 import { type JsonValue, present, schema } from "@destack/schema";
 import { dirname, join } from "node:path";
+import { Session } from "node:inspector/promises";
 import { OtlpExport } from "@destack/telemetry/otlp";
 import { isDeepStrictEqual } from "node:util";
 import { expect, inject, test } from "vitest";
@@ -26,6 +27,12 @@ const EXTERNAL_TARGETS: ReadonlySet<string> = new Set(["postgresql"]);
 
 /** The variable that replays each scenario's seed to check determinism. */
 const REPLAY_VARIABLE = "DESTACK_REPLAY";
+
+/** The variable of how often a bench plays each scenario in a fresh world, as Go's -count. */
+const COUNT_VARIABLE = "DESTACK_BENCH_COUNT";
+
+/** The variable asking a bench to profile each operation's CPU, as Go's -cpuprofile. */
+const PROFILE_VARIABLE = "DESTACK_BENCH_CPUPROFILE";
 
 /** The results directory below the workspace root. */
 const BENCH_DIRECTORY = "target/bench";
@@ -98,6 +105,8 @@ export interface Measurement {
     readonly counters: Counters;
     /** The operation's failed checks. */
     readonly failures: readonly string[];
+    /** The CPU profile of its repetitions, absent unless the bench profiles. */
+    readonly profile: JsonValue | undefined;
 }
 
 /** Play scenarios and measure their operations. */
@@ -167,14 +176,23 @@ export const Runner = {
     play(scenario: Scenario, types: readonly DriverType[]): void {
         const type = Runner.driverOf(scenario.interaction, scenario.name, types);
         test(scenario.name, async () => {
-            // play it and save a bench's results
+            // play it and save a bench's results, again in a fresh world for each counted run
             const first = await Runner.playthrough(scenario, type);
             const { variables } = testHost().process;
             if (inject("tier") === "bench") {
                 const configuration = await Runner.configuration(scenario, type);
                 const baseline = variables[BASELINE_VARIABLE] ?? String(configuration["commit"]);
-                const named = first.measurements.filter((each) => each.operation !== undefined);
-                await Runner.save(scenario, named, first.telemetry, configuration, baseline);
+                const count = schema
+                    .int()
+                    .min(1)
+                    .parse(Number(variables[COUNT_VARIABLE] ?? "1"));
+                for (let run = 0; run < count; run += 1) {
+                    const played = run === 0 ? first : await Runner.playthrough(scenario, type);
+                    const named = played.measurements.filter(
+                        (each) => each.operation !== undefined,
+                    );
+                    await Runner.save(scenario, named, played.telemetry, configuration, baseline);
+                }
             }
 
             // expect every check to pass
@@ -287,18 +305,26 @@ export const Runner = {
         const directory = join(root, BENCH_DIRECTORY, baseline, scenario.package.name);
         const name = [scenario.name, ...Object.values(inject("targets") ?? {})].join("-");
         await files.mkdir(directory, { recursive: true });
-        // add this run's line to the earlier runs', as Go's -count does
-        const measurements = join(directory, `${name}.txt`);
-        const earlier = (await files.exists(measurements))
-            ? await files.readTextFile(measurements)
-            : "";
+        // add this run's lines and telemetry to the earlier runs', as Go's -count does
         await files.writeTextFile(
-            measurements,
-            earlier + Runner.format(scenario, measured, configuration),
+            join(directory, `${name}.txt`),
+            Runner.format(scenario, measured, configuration),
+            { append: true },
         );
+
+        // write each operation's profile, a later counted run's replacing an earlier one's
+        for (const { operation, profile } of measured) {
+            if (profile !== undefined) {
+                await files.writeTextFile(
+                    join(directory, `${name}-${operation ?? "step"}.cpuprofile`),
+                    JSON.stringify(profile),
+                );
+            }
+        }
         await files.writeTextFile(
             join(directory, `${name}.otlp.jsonl`),
             telemetry.map((each) => `${JSON.stringify(each.body)}\n`).join(""),
+            { append: true },
         );
     },
 
@@ -374,11 +400,14 @@ async function measure(
     const host: number[] = [];
     const startedAt = testHost().clock.now();
     const times = operation.times ?? 1;
+    const isProfiling = testHost().process.variables[PROFILE_VARIABLE] === "1";
+    const profiler = isProfiling ? await CpuProfiler.start() : undefined;
     for (let repetition = 0; repetition < times; repetition += 1) {
         const acted = Clock.monotonic.now();
         await driver.act(Reference.repeat(operation.step, warmup + repetition));
         host.push((Clock.monotonic.now() - acted) / MILLISECONDS);
     }
+    const profile = await profiler?.stop();
     const after = {
         usage: usage(),
         now: driver.clock.now(),
@@ -413,7 +442,39 @@ async function measure(
             ...emitted.listings(),
         },
         failures: emitted.failures(labelOf(operation), times, checks),
+        profile,
     };
+}
+
+/** A CPU profile of this process through the inspector, as DevTools and speedscope read it. */
+class CpuProfiler {
+    /** The inspector session sampling the process. */
+    readonly #session: Session;
+
+    /** Keep a session that samples. */
+    private constructor(session: Session) {
+        this.#session = session;
+    }
+
+    /** Start sampling this process. */
+    static async start(): Promise<CpuProfiler> {
+        // sample this process from now on
+        const session = new Session();
+        session.connect();
+        await session.post("Profiler.enable");
+        await session.post("Profiler.start");
+
+        return new CpuProfiler(session);
+    }
+
+    /** Stop sampling and read the profile. */
+    async stop(): Promise<JsonValue> {
+        // stop sampling, then read the profile
+        const { profile } = await this.#session.post("Profiler.stop");
+        this.#session.disconnect();
+
+        return schema.json().parse(profile);
+    }
 }
 
 /** List the failed observation checks. */
