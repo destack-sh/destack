@@ -52,11 +52,18 @@ const styles = style.create({
     },
     header: {
         display: "flex",
+        // move the views below the title where both are too wide
+        flexWrap: "wrap",
         alignItems: "center",
         gap: space[2],
     },
+    views: {
+        flexWrap: "wrap",
+        maxWidth: "100%",
+    },
     title: {
         flexGrow: 1,
+        whiteSpace: "nowrap",
         margin: 0,
         marginInlineStart: space[3],
         fontWeight: weight.medium,
@@ -274,6 +281,7 @@ export function EventCalendarViewSwitcher(): JSX.Element {
 
     return (
         <ToggleGroup
+            xstyle={styles.views}
             data-slot="event-calendar-view-switcher"
             behavior="replace"
             disallowEmptySelection

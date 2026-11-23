@@ -14,6 +14,7 @@ import { EventCalendarPreviewCard } from "./chip.tsx";
 import { Label } from "../label/index.ts";
 import { Switch } from "../switch/index.ts";
 import * as style from "@destack/style";
+import { media } from "@destack/style/media.stylex";
 import type { EventCalendarProperties, EventCalendarView } from "./control.ts";
 import type { CalendarEvent } from "./event.ts";
 import type { CalendarRepeatChange } from "./repeat.ts";
@@ -232,13 +233,17 @@ export const eventCalendarWorkWeek = defineExample({
 const layout = style.create({
     team: {
         display: "grid",
-        gridTemplateColumns: "auto minmax(0, 1fr)",
+        gridTemplateColumns: {
+            default: "auto minmax(0, 1fr)",
+            [media.maxMd]: "minmax(0, 1fr)",
+        },
         gap: "1.5rem",
-        height: "44rem",
+        height: { default: "44rem", [media.maxMd]: "auto" },
     },
     side: {
         display: "flex",
         flexDirection: "column",
+        alignItems: "flex-start",
         gap: "1rem",
         minWidth: 0,
     },
