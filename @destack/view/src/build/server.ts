@@ -1,4 +1,4 @@
-import { isAbsolute, join } from "node:path";
+import { isAbsolute, join, relative } from "node:path";
 import type { Environment, FileSystem } from "@destack/environment";
 import { createServer, isCSSRequest, type ServerOptions, type ViteDevServer } from "vite";
 import type { WorkspacePackage } from "@destack/build";
@@ -25,6 +25,9 @@ import { ORIGIN, originPlugin } from "./origin.ts";
 
 /** The files that define a package: its declarations, and the entries it exports. */
 const DEFINITIONS = ["destack.json", "package.json"];
+
+/** The module hosting examples, which their page loads. */
+const EXAMPLE_HOST = join(import.meta.dirname, "../example/index.ts");
 
 /** The script connecting a page to Vite's updates, loaded after the head the page hydrates. */
 const VITE_CLIENT = '<script type="module" src="/@vite/client"></script>';
@@ -165,6 +168,8 @@ async function serve(
             ...pages,
         ],
         resolve: { conditions: runtimeConditions("browser", "development") },
+        // bundle the npm packages of every example and view at startup, as one found later reloads pages
+        optimizeDeps: { entries: await entriesOf(workspace, views.located) },
         // serve the syntax and stylesheets of the baseline browsers, as builds emit them
         oxc: { target: runtimeTarget("browser") },
         css: runtimeCss("browser"),
@@ -186,6 +191,23 @@ async function serve(
     }
 
     return vite;
+}
+
+/** List the modules pages load, relative to the workspace root: examples, their host and views. */
+async function entriesOf(
+    workspace: WorkspacePackage,
+    views: readonly LocatedView[],
+): Promise<string[]> {
+    const examples = await readExamples(workspace);
+
+    return [
+        ...new Set([
+            ...examples.map((example) => example.module.slice(1)),
+            ...[EXAMPLE_HOST, ...views.map((view) => view.file)].map((file) =>
+                relative(workspace.root.directory, file),
+            ),
+        ]),
+    ];
 }
 
 /** Read a workspace root's views, each at the module and symbol declaring it. */

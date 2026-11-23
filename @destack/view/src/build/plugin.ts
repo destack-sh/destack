@@ -12,6 +12,9 @@ export const VIEW_PACKAGE = "@destack/view";
 /** The module the compiled JSX of every module imports, bundled dependencies' included. */
 const RUNTIME_MODULE = `${VIEW_PACKAGE}/runtime`;
 
+/** The modules of Solid's packages. */
+const SOLID = /^(?:solid-js|@solidjs\/)/u;
+
 /** Return the Solid and framework plugins, in tests too. */
 export function viewPlugins(ssr: boolean): PluginOption[] {
     return [
@@ -40,6 +43,16 @@ function frameworkPlugin(): Plugin {
             if (options.cwd !== undefined) {
                 project = join(options.cwd, "package.json");
             }
+        },
+        config: {
+            order: "post",
+            handler(configuration) {
+                // include Solid's modules from this installation, as a project may not depend on them
+                const optimized = (configuration.optimizeDeps ??= {});
+                optimized.include = (optimized.include ?? []).map((name) =>
+                    SOLID.test(name) ? `${VIEW_PACKAGE} > ${name}` : name,
+                );
+            },
         },
         configResolved(configuration) {
             isDevelopment = configuration.command === "serve";
