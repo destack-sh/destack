@@ -35,12 +35,13 @@ test("read the machine address of a server name, and nothing for other shapes", 
     ]);
 });
 
-test("read and write the origins of views and branches under a domain, and nothing for other hostnames", () => {
+test("read and write the origins of views and branches, Home and the home space left out, and nothing for other hostnames", () => {
     const origins = [
         "notes--personal--florian.destack.space",
         "notes--feature-x---personal--florian.destack.space",
         "notes--personal--florian.localhost",
         "personal--florian.destack.space",
+        "florian.destack.space",
         "a--notes--personal--florian.destack.space",
         "notes.personal.florian.destack.space",
         "notes--feature-x---.florian.destack.space",
@@ -56,7 +57,8 @@ test("read and write the origins of views and branches under a domain, and nothi
         { name: "notes", space: "personal", handle: "florian" },
         { name: "notes", branch: "feature-x", space: "personal", handle: "florian" },
         { name: "notes", space: "personal", handle: "florian" },
-        undefined,
+        { name: "home", space: "personal", handle: "florian" },
+        { name: "home", space: "home", handle: "florian" },
         undefined,
         undefined,
         undefined,
@@ -64,15 +66,21 @@ test("read and write the origins of views and branches under a domain, and nothi
         undefined,
     ]);
 
-    // write back the hostnames the origins were read from
+    // write back the hostnames the origins were read from, a space's Home and the home space's left out
     const branched = present(origins[1], "the branch's origin");
     const local = present(origins[2], "the local origin");
+    const front = present(origins[3], "the space's front");
+    const home = present(origins[4], "the home space's front");
     expect([
         InstallationOrigin.format(branched, "destack.space"),
         InstallationOrigin.format(local, "localhost"),
+        InstallationOrigin.format(front, "destack.space"),
+        InstallationOrigin.format(home, "destack.space"),
     ]).toEqual([
         "notes--feature-x---personal--florian.destack.space",
         "notes--personal--florian.localhost",
+        "personal--florian.destack.space",
+        "florian.destack.space",
     ]);
 });
 
@@ -82,7 +90,7 @@ test("write an installation origin's URL below the loopback domain on a loopback
     expect([
         UNIVERSE.installation(origin, "http://127.0.0.1:4102"),
         UNIVERSE.installation(origin, "https://eu-central--platform.destack.computer"),
-    ]).toEqual(["http://home--home--ada.localhost:4102", "https://home--home--ada.destack.space"]);
+    ]).toEqual(["http://ada.space.localhost:4102", "https://ada.destack.space"]);
 });
 
 test("read and write a space's S3 origin in one label, forwarded or not, and nothing for origins or deeper names", () => {

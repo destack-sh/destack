@@ -410,7 +410,7 @@ test("locate a signed-in person's Home once its machine reports it serving, star
         placed: { status: "starting" },
         serving: {
             status: "serving",
-            url: `${UNIVERSE.url("home--home--ada.destack.space")}/`,
+            url: `${UNIVERSE.url("ada.destack.space")}/`,
         },
         unanswered: { status: "starting" },
         signedOut: [

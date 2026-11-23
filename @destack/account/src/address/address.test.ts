@@ -46,7 +46,7 @@ test("write the URLs of a universe's names at its scheme and port, a loopback ma
             local.serves("http://destack.localhost:4100/oauth/oauth2/token"),
             local.serves("http://destack.localhost:4100/@ada/home.git"),
             local.serves("http://destack.localhost:4100/sign-in"),
-            local.serves("http://home--home--ada.space.localhost:4100/oauth"),
+            local.serves("http://ada.space.localhost:4100/oauth"),
         ],
         json: UniverseOrigin.of(UniverseOrigin.schema.parse(local.toJSON())),
     }).toEqual({
@@ -57,9 +57,9 @@ test("write the URLs of a universe's names at its scheme and port, a loopback ma
             "http://macbook--ada.computer.localhost:4100",
         ],
         installation: [
-            "https://home--home--ada.destack.space",
-            "http://home--home--ada.space.localhost:4100",
-            "http://home--home--ada.localhost:4101",
+            "https://ada.destack.space",
+            "http://ada.space.localhost:4100",
+            "http://ada.space.localhost:4101",
         ],
         serves: ["issuer", "link", undefined, undefined],
         json: local,

@@ -2,6 +2,7 @@ import { Forwarded, HostAddress } from "@destack/environment";
 import { type Identifier, present, schema } from "@destack/schema";
 import { AccountHandle, HANDLE_LENGTH } from "./handle.ts";
 import { MachineName } from "../object/machine.ts";
+import { HOME_APPLICATION, HOME_SPACE } from "../object/account.ts";
 import { Hostname } from "../object/domain.ts";
 import { InstallationName, PackageMount } from "@destack/object";
 import { RepositoryName } from "@destack/package";
@@ -46,8 +47,8 @@ const NAME_SEPARATOR_PATTERN = /(?<!-)--(?!-)/u;
 /** The identifier schema of spaces. */
 const SPACE_IDENTIFIER = schema.identifier("space");
 
-/** The domain installation origins answer below on a loopback machine, as browsers resolve it. */
-export const LOOPBACK_DOMAIN = "localhost";
+/** The domain of a loopback machine's installation origins, apart from a universe's own. */
+export const LOOPBACK_DOMAIN = "space.localhost";
 
 /** The path of the universe's issuer below its origin, the account's oauth mount. */
 export const OAUTH_PATH = "/oauth";
@@ -332,12 +333,17 @@ export const InstallationOrigin = {
         const [first, ...after] = names;
         const space = readSpace(before === undefined ? after : names);
         const [name, branch, ...rest] = before?.split(NAME_SEPARATOR_PATTERN) ?? [];
-        if (space === undefined) {
+
+        // read a label without an installation's name as its space's Home
+        if (before === undefined && space === undefined) {
+            return readFront(names);
+        }
+        // refuse a branch's label without a space
+        else if (space === undefined) {
             return undefined;
         }
-
         // read the name of the space itself
-        if (before === undefined) {
+        else if (before === undefined) {
             const isValid = first !== undefined && InstallationName.safeParse(first).success;
 
             return isValid ? { name: first, ...space } : undefined;
@@ -359,12 +365,12 @@ export const InstallationOrigin = {
 
     /** Write the hostname an installation origin answers at under a domain. */
     format(origin: InstallationOrigin, domain?: string): string {
-        // write the label of the space itself, a branch or a branch digest
+        // write the label of the installation, a branch or a branch digest
         const label =
             origin.digest !== undefined
                 ? branchedLabel(origin.digest, origin)
                 : origin.branch === undefined
-                  ? [origin.name, origin.space, origin.handle].join(NAME_SEPARATOR)
+                  ? installationLabel(origin)
                   : branchedLabel(`${origin.name}${NAME_SEPARATOR}${origin.branch}`, origin);
 
         return domain === undefined ? label : `${label}.${domain}`;
@@ -435,6 +441,22 @@ function askedHostname(request: Request): string {
     return new URL(`http://${Forwarded.host(request)}`).hostname;
 }
 
+/** Write an installation's label, leaving out the defaults: Home, then the home space. */
+function installationLabel(origin: {
+    readonly name: string;
+    readonly space: string;
+    readonly handle: string;
+}): string {
+    // leave out the home installation's name, then the home space's
+    if (origin.name !== HOME_APPLICATION) {
+        return [origin.name, origin.space, origin.handle].join(NAME_SEPARATOR);
+    } else if (origin.space !== HOME_SPACE) {
+        return [origin.space, origin.handle].join(NAME_SEPARATOR);
+    } else {
+        return origin.handle;
+    }
+}
+
 /** Write a branch's label. */
 function branchedLabel(before: string, origin: SpaceOrigin): string {
     // use the readable label while it fits
@@ -442,6 +464,24 @@ function branchedLabel(before: string, origin: SpaceOrigin): string {
     const readable = `${before}${after}`;
 
     return readable.length <= LABEL_LENGTH ? readable : `${labelDigest(before)}${after}`;
+}
+
+/** Read a space's Home from a label's names: a space and handle, or a handle for its home space. */
+function readFront(names: readonly string[]): InstallationOrigin | undefined {
+    // read a space and handle, else a handle alone
+    const [first, second, ...rest] = names;
+    const space = readSpace(names);
+    const isHandle =
+        first !== undefined && second === undefined && AccountHandle.safeParse(first).success;
+    if (rest.length > 0) {
+        return undefined;
+    } else if (space !== undefined) {
+        return { name: HOME_APPLICATION, ...space };
+    } else if (isHandle) {
+        return { name: HOME_APPLICATION, space: HOME_SPACE, handle: first };
+    } else {
+        return undefined;
+    }
 }
 
 /** Read a space's name and handle from the last two names of a label, absent for other names. */
