@@ -423,8 +423,8 @@ function Person(properties: { isRemixed: boolean }) {
     const story = useStory();
 
     // count her tasks done, and read this week's events from her apps
-    const herTasks = story().tasks.filter(([id]) => INES_TASKS.has(id));
-    const done = herTasks.filter(([, , taskState]) => taskState === "done").length;
+    const herTasks = () => story().tasks.filter(([id]) => INES_TASKS.has(id));
+    const done = () => herTasks().filter(([, , taskState]) => taskState === "done").length;
     const linked = () => story().events.filter((event) => event.title.includes(" · "));
 
     return (
@@ -463,11 +463,11 @@ function Person(properties: { isRemixed: boolean }) {
                         <CardHeader>
                             <CardTitle>Tasks for Ines</CardTitle>
                             <CardDescription>
-                                {done} of {herTasks.length} done
+                                {done()} of {herTasks().length} done
                             </CardDescription>
                             <CardAction>
                                 <Progress
-                                    value={(done * 100) / herTasks.length}
+                                    value={(done() * 100) / herTasks().length}
                                     aria-label="Tasks done"
                                     xstyle={styles.progress}
                                 />
@@ -475,7 +475,7 @@ function Person(properties: { isRemixed: boolean }) {
                         </CardHeader>
                         <Table aria-label="Tasks for Ines">
                             <TableBody>
-                                {herTasks.map(([id, title, taskState, owner, tint, due]) => (
+                                {herTasks().map(([id, title, taskState, owner, tint, due]) => (
                                     <TableRow>
                                         <TableCell xstyle={styles.titleCell}>
                                             <span {...style.attrs(styles.inline)}>

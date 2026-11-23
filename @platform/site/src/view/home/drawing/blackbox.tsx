@@ -139,10 +139,11 @@ export function BlackBox(properties: { isOpen: boolean; layers: number }) {
     const left = () => middle + (EDGES.left - middle) * cut();
     const right = () => middle + (EDGES.right - middle) * cut();
     const slice = () => sliceOf(RADIUS, left(), right());
-    const depths = Array.from(
-        { length: properties.layers - 1 },
-        (_, index) => RADIUS * (1 - (index + 1) / properties.layers),
-    );
+    const depths = () =>
+        Array.from(
+            { length: properties.layers - 1 },
+            (_, index) => RADIUS * (1 - (index + 1) / properties.layers),
+        );
     const edges = () => [rimOf(RADIUS, left()), rimOf(RADIUS, right())];
 
     return (
@@ -173,7 +174,7 @@ export function BlackBox(properties: { isOpen: boolean; layers: number }) {
                         <g>
                             <path d={slice()} {...style.attrs(styles.cover)} />
                             <g clip-path="url(#blackbox-cut)">
-                                {depths.map((depth, index) => (
+                                {depths().map((depth, index) => (
                                     <circle
                                         r={depth}
                                         {...style.attrs(

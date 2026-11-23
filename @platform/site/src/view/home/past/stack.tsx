@@ -995,13 +995,13 @@ function Swap(properties: {
         ) : (
             text
         );
-    const reveal = `var(--reveal-${properties.row})`;
+    const reveal = () => `var(--reveal-${properties.row})`;
 
     return (
         <span data-reveal-row={properties.row} {...style.attrs(styles.swap, properties.xstyle)}>
             <span
                 style={{
-                    opacity: `clamp(0, 1 - ${reveal} * 2, 1)`,
+                    opacity: `clamp(0, 1 - ${reveal()} * 2, 1)`,
                     "pointer-events": properties.isOpen ? "none" : "auto",
                 }}
                 {...style.attrs(styles.swapText)}
@@ -1010,7 +1010,7 @@ function Swap(properties: {
             </span>
             <span
                 style={{
-                    opacity: `clamp(0, ${reveal} * 2 - 1, 1)`,
+                    opacity: `clamp(0, ${reveal()} * 2 - 1, 1)`,
                     "pointer-events": properties.isOpen ? "auto" : "none",
                 }}
                 {...style.attrs(styles.swapText)}

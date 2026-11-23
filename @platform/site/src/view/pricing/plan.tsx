@@ -195,17 +195,18 @@ function PlanCard(properties: {
     isPooled: boolean;
 }) {
     // read the plan's fee, and whether it is the free plan, a contract, or the one most people pick
-    const plan = properties.plan;
-    const fee = () => plan.fees[properties.currency];
-    const isFree = plan.fees.USD === 0;
-    const isPicked = plan.key === "plus";
+    const fee = () => properties.plan.fees[properties.currency];
+    const isFree = () => properties.plan.fees.USD === 0;
+    const isPicked = () => properties.plan.key === "plus";
 
     // list what the plan adds over the plan below it, or everything on the first plan
-    const below = properties.below;
-    const shown = below === undefined ? [] : featuresOf(below);
-    const added = featuresOf(plan).filter(
-        (feature) => !shown.includes(feature) && !UNLISTED.has(feature),
-    );
+    const added = () => {
+        const shown = properties.below === undefined ? [] : featuresOf(properties.below);
+
+        return featuresOf(properties.plan).filter(
+            (feature) => !shown.includes(feature) && !UNLISTED.has(feature),
+        );
+    };
 
     return (
         <article
@@ -213,12 +214,12 @@ function PlanCard(properties: {
                 lattice.cell,
                 styles.card,
                 properties.count === 3 ? styles.third : styles.quarter,
-                isPicked && styles.picked,
+                isPicked() && styles.picked,
             )}
         >
             {/* name and tagline */}
             <div {...style.attrs(styles.head)}>
-                <h2 {...style.attrs(styles.name)}>{plan.name}</h2>
+                <h2 {...style.attrs(styles.name)}>{properties.plan.name}</h2>
                 <p {...style.attrs(styles.tagline)}>{properties.tagline}</p>
             </div>
 
@@ -227,11 +228,11 @@ function PlanCard(properties: {
                 <p {...style.attrs(styles.fee)}>
                     <span {...style.attrs(styles.amount)}>{money(fee(), properties.currency)}</span>
                     <span {...style.attrs(styles.period)}>
-                        {isFree || !properties.isPooled ? "/ month" : "/ person / month"}
+                        {isFree() || !properties.isPooled ? "/ month" : "/ person / month"}
                     </span>
                 </p>
                 <Usage
-                    plan={plan}
+                    plan={properties.plan}
                     fee={fee()}
                     currency={properties.currency}
                     isPooled={properties.isPooled}
@@ -240,27 +241,29 @@ function PlanCard(properties: {
 
             {/* start for free, subscribe, or write to us */}
             <a
-                href={isFree ? "/#present-participle" : product}
+                href={isFree() ? "/#present-participle" : product}
                 {...style.attrs(
-                    buttonVariants({ variant: isPicked ? "default" : "outline", size: "lg" }),
+                    buttonVariants({ variant: isPicked() ? "default" : "outline", size: "lg" }),
                     press.key,
                     styles.action,
                 )}
             >
-                {isFree ? "Start for free" : `Get ${plan.name}`}
+                {isFree() ? "Start for free" : `Get ${properties.plan.name}`}
             </a>
 
             {/* what the plan adds over the plan below it */}
             <p {...style.attrs(styles.lead)}>
-                {below === undefined ? "All of Destack:" : `Everything in ${below.name}, plus:`}
+                {properties.below === undefined
+                    ? "All of Destack:"
+                    : `Everything in ${properties.below.name}, plus:`}
             </p>
             <div {...style.attrs(styles.extras)}>
-                {added.map((feature) => (
+                {added().map((feature) => (
                     <FeatureRow feature={feature} />
                 ))}
 
                 {/* Enterprise past Pro, its space kept for people so the switch moves nothing */}
-                {plan.key === "pro" ? (
+                {properties.plan.key === "pro" ? (
                     <Enterprise currency={properties.currency} isShown={properties.isPooled} />
                 ) : undefined}
             </div>
