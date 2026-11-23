@@ -26,19 +26,39 @@
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/registry": "workspace:*",
-        "@destack/resource": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/setting": "workspace:*",
-        "@destack/stack": "workspace:*",
-        "@destack/sync": "workspace:*",
-        "@destack/telemetry": "workspace:*",
         "@destack/vault": "workspace:*",
         "@destack/workflow": "workspace:*"
     },
     "devDependencies": {
         "@destack/check": "workspace:*",
         "@destack/machine": "workspace:*",
+        "@destack/resource": "workspace:*",
+        "@destack/stack": "workspace:*",
+        "@destack/sync": "workspace:*",
+        "@destack/telemetry": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.4"
+    },
+    "peerDependencies": {
+        "@destack/resource": "workspace:*",
+        "@destack/stack": "workspace:*",
+        "@destack/sync": "workspace:*",
+        "@destack/telemetry": "workspace:*"
+    },
+    "peerDependenciesMeta": {
+        "@destack/resource": {
+            "optional": true
+        },
+        "@destack/stack": {
+            "optional": true
+        },
+        "@destack/sync": {
+            "optional": true
+        },
+        "@destack/telemetry": {
+            "optional": true
+        }
     }
 }
