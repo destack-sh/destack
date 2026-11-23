@@ -13,45 +13,6 @@
         margin-block-start: var(--destack-space-7);
     }
 
-    /* set headings in the theme's title styles */
-    [data-slot="prose"] :where(h1, h2, h3, h4) {
-        margin-block-end: 0;
-        color: var(--destack-color-foreground);
-        text-wrap: balance;
-    }
-
-    [data-slot="prose"] :where(h1) {
-        font-family: var(--destack-text-2xl-font-family);
-        font-size: var(--destack-text-2xl-font-size);
-        font-weight: var(--destack-text-2xl-font-weight);
-        line-height: var(--destack-text-2xl-line-height);
-        letter-spacing: var(--destack-text-2xl-letter-spacing);
-    }
-
-    [data-slot="prose"] :where(h2) {
-        font-family: var(--destack-text-xl-font-family);
-        font-size: var(--destack-text-xl-font-size);
-        font-weight: var(--destack-text-xl-font-weight);
-        line-height: var(--destack-text-xl-line-height);
-        letter-spacing: var(--destack-text-xl-letter-spacing);
-    }
-
-    [data-slot="prose"] :where(h3) {
-        font-family: var(--destack-text-lg-font-family);
-        font-size: var(--destack-text-lg-font-size);
-        font-weight: var(--destack-text-lg-font-weight);
-        line-height: var(--destack-text-lg-line-height);
-        letter-spacing: var(--destack-text-lg-letter-spacing);
-    }
-
-    [data-slot="prose"] :where(h4) {
-        font-family: var(--destack-text-base-font-family);
-        font-size: var(--destack-text-base-font-size);
-        font-weight: var(--destack-text-base-font-weight);
-        line-height: var(--destack-text-base-line-height);
-        letter-spacing: var(--destack-text-base-letter-spacing);
-    }
-
     /* set the first paragraph of a lead-in prose as its lead: larger and muted */
     [data-slot="prose"][data-lead] > :where(p:first-of-type) {
         color: var(--destack-color-muted-foreground);
@@ -59,201 +20,243 @@
         line-height: var(--destack-text-lg-line-height);
     }
 
-    /* break long words in running text rather than overflow */
-    [data-slot="prose"] :where(p, li, blockquote, td, th) {
-        overflow-wrap: anywhere;
-    }
+    /* style the prose's own elements, leaving the kit's parts among them as they are */
+    @scope ([data-slot="prose"]) to (:scope [data-slot]) {
+        /* set headings in the theme's title styles */
+        :scope :where(h1, h2, h3, h4) {
+            margin-block-end: 0;
+            color: var(--destack-color-foreground);
+            text-wrap: balance;
+        }
 
-    /* underline links in the accent */
-    [data-slot="prose"] :where(a) {
-        text-decoration-line: underline;
-        text-decoration-color: var(--destack-swatch-accent-solid);
-        text-decoration-thickness: 1px;
-        text-underline-offset: 0.2em;
-    }
+        :scope :where(h1) {
+            font-family: var(--destack-text-2xl-font-family);
+            font-size: var(--destack-text-2xl-font-size);
+            font-weight: var(--destack-text-2xl-font-weight);
+            line-height: var(--destack-text-2xl-line-height);
+            letter-spacing: var(--destack-text-2xl-letter-spacing);
+        }
 
-    [data-slot="prose"] :where(a:hover) {
-        color: var(--destack-swatch-accent-text);
-    }
+        :scope :where(h2) {
+            font-family: var(--destack-text-xl-font-family);
+            font-size: var(--destack-text-xl-font-size);
+            font-weight: var(--destack-text-xl-font-weight);
+            line-height: var(--destack-text-xl-line-height);
+            letter-spacing: var(--destack-text-xl-letter-spacing);
+        }
 
-    /* indent lists with muted markers */
-    [data-slot="prose"] :where(ul, ol) {
-        display: grid;
-        gap: var(--destack-space-2);
-        margin-block-end: 0;
-        padding-inline-start: var(--destack-space-6);
-    }
+        :scope :where(h3) {
+            font-family: var(--destack-text-lg-font-family);
+            font-size: var(--destack-text-lg-font-size);
+            font-weight: var(--destack-text-lg-font-weight);
+            line-height: var(--destack-text-lg-line-height);
+            letter-spacing: var(--destack-text-lg-letter-spacing);
+        }
 
-    [data-slot="prose"] :where(ul) {
-        list-style-type: disc;
-    }
+        :scope :where(h4) {
+            font-family: var(--destack-text-base-font-family);
+            font-size: var(--destack-text-base-font-size);
+            font-weight: var(--destack-text-base-font-weight);
+            line-height: var(--destack-text-base-line-height);
+            letter-spacing: var(--destack-text-base-letter-spacing);
+        }
 
-    [data-slot="prose"] :where(ol) {
-        list-style-type: decimal;
-    }
+        /* break long words in running text rather than overflow */
+        :scope :where(p, li, blockquote, td, th) {
+            overflow-wrap: anywhere;
+        }
 
-    [data-slot="prose"] :where(li)::marker {
-        color: var(--destack-color-muted-foreground);
-    }
+        /* underline links in the accent */
+        :scope :where(a) {
+            text-decoration-line: underline;
+            text-decoration-color: var(--destack-swatch-accent-solid);
+            text-decoration-thickness: 1px;
+            text-underline-offset: 0.2em;
+        }
 
-    [data-slot="prose"] :where(li > ul, li > ol) {
-        margin-block-start: var(--destack-space-2);
-    }
+        :scope :where(a:hover) {
+            color: var(--destack-swatch-accent-text);
+        }
 
-    [data-slot="prose"] :where(li > p + p) {
-        margin-block-start: var(--destack-space-2);
-    }
+        /* indent lists with muted markers */
+        :scope :where(ul, ol) {
+            display: grid;
+            gap: var(--destack-space-2);
+            margin-block-end: 0;
+            padding-inline-start: var(--destack-space-6);
+        }
 
-    /* check task list items in the accent */
-    [data-slot="prose"] :where(li > input[type="checkbox"]) {
-        margin-inline-end: var(--destack-space-2);
-        accent-color: var(--destack-swatch-accent-solid);
-    }
+        :scope :where(ul) {
+            list-style-type: disc;
+        }
 
-    /* set inline code in the code font on a muted ground */
-    [data-slot="prose"] :where(:not(pre) > code) {
-        padding: 0.1em 0.35em;
-        border-radius: var(--destack-radius-1);
-        background-color: var(--destack-color-muted);
-        font-family: var(--destack-font-code);
-        font-size: 0.875em;
-    }
+        :scope :where(ol) {
+            list-style-type: decimal;
+        }
 
-    /* frame code blocks and scroll them sideways */
-    [data-slot="prose"] :where(pre) {
-        margin-block-end: 0;
-        overflow-x: auto;
-        padding: var(--destack-space-4);
-        border: var(--destack-stroke-border) solid var(--destack-color-border);
-        border-radius: var(--destack-radius-3);
-        background-color: var(--destack-color-muted);
-        font-family: var(--destack-font-code);
-        font-size: var(--destack-text-xs-font-size);
-        line-height: var(--destack-text-xs-line-height);
-    }
+        :scope :where(li)::marker {
+            color: var(--destack-color-muted-foreground);
+        }
 
-    [data-slot="prose"] :where(pre > code) {
-        font: inherit;
-    }
+        :scope :where(li > ul, li > ol) {
+            margin-block-start: var(--destack-space-2);
+        }
 
-    /* rule quotations off in the accent */
-    [data-slot="prose"] :where(blockquote) {
-        margin-inline: 0;
-        padding-inline-start: var(--destack-space-5);
-        border-inline-start: 2px solid var(--destack-swatch-accent-solid);
-    }
+        :scope :where(li > p + p) {
+            margin-block-start: var(--destack-space-2);
+        }
 
-    [data-slot="prose"] :where(blockquote > * + *) {
-        margin-block-start: var(--destack-space-3);
-    }
+        /* check task list items in the accent */
+        :scope :where(li > input[type="checkbox"]) {
+            margin-inline-end: var(--destack-space-2);
+            accent-color: var(--destack-swatch-accent-solid);
+        }
 
-    /* separate sections with a hairline */
-    [data-slot="prose"] :where(hr) {
-        border: 0;
-        border-block-start: var(--destack-stroke-border) solid var(--destack-color-border);
-    }
+        /* set inline code in the code font on a muted ground */
+        :scope :where(:not(pre) > code) {
+            padding: 0.1em 0.35em;
+            border-radius: var(--destack-radius-1);
+            background-color: var(--destack-color-muted);
+            font-family: var(--destack-font-code);
+            font-size: 0.875em;
+        }
 
-    /* set tables in rows of hairlines, headed on a muted ground, and scroll wide ones */
-    [data-slot="prose"] :where(table) {
-        display: block;
-        max-inline-size: 100%;
-        overflow-x: auto;
-        border-collapse: collapse;
-        font-size: var(--destack-text-sm-font-size);
-        line-height: var(--destack-text-sm-line-height);
-    }
+        /* frame code blocks and scroll them sideways */
+        :scope :where(pre) {
+            margin-block-end: 0;
+            overflow-x: auto;
+            padding: var(--destack-space-4);
+            border: var(--destack-stroke-border) solid var(--destack-color-border);
+            border-radius: var(--destack-radius-3);
+            background-color: var(--destack-color-muted);
+            font-family: var(--destack-font-code);
+            font-size: var(--destack-text-xs-font-size);
+            line-height: var(--destack-text-xs-line-height);
+        }
 
-    [data-slot="prose"] :where(th, td) {
-        padding: var(--destack-space-2) var(--destack-space-3);
-        border-block-end: var(--destack-stroke-border) solid var(--destack-color-border);
-        text-align: start;
-        vertical-align: top;
-    }
+        :scope :where(pre > code) {
+            font: inherit;
+        }
 
-    [data-slot="prose"] :where(th) {
-        background-color: var(--destack-color-muted);
-        font-weight: var(--destack-weight-semibold);
-    }
+        /* rule quotations off in the accent */
+        :scope :where(blockquote) {
+            margin-inline: 0;
+            padding-inline-start: var(--destack-space-5);
+            border-inline-start: 2px solid var(--destack-swatch-accent-solid);
+        }
 
-    /* fit images to the column */
-    [data-slot="prose"] :where(img, video) {
-        max-inline-size: 100%;
-        block-size: auto;
-    }
+        :scope :where(blockquote > * + *) {
+            margin-block-start: var(--destack-space-3);
+        }
 
-    /* caption figures and attributed quotations in muted small text */
-    [data-slot="prose"] :where(figure) {
-        margin-inline: 0;
-    }
+        /* separate sections with a hairline */
+        :scope :where(hr) {
+            border: 0;
+            border-block-start: var(--destack-stroke-border) solid var(--destack-color-border);
+        }
 
-    [data-slot="prose"] :where(figcaption) {
-        margin-block-start: var(--destack-space-3);
-        color: var(--destack-color-muted-foreground);
-        font-size: var(--destack-text-xs-font-size);
-        line-height: var(--destack-text-xs-line-height);
-    }
+        /* set tables in rows of hairlines, headed on a muted ground, and scroll wide ones */
+        :scope :where(table) {
+            display: block;
+            max-inline-size: 100%;
+            overflow-x: auto;
+            border-collapse: collapse;
+            font-size: var(--destack-text-sm-font-size);
+            line-height: var(--destack-text-sm-line-height);
+        }
 
-    /* raise footnote references, and list the notes under a hairline, as GitHub renders them */
-    [data-slot="prose"] :where(sup) {
-        font-size: 0.75em;
-        line-height: 0;
-    }
+        :scope :where(th, td) {
+            padding: var(--destack-space-2) var(--destack-space-3);
+            border-block-end: var(--destack-stroke-border) solid var(--destack-color-border);
+            text-align: start;
+            vertical-align: top;
+        }
 
-    [data-slot="prose"] :where(a[data-footnote-ref]) {
-        color: var(--destack-swatch-accent-text);
-        text-decoration-line: none;
-    }
+        :scope :where(th) {
+            background-color: var(--destack-color-muted);
+            font-weight: var(--destack-weight-semibold);
+        }
 
-    [data-slot="prose"] :where(section[data-footnotes]) {
-        padding-block-start: var(--destack-space-4);
-        border-block-start: var(--destack-stroke-border) solid var(--destack-color-border);
-        font-size: var(--destack-text-xs-font-size);
-        line-height: var(--destack-text-xs-line-height);
-    }
+        /* fit images to the column */
+        :scope :where(img, video) {
+            max-inline-size: 100%;
+            block-size: auto;
+        }
 
-    [data-slot="prose"] :where(section[data-footnotes] li:target) {
-        color: var(--destack-swatch-accent-text);
-    }
+        /* caption figures and attributed quotations in muted small text */
+        :scope :where(figure) {
+            margin-inline: 0;
+        }
 
-    /* set GitHub alerts off by their kind's status color */
-    [data-slot="prose"] :where(.markdown-alert) {
-        --prose-alert: var(--destack-swatch-info-solid);
-        --prose-alert-text: var(--destack-swatch-info-text);
-        padding: var(--destack-space-3) var(--destack-space-4);
-        border-inline-start: 3px solid var(--prose-alert);
-        border-radius: var(--destack-radius-2);
-        background-color: color-mix(in oklab, var(--prose-alert) 8%, transparent);
-    }
+        :scope :where(figcaption) {
+            margin-block-start: var(--destack-space-3);
+            color: var(--destack-color-muted-foreground);
+            font-size: var(--destack-text-xs-font-size);
+            line-height: var(--destack-text-xs-line-height);
+        }
 
-    [data-slot="prose"] :where(.markdown-alert > * + *) {
-        margin-block-start: var(--destack-space-2);
-    }
+        /* raise footnote references, and list the notes under a hairline, as GitHub renders them */
+        :scope :where(sup) {
+            font-size: 0.75em;
+            line-height: 0;
+        }
 
-    [data-slot="prose"] :where(.markdown-alert-title) {
-        display: flex;
-        align-items: center;
-        gap: var(--destack-space-2);
-        color: var(--prose-alert-text);
-        font-weight: var(--destack-weight-semibold);
-    }
+        :scope :where(a[data-footnote-ref]) {
+            color: var(--destack-swatch-accent-text);
+            text-decoration-line: none;
+        }
 
-    [data-slot="prose"] :where(.markdown-alert-tip) {
-        --prose-alert: var(--destack-swatch-success-solid);
-        --prose-alert-text: var(--destack-swatch-success-text);
-    }
+        :scope :where(section[data-footnotes]) {
+            padding-block-start: var(--destack-space-4);
+            border-block-start: var(--destack-stroke-border) solid var(--destack-color-border);
+            font-size: var(--destack-text-xs-font-size);
+            line-height: var(--destack-text-xs-line-height);
+        }
 
-    [data-slot="prose"] :where(.markdown-alert-important) {
-        --prose-alert: var(--destack-swatch-accent-solid);
-        --prose-alert-text: var(--destack-swatch-accent-text);
-    }
+        :scope :where(section[data-footnotes] li:target) {
+            color: var(--destack-swatch-accent-text);
+        }
 
-    [data-slot="prose"] :where(.markdown-alert-warning) {
-        --prose-alert: var(--destack-swatch-warning-solid);
-        --prose-alert-text: var(--destack-swatch-warning-text);
-    }
+        /* set GitHub alerts off by their kind's status color */
+        :scope :where(.markdown-alert) {
+            --prose-alert: var(--destack-swatch-info-solid);
+            --prose-alert-text: var(--destack-swatch-info-text);
+            padding: var(--destack-space-3) var(--destack-space-4);
+            border-inline-start: 3px solid var(--prose-alert);
+            border-radius: var(--destack-radius-2);
+            background-color: color-mix(in oklab, var(--prose-alert) 8%, transparent);
+        }
 
-    [data-slot="prose"] :where(.markdown-alert-caution) {
-        --prose-alert: var(--destack-swatch-destructive-solid);
-        --prose-alert-text: var(--destack-swatch-destructive-text);
+        :scope :where(.markdown-alert > * + *) {
+            margin-block-start: var(--destack-space-2);
+        }
+
+        :scope :where(.markdown-alert-title) {
+            display: flex;
+            align-items: center;
+            gap: var(--destack-space-2);
+            color: var(--prose-alert-text);
+            font-weight: var(--destack-weight-semibold);
+        }
+
+        :scope :where(.markdown-alert-tip) {
+            --prose-alert: var(--destack-swatch-success-solid);
+            --prose-alert-text: var(--destack-swatch-success-text);
+        }
+
+        :scope :where(.markdown-alert-important) {
+            --prose-alert: var(--destack-swatch-accent-solid);
+            --prose-alert-text: var(--destack-swatch-accent-text);
+        }
+
+        :scope :where(.markdown-alert-warning) {
+            --prose-alert: var(--destack-swatch-warning-solid);
+            --prose-alert-text: var(--destack-swatch-warning-text);
+        }
+
+        :scope :where(.markdown-alert-caution) {
+            --prose-alert: var(--destack-swatch-destructive-solid);
+            --prose-alert-text: var(--destack-swatch-destructive-text);
+        }
     }
 }
