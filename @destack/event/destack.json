@@ -3,5 +3,10 @@
     "id": "package-01a1163a-5b58-7186-babe-f11d9dd55476",
     "role": "builtin",
     "language": "typescript",
-    "runtimes": ["browser", "bun", "workerd"]
+    "runtimes": ["browser", "bun", "workerd"],
+    "exports": {
+        "./store": {
+            "internal": true
+        }
+    }
 }
