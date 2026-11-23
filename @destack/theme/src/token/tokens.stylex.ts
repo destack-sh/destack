@@ -10,6 +10,8 @@ export const color = defineConsts({
     card: "var(--destack-color-card)",
     /** Popovers, menus and dialogs above everything else. */
     popover: "var(--destack-color-popover)",
+    /** Sidebars beside the page, a shade off it. */
+    sidebar: "var(--destack-color-sidebar)",
     /** Body text on every surface. */
     foreground: "var(--destack-color-foreground)",
     /** Secondary text on every surface, such as descriptions. */

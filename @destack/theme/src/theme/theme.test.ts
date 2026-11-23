@@ -531,9 +531,10 @@ test("emit the default theme's custom properties for the system appearance", () 
         "--destack-color-background": "light-dark(#fcfdfe, #131315)",
         "--destack-color-card": "light-dark(#ffffff, #28282b)",
         "--destack-color-popover": "light-dark(#ffffff, #2e2e31)",
+        "--destack-color-sidebar": "light-dark(#f6f7f8, #1a1a1c)",
         "--destack-color-foreground": "light-dark(#1f1f22, #ededf2)",
         "--destack-color-muted-foreground":
-            "light-dark(color-mix(in oklab, #62636c, #46474e calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #b7b9c2, #eaebf0 calc(var(--destack-contrast, 0) * 100%)))",
+            "light-dark(color-mix(in oklab, #62636c, #3c3d43 calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #b7b9c2, #eaebf0 calc(var(--destack-contrast, 0) * 100%)))",
         "--destack-color-muted": "light-dark(#f1f2f3, #252527)",
         "--destack-color-hover": "light-dark(#1f1f220a, #ededf20a)",
         "--destack-color-selected": "light-dark(#1f1f220f, #ededf20f)",

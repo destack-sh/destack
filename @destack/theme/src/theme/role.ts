@@ -67,6 +67,9 @@ const CARD_OFFSET: Lightness = { light: 0.02, dark: 0.09 };
 /** The OKLCH lightness of a popover over the background: white by day, above the cards by night. */
 const POPOVER_OFFSET: Lightness = { light: 0.02, dark: 0.115 };
 
+/** The lightness offset of a sidebar from the page, a shade off it in both appearances. */
+const SIDEBAR_OFFSET: Lightness = { light: -0.018, dark: 0.03 };
+
 /** How a shifted color's chroma follows its lightness, by eye: 0 not at all, 1 in proportion. */
 const CHROMA_EXPONENT = 0.5;
 
@@ -93,6 +96,7 @@ export const NEUTRAL_NAMES = [
     "background",
     "card",
     "popover",
+    "sidebar",
     "foreground",
     "mutedForeground",
     "muted",
@@ -525,10 +529,11 @@ export const COLOR_ROLES: Roles = {
     background: tone("base", BACKGROUND_LIGHTNESS),
     card: shift("background", CARD_OFFSET),
     popover: shift("background", POPOVER_OFFSET),
+    sidebar: shift("background", SIDEBAR_OFFSET),
 
     // text on every surface
     foreground: readable("base", TEXT_LIGHTNESS, SURFACES, BODY_CONTRAST),
-    mutedForeground: readable("base", MUTED_LIGHTNESS, SURFACES, CONTENT_CONTRAST),
+    mutedForeground: readable("base", MUTED_LIGHTNESS, [...SURFACES, "sidebar"], CONTENT_CONTRAST),
 
     // quiet fills, and the state layers of the text color over hovered and selected items
     muted: shift("background", SUBTLE_OFFSET),
