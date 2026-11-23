@@ -83,8 +83,8 @@ const styles = style.create({
         transitionDuration: "0s",
         userSelect: "none",
     },
-    fade: (opacity: string) => ({
-        [scrim.opacity]: opacity,
+    fade: (share: string) => ({
+        [scrim.share]: share,
         "::backdrop": { transitionDuration: "0s" },
     }),
     scrim: {

@@ -27,6 +27,9 @@ import { scrim } from "./scrim.stylex.ts";
 /** The widest a dialog grows. */
 const DIALOG_WIDTH = "32rem";
 
+/** The opacity of a backdrop over another dialog, half as the page is dimmed already. */
+const NESTED_SCRIM = "0.5";
+
 /** The time a backdrop fades for, kept when reduced motion drops movement. */
 const SCRIM_FADE = `max(${motion.durationMedium}, 150ms)`;
 
@@ -48,10 +51,13 @@ const styles = style.create({
         // take the focus without a ring where nothing inside takes it
         outlineStyle: "none",
         // fade the backdrop with the dialog, which a drag may fade further
-        [scrim.opacity]: { default: "0", ":modal": "1" },
+        [scrim.opacity]: {
+            default: "0",
+            ":modal": { default: "1", ":is(:modal *)": NESTED_SCRIM },
+        },
         "::backdrop": {
             backgroundColor: color.scrim,
-            opacity: { default: scrim.opacity, "@starting-style": 0 },
+            opacity: { default: `calc(${scrim.opacity} * ${scrim.share})`, "@starting-style": 0 },
             transitionProperty: "opacity, display, overlay",
             transitionDuration: SCRIM_FADE,
             transitionBehavior: "allow-discrete",
