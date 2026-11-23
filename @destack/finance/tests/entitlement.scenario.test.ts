@@ -40,7 +40,7 @@ function derived(rows: readonly Entitlement[]) {
     return rows.map((row) => [row.feature, row.kind, row.value, row.limit, row.resetAt]);
 }
 
-/** Open the service with Alice's customer for Acme's buyer account and Carol's offer. */
+/** Open the service with Alice's customer for Example's buyer account and Carol's offer. */
 async function open() {
     const finance = await Finance.open();
     onTestFinished(() => finance.close());

@@ -58,7 +58,7 @@ const FEE = 900;
 /** A monthly recurrence. */
 const MONTHLY = { interval: "month", intervalCount: 1 } as const;
 
-/** Open the service with Acme's customer and Carol's seller. */
+/** Open the service with Example's customer and Carol's seller. */
 async function open(options: Parameters<typeof Finance.open>[0] = {}) {
     const finance = await Finance.open(options);
     onTestFinished(() => finance.close());

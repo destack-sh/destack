@@ -77,7 +77,7 @@ export type Person = (typeof PEOPLE)[number];
 
 /** The organization and accounts the scenarios bill, the platform's apart. */
 export const ids = {
-    acme: organization.identifier("organization-019f5530-8000-7000-8000-000000000301"),
+    example: organization.identifier("organization-019f5530-8000-7000-8000-000000000301"),
     buyer: account.identifier("account-019f5530-8000-7000-8000-000000000302"),
     payer: account.identifier("account-019f5530-8000-7000-8000-000000000303"),
     shop: account.identifier("account-019f5530-8000-7000-8000-000000000304"),
@@ -199,7 +199,7 @@ const FinanceWorld = schema.object({
 /** What the fixture's world shares. */
 type FinanceWorld = schema.Infer<typeof FinanceWorld>;
 
-/** Finance in the residency's home with Acme's buyer and payer, and Carol's shop. */
+/** Finance in the residency's home with Example's buyer and payer, and Carol's shop. */
 export class TestFinance {
     /** The residency's home serving finance. */
     readonly space: TestSpace;
@@ -295,13 +295,13 @@ export class TestFinance {
         });
     }
 
-    /** Install finance in the residency's home, and create Acme, the shop and their spaces. */
+    /** Install finance in the residency's home, and create Example, the shop and their spaces. */
     static async #write(home: TestSpace): Promise<FinanceWorld> {
         // install finance bound to the Stripe connection, with the vault and connections it uses, in one apply
         await home.serve();
         await home.apply(HOME_TYPES, RESIDENCY_STACK);
 
-        // sign the people in, alice creating Acme paying with its billing account, and carol her shop
+        // sign the people in, alice creating Example paying with its billing account, and carol her shop
         const { universe } = home;
         const people = new Map<Person, TestPerson>();
         for (const name of PEOPLE) {
@@ -316,19 +316,19 @@ export class TestFinance {
         const bob = present(people.get("bob"), "bob");
         const accounts = alice.client(accountPackage);
         await accounts.organization.create({
-            id: ids.acme,
+            id: ids.example,
             requestId: RequestId.create(home.environment),
-            name: "Acme",
+            name: "Example",
             kind: "business",
-            handle: "acme-group",
+            handle: "example-group",
             residencyId: RESIDENCY,
         });
         for (const [id, handle] of [
-            [ids.buyer, "acme-buyer"],
-            [ids.payer, "acme-billing"],
+            [ids.buyer, "example-buyer"],
+            [ids.payer, "example-billing"],
         ] as const) {
             await accounts.account.create({
-                scope: ids.acme,
+                scope: ids.example,
                 id,
                 requestId: RequestId.create(home.environment),
                 handle,
@@ -338,7 +338,7 @@ export class TestFinance {
             });
         }
         await accounts.organization.update({
-            id: ids.acme,
+            id: ids.example,
             requestId: RequestId.create(home.environment),
             payer: ids.payer,
         });
@@ -346,9 +346,9 @@ export class TestFinance {
 
         // let bob view the buyer's account
         await alice.client(objectPackage).relationship.create({
-            scope: ids.acme,
+            scope: ids.example,
             requestId: RequestId.create(home.environment),
-            object: account.reference(ids.acme, ids.buyer),
+            object: account.reference(ids.example, ids.buyer),
             relation: "viewer",
             subject: bob.subject,
         });

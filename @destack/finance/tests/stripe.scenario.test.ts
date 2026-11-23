@@ -81,7 +81,7 @@ async function open() {
     });
     await finance.fixture.writeSecret(stripeWebhookSecret.name, stripe.secret(WEBHOOK));
 
-    // open Carol's connected account at her onboarding, finish it, and create Acme's customer
+    // open Carol's connected account at her onboarding, finish it, and create Example's customer
     const offer = await finance.offer();
     await finance.call(
         "carol",
@@ -364,7 +364,7 @@ test("replace an open checkout session until its buyer pays", async () => {
 });
 
 test("set a new subscription's spending limit from its included usage", async () => {
-    // subscribe Acme's buyer to Go and Dave's account to a plan billing requests past a fee of nothing, both through Checkout
+    // subscribe Example's buyer to Go and Dave's account to a plan billing requests past a fee of nothing, both through Checkout
     const { stripe, finance, deliver } = await open();
     const metered = await offerPlan(finance, t`Metered`, [
         {

@@ -99,7 +99,7 @@ const RELEASES = [
     [hosting, [domains]],
 ] as const;
 
-/** Finance in the residency's home with Acme's buyer and payer accounts and Carol's shop. */
+/** Finance in the residency's home with Example's buyer and payer accounts and Carol's shop. */
 export class Finance {
     /** The finance fixture in the residency's home. */
     readonly fixture: TestFinance;
@@ -199,14 +199,14 @@ export class Finance {
         return created.id;
     }
 
-    /** Store Acme's billing details as the buyer's customer, which subscribing requires. */
+    /** Store Example's billing details as the buyer's customer, which subscribing requires. */
     async customer(): Promise<void> {
         await this.call(
             "alice",
             customer.call("create", {
                 accountId: ids.buyer,
-                email: "billing@acme.test",
-                name: "Acme",
+                email: "billing@example.test",
+                name: "Example",
             }),
         );
     }

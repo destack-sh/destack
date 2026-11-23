@@ -11,8 +11,8 @@ test("store one customer per account, refusing a second, a provider field and a 
         "alice",
         customer.call("create", {
             accountId: ids.buyer,
-            email: "billing@acme.test",
-            name: "Acme",
+            email: "billing@example.test",
+            name: "Example",
             address: { line1: "Main Street 1", city: "Vienna", country: "AT" },
         }),
     );
@@ -28,8 +28,8 @@ test("store one customer per account, refusing a second, a provider field and a 
                 "alice",
                 customer.call("create", {
                     accountId: ids.buyer,
-                    email: "other@acme.test",
-                    name: "Acme",
+                    email: "other@example.test",
+                    name: "Example",
                 }),
             ),
         ),
