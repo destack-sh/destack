@@ -6,5 +6,5 @@ export default definePackage({
     title: t`Starter`,
     description: t`Start a package of Example's.`,
     icon: "file-dashed",
-    color: "sky",
+    color: "cyan",
 });

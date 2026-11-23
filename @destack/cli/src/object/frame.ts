@@ -31,7 +31,7 @@ const GAP = "  ";
 /** The width a drawing takes when the terminal reports none: 80 columns, the VT100's. */
 const DEFAULT_COLUMNS = 80;
 
-/** The mark an object's accent draws before its title. */
+/** The mark an object's color draws before its title. */
 const ACCENT_DOT = "●";
 
 /** The narrowest board column, below which a board draws its columns as groups. */
@@ -174,9 +174,9 @@ export class Frame {
         );
     }
 
-    /** Write a row's columns as cells, the title marked by its accent, references titled. */
+    /** Write a row's columns as cells, the title marked by its color, references titled. */
     cells(type: ObjectType, row: JsonObject, columns: readonly string[]): Cell[] {
-        // read the row's accent at the frame's moment
+        // read the row's color at the frame's moment
         const { terminal } = this;
         const moment = { now: this.now, timeZone: terminal.timeZone };
         const { color } = ObjectAppearance.of(
@@ -212,7 +212,7 @@ export class Frame {
                           ).title,
                       );
 
-            // mark the title with the object's accent
+            // mark the title with the object's color
             return column === type.presentation.title && color !== undefined
                 ? {
                       ...cell,

@@ -1,7 +1,7 @@
 import { styleText } from "node:util";
 import type { Environment } from "@destack/environment";
 import { Localization, LocaleTag } from "@destack/locale";
-import { PRESETS, type Preset } from "@destack/color";
+import { DEFAULT_HUES, type Hue, PRESETS } from "@destack/color";
 import type { KeyPress } from "@destack/locale";
 import { Prompt } from "./prompt.ts";
 
@@ -94,8 +94,8 @@ export class Terminal implements AsyncDisposable {
     readonly style: Style;
     /** Paint text in a colour only when standard output is a terminal accepting colour. */
     readonly tone: (tone: Tone, text: string) => string;
-    /** Paint text in a swatch's colour, as objects and highlights take them. */
-    readonly swatch: (swatch: Preset, text: string) => string;
+    /** Paint text in a hue, as objects and highlights take them. */
+    readonly swatch: (hue: Hue, text: string) => string;
     /** Whether standard output is a terminal, which tables align for, else tab-separated. */
     readonly isTerminal: boolean;
     /** The answers a person types or a script pipes on standard input, read by one reader. */
@@ -123,7 +123,7 @@ export class Terminal implements AsyncDisposable {
         const paint = (hex: string, text: string) =>
             isColored ? `\x1b[${foreground(hex, isTruecolor)}m${text}\x1b[39m` : text;
         this.tone = (tone, text) => paint(TONES[tone], text);
-        this.swatch = (swatch, text) => paint(PRESETS[swatch], text);
+        this.swatch = (hue, text) => paint(DEFAULT_HUES[hue], text);
         this.prompt = new Prompt(running, (text) => this.question(text));
     }
 
