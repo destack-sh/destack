@@ -567,11 +567,11 @@
                                         "workerd"
                                     ]
                                 }
+                            },
+                            "internal": {
+                                "type": "boolean"
                             }
                         },
-                        "required": [
-                            "runtimes"
-                        ],
                         "additionalProperties": false
                     }
                 }
