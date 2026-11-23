@@ -31,7 +31,7 @@ const DIALOG_WIDTH = "32rem";
 const NESTED_SCRIM = "0.5";
 
 /** The time a backdrop fades for, kept when reduced motion drops movement. */
-const SCRIM_FADE = `max(${motion.durationMedium}, 150ms)`;
+const SCRIM_FADE = `max(calc(${motion.durationMedium} * 2 / 3), 150ms)`;
 
 /** The styles of a dialog and its elements. */
 const styles = style.create({
