@@ -1,7 +1,8 @@
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
-import { radius } from "@destack/theme/tokens.stylex";
+import { radius, space } from "@destack/theme/tokens.stylex";
 import { For } from "@destack/view";
+import { Cluster } from "../cluster/index.ts";
 import { PICTURES } from "../example/picture.ts";
 import {
     Carousel,
@@ -20,8 +21,15 @@ const PHOTOS = [
     { url: PICTURES.belem, caption: "Pastries in Belém" },
 ];
 
-/** The styles of a photo: the width of its slide, at 16 by 9. */
+/** The styles of a photo, at 16 by 9, and of a carousel with room for its buttons. */
 const styles = style.create({
+    carousel: {
+        width: `min(32rem, 100% - 2 * ${space[7]})`,
+        marginInline: "auto",
+    },
+    controls: {
+        marginBlockStart: space[3],
+    },
     photo: {
         display: "block",
         width: "100%",
@@ -40,7 +48,7 @@ export const carouselTripPhotos = defineExample({
         "aria-label": "Photos",
     },
     render: (properties) => (
-        <Carousel {...properties}>
+        <Carousel {...properties} xstyle={styles.carousel}>
             <CarouselContent>
                 <For each={PHOTOS}>
                     {(photo) => (
@@ -72,7 +80,7 @@ export const carouselTripPhotosRotating = defineExample({
         autoplay: 5000,
     },
     render: (properties) => (
-        <Carousel {...properties}>
+        <Carousel {...properties} xstyle={styles.carousel}>
             <CarouselContent>
                 <For each={PHOTOS}>
                     {(photo) => (
@@ -86,8 +94,10 @@ export const carouselTripPhotosRotating = defineExample({
                     )}
                 </For>
             </CarouselContent>
-            <CarouselPlay />
-            <CarouselDots />
+            <Cluster space="3" justify="center" xstyle={styles.controls}>
+                <CarouselPlay />
+                <CarouselDots />
+            </Cluster>
         </Carousel>
     ),
 });

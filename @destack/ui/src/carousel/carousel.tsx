@@ -45,14 +45,16 @@ const styles = style.create({
     dots: {
         display: "flex",
         justifyContent: "center",
-        gap: space[2],
-        paddingBlock: space[2],
+        paddingBlock: space[1],
     },
     dot: {
-        width: space[2],
-        height: space[2],
+        // draw a dot in the middle of a larger target
+        width: space[4],
+        height: space[4],
+        padding: space[1],
         borderRadius: radius.full,
-        backgroundColor: color.muted,
+        backgroundColor: color.border,
+        backgroundClip: "content-box",
         cursor: "pointer",
     },
     current: {
@@ -91,20 +93,20 @@ const viewports = style.create({
 const previouses = style.create({
     horizontal: {
         top: "50%",
-        insetInlineStart: `calc(-1 * ${space[6]})`,
+        insetInlineStart: `calc(-1 * ${space[7]})`,
         transform: "translateY(-50%)",
     },
-    vertical: { top: `calc(-1 * ${space[6]})`, left: "50%", transform: "translateX(-50%)" },
+    vertical: { top: `calc(-1 * ${space[7]})`, left: "50%", transform: "translateX(-50%)" },
 });
 
 /** The place of the next button in each orientation. */
 const nexts = style.create({
     horizontal: {
         top: "50%",
-        insetInlineEnd: `calc(-1 * ${space[6]})`,
+        insetInlineEnd: `calc(-1 * ${space[7]})`,
         transform: "translateY(-50%)",
     },
-    vertical: { bottom: `calc(-1 * ${space[6]})`, left: "50%", transform: "translateX(-50%)" },
+    vertical: { bottom: `calc(-1 * ${space[7]})`, left: "50%", transform: "translateX(-50%)" },
 });
 
 /** The commands and state a carousel hands its owner. */
