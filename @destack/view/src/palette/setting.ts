@@ -16,11 +16,11 @@ export const shortcut = defineSetting({
     apply: "restart",
 });
 
-/** The key combinations that run commands, by command, merged key by key from every scope. */
+/** The key combinations that run actions, by action, merged key by key from every scope. */
 export const keybindings = defineSetting({
     name: "keybindings",
     title: t`Keybindings`,
-    description: t`The key combinations running commands, by command; null unbinds a command.`,
+    description: t`The key combinations running actions, by action; null unbinds an action.`,
     schema: schema.record(DeclarationKey, Shortcut.nullable()),
     default: {},
     scope: "user",

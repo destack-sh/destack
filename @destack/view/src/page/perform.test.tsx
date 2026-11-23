@@ -46,7 +46,7 @@ const card = defineObject(
 
 /** Finish the selected open cards. */
 const finish = defineAction({
-    name: "finish",
+    name: "card.finish",
     title: t`Finish`,
     keybinding: "f",
     input: { cards: selected(card, { status: "open" }) },
@@ -55,7 +55,7 @@ const finish = defineAction({
 
 /** Put cards after another. */
 const follow = defineAction({
-    name: "follow",
+    name: "card.follow",
     title: t`Put after…`,
     input: { cards: selected(card), after: picked(card) },
     call: ({ cards, after }) => cards.prepare("update", { title: after.title }),
@@ -63,7 +63,7 @@ const follow = defineAction({
 
 /** Add a card to the board. */
 const add = defineAction({
-    name: "add",
+    name: "card.add",
     title: t`New card`,
     keybinding: "c",
     input: { title: field.string(schema.string()).labeled(t`Title`) },
@@ -177,11 +177,11 @@ test("call a method on the objects selected across spaces, and leave what it doe
         nowhere: actions.actions(part).map(({ name }) => name),
         bread: bread?.scope,
     }).toEqual({
-        names: ["finish", "follow", "add"],
+        names: ["card.finish", "card.follow", "card.add"],
         // the finished cards offer no finish, their own methods beside the declared action
-        listed: ["add", "follow", "update", "delete"],
+        listed: ["card.add", "card.follow", "card.update", "card.delete"],
         again: `FamilyError: cannot call 'card.update': it does not apply to card '${apples?.id}'`,
-        nowhere: ["add"],
+        nowhere: ["card.add"],
         bread: BOARDS[0],
     });
 });
@@ -208,9 +208,9 @@ test("ask for what neither places nor what is given answer, and run nothing once
 
     expect({ asked, cancelled, state: await state() }).toEqual({
         asked: [
-            ["follow", "after"],
-            ["follow", "after"],
-            ["add", "title"],
+            ["card.follow", "after"],
+            ["card.follow", "after"],
+            ["card.add", "title"],
         ],
         cancelled: [["Apples open", "Bread open"], ["Cheese open"]],
         state: [["Bread open", "Bread open", "Dates open", "Eggs open"], ["Cheese open"]],
@@ -222,7 +222,7 @@ test("confirm before removing for good, and refuse to where no part of the page 
     const { actions, cards, state } = await openPage();
     const [apples] = cards;
     actions.provide(() => Place.showing(apples ?? card.policy.reference("", "")));
-    const remove = (await actions.at(null)).find(({ name }) => name === "delete");
+    const remove = (await actions.at(null)).find(({ name }) => name === "card.delete");
     if (remove === undefined) {
         throw new TypeError("the page offers no delete");
     }
@@ -231,7 +231,7 @@ test("confirm before removing for good, and refuse to where no part of the page 
     await actions.run(remove, null);
 
     expect({ refused, state: await state() }).toEqual({
-        refused: `TypeError: action '${card.package.id}/delete' removes for good, and no part of the page asks to confirm it`,
+        refused: `TypeError: action '${card.package.id}/card.delete' removes for good, and no part of the page asks to confirm it`,
         state: [["Bread open"], ["Cheese open"]],
     });
 });
