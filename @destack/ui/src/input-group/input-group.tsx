@@ -115,8 +115,19 @@ const styles = style.create({
 
 /** The place and padding of an addon at each alignment. */
 const alignments = style.create({
-    "inline-start": { order: -1, paddingInlineStart: space[3] },
-    "inline-end": { order: 1, paddingInlineEnd: space[3] },
+    "inline-start": {
+        order: -1,
+        // set a leading button in as far as it is from the group's top and bottom
+        paddingInlineStart: {
+            default: space[3],
+            ":has(> [data-slot=button]:first-child)": space[1],
+        },
+    },
+    "inline-end": {
+        order: 1,
+        // set a trailing button in as far as it is from the group's top and bottom
+        paddingInlineEnd: { default: space[3], ":has(> [data-slot=button]:last-child)": space[1] },
+    },
     "block-start": {
         order: -1,
         justifyContent: "flex-start",
