@@ -183,7 +183,7 @@ A trait adds fields, methods and rules to a type, each declared with its options
 | `shareable`   | shares objects through relationships and invitations      | `{ by }` or `{ isPublic }`, and `read`               | `shareable({})`                                             |
 | `nested`      | nests objects under a parent, or in a tree of their type  | `{ in, add, delete, optional, move }`                | `nested({ in: notebook, delete: "cascade", add: "write" })` |
 | `searchable`  | finds objects by text, and indexes filter and sort fields | `{ text, filter, sort }`, each a list of fields      | `searchable({ text: ["title"], sort: ["title"] })`          |
-| `orderable`   | orders objects among their siblings                       | none, or `{ within }`                                | `orderable()`                                               |
+| `orderable`   | orders objects among their siblings, and moves them       | none, or `{ within, move }`                          | `orderable({ within: "state", move: "write" })`             |
 | `presentable` | shows objects with an icon, a cover, a color and views    | none, or `{ title, subtitle, icon, color, cover }`   | `presentable({ subtitle: "summary" })`                      |
 | `numbered`    | numbers objects, each number issued once by the store     | none, or `{ within, start, at, identifier, prefix }` | `numbered({ within: "teamId", identifier: "live" })`        |
 | `recoverable` | deletes objects to a restorable trash                     | `{ within, by, purge, retain }`                      | `recoverable({ within: { days: 30 }, by: "delete" })`       |
@@ -198,6 +198,32 @@ A trait adds fields, methods and rules to a type, each declared with its options
 | `propagated`  | replicates objects into the scopes inside theirs          | `{ where }`                                          | `propagated({})`                                            |
 | `audited`     | records reads in the audit, beside writes                 | `{ reads }`                                          | `audited({ reads: true })`                                  |
 | `declarable`  | lets stacks declare the objects                           | the fields a stack declares                          | `declarable(["release"])`                                   |
+
+### Moving
+
+`move` puts an object after a sibling, first for `null`, or last, in one call with its new parent or field value.
+
+```ts
+import { argument, plural, t } from "@destack/locale";
+import { defineObject, field, orderable } from "@destack/object";
+import type { ObjectClient } from "@destack/object/client";
+
+/** A task on a board, ordered within its state. */
+export const task = defineObject({
+    name: "task",
+    plural: "tasks",
+    title: t`${plural(argument("count"), { one: "Task", other: "Tasks" })}`,
+    container: "scope",
+    fields: { title: field.string(), state: field.enum(["todo", "started"]) },
+    access: { permissions: ["read", "write"] },
+    traits: [orderable({ within: "state", move: "write" })],
+});
+
+/** Start a task after the one another person started last. */
+export async function start(client: ObjectClient, id: string, last: string): Promise<void> {
+    await client.mutate(task).move({ id, state: "started", after: last }).confirmed;
+}
+```
 
 ### Titles
 

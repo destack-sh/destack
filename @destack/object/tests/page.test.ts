@@ -3,7 +3,7 @@ import { testSimulation, testEvents, TestObjectStore } from "../src/test/index.t
 import { users } from "./fixture/user.ts";
 import { implementPackage } from "../src/server/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { isNull } from "@destack/db";
+import { asc, isNull } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { ObjectClient, type ObjectConnection } from "../src/client/index.ts";
 import { PackageVersion } from "@destack/package";
@@ -87,17 +87,15 @@ async function openDevice(world: Environment, user: Identifier<"user">, remote: 
         await storage.close();
     });
 
-    // read the titles of the pages outside the trash under a parent, the roots by default
+    // read the titles of the pages outside the trash under a parent in order, the roots by default
     const titles = async (parentId: string | null = null) => {
         const rows = await client.database
             .select({ title: page.table.title, parentId: page.table.parentId })
             .from(page.table)
-            .where(isNull(page.table.deletedAt));
+            .where(isNull(page.table.deletedAt))
+            .orderBy(asc(page.table.position));
 
-        return rows
-            .filter((row) => row.parentId === parentId)
-            .map((row) => row.title)
-            .toSorted();
+        return rows.filter((row) => row.parentId === parentId).map((row) => row.title);
     };
 
     return {
@@ -335,11 +333,12 @@ test("build page trees offline in one mutation, and move and trash pages predict
         ["First week", "Handbook", "Onboarding"],
     );
 
-    // move a page to the root, and refuse a move into its subtree before queueing it
-    const moved = device.client.mutate(page).move({ id: week.id, parentId: null });
+    // move a page to the root, first there, and refuse a move into its subtree before queueing it
+    const moved = device.client.mutate(page).move({ id: week.id, parentId: null, after: null });
     await moved.predicted;
     expect(await device.titles()).toEqual(["First week", "Handbook"]);
     await moved.confirmed;
+    expect(await device.titles()).toEqual(["First week", "Handbook"]);
     const cycle = device.client.mutate(page).move({ id: handbook.id, parentId: onboarding.id });
     expect(await refusal(cycle.predicted)).toEqual([
         "BAD_REQUEST",

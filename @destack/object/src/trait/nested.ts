@@ -1,22 +1,7 @@
 import { ObjectReference } from "@destack/sync";
-import type * as sync from "@destack/sync";
 import { Duration, type Identifier, present, schema } from "@destack/schema";
-import { boolean, type ColumnBuilder, identifier, index, Table, text } from "@destack/db";
+import { boolean, type ColumnBuilder, identifier, index, text } from "@destack/db";
 import type { PackageId } from "@destack/package";
-import { t } from "@destack/locale";
-import { ObjectError } from "../error/error.ts";
-import type { MethodContext } from "../method/context.ts";
-import type { Execution } from "../method/execution.ts";
-import { defineMethod, Method } from "../method/method.ts";
-import {
-    type DestinationFields,
-    type Procedure,
-    type ReplayFields,
-    RevisionFields,
-    type RowSchema,
-    type TargetFields,
-} from "../method/procedure.ts";
-import { Step } from "../method/step.ts";
 import type { ObjectType } from "../object/object.ts";
 import { idColumn, type FieldColumn } from "../field/field.ts";
 import { type TraitBehavior, callableTrait } from "./trait.ts";
@@ -73,13 +58,6 @@ export type ParentBuilderMap<Name extends string, Parent> = Parent extends {
 type IsRequired<Parent extends { readonly optional?: boolean }> = Parent["optional"] extends true
     ? false
     : true;
-
-/** The method moving objects between parents. */
-export type NestedMethodMap<Parent> = Parent extends {
-    readonly move: infer Permission extends string;
-}
-    ? { readonly move: Method<{ kind: "move"; permission: Permission; mutates: true }> }
-    : {};
 
 /** Objects nested under a parent, or under an object of their type in a tree. */
 const nestedTrait: TraitBehavior<NestedDefinition> = {
@@ -180,8 +158,7 @@ const nestedTrait: TraitBehavior<NestedDefinition> = {
         // find a parent of one type, whose relation access walks as a tree when the type nests in itself
         return { relations: { parent: { column: "parentId" } }, parent: "parent" };
     },
-    methods: (options): Record<string, Method> =>
-        options.move === undefined ? {} : { move: Nested.move(options.move, options) },
+    methods: () => ({}),
     validate: (options, object) => {
         // require ephemeral objects to attach to any type
         if (object.storage === "ephemeral" && options.in !== "any") {
@@ -228,134 +205,3 @@ const nestedTrait: TraitBehavior<NestedDefinition> = {
 
 /** Nest objects under a parent, or under an object of their type in a tree. */
 export const nested = callableTrait("nested", nestedTrait);
-
-/** The procedure moves derive. */
-export type NestedProcedures<Object extends ObjectType> = {
-    move: Procedure<
-        schema.Object<
-            TargetFields<Object> &
-                ReplayFields<Object> &
-                typeof RevisionFields &
-                DestinationFields<Object>
-        >,
-        RowSchema<Object>
-    >;
-};
-
-/** The nested methods' handlers: moving an object between parents. */
-export const Nested = {
-    /** Move objects to another parent refusing cycles. */
-    move<const Permission extends string>(
-        permission: Permission,
-        nesting: NestedDefinition,
-    ): Method<{ kind: "move"; permission: Permission; mutates: true }> {
-        return defineMethod<{ kind: "move"; permission: Permission; mutates: true }>({
-            title: t`Move`,
-            kind: "move",
-            permission,
-            mutates: true,
-            target: "object",
-            result: "object",
-            procedure: (_name, schemas) => ({
-                route: { method: "POST", path: "/{id}/move" },
-                input: schemas.target.extend({
-                    ...schemas.replay,
-                    ...RevisionFields,
-                    ...schemas.destination,
-                }),
-                output: schemas.row,
-            }),
-            handler: (context) => {
-                // write the new parent columns over the record
-                const recorded = context;
-
-                return recorded.update(
-                    Table.values(recorded.object.table, recorded.parentColumns()),
-                );
-            },
-            inverse: (step) => Nested.moveBack(step, nesting),
-            compose: (previous, next) => Step.compose(previous, next),
-            async execute(context, execution) {
-                // require a valid destination before moving
-                await Nested.requireDestination(context, execution, nesting);
-
-                return Method.handle(this, context, execution);
-            },
-        });
-    },
-
-    /** Move an object back under its former parent. */
-    moveBack(step: Step, nesting: NestedDefinition): readonly sync.Call[] | undefined {
-        // find the former parent, of one type or any
-        const before = step.before;
-        if (before === undefined) {
-            return undefined;
-        }
-        const destination =
-            nesting.in !== "any"
-                ? { parentId: before["parentId"] ?? null }
-                : {
-                      parent:
-                          before["parentId"] === null || before["parentId"] === undefined
-                              ? null
-                              : ParentReference.parse({
-                                    packageId: before["parentPackageId"],
-                                    type: before["parentType"],
-                                    id: before["parentId"],
-                                }),
-                  };
-
-        return [
-            Step.record(step, step.name, {
-                ...Step.target(step),
-                ...destination,
-            }),
-        ];
-    },
-
-    /** Require a valid parent to move an object under. */
-    async requireDestination(
-        context: MethodContext,
-        execution: Execution,
-        nesting: NestedDefinition,
-    ): Promise<void> {
-        // require a parent unless optional
-        const { object } = context;
-        const parent = context.parent();
-        if (parent === undefined && nesting.optional !== true) {
-            throw ObjectError.of("PARENT_REQUIRED", `parent of ${object.name} is required`);
-        }
-
-        // require a receiving parent outside the subtree
-        if (parent !== undefined) {
-            if (!execution.isPredicted) {
-                await execution.store.record.requireReceiving(context, execution, parent);
-            }
-            await Nested.requireOutside(context, parent.id);
-        }
-    },
-
-    /** Refuse moving a node of a tree into its subtree. */
-    async requireOutside(context: MethodContext, parentId: string): Promise<void> {
-        // walk only trees of the object's type
-        if (!context.object.tree) {
-            return;
-        }
-
-        // climb from the new parent through the call's view, which has the call's moves
-        const moved = context.id;
-        const reader = context.read(context.object.table);
-        const visited = new Set<string>();
-        for (let node: string | null = parentId; node !== null && !visited.has(node);) {
-            if (node === moved) {
-                throw ObjectError.of(
-                    "MOVE_INVALID",
-                    `move of ${context.object.name} is invalid: it must stay outside its own subtree`,
-                );
-            }
-            visited.add(node);
-            const row = await reader.findFirst({ where: { id: node } });
-            node = PARENT.parse(row?.["parentId"] ?? null);
-        }
-    },
-};

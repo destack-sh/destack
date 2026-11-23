@@ -522,9 +522,10 @@ export const RecordExecution = {
         const position =
             object.ordering === undefined || context.input["position"] !== undefined
                 ? undefined
-                : await Orderable.next(
+                : await Orderable.place(
                       object,
                       { ...decoded, ...parent, scope: context.scope },
+                      "last",
                       context,
                   );
 

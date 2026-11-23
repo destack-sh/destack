@@ -13,7 +13,7 @@ export {
     type Resource,
 } from "./provisioned.ts";
 export { tracked, Tracked, type TrackedDefinition } from "./tracked.ts";
-export { nested, Nested, ParentReference } from "./nested.ts";
+export { nested, ParentReference } from "./nested.ts";
 export { expiring, Expiring, type ExpiryRule } from "./expiring.ts";
 export {
     presentable,

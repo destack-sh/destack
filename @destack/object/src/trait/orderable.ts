@@ -3,12 +3,24 @@ import { present } from "@destack/schema";
 import { field } from "../field/field.ts";
 import { FractionalIndex } from "../field/fractional-index.ts";
 import type { ObjectDefinition, ObjectType } from "../object/object.ts";
+import { ObjectError } from "../error/error.ts";
 import type { MethodContext } from "../method/context.ts";
 import type { Erasure, TraitBehavior } from "./trait.ts";
 import { callableTrait } from "./trait.ts";
 
+/** The options of ordering objects among their siblings. */
+export interface OrderedDefinition {
+    /** The field whose value siblings share, the parent of a nested type when absent. */
+    readonly within?: string;
+    /** The permission moving an object among its siblings, the nesting's when that has one. */
+    readonly move?: string;
+}
+
 /** How a type orders its objects: among siblings of one parent, or of one field value. */
-export type OrderableDefinition = true | { readonly within: string };
+export type OrderableDefinition = true | OrderedDefinition;
+
+/** Where an object goes among its siblings: last, or after one, first for null. */
+export type Placement = "last" | { readonly after: string | null };
 
 /** The ordering of an object type: the columns identifying each object's siblings. */
 export interface Ordering {
@@ -57,7 +69,7 @@ export const Orderable = {
         }
 
         // order within the given field, the parent, or the whole scope
-        if (orderable !== true) {
+        if (orderable !== true && orderable.within !== undefined) {
             if (!Object.hasOwn(definition.fields ?? {}, orderable.within)) {
                 throw new TypeError(
                     `object '${definition.name}' orders within '${orderable.within}', but does not declare it`,
@@ -74,15 +86,16 @@ export const Orderable = {
         }
     },
 
-    /** Place a created object after its last sibling. */
-    async next(
+    /** Place an object with some values among its siblings there. */
+    async place(
         object: ObjectType,
         values: Readonly<Record<string, unknown>>,
+        placement: Placement,
         context: MethodContext,
     ): Promise<string> {
-        // read the last sibling's position in the object's scope
+        // read the siblings in the object's scope, leaving out the object
         const ordering = present(object.ordering, `the ordering of ${object.name}`);
-        const siblings = Object.fromEntries(
+        const shared = Object.fromEntries(
             ordering.within.map((name) => {
                 const value = values[name];
 
@@ -91,16 +104,43 @@ export const Orderable = {
         );
         const scope = present(
             typeof values["scope"] === "string" ? values["scope"] : undefined,
-            "the created object's scope",
+            "the ordered object's scope",
         );
-        const [last] = await context
-            .read(object.table)
-            .findMany({ where: { ...siblings, scope }, orderBy: { position: "desc" }, limit: 1 });
+        const id = typeof values["id"] === "string" ? { id: { ne: values["id"] } } : {};
+        const siblings = { ...shared, ...id, scope };
+        const reader = context.read(object.table);
+        const edge = async (direction: "asc" | "desc", where: object) => {
+            const [row] = await reader.findMany({
+                where: { ...siblings, ...where },
+                orderBy: { position: direction },
+                limit: 1,
+            });
+
+            return row === undefined ? undefined : FractionalIndex.parse(row["position"]);
+        };
+
+        // find the positions before and after the place
+        const { random } = context.environment;
+        if (placement === "last") {
+            return FractionalIndex.place(await edge("desc", {}), undefined, random);
+        } else if (placement.after === null) {
+            return FractionalIndex.place(undefined, await edge("asc", {}), random);
+        }
+        const anchor = await reader.findFirst({
+            where: { AND: [{ ...siblings }, { id: placement.after }] },
+        });
+        if (anchor === undefined) {
+            throw ObjectError.of(
+                "MOVE_INVALID",
+                `move of ${object.name} is invalid: '${placement.after}' is not its sibling`,
+            );
+        }
+        const position = FractionalIndex.parse(anchor["position"]);
 
         return FractionalIndex.place(
-            typeof last?.["position"] === "string" ? last["position"] : undefined,
-            undefined,
-            context.environment.random,
+            position,
+            await edge("asc", { position: { gt: position } }),
+            random,
         );
     },
 

@@ -7,7 +7,7 @@ import { defineObject, field } from "../../src/index.ts";
 import { space } from "../../src/test/space.ts";
 import { tablesOf } from "../../src/index.ts";
 import objectPackage from "../../src/package.ts";
-import { nested, recoverable, shareable } from "../../src/index.ts";
+import { nested, orderable, recoverable, shareable } from "../../src/index.ts";
 import { argument, plural, t } from "@destack/locale";
 
 /** A page in a tree of pages, shared with its subpages and publishable through links. */
@@ -19,7 +19,6 @@ export const page = defineObject({
     fields: {
         title: field.string(schema.string().max(500)).default(""),
         icon: field.string(schema.string().max(32)).optional(),
-        position: field.fractionalIndex().default("a0"),
     },
     traits: [
         nested({
@@ -28,6 +27,7 @@ export const page = defineObject({
             add: "write",
             move: "manage",
         }),
+        orderable(),
         recoverable({ within: { days: 30 }, by: "manage" }),
         shareable({ isPublic: true }),
     ],

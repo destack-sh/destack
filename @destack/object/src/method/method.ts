@@ -75,7 +75,7 @@ export interface MethodConfiguration {
     readonly mutates?: boolean;
     /** What the method acts on: its loaded object, its object by identifier, or its scope. */
     readonly target?: MethodTarget;
-    /** The columns a creation or update writes. */
+    /** The columns a creation, update or move writes. */
     readonly fields?: string;
     /** The written columns a creation's handler fills where the caller leaves them out. */
     readonly filled?: string;
@@ -89,7 +89,12 @@ export interface MethodConfiguration {
     readonly visibility?: MethodVisibility;
     /** Whether a bulk update takes items, each an object's identifier and revision. */
     readonly items?: boolean;
+    /** Whether a move takes the parent it moves to. */
+    readonly parent?: MoveParent;
 }
+
+/** Whether a move takes the parent it moves to: always, only to change it, or never. */
+export type MoveParent = "required" | "optional" | "none";
 
 /** Who may call a method: the declaring package's code, any installation's code, or clients too. */
 export type MethodVisibility = "package" | "installation" | "client";
@@ -181,10 +186,12 @@ export interface Method<Configuration extends MethodConfiguration = MethodConfig
     readonly mutates: OptionOf<Configuration, "mutates", boolean>;
     /** Whether each reading call is audited. */
     readonly isAudited?: boolean;
-    /** The columns a creation or update writes, every written field when absent. */
+    /** The columns a creation, update or move writes, every written field when absent. */
     readonly fields?: readonly OptionOf<Configuration, "fields", string>[];
     /** The written columns a creation's handler fills where the caller leaves them out. */
     readonly filled?: readonly OptionOf<Configuration, "filled", string>[];
+    /** Whether a move takes the parent it moves to, never when absent. */
+    readonly parent?: OptionOf<Configuration, "parent", MoveParent>;
     /** The columns a bulk update or deletion matches objects by. */
     readonly match?: readonly OptionOf<Configuration, "match", string>[];
     /** The column sets of a sum type a creation writes, one beside the shared fields. */

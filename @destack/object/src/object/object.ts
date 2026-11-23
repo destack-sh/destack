@@ -99,7 +99,8 @@ import {
     type ControlledMethodMap,
 } from "../trait/controlled.ts";
 import { Declarable } from "../trait/declarable.ts";
-import { nested, type NestedMethodMap, type NestedDefinition } from "../trait/nested.ts";
+import { nested, type NestedDefinition } from "../trait/nested.ts";
+import { movable, type MoveMethodMap } from "../trait/move.ts";
 import { transitions, type TransitionMethodMap } from "../trait/transition.ts";
 import {
     recoverable,
@@ -3244,6 +3245,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             text,
             searchable,
             orderable,
+            movable,
             numbered,
             series,
         ];
@@ -3535,6 +3537,7 @@ type ForeignTable<Definition extends ObjectDefinition> = NonNullable<
 type DefinitionTraits<Definition> = TraitOptions<{
     readonly key: Option<Definition, "key">;
     readonly nested: Option<Definition, "nested">;
+    readonly orderable: Option<Definition, "orderable">;
     readonly recoverable: Option<Definition, "recoverable">;
     readonly archivable: Option<Definition, "archivable">;
     readonly numbered: Option<Definition, "numbered">;
@@ -3737,11 +3740,14 @@ export type ManagerMethodMap<Definition, Methods> =
         : {};
 
 /** The methods an object's traits derive beside its declared ones. */
-export type TraitMethods<Fields, Traits> = TransitionMethodMap<Fields> &
+export type TraitMethods<
+    Fields extends Readonly<Record<string, Field>>,
+    Traits,
+> = TransitionMethodMap<Fields> &
     RecoverableMethodMap<TraitOf<Traits, "recoverable">> &
     ArchivableMethodMap<TraitPermissionOf<TraitOf<Traits, "archivable">>> &
     ControlledMethodMap<TraitOf<Traits, "controlled">> &
-    NestedMethodMap<TraitOf<Traits, "nested">> &
+    MoveMethodMap<Fields, TraitOf<Traits, "nested">, TraitOf<Traits, "orderable">> &
     ShareableMethodMap<SharingGateOf<TraitOf<Traits, "shareable">>> &
     SuspendableMethodMap<TraitPermissionOf<TraitOf<Traits, "suspendable">>> &
     FencingMethodMap<TraitPermissionOf<TraitOf<Traits, "fencing">>> &

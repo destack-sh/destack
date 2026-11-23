@@ -2,6 +2,7 @@ import { type Insert, type JsonOf, jsonShape, type Select, TABLE } from "@destac
 import { Scope, RequestId } from "@destack/sync";
 import { type Identifier, mapValues, schema } from "@destack/schema";
 import { PackageVersion } from "@destack/package";
+import { FractionalIndex } from "../field/fractional-index.ts";
 import { Procedure } from "../procedure/index.ts";
 import { MAX_PAGE_LIMIT } from "./page.ts";
 import { ParentReference } from "../trait/nested.ts";
@@ -18,12 +19,12 @@ import type {
 import type { MethodKind } from "./kind.ts";
 import { Casing } from "../object/name.ts";
 import { WriterId } from "../replica/replica.ts";
-import { Method } from "./method.ts";
+import { Method, type MoveParent } from "./method.ts";
 import type { InputObject, InputSchema } from "./input.ts";
 import type { RecordProcedures } from "./builder.ts";
 import type { RecoverableProcedures } from "../trait/recoverable.ts";
 import type { ArchivableProcedures } from "../trait/archivable.ts";
-import type { NestedProcedures } from "../trait/nested.ts";
+import type { MoveProcedures } from "../trait/move.ts";
 import type { ShareableProcedures } from "../trait/shareable.ts";
 import type { BindableProcedures } from "../trait/bindable.ts";
 import type { TrackedProcedures } from "../trait/tracked.ts";
@@ -45,6 +46,8 @@ export interface ObjectSchema {
     readonly parent: InputObject["shape"];
     /** The parent a moved object moves to. */
     readonly destination: InputObject["shape"];
+    /** The place among its siblings a moved object of an ordered type takes. */
+    readonly placement: InputObject["shape"];
     /** The field identifying a mutation: its request identifier or client. */
     readonly replay: InputObject["shape"];
     /** The columns a server-only creation writes for the calling principal it records. */
@@ -210,6 +213,10 @@ export function objectSchema(object: ObjectType): ObjectSchema {
                 ? { id, time: object.table[TABLE].column("time").definition.json }
                 : { id: id.exactOptional() },
         ...ObjectProcedure.parentShapes(object),
+        placement: {
+            after: id.nullable().exactOptional(),
+            position: FractionalIndex.exactOptional(),
+        },
         replay:
             object.storage === "ephemeral"
                 ? { writerId: WriterId }
@@ -298,7 +305,7 @@ type MethodProcedureOf<
           RecoverableProcedures<Object> &
           ArchivableProcedures<Object> &
           TransitionProcedures<Object, Declaration> &
-          NestedProcedures<Object> &
+          MoveProcedures<Object, Declaration> &
           ShareableProcedures<Object> &
           BindableProcedures &
           TrackedProcedures<Object> &
@@ -393,9 +400,11 @@ export type TargetFields<Object extends ObjectType> = ScopeFields<Object> & {
 };
 
 /** The validator of an object's identifier, accepting the plain string its brand reads. */
-export type IdSchema<Object extends ObjectType> = schema.Schema<
-    JsonOf<Select<Object["table"]>["id" & keyof Select<Object["table"]>]>,
-    string
+export type IdSchema<Object extends ObjectType> = schema.Schema<IdOf<Object>, string>;
+
+/** The identifier of an object in its JSON form. */
+type IdOf<Object extends ObjectType> = JsonOf<
+    Select<Object["table"]>["id" & keyof Select<Object["table"]>]
 >;
 
 /** The value a field's validator accepts: an identifier's plain string, else the value. */
@@ -430,16 +439,32 @@ export type ParentFields<Object extends ObjectType> = "parentId" extends keyof S
       }
     : {};
 
-/** The parent a moved object moves to. */
-export type DestinationFields<Object extends ObjectType> = "parentId" extends keyof Select<
-    Object["table"]
->
-    ? {
-          [Field in ParentField<Object>]: IsOrphanable<Object> extends true
-              ? schema.Schema<ParentValue<Object> | null, Accepted<ParentValue<Object>> | null>
-              : schema.Schema<ParentValue<Object>, Accepted<ParentValue<Object>>>;
-      }
-    : {};
+/** The parent a moved object moves to, null where it may have none. */
+type DestinationSchema<Object extends ObjectType> =
+    IsOrphanable<Object> extends true
+        ? schema.Schema<ParentValue<Object> | null, Accepted<ParentValue<Object>> | null>
+        : schema.Schema<ParentValue<Object>, Accepted<ParentValue<Object>>>;
+
+/** The parent a moved object moves to, optional where a move may keep the parent. */
+export type DestinationFields<
+    Object extends ObjectType,
+    Parent extends MoveParent,
+> = Parent extends "required"
+    ? { [Field in ParentField<Object>]: DestinationSchema<Object> }
+    : Parent extends "optional"
+      ? { [Field in ParentField<Object>]: schema.ExactOptional<DestinationSchema<Object>> }
+      : {};
+
+/** The place among its siblings a moved object takes: after one, first for null, else last. */
+export type PlacementFields<
+    Object extends ObjectType,
+    Parent extends MoveParent,
+> = Parent extends "required"
+    ? {}
+    : {
+          after: schema.ExactOptional<schema.Schema<IdOf<Object> | null, string | null>>;
+          position: schema.ExactOptional<typeof FractionalIndex>;
+      };
 
 /** The field identifying a mutation: its request identifier or writer. */
 export type ReplayFields<Object extends ObjectType = ObjectType> =
@@ -647,10 +672,12 @@ const ObjectProcedure = {
                 ]),
             ),
             destination: Object.fromEntries(
-                Object.entries(parent ?? {}).map(([name, column]) => [
-                    name,
-                    nesting?.optional === true ? column.nullable() : column,
-                ]),
+                Object.entries(parent ?? {}).map(([name, column]) => {
+                    // clear an optional parent by null, and let an ordered object keep its parent
+                    const moved = nesting?.optional === true ? column.nullable() : column;
+
+                    return [name, object.ordering === undefined ? moved : moved.exactOptional()];
+                }),
             ),
         };
     },
