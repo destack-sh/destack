@@ -218,7 +218,7 @@ export function AppRail(properties: {
 
     return (
         <nav ref={rail} data-component="AppRail" data-flip-enter {...style.attrs(appStyles.rail)}>
-            <Avatar size="sm" color="teal" title="Your space" xstyle={appStyles.railWide}>
+            <Avatar size="sm" color="cyan" title="Your space" xstyle={appStyles.railWide}>
                 <AvatarFallback>F</AvatarFallback>
             </Avatar>
             <Button variant="ghost" size="icon-sm" aria-label="Search" xstyle={appStyles.railWide}>

@@ -95,7 +95,7 @@ export function AuditLog(properties: { lane: Lane; onTouch: () => void }) {
                                     review() === 0 ? (
                                         <Badge variant="secondary">{CHANGE_COUNT} changes</Badge>
                                     ) : (
-                                        <Badge color="tomato">{review()} to review</Badge>
+                                        <Badge color="red">{review()} to review</Badge>
                                     )
                                 }
                                 request={REQUEST}
@@ -159,9 +159,9 @@ function StepItem(properties: { step: Step; lane: Lane; isOpen: boolean; onToggl
                     {slip() === undefined ? (
                         <span {...style.attrs(styles.quiet)}>{properties.step.count}</span>
                     ) : fixed() === undefined ? (
-                        <Badge color="tomato">{slip()?.text}</Badge>
+                        <Badge color="red">{slip()?.text}</Badge>
                     ) : (
-                        <Badge color="teal">{fixed()}</Badge>
+                        <Badge color="green">{fixed()}</Badge>
                     )}
                 </span>
             }

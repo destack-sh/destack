@@ -1,4 +1,4 @@
-import type { SwatchName } from "@destack/color";
+import type { Hue } from "@destack/color";
 import type { IconBodies } from "@destack/icon";
 import { state } from "@destack/theme/state";
 import { Icon } from "@destack/ui/icon";
@@ -336,7 +336,7 @@ function Toolbar(properties: { title: string; actions: JSX.Element; children: JS
 }
 
 /** Draw a state as a badge in its color, or as a plain one for a state without a color. */
-function StatusBadge(properties: { color: SwatchName | undefined; children: JSX.Element }) {
+function StatusBadge(properties: { color: Hue | undefined; children: JSX.Element }) {
     return properties.color === undefined ? (
         <Badge variant="secondary">{properties.children}</Badge>
     ) : (
@@ -369,14 +369,14 @@ function Search(properties: { label: string; "data-xray"?: string }) {
     );
 }
 
-/** Draw a person's face: you in teal, anyone else in their color, and your agent as its avatar. */
-function Face(properties: { owner: string; tint?: SwatchName; size?: "sm" | "default" }) {
+/** Draw a person's face: you in cyan, anyone else in their color, and your agent as its avatar. */
+function Face(properties: { owner: string; tint?: Hue; size?: "sm" | "default" }) {
     return isAgentOwner(properties.owner) ? (
         <Avatar size={properties.size ?? "sm"}>
             <AgentAvatar size="fill" />
         </Avatar>
     ) : (
-        <Avatar size={properties.size ?? "sm"} color={properties.tint ?? "teal"}>
+        <Avatar size={properties.size ?? "sm"} color={properties.tint ?? "cyan"}>
             <AvatarFallback>{properties.owner}</AvatarFallback>
         </Avatar>
     );
@@ -709,7 +709,7 @@ function Chat(properties: { isRemixed: boolean }) {
                     <AvatarGroup aria-label="Members">
                         <Face owner="F" />
                         <Face owner="A" />
-                        <Face owner="I" tint="crimson" />
+                        <Face owner="I" tint="pink" />
                     </AvatarGroup>
                     <span {...style.attrs(appText.meta, styles.quiet)}>3</span>
                 </span>
@@ -734,7 +734,7 @@ function Chat(properties: { isRemixed: boolean }) {
                     >
                         <Face
                             owner={author === "Agent" ? "A" : author.slice(0, 1)}
-                            tint={author === "Ines" ? "crimson" : "teal"}
+                            tint={author === "Ines" ? "pink" : "cyan"}
                             size="default"
                         />
                         <div {...style.attrs(styles.messageBody)}>
@@ -910,8 +910,8 @@ function nextOf(name: string, replyState: ReplyState, isRemixed: boolean): strin
 }
 
 /** The color each reply state's badge takes, the plain badge for one waiting on them. */
-const REPLY_COLORS: Readonly<Partial<Record<ReplyState, SwatchName>>> = {
-    owe: "amber",
+const REPLY_COLORS: Readonly<Partial<Record<ReplyState, Hue>>> = {
+    owe: "yellow",
     clear: "green",
 };
 
@@ -1203,7 +1203,7 @@ function Mail(properties: { isRemixed: boolean }) {
                 </span>
                 <div {...style.attrs(styles.mailMessage)}>
                     <span data-xray="Messaging" {...style.attrs(styles.from)}>
-                        <Face owner="I" tint="crimson" size="default" />
+                        <Face owner="I" tint="pink" size="default" />
                         <span {...style.attrs(styles.fromText)}>
                             <b {...style.attrs(appText.body)}>Ines Ferreira</b>
                             <span {...style.attrs(appText.meta)}>Re: Phase 2</span>
@@ -1354,8 +1354,8 @@ function Commitments(properties: { isRemixed: boolean }) {
 }
 
 /** The color each commitment state's badge takes, the plain badge for one waiting on them. */
-const COMMITMENT_COLORS: Readonly<Partial<Record<CommitmentState, SwatchName>>> = {
-    open: "amber",
+const COMMITMENT_COLORS: Readonly<Partial<Record<CommitmentState, Hue>>> = {
+    open: "yellow",
     kept: "green",
 };
 
@@ -1428,7 +1428,7 @@ function Tracker(properties: { isRemixed: boolean }) {
                                 {properties.isRemixed ? (
                                     <Badge variant="secondary">{task}</Badge>
                                 ) : (
-                                    <Badge color={isDone ? "green" : "amber"}>
+                                    <Badge color={isDone ? "green" : "yellow"}>
                                         {isDone ? "Done" : "Open"}
                                     </Badge>
                                 )}
@@ -1738,9 +1738,9 @@ const styles = style.create({
         gap: space[1],
     },
     sticky: {
-        backgroundColor: swatch.amberTint,
+        backgroundColor: swatch.yellowTint,
         borderColor: "transparent",
-        color: swatch.amberTintText,
+        color: swatch.yellowTintText,
     },
     changed: {
         backgroundColor: `color-mix(in srgb, ${palette.signal} 14%, transparent)`,

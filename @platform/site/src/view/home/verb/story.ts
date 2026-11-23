@@ -1,4 +1,4 @@
-import type { SwatchName } from "@destack/color";
+import type { Hue } from "@destack/color";
 import { PlainDate, PlainTime, TimeZone } from "@destack/schema";
 import type { CalendarEvent } from "@destack/ui/event-calendar";
 import { type Accessor, createContext, useContext } from "@destack/view";
@@ -29,9 +29,9 @@ export const overview: readonly (readonly [title: string, line: string])[] = [
 ];
 
 /** The faces of the people waiting on a reply from you: an initial and a tint. */
-export const owed: readonly (readonly [initial: string, tint: SwatchName])[] = [
-    ["I", "crimson"],
-    ["J", "cyan"],
+export const owed: readonly (readonly [initial: string, tint: Hue])[] = [
+    ["I", "pink"],
+    ["J", "blue"],
     ["M", "orange"],
 ];
 
@@ -55,7 +55,7 @@ export type Task = readonly [
     title: string,
     state: TaskState,
     owner: string,
-    tint: SwatchName,
+    tint: Hue,
     due: number,
 ];
 
@@ -136,7 +136,7 @@ export type Person = readonly [
     relation: string,
     state: ReplyState,
     last: number,
-    tint: SwatchName,
+    tint: Hue,
 ];
 
 /** Your week's board: each column and its notes, a task's id or a plain note. */
@@ -221,14 +221,14 @@ export class Story {
         // date the tasks within the week, the receipts and invoices in the month the books close
         const month = this.monthName(-BOOKS_LAG);
         this.tasks = [
-            ["T-12", "Ship the booking fix", "done", "F", "teal", 0],
-            ["T-14", "Send Ines the estimate", "started", "F", "teal", 2],
-            ["T-16", `Match ${month}'s receipts`, "review", "A", "violet", 3],
-            ["T-13", `Invoice ${month}`, "todo", "F", "teal", 4],
-            ["T-15", "Draft the reply to Jonas", "todo", "A", "violet", 1],
-            ["T-17", "Renew my passport", "todo", "F", "teal", 3],
-            ["T-18", "Find out what the £19 charge is", "todo", "A", "violet", 4],
-            ["T-19", "Cancel the subscriptions I don't use", "todo", "F", "teal", 7],
+            ["T-12", "Ship the booking fix", "done", "F", "cyan", 0],
+            ["T-14", "Send Ines the estimate", "started", "F", "cyan", 2],
+            ["T-16", `Match ${month}'s receipts`, "review", "A", "purple", 3],
+            ["T-13", `Invoice ${month}`, "todo", "F", "cyan", 4],
+            ["T-15", "Draft the reply to Jonas", "todo", "A", "purple", 1],
+            ["T-17", "Renew my passport", "todo", "F", "cyan", 3],
+            ["T-18", "Find out what the £19 charge is", "todo", "A", "purple", 4],
+            ["T-19", "Cancel the subscriptions I don't use", "todo", "F", "cyan", 7],
         ];
         this.commitments = [
             ["Ines Ferreira", "Send the phase 2 estimate", "Mail", -3, "open", ""],
@@ -413,12 +413,12 @@ export class Story {
             ],
         ];
         this.people = [
-            ["Ines Ferreira", "Client · booking app", "owe", 0, "crimson"],
-            ["Jonas Weber", "Friend", "owe", 0, "cyan"],
+            ["Ines Ferreira", "Client · booking app", "owe", 0, "pink"],
+            ["Jonas Weber", "Friend", "owe", 0, "blue"],
             ["Mia Sørensen", "Accountant", "owe", 0, "orange"],
-            ["Kai Brandt", "Designer", "waiting", -1, "grass"],
-            ["Lena Okoye", "Former client", "clear", -11, "green"],
-            ["Ravi Patel", "Climbing", "clear", -16, "violet"],
+            ["Kai Brandt", "Designer", "waiting", -1, "green"],
+            ["Lena Okoye", "Former client", "clear", -11, "brown"],
+            ["Ravi Patel", "Climbing", "clear", -16, "purple"],
         ];
 
         // date the workflows' runs: last Friday's review, and the month's invoices on its first
@@ -444,14 +444,14 @@ export class Story {
                 title: "Books close Friday",
                 start: monday,
                 end: this.date(4),
-                color: "amber",
+                color: "yellow",
             },
             ...week.map(([day, start, end, title, isBookable], index): CalendarEvent => ({
                 key: String(index),
                 title: isBookable ? "Open slot" : title,
                 start: this.at(day, wallTimeOf(start)),
                 end: this.at(day, wallTimeOf(end)),
-                color: isBookable ? "grass" : title.includes(" · ") ? "orange" : "teal",
+                color: isBookable ? "green" : title.includes(" · ") ? "orange" : "cyan",
                 display: isBookable ? "background" : "auto",
             })),
         ];
