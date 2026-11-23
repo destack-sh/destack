@@ -8,7 +8,7 @@ export const toasterFocusWithShortcut = defineScenario({
     of: Toaster,
     interaction: viewInteraction,
     name: "focus-with-shortcut",
-    description: "move the focus to the toasts with Alt+T",
+    description: "move the focus to the toasts with F6",
     given: { examples: [toasterArchiveUndo] },
     parameters: {},
     when: [
@@ -17,7 +17,7 @@ export const toasterFocusWithShortcut = defineScenario({
             then: [{ observe: { kind: "focused" }, is: "Archive" }],
         },
         {
-            step: { action: "press", key: "Alt+t" },
+            step: { action: "press", key: "F6" },
             then: [{ observe: { kind: "focused" }, is: "Notifications" }],
         },
     ],

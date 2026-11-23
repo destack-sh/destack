@@ -1,6 +1,7 @@
+import { present } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { flush } from "@destack/view";
-import { toast, Toaster } from "./index.ts";
+import { Toaster, type ToastManager, useToast } from "./index.ts";
 import { render, stubPopovers, testWorld, wait } from "@destack/view/test";
 
 /** The milliseconds past a 30 ms toast's end, which the simulated clock sleeps. */
@@ -9,19 +10,39 @@ const PAST_DURATION = 60;
 /** The milliseconds past a dismissed toast's slide out, Sonner's 200 and some. */
 const PAST_LEAVING = 250;
 
-/** Render a toaster that clears the page's toasts after the test. */
-function drawToaster(duration: number): HTMLElement {
-    // start from no toasts, as the page's one store outlives other files' examples
-    stubPopovers();
-    toast.dismiss();
-    onTestFinished(() => toast.dismiss());
+/** The milliseconds a toast with an action shows. */
+const ACTION_TIME = 8000;
 
-    return render(() => <Toaster duration={duration} />).container;
+/** Render a toaster, answering its element and its toasts. */
+function drawToaster(duration: number): {
+    readonly container: HTMLElement;
+    readonly toast: ToastManager;
+} {
+    // read the toasts from inside the toaster
+    stubPopovers();
+    let toast: ToastManager | undefined;
+    const Page = () => {
+        toast = useToast();
+
+        return null;
+    };
+    const { container } = render(() => (
+        <Toaster duration={duration}>
+            <Page />
+        </Toaster>
+    ));
+
+    return { container, toast: present(toast, "the toaster's toasts") };
 }
 
 /** Make a pointer event at a position along the swipe's axis. */
 function pointer(type: string, position: number): PointerEvent {
     return new PointerEvent(type, { bubbles: true, clientX: position, pointerId: 1 });
+}
+
+/** Press a key on an element. */
+function press(target: Element, key: string): void {
+    target.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
 }
 
 /** Read each shown toast as its kind and title, newest first. */
@@ -33,8 +54,8 @@ function shown(container: Element): string[] {
 }
 
 test("announce toasts in a labelled polite live region, newest first", () => {
-    const container = drawToaster(1000);
-    toast("Note saved");
+    const { container, toast } = drawToaster(1000);
+    toast.show("Note saved");
     toast.error("Upload failed", { description: "The file is too large." });
     flush();
     const region = container.querySelector("section");
@@ -50,9 +71,9 @@ test("announce toasts in a labelled polite live region, newest first", () => {
 
 test("dismiss a toast after its duration, or at once from its close button", async () => {
     const dismissed: string[] = [];
-    const container = drawToaster(30);
-    toast("Archived", { onDismiss: () => dismissed.push("Archived") });
-    toast.success("Copied", { duration: Number.POSITIVE_INFINITY });
+    const { container, toast } = drawToaster(30);
+    toast.show("Archived", { onDismiss: () => dismissed.push("Archived") });
+    toast.error("Copying failed");
     flush();
     await testWorld().simulation.sleep(PAST_DURATION);
     flush();
@@ -60,24 +81,25 @@ test("dismiss a toast after its duration, or at once from its close button", asy
     container.querySelector<HTMLElement>("[data-slot=toast-close]")?.click();
     flush();
     expect([afterDuration, shown(container), dismissed]).toEqual([
-        ["success: Copied"],
+        ["error: Copying failed"],
         [],
         ["Archived"],
     ]);
 });
 
 test("show a toast while the focus rests on it after the pointer left, dismissing it once both left", async () => {
-    const container = drawToaster(30);
-    toast("Archived");
+    const { container, toast } = drawToaster(1000);
+    toast.show("Archived", { duration: 30, action: { label: "Undo", onClick: () => {} } });
     flush();
-    const item = container.querySelector("[data-slot=toast]");
-    item?.dispatchEvent(new PointerEvent("pointerenter"));
-    item?.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
-    item?.dispatchEvent(new PointerEvent("pointerleave"));
+    const stack = container.querySelector("[data-slot=toaster-stack]");
+    const action = container.querySelector<HTMLElement>("[data-slot=toast-action]");
+    stack?.dispatchEvent(new PointerEvent("pointerenter"));
+    action?.focus();
+    stack?.dispatchEvent(new PointerEvent("pointerleave"));
     await testWorld().simulation.sleep(PAST_DURATION);
     flush();
     const shownFirst = shown(container);
-    item?.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+    action?.blur();
     await testWorld().simulation.sleep(PAST_DURATION);
     flush();
     expect([shownFirst, shown(container)]).toEqual([["default: Archived"], []]);
@@ -85,14 +107,14 @@ test("show a toast while the focus rests on it after the pointer left, dismissin
 
 test("run a toast's action and dismiss it, and replace a toast by its id", () => {
     const undone: string[] = [];
-    const container = drawToaster(1000);
-    const id = toast("Moved to Trips", {
+    const { container, toast } = drawToaster(1000);
+    const id = toast.show("Moved to Trips", {
         action: { label: "Undo", onClick: () => undone.push("undo") },
     });
     toast.info("Moved to Work", { id });
     flush();
     const replaced = shown(container);
-    toast("Deleted", { action: { label: "Undo", onClick: () => undone.push("delete") } });
+    toast.show("Deleted", { action: { label: "Undo", onClick: () => undone.push("delete") } });
     flush();
     container.querySelector<HTMLElement>("[data-slot=toast-action]")?.click();
     flush();
@@ -104,7 +126,7 @@ test("run a toast's action and dismiss it, and replace a toast by its id", () =>
 });
 
 test("follow a promise from a loading toast to its outcome", async () => {
-    const container = drawToaster(1000);
+    const { container, toast } = drawToaster(1000);
     const saving = toast.promise(Promise.resolve(3), {
         loading: "Saving",
         success: (count) => `Saved ${count} notes`,
@@ -119,20 +141,20 @@ test("follow a promise from a loading toast to its outcome", async () => {
 });
 
 test("show the newest toasts up to the toaster's limit", () => {
-    const container = drawToaster(1000);
+    const { container, toast } = drawToaster(1000);
     for (const title of ["one", "two", "three", "four"]) {
-        toast(title);
+        toast.show(title);
     }
     flush();
     expect(shown(container)).toEqual(["default: four", "default: three", "default: two"]);
 });
 
 test("leave the live region in the document and show the stack in the top layer only while toasts exist", async () => {
-    const container = drawToaster(1000);
+    const { container, toast } = drawToaster(1000);
     const region = container.querySelector("section");
     const stack = container.querySelector("[data-slot=toaster-stack]");
     const empty = [region?.getAttribute("aria-live"), stack?.hasAttribute("data-popover-open")];
-    const id = toast("Note saved");
+    const id = toast.show("Note saved");
     flush();
     const isShown = [
         stack?.getAttribute("popover"),
@@ -155,9 +177,81 @@ test("leave the live region in the document and show the stack in the top layer 
     ]).toEqual([["polite", false], ["manual", true, true], true, true, false]);
 });
 
+test("move the focus to the toasts and back with F6, opening the stack, and off a toast Escape dismisses", () => {
+    // start from a focused button on the page
+    const { container, toast } = drawToaster(1000);
+    const button = document.createElement("button");
+    document.body.append(button);
+    onTestFinished(() => button.remove());
+    const region = container.querySelector<HTMLElement>("section");
+    const stack = container.querySelector("[data-slot=toaster-stack]");
+    const focused = () =>
+        document.activeElement === button
+            ? "page"
+            : document.activeElement === region
+              ? "toasts"
+              : document.activeElement?.getAttribute("data-slot");
+    button.focus();
+
+    // leave F6 to the page without toasts, then go to them and back
+    const steps: (readonly [string | null | undefined, boolean | undefined])[] = [];
+    const record = () => {
+        flush();
+        steps.push([focused(), stack?.hasAttribute("data-expanded")]);
+    };
+    press(document.body, "F6");
+    record();
+    toast.error("Upload failed");
+    toast.error("Saving failed");
+    flush();
+    press(document.body, "F6");
+    record();
+    press(present(region, "the region"), "F6");
+    record();
+
+    // dismiss both from their close buttons with Escape, going back to the page after the last
+    press(document.body, "F6");
+    for (let count = 0; count < 2; count += 1) {
+        const close = container.querySelector<HTMLElement>(
+            "[data-slot=toast]:not([data-leaving]) [data-slot=toast-close]",
+        );
+        close?.focus();
+        press(present(close, "a close button"), "Escape");
+        record();
+    }
+
+    expect([steps, shown(container)]).toEqual([
+        [
+            ["page", false],
+            ["toasts", true],
+            ["page", false],
+            ["toasts", true],
+            ["page", false],
+        ],
+        [],
+    ]);
+});
+
+test("show an error until dismissed, an action for longer, and others for the toaster's time", async () => {
+    const { container, toast } = drawToaster(30);
+    toast.error("Upload failed");
+    toast.loading("Uploading");
+    toast.show("Archived", { action: { label: "Undo", onClick: () => {} } });
+    flush();
+    await testWorld().simulation.sleep(PAST_DURATION);
+    flush();
+    const early = shown(container);
+    await testWorld().simulation.sleep(ACTION_TIME);
+    flush();
+    expect([early, shown(container)]).toEqual([
+        ["default: Archived", "loading: Uploading", "error: Upload failed"],
+        ["loading: Uploading", "error: Upload failed"],
+    ]);
+});
+
 test("dismiss a toast swiped off the toaster's side, leaving one swiped a little", () => {
-    const container = drawToaster(10_000);
-    toast("Note saved", { id: "saved" });
+    const { container, toast } = drawToaster(10_000);
+    toast.show("Note saved", { id: "saved" });
     flush();
     const swipeRight = (distance: number): void => {
         const entry = container.querySelector("[data-slot=toast-title]");

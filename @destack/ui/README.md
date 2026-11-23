@@ -29,17 +29,21 @@ Style a button and show a toast:
 ```tsx
 import * as style from "@destack/style";
 import { Button } from "@destack/ui/button";
-import { toast } from "@destack/ui/toast";
+import { useToast } from "@destack/ui/toast";
 
 // a full-width style
 const styles = style.create({ wide: { width: "100%" } });
 
-// save, then confirm with a toast
-export const Save = () => (
-    <Button variant="outline" xstyle={styles.wide} onClick={() => toast("Saved")}>
-        Save
-    </Button>
-);
+// save, then confirm with a toast of the `Toaster` around the page
+export const Save = () => {
+    const toast = useToast();
+
+    return (
+        <Button variant="outline" xstyle={styles.wide} onClick={() => toast.success("Saved")}>
+            Save
+        </Button>
+    );
+};
 ```
 
 ## Reference
@@ -53,7 +57,7 @@ Each entry is `@destack/ui/<entry>`.
 | Forms                  | `autocomplete`, `button`, `button-group`, `calendar`, `checkbox`, `color-swatch-picker`, `combobox`, `date-field`, `date-picker`, `emoji-picker`, `field`, `icon-picker`, `input`, `input-group`, `input-otp`, `label`, `radio-group`, `select`, `slider`, `switch`, `textarea`, `time-field`, `toggle`, `toggle-group` |
 | Overlays               | `alert-dialog`, `context-menu`, `dialog`, `drawer`, `dropdown-menu`, `hover-card`, `menubar`, `popover`, `sheet`, `toast`, `tooltip`                                                                                                                                                                                    |
 | Navigation             | `breadcrumb`, `command`, `navigation-menu`, `pagination`, `palette`, `sidebar`, `tabs`                                                                                                                                                                                                                                  |
-| Data                   | `avatar`, `badge`, `card`, `carousel`, `chart`, `code-block`, `data-list`, `data-table`, `feed`, `grid-list`, `item`, `kbd`, `list-box`, `load-more`, `object`, `table`, `tree`, `virtual-list`                                                                                                                                      |
+| Data                   | `avatar`, `badge`, `card`, `carousel`, `chart`, `code-block`, `data-list`, `data-table`, `feed`, `grid-list`, `item`, `kbd`, `list-box`, `load-more`, `object`, `table`, `tree`, `virtual-list`                                                                                                                         |
 | Views                  | `board`, `event-calendar`, `timeline`                                                                                                                                                                                                                                                                                   |
 | Feedback and structure | `accordion`, `alert`, `aspect-ratio`, `collapsible`, `empty`, `progress`, `prose`, `resizable`, `scroll-area`, `separator`, `skeleton`, `spinner`, `visually-hidden`                                                                                                                                                    |
 | Layout                 | `stack`, `cluster`, `grid`, `center`, `switcher`, `cover`, `content`                                                                                                                                                                                                                                                    |
@@ -507,7 +511,7 @@ A page imports each descendant stylesheet once.
 
 ### shadcn/ui
 
-Components, parts and props follow shadcn/ui and Radix, and some follow their own prior art, such as cmdk's `Command` and sonner's `toast`.
+Components, parts and props follow shadcn/ui and Radix, and some follow their own prior art, such as cmdk's `Command` and Sonner's `Toaster`.
 
 | shadcn/ui               | `@destack/ui`                 | Difference                                         |
 | ----------------------- | ----------------------------- | -------------------------------------------------- |

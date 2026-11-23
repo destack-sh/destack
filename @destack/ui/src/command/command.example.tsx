@@ -11,7 +11,6 @@ import note from "@destack/icon/phosphor/note";
 import plus from "@destack/icon/phosphor/plus";
 import { Icon } from "../icon/index.ts";
 import { createSignal, For, type JSX, Show } from "@destack/view";
-import { toast } from "../toast/index.ts";
 import {
     Command,
     CommandDialog,
@@ -61,22 +60,15 @@ export const commandDialogNoteActions = defineExample({
                     <CommandList>
                         <CommandEmpty>No results</CommandEmpty>
                         <CommandGroup heading="Notes">
-                            <CommandItem onSelect={() => toast("Note created")}>
+                            <CommandItem>
                                 New note
                                 <CommandShortcut keys="mod+n" />
                             </CommandItem>
-                            <CommandItem
-                                keywords={["trash"]}
-                                onSelect={() => toast("Note deleted")}
-                            >
-                                Delete note
-                            </CommandItem>
+                            <CommandItem keywords={["trash"]}>Delete note</CommandItem>
                         </CommandGroup>
                         <CommandSeparator />
                         <CommandGroup heading="Settings">
-                            <CommandItem onSelect={() => toast("Opening appearance")}>
-                                Appearance
-                            </CommandItem>
+                            <CommandItem>Appearance</CommandItem>
                         </CommandGroup>
                     </CommandList>
                 </CommandDialog>
