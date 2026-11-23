@@ -12,9 +12,8 @@ import observabilityPackage from "@destack/observability/package";
 import relayPackage from "@destack/relay/package";
 import socialPackage from "@destack/social/package";
 import { defineStack, type StackInput } from "@destack/stack";
-import blankPackage from "@destack/blank/package";
+import { HOME_INSTALLATION } from "./home.ts";
 import sitePackage from "@platform/site/package";
-import { HOME_APPLICATION } from "@destack/account/object";
 import { defineVault } from "@destack/vault/declare";
 import vaultPackage from "@destack/vault/package";
 import { CREDIT_PRICES, PLANS } from "@platform/pricing";
@@ -76,11 +75,7 @@ function residencyStack(own: NonNullable<StackInput["installations"]>) {
                 { isolation: "host", name: "notification" },
             ),
             relay: install(relayPackage, {}, { name: "relay", selection: { kind: "host" } }),
-            home: install(
-                blankPackage,
-                {},
-                { name: HOME_APPLICATION, selection: { kind: "host" } },
-            ),
+            home: HOME_INSTALLATION,
             ...own,
             social: install(socialPackage, {}, { isolation: "host", name: "social" }),
             observability: install(

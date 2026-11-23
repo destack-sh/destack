@@ -1,7 +1,7 @@
 import connectionPackage, { CONNECTION_INSTALLATION } from "@destack/connection/package";
 import { connectionVault } from "@destack/connection/stack";
 import { HOME_APPLICATION } from "@destack/account/object";
-import blankPackage from "@destack/blank/package";
+import { HOME_INPUT, PlatformInput } from "../input/index.ts";
 import messagePackage from "@destack/message/package";
 import notificationPackage from "@destack/notification/package";
 import observabilityPackage from "@destack/observability/package";
@@ -9,6 +9,13 @@ import socialPackage from "@destack/social/package";
 import { defineStack } from "@destack/stack";
 import { install } from "@destack/stack/declare";
 import vaultPackage from "@destack/vault/package";
+
+/** Home installed as a space's front, following the release the host ships. */
+export const HOME_INSTALLATION = install(
+    PlatformInput.handle(HOME_INPUT),
+    {},
+    { name: HOME_APPLICATION, selection: { kind: "host" } },
+);
 
 /** Every account's home stack: its start page, inbox, connections, comments and observability. */
 export const HOME_STACK = defineStack({
@@ -21,7 +28,7 @@ export const HOME_STACK = defineStack({
             { credentials: "credentials" },
             { isolation: "host", name: CONNECTION_INSTALLATION },
         ),
-        home: install(blankPackage, {}, { name: HOME_APPLICATION, selection: { kind: "host" } }),
+        home: HOME_INSTALLATION,
         message: install(
             messagePackage,
             {},
