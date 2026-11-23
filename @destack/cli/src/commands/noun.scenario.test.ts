@@ -317,7 +317,7 @@ Usage: destack card new
 
 test("pass a flag with an object's identifier or key, refusing an unknown key", async () => {
     // create spaces on the computer's cloud machine by its identifier and by its declared name
-    const terminal = await TerminalFixture.open();
+    const terminal = await open();
     const machine = terminal.computer.machine.id;
     const { machines } = terminal.computer.world.universe.universe.definition.platform;
     const { name } = single(machines.filter((declared) => declared.id === machine));
