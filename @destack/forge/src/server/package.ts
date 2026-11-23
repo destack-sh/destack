@@ -136,10 +136,10 @@ async function check(
     // refuse a dev build, as every release is built from a commit at a release version
     const released = PackageManifest.package(contents.manifest);
     const { id, name, version } = released;
-    if (Version.isPrerelease(version)) {
+    if (!Version.isRelease(version)) {
         throw ForgeError.of(
             "BUILD_INVALID",
-            `image '${image}' is invalid: its root is dev build '${version}', not a release`,
+            `image '${image}' is invalid: its root is a dev build, not a release`,
         );
     }
 

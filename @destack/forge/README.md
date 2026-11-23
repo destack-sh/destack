@@ -92,7 +92,7 @@ export async function mirrorSite(
     requestId: string,
 ) {
     // create the mirror, then read its origin's references
-    const remote = "https://github.com/acme/site.git";
+    const remote = "https://github.com/example/site.git";
     const site = await client.repository.create({
         spaceId,
         accountId,
@@ -111,7 +111,7 @@ export async function mirrorSite(
 `destack publish` builds a checkout's package in the space, pushes its image, and releases it under a tag.
 
 ```sh
-destack publish ./@acme/site --tag latest
+destack publish ./@example/site --tag latest
 ```
 
 ### Deprecate a release

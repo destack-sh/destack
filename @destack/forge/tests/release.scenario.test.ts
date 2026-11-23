@@ -216,7 +216,7 @@ test("refuse publishing a dev build as a release, even from a commit", async () 
     const forge = await TestForge.open();
     const { crypto } = forge.environment;
     const { id, name } = PackageManifest.package((await fixtureBuild("answer")).reader.manifest);
-    const version = PackageVersion.parse({ id, name, version: Version.dev(UNRELEASED_VERSION) });
+    const version = PackageVersion.parse({ id, name, version: Version.development });
     await using store = await TestBuildStore.create(forge.environment);
     const image = await store.putImage(
         BuildImage.of(await store.putIndexed(await MemoryBuild.of(version, [], crypto))),
@@ -228,7 +228,7 @@ test("refuse publishing a dev build as a release, even from a commit", async () 
     ).toEqual([
         "BAD_REQUEST",
         "BUILD_INVALID",
-        `image '${image}' is invalid: its root is dev build '${UNRELEASED_VERSION}-dev', not a release`,
+        `image '${image}' is invalid: its root is a dev build, not a release`,
     ]);
 });
 

@@ -34,11 +34,11 @@ function open(github: GitHubStandIn): GitHubApp {
 }
 
 test("issue installation tokens limited to a repository and its use", async () => {
-    // host acme/site at GitHub
+    // host example/site at GitHub
     const github = new GitHubStandIn(world);
     github.add({
         id: REPOSITORY_ID,
-        fullName: "acme/site",
+        fullName: "example/site",
         installation: INSTALLATION,
         defaultBranch: "main",
         references: new Map([["refs/heads/main", { type: "commit", sha: COMMIT }]]),
@@ -47,20 +47,20 @@ test("issue installation tokens limited to a repository and its use", async () =
     const app = open(github);
 
     // identify the repository by name and lease writing to it by identifier
-    const fullName = GitHubApp.fullName("https://github.com/acme/site.git");
+    const fullName = GitHubApp.fullName("https://github.com/example/site.git");
     expect([
         await app.repository(String(INSTALLATION), fullName, NOW),
         await app.open(
             String(INSTALLATION),
             String(REPOSITORY_ID),
-            "https://github.com/acme/site.git",
+            "https://github.com/example/site.git",
             "write",
             NOW,
         ),
     ]).toEqual([
-        { id: String(REPOSITORY_ID), fullName: "acme/site" },
+        { id: String(REPOSITORY_ID), fullName: "example/site" },
         {
-            url: "https://github.com/acme/site.git",
+            url: "https://github.com/example/site.git",
             mode: "write",
             headers: {
                 authorization: `Basic ${new TextEncoder().encode("x-access-token:ghs_4242_contents_write").toBase64()}`,
@@ -73,16 +73,16 @@ test("issue installation tokens limited to a repository and its use", async () =
     expect(github.requests).toEqual([
         "POST api.github.com/app/installations/4242/access_tokens app",
         '  body {"repositories":["site"],"permissions":{"metadata":"read"}}',
-        "GET api.github.com/repos/acme/site installation 4242",
+        "GET api.github.com/repos/example/site installation 4242",
         "POST api.github.com/app/installations/4242/access_tokens app",
         '  body {"repository_ids":[1296269],"permissions":{"contents":"write"}}',
     ]);
 
     // refuse remotes outside github.com
-    expect(await refusal(() => GitHubApp.fullName("https://gitlab.com/acme/site.git"))).toEqual([
+    expect(await refusal(() => GitHubApp.fullName("https://gitlab.com/example/site.git"))).toEqual([
         "BAD_REQUEST",
         "GITHUB_REPOSITORY_REQUIRED",
-        "github.com repository is required: remote 'https://gitlab.com/acme/site.git' is not one",
+        "github.com repository is required: remote 'https://gitlab.com/example/site.git' is not one",
     ]);
 });
 

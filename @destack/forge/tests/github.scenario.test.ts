@@ -30,11 +30,11 @@ const objects = {
 /** GitHub's identifier of the fixture repository. */
 const REPOSITORY_ID = 1296269;
 
-/** Host acme/site at GitHub: main and next, an annotated v1 and a lightweight v0. */
+/** Host example/site at GitHub: main and next, an annotated v1 and a lightweight v0. */
 function site(github: GitHubStandIn) {
     github.add({
         id: REPOSITORY_ID,
-        fullName: "acme/site",
+        fullName: "example/site",
         installation: INSTALLATION,
         defaultBranch: "main",
         references: new Map([
@@ -54,10 +54,10 @@ function source(installation: number) {
             id: REPOSITORY_ID,
             node_id: "MDEwOlJlcG9zaXRvcnkxMjk2MjY5",
             name: "site",
-            full_name: "acme/site",
+            full_name: "example/site",
             private: true,
-            owner: { login: "acme", id: 9919, type: "Organization" },
-            html_url: "https://github.com/acme/site",
+            owner: { login: "example", id: 9919, type: "Organization" },
+            html_url: "https://github.com/example/site",
             default_branch: "main",
             master_branch: "main",
         },
@@ -83,7 +83,7 @@ async function deliver(
     return forge.fetch("/webhooks/github", { method: "POST", headers, body });
 }
 
-/** Connect the tenant's installation, and host acme/site in it at GitHub. */
+/** Connect the tenant's installation, and host example/site in it at GitHub. */
 async function connected(forge: TestForge) {
     site(forge.github);
     const tenant = await forge.tenant();
@@ -106,7 +106,7 @@ test("serve a GitHub repository through its connected installation", async () =>
     const forge = await TestForge.open();
     const { tenant, connectionId, owner } = await connected(forge);
 
-    // connect acme/site, and record GitHub's identifier once the forge settles
+    // connect example/site, and record GitHub's identifier once the forge settles
     const audited = new Set(
         (await auditedCalls(forge.home.database)).map((call) => call.execution.id),
     );
@@ -116,7 +116,7 @@ test("serve a GitHub repository through its connected installation", async () =>
         requestId: RequestId.create(forge.environment),
         name: "site",
         hosting: "github",
-        remote: "https://github.com/acme/site.git",
+        remote: "https://github.com/example/site.git",
         connectionId,
     });
     await forge.simulation.idle();
@@ -146,7 +146,7 @@ test("serve a GitHub repository through its connected installation", async () =>
     ]);
 
     // receive a branch push, a tag creation, a branch deletion, a ping and another installation's push
-    const hosted = found(forge.github.repositories, "acme/site");
+    const hosted = found(forge.github.repositories, "example/site");
     hosted.references.set("refs/heads/main", { type: "commit", sha: objects.third });
     hosted.references.set("refs/tags/v2", { type: "tag", sha: objects.patch });
     hosted.tags.set(objects.patch, { type: "commit", sha: objects.third });
@@ -164,7 +164,7 @@ test("serve a GitHub repository through its connected installation", async () =>
                 deleted: false,
                 forced: false,
                 base_ref: null,
-                compare: `https://github.com/acme/site/compare/${objects.first.slice(0, 12)}...${objects.third.slice(0, 12)}`,
+                compare: `https://github.com/example/site/compare/${objects.first.slice(0, 12)}...${objects.third.slice(0, 12)}`,
                 commits: [{ id: objects.third, message: "write README.md", distinct: true }],
                 head_commit: { id: objects.third, message: "write README.md", distinct: true },
                 pusher: { name: "ada", email: "ada@example.test" },
@@ -241,7 +241,7 @@ test("serve a GitHub repository through its connected installation", async () =>
     const refresh = [
         "POST api.github.com/app/installations/4242/access_tokens app",
         '  body {"repository_ids":[1296269],"permissions":{"contents":"read"}}',
-        "GET github.com/acme/site.git/info/refs?service=git-upload-pack installation 4242",
+        "GET github.com/example/site.git/info/refs?service=git-upload-pack installation 4242",
     ];
     expect(forge.github.requests).toEqual([...refresh, ...refresh, ...refresh]);
 
@@ -356,7 +356,7 @@ test("serve a GitHub repository through its connected installation", async () =>
 /** Build the lease of a GitHub installation token for the recorded remote. */
 function lease(mode: "read" | "write", password: string, expiresAt: number) {
     return {
-        url: "https://github.com/acme/site.git",
+        url: "https://github.com/example/site.git",
         mode,
         headers: {
             authorization: `Basic ${new TextEncoder().encode(`x-access-token:${password}`).toBase64()}`,
