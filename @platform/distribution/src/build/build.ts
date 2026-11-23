@@ -510,21 +510,21 @@ export class PlatformBuild implements AsyncDisposable {
         );
     }
 
-    /** List the stacks spaces people create are born with, following the stack package's tag. */
-    stacks(tag: string): PlatformDefinition["stacks"] {
+    /** List the stacks spaces people create are born with, as their host ships them. */
+    stacks(): PlatformDefinition["stacks"] {
         return {
-            home: this.following(EXPORTS.home, tag),
-            space: this.following(EXPORTS.space, tag),
+            home: this.following(EXPORTS.home),
+            space: this.following(EXPORTS.space),
         };
     }
 
-    /** Follow an export of the stack package at a tag, as a space people create does. */
-    following(exported: keyof typeof stacks, tag: string): StackRelease {
+    /** Follow an export of the stack package as the space's host ships it. */
+    following(exported: keyof typeof stacks): StackRelease {
         const stack = present(this.releases.get(STACK), `the release of ${STACK}`);
 
         return {
             packageId: PackageManifest.package(stack.manifest).id,
-            selection: { kind: "tag", tag },
+            selection: { kind: "host" },
             export: exported,
             settings: {},
             routes: {},
