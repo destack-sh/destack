@@ -3,6 +3,7 @@ import caretLeft from "@destack/icon/phosphor/caret-left";
 import caretRight from "@destack/icon/phosphor/caret-right";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
+import { media } from "@destack/style/media.stylex";
 import { size, space } from "@destack/theme/tokens.stylex";
 import { createControllableSignal, For, type JSX, merge, omit, useLocale } from "@destack/view";
 import {
@@ -24,11 +25,17 @@ const styles = style.create({
     },
     content: {
         display: "flex",
+        flexWrap: "wrap",
+        justifyContent: "center",
         alignItems: "center",
         gap: space[1],
     },
     step: {
         paddingInline: space[3],
+    },
+    label: {
+        // show only the arrow on a narrow page
+        display: { default: "inline", [media.maxSm]: "none" },
     },
     ellipsis: {
         display: "inline-flex",
@@ -132,7 +139,7 @@ export function PaginationPrevious(
             xstyle={[styles.step, properties.xstyle]}
         >
             <Icon icon={locale.direction === "rtl" ? caretRight : caretLeft} />
-            <span>{locale.render(t`Previous`)}</span>
+            <span {...style.attrs(styles.label)}>{locale.render(t`Previous`)}</span>
         </PaginationLink>
     );
 }
@@ -152,7 +159,7 @@ export function PaginationNext(
             {...rest}
             xstyle={[styles.step, properties.xstyle]}
         >
-            <span>{locale.render(t`Next`)}</span>
+            <span {...style.attrs(styles.label)}>{locale.render(t`Next`)}</span>
             <Icon icon={locale.direction === "rtl" ? caretLeft : caretRight} />
         </PaginationLink>
     );
