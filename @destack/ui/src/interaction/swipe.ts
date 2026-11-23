@@ -48,6 +48,10 @@ export interface SwipeOptions {
     readonly onSwipeEnd?: (event: SwipeEvent) => void;
     /** Report whether a pointer may start a swipe here. */
     readonly canStart?: (event: PointerEvent) => boolean;
+    /** The speed of a flick in pixels per millisecond, Sonner's 0.11 by default. */
+    readonly flickSpeed?: number;
+    /** Whether the element gives way a little when swiped away from the side. */
+    readonly isElastic?: boolean;
 }
 
 /** A move that follows an element toward a side and dismisses it. */
@@ -109,12 +113,20 @@ export class Swipe {
             return null;
         }
 
-        // move toward the side only
+        // move toward the side, and away from it against a resistance
         const side = this.#options.side();
-        const toward = Math.max(offset, 0) * (side === "bottom" || side === "right" ? 1 : -1);
+        const sign = side === "bottom" || side === "right" ? 1 : -1;
+        const toward = (Math.max(offset, 0) - this.resisted()) * sign;
         const translate = isVertical(side) ? `0 ${String(toward)}px` : `${String(toward)}px 0`;
 
         return [styles.swiping, styles.offset(translate)];
+    }
+
+    /** Read how far an elastic element gives way from the side, in pixels, as Vaul dampens it. */
+    resisted(): number {
+        const away = Math.max(-(this.offset() ?? 0), 0);
+
+        return this.#options.isElastic === true ? Math.max(0, 8 * (Math.log(away + 1) - 2)) : 0;
     }
 
     /** Report whether a pointer may start a swipe. */
@@ -136,7 +148,8 @@ export class Swipe {
 
         // dismiss past a share of the extent, or on a flick
         const isFar = travel > Math.max(extent * DISMISS_SHARE, DISMISS_DISTANCE);
-        const isFlick = speed > FLICK_SPEED && travel > FLICK_DISTANCE;
+        const isFlick =
+            speed > (this.#options.flickSpeed ?? FLICK_SPEED) && travel > FLICK_DISTANCE;
         this.#setOffset(undefined);
         this.#options.onSwipeEnd?.({
             ...event,
