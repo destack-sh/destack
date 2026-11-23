@@ -2156,8 +2156,9 @@ export class Space {
                     fields: ["export", "appliedStack"],
                     on: { id: "scope" },
                 },
-                // take the space again once its account's scope arrives
+                // take the space again once its account's scope and hostnames arrive, which its routes require
                 { table: Scope.table, where: { type: "account" }, fields: [], isListing: true },
+                { table: accountObject.hostname.table, fields: ["name"], isListing: true },
             ],
             project: async (key) => this.#place(key, store, main),
         };
