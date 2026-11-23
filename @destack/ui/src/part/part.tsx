@@ -1,5 +1,5 @@
 import * as style from "@destack/style";
-import { Dynamic, type JSX, merge, omit, untrack } from "@destack/view";
+import { dynamic, type JSX, merge, omit, untrack } from "@destack/view";
 import { access, type MaybeAccessor } from "@destack/view/primitives/utils";
 
 /** The key a part's styles stand under for a kit part its caller renders, which composes them. */
@@ -151,12 +151,10 @@ export function useRender(options: UseRenderOptions): JSX.Element {
         return options.render(mergeProperties(options.part, forwarded(options.properties)));
     }
 
-    return (
-        <Dynamic
-            component={options.defaultTagName}
-            {...mergeProperties(options.part, options.properties)}
-        />
-    );
+    // render the part on its default tag
+    const Element = dynamic(() => options.defaultTagName);
+
+    return <Element {...mergeProperties(options.part, options.properties)} />;
 }
 
 /** Render an element part on its own tag or the element its caller renders. */

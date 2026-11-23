@@ -1148,8 +1148,8 @@ function sensedAttributes(
     draggable: Draggable,
     sensors: readonly SortableSensor[],
     keys: readonly string[],
-    focusable: JSX.HTMLAttributes<HTMLElement>,
-): JSX.HTMLAttributes<HTMLElement> {
+    focusable: { readonly tabindex?: number },
+) {
     return sensors.includes("keyboard")
         ? mergeProperties(focusable, draggable.attributes(keys))
         : draggable.pointerAttributes();

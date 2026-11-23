@@ -94,7 +94,9 @@ function measureElements(): void {
 
 /** Press and release a key on the focused element. */
 function press(container: HTMLElement, key: string, modifiers: KeyboardEventInit = {}): void {
+    // settle what came before, then each key event as the browser's own task
     for (const type of ["keydown", "keyup"]) {
+        flush();
         (container.ownerDocument.activeElement ?? container).dispatchEvent(
             new KeyboardEvent(type, { ...modifiers, key, bubbles: true, cancelable: true }),
         );

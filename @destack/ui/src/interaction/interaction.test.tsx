@@ -711,12 +711,16 @@ test("press a link with Enter alone, a checkbox with Space alone, and no text fi
     const calls: string[] = [];
     const press = (name: string) =>
         rooted(() => new Press({ onPress: (event) => calls.push(`${name} ${event.key}`) }));
+    const link = press("link");
+    const buttonLink = press("button link");
+    const checkbox = press("checkbox");
+    const field = press("text");
     const { container } = render(() => (
         <>
-            <a href="#top" {...press("link").attributes()} />
-            <a href="#top" role="button" {...press("button link").attributes()} />
-            <input type="checkbox" {...press("checkbox").attributes()} />
-            <input type="text" {...press("text").attributes()} />
+            <a href="#top" {...link.attributes()} />
+            <a href="#top" role="button" {...buttonLink.attributes()} />
+            <input type="checkbox" {...checkbox.attributes()} />
+            <input type="text" {...field.attributes()} />
         </>
     ));
     for (const element of container.querySelectorAll<HTMLElement>("a, input")) {

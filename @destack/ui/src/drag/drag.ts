@@ -221,6 +221,8 @@ export class Draggable {
     readonly #manager: DragManager;
     /** Report whether the item stays where it is. */
     readonly #isDisabled: (() => boolean) | undefined;
+    /** The move that lifts it: a mouse or pen past the distance, a finger resting still. */
+    readonly #move: Move;
 
     /** Create a draggable and add it to a manager until its owner goes. */
     constructor(options: DraggableOptions, manager: DragManager) {
@@ -235,6 +237,30 @@ export class Draggable {
         this.#isDisabled = options.isDisabled;
         this.#manager = manager;
         manager.addDraggable(this);
+
+        // lift it by one move for its life, however often its attributes are read
+        this.#move = new Move(
+            {
+                delay: LIFT_DELAY,
+                keys: [],
+                isDisabled: () => this.isDisabled(),
+                canStart: (event) => !isOnControl(event),
+                onMoveStart: (event) => manager.lift(this.id, this.kind, event.pointerType),
+                onMove: (event) =>
+                    manager.follow(
+                        event.clientX,
+                        event.clientY,
+                        event.offsetX,
+                        event.offsetY,
+                        event.altKey ? "copy" : "move",
+                    ),
+                onMoveEnd: (event) =>
+                    event.isCancelled
+                        ? manager.cancel()
+                        : manager.drop(event.altKey ? "copy" : "move"),
+            },
+            manager.environment.clock,
+        );
     }
 
     /** Read whether the item is dragged. */
@@ -249,16 +275,13 @@ export class Draggable {
 
     /** Read the handlers that lift it by pointer alone, the keys left to its element. */
     pointerAttributes() {
-        return this.#move().attributes();
+        return this.#move.attributes();
     }
 
     /** Read the handlers and state the element that lifts it spreads. */
     attributes(lifts: readonly string[]) {
-        // lift by pointer, as pointerAttributes does
-        const manager = this.#manager;
-        const move = this.#move();
-
         // lift, drop, cancel and step on the keys
+        const manager = this.#manager;
         const keys = {
             onKeyDown: (event: KeyboardEvent) => this.#key(event, lifts),
             onBlur: () =>
@@ -283,35 +306,7 @@ export class Draggable {
             },
         };
 
-        return mergeProperties(mergeProperties(state, keys), move.attributes());
-    }
-
-    /** Create the move that lifts it: a mouse or pen past the distance, a finger resting still. */
-    #move(): Move {
-        const manager = this.#manager;
-
-        return new Move(
-            {
-                delay: LIFT_DELAY,
-                keys: [],
-                isDisabled: () => this.isDisabled(),
-                canStart: (event) => !isOnControl(event),
-                onMoveStart: (event) => manager.lift(this.id, this.kind, event.pointerType),
-                onMove: (event) =>
-                    manager.follow(
-                        event.clientX,
-                        event.clientY,
-                        event.offsetX,
-                        event.offsetY,
-                        event.altKey ? "copy" : "move",
-                    ),
-                onMoveEnd: (event) =>
-                    event.isCancelled
-                        ? manager.cancel()
-                        : manager.drop(event.altKey ? "copy" : "move"),
-            },
-            manager.environment.clock,
-        );
+        return mergeProperties(mergeProperties(state, keys), this.#move.attributes());
     }
 
     /** Lift, drop, cancel or step a keyboard drag on a key pressed on the element. */

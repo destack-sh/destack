@@ -212,6 +212,7 @@ test("move the focus between cells with the arrow keys, with one tab stop", () =
     const container = drawInvoices();
     flush();
     container.querySelector<HTMLElement>("tbody td:nth-child(2)")?.focus();
+    flush();
     press("ArrowDown");
     press("ArrowRight");
     const focused = document.activeElement?.textContent;
@@ -910,11 +911,12 @@ test("stop a column's header from moving once it pins, focused, and let it move 
     chooseInHeaderMenu(sheet.container, "name", "Pin to start");
     await Promise.resolve();
     const focused = document.activeElement?.closest("th")?.dataset["column"];
+    const stops = sheet.container.querySelectorAll("table [tabindex='0']").length;
     const pinned = lifts();
     chooseInHeaderMenu(sheet.container, "name", "Unpin");
 
     // the pinned header takes the focus back from its menu
-    expect([before, focused, pinned, lifts()]).toEqual([true, "name", false, true]);
+    expect([before, focused, stops, pinned, lifts()]).toEqual([true, "name", 1, false, true]);
 });
 
 test("end an invalid edit whose column hides, the focus moving through the grid again", () => {

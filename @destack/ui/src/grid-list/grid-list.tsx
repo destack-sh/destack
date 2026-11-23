@@ -398,6 +398,8 @@ export interface GridListProperties<Item> extends GridListElementProperties<
 
 /** The attributes a grid list gives a heading row. */
 interface GridListHeadingAttributes extends Pick<JSX.HTMLAttributes<HTMLDivElement>, "ref"> {
+    /** The heading's data attributes, such as its index. */
+    readonly [data: `data-${string}`]: string | number | undefined;
     /** The section's name. */
     readonly label: string;
     /** The row role. */

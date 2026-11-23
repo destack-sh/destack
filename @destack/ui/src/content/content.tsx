@@ -1,6 +1,6 @@
 import type { Element, ElementContent, Properties, Root } from "hast";
 import { find, html, type Schema, svg } from "property-information";
-import { type Component, createComponent, Dynamic, For, type JSX } from "@destack/view";
+import { type Component, createComponent, dynamic, For, type JSX } from "@destack/view";
 
 /** The properties a component receives for one element of a content tree. */
 export interface ContentElementProperties {
@@ -60,14 +60,16 @@ function renderNode(
     );
     const component = components[node.tagName];
 
-    // stand a component in for the element, or render the element itself
-    return component === undefined ? (
-        <Dynamic component={node.tagName} {...attributes}>
-            {children}
-        </Dynamic>
-    ) : (
-        createComponent(component, { ...attributes, node, children })
-    );
+    // stand a component in for the element
+    if (component !== undefined) {
+        return createComponent(component, { ...attributes, node, children });
+    }
+    // else render the element itself
+    else {
+        const Element = dynamic(() => node.tagName);
+
+        return <Element {...attributes}>{children}</Element>;
+    }
 }
 
 /** Render the children of an element, none for an empty element such as an image. */

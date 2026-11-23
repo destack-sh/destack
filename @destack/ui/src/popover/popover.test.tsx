@@ -21,7 +21,7 @@ test("toggle a popover from its trigger through the platform's popover target, a
     ));
     expect(markup(container)).toBe(
         '<button data-slot="popover-trigger" type="button" id="id-1-trigger" popovertarget="id-1" aria-haspopup="dialog" aria-controls="id-1" data-anchor-name="--id-1">Share</button>' +
-            '<div data-position-anchor="--id-1" id="id-1" popover="auto" role="dialog" aria-labelledby="id-1-trigger" data-slot="popover-content" data-closed="" data-side="bottom" data-align="start">Anyone with the link can view.</div>',
+            '<div id="id-1" popover="auto" role="dialog" aria-labelledby="id-1-trigger" data-slot="popover-content" data-closed="" data-side="bottom" data-align="start" data-position-anchor="--id-1">Anyone with the link can view.</div>',
     );
 });
 

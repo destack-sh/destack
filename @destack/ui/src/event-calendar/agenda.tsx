@@ -3,7 +3,7 @@ import { PlainDate } from "@destack/schema";
 import * as style from "@destack/style";
 import { color, radius, space, stroke, weight, swatch } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import { createMemo, Dynamic, For, type JSX, Show, useContext, useLocale } from "@destack/view";
+import { createMemo, For, type JSX, Show, useContext, useLocale } from "@destack/view";
 import { EventCalendarEventContext, useEventCalendar, type EventCalendarView } from "./control.ts";
 import { OfferedView } from "./view.tsx";
 import { CalendarEvent } from "./event.ts";
@@ -71,7 +71,7 @@ function AgendaView(): JSX.Element {
     // list each shown day that has events, all-day ones first, then by start
     const control = useEventCalendar();
     const locale = useLocale();
-    const render = useContext(EventCalendarEventContext) ?? EventCalendarEvent;
+    const Render = useContext(EventCalendarEventContext) ?? EventCalendarEvent;
     const spans = createMemo(() =>
         control
             .events()
@@ -125,13 +125,7 @@ function AgendaView(): JSX.Element {
                                 <For each={entry().events}>
                                     {(event) => (
                                         <li>
-                                            <Dynamic
-                                                component={render}
-                                                event={event}
-                                                layout="list"
-                                                isStart
-                                                isEnd
-                                            />
+                                            <Render event={event} layout="list" isStart isEnd />
                                         </li>
                                     )}
                                 </For>

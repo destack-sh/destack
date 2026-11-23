@@ -8,7 +8,6 @@ import {
     type Accessor,
     createContext,
     createMemo,
-    Dynamic,
     For,
     type JSX,
     omit,
@@ -652,7 +651,7 @@ function MonthEvent(properties: {
 }): JSX.Element {
     // drag the event from this part's first day to another
     const control = useEventCalendar();
-    const render = useContext(EventCalendarEventContext) ?? EventCalendarEvent;
+    const Render = useContext(EventCalendarEventContext) ?? EventCalendarEvent;
     const event = () => control.eventOf(properties.segment.key);
     let element: HTMLElement | undefined;
     const lifted = new Draggable(
@@ -676,19 +675,21 @@ function MonthEvent(properties: {
     const draggable = untrack(() => control.isBusy(event())) ? {} : lifted.attributes([" "]);
     const columns = () => Segment.columns(properties.segment, properties.days);
 
+    // forward the drag and the element to the event the caller renders
+    const eventAttributes = mergeProperties(
+        { ref: (created: HTMLButtonElement) => (element = created) },
+        draggable,
+    );
+
     return (
-        <Dynamic
-            component={render}
+        <Render
             event={event()}
             layout="inline"
             isStart={properties.segment.isStart}
             isEnd={properties.segment.isEnd}
             data-start={properties.segment.start}
             data-end={properties.segment.end}
-            {...mergeProperties(
-                { ref: (created: HTMLButtonElement) => (element = created) },
-                draggable,
-            )}
+            {...eventAttributes}
             xstyle={[
                 places.span(columns().start + 1, columns().span, properties.segment.position + 2),
                 control.manager.isDragging(properties.segment.key) && placement.dragging,

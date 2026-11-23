@@ -26,7 +26,6 @@ import {
     createContext,
     createMemo,
     createSignal,
-    Dynamic,
     For,
     type JSX,
     omit,
@@ -1299,7 +1298,7 @@ export function EventCalendarSweep(properties: EventCalendarPartProperties): JSX
 export function EventCalendarLanding(properties: EventCalendarPartProperties): JSX.Element {
     // draw the event with the caller's part, retimed to where it would land
     const column = useEventCalendarColumn();
-    const render = useContext(EventCalendarEventContext) ?? EventCalendarEvent;
+    const Render = useContext(EventCalendarEventContext) ?? EventCalendarEvent;
     const rest = omit(properties, "children", "xstyle", "style");
 
     return (
@@ -1319,8 +1318,7 @@ export function EventCalendarLanding(properties: EventCalendarPartProperties): J
                         properties.style,
                     )}
                 >
-                    <Dynamic
-                        component={render}
+                    <Render
                         event={landed()}
                         layout="block"
                         isStart={true}
@@ -1377,7 +1375,7 @@ function TimedEvent(properties: {
 }): JSX.Element {
     // drag the event's start, or its end from the handle at its foot
     const control = useEventCalendar();
-    const render = useContext(EventCalendarEventContext) ?? EventCalendarEvent;
+    const Render = useContext(EventCalendarEventContext) ?? EventCalendarEvent;
     const locale = useLocale();
     const key = untrack(() => properties.event.key);
     let element: HTMLElement | undefined;
@@ -1432,6 +1430,12 @@ function TimedEvent(properties: {
             : undefined;
     const box = () => control.wallBox(properties.segment);
 
+    // forward the drag and the element to the event the caller renders
+    const eventAttributes = mergeProperties(
+        { ref: (created: HTMLButtonElement) => (element = created) },
+        move,
+    );
+
     return (
         <div
             data-slot="event-calendar-timed"
@@ -1448,16 +1452,12 @@ function TimedEvent(properties: {
             )}
         >
             {/* The event */}
-            <Dynamic
-                component={render}
+            <Render
                 event={properties.event}
                 layout="block"
                 isStart={properties.segment.isStart}
                 isEnd={properties.segment.isEnd}
-                {...mergeProperties(
-                    { ref: (created: HTMLButtonElement) => (element = created) },
-                    move,
-                )}
+                {...eventAttributes}
                 xstyle={styles.fill}
             />
 
@@ -1509,7 +1509,7 @@ function AllDayEvent(properties: {
 }): JSX.Element {
     // drag the event from this part's first day to another of the row
     const control = useEventCalendar();
-    const render = useContext(EventCalendarEventContext) ?? EventCalendarEvent;
+    const Render = useContext(EventCalendarEventContext) ?? EventCalendarEvent;
     const event = () => control.eventOf(properties.segment.key);
     let element: HTMLElement | undefined;
     const lifted = new Draggable(
@@ -1534,17 +1534,19 @@ function AllDayEvent(properties: {
     const draggable = untrack(() => control.isBusy(event())) ? {} : lifted.attributes([" "]);
     const columns = () => Segment.columns(properties.segment, properties.days);
 
+    // forward the drag and the element to the event the caller renders
+    const eventAttributes = mergeProperties(
+        { ref: (created: HTMLButtonElement) => (element = created) },
+        draggable,
+    );
+
     return (
-        <Dynamic
-            component={render}
+        <Render
             event={event()}
             layout="inline"
             isStart={properties.segment.isStart}
             isEnd={properties.segment.isEnd}
-            {...mergeProperties(
-                { ref: (created: HTMLButtonElement) => (element = created) },
-                draggable,
-            )}
+            {...eventAttributes}
             xstyle={[
                 places.span(
                     properties.offset + columns().start + 2,

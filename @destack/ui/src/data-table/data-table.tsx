@@ -803,42 +803,44 @@ function DataTableHeaderCell<Features extends TableFeatures, Data extends RowDat
     const tracked = useDataTableState();
     const pins = properties.pins;
     const header = properties.header;
-    const cell = (attributes: object) => (
-        <TableHead
-            {...mergeProperties(
-                attributes,
-                useGridCell(
-                    properties.control,
-                    () => properties.cell,
-                    () => undefined,
-                ),
-            )}
-            colspan={header.colSpan}
-            xstyle={[
-                state.focusInset,
-                styles.head,
-                styles.fixed,
-                metaOf(header.column).isControl !== true && [
-                    styles.divided,
-                    styles.lined,
-                    styles.lidded,
-                ],
-                metaOf(header.column).isControl === true
-                    ? styles.control
-                    : follow(tracked, () => sizeOf(header)),
-                pinStyleOf(pins().get(header.column.id)),
-            ]}
-            aria-sort={follow(tracked, () => sortOf(header))}
-            data-column={header.column.id}
-        >
-            <span {...style.attrs(styles.headerContent)}>
-                <Show when={!header.isPlaceholder}>
-                    {renderTemplate(header.column.columnDef.header, header.getContext())}
-                </Show>
-            </span>
-            <ColumnResizer header={header} />
-        </TableHead>
-    );
+    const cell = (attributes: object) => {
+        // follow the grid for each header element, as pinning the column swaps its element
+        const gridCell = useGridCell(
+            properties.control,
+            () => properties.cell,
+            () => undefined,
+        );
+
+        return (
+            <TableHead
+                {...mergeProperties(attributes, gridCell)}
+                colspan={header.colSpan}
+                xstyle={[
+                    state.focusInset,
+                    styles.head,
+                    styles.fixed,
+                    metaOf(header.column).isControl !== true && [
+                        styles.divided,
+                        styles.lined,
+                        styles.lidded,
+                    ],
+                    metaOf(header.column).isControl === true
+                        ? styles.control
+                        : follow(tracked, () => sizeOf(header)),
+                    pinStyleOf(pins().get(header.column.id)),
+                ]}
+                aria-sort={follow(tracked, () => sortOf(header))}
+                data-column={header.column.id}
+            >
+                <span {...style.attrs(styles.headerContent)}>
+                    <Show when={!header.isPlaceholder}>
+                        {renderTemplate(header.column.columnDef.header, header.getContext())}
+                    </Show>
+                </span>
+                <ColumnResizer header={header} />
+            </TableHead>
+        );
+    };
 
     // move the header while its column moves, a pinned one standing out of the moving headers
     const isMoving = () => properties.isOrdered && follow(tracked, () => isMovable(header));
@@ -964,6 +966,9 @@ function DataTableBodyCell<Features extends TableFeatures, Data extends RowData>
         return isSelectableCell(each) && each.getCanSelect();
     };
 
+    // follow the grid for the cell
+    const gridCell = useGridCell(control, key, cell);
+
     return (
         <TableCell
             data-column={cell().column.id}
@@ -995,7 +1000,7 @@ function DataTableBodyCell<Features extends TableFeatures, Data extends RowData>
                 metaOf(cell().column).isControl === true && styles.gutter,
             ]}
             aria-invalid={isRefused() ? "true" : undefined}
-            {...useGridCell(control, key, cell)}
+            {...gridCell}
         >
             {/* A checkbox for a yes or no outside groups, disabled in a read-only cell */}
             <Show
