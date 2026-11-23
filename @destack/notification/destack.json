@@ -6,7 +6,8 @@
     "runtimes": ["browser", "bun", "workerd"],
     "exports": {
         "./server": {
-            "runtimes": ["bun", "workerd"]
+            "runtimes": ["bun", "workerd"],
+            "internal": true
         },
         "./stack": {
             "runtimes": ["bun", "workerd"]
@@ -15,7 +16,8 @@
             "runtimes": ["bun", "workerd"]
         },
         "./inspect": {
-            "runtimes": ["bun"]
+            "runtimes": ["bun"],
+            "internal": true
         }
     },
     "declarations": {

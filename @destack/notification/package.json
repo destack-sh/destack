@@ -22,35 +22,47 @@
         "@destack/account": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/error": "workspace:*",
-        "@destack/identity": "workspace:*",
         "@destack/locale": "workspace:*",
-        "@destack/mail": "workspace:*",
         "@destack/message": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/setting": "workspace:*",
         "@destack/stack": "workspace:*",
-        "@destack/sync": "workspace:*",
-        "@destack/workflow": "workspace:*"
+        "@destack/sync": "workspace:*"
     },
     "peerDependencies": {
         "@destack/environment": "workspace:*",
-        "@destack/test": "workspace:*"
+        "@destack/identity": "workspace:*",
+        "@destack/mail": "workspace:*",
+        "@destack/test": "workspace:*",
+        "@destack/workflow": "workspace:*"
     },
     "peerDependenciesMeta": {
         "@destack/environment": {
             "optional": true
         },
+        "@destack/identity": {
+            "optional": true
+        },
+        "@destack/mail": {
+            "optional": true
+        },
         "@destack/test": {
+            "optional": true
+        },
+        "@destack/workflow": {
             "optional": true
         }
     },
     "devDependencies": {
         "@destack/environment": "workspace:*",
+        "@destack/identity": "workspace:*",
         "@destack/machine": "workspace:*",
+        "@destack/mail": "workspace:*",
         "@destack/resource": "workspace:*",
         "@destack/test": "workspace:*",
+        "@destack/workflow": "workspace:*",
         "@types/bun": "1.4.4"
     }
 }
