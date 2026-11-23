@@ -85,7 +85,7 @@
         margin-block: var(--destack-space-1);
         padding: var(--destack-space-1);
         border: var(--destack-stroke-border) solid var(--destack-color-border);
-        border-radius: var(--destack-radius-3);
+        border-radius: var(--destack-radius-4);
         background-color: var(--destack-color-popover);
         color: var(--destack-color-foreground);
         box-shadow: var(--destack-shadow-overlay);

@@ -494,7 +494,7 @@ test("emit the default theme's custom properties for the system appearance", () 
             "light-dark(color-mix(in oklab, #ccced5, #c3c4cd calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #46474e, #757781 calc(var(--destack-contrast, 0) * 100%)))",
         "--destack-color-ring":
             "light-dark(color-mix(in oklab, #83a6ff, #5f85f3 calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #6b92fa, #91b1ff calc(var(--destack-contrast, 0) * 100%)))",
-        "--destack-color-scrim": "light-dark(#1f1f2280, #00000080)",
+        "--destack-color-scrim": "light-dark(#1f1f2259, #00000059)",
         "--destack-font-text-adjust": "none",
         "--destack-font-text":
             '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji"',
@@ -618,7 +618,7 @@ test("emit the default theme's custom properties for the system appearance", () 
         "--destack-shadow-raised":
             "0px 0px 0px 1px var(--destack-shadow-edge), 0px 1px 3px 0px var(--destack-shadow-cast)",
         "--destack-shadow-overlay":
-            "0px 0px 0px 1px var(--destack-shadow-edge), 0px 12px 32px -16px var(--destack-shadow-cast), 0px 12px 60px 0px var(--destack-shadow-cast)",
+            "0px 12px 32px -16px var(--destack-shadow-cast), 0px 12px 60px 0px var(--destack-shadow-cast)",
         "--destack-motion-duration-short": "calc(150ms * var(--destack-motion-scale, 1))",
         "--destack-motion-duration-medium": "calc(300ms * var(--destack-motion-scale, 1))",
         "--destack-motion-duration-long": "calc(500ms * var(--destack-motion-scale, 1))",

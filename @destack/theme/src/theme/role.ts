@@ -79,8 +79,8 @@ const HOVER_ALPHA = 0.04;
 /** The opacity of the text color over a selected item, after Material's state layers. */
 const SELECTED_ALPHA = 0.06;
 
-/** The opacity of the scrim behind modal surfaces: half strength. */
-const SCRIM_ALPHA = 0.5;
+/** The opacity of the scrim behind modal surfaces, light enough to read the page behind. */
+const SCRIM_ALPHA = 0.35;
 
 /** The neutral role names, which the color tokens list in order. */
 export const NEUTRAL_NAMES = [
