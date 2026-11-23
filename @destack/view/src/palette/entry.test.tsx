@@ -16,7 +16,7 @@ const WORK = schema.identifier("space").parse("space-019f5530-8000-7000-8000-000
 const HOME = schema.identifier("space").parse("space-019f5530-8000-7000-8000-0000000000b2");
 
 /** The domain the local machine serves origins under. */
-const DOMAIN = "localhost";
+const DOMAIN = "space.localhost";
 
 /** An action of an installation calling a method of one of its types. */
 function action(
@@ -133,10 +133,14 @@ test("read what a window shows from its location: the installation its origin na
 
     expect([
         PaletteFocus.of(null, HOME, DOMAIN),
-        PaletteFocus.of("http://notes--home--ada.localhost:4000/home", HOME, DOMAIN),
-        PaletteFocus.of(`http://notes--home--ada.localhost:4000/home?target=${json}`, HOME, DOMAIN),
+        PaletteFocus.of("http://notes--home--ada.space.localhost:4000/home", HOME, DOMAIN),
         PaletteFocus.of(
-            `http://home--ada.localhost:4000/.destack/open?object=${json}`,
+            `http://notes--home--ada.space.localhost:4000/home?target=${json}`,
+            HOME,
+            DOMAIN,
+        ),
+        PaletteFocus.of(
+            `http://ada.space.localhost:4000/.destack/open?object=${json}`,
             HOME,
             DOMAIN,
         ),
@@ -144,12 +148,12 @@ test("read what a window shows from its location: the installation its origin na
         { objects: [] },
         { space: HOME, installation: "notes", objects: [] },
         { space: HOME, installation: "notes", objects: [note] },
-        { space: HOME, objects: [note] },
+        { space: HOME, installation: "home", objects: [note] },
     ]);
 
     // refuse a location the machine never writes
     expect(
-        ["not a location", "http://notes--home--ada.localhost:4000/home?target=%7B"].map(
+        ["not a location", "http://notes--home--ada.space.localhost:4000/home?target=%7B"].map(
             (location) => thrown(() => PaletteFocus.of(location, HOME, DOMAIN)),
         ),
     ).toEqual([
