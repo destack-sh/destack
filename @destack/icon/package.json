@@ -13,14 +13,22 @@
         "generate": "bun run src/phosphor/generate.ts"
     },
     "dependencies": {
-        "@destack/environment": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*"
     },
     "devDependencies": {
         "@destack/check": "workspace:*",
+        "@destack/environment": "workspace:*",
         "@destack/test": "workspace:*",
         "@phosphor-icons/core": "2.1.1",
         "@types/bun": "1.4.4"
+    },
+    "peerDependencies": {
+        "@destack/environment": "workspace:*"
+    },
+    "peerDependenciesMeta": {
+        "@destack/environment": {
+            "optional": true
+        }
     }
 }
