@@ -81,6 +81,7 @@ const styles = style.create({
         flexDirection: "column",
         gap: space[3],
         minHeight: 0,
+        maxWidth: "100%",
         overflowX: "auto",
         overscrollBehaviorX: "contain",
         scrollSnapType: "x proximity",
