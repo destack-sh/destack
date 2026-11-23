@@ -1,5 +1,5 @@
 {
-    "name": "@destack/machine-binder-fixture",
+    "name": "@example/binder",
     "type": "module",
     "exports": {
         "./object": "./src/index.ts",

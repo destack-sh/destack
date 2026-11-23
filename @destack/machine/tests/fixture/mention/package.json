@@ -1,5 +1,5 @@
 {
-    "name": "@destack/machine-mention-fixture",
+    "name": "@example/mention",
     "type": "module",
     "exports": {
         "./object": "./src/index.ts",

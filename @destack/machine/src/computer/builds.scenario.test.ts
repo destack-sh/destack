@@ -198,7 +198,7 @@ async function writeSite(directory: string, files: FileSystem): Promise<string> 
     await files.writeTextFile(
         join(worktree, "package.json"),
         JSON.stringify({
-            name: "@acme/site",
+            name: "@example/site",
             version: "2026.10.0",
             type: "module",
             exports: { ".": "./src/index.ts" },
@@ -223,7 +223,7 @@ async function writeSite(directory: string, files: FileSystem): Promise<string> 
         JSON.stringify({
             lockfileVersion: 2,
             configVersion: 1,
-            workspaces: { "": { name: "@acme/site" } },
+            workspaces: { "": { name: "@example/site" } },
             packages: {},
         }),
     );

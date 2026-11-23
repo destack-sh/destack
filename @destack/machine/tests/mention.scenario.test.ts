@@ -23,7 +23,7 @@ import { createClient } from "@destack/object/client";
 import { found, Identifier, present, schema } from "@destack/schema";
 import { RequestId, Scope } from "@destack/sync";
 import { expect, test } from "@destack/test";
-import boardPackage from "@destack/machine-mention-fixture/package";
+import boardPackage from "@example/mention/package";
 
 /** The email of the person the owner shares the board's account with. */
 const STRANGER_EMAIL = "stranger@example.test";
@@ -105,10 +105,12 @@ async function openBoard(
             .snapshot()
             .read(installation.table)
             .findFirst({ where: { scope: space, packageId } });
-        // publish a missing one as the platform's operator, and install it
+        // publish a missing package the host lacks, then install it
         if (installed === undefined) {
             const build = await TestDistribution.fixture(fixture);
-            await home.publish(TestDistribution.imageOf(fixture));
+            if (!computer.machine.shipped.has(packageId)) {
+                await home.publish(TestDistribution.imageOf(fixture));
+            }
             await computer.install(login.id, space, build, name);
         }
     }

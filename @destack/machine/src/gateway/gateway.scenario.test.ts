@@ -8,7 +8,7 @@ import { MemoryBuild } from "@destack/package/test";
 import { expect, refusal, test } from "@destack/test";
 import { Authentication, Caller, CALLER_HEADER, principal } from "@destack/access";
 import { PackageId } from "@destack/package";
-import { Digest, Identifier, type JsonValue, nth, present, schema } from "@destack/schema";
+import { Digest, Identifier, type JsonValue, nth, present, schema, Version } from "@destack/schema";
 import { Exchange } from "@destack/access/token";
 import {
     CallError,
@@ -101,7 +101,7 @@ const tasks: InstanceSpec = {
             role: "app",
             package: {
                 id: PackageId.parse("package-01996ab0-0000-7000-8000-0000000000a7"),
-                name: "@acme/tasks",
+                name: "@example/tasks",
                 version: "2026.9.0",
             },
         },
@@ -307,20 +307,18 @@ test("route each call to the newest deployment serving the caller's release, and
             : refused.join(": ");
     };
 
-    // serve old callers on the earlier deployment and current ones on the newest, a dev build as its release
+    // route each caller's version to the deployment serving it
     expect([
         await call("2026.8.0"),
         await call("2026.9.0"),
         await call("2026.10.0"),
-        await call("2026.10.0-dev"),
         await call("2026.11.0"),
-        await call("2026.11.0-dev"),
+        await call(Version.development),
         await call(),
         await call("next"),
     ]).toEqual([
         EARLIER.instanceId,
         EARLIER.instanceId,
-        NEWEST.instanceId,
         NEWEST.instanceId,
         `SERVICE_UNAVAILABLE: DEPLOYMENT_UNAVAILABLE: deployment of installation '${ids.notes}' is unavailable: none running serves the call`,
         `SERVICE_UNAVAILABLE: DEPLOYMENT_UNAVAILABLE: deployment of installation '${ids.notes}' is unavailable: none running serves the call`,
@@ -842,7 +840,7 @@ test("resend a call at the wrong partition once to the one its store names", asy
 test("refuse a request to an installation origin the space has no installation of, answering its refusal", async () => {
     // ask for an origin whose installation name the space has none of
     const { gateway } = await openNotes();
-    const answered = await gateway.serve(new Request("http://nots--space--acme.localhost/"));
+    const answered = await gateway.serve(new Request("http://nots--space--example.localhost/"));
 
     expect([answered.status, await answerOf(answered)]).toEqual([
         404,

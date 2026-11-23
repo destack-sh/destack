@@ -18,7 +18,7 @@ import { t } from "@destack/locale";
 /** The stack package the spaces install. */
 const stacked = PackageVersion.parse({
     id: ids.stackPackage,
-    name: "@acme/stack",
+    name: "@example/stack",
     version: "2026.9.0",
 });
 

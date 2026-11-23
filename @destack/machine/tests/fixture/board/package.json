@@ -1,5 +1,5 @@
 {
-    "name": "@destack/machine-board-fixture",
+    "name": "@example/board",
     "type": "module",
     "exports": {
         "./object": "./src/index.ts",

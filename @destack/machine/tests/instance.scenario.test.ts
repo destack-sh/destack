@@ -90,7 +90,7 @@ import { argument, plural, t } from "@destack/locale";
 /** The notes package the scenarios install. */
 const notesPackage = PackageVersion.parse({
     id: ids.package,
-    name: "@acme/notes",
+    name: "@example/notes",
     version: "2026.9.0",
 });
 
@@ -104,16 +104,10 @@ const objectPackage = PackageVersion.parse({
 /** The main workload of the notes build. */
 const mainWorkload = { ...workload, resources: [] };
 
-/** The Destack version the fixture machine runs and supports alone: this checkout's. */
-const DESTACK = import.meta.destack.package.version;
-
-/** A Destack version newer than the fixture machine runs: its next release. */
-const NEWER_DESTACK = Version.next(DESTACK);
-
 /** A package an application depends on, which its space may lack. */
 const VAULT = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000f2",
-    name: "@acme/vault",
+    name: "@example/vault",
     version: "2026.9.0",
 });
 
@@ -625,7 +619,7 @@ test("retain an uninstalled application's tables for approval", async () => {
         instance: [running.deploymentId, running.status],
     }).toEqual({
         main: ["main", ids.space, "Applied"],
-        tables: ["acme__notes__note"],
+        tables: ["example__notes__note"],
         instance: [deployed.id, "running"],
     });
 
@@ -659,9 +653,9 @@ test("retain an uninstalled application's tables for approval", async () => {
                 [
                     "delete",
                     "safe",
-                    "table/acme__notes__note/dependent/destack__access__relationship",
+                    "table/example__notes__note/dependent/destack__access__relationship",
                 ],
-                ["delete", "destructive", "table/acme__notes__note"],
+                ["delete", "destructive", "table/example__notes__note"],
             ],
         ],
     });
@@ -944,27 +938,14 @@ async function deployBuiltWith(built: string) {
     return [deployed.length, refused, synced?.message];
 }
 
-test("refuse a release built with an unsupported Destack", async () => {
-    // deploy notes built with a Destack older than the machine supports, then with one newer than it runs
-
-    // refuse each, the one too old and the one too new for the machine running this checkout's Destack
-    const older = `@acme/notes is built with Destack 2026.9.0, older than this machine supports (${DESTACK})`;
-    const newer = `@acme/notes is built with Destack ${NEWER_DESTACK}, newer than this machine's ${DESTACK}`;
-    expect({
-        older: await deployBuiltWith("2026.9.0"),
-        newer: await deployBuiltWith(NEWER_DESTACK),
-    }).toEqual({
-        older: [
-            0,
-            ["NOT_IMPLEMENTED", "RELEASE_UNSUPPORTED", older],
-            `@destack/stack RELEASE_UNSUPPORTED: ${older}`,
-        ],
-        newer: [
-            0,
-            ["NOT_IMPLEMENTED", "RELEASE_UNSUPPORTED", newer],
-            `@destack/stack RELEASE_UNSUPPORTED: ${newer}`,
-        ],
-    });
+test("refuse a release built with an older Destack than the machine supports", async () => {
+    // refuse notes built with an older Destack than this checkout's dev machine supports
+    const older = `@example/notes is built with Destack 2026.9.0, older than this machine supports (${Version.development})`;
+    expect(await deployBuiltWith("2026.9.0")).toEqual([
+        0,
+        ["NOT_IMPLEMENTED", "RELEASE_UNSUPPORTED", older],
+        `@destack/stack RELEASE_UNSUPPORTED: ${older}`,
+    ]);
 });
 
 test("refuse a build with no output for the machine's runtimes", async () => {
@@ -1043,7 +1024,7 @@ test("refuse a build needing a newer builtin than linked", async () => {
     // link a builtin at 2026.9.0, and install notes requiring its 2026.10.0
     const boxes = PackageVersion.parse({
         id: "package-01996ab0-0000-7000-8000-0000000000e2",
-        name: "@acme/boxes",
+        name: "@example/boxes",
         version: "2026.9.0",
     });
     const linked = await MemoryBuild.of(boxes, [], testHost().crypto, { role: "builtin" });
@@ -1059,7 +1040,7 @@ test("refuse a build needing a newer builtin than linked", async () => {
 
     // refuse deploying it
     const message =
-        "cannot deploy '@acme/notes@2026.9.0': it needs @acme/boxes 2026.10.0 or newer, and this machine runs 2026.9.0";
+        "cannot deploy '@example/notes@2026.9.0': it needs @example/boxes 2026.10.0 or newer, and this machine runs 2026.9.0";
     await fixture.simulation.idle();
     const refused = single(fixture.takeRefusals());
     const installed = await readInstalled(database, notes.id);
@@ -1430,12 +1411,12 @@ test("bind an installation binding once its target has an address", async () => 
     const dependency = declaredRun.resources.find((entry) => entry.kind === "installation");
 
     // bind the tasks to the board installation of another space, by its name there
-    const acme = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000031");
+    const example = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000031");
     const board = "board";
     await selectBinding(database, notes.id, "tasks", {
         type: "installation",
         name: board,
-        spaceId: acme,
+        spaceId: example,
     });
 
     // deploy it and run its instance
@@ -1471,14 +1452,14 @@ test("bind an installation binding once its target has an address", async () => 
         ],
         declared: ["true", "Applied"],
         dependency: ["tasks", "notes", "http"],
-        captured: [{ name: "tasks", target: board, targetSpaceId: acme, version: null }],
+        captured: [{ name: "tasks", target: board, targetSpaceId: example, version: null }],
         installations: [
             {
                 packageId: ids.package,
                 name: "tasks",
                 package: ids.package,
                 installation: board,
-                scope: acme,
+                scope: example,
             },
         ],
         dependencies: [],
@@ -1972,14 +1953,17 @@ test("deploy an application whose dependency its space installs", async () => {
     await depend(VAULT);
     await fixture.simulation.idle();
     fixture.expectRefusals([
-        ["PRECONDITION_FAILED", "DEPENDENCY_BLOCKED", "notes needs @acme/vault installed"],
+        ["PRECONDITION_FAILED", "DEPENDENCY_BLOCKED", "notes needs @example/vault installed"],
     ]);
     const refused = await readiness(database, notes.id);
 
     // satisfy the space's own dependency, and refuse the one installed nowhere
     expect({ deployed, refused }).toEqual({
         deployed: ["current", "1 workloads deployed"],
-        refused: ["failed", "@destack/stack DEPENDENCY_BLOCKED: notes needs @acme/vault installed"],
+        refused: [
+            "failed",
+            "@destack/stack DEPENDENCY_BLOCKED: notes needs @example/vault installed",
+        ],
     });
 });
 
@@ -1997,7 +1981,7 @@ test("refuse uninstalling a package an application needs", async () => {
     // deploy without the vault, then once installing it wakes notes through the controllers' watches
     await fixture.simulation.idle();
     fixture.expectRefusals([
-        ["PRECONDITION_FAILED", "DEPENDENCY_BLOCKED", "notes needs @acme/vault installed"],
+        ["PRECONDITION_FAILED", "DEPENDENCY_BLOCKED", "notes needs @example/vault installed"],
     ]);
     const refused = await readiness(database, notes.id);
     const now = fixture.machine.clock.now();
@@ -2021,7 +2005,10 @@ test("refuse uninstalling a package an application needs", async () => {
 
     // refuse with the missing package's name, deploy once installed, and leave the vault installed
     expect({ refused, deployed, uninstalled }).toEqual({
-        refused: ["failed", "@destack/stack DEPENDENCY_BLOCKED: notes needs @acme/vault installed"],
+        refused: [
+            "failed",
+            "@destack/stack DEPENDENCY_BLOCKED: notes needs @example/vault installed",
+        ],
         deployed: ["current", "1 workloads deployed"],
         uninstalled: [
             "PRECONDITION_FAILED",
@@ -2073,7 +2060,7 @@ test("refuse an allowed capability until its package is installed", async () => 
         [
             "PRECONDITION_FAILED",
             "DEPENDENCY_BLOCKED",
-            "capability vault-sync needs @acme/vault installed",
+            "capability vault-sync needs @example/vault installed",
         ],
     ]);
     const allowed = await readiness(database, notes.id);
@@ -2083,7 +2070,7 @@ test("refuse an allowed capability until its package is installed", async () => 
         without: ["current", "1 workloads deployed"],
         allowed: [
             "failed",
-            "@destack/stack DEPENDENCY_BLOCKED: capability vault-sync needs @acme/vault installed",
+            "@destack/stack DEPENDENCY_BLOCKED: capability vault-sync needs @example/vault installed",
         ],
     });
 });

@@ -19,7 +19,7 @@ const OUTPUTS = ["bun"];
 const COMMIT = "c".repeat(40);
 
 /** The package the builds compile. */
-const PACKAGE = { id: ids.package, name: "@acme/library", version: "2026.9.0" };
+const PACKAGE = { id: ids.package, name: "@example/library", version: "2026.9.0" };
 
 /** Write a built package with one module, as a runner compiles it. */
 function writeBuild(): Promise<BuildReader> {

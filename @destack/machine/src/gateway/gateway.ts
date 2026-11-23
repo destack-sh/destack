@@ -675,14 +675,12 @@ export class Gateway {
             throw MachineError.of("VERSION_INVALID", message);
         }
 
-        // pick the newest running deployment serving that release, a dev build serving its release's callers
-        const spoken = Version.release(version);
+        // pick the newest running deployment serving the version
         const serving = await this.#newest(
             installationId,
             (endpoint) =>
-                Version.compare(spoken, Version.release(endpoint.release)) <= 0 &&
-                (endpoint.since === undefined ||
-                    Version.compare(Version.release(endpoint.since), spoken) <= 0),
+                Version.compare(version, endpoint.release) <= 0 &&
+                (endpoint.since === undefined || Version.compare(endpoint.since, version) <= 0),
         );
 
         // count the request and limit it by the installation's space

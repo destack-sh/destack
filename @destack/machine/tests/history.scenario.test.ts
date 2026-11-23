@@ -3,9 +3,9 @@ import type { DatabaseConnection } from "@destack/db/database";
 import { OWNER_EMAIL, TestComputer, TestDistribution } from "@destack/machine/computer/test";
 import { expect, test } from "@destack/test";
 import { type Identifier, present } from "@destack/schema";
-import { entry } from "@destack/machine-journal-fixture/object";
-import journalPackage from "@destack/machine-journal-fixture/package";
-import binderPackage from "@destack/machine-binder-fixture/package";
+import { entry } from "@example/journal/object";
+import journalPackage from "@example/journal/package";
+import binderPackage from "@example/binder/package";
 
 test("serve a tracked type reading through its space, keeping the space up", async () => {
     // create a team space in the owner's account on the home computer

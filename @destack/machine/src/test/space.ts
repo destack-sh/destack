@@ -303,7 +303,7 @@ export const ids = {
 };
 
 /** The fixture's account, which its spaces belong to. */
-const FIXTURE_ACCOUNT = { id: ids.account, handle: "acme" } as const;
+const FIXTURE_ACCOUNT = { id: ids.account, handle: "example" } as const;
 
 /** The commit every fixture release names, as no checkout built it. */
 const FIXTURE_COMMIT = "0".repeat(40);
@@ -625,7 +625,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
                 spaces.set(fixture.id, fixture);
                 states.push({ ...fixture.#state(), owner: listed.home });
             }
-            // create another space as the owner, and its account at its first space, the fixture's as acme
+            // create another space as the owner, and its account at its first space, the fixture's as example
             else {
                 if (!accounts.has(listed.account)) {
                     const isFixture = listed.account === FIXTURE_ACCOUNT.id;
@@ -924,7 +924,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
         const empty = await MemoryBuild.of(
             PackageVersion.parse({
                 id: STACKS.space.packageId,
-                name: "@acme/space",
+                name: "@example/space",
                 version: STACK_VERSION,
             }),
             [

@@ -897,13 +897,9 @@ export class ApplicationInstallation {
             for (const [name, required] of Object.entries(requires)) {
                 const running = builtins.get(name);
                 const isVersion = Version.safeParse(required).success;
-                if (
-                    running !== undefined &&
-                    isVersion &&
-                    Version.compare(Version.release(running), Version.release(required)) < 0
-                ) {
+                if (running !== undefined && isVersion && Version.compare(running, required) < 0) {
                     const { name: owner, version } = requiring;
-                    const message = `cannot deploy '${owner}@${version}': it needs ${name} ${Version.release(required)} or newer, and this machine runs ${running}`;
+                    const message = `cannot deploy '${owner}@${version}': it needs ${name} ${required} or newer, and this machine runs ${running}`;
 
                     return StackError.of("RELEASE_BLOCKED", message);
                 }
@@ -930,7 +926,7 @@ export class ApplicationInstallation {
             return StackError.of("RELEASE_UNSUPPORTED", message);
         }
         // refuse one built with an older Destack than the machine supports
-        else if (Version.compare(Version.release(built), oldest) < 0) {
+        else if (Version.compare(built, oldest) < 0) {
             const message = `${name} is built with Destack ${built}, older than this machine supports (${oldest})`;
 
             return StackError.of("RELEASE_UNSUPPORTED", message);

@@ -159,14 +159,14 @@ test("apply a bound connection's key to a workload's calls below its resource wi
     const binding = present(start.bindings[github.name], "the resource's binding");
     const connector = present(github.connectors[EGRESS_PROVIDER], "the connection connector");
     const client = await connector.connect(binding, github, testHost());
-    const answered = await client.fetch("/repos/acme/app/issues?state=open");
+    const answered = await client.fetch("/repos/example/app/issues?state=open");
     const seen = JSON.stringify([start, await answered.json(), [...answered.headers]]);
 
     // call it again as the installation's code in its store, through the same egress
     const stored = await gateway.send(
         { ...EgressCaller.of(spec), runs: { kind: "store", deploymentId: spec.deploymentId } },
         new Request(
-            `http://egress.localhost${Egress.path}/${resource.reference}/repos/acme/app/issues`,
+            `http://egress.localhost${Egress.path}/${resource.reference}/repos/example/app/issues`,
         ),
     );
 
@@ -176,8 +176,12 @@ test("apply a bound connection's key to a workload's calls below its resource wi
         isKeySeen: seen.includes(KEY),
     }).toEqual({
         upstream: [
-            ["https://api.github.test/v3/repos/acme/app/issues?state=open", `token ${KEY}`, null],
-            ["https://api.github.test/v3/repos/acme/app/issues", `token ${KEY}`, null],
+            [
+                "https://api.github.test/v3/repos/example/app/issues?state=open",
+                `token ${KEY}`,
+                null,
+            ],
+            ["https://api.github.test/v3/repos/example/app/issues", `token ${KEY}`, null],
         ],
         status: [200, 200],
         isKeySeen: false,

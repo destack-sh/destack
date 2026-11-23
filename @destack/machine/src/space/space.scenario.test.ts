@@ -26,7 +26,7 @@ async function installCaller(connect: readonly string[]) {
     // ship a server declaring network access to the hosts, keeping the context its installation serves with
     const released = PackageVersion.parse({
         id: "package-01996ab0-0000-7000-8000-0000000000e2",
-        name: "@acme/caller",
+        name: "@example/caller",
         version: "2026.9.0",
     });
     const call: Capability = {
@@ -208,7 +208,7 @@ test("serve an installation only once it is bound and main applied its tables", 
                 .where(eq(installation.table.id, ids.notes)),
     );
     const notes = await MemoryBuild.of(
-        PackageVersion.parse({ id: ids.package, name: "@acme/notes", version: "2026.9.0" }),
+        PackageVersion.parse({ id: ids.package, name: "@example/notes", version: "2026.9.0" }),
         [
             {
                 kind: "object",

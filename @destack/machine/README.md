@@ -101,7 +101,7 @@ export async function openNotes(loginId: Identifier<"login">) {
     // open the person's launcher, and launch the view at its origin
     const device = await Device.current(BunEnvironment.system);
     const launcher = await device.launcher(loginId);
-    const address = { space: "home--acme", installation: "notes", view: "home", path: "/" };
+    const address = { space: "home--example", installation: "notes", view: "home", path: "/" };
     const { url } = await device.launch(launcher, address);
 
     return url;

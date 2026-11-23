@@ -56,7 +56,7 @@ const MOVE_STEP_UP = StepUp.schema.parse({ assurance: 2, maxAge: 900_000 });
 /** The package both spaces install: one workload answering each call with its caller. */
 const echo = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000a4",
-    name: "@acme/echo",
+    name: "@example/echo",
     version: "2026.10.0",
 });
 
@@ -94,7 +94,7 @@ const echoWorkload = defineWorkload(
 /** The package that calls an echo installation of another space. */
 const visitor = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000a5",
-    name: "@acme/visitor",
+    name: "@example/visitor",
     version: "2026.10.0",
 });
 
@@ -485,7 +485,7 @@ async function steppedUp(served: Served) {
 
 /** Serve a source space and a caller space on two of the owner's computers through a relay. */
 async function openComputers() {
-    // serve the owner's home and acme organization on the residency's cloud computer
+    // serve the owner's home and example organization on the residency's cloud computer
     const { home } = await TestComputer.home({ organizations: [PUBLISHER] });
     const { world } = home;
 
@@ -494,7 +494,7 @@ async function openComputers() {
     const source = await openEcho(world, "source", relay);
     const caller = await openEcho(world, "caller", relay);
 
-    // publish the echo package and the visitor as the owner of their acme organization
+    // publish the echo package and the visitor as the owner of their example organization
     const { crypto } = world.simulation.environment("builds");
     const echoRelease = await echoBuild(crypto);
     const visitorRelease = await visitorBuild(echoRelease, crypto);
@@ -886,7 +886,7 @@ test("refuse a host installation of an untrusted release", async () => {
 
     // fail the rollout for good, reporting why once, and serve nothing of the board in the machine's process
     const message =
-        "@destack/machine-board-fixture runs on the host, which only releases the machine ships or links may";
+        "@example/board runs on the host, which only releases the machine ships or links may";
     expect({
         refused,
         captured: world.telemetry.take().map((captured) => captured.message),

@@ -40,6 +40,7 @@ import { traceSampling } from "@destack/stack/setting";
 import { ResourceContext } from "@destack/resource/context";
 import { Identifier, present, schema } from "@destack/schema";
 import {
+    DISTRIBUTION_LAYER,
     DistributionManifest,
     DistributionPlatform,
     OriginPath,
@@ -1023,6 +1024,17 @@ export class Computer implements AsyncDisposable {
         return store;
     }
 
+    /** Open the layer a distribution declares, else an empty one. */
+    static async #layer(
+        directory: string,
+        shipped: DistributionManifest,
+        environment: Environment<"files">,
+    ): Promise<BuildLayer> {
+        return shipped.isLayered
+            ? await BuildLayer.open(join(directory, DISTRIBUTION_LAYER), environment)
+            : BuildLayer.empty();
+    }
+
     /** Read the machine's configuration from its release channel and environment. */
     static configure(host: Environment<"process" | "host">): Pick<
         ComputerOptions,
@@ -1137,6 +1149,7 @@ export class Computer implements AsyncDisposable {
         const toolchain = isStandalone
             ? () => installed.distribution.toolchain()
             : async () => Toolchain.workspace();
+        const shipped = await BunDistribution.read(configuration.shipped, files);
         const started = await Computer.start({
             isolation: "sandbox",
             directory,
@@ -1145,9 +1158,8 @@ export class Computer implements AsyncDisposable {
             port,
             ...(configuration.relay === undefined ? {} : { relay: configuration.relay }),
             ...bundle,
-            shipped: await BunDistribution.read(configuration.shipped, files),
-            // ship no releases: the cache pulls each from its forge on first use
-            layer: BuildLayer.empty(),
+            shipped,
+            layer: await Computer.#layer(configuration.shipped, shipped, environment),
             keychain: (service) => new BunKeychain(service, files, store),
             process: {
                 version: MACHINE_PACKAGE.version,

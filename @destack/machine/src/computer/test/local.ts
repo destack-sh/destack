@@ -7,7 +7,7 @@ import { argument, plural, t } from "@destack/locale";
 /** The package of the bookmarks this computer's native device stores. */
 export const desk = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000c5",
-    name: "@acme/desk",
+    name: "@example/desk",
     version: "2026.10.0",
 });
 

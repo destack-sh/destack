@@ -44,12 +44,12 @@ const INSTALLED_STACK = dirname(dirname(fileURLToPath(import.meta.resolve("@dest
 const STACK_CHECKOUT: Readonly<Record<string, string>> = {
     "bun.lock": JSON.stringify({
         lockfileVersion: 2,
-        workspaces: { "": { name: "@acme/workspace" }, stack: { name: "@acme/stack" } },
+        workspaces: { "": { name: "@example/workspace" }, stack: { name: "@example/stack" } },
         packages: {},
     }),
     ".gitignore": "node_modules/\n",
     "stack/package.json": JSON.stringify({
-        name: "@acme/stack",
+        name: "@example/stack",
         version: "2026.9.0",
         type: "module",
         exports: { ".": "./src/index.ts" },
@@ -639,7 +639,7 @@ test("build a checkout as a prerelease until committed", async () => {
         stored: [
             PackageManifest.package(reader.manifest).id,
             Object.keys(reader.manifest.outputs),
-            Version.isPrerelease(version),
+            version,
         ],
     }).toEqual({
         checkout: {
@@ -665,10 +665,10 @@ test("build a checkout as a prerelease until committed", async () => {
         },
         build: built.id,
         built: [followed, ["bun", "workerd"], "succeeded", null, null],
-        stored: [STACK_CHECKOUT_PACKAGE, ["bun", "workerd"], true],
+        stored: [STACK_CHECKOUT_PACKAGE, ["bun", "workerd"], Version.development],
     });
 
-    // commit the working tree and build it again, a release now that its files match a commit
+    // commit the working tree and build it again at dev
     const git = (...command: readonly string[]) =>
         testHost().process.spawn(["git", "-C", root, ...GIT_IDENTITY, ...command]).exited;
     expect([await git("add", "--all"), await git("commit", "--quiet", "-m", "stack")]).toEqual([
@@ -679,7 +679,7 @@ test("build a checkout as a prerelease until committed", async () => {
     const released = await (
         await machine.space(space)
     ).builds.root(present(rebuilt.image, "the image"));
-    expect(Version.isPrerelease(PackageManifest.package(released.manifest).version)).toBe(false);
+    expect(PackageManifest.package(released.manifest).version).toBe(Version.development);
 
     // refuse a stack directory outside the working tree
     await expect(submit("..")).rejects.toEqual(
@@ -785,13 +785,13 @@ test("start a preview's next generation once sources settle", async () => {
         JSON.stringify({
             lockfileVersion: 1,
             workspaces: {
-                "": { name: "@acme/workspace" },
-                "packages/library": { name: "@acme/library" },
+                "": { name: "@example/workspace" },
+                "packages/library": { name: "@example/library" },
                 "packages/app": {
-                    name: "@acme/app",
-                    dependencies: { "@acme/library": "workspace:*" },
+                    name: "@example/app",
+                    dependencies: { "@example/library": "workspace:*" },
                 },
-                "tools/check": { name: "@acme/check" },
+                "tools/check": { name: "@example/check" },
             },
             packages: {},
         }),

@@ -233,7 +233,7 @@ test("apply a waiting stack again once its resources turn ready, without waking 
         },
     ];
     const release = await MemoryBuild.of(
-        PackageVersion.parse({ id: ids.package, name: "@acme/notes", version: "2026.9.0" }),
+        PackageVersion.parse({ id: ids.package, name: "@example/notes", version: "2026.9.0" }),
         described,
         testHost().crypto,
         {
@@ -646,7 +646,7 @@ test("bind a declaration to another space's installation by name, refusing a pin
     const store = await serve(fixture);
 
     // submit notes with its tasks dependency bound to an installation of another space
-    const acme = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-00000000003a");
+    const example = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-00000000003a");
     const board = "board";
     const applied = async (target: JsonValue, version?: number) => {
         const tasks = { target, ...(version === undefined ? {} : { version }) };
@@ -673,7 +673,9 @@ test("bind a declaration to another space's installation by name, refusing a pin
             },
         });
     };
-    const bound = progressOf(await applied({ type: "installation", name: board, spaceId: acme }));
+    const bound = progressOf(
+        await applied({ type: "installation", name: board, spaceId: example }),
+    );
     const revisions = await fixture.database.select().from(object.installationRevision.table);
     const rows = revisions.flatMap((revision) =>
         revision.bindings.map((entry) => ({
@@ -688,16 +690,16 @@ test("bind a declaration to another space's installation by name, refusing a pin
         bound,
         rows,
         pinned: await TestSpace.refusals(
-            applied({ type: "installation", name: board, spaceId: acme }, 2),
+            applied({ type: "installation", name: board, spaceId: example }, 2),
         ),
         database: BindingTarget.safeParse({
             type: "database",
             name: board,
-            spaceId: acme,
+            spaceId: example,
         }).error?.issues.map((issue) => [issue.code, issue.message]),
     }).toEqual({
         bound: ["current", "every declaration applied"],
-        rows: [{ name: "tasks", target: board, targetSpaceId: acme }],
+        rows: [{ name: "tasks", target: board, targetSpaceId: example }],
         pinned: [
             [
                 "BAD_REQUEST",
@@ -789,7 +791,7 @@ test("install a package and declare records of its type in one approved plan, ap
         },
     ];
     const release = await MemoryBuild.of(
-        PackageVersion.parse({ id: ids.package, name: "@acme/notes", version: "2027.1.0" }),
+        PackageVersion.parse({ id: ids.package, name: "@example/notes", version: "2027.1.0" }),
         described,
         fixture.environment.crypto,
         {
@@ -884,8 +886,8 @@ test("install a package and declare records of its type in one approved plan, ap
     });
     await fixture.simulation.idle();
     expect(migrating.plan.steps.map((step) => step.target)).toEqual([
-        "database/main/table/acme__notes__meter",
-        "database/main/table/acme__notes__meter/dependent/destack__access__relationship",
+        "database/main/table/example__notes__meter",
+        "database/main/table/example__notes__meter/dependent/destack__access__relationship",
     ]);
 
     // link notes and restart the machine
@@ -909,12 +911,18 @@ test("install the packages a stack declares without its libraries, refusing a mi
         seed: 1,
         start: Date.UTC(2026, 9, 1),
     }).environment("test");
-    const vault = await fixtureRelease("@acme/vault", "2026.10.0", true, [], world);
-    const library = await fixtureRelease("@acme/library", "2026.10.0", false, [], world);
+    const vault = await fixtureRelease("@example/vault", "2026.10.0", true, [], world);
+    const library = await fixtureRelease("@example/library", "2026.10.0", false, [], world);
 
     // publish two installable packages depending on them
-    const notes = await fixtureRelease("@acme/notes", "2026.10.0", true, [vault, library], world);
-    const pages = await fixtureRelease("@acme/pages", "2026.10.0", true, [vault], world);
+    const notes = await fixtureRelease(
+        "@example/notes",
+        "2026.10.0",
+        true,
+        [vault, library],
+        world,
+    );
+    const pages = await fixtureRelease("@example/pages", "2026.10.0", true, [vault], world);
     const builds = new Map(
         [vault, library, notes, pages].map((each) => [each.manifest, each.build]),
     );
@@ -939,7 +947,7 @@ test("install the packages a stack declares without its libraries, refusing a mi
         [
             "BAD_REQUEST",
             "DEFINITION_INVALID",
-            "installation 'notes' of 'space' is invalid: it needs '@acme/vault', so declare an installation of it",
+            "installation 'notes' of 'space' is invalid: it needs '@example/vault', so declare an installation of it",
         ],
         [
             "BAD_REQUEST",
@@ -956,8 +964,8 @@ test("keep a stack's installation pins as declared, and the version it was built
         seed: 1,
         start: Date.UTC(2026, 9, 1),
     }).environment("test");
-    const vault = await fixtureRelease("@acme/vault", "2026.10.0", true, [], world);
-    const notes = await fixtureRelease("@acme/notes", "2026.10.0", true, [vault], world);
+    const vault = await fixtureRelease("@example/vault", "2026.10.0", true, [], world);
+    const notes = await fixtureRelease("@example/notes", "2026.10.0", true, [vault], world);
     const builds = new Map([vault, notes].map((each) => [each.manifest, each.build]));
     const read = async (_packageId: PackageId, manifest: string) =>
         present(builds.get(Digest.parse(manifest)), `the build ${manifest}`);
@@ -1054,7 +1062,7 @@ function installingStack(
     // declare the stack's package and an installation of each release
     const owner = PackageVersion.parse({
         id: Identifier.create("package", environment),
-        name: "@acme/stack",
+        name: "@example/stack",
         version: "2026.10.0",
     });
     const installations = Object.fromEntries(

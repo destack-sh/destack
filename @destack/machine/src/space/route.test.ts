@@ -177,7 +177,7 @@ test("route nested routes, streams and installation mounts to their space", asyn
 });
 
 test("route a name to its installation, S3 origin or route, redirecting moved spaces", async () => {
-    // serve work--ada here, route notes.acme.com/blog to a route of another space, placed in us
+    // serve work--ada here, route notes.example.com/blog to a route of another space, placed in us
     const ROUTED = "space-01996ab0-0000-7000-8000-000000000003";
     const ROUTE = "route-01996ab0-0000-7000-8000-000000000004";
     const names = {
@@ -185,7 +185,7 @@ test("route a name to its installation, S3 origin or route, redirecting moved sp
         locate: async (space: string) =>
             space === ROUTED ? "https://us.destack.cloud" : "https://eu.destack.cloud",
         route: async (host: string, path: string) =>
-            host === "notes.acme.com" && path.startsWith("/blog")
+            host === "notes.example.com" && path.startsWith("/blog")
                 ? { scope: ROUTED, id: schema.identifier("route").parse(ROUTE) }
                 : undefined,
     };
@@ -195,10 +195,10 @@ test("route a name to its installation, S3 origin or route, redirecting moved sp
         [
             "https://notes--work--ada.destack.space/",
             `https://s3--${SPACE}.destack.space/bucket-1/notes.txt`,
-            "https://notes.acme.com/blog/2026?page=2",
+            "https://notes.example.com/blog/2026?page=2",
             "https://notes--other--ada.destack.space/",
             `https://s3--${ROUTED}.destack.space/bucket-1/notes.txt`,
-            "https://notes.acme.com/shop",
+            "https://notes.example.com/shop",
             "https://notes--jobs--ada.destack.space/board?view=week",
             "https://notes--work--lovelace.destack.space/",
             `https://eu.destack.cloud/spaces/${SPACE}/notes?view=week`,
@@ -221,7 +221,7 @@ test("route a name to its installation, S3 origin or route, redirecting moved sp
     expect(named).toEqual([
         [SPACE, null, null, null],
         [SPACE, null, null, null],
-        [ROUTED, ROUTE, "https://notes.acme.com/blog/2026?page=2", null],
+        [ROUTED, ROUTE, "https://notes.example.com/blog/2026?page=2", null],
         undefined,
         undefined,
         undefined,
@@ -260,7 +260,7 @@ test("drop the route and client URL a client sends to the machine's host", async
         new Request(`https://eu.destack.cloud/spaces/${SPACE}/notes`, {
             headers: {
                 [ROUTE_HEADER]: "route-01996ab0-0000-7000-8000-000000000004",
-                [CLIENT_HEAD_HEADER]: ClientHead.write(new Request("https://notes.acme.com/")),
+                [CLIENT_HEAD_HEADER]: ClientHead.write(new Request("https://notes.example.com/")),
             },
         }),
         ORIGINS,

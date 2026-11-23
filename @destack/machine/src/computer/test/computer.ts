@@ -114,7 +114,7 @@ export interface TestOrganization {
 }
 
 /** The organization publishing the tests' packages, which a home's template creates on request. */
-export const PUBLISHER: TestOrganization = { handle: "acme", name: "Acme" };
+export const PUBLISHER: TestOrganization = { handle: "example", name: "Example" };
 
 /** What the owner's home starts with beside the cloud computer's options. */
 export interface TestHomeOptions extends Omit<
@@ -640,7 +640,7 @@ export class TestComputer implements AsyncDisposable {
                     await home.ready(Account.home(accountId));
                 }
 
-                // publish each fixture once and install it in the owner's home under its name
+                // publish each fixture the host lacks, then install it in the owner's home
                 const sent = new Set<string>();
                 for (const { fixture, name } of installs) {
                     const build = await TestDistribution.fixture(
@@ -648,7 +648,8 @@ export class TestComputer implements AsyncDisposable {
                         simulation.environment(FILES_NODE),
                         defer,
                     );
-                    if (!sent.has(fixture)) {
+                    const { id } = PackageManifest.package(build.manifest);
+                    if (!sent.has(fixture) && !home.machine.shipped.has(id)) {
                         sent.add(fixture);
                         await home.publish(TestDistribution.imageOf(fixture));
                     }

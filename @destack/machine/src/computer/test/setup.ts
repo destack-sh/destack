@@ -2,7 +2,7 @@ import { CompilerPool, Workspace } from "@destack/build";
 import { fileURLToPath } from "node:url";
 import { testStore } from "@destack/build/test";
 import { TestRun } from "@destack/db/test/run";
-import { canonicalize, type Digest, present } from "@destack/schema";
+import { canonicalize, type Digest, present, Version } from "@destack/schema";
 import type { TestProject } from "@destack/test";
 import { testHost } from "@destack/test/host";
 import {
@@ -14,7 +14,7 @@ import {
     START_FIXTURE,
     TestDistribution,
 } from "./distribution.ts";
-import { NEXT_RELEASE, SCENARIO_FIXTURES, WORLD_FIXTURES } from "./fixture.ts";
+import { FIXTURE_RELEASE, NEXT_RELEASE, SCENARIO_FIXTURES, WORLD_FIXTURES } from "./fixture.ts";
 import { MachineDriver } from "../../test/driver.ts";
 import { Toolchain } from "@destack/check/toolchain";
 import { COMPUTER_RUNTIMES } from "../computer.ts";
@@ -59,7 +59,12 @@ async function setup(
                         name,
                         SCENARIO_FIXTURES.some((each) => each === name) ? scenario : built,
                         shipping.has(name),
-                        () => MachineDriver.build(name, workspace),
+                        () =>
+                            MachineDriver.build(
+                                name,
+                                workspace,
+                                shipping.has(name) ? Version.development : FIXTURE_RELEASE,
+                            ),
                     ] as const,
             ),
             ...Object.entries(fixtures).map(
@@ -68,7 +73,7 @@ async function setup(
                         name,
                         scenario,
                         false,
-                        () => TestDistribution.compile(workspace, directory),
+                        () => TestDistribution.compile(workspace, directory, FIXTURE_RELEASE),
                     ] as const,
             ),
         ];

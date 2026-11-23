@@ -16,7 +16,7 @@ test("export a static view as a static host serves it: pages with the import map
     const library = await TestViewBuild.of(
         PackageVersion.parse({
             id: "package-01996ab0-0000-7000-8000-0000000000d2",
-            name: "@acme/type",
+            name: "@example/type",
             version: "2026.9.0",
         }),
         {},
@@ -26,7 +26,7 @@ test("export a static view as a static host serves it: pages with the import map
     const site = await TestViewBuild.of(
         PackageVersion.parse({
             id: "package-01996ab0-0000-7000-8000-0000000000d1",
-            name: "@acme/site",
+            name: "@example/site",
             version: "2026.9.0",
         }),
         {
@@ -60,7 +60,9 @@ test("export a static view as a static host serves it: pages with the import map
     const typeface = await store.put(library);
     const root = await store.put(site);
     const image = await store.putImage(
-        await BuildImage.hoisted(root, { "@acme/type": typeface }, (digest) => store.get(digest)),
+        await BuildImage.hoisted(root, { "@example/type": typeface }, (digest) =>
+            store.get(digest),
+        ),
     );
 
     // export it below a fresh directory
@@ -156,7 +158,7 @@ test("refuse exporting a page that refers to a disk path or an unpublished asset
         const site = await TestViewBuild.of(
             PackageVersion.parse({
                 id: "package-01996ab0-0000-7000-8000-0000000000d3",
-                name: "@acme/site",
+                name: "@example/site",
                 version,
             }),
             { site: view },

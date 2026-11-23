@@ -49,21 +49,21 @@ const MEMBER_EMAIL = "member@example.test";
 /** The greeting package, whose view reads its own catalogs and its widget library's. */
 const GREETING = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000d2",
-    name: "@acme/greeting",
+    name: "@example/greeting",
     version: "2026.9.0",
 });
 
 /** The widget library the greeting package requires as a release, with catalogs of its own. */
 const WIDGETS = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000d3",
-    name: "@acme/widgets",
+    name: "@example/widgets",
     version: "2026.9.0",
 });
 
 /** The notes package whose views the launches open. */
 const notes = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000e1",
-    name: "@acme/notes",
+    name: "@example/notes",
     version: "2026.9.0",
 });
 
@@ -87,7 +87,7 @@ const notesPackage = definePackage(
 /** The tasks package, whose objects its own installation serves: tasks their owner completes. */
 const tasks = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000c4",
-    name: "@acme/tasks",
+    name: "@example/tasks",
     version: "2026.10.0",
 });
 
@@ -232,7 +232,7 @@ function tasksBuild(crypto: Crypto): Promise<BuildReader> {
 /** The articles package, whose articles their owner publishes through links. */
 const articles = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000c5",
-    name: "@acme/articles",
+    name: "@example/articles",
     version: "2026.10.0",
 });
 
@@ -1605,7 +1605,7 @@ function siteBuild(crypto: Crypto): Promise<BuildReader> {
     ]);
     const site = PackageVersion.parse({
         id: "package-01996ab0-0000-7000-8000-0000000000d1",
-        name: "@acme/site",
+        name: "@example/site",
         version: "2026.9.0",
     });
 

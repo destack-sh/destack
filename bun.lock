@@ -205,14 +205,14 @@
         "@destack/check": "workspace:*",
         "@destack/environment": "workspace:*",
         "@destack/identity": "workspace:*",
-        "@destack/machine-board-fixture": "workspace:*",
         "@destack/test": "workspace:*",
         "@destack/universe": "workspace:*",
+        "@example/board": "workspace:*",
         "@types/bun": "1.4.4",
       },
     },
     "@destack/cli/tests/fixture/notebooks": {
-      "name": "@acme/notebooks",
+      "name": "@example/notebooks",
       "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
@@ -222,7 +222,7 @@
       },
     },
     "@destack/cli/tests/fixture/starter": {
-      "name": "@acme/starter",
+      "name": "@example/starter",
       "dependencies": {
         "@destack/locale": "workspace:*",
         "@destack/object": "workspace:*",
@@ -550,10 +550,6 @@
         "@destack/blank": "workspace:*",
         "@destack/finance": "workspace:*",
         "@destack/forge": "workspace:*",
-        "@destack/machine-apps-fixture": "workspace:*",
-        "@destack/machine-binder-fixture": "workspace:*",
-        "@destack/machine-journal-fixture": "workspace:*",
-        "@destack/machine-mention-fixture": "workspace:*",
         "@destack/message": "workspace:*",
         "@destack/notification": "workspace:*",
         "@destack/observability": "workspace:*",
@@ -562,6 +558,10 @@
         "@destack/theme": "workspace:*",
         "@destack/universe": "workspace:*",
         "@destack/vault": "workspace:*",
+        "@example/apps": "workspace:*",
+        "@example/binder": "workspace:*",
+        "@example/journal": "workspace:*",
+        "@example/mention": "workspace:*",
         "@types/bun": "1.4.4",
         "@types/node": "26.6.1",
         "fake-indexeddb": "6.2.5",
@@ -571,7 +571,7 @@
       },
     },
     "@destack/machine/tests/fixture/apps": {
-      "name": "@destack/machine-apps-fixture",
+      "name": "@example/apps",
       "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
@@ -582,7 +582,7 @@
       },
     },
     "@destack/machine/tests/fixture/binder": {
-      "name": "@destack/machine-binder-fixture",
+      "name": "@example/binder",
       "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
@@ -592,7 +592,7 @@
       },
     },
     "@destack/machine/tests/fixture/board": {
-      "name": "@destack/machine-board-fixture",
+      "name": "@example/board",
       "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
@@ -604,7 +604,7 @@
       },
     },
     "@destack/machine/tests/fixture/journal": {
-      "name": "@destack/machine-journal-fixture",
+      "name": "@example/journal",
       "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
@@ -614,7 +614,7 @@
       },
     },
     "@destack/machine/tests/fixture/mention": {
-      "name": "@destack/machine-mention-fixture",
+      "name": "@example/mention",
       "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
@@ -628,7 +628,7 @@
       },
     },
     "@destack/machine/tests/fixture/regional": {
-      "name": "@destack/machine-regional-fixture",
+      "name": "@example/regional",
       "dependencies": {
         "@destack/locale": "workspace:*",
         "@destack/object": "workspace:*",
@@ -1558,10 +1558,6 @@
     "@solidjs/compiler": "2.0.0-rc.8",
   },
   "packages": {
-    "@acme/notebooks": ["@acme/notebooks@workspace:@destack/cli/tests/fixture/notebooks"],
-
-    "@acme/starter": ["@acme/starter@workspace:@destack/cli/tests/fixture/starter"],
-
     "@ampproject/remapping": ["@ampproject/remapping@2.3.0", "", { "dependencies": { "@jridgewell/gen-mapping": "^0.3.5", "@jridgewell/trace-mapping": "^0.3.24" } }, "sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw=="],
 
     "@antfu/install-pkg": ["@antfu/install-pkg@2.1.0", "", { "dependencies": { "package-manager-detector": "^1.8.0", "tinyexec": "^1.3.1" } }, "sha512-sdg9NxU3zR4Mnawfbc/x6GB5Wf17WYud5qOuEuxXjaKpYpMkISSJEjItGebXJ2bQ4DIcly4NYH23mtkGJjvKUw=="],
@@ -1750,18 +1746,6 @@
 
     "@destack/machine": ["@destack/machine@workspace:@destack/machine"],
 
-    "@destack/machine-apps-fixture": ["@destack/machine-apps-fixture@workspace:@destack/machine/tests/fixture/apps"],
-
-    "@destack/machine-binder-fixture": ["@destack/machine-binder-fixture@workspace:@destack/machine/tests/fixture/binder"],
-
-    "@destack/machine-board-fixture": ["@destack/machine-board-fixture@workspace:@destack/machine/tests/fixture/board"],
-
-    "@destack/machine-journal-fixture": ["@destack/machine-journal-fixture@workspace:@destack/machine/tests/fixture/journal"],
-
-    "@destack/machine-mention-fixture": ["@destack/machine-mention-fixture@workspace:@destack/machine/tests/fixture/mention"],
-
-    "@destack/machine-regional-fixture": ["@destack/machine-regional-fixture@workspace:@destack/machine/tests/fixture/regional"],
-
     "@destack/machine-stack-fixture": ["@destack/machine-stack-fixture@workspace:@destack/machine/tests/fixture/stack"],
 
     "@destack/machine-start-fixture": ["@destack/machine-start-fixture@workspace:@destack/machine/tests/fixture/start"],
@@ -1881,6 +1865,22 @@
     "@esbuild/win32-ia32": ["@esbuild/win32-ia32@0.28.2", "", { "os": "win32", "cpu": "ia32" }, "sha512-YmJbfTlvU7Sdn9BB+4PRES4oB6pxgS37MAONj+hBr/cpXS1aBPKXxNnDbu+QCWPj0o9dgyxeq79g6c5P8KeuYA=="],
 
     "@esbuild/win32-x64": ["@esbuild/win32-x64@0.28.2", "", { "os": "win32", "cpu": "x64" }, "sha512-5ebpxr3nWMzrL/rnUI755Jkuee0bHL/Gq0WTF9lvcpv73wAp5eu8MfBUgWK9bhWvZjj7yX8etf/8tI8Ney695g=="],
+
+    "@example/apps": ["@example/apps@workspace:@destack/machine/tests/fixture/apps"],
+
+    "@example/binder": ["@example/binder@workspace:@destack/machine/tests/fixture/binder"],
+
+    "@example/board": ["@example/board@workspace:@destack/machine/tests/fixture/board"],
+
+    "@example/journal": ["@example/journal@workspace:@destack/machine/tests/fixture/journal"],
+
+    "@example/mention": ["@example/mention@workspace:@destack/machine/tests/fixture/mention"],
+
+    "@example/notebooks": ["@example/notebooks@workspace:@destack/cli/tests/fixture/notebooks"],
+
+    "@example/regional": ["@example/regional@workspace:@destack/machine/tests/fixture/regional"],
+
+    "@example/starter": ["@example/starter@workspace:@destack/cli/tests/fixture/starter"],
 
     "@fontsource-variable/ibm-plex-sans": ["@fontsource-variable/ibm-plex-sans@5.3.0", "", {}, "sha512-agG8tXFEo0hD9+J7npa4vbbWult52eMLVaQ6WQRlhs/iCAojrMAoejru85W9HTVXHfyUj96KM7gp/KGAS87XaQ=="],
 

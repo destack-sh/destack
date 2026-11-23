@@ -1,5 +1,5 @@
 {
-    "name": "@destack/machine-regional-fixture",
+    "name": "@example/regional",
     "type": "module",
     "exports": {
         "./package": "./src/package.ts",

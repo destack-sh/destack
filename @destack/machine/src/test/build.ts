@@ -114,7 +114,7 @@ export async function fixtureBuild(
     packageId: PackageId,
     version: string,
     crypto: Crypto,
-    name = "@acme/notes",
+    name = "@example/notes",
 ): Promise<BuildReader> {
     // build the version declaring its archive action and the release's own declarations, of the package's kinds
     const built = await MemoryBuild.of(

@@ -1,5 +1,5 @@
 {
-    "name": "@destack/machine-journal-fixture",
+    "name": "@example/journal",
     "type": "module",
     "exports": {
         "./object": "./src/index.ts",

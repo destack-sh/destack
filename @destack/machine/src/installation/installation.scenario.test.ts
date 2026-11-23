@@ -48,14 +48,14 @@ const RETRY_MILLISECONDS = 30_000;
 /** The board package, linked into the machine, whose cards other linked packages refer to. */
 const BOARD = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000e3",
-    name: "@acme/board",
+    name: "@example/board",
     version: "2026.9.0",
 });
 
 /** The pins package, linked into the machine, whose pins refer to the board's cards. */
 const PINS = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000e4",
-    name: "@acme/pins",
+    name: "@example/pins",
     version: "2026.9.0",
 });
 
@@ -406,7 +406,7 @@ test("relate a residency home's installation at the universe once a partition he
     // declare a package whose installations ask for what a residency's installation has
     const released = PackageVersion.parse({
         id: "package-01996ab0-0000-7000-8000-0000000000e2",
-        name: "@acme/registry",
+        name: "@example/registry",
         version: "2026.9.0",
     });
     const registry = Package.of(released, {
@@ -470,7 +470,7 @@ test("relate an in-process installation to its bound bucket until uninstalled", 
     // ship a server binding a bucket, and install it in the space
     const released = PackageVersion.parse({
         id: "package-01996ab0-0000-7000-8000-0000000000e1",
-        name: "@acme/boxes",
+        name: "@example/boxes",
         version: "2026.9.0",
     });
     const box = defineBucket({ name: "box", spec: {} }, { package: released });

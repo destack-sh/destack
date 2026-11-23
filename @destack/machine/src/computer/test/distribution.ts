@@ -22,7 +22,7 @@ import {
 import { BuildReader, BuildImage, PackageManifest } from "@destack/package/manifest";
 import { LATEST_TAG } from "@destack/registry/object";
 import registryPackage from "@destack/registry/package";
-import { Digest, found, present, schema } from "@destack/schema";
+import { Digest, found, present, schema, Version } from "@destack/schema";
 import { inject, onTestFinished } from "@destack/test";
 import { testHost } from "@destack/test/host";
 import { COMPUTER_RUNTIMES } from "../computer.ts";
@@ -170,7 +170,7 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
             stacks,
             residencyHome,
             builds,
-            { releases },
+            { releases, isLayered: true },
             target,
             layer,
             store,
@@ -394,31 +394,32 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
     ): ReturnType<typeof TestDistribution.compile> {
         const directory = fileURLToPath(new URL(`../../../node_modules/${name}/`, import.meta.url));
 
-        return TestDistribution.compile(workspace, directory);
+        return TestDistribution.compile(workspace, directory, Version.development);
     }
 
     /** Build the desktop from its workspace directory, as production's distribution ships it. */
     static desktop(workspace: Workspace): ReturnType<typeof TestDistribution.compile> {
         const directory = fileURLToPath(new URL("../../../../desktop/", import.meta.url));
 
-        return TestDistribution.compile(workspace, directory);
+        return TestDistribution.compile(workspace, directory, Version.development);
     }
 
     /** Build the package the test computers run, as the distribution ships it. */
     static runtime(workspace: Workspace): ReturnType<typeof TestDistribution.compile> {
         const directory = fileURLToPath(new URL("../../../", import.meta.url));
 
-        return TestDistribution.compile(workspace, directory);
+        return TestDistribution.compile(workspace, directory, Version.development);
     }
 
-    /** Build every unit of a workspace package and make its image, once per workspace. */
+    /** Build every unit of a workspace package at a version, and make its image. */
     static async compile(
         workspace: Workspace,
         directory: string,
+        version: Version,
     ): Promise<{ readonly image: Digest; readonly units: ReadonlyMap<string, Digest> }> {
         // build and make an image of each unit
         const opened = await workspace.package(directory);
-        const imaged = await opened.imageUnits({});
+        const imaged = await opened.imageUnits({ versions: { [opened.root.name]: version } });
         const units = new Map([...imaged].map(([name, { image }]) => [name, image] as const));
 
         return { image: found(units, opened.root.name), units };

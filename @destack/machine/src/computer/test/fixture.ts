@@ -4,11 +4,14 @@ import { Version } from "@destack/schema";
 /** The fixture packages worlds install, which the run's setup builds before any world. */
 export const WORLD_FIXTURES = ["apps", "board"] as const;
 
+/** The release the run builds each published fixture at. */
+export const FIXTURE_RELEASE = "2026.11.0";
+
 /** The fixture whose next release the run makes an image of for updates, by name and version. */
 export const NEXT_RELEASE = {
     fixture: "apps",
     name: "apps-next",
-    version: Version.next(Version.development),
+    version: Version.next(FIXTURE_RELEASE),
 } as const;
 
 /** The fixture packages only scenarios install, which no template ships. */

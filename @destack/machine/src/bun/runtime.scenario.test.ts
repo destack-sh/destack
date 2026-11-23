@@ -99,13 +99,13 @@ test("run an instance as a Bun process bound at the egress, serving forwarded ca
     // spec a build with the runner in its server output
     const files = new Map([
         ["bun/workload.js", new TextEncoder().encode(ECHO_RUNNER)],
-        authored("@acme/notes"),
+        authored("@example/notes"),
     ]);
     const build = await MemoryBuild.write(
         files,
         {
             role: "app",
-            package: { id: PACKAGE, name: "@acme/notes", version: "2026.9.0" },
+            package: { id: PACKAGE, name: "@example/notes", version: "2026.9.0" },
             outputs: {
                 bun: {
                     runtime: "bun",
@@ -353,14 +353,21 @@ test("call an app's export in a sandbox, importing a builtin the runtime supplie
 
         return await packages.putImage(BuildImage.of(await packages.put(build)));
     };
-    const kit = await stored("@acme/kit", "builtin", 1, 'export const marker = "kit";\n', [], {});
+    const kit = await stored(
+        "@example/kit",
+        "builtin",
+        1,
+        'export const marker = "kit";\n',
+        [],
+        {},
+    );
     const app = await stored(
-        "@acme/notes",
+        "@example/notes",
         "app",
         2,
-        'import { marker } from "@acme/kit";\nexport function describe() { return marker; }\n',
-        ["@acme/kit"],
-        { "@acme/kit": "2026.9.0" },
+        'import { marker } from "@example/kit";\nexport function describe() { return marker; }\n',
+        ["@example/kit"],
+        { "@example/kit": "2026.9.0" },
     );
 
     // supply the kit as a builtin
@@ -371,7 +378,7 @@ test("call an app's export in a sandbox, importing a builtin the runtime supplie
             {
                 package: {
                     id: PackageId.parse("package-01996ab0-0000-7000-8000-0000000002b1"),
-                    name: "@acme/kit",
+                    name: "@example/kit",
                     version: "2026.9.0",
                 },
                 image: kit,
@@ -456,11 +463,11 @@ test("deny a sandboxed workload's calls to hosts its capabilities omit", async (
     const build = await MemoryBuild.write(
         new Map([
             ["bun/workload.js", new TextEncoder().encode(FETCH_RUNNER)],
-            authored("@acme/fetch"),
+            authored("@example/fetch"),
         ]),
         {
             role: "app",
-            package: { id: PACKAGE, name: "@acme/fetch", version: "2026.10.0" },
+            package: { id: PACKAGE, name: "@example/fetch", version: "2026.10.0" },
             outputs: {
                 bun: {
                     runtime: "bun",
@@ -569,7 +576,7 @@ test("import and call a shared package's export as the machine's own instance, a
     const own = { marker: "own", describe: () => "own" };
     const runtime = new BunRuntime({
         isolation: "sandbox",
-        program: Program.of({ "@acme/shared/server": async () => own }, world.process.loader),
+        program: Program.of({ "@example/shared/server": async () => own }, world.process.loader),
         builtins: [],
         environment: world,
         identity: async () => testKeys(world),
@@ -613,7 +620,7 @@ test("import and call a shared package's export as the machine's own instance, a
 
         return await packages.putImage(BuildImage.of(root));
     };
-    const [shared, other] = [await stored("@acme/shared", 1), await stored("@acme/other", 2)];
+    const [shared, other] = [await stored("@example/shared", 1), await stored("@example/other", 2)];
 
     // answer the shared one with the machine's instance, and load the other from its placed build
     const imported = [
@@ -637,7 +644,7 @@ test("refuse a sandboxed call of a release running a native addon, and load it f
     onTestFinished(() => world.files.remove(directory, { recursive: true }));
     const packages = await testStore(world);
     onTestFinished(() => packages[Symbol.asyncDispose]());
-    const name = "@acme/native";
+    const name = "@example/native";
     const files = new Map([
         [
             "bun/server.js",
@@ -699,7 +706,7 @@ test("refuse a sandboxed call of a release running a native addon, and load it f
         [
             "BAD_REQUEST",
             "RELEASE_INVALID",
-            "release '@acme/native@2026.9.0' is invalid: it runs the native addon 'bun/addon.node', which only host packages may",
+            "release '@example/native@2026.9.0' is invalid: it runs the native addon 'bun/addon.node', which only host packages may",
         ],
         "native",
     ]);

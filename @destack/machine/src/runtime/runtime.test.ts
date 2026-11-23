@@ -15,7 +15,7 @@ const EGRESS = "http://127.0.0.1:7470/.destack/egress";
 /** The package the instance runs. */
 const notes = {
     id: PackageId.parse("package-01996ab0-0000-7000-8000-0000000000e7"),
-    name: "@acme/notes",
+    name: "@example/notes",
     version: "2026.9.0",
 };
 

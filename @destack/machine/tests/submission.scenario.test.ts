@@ -177,7 +177,7 @@ test("apply a submitted stack build and open its installations' views", async ()
             render: { mode: "client" },
         },
         path: "/",
-        package: "@acme/notes",
+        package: "@example/notes",
         permissions: [],
         home: fixture.owner.home,
     });
@@ -283,7 +283,7 @@ test("install an application from a checkout by submitting its build, following 
             render: { mode: "client" },
         },
         path: "/",
-        package: "@acme/notes",
+        package: "@example/notes",
         permissions: [],
         home: fixture.owner.home,
     });
@@ -483,7 +483,7 @@ test("refuse a build of another package, and deploy a release that is not later 
         [
             "BAD_REQUEST",
             "PACKAGE_INVALID",
-            "build is invalid: it is of '@acme/notes', which 'notes' does not install",
+            "build is invalid: it is of '@example/notes', which 'notes' does not install",
         ],
         ["Deployed", null],
         ["Deployed", null],
@@ -571,7 +571,9 @@ test("open the build each package's installation in a space follows, and none fo
         );
     };
     const { crypto } = fixture.machine.environment;
-    await fixture.publish(await fixtureBuild(ids.stackPackage, "2026.10.0", crypto, "@acme/stack"));
+    await fixture.publish(
+        await fixtureBuild(ids.stackPackage, "2026.10.0", crypto, "@example/stack"),
+    );
     await follow(ids.package, "2026.9.0", "e1");
     await follow(ids.stackPackage, "2026.10.0", "e2");
 
@@ -834,7 +836,7 @@ test("refuse deploying a build needing a setting the space leaves unset", async 
     const installer = fixture.as(fixture.owner.subject).client(stackPackage);
     const regional = PackageVersion.parse({
         id: ids.package,
-        name: "@acme/notes",
+        name: "@example/notes",
         version: "2026.9.0",
     });
     const declaring = await MemoryBuild.of(

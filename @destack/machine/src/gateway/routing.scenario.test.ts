@@ -22,7 +22,7 @@ const IMAGE = Digest.parse("1".repeat(64));
 const ACCOUNT_PACKAGE = PackageId.parse("package-01996ab0-0000-7000-8000-0000000000f1");
 
 /** A space another machine serves. */
-const acme = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000f3");
+const example = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000f3");
 
 /** Another package than the notes installation's. */
 const OTHER_PACKAGE = PackageId.parse("package-01996ab0-0000-7000-8000-0000000000f2");
@@ -72,18 +72,18 @@ test("resolve each kind of address a workload calls", async () => {
     const notesBuild = await fixtureBuild(ids.package, "2026.9.0", fixture.environment.crypto);
     const notes = await fixture.install(notesBuild);
 
-    // create the acme space on another machine of the account, which publishes its endpoint
-    const acmeMachine = await fixture.universe.enroll(
+    // create the example space on another machine of the account, which publishes its endpoint
+    const exampleMachine = await fixture.universe.enroll(
         fixture.owner,
         ids.account,
-        "https://acme.machine.test",
+        "https://example.machine.test",
     );
     await fixture.owner.client(accountPackage).space.create({
         accountId: ids.account,
-        id: acme,
+        id: example,
         requestId: RequestId.create(fixture.machine.environment),
-        name: "acme",
-        machine: acmeMachine.id,
+        name: "example",
+        machine: exampleMachine.id,
     });
     await fixture.universe.simulation.idle();
     await fixture.simulation.idle();
@@ -117,12 +117,12 @@ test("resolve each kind of address a workload calls", async () => {
                 name: "board",
                 package: OTHER_PACKAGE,
                 installation: peer,
-                scope: acme,
+                scope: example,
             },
         ],
         resources: [
             binding("a1", "notes", ids.package),
-            binding("a3", "notes.work.acme", ids.package),
+            binding("a3", "notes.work.example", ids.package),
             binding("a4", "@destack/account", ACCOUNT_PACKAGE),
         ],
     };
@@ -141,22 +141,22 @@ test("resolve each kind of address a workload calls", async () => {
 
     // refuse every address the workload is not bound to
     const now = fixture.machine.clock.now();
-    const acmeAt = new URL((await fixture.machine.directory.locate(acme, now)).url).origin;
+    const exampleAt = new URL((await fixture.machine.directory.locate(example, now)).url).origin;
     const spaceAt = new URL((await fixture.machine.directory.locate(ids.space, now)).url).origin;
     const notesMount = PackageMount.path(ids.package);
     const boardMount = PackageMount.path(OTHER_PACKAGE);
     expect([
         await resolve(`notes--${ids.space}`, `${notesMount}${CONNECTION_PATH}`, []),
         await resolve(`notes--${ids.space}`, `${notesMount}/notes/list`, []),
-        await resolve(`${peer}--${acme}`, `${boardMount}/notes/list`),
-        await resolve(`${peer}--${acme}`, "/notes/list"),
-        await resolve(`${unbound}--${acme}`, `${boardMount}/notes/list`),
-        await resolve(`${unbound}--${acme}`, `${boardMount}${CONNECTION_PATH}`),
+        await resolve(`${peer}--${example}`, `${boardMount}/notes/list`),
+        await resolve(`${peer}--${example}`, "/notes/list"),
+        await resolve(`${unbound}--${example}`, `${boardMount}/notes/list`),
+        await resolve(`${unbound}--${example}`, `${boardMount}${CONNECTION_PATH}`),
         await resolve(`${peer}--${ids.space}`, `${boardMount}${CONNECTION_PATH}`),
         await resolve("@destack/object"),
-        await resolve(acme, `/${ACCOUNT_PACKAGE}/accounts/list`),
+        await resolve(example, `/${ACCOUNT_PACKAGE}/accounts/list`),
         await resolve("notes"),
-        await resolve("notes.work.acme"),
+        await resolve("notes.work.example"),
         await resolve("@destack/account"),
         await resolve("tasks"),
         await resolve("notes", "/notes/list", [binding("a5", "notes", OTHER_PACKAGE)]),
@@ -171,16 +171,16 @@ test("resolve each kind of address a workload calls", async () => {
         "FORBIDDEN: INSTALLATION_DENIED: installation 'notes' is forbidden: this installation does not bind it",
         {
             kind: "remote",
-            scope: acme,
-            url: `${acmeAt}/spaces/${acme}/installations/${peer}`,
+            scope: example,
+            url: `${exampleAt}/spaces/${example}/installations/${peer}`,
             audience: stackPackage.id,
         },
         `NOT_FOUND: PACKAGE_MOUNT_NOT_FOUND: package mount '/notes/list' of installation '${peer}' not found`,
         `FORBIDDEN: INSTALLATION_DENIED: installation '${unbound}' is forbidden: this installation does not bind it`,
         {
             kind: "remote",
-            scope: acme,
-            url: `${acmeAt}/spaces/${acme}/installations/${unbound}`,
+            scope: example,
+            url: `${exampleAt}/spaces/${example}/installations/${unbound}`,
             audience: stackPackage.id,
         },
         {
@@ -192,8 +192,8 @@ test("resolve each kind of address a workload calls", async () => {
         { kind: "package", audience: objectPackage.id, fetch: "function" },
         {
             kind: "remote",
-            scope: acme,
-            url: `${acmeAt}/spaces/${acme}`,
+            scope: example,
+            url: `${exampleAt}/spaces/${example}`,
             audience: ACCOUNT_PACKAGE,
         },
         {
@@ -203,7 +203,7 @@ test("resolve each kind of address a workload calls", async () => {
             audience: ids.package,
             path: `${notesMount}/notes/list`,
         },
-        `NOT_FOUND: INSTALLATION_NOT_FOUND: installation 'notes.work.acme' of '${ids.package}' in '${ids.space}' not found`,
+        `NOT_FOUND: INSTALLATION_NOT_FOUND: installation 'notes.work.example' of '${ids.package}' in '${ids.space}' not found`,
         {
             kind: "universe",
             url: `https://destack.cloud/${ACCOUNT_PACKAGE}`,

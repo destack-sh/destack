@@ -15,7 +15,14 @@ import { ObjectType, PackageMount, role, SpaceMount } from "@destack/object";
 import { PackageManifest } from "@destack/package/manifest";
 import type { PackageId } from "@destack/package";
 import type { Given, SetStep } from "@destack/package/declare";
-import { type Identifier, type JsonObject, type JsonValue, present, schema } from "@destack/schema";
+import {
+    type Identifier,
+    type JsonObject,
+    type JsonValue,
+    present,
+    schema,
+    Version,
+} from "@destack/schema";
 import stackPackage from "@destack/stack/package";
 import { RequestId, Scope } from "@destack/sync";
 import type { SimulatedTelemetry } from "@destack/environment/simulation";
@@ -285,12 +292,13 @@ export class MachineDriver implements Driver<MachineStep, MachineObservation> {
         return this.home.world.simulation.telemetry;
     }
 
-    /** Build and make an image of a fixture package at its authored version. */
+    /** Build and make an image of a fixture package at a version. */
     static build(
         fixture: string,
         workspace: Workspace,
+        version: Version,
     ): ReturnType<typeof TestDistribution.compile> {
-        return TestDistribution.compile(workspace, new TestFixture(fixture).directory);
+        return TestDistribution.compile(workspace, new TestFixture(fixture).directory, version);
     }
 
     /** Install a published fixture in the owner's home as the owner, recording its object types. */

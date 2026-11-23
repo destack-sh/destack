@@ -1,5 +1,5 @@
 {
-    "name": "@destack/machine-apps-fixture",
+    "name": "@example/apps",
     "type": "module",
     "exports": {
         "./object": "./src/index.ts",
