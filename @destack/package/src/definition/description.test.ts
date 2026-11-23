@@ -24,17 +24,19 @@ test("list a package's runtime dependencies and peers, and decide which it runs 
     });
 });
 
-test("release a package file's workspace ranges at linked versions, the default tag where none links", () => {
+test("release a package file's workspace ranges from linked versions on, the dev tag for unreleased code and the default tag where none links", () => {
     const authored = {
         name: "@example/notes",
         dependencies: { "@destack/object": "workspace:*", zod: "4.1.0" },
         peerDependencies: { "@destack/view": "workspace:^" },
         devDependencies: { "@destack/test": "workspace:*" },
     };
-    expect(PackageJson.release(authored, { "@destack/object": "2026.11.2" })).toEqual({
+    expect(
+        PackageJson.release(authored, { "@destack/object": "2026.11.2", "@destack/view": "dev" }),
+    ).toEqual({
         name: "@example/notes",
-        dependencies: { "@destack/object": "2026.11.2", zod: "4.1.0" },
-        peerDependencies: { "@destack/view": "latest" },
+        dependencies: { "@destack/object": ">=2026.11.2", zod: "4.1.0" },
+        peerDependencies: { "@destack/view": "dev" },
         devDependencies: { "@destack/test": "latest" },
     });
 });

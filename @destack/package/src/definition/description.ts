@@ -1,4 +1,4 @@
-import { type JsonObject, type JsonValue, schema } from "@destack/schema";
+import { type JsonObject, type JsonValue, schema, Version } from "@destack/schema";
 import { DependencyName, PackageVersion } from "./package.ts";
 import { PackageDefinition } from "./definition.ts";
 
@@ -83,7 +83,7 @@ export const PackageJson = Object.assign(packageJson, {
         return [...new Set(names)].toSorted();
     },
 
-    /** Write a package file as released: each workspace range at its linked version. */
+    /** Write a package file as released: each workspace range from its linked version on. */
     release(authored: JsonObject, versions: Readonly<Record<string, string>>): JsonObject {
         const released: { [field: string]: JsonValue | undefined } = { ...authored };
         for (const field of DEPENDENCY_FIELDS) {
@@ -92,7 +92,7 @@ export const PackageJson = Object.assign(packageJson, {
                 released[field] = Object.fromEntries(
                     Object.entries(ranges.data).map(([name, range]) => [
                         name,
-                        range.startsWith(WORKSPACE_RANGE) ? (versions[name] ?? DEFAULT_TAG) : range,
+                        range.startsWith(WORKSPACE_RANGE) ? releasedRange(versions[name]) : range,
                     ]),
                 );
             }
@@ -163,3 +163,15 @@ export const RuntimeRequirements = schema.looseObject({
 
 /** The runtime dependency groups of a package.json, each absent when it declares none. */
 export type RuntimeRequirements = schema.Infer<typeof RuntimeRequirements>;
+
+/** Write the range a release requires a linked version at: that release or newer, or its tag. */
+function releasedRange(version: string | undefined): string {
+    // take the default tag for an unlinked package, the dev tag for unreleased code
+    if (version === undefined) {
+        return DEFAULT_TAG;
+    } else if (!Version.isRelease(version)) {
+        return version;
+    }
+
+    return `>=${version}`;
+}
