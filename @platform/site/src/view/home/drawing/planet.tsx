@@ -1,7 +1,7 @@
 import { present } from "@destack/schema";
 import * as style from "@destack/style";
 import { color } from "@destack/theme/tokens.stylex";
-import { createEffect, createSignal, useEnvironment } from "@destack/view";
+import { createEffect, createSignal, useEnvironment, untrack } from "@destack/view";
 import { loopFrames } from "@destack/view/primitives/raf";
 
 import { planet } from "../../layout/mark";
@@ -129,7 +129,7 @@ export function PlanetDrawing(properties: { isOpen: boolean; isMoving: boolean }
     // hold the drawing's clock, and how far the moons have gathered into the planet
     const environment = useEnvironment();
     const [seconds, setSeconds] = createSignal(0);
-    const [gathered, setGathered] = createSignal(properties.isOpen ? 1 : 0);
+    const [gathered, setGathered] = createSignal(untrack(() => properties.isOpen) ? 1 : 0);
 
     // run the clock and ease the gathering while the drawing may move, or settle at the switch's state
     createEffect(

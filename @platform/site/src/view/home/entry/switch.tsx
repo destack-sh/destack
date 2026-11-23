@@ -4,7 +4,7 @@ import { Icon } from "@destack/ui/icon";
 import arrowUp from "@destack/icon/phosphor/arrow-up";
 import list from "@destack/icon/phosphor/list";
 import { Button } from "@destack/ui/button";
-import { createEffect, createMemo, createSignal, onSettled } from "@destack/view";
+import { createEffect, createMemo, createSignal, onSettled, untrack } from "@destack/view";
 import { createVisibilityObserver } from "@destack/view/primitives/intersection-observer";
 import { Timeout } from "@destack/view/primitives/timer";
 import { isMotionReduced } from "@destack/view/motion";
@@ -91,7 +91,7 @@ export function Toggle(properties: {
     );
 
     // stop for good once the reader touches it, or switches the page some other way
-    let flipping = properties.isOn;
+    let flipping = untrack(() => properties.isOn);
     const touch = () => {
         setIsTouched(true);
         setIsCounting(false);

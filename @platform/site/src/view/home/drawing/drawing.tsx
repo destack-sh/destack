@@ -1,7 +1,14 @@
 import { media } from "@destack/style/media.stylex";
 import * as style from "@destack/style";
 import { color } from "@destack/theme/tokens.stylex";
-import { createEffect, createSignal, type JSX, onSettled, useEnvironment } from "@destack/view";
+import {
+    createEffect,
+    createSignal,
+    type JSX,
+    onSettled,
+    useEnvironment,
+    untrack,
+} from "@destack/view";
 import { createReducedMotion } from "@destack/view/motion";
 import { createEventListener } from "@destack/view/primitives/event-listener";
 import { createVisibilityObserver } from "@destack/view/primitives/intersection-observer";
@@ -63,7 +70,7 @@ export function createChange(
     // hold the share, starting where the switch is
     const environment = useEnvironment();
     const isReduced = createReducedMotion(host);
-    const [shown, setShown] = createSignal(isOpen() ? 1 : 0);
+    const [shown, setShown] = createSignal(untrack(isOpen) ? 1 : 0);
 
     // ease toward the switch frame by frame, or jump there where motion is reduced
     createEffect(

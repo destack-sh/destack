@@ -2,7 +2,7 @@ import { measure } from "../../layout/measure.stylex";
 import { color, motion } from "@destack/theme/tokens.stylex";
 import { present } from "@destack/schema";
 import * as style from "@destack/style";
-import { createMemo, createSignal, For, onSettled, useEnvironment } from "@destack/view";
+import { createMemo, createSignal, For, onSettled, useEnvironment, untrack } from "@destack/view";
 
 import {
     boardCells,
@@ -509,7 +509,7 @@ export function Remix(properties: {
             : present(todayScenes[properties.today], "scene");
 
     // place every card of the scene: cards leave and enter where they stand, row by row
-    let wasLaidOpen = properties.isOpen;
+    let wasLaidOpen = untrack(() => properties.isOpen);
     let change = 0;
     const layout = createMemo(() => {
         // pick the placements and note whether the stack just opened or closed
