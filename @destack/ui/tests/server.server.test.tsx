@@ -59,12 +59,12 @@ test("render a sidebar and a toaster to a string without a browser, open and wit
 
     // the server renders the defaults with their hydration keys: an expanded sidebar on a wide screen and an empty stack
     expect(html.replaceAll(CLASS_ATTRIBUTE, "").replaceAll(ICON_BODY, "$1$2")).toBe(
-        '<div _hk=00200 data-slot="sidebar-wrapper">' +
-            '<div _hk=002040 id="000" data-slot="sidebar" data-open data-variant="sidebar" data-side="left">' +
-            '<div><div _hk=00204230 data-slot="sidebar-content" >Notebooks</div></div></div>' +
-            '<button _hk=002080 data-slot="sidebar-trigger" data-variant="ghost" data-size="icon" aria-label="Toggle sidebar" aria-controls="000" aria-expanded="true" >' +
-            '<svg _hk=0020840 viewBox="0 0 256 256" fill="currentColor" width="1em" height="1em" aria-hidden="true" data-slot="icon"></svg></button>' +
-            '<section _hk=0020e aria-label="Notifications" aria-live="polite" aria-relevant="additions text" aria-atomic="false" tabindex="-1" data-slot="toaster" data-position="bottom-right">' +
+        '<div _hk=020 data-slot="sidebar-wrapper">' +
+            '<div _hk=0230 id="00" data-slot="sidebar" data-open data-variant="sidebar" data-side="left">' +
+            '<div><div _hk=023140 data-slot="sidebar-content">Notebooks</div></div></div>' +
+            '<button _hk=0280 data-slot="sidebar-trigger" data-variant="ghost" data-size="icon" aria-label="Toggle sidebar" aria-controls="00" aria-expanded="true">' +
+            '<svg _hk=02840 viewBox="0 0 256 256" fill="currentColor" width="1em" height="1em" aria-hidden="true" data-slot="icon"></svg></button>' +
+            '<section _hk=02e aria-label="Notifications" aria-live="polite" aria-relevant="additions text" aria-atomic="false" tabindex="-1" data-slot="toaster" data-position="bottom-right">' +
             '<ol popover="manual" data-slot="toaster-stack"></ol></section></div>',
     );
 });
