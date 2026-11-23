@@ -4,7 +4,7 @@ import {
     createEffect,
     createRenderEffect,
     createSignal,
-    sharedConfig,
+    isHydrating,
 } from "solid-js";
 import { access, type MaybeAccessor, TRANSPARENT, onMount } from "./utils.ts";
 import { createHydratableSingletonRoot } from "./rootless.ts";
@@ -104,7 +104,7 @@ export function createScrollPosition(
 ): Readonly<Position> {
     // read the window by default in the browser
     const source = isServer ? target : (target ?? window);
-    const isHydrating = sharedConfig.hydrating;
+    const isDeferred = isHydrating();
     const read = (): Position => {
         if (isServer) {
             return { ...FALLBACK_SCROLL_POSITION };
@@ -121,9 +121,9 @@ export function createScrollPosition(
     const position = createDerivedStaticStore<Position>(() => {
         const current = version();
 
-        return isHydrating && current === 0 ? { ...FALLBACK_SCROLL_POSITION } : read();
+        return isDeferred && current === 0 ? { ...FALLBACK_SCROLL_POSITION } : read();
     });
-    if (!isServer && (isHydrating || typeof source === "function")) {
+    if (!isServer && (isDeferred || typeof source === "function")) {
         onMount(update);
     }
 

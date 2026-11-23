@@ -1,5 +1,5 @@
 import { isServer } from "@solidjs/web";
-import { type Accessor, createEffect, createSignal, sharedConfig, untrack } from "solid-js";
+import { type Accessor, createEffect, createSignal, untrack, isHydrating } from "solid-js";
 
 /** The options of an owner outside the hydration keys the server and browser share. */
 export const TRANSPARENT = { transparent: true } as const;
@@ -86,14 +86,14 @@ export function createHydratableSignal<Value>(
     update: () => Value,
 ): [Accessor<Value>, (value: Value) => void] {
     // start from the server's value while rendering on the server or hydrating, else read the browser
-    const isDeferred = isServer || sharedConfig.hydrating;
+    const isDeferred = isServer || isHydrating();
     const [box, setBox] = createSignal<{ readonly value: Value }>(
         { value: isDeferred ? serverValue : update() },
         { ownedWrite: true, equals: (previous, next) => Object.is(previous.value, next.value) },
     );
 
     // read the browser once mounted
-    if (!isServer && sharedConfig.hydrating) {
+    if (!isServer && isHydrating()) {
         onMount(() => {
             setBox({ value: update() });
         });

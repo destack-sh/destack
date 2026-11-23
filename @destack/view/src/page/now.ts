@@ -1,4 +1,4 @@
-import { type Accessor, createSignal, onCleanup, sharedConfig } from "solid-js";
+import { type Accessor, createSignal, onCleanup, isHydrating } from "solid-js";
 import { isServer } from "@solidjs/web";
 import { Duration } from "@destack/schema";
 import { useEnvironment } from "./context.ts";
@@ -10,7 +10,7 @@ const NOW_INTERVAL: Duration = { seconds: 1 };
 export function useNow(interval: Duration = NOW_INTERVAL): Accessor<number | undefined> {
     // read no time on the server and while hydrating, so both render the same, else the clock's
     const { clock } = useEnvironment();
-    const isDeferred = isServer || sharedConfig.hydrating;
+    const isDeferred = isServer || isHydrating();
     const [now, setNow] = createSignal<number | undefined>(isDeferred ? undefined : clock.now(), {
         ownedWrite: true,
     });

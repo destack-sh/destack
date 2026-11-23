@@ -5,7 +5,7 @@ import {
     createMemo,
     createSignal,
     onCleanup,
-    sharedConfig,
+    isHydrating,
 } from "solid-js";
 import { access, TRANSPARENT, type FalsyValue, onMount } from "./utils.ts";
 import { makeEventListener } from "./event-listener.ts";
@@ -95,7 +95,7 @@ export function createElementBounds(
     const [track, trigger] = createSignal(undefined, { equals: false, ownedWrite: true });
     const update = (): void => trigger(undefined);
     let measure = (): NullableBounds => getElementBounds(access(target));
-    if (sharedConfig.hydrating) {
+    if (isHydrating()) {
         measure = () => NULLED_BOUNDS;
         onMount(() => {
             measure = () => getElementBounds(access(target));

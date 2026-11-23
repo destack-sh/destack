@@ -1,5 +1,5 @@
 import { isServer } from "@solidjs/web";
-import { createRoot, getOwner, onCleanup, type Owner, runWithOwner, sharedConfig } from "solid-js";
+import { createRoot, getOwner, onCleanup, type Owner, runWithOwner, isHydrating } from "solid-js";
 
 /** Run a computation in a root of its own. */
 export function createSubRoot<Result>(
@@ -58,5 +58,5 @@ export function createHydratableSingletonRoot<Value>(
 ): () => Value {
     const singleton = createSingletonRoot(factory);
 
-    return () => (isServer || sharedConfig.hydrating ? createSubRoot(factory) : singleton());
+    return () => (isServer || isHydrating() ? createSubRoot(factory) : singleton());
 }

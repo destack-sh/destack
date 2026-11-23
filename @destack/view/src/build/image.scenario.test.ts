@@ -93,14 +93,15 @@ test("build an imported image into metadata whose source set the build emits", a
 
     // emit the original and fourteen more files, the original serving its own width and format
     const emitted = await files.readDirectory(join(directory, "dist"));
-    const built = schema
-        .object({ default: ImageMetadata })
+    const exports = schema
+        .record(schema.string(), schema.unknown())
         .parse(await import(join(directory, "dist", "index.mjs")));
+    const image = ImageMetadata.parse(exports["default"]);
     expect({
         files: emitted.filter((file) => file.name !== "index.mjs").length,
-        size: [built.default.width, built.default.height, built.default.format],
-        srcSet: built.default.srcSet.length,
-        original: built.default.srcSet.at(-1)?.src === built.default.src,
+        size: [image.width, image.height, image.format],
+        srcSet: image.srcSet.length,
+        original: image.srcSet.at(-1)?.src === image.src,
     }).toEqual({ files: 15, size: [1200, 600, "png"], srcSet: 15, original: true });
 });
 

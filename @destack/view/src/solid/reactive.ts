@@ -5,7 +5,6 @@ export {
     createMemo,
     createOptimistic,
     createOptimisticStore,
-    createOwner,
     createProjection,
     createReaction,
     createRenderEffect,

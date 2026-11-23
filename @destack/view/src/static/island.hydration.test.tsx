@@ -62,10 +62,10 @@ test("render a page without hydration but for its island, then hydrate the islan
         html: [
             "<main><h1>Static</h1><!--$-->",
             '<div data-island="/src/islands/counter.tsx" data-island-id="/src/islands/counter.tsx#0" data-island-properties="{&quot;start&quot;:3}" style="display:contents">',
-            "<button _hk=/src/islands/counter.tsx#00000000>Count: <!--$-->3<!--/--></button>",
+            "<button _hk=/src/islands/counter.tsx#00000>Count: <!--$-->3<!--/--></button>",
             "</div><!--/-->",
             '<!--$--><div data-island="/src/islands/disclosure.tsx" data-island-id="/src/islands/disclosure.tsx#1" data-island-properties="{&quot;label&quot;:&quot;More&quot;}" data-island-children="" style="display:contents">',
-            "<section _hk=/src/islands/disclosure.tsx#10000000><button><!--$-->More<!--/-->: <!--$-->closed<!--/--></button>",
+            "<section _hk=/src/islands/disclosure.tsx#10000><button><!--$-->More<!--/-->: <!--$-->closed<!--/--></button>",
             '<!--$--><div data-island-slot style="display:contents"><p>Static <b>text</b></p></div><!--/--></section>',
             "</div><!--/--></main>",
         ].join(""),
@@ -109,7 +109,7 @@ test("hydrate an island around children the server rendered, keeping them as the
     // open the disclosure, its static children kept
     expect({ section, warnings }).toEqual({
         section:
-            '<section _hk="/src/islands/disclosure.tsx#10000000"><button><!--$-->More<!--/-->: <!--$-->open<!--/--></button><!--$--><div data-island-slot="" style="display:contents"><p>Static <b>text</b></p></div><!--/--></section>',
+            '<section _hk="/src/islands/disclosure.tsx#10000"><button><!--$-->More<!--/-->: <!--$-->open<!--/--></button><!--$--><div data-island-slot="" style="display:contents"><p>Static <b>text</b></p></div><!--/--></section>',
         warnings: [],
     });
 });

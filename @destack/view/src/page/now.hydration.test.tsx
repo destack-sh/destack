@@ -23,7 +23,7 @@ test("render no time on the server, hydrate without a mismatch, then show the ta
     warn.mockRestore();
 
     expect([html, hydrated, container.textContent, warnings]).toEqual([
-        "<p _hk=000>time <!--$-->unknown<!--/--></p>",
+        "<p _hk=00>time <!--$-->unknown<!--/--></p>",
         "time unknown",
         `time ${TEST_START}`,
         [],

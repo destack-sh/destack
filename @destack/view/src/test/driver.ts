@@ -117,8 +117,10 @@ export class ViewDriver implements Driver<Step, Observation> {
                 await testWorld().simulation.sleep(step.milliseconds);
                 break;
             case "press":
+                // focus the target and let the focus settle, as a browser does before the key
                 if (step.target !== undefined) {
                     this.locate(step.target).focus();
+                    flush();
                 }
                 press(step.key);
                 break;
@@ -321,9 +323,10 @@ function press(shortcut: string): void {
         flags[flag] = true;
     }
 
-    // dispatch the key down and up on the focused element
+    // dispatch the key down and up on the focused element, each settling as its own task
     const target = document.activeElement ?? document.body;
     for (const type of ["keydown", "keyup"]) {
+        flush();
         target.dispatchEvent(
             new KeyboardEvent(type, {
                 key,

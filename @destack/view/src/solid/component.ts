@@ -1,7 +1,6 @@
 export { children, createComponent, createUniqueId, lazy } from "solid-js";
 export {
     clientOnly,
-    Dynamic,
     dynamic,
     httpHeader,
     httpStatus,
@@ -28,7 +27,6 @@ export type {
 export type {
     ComponentProps,
     DynamicOptions,
-    DynamicProps,
     IntrinsicElement,
     JSX,
     ValidComponent,

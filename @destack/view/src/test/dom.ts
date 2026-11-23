@@ -1,6 +1,6 @@
 import type { BrowserEnvironment } from "@destack/environment/browser";
 import { setContext } from "@solidjs/signals";
-import { createComponent, createRoot } from "solid-js";
+import { createComponent, createRoot, flush } from "solid-js";
 import { EnvironmentContext } from "../page/context.ts";
 import { onTestFinished } from "@destack/test";
 import type { JSX } from "@solidjs/web";
@@ -114,6 +114,9 @@ export function render<Properties extends object>(
     } else {
         dispose = renderExample(container, { example: element }, environment);
     }
+
+    // settle the first render's effects, as the page does before a person acts
+    flush();
 
     // unmount and remove once, by hand or after the test
     let isMounted = true;

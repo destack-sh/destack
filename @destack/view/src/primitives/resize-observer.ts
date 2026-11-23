@@ -1,5 +1,5 @@
 import { isServer } from "@solidjs/web";
-import { type Accessor, createEffect, getOwner, onCleanup, sharedConfig } from "solid-js";
+import { type Accessor, createEffect, getOwner, onCleanup, isHydrating } from "solid-js";
 import {
     access,
     asArray,
@@ -195,7 +195,7 @@ export function createElementSize(
     // measure a fixed element right away, outside hydration
     const isAccessor = typeof target === "function";
     const [size, setSize] = createStaticStore<NullableSize>(
-        sharedConfig.hydrating || isAccessor ? ELEMENT_SIZE_FALLBACK : getElementSize(target),
+        isHydrating() || isAccessor ? ELEMENT_SIZE_FALLBACK : getElementSize(target),
     );
     const observer = new ResizeObserver((entries) => {
         for (const entry of entries) {

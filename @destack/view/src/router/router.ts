@@ -86,11 +86,12 @@ export function createRouter<const Routes extends readonly solid.RouteDefinition
         return tab(properties);
     };
 
-    // answer the plain router's paths, routes, config and matching
+    // answer the plain router's paths, routes, config, matching and route keys
     return Object.assign(router, {
         paths: plain.paths,
         routes: plain.routes,
         config: plain.config,
         match: (url: string) => plain.match(url),
+        keysFor: (url: string) => plain.keysFor(url),
     });
 }

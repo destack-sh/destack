@@ -1,12 +1,5 @@
 import { isServer } from "@solidjs/web";
-import {
-    createMemo,
-    createSignal,
-    getObserver,
-    type Signal,
-    sharedConfig,
-    untrack,
-} from "solid-js";
+import { createMemo, createSignal, getObserver, type Signal, untrack, isHydrating } from "solid-js";
 import { onMount } from "./utils.ts";
 
 /** Write a static store: some keys at once, from the current state, or one key. */
@@ -99,7 +92,7 @@ export function createHydratableStaticStore<State extends object>(
         return createStaticStore(serverValue);
     }
     // start from the server's state while hydrating, and read the browser once it settles
-    else if (sharedConfig.hydrating) {
+    else if (isHydrating()) {
         const [state, setState] = createStaticStore(serverValue);
         onMount(() => {
             setState(update());
