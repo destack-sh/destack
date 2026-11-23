@@ -1,6 +1,7 @@
 import { SwatchName } from "@destack/color";
 import { Condition, type Moment } from "@destack/db";
 import { type JsonObject, schema } from "@destack/schema";
+import type { Localization } from "@destack/locale";
 import type { ObjectType } from "../object/object.ts";
 import { Numbered } from "../trait/numbered.ts";
 import { Icon, Presentation } from "../trait/presentable.ts";
@@ -17,15 +18,21 @@ export interface ObjectAppearance {
 
 /** How an object looks, read from its row through its type's presentation. */
 export const ObjectAppearance = {
-    /** Read an object's appearance from its row at a moment, which conditional accents read. */
-    of(type: ObjectType, row: JsonObject, moment: Moment): ObjectAppearance {
+    /** Read an object's appearance from its row at a moment, its title in a locale. */
+    of(
+        type: ObjectType,
+        row: JsonObject,
+        moment: Moment,
+        localization: Localization,
+        key: string | undefined,
+    ): ObjectAppearance {
         // read the icon from its field or the type's fixed one
         const { presentation } = type;
-        const icon = presentation?.icon;
+        const icon = presentation.icon;
         const stored = icon === undefined || "fixed" in icon ? undefined : row[icon.field];
 
         // read the accent from its field, else from the first condition the row meets
-        const accent = presentation?.color;
+        const accent = presentation.color;
         const color =
             accent === undefined
                 ? undefined
@@ -36,7 +43,7 @@ export const ObjectAppearance = {
                     )?.swatch;
 
         return {
-            title: Presentation.title(presentation, row),
+            title: ObjectAppearance.title(type, row, localization, key),
             icon:
                 icon === undefined
                     ? undefined
@@ -47,6 +54,19 @@ export const ObjectAppearance = {
                         : Icon.parse(stored),
             color: color === null || color === undefined ? undefined : SwatchName.parse(color),
         };
+    },
+
+    /** Read an object's title, else the identifier people use for it, such as TRK-214. */
+    title(
+        type: ObjectType,
+        row: JsonObject,
+        localization: Localization,
+        key: string | undefined,
+    ): string {
+        return (
+            Presentation.title(type.presentation, row, localization) ??
+            ObjectAppearance.identifier(type, row, key)
+        );
     },
 
     /** Read the identifier people use for an object: its number's, such as TRK-214, else its id. */

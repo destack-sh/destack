@@ -1,5 +1,5 @@
 import type { Moment } from "@destack/db";
-import type { Message } from "@destack/locale";
+import type { Localization, Message } from "@destack/locale";
 import { type JsonObject, schema } from "@destack/schema";
 import type { ObjectReference } from "@destack/sync";
 import { Field } from "../field/field.ts";
@@ -56,12 +56,18 @@ export interface ObjectDetail {
 
 /** One object in detail, read from its row through its type's presentation. */
 export const ObjectDetail = {
-    /** Read an object's key fields as one section. */
-    key(type: ObjectType, row: JsonObject, moment: Moment): ObjectDetail {
+    /** Read an object's key fields as one section, its title in a locale. */
+    key(
+        type: ObjectType,
+        row: JsonObject,
+        moment: Moment,
+        localization: Localization,
+        key: string | undefined,
+    ): ObjectDetail {
         const names = ObjectDetail.keys(type);
 
         return {
-            ...identify(type, row, moment),
+            ...identify(type, row, moment, localization, key),
             sections: [
                 {
                     title: DEFAULT_SECTION,
@@ -78,9 +84,11 @@ export const ObjectDetail = {
         row: JsonObject,
         types: readonly ObjectType[],
         moment: Moment,
+        localization: Localization,
+        key: string | undefined,
     ): ObjectDetail {
         // take the declared sections, else one with every shown field
-        const declared = type.presentation?.page;
+        const declared = type.presentation.page;
         const sections = declared?.sections ?? [
             { title: DEFAULT_SECTION, fields: ObjectDetail.shown(type) },
         ];
@@ -109,7 +117,7 @@ export const ObjectDetail = {
             }));
 
         return {
-            ...identify(type, row, moment),
+            ...identify(type, row, moment, localization, key),
             sections: sections.map((section) => ({
                 title: section.title,
                 fields: section.fields.map((name) => ObjectDetail.field(type, row, name)),
@@ -120,7 +128,7 @@ export const ObjectDetail = {
 
     /** List a type's key fields: its declared card's, else its first shown ones. */
     keys(type: ObjectType): readonly string[] {
-        return type.presentation?.card ?? ObjectDetail.shown(type).slice(0, KEY_FIELDS);
+        return type.presentation.card ?? ObjectDetail.shown(type).slice(0, KEY_FIELDS);
     },
 
     /** List the fields a type shows beside its title. */
@@ -128,19 +136,15 @@ export const ObjectDetail = {
         // leave out the presentation's own fields
         const { presentation } = type;
         const presented = new Set(
-            [
-                presentation?.title,
-                presentation?.icon,
-                presentation?.color,
-                presentation?.cover,
-            ].flatMap((piece) =>
-                piece === undefined
-                    ? []
-                    : typeof piece === "string"
-                      ? [piece]
-                      : "field" in piece
-                        ? [piece.field]
-                        : [],
+            [presentation.title, presentation.icon, presentation.color, presentation.cover].flatMap(
+                (piece) =>
+                    piece === undefined
+                        ? []
+                        : typeof piece === "string"
+                          ? [piece]
+                          : "field" in piece
+                            ? [piece.field]
+                            : [],
             ),
         );
 
@@ -180,12 +184,18 @@ export const ObjectDetail = {
 };
 
 /** Read what an object is and how it looks. */
-function identify(type: ObjectType, row: JsonObject, moment: Moment) {
+function identify(
+    type: ObjectType,
+    row: JsonObject,
+    moment: Moment,
+    localization: Localization,
+    key: string | undefined,
+) {
     const scope = schema.string().parse(row["scope"]);
     const id = schema.string().parse(row["id"]);
 
     return {
         reference: type.reference(scope, id),
-        appearance: ObjectAppearance.of(type, row, moment),
+        appearance: ObjectAppearance.of(type, row, moment, localization, key),
     };
 }

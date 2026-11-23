@@ -178,26 +178,40 @@ export async function write(client: ObjectClient<{ readonly page: typeof page }>
 
 A trait adds fields, methods and rules to a type, each declared with its options.
 
-| Trait         | What it does                                               | Options                                              | Example                                                     |
-| ------------- | ---------------------------------------------------------- | ---------------------------------------------------- | ----------------------------------------------------------- |
-| `shareable`   | shares objects through relationships and invitations       | `{ by }` or `{ isPublic }`, and `read`               | `shareable({})`                                             |
-| `nested`      | nests objects under a parent, or in a tree of their type   | `{ in, add, delete, optional, move }`                | `nested({ in: notebook, delete: "cascade", add: "write" })` |
-| `searchable`  | finds objects by text, and indexes filter and sort fields  | `{ text, filter, sort }`, each a list of fields      | `searchable({ text: ["title"], sort: ["title"] })`          |
-| `orderable`   | orders objects among their siblings                        | none, or `{ within }`                                | `orderable()`                                               |
-| `presentable` | shows objects with a title, an icon, a cover and an accent | none, or `{ title, subtitle, icon, color }`          | `presentable({ subtitle: "summary" })`                      |
-| `numbered`    | numbers objects, each number issued once by the store      | none, or `{ within, start, at, identifier, prefix }` | `numbered({ within: "teamId", identifier: "live" })`        |
-| `recoverable` | deletes objects to a restorable trash                      | `{ within, by, purge, retain }`                      | `recoverable({ within: { days: 30 }, by: "delete" })`       |
-| `archivable`  | archives objects out of lists, read-only until unarchived  | `{ by }`                                             | `archivable({ by: "manage" })`                              |
-| `expiring`    | removes objects once a rule's window passes                | a list of `{ after, from }` rules                    | `expiring([{ after: { days: 7 }, from: "expiresAt" }])`     |
-| `tracked`     | records objects' history in activities                     | `{ activity, by, session }`                          | `tracked({ activity, by: "update" })`                       |
-| `controlled`  | reconciles records with a controller                       | none, or `{ approval: true }`                        | `controlled()`                                              |
-| `bindable`    | lets installations and machines bind to objects            | `{ by }`                                             | `bindable({ by: "manage" })`                                |
-| `suspendable` | lets scope objects be suspended                            | `{ by }`                                             | `suspendable({ by: "update" })`                             |
-| `fencing`     | fences a scope while it moves between machines             | `{ by }`                                             | `fencing({ by: "cancel" })`                                 |
-| `provisioned` | provisions objects as a kind's resources                   | `{ kind }`                                           | `provisioned({ kind: ConnectionKind })`                     |
-| `propagated`  | replicates objects into the scopes inside theirs           | `{ where }`                                          | `propagated({})`                                            |
-| `audited`     | records reads in the audit, beside writes                  | `{ reads }`                                          | `audited({ reads: true })`                                  |
-| `declarable`  | lets stacks declare the objects                            | the fields a stack declares                          | `declarable(["release"])`                                   |
+| Trait         | What it does                                              | Options                                              | Example                                                     |
+| ------------- | --------------------------------------------------------- | ---------------------------------------------------- | ----------------------------------------------------------- |
+| `shareable`   | shares objects through relationships and invitations      | `{ by }` or `{ isPublic }`, and `read`               | `shareable({})`                                             |
+| `nested`      | nests objects under a parent, or in a tree of their type  | `{ in, add, delete, optional, move }`                | `nested({ in: notebook, delete: "cascade", add: "write" })` |
+| `searchable`  | finds objects by text, and indexes filter and sort fields | `{ text, filter, sort }`, each a list of fields      | `searchable({ text: ["title"], sort: ["title"] })`          |
+| `orderable`   | orders objects among their siblings                       | none, or `{ within }`                                | `orderable()`                                               |
+| `presentable` | shows objects with an icon, a cover, an accent and views  | none, or `{ title, subtitle, icon, color, cover }`   | `presentable({ subtitle: "summary" })`                      |
+| `numbered`    | numbers objects, each number issued once by the store     | none, or `{ within, start, at, identifier, prefix }` | `numbered({ within: "teamId", identifier: "live" })`        |
+| `recoverable` | deletes objects to a restorable trash                     | `{ within, by, purge, retain }`                      | `recoverable({ within: { days: 30 }, by: "delete" })`       |
+| `archivable`  | archives objects out of lists, read-only until unarchived | `{ by }`                                             | `archivable({ by: "manage" })`                              |
+| `expiring`    | removes objects once a rule's window passes               | a list of `{ after, from }` rules                    | `expiring([{ after: { days: 7 }, from: "expiresAt" }])`     |
+| `tracked`     | records objects' history in activities                    | `{ activity, by, session }`                          | `tracked({ activity, by: "update" })`                       |
+| `controlled`  | reconciles records with a controller                      | none, or `{ approval: true }`                        | `controlled()`                                              |
+| `bindable`    | lets installations and machines bind to objects           | `{ by }`                                             | `bindable({ by: "manage" })`                                |
+| `suspendable` | lets scope objects be suspended                           | `{ by }`                                             | `suspendable({ by: "update" })`                             |
+| `fencing`     | fences a scope while it moves between machines            | `{ by }`                                             | `fencing({ by: "cancel" })`                                 |
+| `provisioned` | provisions objects as a kind's resources                  | `{ kind }`                                           | `provisioned({ kind: ConnectionKind })`                     |
+| `propagated`  | replicates objects into the scopes inside theirs          | `{ where }`                                          | `propagated({})`                                            |
+| `audited`     | records reads in the audit, beside writes                 | `{ reads }`                                          | `audited({ reads: true })`                                  |
+| `declarable`  | lets stacks declare the objects                           | the fields a stack declares                          | `declarable(["release"])`                                   |
+
+### Titles
+
+Every object has a title, which lists, pickers, mentions and the command line show.
+
+| Order | Titled by                                | Example                           |
+| ----- | ---------------------------------------- | --------------------------------- |
+| 1     | the field `presentable({ title })` names | `presentable({ title: "label" })` |
+| 2     | its `title` field                        | a page's `title`                  |
+| 3     | its `name` field                         | an installation's `name`          |
+| 4     | its identifier                           | a session's `id`                  |
+
+A `name` is an identifier people choose, such as `tasks`; a `title` is text people edit, such as "Q3 plan".
+A title field is text, a choice or a message, and a message renders in the reader's locale.
 
 ### Constraints and indexes
 

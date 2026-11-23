@@ -642,7 +642,7 @@ type ObjectDerived<Configuration extends ObjectConfiguration> = {
     /** The roles the objects are shared through. */
     readonly roles: () => RolesDefinition | undefined;
     /** How pickers, mentions and titles show the objects. */
-    readonly presentation: () => Presentation | undefined;
+    readonly presentation: () => Presentation;
     /** How the objects are ordered among their siblings. */
     readonly ordering: () => Ordering | undefined;
     /** How the store numbers the objects. */
@@ -891,8 +891,8 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return this.derived.roles();
     }
 
-    /** How pickers, mentions and titles show the objects, absent for a type presenting none. */
-    get presentation(): Presentation | undefined {
+    /** How pickers, mentions and titles show the objects. */
+    get presentation(): Presentation {
         return this.derived.presentation();
     }
 
@@ -1233,19 +1233,19 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
                 Object.entries(this.fields).filter(([name]) => shown.has(name)),
             ),
             tree: this.tree,
-            hasCover: this.presentation?.cover !== undefined,
-            declared: (this.presentation?.views ?? []).map((view) => view.layout),
+            hasCover: this.presentation.cover !== undefined,
+            declared: (this.presentation.views ?? []).map((view) => view.layout),
         });
     }
 
     /** The views a list of the objects offers, declared then derived. */
     get views(): readonly ObjectView[] {
-        return ObjectView.list(this.layouts, this.presentation?.views ?? []);
+        return ObjectView.list(this.layouts, this.presentation.views ?? []);
     }
 
     /** The view a list shows by default: the first declared, else a table. */
     get view(): ObjectView {
-        return this.presentation?.views?.[0] ?? ObjectView.of({ kind: "table" });
+        return this.presentation.views?.[0] ?? ObjectView.of({ kind: "table" });
     }
 
     /** The columns of a tree of this object type, absent unless it nests in itself. */

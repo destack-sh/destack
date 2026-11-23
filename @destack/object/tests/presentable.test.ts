@@ -142,8 +142,7 @@ function declare(definition: Record<string, unknown>) {
         );
 }
 
-test("refuse a presentation without a title field, a field the presentation adds itself, and a query role over a field it cannot read", () => {
-    expect(declare({ traits: [presentable()] })).toThrow("a title or name field of card");
+test("refuse a field the presentation adds itself, and a query role over a field it cannot read", () => {
     expect(
         declare({
             fields: { title: field.string(), color: field.string() },

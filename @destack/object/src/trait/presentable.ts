@@ -3,6 +3,7 @@ import { IconName } from "@destack/icon";
 import { DeclarationReference } from "@destack/package/declare";
 import { ACCENT_PRESETS, type AccentPreset, SwatchName } from "@destack/color";
 import { type JsonValue, present, schema } from "@destack/schema";
+import { type Localization, Message } from "@destack/locale";
 import { field, type Field } from "../field/field.ts";
 import type { ObjectDefinition } from "../object/object.ts";
 import type { Erasure } from "./trait.ts";
@@ -22,7 +23,7 @@ const PRESENTABLE_OPTIONS: ReadonlySet<string> = new Set<keyof PresentableOption
     "page",
 ]);
 
-/** The fields an object is titled by when it sets none, the first one it has. */
+/** The fields an object is titled by when its type names none, the first one it has. */
 const TITLE_FIELDS = ["title", "name"] as const;
 
 /** The longest emoji in UTF-16 code units: 15, the longest RGI sequence. */
@@ -100,7 +101,7 @@ export interface PresentationPage {
     readonly related?: readonly string[];
 }
 
-/** The presentation an object type declares: every piece at its default, or each piece set. */
+/** The presentation an object type declares: every decoration at its default, or each piece set. */
 export type PresentableDefinition = true | PresentableOptions;
 
 /** The fields presentation adds: the chosen icon, the accent and the cover. */
@@ -127,8 +128,8 @@ export type PresentationFieldsOf<Presenting> = Presenting extends PresentableDef
 
 /** The presentation of an object type, its pieces resolved to the fields storing them. */
 const PresentationSchema = schema.object({
-    /** The field titling each object. */
-    title: schema.string().min(1),
+    /** The field titling each object, absent for a type titled by its identifier. */
+    title: schema.string().min(1).exactOptional(),
     /** The field shown under the title. */
     subtitle: schema.string().min(1).exactOptional(),
     /** The icon field and uploaded icon bucket, or the icon of every object. */
@@ -184,14 +185,18 @@ export type Presentation = schema.Infer<typeof PresentationSchema>;
 
 /** The presentation of an object type, and how an object's row reads through it. */
 export const Presentation = Object.assign(PresentationSchema, {
-    /** Read an object's title from its row, else its identifier. */
+    /** Read an object's title field from its row, rendering a message, none when it has none. */
     title(
-        presentation: Presentation | undefined,
+        presentation: Presentation,
         row: Readonly<Record<string, JsonValue | undefined>>,
-    ): string {
-        const title = presentation === undefined ? undefined : row[presentation.title];
+        localization: Localization,
+    ): string | undefined {
+        // render a message title in the reader's locale
+        const stored = presentation.title === undefined ? undefined : row[presentation.title];
+        const parsed = Message.safeParse(stored);
+        const title = parsed.success ? localization.render(parsed.data) : stored;
 
-        return typeof title === "string" && title !== "" ? title : schema.string().parse(row["id"]);
+        return typeof title === "string" && title !== "" ? title : undefined;
     },
 });
 
@@ -235,17 +240,10 @@ export const Presentable = {
         return { ...definition, fields: { ...declared, ...added } };
     },
 
-    /** Resolve a definition's presentation to its fields, absent if it presents nothing. */
-    of(
-        definition: Pick<ObjectDefinition, "name" | "presentable" | "fields">,
-    ): Presentation | undefined {
-        // present nothing without the trait
-        const options = Presentable.options(definition);
-        if (options === undefined) {
-            return undefined;
-        }
-
-        // title by the given field or the first title field, refusing a type without one
+    /** Resolve a definition's presentation to its fields, a title for every type. */
+    of(definition: Pick<ObjectDefinition, "name" | "presentable" | "fields">): Presentation {
+        // title by the given field or the first title field, decorating only a presentable type
+        const options = Presentable.options(definition) ?? { icon: false, color: false };
         const fields = definition.fields ?? {};
         const title = options.title ?? TITLE_FIELDS.find((name) => Object.hasOwn(fields, name));
         for (const named of [title, options.subtitle]) {
@@ -258,7 +256,7 @@ export const Presentable = {
         const icon = options.icon;
 
         return PresentationSchema.parse({
-            title: present(title, `a title or name field of ${definition.name}`),
+            ...(title === undefined ? {} : { title }),
             ...(options.subtitle === undefined ? {} : { subtitle: options.subtitle }),
             ...(icon === false || icon === undefined
                 ? {}
@@ -320,11 +318,11 @@ export const Presentable = {
         return { icon: true, color: true, ...options };
     },
 
-    /** Decide whether a field stores text a title shows. */
+    /** Decide whether a field stores text a title shows: plain text, a choice or a message. */
     isText(declared: Field | undefined): boolean {
-        return (
-            declared?.type === "string" || declared?.type === "text" || declared?.type === "enum"
-        );
+        const type = declared?.type;
+
+        return type === "string" || type === "text" || type === "enum" || type === "message";
     },
 
     /** The field storing an object's icon: an emoji, an icon set's icon or an image. */
@@ -348,5 +346,5 @@ export const Presentable = {
     },
 };
 
-/** Show objects with a title, an icon, a cover and an accent. */
+/** Show objects with an icon, a cover, an accent and their own views. */
 export const presentable = callableTrait("presentable", {}, true);

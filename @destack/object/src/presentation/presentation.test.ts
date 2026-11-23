@@ -1,4 +1,4 @@
-import { argument, plural, t } from "@destack/locale";
+import { argument, Localization, plural, SOURCE_LOCALE, t } from "@destack/locale";
 import { expect, test } from "@destack/test";
 import { through } from "@destack/access";
 import { now } from "@destack/db";
@@ -7,6 +7,9 @@ import { space } from "../test/space.ts";
 import { ObjectAppearance } from "./appearance.ts";
 import { ObjectDetail } from "./detail.ts";
 import { ObjectView } from "./view.ts";
+
+/** The source locale, which renders a message title as written. */
+const SOURCE = Localization.of(SOURCE_LOCALE, []);
 
 /** Projects with a fixed icon, presented with every default. */
 const project = defineObject({
@@ -90,18 +93,23 @@ test("offer the declared views first, default to the first, and extend a query b
 });
 
 test("read an object's appearance, its key fields by the declared card or the first shown ones, and its full detail", () => {
-    const key = ObjectDetail.key(task, TASK, MOMENT);
-    const full = ObjectDetail.full(project, PROJECT, [project, task], MOMENT);
+    const key = ObjectDetail.key(task, TASK, MOMENT, SOURCE, undefined);
+    const full = ObjectDetail.full(project, PROJECT, [project, task], MOMENT, SOURCE, undefined);
 
     expect({
-        appearance: ObjectAppearance.of(task, TASK, MOMENT),
-        projectAppearance: ObjectAppearance.of(project, PROJECT, MOMENT),
+        appearance: ObjectAppearance.of(task, TASK, MOMENT, SOURCE, undefined),
+        projectAppearance: ObjectAppearance.of(project, PROJECT, MOMENT, SOURCE, undefined),
         reference: key.reference,
         key: key.sections.map((section) => section.fields.map((each) => [each.field, each.value])),
-        projectKey: ObjectDetail.key(project, PROJECT, MOMENT).sections[0]?.fields.map(
-            (each) => each.field,
-        ),
-        sections: ObjectDetail.full(task, TASK, [project, task], MOMENT).sections,
+        projectKey: ObjectDetail.key(
+            project,
+            PROJECT,
+            MOMENT,
+            SOURCE,
+            undefined,
+        ).sections[0]?.fields.map((each) => each.field),
+        sections: ObjectDetail.full(task, TASK, [project, task], MOMENT, SOURCE, undefined)
+            .sections,
         related: full.related,
     }).toEqual({
         appearance: { title: "Write docs", icon: undefined, color: "teal" },
@@ -175,7 +183,65 @@ test("color an object by the first condition it meets: overdue red, blocked ambe
     ];
 
     expect({
-        colors: rows.map((row) => ObjectAppearance.of(chore, row, MOMENT).color),
+        colors: rows.map((row) => ObjectAppearance.of(chore, row, MOMENT, SOURCE, undefined).color),
         stored: Object.hasOwn(chore.fields, "color"),
     }).toEqual({ colors: ["red", "amber", undefined], stored: false });
+});
+
+test("title every type by its title or name field, a message as rendered, else its number or identifier", () => {
+    // declare a type titled by name, one titled by a message, and one with neither, none presentable
+    const base = {
+        scope: space,
+        access: {
+            permissions: { read: through("scope", "read"), write: through("scope", "read") },
+        },
+    };
+    const named = defineObject({
+        ...base,
+        name: "folder",
+        plural: "folders",
+        title: t`Folders`,
+        fields: { name: field.string() },
+    });
+    const labelled = defineObject({
+        ...base,
+        name: "plan",
+        plural: "plans",
+        title: t`Plans`,
+        fields: { name: field.message() },
+    });
+    const bare = defineObject({
+        ...base,
+        name: "receipt",
+        plural: "receipts",
+        title: t`Receipts`,
+        fields: { at: field.number() },
+    });
+    const counted = defineObject({
+        ...base,
+        name: "invoice",
+        plural: "invoices",
+        title: t`Invoices`,
+        fields: { at: field.number() },
+        numbered: { prefix: "INV-" },
+    });
+    const row = { id: "x1", scope: "space-1" };
+
+    // read each title, and no decoration fields without the trait
+    expect({
+        named: ObjectAppearance.of(named, { ...row, name: "Archive" }, MOMENT, SOURCE, undefined),
+        labelled: ObjectAppearance.of(labelled, { ...row, name: t`Pro` }, MOMENT, SOURCE, undefined)
+            .title,
+        bare: ObjectAppearance.of(bare, { ...row, at: 1 }, MOMENT, SOURCE, undefined).title,
+        counted: ObjectAppearance.title(counted, { ...row, at: 1, number: 7 }, SOURCE, undefined),
+        fields: [named, labelled, bare].map((type) => type.presentation.title),
+        decorated: Object.hasOwn(named.fields, "icon") || Object.hasOwn(named.fields, "color"),
+    }).toEqual({
+        named: { title: "Archive", icon: undefined, color: undefined },
+        labelled: "Pro",
+        bare: "x1",
+        counted: "INV-7",
+        fields: ["name", "name", undefined],
+        decorated: false,
+    });
 });
