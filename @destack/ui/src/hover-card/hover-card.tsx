@@ -35,11 +35,10 @@ const styles = style.create({
     content: {
         width: width.hoverCard,
         inset: "auto",
-        margin: space[1],
         padding: space[4],
         borderWidth: stroke.border,
         borderColor: color.border,
-        borderRadius: radius[3],
+        borderRadius: radius[4],
         backgroundColor: color.popover,
         color: color.foreground,
         boxShadow: shadow.overlay,
@@ -155,7 +154,7 @@ export function HoverCardContent(properties: HoverCardContentProperties): JSX.El
                     [
                         styles.content,
                         Position.beside(content.side, content.align),
-                        Position.offset(content.sideOffset),
+                        Position.offset(content.side, content.sideOffset),
                         content.xstyle,
                     ],
                     content.style,

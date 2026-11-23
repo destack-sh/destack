@@ -26,7 +26,7 @@ function placed(side: string, align: string, x: number, y: number): (string | un
     const content = document.createElement("div");
     content.dataset["side"] = side;
     content.dataset["align"] = align;
-    content.style.marginTop = "4px";
+    content.style.margin = side === "top" || side === "bottom" ? "4px 0px" : "0px 4px";
     document.body.append(anchor, content);
     layOut(anchor, { x, y, width: 40, height: 20 });
     layOut(content, { x: 0, y: 0, width: 100, height: 50 });

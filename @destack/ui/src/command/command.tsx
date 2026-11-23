@@ -200,7 +200,7 @@ const styles = style.create({
 /** The styles a command and its elements add inside a dialog. */
 const dialogStyles = style.create({
     command: {
-        borderRadius: radius[4],
+        borderRadius: radius[5],
     },
     search: {
         gap: space[3],

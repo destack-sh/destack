@@ -66,14 +66,16 @@ const styles = style.create({
         maxHeight: "100vh",
         overflowY: "auto",
         inset: "auto",
-        margin: space[1],
         padding: space[1],
         borderWidth: stroke.border,
         borderColor: color.border,
-        borderRadius: radius[3],
+        borderRadius: radius[4],
         backgroundColor: color.popover,
         color: color.foreground,
         boxShadow: shadow.overlay,
+    },
+    submenu: {
+        marginBlock: `calc(-1 * (${space[1]} + ${stroke.border}))`,
     },
     item: {
         position: "relative",
@@ -97,13 +99,10 @@ const styles = style.create({
             ":focus": swatch.destructiveTint,
         },
     },
-    inset: {
-        paddingInlineStart: space[6],
-    },
     indicator: {
-        position: "absolute",
-        insetInlineStart: space[2],
         display: "inline-flex",
+        marginInlineStart: "auto",
+        color: color.mutedForeground,
     },
     label: {
         paddingBlock: space[1],
@@ -372,8 +371,6 @@ export interface MenuItemProperties extends Omit<
     readonly onSelect?: (event: Event) => void;
     /** Whether the item is unavailable. */
     readonly disabled?: boolean;
-    /** Whether the item leaves room for an indicator at its start. */
-    readonly inset?: boolean;
     /** The look of the item, destructive for an action that deletes. */
     readonly variant?: "default" | "destructive";
     /** Render another element with the item's attributes, such as a link. */
@@ -461,7 +458,8 @@ export function MenuContent(properties: MenuContentProperties): JSX.Element {
                         text.sm,
                         styles.content,
                         Position.beside(content.side, content.align),
-                        Position.offset(content.sideOffset),
+                        Position.offset(content.side, content.sideOffset),
+                        control.parent !== null && styles.submenu,
                         position(),
                         content.xstyle,
                     ],
@@ -476,16 +474,7 @@ export function MenuContent(properties: MenuContentProperties): JSX.Element {
 export function MenuItem(properties: MenuItemProperties): JSX.Element {
     // join the menu and report the item's state over its styles
     const control = useMenu();
-    const rest = omit(
-        properties,
-        "onSelect",
-        "disabled",
-        "inset",
-        "variant",
-        "xstyle",
-        "style",
-        "render",
-    );
+    const rest = omit(properties, "onSelect", "disabled", "variant", "xstyle", "style", "render");
     const item = control.join(() => properties.disabled === true);
     const hover = new Hover({ onHoverStart: (event) => focusItem(event, control) });
     const part: PartAttributes = merge(
@@ -514,7 +503,6 @@ export function MenuItem(properties: MenuItemProperties): JSX.Element {
                 [
                     styles.item,
                     properties.variant === "destructive" && styles.destructive,
-                    properties.inset === true && styles.inset,
                     properties.disabled === true && state.inert,
                     properties.xstyle,
                 ],
@@ -540,7 +528,6 @@ export function MenuCheckboxItem(properties: MenuCheckboxItemProperties): JSX.El
         "onCheckedChange",
         "onSelect",
         "disabled",
-        "inset",
         "variant",
         "xstyle",
         "style",
@@ -573,21 +560,16 @@ export function MenuCheckboxItem(properties: MenuCheckboxItemProperties): JSX.El
             onKeyDown={(event) => activate(event)}
             {...hover.attributes()}
             {...style.attributes(
-                [
-                    styles.item,
-                    styles.inset,
-                    properties.disabled === true && state.inert,
-                    properties.xstyle,
-                ],
+                [styles.item, properties.disabled === true && state.inert, properties.xstyle],
                 properties.style,
             )}
         >
+            {properties.children}
             <span {...style.attrs(styles.indicator)}>
                 <Show when={properties.checked}>
                     <Icon name="check" />
                 </Show>
             </span>
-            {properties.children}
         </div>
     );
 }
@@ -625,7 +607,6 @@ export function MenuRadioItem(properties: MenuRadioItemProperties): JSX.Element 
         "value",
         "onSelect",
         "disabled",
-        "inset",
         "variant",
         "xstyle",
         "style",
@@ -659,39 +640,29 @@ export function MenuRadioItem(properties: MenuRadioItemProperties): JSX.Element 
             onKeyDown={(event) => activate(event)}
             {...hover.attributes()}
             {...style.attributes(
-                [
-                    styles.item,
-                    styles.inset,
-                    properties.disabled === true && state.inert,
-                    properties.xstyle,
-                ],
+                [styles.item, properties.disabled === true && state.inert, properties.xstyle],
                 properties.style,
             )}
         >
+            {properties.children}
             <span {...style.attrs(styles.indicator)}>
                 <Show when={isChecked()}>
                     <Icon name="circle" weight="fill" size="0.5em" />
                 </Show>
             </span>
-            {properties.children}
         </div>
     );
 }
 
 /** Render a label over a group of items. */
-export function MenuLabel(
-    properties: MenuElementProperties<HTMLDivElement> & { readonly inset?: boolean },
-): JSX.Element {
-    const rest = omit(properties, "inset", "xstyle", "style");
+export function MenuLabel(properties: MenuElementProperties<HTMLDivElement>): JSX.Element {
+    const rest = omit(properties, "xstyle", "style");
 
     return (
         <div
             data-slot="menu-label"
             {...rest}
-            {...style.attributes(
-                [styles.label, properties.inset === true && styles.inset, properties.xstyle],
-                properties.style,
-            )}
+            {...style.attributes([styles.label, properties.xstyle], properties.style)}
         />
     );
 }
@@ -718,7 +689,7 @@ export function MenuSubTrigger(
     // read the submenu and the direction its arrow key points in
     const control = useMenu();
     const locale = useLocale();
-    const rest = omit(properties, "disabled", "inset", "xstyle", "style", "children");
+    const rest = omit(properties, "disabled", "xstyle", "style", "children");
     const isEnabled = (): boolean => properties.disabled !== true;
     const parent = control.parent;
     if (parent === null) {
@@ -766,12 +737,7 @@ export function MenuSubTrigger(
             }}
             {...hover.attributes()}
             {...style.attributes(
-                [
-                    styles.item,
-                    properties.inset === true && styles.inset,
-                    properties.disabled === true && state.inert,
-                    properties.xstyle,
-                ],
+                [styles.item, properties.disabled === true && state.inert, properties.xstyle],
                 properties.style,
             )}
         >

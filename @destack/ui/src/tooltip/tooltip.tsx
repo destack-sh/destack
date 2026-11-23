@@ -156,7 +156,6 @@ const styles = style.create({
     content: {
         width: "fit-content",
         inset: "auto",
-        margin: space[1],
         paddingBlock: space[1],
         paddingInline: space[3],
         borderRadius: radius[3],
@@ -296,7 +295,7 @@ export function TooltipContent(properties: TooltipContentProperties): JSX.Elemen
                         text.xs,
                         styles.content,
                         Position.beside(content.side, content.align),
-                        Position.offset(content.sideOffset),
+                        Position.offset(content.side, content.sideOffset),
                         isInstant() && styles.instant,
                         content.xstyle,
                     ],

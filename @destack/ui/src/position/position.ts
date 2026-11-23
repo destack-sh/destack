@@ -1,5 +1,6 @@
 import * as style from "@destack/style";
 import { transition } from "@destack/theme/motion";
+import { space } from "@destack/theme/tokens.stylex";
 
 /** The CSS anchor positioning property whose support places popovers without script. */
 const ANCHOR_PROPERTY = "position-area";
@@ -31,67 +32,92 @@ const styles = style.create({
         positionArea: "none",
     },
     at: (left: string, top: string) => ({ left, top }),
-    offset: (margin: string) => ({ margin }),
+    offsetBlock: (marginBlock: string) => ({ marginBlock }),
+    offsetInline: (marginInline: string) => ({ marginInline }),
 });
 
 /** The area each side and alignment places an overlay in, growing from its anchor either way. */
 const areas = style.create({
     "top-start": {
+        marginBlock: space[1],
+        marginInline: 0,
         positionArea: "block-start span-inline-end",
         positionTryFallbacks: "flip-block",
         transformOrigin: { default: "bottom left", ":dir(rtl)": "bottom right" },
     },
     "top-center": {
+        marginBlock: space[1],
+        marginInline: 0,
         positionArea: "block-start",
         positionTryFallbacks: "flip-block",
         transformOrigin: "bottom center",
     },
     "top-end": {
+        marginBlock: space[1],
+        marginInline: 0,
         positionArea: "block-start span-inline-start",
         positionTryFallbacks: "flip-block",
         transformOrigin: { default: "bottom right", ":dir(rtl)": "bottom left" },
     },
     "right-start": {
+        marginBlock: 0,
+        marginInline: space[1],
         positionArea: "inline-end span-block-end",
         positionTryFallbacks: "flip-inline",
         transformOrigin: { default: "left top", ":dir(rtl)": "right top" },
     },
     "right-center": {
+        marginBlock: 0,
+        marginInline: space[1],
         positionArea: "inline-end",
         positionTryFallbacks: "flip-inline",
         transformOrigin: { default: "left center", ":dir(rtl)": "right center" },
     },
     "right-end": {
+        marginBlock: 0,
+        marginInline: space[1],
         positionArea: "inline-end span-block-start",
         positionTryFallbacks: "flip-inline",
         transformOrigin: { default: "left bottom", ":dir(rtl)": "right bottom" },
     },
     "bottom-start": {
+        marginBlock: space[1],
+        marginInline: 0,
         positionArea: "block-end span-inline-end",
         positionTryFallbacks: "flip-block",
         transformOrigin: { default: "top left", ":dir(rtl)": "top right" },
     },
     "bottom-center": {
+        marginBlock: space[1],
+        marginInline: 0,
         positionArea: "block-end",
         positionTryFallbacks: "flip-block",
         transformOrigin: "top center",
     },
     "bottom-end": {
+        marginBlock: space[1],
+        marginInline: 0,
         positionArea: "block-end span-inline-start",
         positionTryFallbacks: "flip-block",
         transformOrigin: { default: "top right", ":dir(rtl)": "top left" },
     },
     "left-start": {
+        marginBlock: 0,
+        marginInline: space[1],
         positionArea: "inline-start span-block-end",
         positionTryFallbacks: "flip-inline",
         transformOrigin: { default: "right top", ":dir(rtl)": "left top" },
     },
     "left-center": {
+        marginBlock: 0,
+        marginInline: space[1],
         positionArea: "inline-start",
         positionTryFallbacks: "flip-inline",
         transformOrigin: { default: "right center", ":dir(rtl)": "left center" },
     },
     "left-end": {
+        marginBlock: 0,
+        marginInline: space[1],
         positionArea: "inline-start span-block-start",
         positionTryFallbacks: "flip-inline",
         transformOrigin: { default: "right bottom", ":dir(rtl)": "left bottom" },
@@ -122,9 +148,15 @@ export const Position = {
         return areas[`${side}-${align}`];
     },
 
-    /** Return the StyleX styles that set an overlay's gap from its anchor in pixels. */
-    offset(pixels: number | undefined): style.Styles {
-        return pixels === undefined ? null : styles.offset(`${String(pixels)}px`);
+    /** Return the StyleX styles that set an overlay's gap from its anchor on a side in pixels. */
+    offset(side: Side, pixels: number | undefined): style.Styles {
+        // leave the gap of the area
+        if (pixels === undefined) {
+            return null;
+        }
+        const gap = `${String(pixels)}px`;
+
+        return isBlock(side) ? styles.offsetBlock(gap) : styles.offsetInline(gap);
     },
 
     /** Return the StyleX styles that place an overlay at a point in the viewport. */
@@ -175,8 +207,10 @@ export const Position = {
             return () => undefined;
         }
 
-        // read the overlay's margin as its gap from the anchor
-        const gap = Number.parseFloat(getComputedStyle(content).marginTop);
+        // read the overlay's margin toward its anchor as its gap
+        const { marginTop, marginLeft } = getComputedStyle(content);
+        const side = content.dataset["side"] ?? "bottom";
+        const gap = Number.parseFloat(isBlock(side) ? marginTop : marginLeft);
         const place = (): void => {
             // write the position over the margin as inline styles
             const [left, top] = positionOf(content, anchor, gap);
@@ -212,6 +246,11 @@ export const Position = {
         };
     },
 };
+
+/** Report whether a side is above or below. */
+function isBlock(side: string): boolean {
+    return side === "top" || side === "bottom";
+}
 
 /** Compute an overlay's viewport position beside its anchor on its side and alignment. */
 function positionOf(content: HTMLElement, anchor: HTMLElement, gap: number): [number, number] {

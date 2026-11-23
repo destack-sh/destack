@@ -143,6 +143,6 @@ test("set a tooltip's gap from its trigger", () => {
     ));
 
     expect(find(document.body, "[data-slot=tooltip-content]").getAttribute("style")).toBe(
-        "--x-margin: 8px;",
+        "--x-marginBlock: 8px;",
     );
 });

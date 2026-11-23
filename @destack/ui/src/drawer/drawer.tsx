@@ -62,9 +62,6 @@ const styles = style.create({
         borderRadius: radius.full,
         backgroundColor: color.muted,
     },
-    header: {
-        textAlign: "center",
-    },
     snapping: {
         maxHeight: "none",
         maxWidth: "none",
@@ -272,15 +269,7 @@ export function DrawerHandle(properties: DialogElementProperties<HTMLDivElement>
 
 /** Render the top of a drawer with its title and description. */
 export function DrawerHeader(properties: DialogElementProperties<HTMLDivElement>): JSX.Element {
-    const rest = omit(properties, "xstyle", "style");
-
-    return (
-        <SheetHeader
-            data-slot="drawer-header"
-            {...rest}
-            xstyle={[styles.header, properties.xstyle]}
-        />
-    );
+    return <SheetHeader data-slot="drawer-header" {...properties} />;
 }
 
 /** Render the bottom of a drawer with its actions. */

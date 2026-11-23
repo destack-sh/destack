@@ -27,13 +27,13 @@ export const drawerShareNote = defineExample({
                     <DrawerDescription>People with the link can view the note.</DrawerDescription>
                 </DrawerHeader>
                 <DrawerFooter>
-                    <DrawerClose render={(attributes) => <Button {...attributes} />}>
-                        Copy link
-                    </DrawerClose>
                     <DrawerClose
                         render={(attributes) => <Button {...attributes} variant="outline" />}
                     >
                         Cancel
+                    </DrawerClose>
+                    <DrawerClose render={(attributes) => <Button {...attributes} />}>
+                        Copy link
                     </DrawerClose>
                 </DrawerFooter>
             </DrawerContent>
@@ -60,13 +60,13 @@ export const drawerShareNoteOpen = defineExample({
                     <DrawerDescription>People with the link can view the note.</DrawerDescription>
                 </DrawerHeader>
                 <DrawerFooter>
-                    <DrawerClose render={(attributes) => <Button {...attributes} />}>
-                        Copy link
-                    </DrawerClose>
                     <DrawerClose
                         render={(attributes) => <Button {...attributes} variant="outline" />}
                     >
                         Cancel
+                    </DrawerClose>
+                    <DrawerClose render={(attributes) => <Button {...attributes} />}>
+                        Copy link
                     </DrawerClose>
                 </DrawerFooter>
             </DrawerContent>

@@ -113,7 +113,7 @@ const styles = style.create({
         marginTop: space[2],
         borderWidth: stroke.border,
         borderColor: color.border,
-        borderRadius: radius[3],
+        borderRadius: radius[4],
         backgroundColor: color.popover,
         color: color.foreground,
         boxShadow: shadow.overlay,

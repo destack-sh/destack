@@ -1,6 +1,6 @@
 import { present } from "@destack/schema";
 import * as style from "@destack/style";
-import { color, shadow } from "@destack/theme/tokens.stylex";
+import { color, shadow, stroke } from "@destack/theme/tokens.stylex";
 import { createMemo, type JSX, onSettled, Show } from "@destack/view";
 import type { DragManager } from "./drag.ts";
 
@@ -22,7 +22,7 @@ const styles = style.create({
     },
     raised: {
         backgroundColor: color.background,
-        boxShadow: shadow.overlay,
+        boxShadow: `0 0 0 ${stroke.border} ${color.border}, ${shadow.overlay}`,
     },
     place: (x: number, y: number, width: number, height: number) => ({
         width: `${String(width)}px`,
