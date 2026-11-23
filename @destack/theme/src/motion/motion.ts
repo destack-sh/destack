@@ -95,13 +95,13 @@ export const transition = style.create({
     /** A notice such as a toast, fading as it slides in from the edge it sits at, after Sonner. */
     notice: {
         opacity: { default: 1, "@starting-style": 0 },
-        transitionProperty: "opacity, transform",
-        transitionDuration: `${NOTICE_FADE}, ${NOTICE_MOVE}`,
+        transitionProperty: "opacity, transform, height",
+        transitionDuration: `${NOTICE_FADE}, ${NOTICE_MOVE}, ${NOTICE_MOVE}`,
         transitionTimingFunction: "ease",
     },
     /** A notice leaving, faster than it came. */
     noticeLeaving: {
         opacity: 0,
-        transitionDuration: `${NOTICE_FADE_EXIT}, ${NOTICE_MOVE_EXIT}`,
+        transitionDuration: `${NOTICE_FADE_EXIT}, ${NOTICE_MOVE_EXIT}, ${NOTICE_MOVE_EXIT}`,
     },
 });
