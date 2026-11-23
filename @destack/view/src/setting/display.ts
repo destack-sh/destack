@@ -11,6 +11,7 @@ import {
     type Display,
     Seed,
     TextSize,
+    Typeface,
 } from "@destack/theme";
 import { t } from "@destack/locale";
 
@@ -81,6 +82,16 @@ export const accent = defineSetting({
     ...PREFERENCE,
 });
 
+/** The interface typeface a person reads in over every app's. */
+export const typeface = defineSetting({
+    name: "typeface",
+    title: t`Font`,
+    description: t`Use each app's font, or one font in every app.`,
+    schema: Typeface.nullable(),
+    default: DEFAULT_DISPLAY.typeface,
+    ...PREFERENCE,
+});
+
 /** The settings a person's display comes from. */
 export const DISPLAY_SETTINGS: readonly DeclarationReference[] = [
     appearance,
@@ -89,6 +100,7 @@ export const DISPLAY_SETTINGS: readonly DeclarationReference[] = [
     density,
     motion,
     textSize,
+    typeface,
 ].map((setting) => setting.reference);
 
 /** Resolve the display of a selection from the values along its scope chain and on its device. */
@@ -105,5 +117,6 @@ export function resolveDisplay(
         density: density.resolve(selection, values, chain, device).value,
         motion: motion.resolve(selection, values, chain, device).value,
         textSize: textSize.resolve(selection, values, chain, device).value,
+        typeface: typeface.resolve(selection, values, chain, device).value,
     };
 }

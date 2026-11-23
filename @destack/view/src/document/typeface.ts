@@ -10,6 +10,14 @@ import sansItalic from "@fontsource-variable/ibm-plex-sans/files/ibm-plex-sans-l
 import sansItalicExtended from "@fontsource-variable/ibm-plex-sans/files/ibm-plex-sans-latin-ext-wght-italic.woff2?font";
 import sansUpright from "@fontsource-variable/ibm-plex-sans/files/ibm-plex-sans-latin-wght-normal.woff2?font";
 import sansUprightExtended from "@fontsource-variable/ibm-plex-sans/files/ibm-plex-sans-latin-ext-wght-normal.woff2?font";
+import interUpright from "@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?font";
+import interUprightExtended from "@fontsource-variable/inter/files/inter-latin-ext-wght-normal.woff2?font";
+import geistUpright from "@fontsource-variable/geist/files/geist-latin-wght-normal.woff2?font";
+import geistUprightExtended from "@fontsource-variable/geist/files/geist-latin-ext-wght-normal.woff2?font";
+import atkinsonUpright from "@fontsource-variable/atkinson-hyperlegible-next/files/atkinson-hyperlegible-next-latin-wght-normal.woff2?font";
+import atkinsonUprightExtended from "@fontsource-variable/atkinson-hyperlegible-next/files/atkinson-hyperlegible-next-latin-ext-wght-normal.woff2?font";
+import newsreaderUpright from "@fontsource-variable/newsreader/files/newsreader-latin-wght-normal.woff2?font";
+import newsreaderUprightExtended from "@fontsource-variable/newsreader/files/newsreader-latin-ext-wght-normal.woff2?font";
 
 /** The characters of Fontsource's Latin Extended subset, such as the IPA pronunciation marks. */
 const LATIN_EXTENDED =
@@ -59,4 +67,53 @@ export const mono = defineFont({
 });
 
 /** The fonts of Destack's theme, which every page loads: the upright face first, preloaded. */
-export const destackFonts = [sans, sansItalics, mono] as const;
+/** Inter, the interface face a person may choose, loaded once text uses it. */
+export const inter = defineFont({
+    src: [
+        { path: interUpright, weight: "100 900" },
+        { path: interUprightExtended, weight: "100 900", unicodeRange: LATIN_EXTENDED },
+    ],
+    family: "Inter",
+    preload: false,
+    fallback: ["Helvetica", "Arial", "sans-serif"],
+    adjustFontFallback: false,
+});
+
+/** Geist, the interface face a person may choose, loaded once text uses it. */
+export const geist = defineFont({
+    src: [
+        { path: geistUpright, weight: "100 900" },
+        { path: geistUprightExtended, weight: "100 900", unicodeRange: LATIN_EXTENDED },
+    ],
+    family: "Geist",
+    preload: false,
+    fallback: ["Helvetica", "Arial", "sans-serif"],
+    adjustFontFallback: false,
+});
+
+/** Atkinson Hyperlegible Next, the face for legibility a person may choose, loaded once used. */
+export const atkinson = defineFont({
+    src: [
+        { path: atkinsonUpright, weight: "200 800" },
+        { path: atkinsonUprightExtended, weight: "200 800", unicodeRange: LATIN_EXTENDED },
+    ],
+    family: "Atkinson Hyperlegible Next",
+    preload: false,
+    fallback: ["Helvetica", "Arial", "sans-serif"],
+    adjustFontFallback: false,
+});
+
+/** Newsreader, the reading serif a person may choose, loaded once text uses it. */
+export const newsreader = defineFont({
+    src: [
+        { path: newsreaderUpright, weight: "200 800" },
+        { path: newsreaderUprightExtended, weight: "200 800", unicodeRange: LATIN_EXTENDED },
+    ],
+    family: "Newsreader",
+    preload: false,
+    fallback: ["Georgia", "serif"],
+    adjustFontFallback: false,
+});
+
+/** Destack's fonts: its faces preloaded, the faces a person may choose declared for later. */
+export const destackFonts = [sans, sansItalics, mono, inter, geist, atkinson, newsreader] as const;

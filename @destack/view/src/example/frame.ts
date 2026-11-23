@@ -19,18 +19,21 @@ import {
     Seed,
     TextSize,
     type Theme,
+    Typeface,
 } from "@destack/theme";
 import { destackTheme } from "@destack/theme/declare";
 import { ViewError } from "../error/error.ts";
 
 /** The display the globals set, each choice the person's default when absent. */
-const GlobalsDisplay = schema.object({
+export const GlobalsDisplay = schema.object({
     /** The appearance. */
     appearance: Appearance.exactOptional(),
     /** The text size. */
     textSize: TextSize.exactOptional(),
     /** The density, or null for the theme's own. */
     density: Density.nullable().exactOptional(),
+    /** The interface typeface, or null for the theme's. */
+    typeface: Typeface.nullable().exactOptional(),
     /** The contrast. */
     contrast: Contrast.exactOptional(),
     /** The motion. */

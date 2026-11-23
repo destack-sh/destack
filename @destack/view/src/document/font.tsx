@@ -134,7 +134,7 @@ export function Font(properties: FontProperties): JSX.Element {
 }
 
 /** Write the font-face rules of a font's files and of its adjusted fallback. */
-function faceRules(font: Font): string {
+export function faceRules(font: Font): string {
     // describe each file of the family
     const faces = font.sources.map((source) =>
         rule({
