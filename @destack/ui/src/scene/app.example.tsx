@@ -23,6 +23,10 @@ import { Badge } from "../badge/index.ts";
 import {
     Board,
     BoardColumn,
+    BoardColumnAdd,
+    BoardColumnMenu,
+    BoardComposer,
+    BoardHiddenList,
     BoardColumnContent,
     BoardColumnCount,
     BoardColumnList,
@@ -158,15 +162,20 @@ const TAGS = {
     plan: ["Plan", "purple"],
 } as const satisfies Record<string, readonly [string, Hue]>;
 
+/** The number the first new task counts on from, past the launch's own. */
+const FIRST_NEW = 20;
+
 /** The launch's tasks by the column they start in. */
 const COLUMNS: readonly {
     readonly id: string;
     readonly label: string;
+    readonly icon: () => JSX.Element;
     readonly tasks: readonly Task[];
 }[] = [
     {
         id: "backlog",
         label: "Backlog",
+        icon: () => <Icon name="circle-dashed" xstyle={styles.muted} />,
         tasks: [
             {
                 id: "LAU-21",
@@ -197,6 +206,7 @@ const COLUMNS: readonly {
     {
         id: "doing",
         label: "Doing",
+        icon: () => <Icon name="circle-half" weight="fill" xstyle={styles.doing} />,
         tasks: [
             {
                 id: "LAU-14",
@@ -219,6 +229,7 @@ const COLUMNS: readonly {
     {
         id: "review",
         label: "Review",
+        icon: () => <Icon name="eye" xstyle={styles.review} />,
         tasks: [
             {
                 id: "LAU-11",
@@ -241,6 +252,7 @@ const COLUMNS: readonly {
     {
         id: "done",
         label: "Done",
+        icon: () => <Icon name="check-circle" weight="fill" xstyle={styles.done} />,
         tasks: [
             {
                 id: "LAU-08",
@@ -314,11 +326,14 @@ const styles = style.create({
     cardTitle: {
         fontWeight: weight.medium,
     },
-    columnHeader: {
-        display: "flex",
-        flexGrow: 1,
-        alignItems: "center",
-        gap: space[2],
+    doing: {
+        color: swatch.warningMark,
+    },
+    review: {
+        color: swatch.infoMark,
+    },
+    done: {
+        color: swatch.successMark,
     },
     document: {
         display: "grid",
@@ -554,6 +569,27 @@ function TaskBoard(): JSX.Element {
             onColumnMove={(move) =>
                 setOrder((current) => SortableMove.place(current, move.id, move, (id) => id))
             }
+            onCreate={(draft) =>
+                setTasks((current) => {
+                    // number the task after the ones on the board
+                    const count = Object.values(current).flat().length;
+                    const task: Task = {
+                        id: `LAU-${String(FIRST_NEW + count)}`,
+                        title: draft.title,
+                        tag: TAGS.site,
+                        owner: PEOPLE.ada,
+                        start: "2026-11-30",
+                        due: "2026-12-04",
+                    };
+                    const column = current[draft.column] ?? [];
+
+                    return {
+                        ...current,
+                        [draft.column]:
+                            draft.position === "start" ? [task, ...column] : [...column, task],
+                    };
+                })
+            }
         >
             <BoardColumnList>
                 <For each={columns()}>
@@ -561,19 +597,31 @@ function TaskBoard(): JSX.Element {
                         <BoardColumn id={column.id} label={column.label}>
                             <BoardColumnHeader>
                                 <BoardColumnHandle />
-                                <span {...style.attrs(styles.columnHeader)}>
-                                    {column.label}
-                                    <BoardColumnCount xstyle={[text.xs, styles.code]} />
-                                </span>
+                                {column.icon()}
+                                {column.label}
+                                <BoardColumnCount />
+                                <BoardColumnMenu />
+                                <BoardColumnAdd />
                             </BoardColumnHeader>
+                            <BoardComposer position="start" />
                             <BoardColumnContent>
                                 <For each={tasks()[column.id]}>
                                     {(task) => (
                                         <BoardItem id={task.id} label={task.title}>
                                             <Stack space="2" xstyle={styles.card}>
-                                                <span {...style.attrs(text.xs, styles.code)}>
-                                                    {task.id}
-                                                </span>
+                                                <Cluster
+                                                    space="2"
+                                                    align="center"
+                                                    justify="between"
+                                                    render={(attributes) => (
+                                                        <span {...attributes} />
+                                                    )}
+                                                >
+                                                    <span {...style.attrs(text.xs, styles.code)}>
+                                                        {task.id}
+                                                    </span>
+                                                    <Face person={task.owner} />
+                                                </Cluster>
                                                 <span {...style.attrs(styles.cardTitle)}>
                                                     {task.title}
                                                 </span>
@@ -586,32 +634,31 @@ function TaskBoard(): JSX.Element {
                                                     )}
                                                 >
                                                     <Badge color={task.tag[1]}>{task.tag[0]}</Badge>
-                                                    <span
-                                                        {...style.attrs(styles.muted, styles.grow)}
-                                                    >
+                                                    <span {...style.attrs(styles.muted)}>
                                                         <Due day={task.due} />
                                                     </span>
-                                                    <Face person={task.owner} />
                                                 </Cluster>
                                             </Stack>
                                         </BoardItem>
                                     )}
                                 </For>
                             </BoardColumnContent>
+                            <BoardComposer />
                         </BoardColumn>
                     )}
                 </For>
+                <BoardHiddenList />
             </BoardColumnList>
         </Board>
     );
 }
 
-/** Render a due day as its weekday and day of the month in the reader's locale. */
+/** Render a due day as its day and month in the reader's locale. */
 function Due(properties: { readonly day: PlainDate }): JSX.Element {
     // write the day the way the reader's locale writes short dates
     const locale = useLocale();
 
-    return <>{locale.plainDate(properties.day, { weekday: "short", day: "numeric" })}</>;
+    return <>{locale.plainDate(properties.day, { month: "short", day: "numeric" })}</>;
 }
 
 /** Read the instant of a wall time on a day in the studio's time zone. */
