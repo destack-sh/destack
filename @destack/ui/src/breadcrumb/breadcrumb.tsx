@@ -19,7 +19,7 @@ const styles = style.create({
         alignItems: "center",
         gap: space[2],
         color: color.mutedForeground,
-        wordBreak: "break-word",
+        overflowWrap: "break-word",
     },
     item: {
         display: "inline-flex",

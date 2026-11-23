@@ -11,6 +11,7 @@ const styles = style.create({
         display: "flex",
         flexDirection: "column",
         minWidth: 0,
+        maxWidth: "100%",
         borderWidth: stroke.border,
         borderColor: color.border,
         borderRadius: radius[3],
