@@ -1,8 +1,25 @@
+import arrowClockwise from "@destack/icon/phosphor/arrow-clockwise";
+import compass from "@destack/icon/phosphor/compass";
+import house from "@destack/icon/phosphor/house";
+import lockSimple from "@destack/icon/phosphor/lock-simple";
+import warningCircle from "@destack/icon/phosphor/warning-circle";
+import wifiSlash from "@destack/icon/phosphor/wifi-slash";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { text } from "@destack/theme/text";
-import { color, space, weight } from "@destack/theme/tokens.stylex";
+import { color, font, space, weight } from "@destack/theme/tokens.stylex";
 import { Button } from "../button/index.ts";
+import { Cluster } from "../cluster/index.ts";
+import { DataList, DataListItem, DataListLabel, DataListValue } from "../data-list/index.ts";
+import {
+    Empty,
+    EmptyContent,
+    EmptyDescription,
+    EmptyHeader,
+    EmptyMedia,
+    EmptyTitle,
+} from "../empty/index.ts";
+import { Icon } from "../icon/index.ts";
 import { Cover, CoverCenter } from "./cover.tsx";
 
 /** The styles of the welcome screen's text and actions. */
@@ -22,16 +39,11 @@ const styles = style.create({
         justifyContent: "center",
         padding: space[6],
     },
-    missing: {
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: space[2],
-        textAlign: "center",
+    details: {
+        textAlign: "start",
     },
-    note: {
-        margin: 0,
-        color: color.mutedForeground,
+    code: {
+        fontFamily: font.code,
     },
 });
 
@@ -60,24 +72,152 @@ export const coverWelcome = defineExample({
     ),
 });
 
-/** A page that was not found, its message centered and the way back at the bottom. */
+/** A page that was not found, with the way back home. */
 export const coverNotFound = defineExample({
     of: Cover,
     name: "not-found",
-    description: "a page that was not found, its message centered and the way back at the bottom",
+    description: "a page that was not found, with the way back home",
     layout: "fullscreen",
     properties: {
-        minHeight: "24rem",
+        minHeight: "28rem",
     },
     render: (properties) => (
         <Cover {...properties}>
-            <CoverCenter xstyle={styles.missing}>
-                <h1 {...style.attrs(text["2xl"], styles.title)}>This note does not exist</h1>
-                <p {...style.attrs(text.sm, styles.note)}>Its owner moved or deleted it.</p>
+            <CoverCenter>
+                <Empty>
+                    <EmptyHeader>
+                        <EmptyMedia variant="icon">
+                            <Icon icon={compass} />
+                        </EmptyMedia>
+                        <EmptyTitle>Page not found</EmptyTitle>
+                        <EmptyDescription>
+                            Its owner moved or deleted it, or the link has a typo.
+                        </EmptyDescription>
+                    </EmptyHeader>
+                    <EmptyContent>
+                        <Button variant="outline">
+                            <Icon icon={house} />
+                            Go home
+                        </Button>
+                    </EmptyContent>
+                </Empty>
             </CoverCenter>
-            <div {...style.attrs(styles.actions)}>
-                <Button variant="outline">Back to notebooks</Button>
-            </div>
+        </Cover>
+    ),
+});
+
+/** A page the person may not open, with a way to sign in as someone else. */
+export const coverForbidden = defineExample({
+    of: Cover,
+    name: "forbidden",
+    description: "a page the person may not open, with a way to sign in as someone else",
+    layout: "fullscreen",
+    properties: {
+        minHeight: "28rem",
+    },
+    render: (properties) => (
+        <Cover {...properties}>
+            <CoverCenter>
+                <Empty>
+                    <EmptyHeader>
+                        <EmptyMedia variant="icon">
+                            <Icon icon={lockSimple} />
+                        </EmptyMedia>
+                        <EmptyTitle>You can't view this</EmptyTitle>
+                        <EmptyDescription>
+                            Ask its owner for access, or sign in with another account.
+                        </EmptyDescription>
+                    </EmptyHeader>
+                    <EmptyContent>
+                        <Cluster justify="center">
+                            <Button>Sign in</Button>
+                            <Button variant="outline">Go home</Button>
+                        </Cluster>
+                    </EmptyContent>
+                </Empty>
+            </CoverCenter>
+        </Cover>
+    ),
+});
+
+/** A page that failed, with its code and request id to report and a way to try again. */
+export const coverError = defineExample({
+    of: Cover,
+    name: "error",
+    description:
+        "a page that failed, with its code and request id to report and a way to try again",
+    layout: "fullscreen",
+    properties: {
+        minHeight: "32rem",
+    },
+    render: (properties) => (
+        <Cover {...properties}>
+            <CoverCenter>
+                <Empty>
+                    <EmptyHeader>
+                        <EmptyMedia variant="icon">
+                            <Icon icon={warningCircle} />
+                        </EmptyMedia>
+                        <EmptyTitle>Something went wrong</EmptyTitle>
+                        <EmptyDescription>
+                            The page failed to load. Try again, or send these details to support.
+                        </EmptyDescription>
+                    </EmptyHeader>
+                    <DataList xstyle={styles.details}>
+                        <DataListItem>
+                            <DataListLabel>Code</DataListLabel>
+                            <DataListValue xstyle={styles.code}>500</DataListValue>
+                        </DataListItem>
+                        <DataListItem>
+                            <DataListLabel>Request</DataListLabel>
+                            <DataListValue xstyle={styles.code}>req_7f3a9c2e41b8</DataListValue>
+                        </DataListItem>
+                    </DataList>
+                    <EmptyContent>
+                        <Cluster justify="center">
+                            <Button>
+                                <Icon icon={arrowClockwise} />
+                                Try again
+                            </Button>
+                            <Button variant="outline">Go home</Button>
+                        </Cluster>
+                    </EmptyContent>
+                </Empty>
+            </CoverCenter>
+        </Cover>
+    ),
+});
+
+/** A page that cannot load while the device is offline, retrying once it reconnects. */
+export const coverOffline = defineExample({
+    of: Cover,
+    name: "offline",
+    description: "a page that cannot load while the device is offline, retrying once it reconnects",
+    layout: "fullscreen",
+    properties: {
+        minHeight: "28rem",
+    },
+    render: (properties) => (
+        <Cover {...properties}>
+            <CoverCenter>
+                <Empty>
+                    <EmptyHeader>
+                        <EmptyMedia variant="icon">
+                            <Icon icon={wifiSlash} />
+                        </EmptyMedia>
+                        <EmptyTitle>You're offline</EmptyTitle>
+                        <EmptyDescription>
+                            This page loads again once your connection is back.
+                        </EmptyDescription>
+                    </EmptyHeader>
+                    <EmptyContent>
+                        <Button variant="outline">
+                            <Icon icon={arrowClockwise} />
+                            Try now
+                        </Button>
+                    </EmptyContent>
+                </Empty>
+            </CoverCenter>
         </Cover>
     ),
 });

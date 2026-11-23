@@ -65,6 +65,41 @@ export const toasterRichKinds = defineExample({
     ),
 });
 
+/** A lost connection's toast that stays while it retries, then turns into one that it is back. */
+export const toasterReconnecting = defineExample({
+    of: Toaster,
+    name: "reconnecting",
+    description:
+        "a lost connection's toast that stays while it retries, then turns into one that it is back",
+    properties: {
+        position: "bottom-right",
+    },
+    render: (properties) => (
+        <>
+            <Cluster>
+                <Button
+                    variant="outline"
+                    onClick={() =>
+                        toast.loading("Connection lost", {
+                            id: "connection",
+                            description: "Retrying…",
+                        })
+                    }
+                >
+                    Lose connection
+                </Button>
+                <Button
+                    variant="outline"
+                    onClick={() => toast.success("Back online", { id: "connection" })}
+                >
+                    Reconnect
+                </Button>
+            </Cluster>
+            <Toaster {...properties} />
+        </>
+    ),
+});
+
 /** A toast shown with its undo action until someone dismisses it. */
 export const toasterArchiveUndoOpen = defineExample({
     of: Toaster,
