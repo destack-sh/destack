@@ -134,7 +134,7 @@ export class CatalogEntry {
     async open(context: CommandContext): Promise<CatalogType> {
         // declare the type and read its actions, loading the commands' module on first use
         const type = await this.#description.type(this.entry);
-        const actions = this.#description.actions(this.package, type);
+        const actions = await this.#description.actions(this.package, type);
         const opened = await context.module(() => import("./type.ts"));
 
         return new opened.CatalogType(this, type, actions);

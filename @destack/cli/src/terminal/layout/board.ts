@@ -1,4 +1,4 @@
-import { BoardLayout, type ObjectType } from "@destack/object";
+import type { BoardGroup, BoardLayout, ObjectType } from "@destack/object";
 import type { JsonObject } from "@destack/schema";
 import { Cell } from "../cell.ts";
 import { Frame } from "../frame.ts";
@@ -14,9 +14,9 @@ const GAP = "  ";
 export const BoardPage = {
     /** Draw a board as a page: each column's value as a heading over its objects' lines. */
     of(frame: Frame, rows: readonly JsonObject[], layout: BoardLayout, type: ObjectType): Page {
-        const groups = BoardLayout.group(layout, rows, type.fields).map((group) => ({
-            key: group.value,
-            heading: `${group.value} ${frame.terminal.style("dim", String(group.rows.length))}`,
+        const groups = frame.groups(rows, layout, type).map((group) => ({
+            key: Frame.key(group.choice.value),
+            heading: `${group.choice.title} ${frame.terminal.style("dim", String(group.rows.length))}`,
             rows: group.rows,
         }));
 
@@ -26,7 +26,7 @@ export const BoardPage = {
     /** Draw a board's columns side by side, a heading over each column's cards. */
     draw(
         frame: Frame,
-        groups: readonly { readonly value: string; readonly rows: readonly JsonObject[] }[],
+        groups: readonly BoardGroup[],
         type: ObjectType,
         width: number,
         by: string,
@@ -35,7 +35,7 @@ export const BoardPage = {
         const drawn = groups.map((group) => [
             Cell.fit(
                 {
-                    ...Cell.plain(`${group.value} ${group.rows.length}`),
+                    ...Cell.plain(`${group.choice.title} ${group.rows.length}`),
                     paint: (text) => frame.terminal.style("bold", text),
                 },
                 width,
@@ -56,8 +56,13 @@ export const BoardPage = {
         layout: BoardLayout,
         type: ObjectType,
     ): string[][] {
-        return BoardLayout.group(layout, rows, type.fields).flatMap((group) =>
-            group.rows.map((row) => [group.value, frame.titleText(type, row)]),
-        );
+        return frame
+            .groups(rows, layout, type)
+            .flatMap((group) =>
+                group.rows.map((row) => [
+                    Frame.key(group.choice.value ?? ""),
+                    frame.titleText(type, row),
+                ]),
+            );
     },
 };

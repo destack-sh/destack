@@ -78,7 +78,7 @@ export const Cell = {
         }
         // mark a state by its stage, toned by it
         else if (value.kind === "state") {
-            const text = `${STAGE_MARKS[value.stage]} ${value.value}`;
+            const text = `${STAGE_MARKS[value.stage]} ${value.title}`;
             const paint =
                 value.stage === "initial"
                     ? dim
@@ -86,6 +86,10 @@ export const Cell = {
                           surface.tone(value.stage === "final" ? "done" : "accent", fitted);
 
             return { text, align: "start", paint };
+        }
+        // write a choice by its title
+        else if (value.kind === "choice") {
+            return Cell.plain(value.title);
         }
         // write structure as JSON, dim
         else if (value.kind === "json") {

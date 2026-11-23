@@ -1,4 +1,4 @@
-import { Casing, type ObjectType } from "@destack/object";
+import { type ActionInput, Casing, type ObjectType } from "@destack/object";
 import { principal } from "@destack/access";
 import {
     type Comparable,
@@ -233,6 +233,21 @@ export class FlagSet {
         const routed = [type.route.field, "id"].filter((field) => field !== undefined);
 
         return new FlagSet(type, FlagSet.#collect(type, properties, routed, [], true));
+    }
+
+    /** Read an action's flags, one per input given beside its object, and the object's revision. */
+    static action(
+        type: ObjectType,
+        inputs: readonly ActionInput[],
+        target: string | undefined,
+    ): FlagSet {
+        const given = inputs.filter(({ name }) => name !== target);
+        const properties = {
+            ...Object.fromEntries(given.map((input) => [input.name, [jsonOf(input)]])),
+            ...(target === undefined ? {} : { revision: [{ type: "number" }] }),
+        };
+
+        return new FlagSet(type, FlagSet.#collect(type, properties, [], [], true));
     }
 
     /** Read a list's flags, one per scalar field of the rows its list method answers. */
@@ -599,4 +614,18 @@ export class FlagSet {
             return { ...input, [head]: FlagSet.#assign(inner, rest, value) };
         }
     }
+}
+
+/** Write the JSON Schema a flag reads an action's input by, an object's its identifier's. */
+function jsonOf({ value }: ActionInput): JsonObject {
+    // read a number, a yes or no, a choice, or text
+    if (value.kind === "number" || value.kind === "time") {
+        return { type: "number" };
+    } else if (value.kind === "boolean") {
+        return { type: "boolean" };
+    } else if (value.kind === "choice") {
+        return { type: "string", enum: value.choices.map((each) => each.value) };
+    }
+
+    return { type: value.kind === "json" ? "object" : "string" };
 }

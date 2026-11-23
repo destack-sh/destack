@@ -1,6 +1,6 @@
 import {
     Action,
-    type ActionArgument,
+    type ActionInput,
     type MethodKind,
     type ObjectType,
     type ObjectView,
@@ -67,7 +67,7 @@ export type PagerMode =
       };
 
 /** A question the pager asks before running an action: one of its arguments, or a confirmation. */
-type Question = ActionArgument | { readonly kind: "confirmation" };
+type Question = ActionInput | "confirmation";
 
 /** An answer read by its question: its value, none for a skipped argument, or invalid. */
 type Typed = { readonly value: JsonValue | undefined } | "invalid";
@@ -161,7 +161,7 @@ export class Pager {
         // run an action whose key combination the key presses, on the targets
         const targets = this.#targets(page);
         const { type } = this;
-        const actions = Action.available(type, targets, this.declared, moment);
+        const actions = type.actions(targets, this.declared, moment);
         const bound = actions.find(
             (action) =>
                 action.keybinding !== undefined &&
@@ -291,7 +291,7 @@ export class Pager {
         const [question, ...rest] = mode.questions;
         const typed = question === undefined ? { value: undefined } : answerOf(question, mode.text);
         if (typed === "invalid") {
-            const asked = question?.kind === "confirmation" ? CONFIRMATION : (question?.name ?? "");
+            const asked = question === "confirmation" ? CONFIRMATION : (question?.name ?? "");
 
             return {
                 pager: new Pager(this, this.state, mode, this.filter, `${asked} is invalid`),
@@ -299,7 +299,7 @@ export class Pager {
             };
         }
         const values =
-            question === undefined || question.kind === "confirmation" || typed.value === undefined
+            question === undefined || question === "confirmation" || typed.value === undefined
                 ? mode.values
                 : { ...mode.values, [question.name]: typed.value };
 
@@ -321,8 +321,10 @@ export class Pager {
     #chosen(chosen: Action, targets: readonly JsonObject[]): PagerAnswer {
         // ask the call's arguments, and a confirmation when it removes for good
         const questions: Question[] = [
-            ...(chosen.call?.arguments ?? []),
-            ...(chosen.isDestructive ? [{ kind: "confirmation" as const }] : []),
+            ...(chosen.call
+                ?.resolve({ places: [] }, {})
+                .asked.filter((input) => input.name !== chosen.call?.target) ?? []),
+            ...(chosen.isDestructive ? ["confirmation" as const] : []),
         ];
 
         return questions.length === 0
@@ -385,11 +387,11 @@ export class Pager {
             const asked =
                 question === undefined
                     ? ""
-                    : question.kind === "confirmation"
+                    : question === "confirmation"
                       ? `type ${CONFIRMATION} to ${title.toLowerCase()} for good`
-                      : question.kind === "choice"
-                        ? `${question.name} (${question.choices.join("/")})`
-                        : question.kind === "boolean"
+                      : question.value.kind === "choice"
+                        ? `${question.name} (${question.value.choices.map((each) => each.value).join("/")})`
+                        : question.value.kind === "boolean"
                           ? `${question.name} (yes/no)`
                           : question.name;
 
@@ -438,20 +440,22 @@ function edited(text: string, event: KeyPress): string {
 /** Read an answer by its question: a value, none for a skipped argument, or invalid. */
 function answerOf(question: Question, text: string): Typed {
     // confirm by the word, and skip an optional argument left empty
-    if (question.kind === "confirmation") {
+    if (question === "confirmation") {
         return text === CONFIRMATION ? { value: undefined } : "invalid";
     } else if (text === "") {
-        return question.isRequired ? "invalid" : { value: undefined };
+        return question.need === "required" ? "invalid" : { value: undefined };
     }
 
-    // read a number, a boolean, a choice or text by the argument's kind
+    // read a number or a time, a boolean, a choice or text by the input's kind
     const number = Number(text);
-    if (question.kind === "number") {
+    if (question.value.kind === "number" || question.value.kind === "time") {
         return Number.isFinite(number) ? { value: number } : "invalid";
-    } else if (question.kind === "boolean") {
+    } else if (question.value.kind === "boolean") {
         return text === "yes" ? { value: true } : text === "no" ? { value: false } : "invalid";
-    } else if (question.kind === "choice") {
-        return question.choices.includes(text) ? { value: text } : "invalid";
+    } else if (question.value.kind === "choice") {
+        return question.value.choices.some((each) => each.value === text)
+            ? { value: text }
+            : "invalid";
     }
 
     return { value: text };

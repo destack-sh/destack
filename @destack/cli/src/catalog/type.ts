@@ -4,7 +4,7 @@ import { ObjectClient, type ObjectConnection } from "@destack/object/client";
 import { CalendarLayout, type Layout, ObjectView, type ObjectQuery } from "@destack/object";
 import { principal } from "@destack/access";
 import { Scope } from "@destack/sync";
-import { type JsonObject, type JsonValue, present, schema, type TimeScale } from "@destack/schema";
+import { type JsonObject, JsonValue, present, schema, type TimeScale } from "@destack/schema";
 import {
     type Command,
     type CommandBody,
@@ -23,7 +23,7 @@ import {
     type PackageImplementationDescription,
 } from "@destack/object";
 import { Localization, SOURCE_LOCALE } from "@destack/locale";
-import { type Action, ActionCall } from "@destack/object";
+import type { Action, ActionCall, ActionContext } from "@destack/object";
 import { Frame } from "../terminal/frame.ts";
 import { Pager } from "../terminal/pager.ts";
 import { CliError } from "../error/index.ts";
@@ -334,7 +334,7 @@ async function page(paging: {
                     nextRows = followed.next();
                 } else if (step.kind === "run") {
                     pager = pager.told(
-                        await ran(step.action, step.targets, step.input, remote, frame),
+                        await ran(step.action, step.targets, step.input, remote, context),
                     );
                 }
             }
@@ -360,24 +360,96 @@ async function ran(
     targets: readonly JsonObject[],
     input: JsonObject,
     remote: ObjectConnection,
-    frame: Frame,
+    context: CommandContext,
 ): Promise<string> {
     // call the method once per target, stopping at the first refusal
-    const title = frame.terminal.localization.render(action.title);
+    const title = context.terminal.localization.render(action.title);
+    const acting = await contextOf(context, remote);
     const call = present(action.call, `the call of action '${action.name}'`);
     try {
         for (const target of targets) {
-            await remote.run(
-                call.object,
-                call.method,
-                call.input({ ...input, id: target["id"] ?? null }),
-            );
+            const id = schema.string().parse(target["id"]);
+            await invoke(call, remote, { ...input, ...targetOf(call, remote, id) }, acting);
         }
     } catch (error) {
         return `${title} failed: ${error instanceof Error ? error.message : String(error)}`;
     }
 
     return `${title}: ${targets.length} ${targets.length === 1 ? call.object.name : call.object.plural}`;
+}
+
+/** Read the scope a connection calls in, the universe without one. */
+function scopeOf(remote: ObjectConnection): string {
+    return remote.scope ?? Scope.universe.id;
+}
+
+/** Read the value of the object an action's call acts on, by its identifier. */
+function targetOf(call: ActionCall, remote: ObjectConnection, id: string): JsonObject {
+    return call.target === undefined
+        ? {}
+        : { [call.target]: call.object.policy.reference(scopeOf(remote), id) };
+}
+
+/** Run an action's call on values, reading the rows it needs, and answer its last result. */
+async function invoke(
+    call: ActionCall,
+    remote: ObjectConnection,
+    values: JsonObject,
+    acting: ActionContext,
+): Promise<JsonValue> {
+    // require the revision given, and take each object and person by identifier as its reference
+    const { revision } = values;
+    const required = revision === undefined ? {} : { revision };
+    const referred = Object.fromEntries(
+        call.inputs.map(({ name, value: takes }) => {
+            const value = values[name];
+            if (typeof value === "string" && takes.kind === "person") {
+                return [name, principal.user.reference(Scope.universe.id, value)];
+            } else if (typeof value === "string" && takes.kind === "object") {
+                return [name, takes.type.policy.reference(scopeOf(remote), value)];
+            }
+
+            return [name, value];
+        }),
+    );
+
+    // call the method for each target, as the person, reading the rows it needs
+    const invocations = await call.invocations(
+        { values: JsonValue.object(referred) },
+        {
+            context: acting,
+            read: async (type, { id }) => {
+                const [row] = await remote.list(type, { where: { id: { in: [id] } }, limit: 1 });
+
+                return row;
+            },
+        },
+    );
+    let result: JsonValue = null;
+    for (const { input } of invocations) {
+        result = await remote.run(call.object, call.method, { ...input, ...required });
+    }
+
+    return result;
+}
+
+/** Read what a command's action reads: the person signed in on this machine, its scope, now. */
+async function contextOf(
+    context: CommandContext,
+    remote: ObjectConnection,
+): Promise<ActionContext> {
+    const userId = await context.me();
+
+    return {
+        subject:
+            userId === undefined ? undefined : principal.user.reference(Scope.universe.id, userId),
+        moment: {
+            now: context.environment.clock.now(),
+            timeZone: context.terminal.timeZone,
+        },
+        scope: scopeOf(remote),
+        places: [],
+    };
 }
 
 /** Pick the view a list asks for by name, else the type's default. */
@@ -406,11 +478,16 @@ function objectCommand(noun: CatalogType): CommandBody {
     );
     const creates = methods.filter(([, method]) => method.target === "scope");
 
+    // split the actions by whether they call on an object or on the scope
+    const onObject = noun.actions.filter(({ call }) => call?.target !== undefined);
+    const onScope = noun.actions.filter(
+        ({ call }) => call !== undefined && call.target === undefined,
+    );
+
     // call the type's create method by the word new too, unless a method or an action has the word
     const created = creates.find(([, method]) => method.kind === "create");
     const isTaken =
-        creates.some(([name]) => name === NEW) ||
-        noun.actions.some((action) => action.call?.target === "scope" && action.name === NEW);
+        creates.some(([name]) => name === NEW) || onScope.some((action) => action.name === NEW);
     const added: [string, Command][] =
         created === undefined || isTaken ? [] : [[NEW, methodCommand(noun, created[0], undefined)]];
     const called = methods.filter(([, method]) => method.target === "object");
@@ -426,12 +503,10 @@ function objectCommand(noun: CatalogType): CommandBody {
                 },
             ]),
             ...added,
-            ...noun.actions
-                .filter((action) => action.call?.target === "scope")
-                .map((action): [string, Command] => [
-                    action.name,
-                    actionCommand(noun, action, undefined),
-                ]),
+            ...onScope.map((action): [string, Command] => [
+                action.name,
+                actionCommand(noun, action, undefined),
+            ]),
         ]),
         // call the methods and actions of one object, getting it without either
         target: {
@@ -449,12 +524,10 @@ function objectCommand(noun: CatalogType): CommandBody {
                         name,
                         methodCommand(noun, name, id),
                     ]),
-                    ...noun.actions
-                        .filter((action) => action.call?.target === "object")
-                        .map((action): [string, Command] => [
-                            action.name,
-                            actionCommand(noun, action, id),
-                        ]),
+                    ...onObject.map((action): [string, Command] => [
+                        action.name,
+                        actionCommand(noun, action, id),
+                    ]),
                 ]),
             }),
         },
@@ -504,13 +577,13 @@ function methodCommand(noun: CatalogType, method: string, id: string | undefined
             return {
                 ...FlagSet.input(noun.type, method).options(),
                 ...INPUT_OPTION,
-                ...(ActionCall.isDestructive(noun.type, method) ? YES_OPTION : {}),
+                ...(noun.type.isDestructive(method) ? YES_OPTION : {}),
             };
         },
         async run(call, context) {
             // ask before a method that removes its target for good
             const { isJson: json, options } = call;
-            if (ActionCall.isDestructive(noun.type, method)) {
+            if (noun.type.isDestructive(method)) {
                 await requireConfirmation(method, noun, id, options, context);
             }
 
@@ -558,14 +631,14 @@ async function requireConfirmation(
 /** Build the command running a declared action's call on a matching object, or on its scope. */
 function actionCommand(noun: CatalogType, action: Action, id: string | undefined): Command {
     const call = present(action.call, `the call of action '${action.name}'`);
-    const fields = Object.keys(call.preset);
+    const flags = () => FlagSet.action(noun.type, call.inputs, call.target);
 
     return {
         description: SOURCE.render(action.title),
         isJson: true,
         get options() {
             return {
-                ...FlagSet.input(noun.type, call.method).without(fields).options(),
+                ...flags().options(),
                 ...INPUT_OPTION,
                 ...(call.isDestructive ? YES_OPTION : {}),
             };
@@ -592,16 +665,23 @@ function actionCommand(noun: CatalogType, action: Action, id: string | undefined
                 await requireConfirmation(action.name, noun, id, given.options, context);
             }
 
-            // build the input from the JSON option, the flags and the object, beside the preset fields
-            const flags = FlagSet.input(noun.type, call.method).without(fields);
-            const input = await methodInput(flags, given.options, context);
+            // fill the inputs from the JSON option, the flags and the object, refusing a missing one
+            const values = {
+                ...(await methodInput(flags(), given.options, context)),
+                ...(target === undefined ? {} : targetOf(call, remote, target)),
+            };
+            const missing = call.inputs.find(
+                (each) => each.need === "required" && !(each.name in values),
+            );
+            if (missing !== undefined) {
+                throw CliError.of(
+                    "USAGE_INVALID",
+                    `input '${missing.name}' of action '${action.name}' is invalid: it must be given`,
+                );
+            }
 
             // call the method and show its result
-            const result = await remote.run(
-                noun.type,
-                call.method,
-                call.input(target === undefined ? input : { ...input, id: target }),
-            );
+            const result = await invoke(call, remote, values, await contextOf(context, remote));
             await context.terminal.print(
                 given.isJson
                     ? JSON.stringify(result)

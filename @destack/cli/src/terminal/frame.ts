@@ -1,5 +1,7 @@
 import {
+    type BoardGroup,
     BoardLayout,
+    type Choice,
     type Layout,
     ObjectAppearance,
     ObjectDetail,
@@ -201,7 +203,11 @@ export class Frame {
             const object = typeof value === "string" ? referenced?.rows.get(value) : undefined;
             const cell =
                 referenced === undefined || object === undefined
-                    ? Cell.of(ObjectValue.of(type, column, value), terminal, this.now)
+                    ? Cell.of(
+                          ObjectValue.of(type, column, value, terminal.localization),
+                          terminal,
+                          this.now,
+                      )
                     : Cell.plain(
                           ObjectAppearance.of(
                               referenced.type,
@@ -302,6 +308,37 @@ export class Frame {
         ].join("\n");
     }
 
+    /** Group rows into a board's columns: its field's values, or the objects the rows reference. */
+    groups(rows: readonly JsonObject[], layout: BoardLayout, type: ObjectType): BoardGroup[] {
+        const { localization } = this.terminal;
+        const choices =
+            BoardLayout.choices(layout, type.fields, localization) ??
+            this.#referenced(layout.by, rows);
+
+        return BoardLayout.group(layout, rows, choices, localization);
+    }
+
+    /** List the objects a column's references point to as choices, in their own order. */
+    #referenced(column: string, rows: readonly JsonObject[]): Choice[] {
+        // title each object found, and leave one unread as its identifier
+        const referenced = this.references.get(column);
+        const ids = new Set(
+            rows.flatMap((row) => (typeof row[column] === "string" ? [row[column]] : [])),
+        );
+        const found = [...ids].map((id) => ({ id, row: referenced?.rows.get(id) }));
+        const ordered = found.toSorted((one, other) =>
+            placeOf(one.row).localeCompare(placeOf(other.row), "en"),
+        );
+
+        return ordered.map(({ id, row }) => ({
+            value: id,
+            title:
+                referenced === undefined || row === undefined
+                    ? id
+                    : this.titleText(referenced.type, row),
+        }));
+    }
+
     /** Draw rows by a layout: records for a program, a drawing or the page for a person. */
     draw(
         rows: readonly JsonObject[],
@@ -319,7 +356,7 @@ export class Frame {
 
         // draw a board's columns, a calendar's month and a gallery's cards beside each other when they fit
         const columns = terminal.columns ?? DEFAULT_COLUMNS;
-        const groups = layout.kind === "board" ? BoardLayout.group(layout, rows, type.fields) : [];
+        const groups = layout.kind === "board" ? this.groups(rows, layout, type) : [];
         const width =
             Math.floor((columns - MARGIN.length) / Math.max(1, groups.length)) - GAP.length;
         if (layout.kind === "board" && width >= BOARD_COLUMN) {
@@ -476,4 +513,11 @@ export class Frame {
 
         return [Cell.fit(label, width), Cell.fit(detail, width)];
     }
+}
+
+/** Read an object's place among its siblings, none for one unread. */
+function placeOf(row: JsonObject | undefined): string {
+    const place = row?.["position"];
+
+    return typeof place === "string" ? place : "";
 }
