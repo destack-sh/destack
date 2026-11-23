@@ -1,3 +1,6 @@
+import { CliError } from "../error/index.ts";
+import type { CommandBody } from "../command/command.ts";
+import { Profile } from "@destack/update/release";
 import { nth } from "@destack/schema";
 import {
     CommandTree,
@@ -240,3 +243,22 @@ function __${prefix}_complete
 end
 complete -c ${program} -f -a '(__${prefix}_complete)'`;
 }
+
+/** Print the completion script of a shell. */
+export const completionCommand: CommandBody = {
+    arguments: [{ name: "shell", complete: async () => SHELLS }],
+    async run({ arguments: { shell } }, context) {
+        // require a shell with a completion script
+        const found = SHELLS.find((name) => name === shell);
+        if (found === undefined) {
+            throw CliError.of(
+                "USAGE_INVALID",
+                `shell '${shell}' is invalid: it has no completion, so use bash, zsh or fish`,
+            );
+        }
+
+        // print the script for this profile's command
+        const { command } = Profile.current(context.environment);
+        await context.terminal.print(Completion.write(found, command));
+    },
+};

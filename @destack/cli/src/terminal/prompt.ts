@@ -1,5 +1,5 @@
 import { CliError } from "../error/index.ts";
-import type { TerminalProcess } from "./output.ts";
+import type { TerminalProcess } from "./terminal.ts";
 import { nth } from "@destack/schema";
 
 /** The lines a person types or a script pipes, read one answer at a time. */

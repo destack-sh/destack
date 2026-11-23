@@ -1,9 +1,9 @@
 import { Version } from "@destack/schema";
 import { expect, test } from "@destack/test";
-import { CommandFailure, Interrupted } from "./failure.ts";
+import { CommandFailure } from "./failure.ts";
 import { TerminalFixture } from "../test/terminal.ts";
 import { CliError } from "../error/index.ts";
-import { Terminal } from "../output/index.ts";
+import { Terminal } from "../terminal/index.ts";
 import { testHost } from "@destack/test/host";
 
 /** Split printed text into its lines. */
@@ -200,7 +200,10 @@ test("exit an interrupted command as an interrupted program, printing nothing", 
     const running = TerminalFixture.process({}, testHost().scheduler);
     const terminal = new Terminal(running, { timeZone: "UTC", locale: "en-US" });
     const codes = [
-        await new CommandFailure(new Interrupted()).report(false, terminal),
+        await new CommandFailure(CliError.of("COMMAND_CANCELLED", "command was cancelled")).report(
+            false,
+            terminal,
+        ),
         await new CommandFailure(
             CliError.of("USAGE_INVALID", "answer is invalid: it must be yes"),
         ).report(false, terminal),

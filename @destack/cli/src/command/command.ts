@@ -2,7 +2,7 @@ import { type Environment, FileSystemError } from "@destack/environment";
 import { parseArgs } from "node:util";
 import { type JsonObject, nth, schema } from "@destack/schema";
 
-import type { Terminal } from "../output/index.ts";
+import type { Terminal } from "../terminal/index.ts";
 import type { CommandContext } from "./context.ts";
 import { CliError } from "../error/index.ts";
 

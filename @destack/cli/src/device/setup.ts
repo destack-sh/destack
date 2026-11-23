@@ -15,7 +15,7 @@ import {
 import { verifyApplication } from "@destack/update/apple";
 import type { DistributionRow } from "@destack/update/object";
 import updatePackage from "@destack/update/package";
-import { Terminal } from "../output/index.ts";
+import { Terminal } from "../terminal/index.ts";
 import type { CommandEnvironment } from "../command/context.ts";
 import type {} from "@destack/package/import-meta";
 import { CliError } from "../error/index.ts";

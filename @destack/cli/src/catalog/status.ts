@@ -11,7 +11,7 @@ import { reference, release, tag } from "@destack/registry/object";
 import { schema } from "@destack/schema";
 import { ObjectReference, RequestId } from "@destack/sync";
 import { vault } from "@destack/vault/object";
-import type { EventState, Standing, Terminal, Tone } from "../output/index.ts";
+import type { EventState, Status, Terminal, Tone } from "../terminal/index.ts";
 import type { CommandContext } from "../command/context.ts";
 import stackPackage from "@destack/stack/package";
 import type {} from "@destack/package/import-meta";
@@ -32,7 +32,7 @@ const PROGRESS_EVENTS: Readonly<Record<Progress, readonly [string, EventState]>>
 };
 
 /** How a resource stands for each progress of its record. */
-const RESOURCE_STANDINGS: Readonly<Record<Progress, Standing>> = {
+const RESOURCE_STATUSES: Readonly<Record<Progress, Status>> = {
     current: "ready",
     waiting: "busy",
     approval: "busy",
@@ -299,7 +299,7 @@ export class InstallationStatus {
             const width = Math.max(...resources.map((resource) => resource.name.length));
             lines.push("");
             for (const resource of resources) {
-                const standing = RESOURCE_STANDINGS[Observation.progress(resource)];
+                const status = RESOURCE_STATUSES[Observation.progress(resource)];
                 const reported = Observation.message(resource);
                 const reason = Observation.condition(resource)?.reason;
                 const facts = [
@@ -307,7 +307,7 @@ export class InstallationStatus {
                     ...(reason === undefined ? [] : [terminal.style("dim", reason)]),
                 ];
                 const name = facts.length === 0 ? resource.name : resource.name.padEnd(width);
-                lines.push(`  ${terminal.dot(standing)} ${[name, ...facts].join("  ")}`);
+                lines.push(`  ${terminal.dot(status)} ${[name, ...facts].join("  ")}`);
             }
         }
 

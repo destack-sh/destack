@@ -9,14 +9,13 @@ import {
 } from "../command/command.ts";
 
 import type { CommandContext } from "../command/context.ts";
-import type { Terminal } from "../output/index.ts";
+import type { Terminal } from "../terminal/index.ts";
 
-import { listCommand } from "./noun.ts";
-import { LIST_OPTIONS } from "../object/flag.ts";
+import { LIST_OPTIONS } from "../catalog/flag.ts";
 import type { ObjectClient, ObjectConnection } from "@destack/object/client";
-import { CatalogType } from "../object/catalog.ts";
-import { Cell } from "../object/cell.ts";
-import { Grid } from "../object/grid.ts";
+import type { CatalogType } from "./type.ts";
+import { Cell } from "../terminal/cell.ts";
+import { Grid } from "../terminal/grid.ts";
 import { CliError } from "../error/index.ts";
 
 /** The scopes of `--scope`. */
@@ -106,7 +105,7 @@ class SettingScope {
             );
         }
 
-        return found.open();
+        return found.open(context);
     }
 
     /** Open the scope's values until a stack closes. */
@@ -167,7 +166,7 @@ export const settingsCommand: CommandBody = {
         }
         // list the values of the settings storing the scope's
         else {
-            const listed = listCommand(await scope.noun(context));
+            const listed = (await scope.noun(context)).list();
             await present(listed.run, "the list command's run")({ ...call, options }, context);
         }
     },

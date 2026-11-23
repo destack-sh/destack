@@ -5,8 +5,8 @@ import { present, schema } from "@destack/schema";
 import { RequestId, Scope } from "@destack/sync";
 import { CommandOption, type CommandBody } from "../command/command.ts";
 import { CliError } from "../error/index.ts";
-import { Cell } from "../object/cell.ts";
-import { Grid } from "../object/grid.ts";
+import { Cell } from "../terminal/cell.ts";
+import { Grid } from "../terminal/grid.ts";
 
 /** The columns the invitations to a person list under. */
 const INVITATION_COLUMNS = ["ROLE", "OBJECT", "ID"];

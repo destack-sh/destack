@@ -1,4 +1,4 @@
-import type { Terminal } from "../output/index.ts";
+import type { Terminal } from "./index.ts";
 import { Cell } from "./cell.ts";
 
 /** The margin a grid starts at, beside the gutter's words. */

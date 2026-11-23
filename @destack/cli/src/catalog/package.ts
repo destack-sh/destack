@@ -1,7 +1,7 @@
 import { present } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import type { CommandBody } from "../command/command.ts";
-import { readSpecifier } from "./install.ts";
+import { PackageSpecifier } from "./installation.ts";
 
 /** Point a package's distribution tag at one of its releases, as its publisher. */
 export const tagCommand: CommandBody = {
@@ -12,7 +12,7 @@ export const tagCommand: CommandBody = {
     isJson: true,
     async run({ arguments: { package: specifier, tag }, isJson: json }, context) {
         // resolve the release the specifier names in its package's forge
-        const { name: packageName, release } = readSpecifier(
+        const { name: packageName, release } = PackageSpecifier.release(
             present(specifier, "the package argument"),
         );
         const { client, home } = await context.registry(packageName);

@@ -10,8 +10,8 @@ import {
 import { TABLE } from "@destack/db";
 import { type JsonObject, present, schema, type TimeScale } from "@destack/schema";
 import type { CommandContext } from "../command/context.ts";
-import type { Terminal } from "../output/index.ts";
-import type { CatalogType } from "./catalog.ts";
+import type { Terminal } from "./index.ts";
+import type { CatalogType } from "../catalog/type.ts";
 import { Cell } from "./cell.ts";
 import { Grid } from "./grid.ts";
 import { Page, type PageLine } from "./page.ts";
@@ -125,7 +125,7 @@ export class Frame {
                 ),
             ];
             if (listed !== undefined && ids.length > 0) {
-                const found = await listed.open();
+                const found = await listed.open(context);
                 const remote = await found.client(context);
                 const objects = await remote.list(found.type, { where: { id: { in: ids } } });
                 const byId = new Map(

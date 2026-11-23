@@ -1,5 +1,5 @@
 import { testHost } from "@destack/test/host";
-import { Terminal } from "../output/index.ts";
+import { Terminal } from "../terminal/index.ts";
 import { SpaceAddress } from "@destack/account/address";
 import type { Login } from "@destack/account/native";
 import { Device, type MachineCredential } from "@destack/machine/device";

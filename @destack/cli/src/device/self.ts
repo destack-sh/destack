@@ -1,6 +1,6 @@
 import { CommandOption, type CommandBody } from "../command/command.ts";
 
-import { Setup } from "../distribution/setup.ts";
+import { Setup } from "./setup.ts";
 
 /** Install, start, stop, update and uninstall this Destack distribution itself. */
 export const selfCommand: CommandBody = {

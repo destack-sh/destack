@@ -16,6 +16,10 @@ export const CliError = defineErrorFamily({
 
         RELEASE_NOT_FOUND: {},
 
+        REPOSITORY_NOT_FOUND: {},
+
+        BRANCH_NOT_FOUND: {},
+
         SETTING_NOT_FOUND: {},
 
         // exists
@@ -70,11 +74,17 @@ export const CliError = defineErrorFamily({
 
         GIT_SETUP_BROKEN: {},
 
+        GIT_FETCH_BROKEN: {},
+
         MACHINE_START_BROKEN: {},
 
         PREVIEW_BROKEN: {},
 
         SETTING_BROKEN: {},
+
+        // cancelled
+
+        COMMAND_CANCELLED: {},
     },
 });
 

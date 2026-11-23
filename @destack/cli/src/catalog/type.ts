@@ -13,14 +13,19 @@ import {
 } from "../command/command.ts";
 import { Interrupt } from "../command/failure.ts";
 import type { CommandContext } from "../command/context.ts";
-import type { Live } from "../output/index.ts";
+import type { Live } from "../terminal/index.ts";
 
-import { FlagSet, INPUT_OPTION, LIST_OPTIONS } from "../object/flag.ts";
-import { CatalogType, Catalog } from "../object/catalog.ts";
+import { FlagSet, INPUT_OPTION, LIST_OPTIONS } from "./flag.ts";
+import type { CatalogEntry, Store } from "./catalog.ts";
+import {
+    type MethodKind,
+    type ObjectType,
+    type PackageImplementationDescription,
+} from "@destack/object";
 import { Localization, SOURCE_LOCALE } from "@destack/locale";
 import { type Action, ActionCall } from "@destack/object";
-import { Frame } from "../object/frame.ts";
-import { Pager } from "../object/pager.ts";
+import { Frame } from "../terminal/frame.ts";
+import { Pager } from "../terminal/pager.ts";
 import { CliError } from "../error/index.ts";
 
 /** The lines a terminal is taken to have when it reports none: 24, the VT100's. */
@@ -59,37 +64,101 @@ const SOURCE = Localization.of(SOURCE_LOCALE, []);
 /** The most identifiers completion offers for a noun, one terminal screen of candidates. */
 const ID_PAGE = 50;
 
-/** Build the command of a word that names a noun. */
-export function nounCommand(catalog: Catalog, word: string): Command | undefined {
-    // find the noun, refusing a word several nouns claim
-    const entry = catalog.find(word);
+/** A listed object type opened: its entry with the object type and the actions calling it. */
+export class CatalogType {
+    /** The entry the type was opened from. */
+    readonly entry: CatalogEntry;
+    /** The object type. */
+    readonly type: ObjectType;
+    /** The actions the installation declares calling the type's methods. */
+    readonly actions: readonly Action[];
 
-    // leave a word no noun claims to the other commands
-    if (entry === undefined) {
-        return undefined;
+    /** Keep a listed entry with its type and its actions. */
+    constructor(entry: CatalogEntry, type: ObjectType, actions: readonly Action[]) {
+        this.entry = entry;
+        this.type = type;
+        this.actions = actions;
     }
-    // list a noun's objects by its plural, taking the singular's subcommands too, as kubectl's plurals do
-    else if (entry.lists(word)) {
-        return {
-            description: `List ${entry.plural} (${entry.qualifier})`,
-            load: async () => {
-                const noun = await entry.open();
 
-                return { ...objectCommand(noun), ...listCommand(noun) };
-            },
-        };
+    /** Read the singular word. */
+    get name(): string {
+        return this.entry.name;
     }
-    // get, create and call a noun's objects by its singular
-    else {
-        return {
-            description: `Get, create and change ${entry.plural} (${entry.qualifier})`,
-            load: async () => objectCommand(await entry.open()),
-        };
+
+    /** Read the plural word, which lists. */
+    get plural(): string {
+        return this.entry.plural;
+    }
+
+    /** Read the qualifier. */
+    get qualifier(): string {
+        return this.entry.qualifier;
+    }
+
+    /** The store running the installation. */
+    get store(): Store {
+        return this.entry.store;
+    }
+
+    /** The package listing the type. */
+    get package(): PackageImplementationDescription {
+        return this.entry.package;
+    }
+
+    /** Open a client of the type's objects in the scope the terminal uses for them. */
+    client(context: CommandContext): Promise<ObjectConnection> {
+        return this.entry.client(context);
+    }
+
+    /** Build the commands of its objects: create, and per object get, methods and actions. */
+    command(): CommandBody {
+        return objectCommand(this);
+    }
+
+    /** Build the command that lists its rows, once or live. */
+    list(): CommandBody {
+        return listCommand(this);
+    }
+
+    /** Find the name of the type's method of a method kind, refusing a type without one. */
+    method(kind: MethodKind): string {
+        // find the one method of the kind, refusing none and several
+        const methods = Object.entries(this.type.describeMethods());
+        const [found, other] = methods.filter(([, method]) => method.kind === kind);
+        if (found === undefined) {
+            throw CliError.of("METHOD_NOT_FOUND", `${kind} method of '${this.plural}' not found`);
+        } else if (other !== undefined) {
+            throw CliError.of(
+                "METHOD_INVALID",
+                `${kind} method of '${this.plural}' is invalid: several match`,
+            );
+        }
+
+        return found[0];
+    }
+
+    /** Find an object's identifier by its identifier or key, refusing keys of unkeyed types. */
+    async identify(key: string, context: CommandContext): Promise<string> {
+        // take an identifier as given, and require a declared key for anything else
+        if (this.type.identifies(key)) {
+            return key;
+        } else if (this.type.keyed === undefined) {
+            throw CliError.of(
+                "USAGE_INVALID",
+                `'${this.plural}' is invalid: they have no key, so give the identifier`,
+            );
+        }
+
+        // get the object by its key, which its get method resolves
+        const remote = await this.client(context);
+        const row = await remote.run(this.type, this.method("get"), { id: key });
+
+        return schema.looseObject({ id: schema.string() }).parse(row).id;
     }
 }
 
 /** Build the command that lists a noun's rows, once or live. */
-export function listCommand(noun: CatalogType): CommandBody {
+function listCommand(noun: CatalogType): CommandBody {
     return {
         isJson: true,
         get options() {
@@ -558,7 +627,7 @@ async function identifyFlags(
             );
         }
 
-        return (await noun.open()).identify(value, context);
+        return (await noun.open(context)).identify(value, context);
     });
 }
 

@@ -1,5 +1,5 @@
 import type { ObjectValue, StateStage } from "@destack/object";
-import type { Terminal } from "../output/index.ts";
+import type { Terminal } from "./index.ts";
 
 /** The nearest a time lies to now and still reads relative, a week in milliseconds. */
 const RELATIVE_SPAN = 604_800_000;
@@ -11,7 +11,7 @@ const RELATIVE_UNITS = [
     ["day", 86_400_000],
 ] as const;
 
-/** The mark of each state stage, as Linear's status icons draw them. */
+/** The mark of each state stage, drawn as a status icon. */
 const STAGE_MARKS: Readonly<Record<StateStage, string>> = {
     initial: "○",
     active: "◐",

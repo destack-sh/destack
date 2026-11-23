@@ -4,7 +4,7 @@ import { PackageName } from "@destack/package";
 import { present } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { CommandOption, type CommandBody } from "../command/command.ts";
-import { readSpecifier } from "./install.ts";
+import { PackageSpecifier } from "../catalog/installation.ts";
 
 /** The template a package is made from unless another is asked for. */
 const DEFAULT_TEMPLATE = "@destack/blank";
@@ -26,7 +26,7 @@ export const newCommand: CommandBody = {
     async run({ arguments: { package: named, directory }, options, isJson: json }, context) {
         // read the package's name and the template's release
         const name = PackageName.parse(present(named, "the package argument"));
-        const template = readSpecifier(
+        const template = PackageSpecifier.release(
             CommandOption.string(options["template"], "template") ?? DEFAULT_TEMPLATE,
         );
 

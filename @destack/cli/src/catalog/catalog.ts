@@ -6,10 +6,8 @@ import objectPackage from "@destack/object/package";
 import type { ObjectAddress } from "@destack/view/declare";
 import type { SpaceAddress } from "@destack/account/address";
 import {
-    type Action,
     ACTION_KIND,
     type PackageImplementationDescription,
-    type MethodKind,
     ObjectType,
     ObjectTypePool,
     type Package,
@@ -27,6 +25,8 @@ import { Setting, SETTING_KIND } from "@destack/setting";
 import type { CommandContext } from "../command/context.ts";
 import type {} from "@destack/package/import-meta";
 import { CliError } from "../error/index.ts";
+import type { CatalogType } from "./type.ts";
+import type { Command } from "../command/command.ts";
 
 /** The separator of a qualified noun: the installation's name, then the noun. */
 const QUALIFIER = ":";
@@ -131,17 +131,18 @@ export class CatalogEntry {
     }
 
     /** Open the entry: its type, declared on first use, with the actions calling its methods. */
-    async open(): Promise<CatalogType> {
+    async open(context: CommandContext): Promise<CatalogType> {
+        // declare the type and read its actions, loading the commands' module on first use
         const type = await this.#description.type(this.entry);
-
         const actions = this.#description.actions(this.package, type);
+        const opened = await context.module(() => import("./type.ts"));
 
-        return new CatalogType(this, this.#description, type, actions);
+        return new opened.CatalogType(this, type, actions);
     }
 
     /** Open a client of the type's objects in the scope the terminal uses for them. */
     async client(context: CommandContext): Promise<ObjectConnection> {
-        return CatalogType.connect(context, this.store, this.package, await this.#locate(context));
+        return CatalogEntry.connect(context, this.store, this.package, await this.#locate(context));
     }
 
     /** Locate the scope the type's objects live in for the person: the store's for several. */
@@ -192,62 +193,6 @@ export class CatalogEntry {
             throw CliError.of("USAGE_INVALID", refusal);
         }
     }
-}
-
-/** A listed object type opened: its entry with the object type and the actions calling it. */
-export class CatalogType extends CatalogEntry {
-    /** The object type. */
-    readonly type: ObjectType;
-    /** The actions the installation declares calling the type's methods. */
-    readonly actions: readonly Action[];
-
-    /** Keep a listed entry with its type and its actions. */
-    constructor(
-        listed: CatalogEntry,
-        description: ObjectStoreDescription,
-        type: ObjectType,
-        actions: readonly Action[],
-    ) {
-        super(listed.package, listed.store, listed.entry, description);
-        this.type = type;
-        this.actions = actions;
-    }
-
-    /** Find the name of the type's method of a method kind, refusing a type without one. */
-    method(kind: MethodKind): string {
-        // find the one method of the kind, refusing none and several
-        const methods = Object.entries(this.type.describeMethods());
-        const [found, other] = methods.filter(([, method]) => method.kind === kind);
-        if (found === undefined) {
-            throw CliError.of("METHOD_NOT_FOUND", `${kind} method of '${this.plural}' not found`);
-        } else if (other !== undefined) {
-            throw CliError.of(
-                "METHOD_INVALID",
-                `${kind} method of '${this.plural}' is invalid: several match`,
-            );
-        }
-
-        return found[0];
-    }
-
-    /** Find an object's identifier by its identifier or key, refusing keys of unkeyed types. */
-    async identify(key: string, context: CommandContext): Promise<string> {
-        // take an identifier as given, and require a declared key for anything else
-        if (this.type.identifies(key)) {
-            return key;
-        } else if (this.type.keyed === undefined) {
-            throw CliError.of(
-                "USAGE_INVALID",
-                `'${this.plural}' is invalid: they have no key, so give the identifier`,
-            );
-        }
-
-        // get the object by its key, which its get method resolves
-        const remote = await this.client(context);
-        const row = await remote.run(this.type, this.method("get"), { id: key });
-
-        return schema.looseObject({ id: schema.string() }).parse(row).id;
-    }
 
     /** Connect to a package implementation's store, closed once the command line ran. */
     static async connect(
@@ -257,7 +202,7 @@ export class CatalogType extends CatalogEntry {
         scope?: string,
     ): Promise<ObjectConnection> {
         // close the connection once the command line ran
-        const connection = await CatalogType.#open(context, store, implementation, scope);
+        const connection = await CatalogEntry.#open(context, store, implementation, scope);
         context.defer(() => connection.close());
 
         return connection;
@@ -391,7 +336,7 @@ export class Catalog {
         store: Exclude<Store, "registry">,
     ): Promise<ObjectStoreDescription> {
         // describe the store, the machine's partition by its scope beside the device's default one
-        const connection = await CatalogType.connect(context, store, {
+        const connection = await CatalogEntry.connect(context, store, {
             packageId: DESCRIBING[store],
         });
         const known = BUILT_IN_PACKAGES.flatMap((handle) => Object.values(handle.objects)).filter(
@@ -416,7 +361,7 @@ export class Catalog {
         if (listed === undefined) {
             throw CliError.of("NOUN_NOT_FOUND", `noun listing objects like '${id}' not found`);
         }
-        const noun = await listed.open();
+        const noun = await listed.open(context);
 
         // read the object's scope through its type's get method
         const remote = await noun.client(context);
@@ -433,6 +378,35 @@ export class Catalog {
             },
             ...(view === undefined ? {} : { view }),
         };
+    }
+
+    /** Build the command of a word naming a noun: its plural lists, its singular gets and calls. */
+    command(word: string): Command | undefined {
+        // find the noun, refusing a word several nouns claim
+        const entry = this.find(word);
+
+        // leave a word no noun claims to the other commands
+        if (entry === undefined) {
+            return undefined;
+        }
+        // list a noun's objects by its plural, taking the singular's subcommands too
+        else if (entry.lists(word)) {
+            return {
+                description: `List ${entry.plural} (${entry.qualifier})`,
+                load: async (context) => {
+                    const noun = await entry.open(context);
+
+                    return { ...noun.command(), ...noun.list() };
+                },
+            };
+        }
+        // get, create and call a noun's objects by its singular
+        else {
+            return {
+                description: `Get, create and change ${entry.plural} (${entry.qualifier})`,
+                load: async (context) => (await entry.open(context)).command(),
+            };
+        }
     }
 
     /** Find the noun of a word, plural or singular and qualified or alone. */

@@ -17,8 +17,8 @@ import type { StepUp } from "@destack/access";
 import type { Checkout } from "@destack/machine/checkout";
 import { type Identifier, schema, Version } from "@destack/schema";
 
-import type { Catalog } from "../object/catalog.ts";
-import { Terminal } from "../output/index.ts";
+import type { Catalog } from "../catalog/catalog.ts";
+import { Terminal } from "../terminal/index.ts";
 import type { Decision, GrantRequest } from "@destack/account/authentication";
 import type {} from "@destack/package/import-meta";
 import { CliError } from "../error/index.ts";
@@ -387,7 +387,7 @@ export class CommandContext implements AsyncDisposable {
 
     /** Read the nouns and settings the stores describe, once. */
     catalog(): Promise<Catalog> {
-        this.#catalog ??= this.module(() => import("../object/catalog.ts")).then(({ Catalog }) =>
+        this.#catalog ??= this.module(() => import("../catalog/catalog.ts")).then(({ Catalog }) =>
             Catalog.of(this),
         );
 

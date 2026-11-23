@@ -13,7 +13,7 @@ import { Scope, Subject } from "@destack/sync";
 import { GLOBAL_OPTIONS, CommandOption, type CommandCall } from "../command/command.ts";
 
 import { CliError } from "../error/index.ts";
-import { WallTime } from "./time.ts";
+import { WallTime } from "../terminal/time.ts";
 
 /** The options a list reads beside its field flags. */
 export const LIST_OPTIONS = {

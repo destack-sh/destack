@@ -1,18 +1,10 @@
 import { canonicalize, type Identifier, present } from "@destack/schema";
-import objectPackage from "@destack/object/package";
 import stackPackage, { STACK_INSTALLATION } from "@destack/stack/package";
 import { ObjectReference, RequestId } from "@destack/sync";
 import { CommandOption, type CommandCall, type CommandBody } from "../command/command.ts";
 import type { CommandContext } from "../command/context.ts";
 import { CliError } from "../error/index.ts";
-import { InstallationStatus } from "../installation/status.ts";
-
-/** The installation argument of plan and approve, the space's stack by default. */
-const INSTALLATION_ARGUMENT = {
-    name: "installation",
-    usage: "name",
-    default: STACK_INSTALLATION,
-} as const;
+import { InstallationStatus } from "../catalog/status.ts";
 
 /** The options selecting the stack export and its parameters. */
 const EXPORT_OPTIONS = {
@@ -46,86 +38,6 @@ export const applyCommand: CommandBody = {
         await InstallationStatus.drive(id, options["yes"] === true, json, context);
     },
 };
-
-/** Show an installation, the space's stack by default, its resources and the plan it waits on. */
-export const planCommand: CommandBody = {
-    arguments: [INSTALLATION_ARGUMENT],
-    isJson: true,
-    options: { watch: { type: "boolean", description: "Follow it as it changes" } },
-    async run({ arguments: { installation: name }, options, isJson: json }, context) {
-        // show it once, or each change when watched
-        const space = await context.requireSpace();
-        const stack = await context.package(stackPackage, await context.locate());
-        const { id } = await stack.installation.get({
-            scope: space,
-            id: present(name, "the installation argument"),
-        });
-        const live = context.terminal.live(json);
-        for await (const status of InstallationStatus.follow(id, context)) {
-            await live.show(status.show(json, context));
-            if (options["watch"] !== true) {
-                break;
-            }
-        }
-    },
-};
-
-/** Approve the plan an installation, the space's stack by default, waits on. */
-export const approveCommand: CommandBody = decideCommand("approve");
-
-/** Reject the plan an installation, the space's stack by default, waits on. */
-export const rejectCommand: CommandBody = decideCommand("reject");
-
-/** Decide the plan an installation waits on through its change request, by the reviewed digest. */
-function decideCommand(decision: "approve" | "reject"): CommandBody {
-    return {
-        arguments: [INSTALLATION_ARGUMENT],
-        isJson: true,
-        options: {
-            plan: {
-                type: "string",
-                description: "The digest of the plan you reviewed",
-                argument: "digest",
-            },
-        },
-        async run({ arguments: { installation: name }, options, isJson: json }, context) {
-            // decide the reviewed plan's digest
-            const plan = CommandOption.string(options["plan"], "plan");
-            if (plan === undefined) {
-                throw CliError.of(
-                    "USAGE_INVALID",
-                    "usage is invalid: give the reviewed plan's digest with --plan",
-                );
-            }
-            const space = await context.requireSpace();
-            const stack = await context.package(stackPackage, await context.locate());
-            const { id } = await stack.installation.get({
-                scope: space,
-                id: present(name, "the installation argument"),
-            });
-            const { environment } = await context.native();
-            const objects = await context.package(objectPackage, await context.locate());
-            const waiting = await stack.installation.plan({ scope: space, id });
-            if (waiting.digest !== plan || waiting.approval === null) {
-                throw CliError.of(
-                    "PLAN_BLOCKED",
-                    `cannot apply plan '${plan}': '${name}' waits on no change request for it`,
-                );
-            }
-            await objects.approval[decision]({
-                scope: space,
-                id: waiting.approval,
-                requestId: RequestId.create(environment),
-            });
-            const done = decision === "approve" ? "Approved" : "Rejected";
-            await context.terminal.print(
-                json
-                    ? JSON.stringify({ id, plan, decision })
-                    : context.terminal.event(done, "done", `plan '${plan}'`),
-            );
-        },
-    };
-}
 
 /** Evaluate a checkout's stack and submit it to the space, creating its stack installation once. */
 async function submitStack(

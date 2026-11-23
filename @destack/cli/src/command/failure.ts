@@ -1,6 +1,6 @@
 import { Failure } from "@destack/error";
 import { schema } from "@destack/schema";
-import type { Terminal } from "../output/index.ts";
+import type { Terminal } from "../terminal/index.ts";
 import { CliError } from "../error/error.ts";
 import type { CommandEnvironment } from "./context.ts";
 
@@ -13,21 +13,12 @@ const USAGE_STATUS = 2;
 /** The exit status of a command needing a person signed in. */
 const SIGN_IN_STATUS = 4;
 
-/** A command the terminal's interrupt stopped, which exits as an interrupted program does. */
-export class Interrupted extends Error {
-    /** The exit status of a program SIGINT stopped: 128 plus the signal's number, 2. */
-    static readonly STATUS = 130;
-
-    /** Stop a command at the terminal's interrupt. */
-    constructor() {
-        super("interrupted");
-        this.name = "Interrupted";
-    }
-}
+/** The exit status of a program SIGINT stopped: 128 plus the signal's number, 2. */
+const INTERRUPTED_STATUS = 130;
 
 /** The interrupts of a running command: the first aborts it, a second stops its cleanup. */
 export class Interrupt implements Disposable {
-    /** Aborted at the first interrupt, with `Interrupted` as its reason. */
+    /** Aborted at the first interrupt, with the cancelled command as its reason. */
     readonly signal: AbortSignal;
     /** Resolved at a second interrupt, which stops waiting for cleanup. */
     readonly again: Promise<void>;
@@ -45,7 +36,7 @@ export class Interrupt implements Disposable {
             if (controller.signal.aborted) {
                 resolve();
             } else {
-                controller.abort(new Interrupted());
+                controller.abort(Interrupt.#cancelled());
             }
         });
     }
@@ -53,8 +44,13 @@ export class Interrupt implements Disposable {
     /** Stop a command the interrupt ended, which exits as interrupted. */
     require(): void {
         if (this.signal.aborted) {
-            throw new Interrupted();
+            throw Interrupt.#cancelled();
         }
+    }
+
+    /** Fail a command the interrupt cancelled. */
+    static #cancelled(): Error {
+        return CliError.of("COMMAND_CANCELLED", "command was cancelled");
     }
 
     /** Stop listening. */
@@ -118,8 +114,8 @@ export class CommandFailure {
     /** Read the exit status: misuse, a missing sign-in, an interrupt, or any other failure. */
     get status(): number {
         // exit as interrupted
-        if (this.error instanceof Interrupted) {
-            return Interrupted.STATUS;
+        if (CliError.is(this.error, "COMMAND_CANCELLED")) {
+            return INTERRUPTED_STATUS;
         }
         // exit as misused, such as without a space to act in
         else if (
@@ -143,7 +139,7 @@ export class CommandFailure {
 
     /** Report the failure, quietly for an interrupt, and return its exit status. */
     async report(json: boolean, terminal: Terminal): Promise<number> {
-        if (!(this.error instanceof Interrupted)) {
+        if (!CliError.is(this.error, "COMMAND_CANCELLED")) {
             const reported = { code: this.code, message: this.message, causes: this.causes };
             const { trace } = this;
             const lines = [

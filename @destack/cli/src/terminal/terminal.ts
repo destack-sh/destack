@@ -68,10 +68,10 @@ const GUTTER_WIDTH = 10;
 export type EventState = "running" | "done" | "failed" | "step";
 
 /** How a listed thing stands: ready, changing, off or failed. */
-export type Standing = "ready" | "busy" | "off" | "failed";
+export type Status = "ready" | "busy" | "off" | "failed";
 
-/** The dot of each standing, which a list shows before a row. */
-const DOTS: Readonly<Record<Standing, { readonly glyph: string; readonly tone?: Tone }>> = {
+/** The dot of each status, which a list shows before a row. */
+const DOTS: Readonly<Record<Status, { readonly glyph: string; readonly tone?: Tone }>> = {
     ready: { glyph: "●", tone: "done" },
     busy: { glyph: "◐", tone: "accent" },
     off: { glyph: "○" },
@@ -176,8 +176,8 @@ export class Terminal implements AsyncDisposable {
     }
 
     /** Write the dot a list shows before a row, by how the row's thing stands. */
-    dot(standing: Standing): string {
-        const { glyph, tone } = DOTS[standing];
+    dot(status: Status): string {
+        const { glyph, tone } = DOTS[status];
 
         return tone === undefined ? this.style("dim", glyph) : this.tone(tone, glyph);
     }

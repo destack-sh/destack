@@ -1,13 +1,13 @@
 import type {} from "@destack/package/import-meta";
-import { COMPLETE, Completion } from "../distribution/completion.ts";
-import { Launcher } from "../distribution/launcher.ts";
+import { COMPLETE, Completion } from "../device/completion.ts";
+import { Launcher } from "../device/launcher.ts";
 import type { Device, MachineCredential } from "@destack/machine/device";
 import { type CommandEnvironment, CommandContext } from "./context.ts";
 import { CommandTree, GLOBAL_OPTIONS, SEPARATOR } from "./command.ts";
-import { root } from "../commands/root.ts";
+import { root } from "./root.ts";
 import { CommandFailure } from "./failure.ts";
 import { CliError } from "../error/index.ts";
-import { Terminal } from "../output/index.ts";
+import { Terminal } from "../terminal/index.ts";
 import { nth } from "@destack/schema";
 import { TelemetryScope } from "@destack/telemetry";
 

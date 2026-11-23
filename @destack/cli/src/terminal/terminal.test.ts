@@ -2,7 +2,7 @@ import { TerminalSize } from "@destack/environment";
 import { testHost } from "@destack/test/host";
 import { expect, test } from "@destack/test";
 import { TerminalFixture } from "../test/terminal.ts";
-import { Terminal } from "./output.ts";
+import { Terminal } from "./terminal.ts";
 
 /** Open a terminal over a process, a person's or a program's, with colour or without. */
 function open(isTerminal: boolean, variables: Readonly<Record<string, string>> = {}): Terminal {

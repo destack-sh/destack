@@ -7,10 +7,10 @@ import type { SpaceAddress } from "@destack/account/address";
 import { type Device, type SignInMethod } from "@destack/machine/device";
 import { CommandOption, type CommandCall, type CommandBody } from "../command/command.ts";
 import type { Environment } from "@destack/environment";
-import { Prompt } from "../output/index.ts";
+import { Prompt } from "../terminal/index.ts";
 import type { CommandContext } from "../command/context.ts";
 import { CliError } from "../error/index.ts";
-import type { Terminal } from "../output/index.ts";
+import type { Terminal } from "../terminal/index.ts";
 
 /** The environment variables a script answers sign-in with, by option. */
 const ENVIRONMENT = {
