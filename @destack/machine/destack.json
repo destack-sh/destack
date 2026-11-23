@@ -13,28 +13,45 @@
     ],
     "exports": {
         "./scenario": {
-            "runtimes": ["bun"]
+            "runtimes": ["bun"],
+            "internal": true
         },
         "./bun": {
-            "runtimes": ["bun"]
+            "runtimes": ["bun"],
+            "internal": true
         },
         "./checkout": {
-            "runtimes": ["bun"]
+            "runtimes": ["bun"],
+            "internal": true
         },
         "./cloudflare": {
-            "runtimes": ["workerd"]
+            "runtimes": ["workerd"],
+            "internal": true
         },
         "./cloudflare/tail": {
-            "runtimes": ["workerd"]
+            "runtimes": ["workerd"],
+            "internal": true
         },
         "./cloudflare/worker": {
-            "runtimes": ["workerd"]
+            "runtimes": ["workerd"],
+            "internal": true
         },
         "./computer": {
-            "runtimes": ["bun"]
+            "runtimes": ["bun"],
+            "internal": true
         },
         "./device": {
-            "runtimes": ["bun"]
+            "runtimes": ["bun"],
+            "internal": true
+        },
+        ".": {
+            "internal": true
+        },
+        "./error": {
+            "internal": true
+        },
+        "./package": {
+            "internal": true
         }
     },
     "check": {
