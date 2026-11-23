@@ -6,10 +6,12 @@
     "runtimes": ["browser", "bun", "workerd"],
     "exports": {
         "./provider": {
-            "runtimes": ["bun", "workerd"]
+            "runtimes": ["bun", "workerd"],
+            "internal": true
         },
         "./server": {
-            "runtimes": ["bun", "workerd"]
+            "runtimes": ["bun", "workerd"],
+            "internal": true
         },
         "./stack": {
             "runtimes": ["bun", "workerd"]

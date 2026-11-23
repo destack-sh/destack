@@ -25,31 +25,39 @@
         "@destack/mail": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
-        "@destack/resource": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/sync": "workspace:*",
-        "@destack/vault": "workspace:*",
         "@destack/workflow": "workspace:*"
     },
     "devDependencies": {
         "@destack/machine": "workspace:*",
+        "@destack/resource": "workspace:*",
         "@destack/stack": "workspace:*",
         "@destack/test": "workspace:*",
+        "@destack/vault": "workspace:*",
         "@types/bun": "1.4.4"
     },
     "peerDependencies": {
         "@destack/machine": "workspace:*",
+        "@destack/resource": "workspace:*",
         "@destack/stack": "workspace:*",
-        "@destack/test": "workspace:*"
+        "@destack/test": "workspace:*",
+        "@destack/vault": "workspace:*"
     },
     "peerDependenciesMeta": {
         "@destack/machine": {
+            "optional": true
+        },
+        "@destack/resource": {
             "optional": true
         },
         "@destack/stack": {
             "optional": true
         },
         "@destack/test": {
+            "optional": true
+        },
+        "@destack/vault": {
             "optional": true
         }
     }
