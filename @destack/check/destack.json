@@ -3,5 +3,31 @@
     "id": "package-01a0c80b-614d-75ac-841e-b27280bf3db3",
     "role": "library",
     "language": "typescript",
-    "runtimes": ["bun"]
+    "runtimes": ["bun"],
+    "exports": {
+        ".": {
+            "internal": true
+        },
+        "./lint": {
+            "internal": true
+        },
+        "./diagnostic": {
+            "internal": true
+        },
+        "./error": {
+            "internal": true
+        },
+        "./project": {
+            "internal": true
+        },
+        "./toolchain": {
+            "internal": true
+        },
+        "./workspace": {
+            "internal": true
+        },
+        "./bun": {
+            "internal": true
+        }
+    }
 }
