@@ -2,7 +2,7 @@ import { PackageVersion } from "@destack/package";
 import { expect, refusal, test } from "@destack/test";
 import { defineTheme } from "../declare/index.ts";
 import { Oklch, Srgb } from "../palette/index.ts";
-import { GRAY_PRESETS, PRESET_NAMES, PRESETS } from "@destack/color";
+import { DEFAULT_HUES, HUES } from "@destack/color";
 import {
     DEFAULT_DISPLAY,
     GRAPHIC_CONTRAST,
@@ -111,11 +111,26 @@ function scaled(family: string, lengths: readonly number[], factor: number): [st
     ]);
 }
 
-test("give every preset accent on every base five chart series of hues apart, standing out in both appearances", () => {
-    const failures = GRAY_PRESETS.flatMap((base) =>
-        PRESET_NAMES.flatMap((accent) => {
+/** Gray bases of every tint, from Radix Colors. */
+const BASES = ["#8d8d8d", "#8e8c99", "#8b8d98", "#868e8b", "#898e87", "#8d8d86"];
+
+/** Accents all around the wheel, pale, dark and without a hue. */
+const ACCENTS = [
+    ...HUES,
+    "#e54666",
+    "#6e56cf",
+    "#7ce2fe",
+    "#bdee63",
+    "#808080",
+    "#000000",
+    "#ffffff",
+];
+
+test("give every accent on every base five chart series of hues apart, standing out in both appearances", () => {
+    const failures = BASES.flatMap((base) =>
+        ACCENTS.flatMap((accent) => {
             // resolve the series' marks and the background in both appearances
-            const theme = new Theme({ name: "preset", base, accent });
+            const theme = new Theme({ name: "grid", base, accent });
             const series = theme
                 .hues()
                 .filter(([name]) => name.startsWith("series"))
@@ -152,10 +167,10 @@ test("give every preset accent on every base five chart series of hues apart, st
     expect(failures).toEqual([]);
 });
 
-test("pass every role's contrast for every preset accent on every base", () => {
-    const refused = GRAY_PRESETS.flatMap((base) =>
-        PRESET_NAMES.flatMap((accent) => {
-            const theme = new Theme({ name: "preset", base, accent });
+test("pass every role's contrast for every accent on every base", () => {
+    const refused = BASES.flatMap((base) =>
+        ACCENTS.flatMap((accent) => {
+            const theme = new Theme({ name: "grid", base, accent });
             try {
                 theme.requireContrast();
 
@@ -186,12 +201,12 @@ test("shift a seed in lightness alone until its best label reads at Lc 60 and at
     }
 });
 
-test("keep a legible preset's seed and label it with the darkest text that reads best", () => {
-    const amber = defineTheme({ name: "amber", accent: "amber" }, { package: notes });
-    const resolution = amber.resolve("light", 0);
+test("keep a legible hue's seed and label it with the darkest text that reads best", () => {
+    const yellow = defineTheme({ name: "yellow", accent: "yellow" }, { package: notes });
+    const resolution = yellow.resolve("light", 0);
 
     expect([resolution.color("solid"), resolution.color("label")]).toEqual([
-        PRESETS.amber,
+        DEFAULT_HUES.yellow,
         standard.resolve("light", 0).color("foreground"),
     ]);
 });
@@ -254,19 +269,47 @@ test("raise every reading role's contrast continuously with the person's level",
 
 test("grow the tags, the statuses and the chart series from the theme's hues", () => {
     const hued = defineTheme(
-        { name: "hued", hues: { red: "tomato", yellow: "#b58900", gray: "#839496" } },
+        { name: "hued", hues: { red: "#e54d2e", yellow: "#b58900", gray: "#839496" } },
         { package: notes },
     );
     const hues = new Map(hued.hues());
     const named = ["red", "destructive", "yellow", "warning", "gray", "green", "success"];
 
-    // the declared tomato deepens until its white label reads at 4.5 to 1
+    // the declared red deepens until its white label reads at 4.5 to 1
     expect([
         named.map((name) => hues.get(name)),
-        hued.resolve("light", 0, "tomato").color("solid"),
+        hued.resolve("light", 0, "#e54d2e").color("solid"),
     ]).toEqual([
-        ["tomato", "tomato", "#b58900", "#b58900", "#839496", PRESETS.green, PRESETS.green],
+        [
+            "#e54d2e",
+            "#e54d2e",
+            "#b58900",
+            "#b58900",
+            "#839496",
+            DEFAULT_HUES.green,
+            DEFAULT_HUES.green,
+        ],
         "#d64121",
+    ]);
+});
+
+test("draw an accent named by a hue in the theme's own color, a person's too", () => {
+    // accent a theme by its own green, and let a person choose its blue and a color of their own
+    const own = defineTheme(
+        { name: "own", accent: "green", hues: { green: "#4d7c0f", blue: "#1d6fa5" } },
+        { package: notes },
+    );
+    const accented = (accent: string | null) =>
+        own.variables({ ...DEFAULT_DISPLAY, contrast: 0, accent })["--destack-swatch-accent-solid"];
+
+    expect([accented(null), accented("blue"), accented("#be185d")]).toEqual([
+        own.resolve("light", 0, "green").color("solid"),
+        own.resolve("light", 0, "blue").color("solid"),
+        own.resolve("light", 0, "#be185d").color("solid"),
+    ]);
+    expect([own.hues()[0], own.hues("blue")[0]]).toEqual([
+        ["accent", "#4d7c0f"],
+        ["accent", "#1d6fa5"],
     ]);
 });
 
@@ -367,14 +410,17 @@ test("raise a translucent role's opacity until its blend reads, keeping the decl
 
 test("label an overridden solid with the candidate that reads best on it", () => {
     const theme = defineTheme(
-        { name: "signal", roles: { solid: { light: PRESETS.amber, dark: PRESETS.amber } } },
+        {
+            name: "signal",
+            roles: { solid: { light: DEFAULT_HUES.yellow, dark: DEFAULT_HUES.yellow } },
+        },
         { package: notes },
     );
     const resolution = theme.resolve("light", 0);
 
     // the base's darkest text reads on amber, where the indigo accent's white label would not
     expect([resolution.color("solid"), resolution.color("label")]).toEqual([
-        PRESETS.amber,
+        DEFAULT_HUES.yellow,
         standard.resolve("light", 0).color("foreground"),
     ]);
 });
@@ -611,14 +657,14 @@ test("override the theme with the person's accent, density, text size, contrast 
         density: "spacious",
         contrast: 1,
         motion: "reduced",
-        accent: "grass",
+        accent: "green",
     } as const;
 
-    // the person's grass accent replaces orange at the most contrast, and spacious replaces compact
+    // the person's green accent replaces orange at the most contrast, and spacious replaces compact
     const style = theme.variables({ ...display, appearance: "dark" });
     const color = (name: RoleName) => {
-        const light = theme.resolve("light", 1, "grass").color(name);
-        const dark = theme.resolve("dark", 1, "grass").color(name);
+        const light = theme.resolve("light", 1, "green").color(name);
+        const dark = theme.resolve("dark", 1, "green").color(name);
 
         return light === dark ? light : `light-dark(${light}, ${dark})`;
     };

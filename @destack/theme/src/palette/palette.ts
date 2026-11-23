@@ -1,6 +1,4 @@
-import { schema } from "@destack/schema";
 import { Oklch, HexColor, Srgb } from "./color.ts";
-import { PRESETS, Preset } from "@destack/color";
 
 /** The exponent chroma falls by from the seed's lightness toward white. */
 const LIGHTER_FALLOFF = 0.5;
@@ -12,12 +10,7 @@ const LIGHTNESS_STEP = 0.001;
 const COARSE_STEPS = 16;
 
 /** The palettes grown so far by seed, shared by every theme as pure functions of their seeds. */
-const PALETTES = new Map<Seed, Palette>();
-
-/** A palette's seed: a preset name or a six-digit sRGB hex color. */
-export const Seed = schema.union([Preset, HexColor]);
-/** A palette's seed. */
-export type Seed = schema.Infer<typeof Seed>;
+const PALETTES = new Map<string, Palette>();
 
 /** The light or dark appearance a color resolves in. */
 export type ColorScheme = "light" | "dark";
@@ -40,17 +33,16 @@ export class Palette {
         this.#oklch = Oklch.parse(this.seed);
     }
 
-    /** Grow a palette from a preset or a hex seed. */
-    static of(seed: Seed): Palette {
+    /** Read the palette of a hex seed, grown once. */
+    static of(seed: string): Palette {
         // reuse the palette of a known seed
         const known = PALETTES.get(seed);
         if (known !== undefined) {
             return known;
         }
 
-        // grow the palette of a preset's color or of a hex seed
-        const preset = Preset.safeParse(seed);
-        const palette = new Palette(preset.success ? PRESETS[preset.data] : seed);
+        // grow the palette
+        const palette = new Palette(seed);
         PALETTES.set(seed, palette);
 
         return palette;

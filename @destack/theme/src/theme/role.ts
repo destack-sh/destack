@@ -49,7 +49,7 @@ const TINT_TEXT_LIGHTNESS: Lightness = { light: 0.335, dark: 0.915 };
 /** The OKLCH lightness of subtle fills relative to the background in each appearance. */
 const SUBTLE_OFFSET: Lightness = { light: -0.034, dark: 0.077 };
 
-/** The OKLCH lightness of a tint over the background, above the cards by night as Notion's tags. */
+/** The OKLCH lightness of a tint over the background, above the cards by night. */
 const TINT_OFFSET: Lightness = { light: -0.034, dark: 0.16 };
 
 /** The least OKLCH lightness of a tint, where a hue still shows on true black. */

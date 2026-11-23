@@ -346,7 +346,7 @@ export const width = defineConsts({
     tile: "var(--destack-width-tile)",
     /** The narrowest a horizontal attachment row runs. */
     row: "var(--destack-width-row)",
-    /** A board column's width, as Trello's lists run. */
+    /** A board column's width. */
     column: "var(--destack-width-column)",
 });
 

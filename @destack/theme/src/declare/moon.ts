@@ -1,11 +1,11 @@
 import { DESTACK_FONTS, DESTACK_TEXT, destackTheme } from "./destack.ts";
 import { defineTheme } from "./theme.ts";
 
-/** Enceladus: Saturn's bright ice moon, in GitHub's white and near-black with its blue. */
+/** Enceladus: Saturn's bright ice moon, in Primer's white and near-black with its blue. */
 export const enceladusTheme = defineTheme({
     name: "enceladus",
     base: "#8c959f",
-    accent: "#0969da",
+    accent: "blue",
     hues: {
         brown: "#856d4c",
         red: "#cf222e",
@@ -25,11 +25,11 @@ export const enceladusTheme = defineTheme({
     text: DESTACK_TEXT,
 });
 
-/** Umbriel: Uranus's dark moon, in Vercel's true black and near-white with its blue. */
+/** Umbriel: Uranus's dark moon, in true black and near-white with blue. */
 export const umbrielTheme = defineTheme({
     name: "umbriel",
     base: "#8a8a8a",
-    accent: "#52a9ff",
+    accent: "blue",
     hues: {
         brown: "#b07a4f",
         red: "#e5484d",
@@ -49,7 +49,7 @@ export const umbrielTheme = defineTheme({
     text: DESTACK_TEXT,
 });
 
-/** Triton: Neptune's pink ice moon, in Ubuntu's aubergine and Horizon's blush with orange. */
+/** Triton: Neptune's pink ice moon, in Yaru's aubergine and Horizon's blush with orange. */
 export const tritonTheme = defineTheme({
     name: "triton",
     base: "#a18993",
@@ -73,11 +73,11 @@ export const tritonTheme = defineTheme({
     text: DESTACK_TEXT,
 });
 
-/** Iapetus: Saturn's moon of one bright and one dark half, in Lumina's parchment and coffee. */
+/** Iapetus: Saturn's moon of one bright and one dark half, in parchment and coffee. */
 export const iapetusTheme = defineTheme({
     name: "iapetus",
     base: "#9c9282",
-    accent: "#8a5a2b",
+    accent: "brown",
     hues: {
         brown: "#8a5a2b",
         red: "#912918",
@@ -97,11 +97,11 @@ export const iapetusTheme = defineTheme({
     text: DESTACK_TEXT,
 });
 
-/** Pandora: Saturn's shepherd moon of its F ring, in Lumina's canopy greens. */
+/** Pandora: Saturn's shepherd moon of its F ring, in canopy greens. */
 export const pandoraTheme = defineTheme({
     name: "pandora",
     base: "#8a958b",
-    accent: "#337545",
+    accent: "green",
     hues: {
         brown: "#7a5534",
         red: "#860c2c",
@@ -125,7 +125,7 @@ export const pandoraTheme = defineTheme({
 export const titanTheme = defineTheme({
     name: "titan",
     base: "#839496",
-    accent: "#2aa198",
+    accent: "cyan",
     hues: {
         brown: "#8a6a3f",
         red: "#dc322f",
@@ -173,7 +173,7 @@ export const europaTheme = defineTheme({
 export const charonTheme = defineTheme({
     name: "charon",
     base: "#6272a4",
-    accent: "#bd93f9",
+    accent: "purple",
     hues: {
         gray: "#82858f",
         brown: "#8f7560",
@@ -198,7 +198,7 @@ export const charonTheme = defineTheme({
 export const arielTheme = defineTheme({
     name: "ariel",
     base: "#7f849c",
-    accent: "#8839ef",
+    accent: "purple",
     hues: {
         brown: "#a6694a",
         red: "#d20f39",

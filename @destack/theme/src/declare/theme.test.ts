@@ -22,14 +22,14 @@ const notes = PackageVersion.parse({
 
 test("describe a declared theme with its package", () => {
     const theme = defineTheme(
-        { name: "notes", base: "sand", accent: "orange", radius: "large" },
+        { name: "notes", base: "#8d8d86", accent: "orange", radius: "large" },
         { package: notes },
     );
 
     expect(describeTheme(theme)).toEqual({
         package: notes,
         name: "notes",
-        base: "sand",
+        base: "#8d8d86",
         accent: "orange",
         radius: "large",
     });

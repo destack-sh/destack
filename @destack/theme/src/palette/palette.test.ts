@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { Oklch, Palette, Srgb } from "./index.ts";
-import { PRESETS } from "@destack/color";
+import { DEFAULT_HUES } from "@destack/color";
 
 /** Seeds across hues, lightness and chroma. */
 const SEEDS = ["#3e63dd", "#f76b15", "#ffc53d", "#46a758", "#ff0000", "#7c3aed", "#888888"];
@@ -56,8 +56,8 @@ test("measure the WCAG 2.2 reference ratios", () => {
     expect(ratios).toEqual(["21.00", "21.00", "4.54", "4.48", "1.00"]);
 });
 
-test("roundtrip every preset seed through OKLCH", () => {
-    expect(Object.values(PRESETS).filter((hex) => Oklch.parse(hex).hex() !== hex)).toEqual([]);
+test("roundtrip every default hue through OKLCH", () => {
+    expect(Object.values(DEFAULT_HUES).filter((hex) => Oklch.parse(hex).hex() !== hex)).toEqual([]);
 });
 
 test("grow the exact seed at its lightness, and its hue at every other lightness", () => {
@@ -118,9 +118,8 @@ test("find the nearest lightness whose tone passes, darker first and only the wa
     expect(palette.nearest(start, reads(90), "lighter")).toBeUndefined();
 });
 
-test("grow a preset's palette from its seed", () => {
-    expect([Palette.of("indigo").seed, Palette.of("#7C3AED").seed]).toEqual([
-        PRESETS.indigo,
-        "#7c3aed",
-    ]);
+test("lowercase a seed and reuse its palette", () => {
+    const palette = Palette.of("#7C3AED");
+
+    expect([palette.seed, Palette.of("#7C3AED") === palette]).toEqual(["#7c3aed", true]);
 });

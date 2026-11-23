@@ -1,6 +1,6 @@
 import { PackageVersion, PackageError } from "@destack/package";
 import { present, schema } from "@destack/schema";
-import { HexColor, Oklch, Palette, Seed, type ColorScheme } from "../palette/index.ts";
+import { HexColor, Oklch, Palette, type ColorScheme } from "../palette/index.ts";
 import { DEFAULT_HUES, Hue, HUES } from "@destack/color";
 import {
     FONT_SIZE_ADJUST,
@@ -10,6 +10,7 @@ import {
     type Variable,
 } from "../token/index.ts";
 import {
+    Accent,
     DENSITY_SCALES,
     Density,
     TEXT_SCALES,
@@ -34,11 +35,11 @@ import {
 /** The radius multiplier of each corner treatment. */
 const RADIUS_SCALES = { none: 0, small: 0.75, medium: 1, large: 1.5, full: 1.5 } as const;
 
-/** The base of a theme that names none. */
-const DEFAULT_BASE = "slate";
+/** The base of a theme without one. */
+const DEFAULT_BASE = DEFAULT_HUES.gray;
 
-/** The accent of a theme that names none. */
-const DEFAULT_ACCENT = "indigo";
+/** The accent of a theme without one, Radix Colors' indigo. */
+const DEFAULT_ACCENT = "#3e63dd";
 
 /** The statuses a theme colors. */
 const STATUS_NAMES = ["destructive", "success", "warning", "info"] as const;
@@ -165,9 +166,9 @@ export const ThemeDefinition = schema.object({
     /** The name, package-local for a declared theme. */
     name: ThemeName,
     /** The seed of surfaces, text and lines, slate when absent. */
-    base: Seed.exactOptional(),
+    base: HexColor.exactOptional(),
     /** The seed of primary actions, checked controls, focus and the first chart series. */
-    accent: Seed.exactOptional(),
+    accent: Accent.exactOptional(),
     /** The page, text and quiet fills by day and by night, which lines then follow. */
     ground: schema
         .object({
@@ -178,7 +179,7 @@ export const ThemeDefinition = schema.object({
         })
         .exactOptional(),
     /** The seeds of the hues, the base for gray and Destack's own for each other one left out. */
-    hues: schema.partialRecord(Hue, Seed).exactOptional(),
+    hues: schema.partialRecord(Hue, HexColor).exactOptional(),
     /** The corner treatment, medium when absent. */
     radius: Radius.exactOptional(),
     /** The interface scale, 100% when absent. */
@@ -228,11 +229,11 @@ export class Theme {
     /** The color roles with the theme's replacements, under its accent. */
     readonly roles: Roles;
     /** The seed of the theme's accent. */
-    readonly #accent: Seed;
+    readonly #accent: string;
     /** The palettes of each hue, by seed. */
-    readonly #palettes = new Map<Seed, Palettes>();
+    readonly #palettes = new Map<string, Palettes>();
     /** The chart series seeds around each accent, by the accent's seed. */
-    readonly #series = new Map<Seed, readonly Seed[]>();
+    readonly #series = new Map<string, readonly string[]>();
     /** The resolved roles of each hue, appearance and contrast level. */
     readonly #resolutions = new Map<string, Resolution>();
 
@@ -240,7 +241,7 @@ export class Theme {
     constructor(definition: ThemeDefinition) {
         // set the definition, then apply its replacements under its accent
         this.definition = definition;
-        this.#accent = definition.accent ?? DEFAULT_ACCENT;
+        this.#accent = this.color(definition.accent ?? DEFAULT_ACCENT);
         this.roles = this.#rolesOf();
     }
 
@@ -257,9 +258,9 @@ export class Theme {
     }
 
     /** Resolve the roles of an appearance at a contrast level from 0 to 1, under a hue. */
-    resolve(scheme: ColorScheme, level: number, hue?: Seed): Resolution {
+    resolve(scheme: ColorScheme, level: number, hue?: Accent): Resolution {
         // reuse the resolution of this hue, appearance and level
-        const seed = hue ?? this.#accent;
+        const seed = hue === undefined ? this.#accent : this.color(hue);
         const key = `${hue ?? ""}:${scheme}:${level}`;
         const known = this.#resolutions.get(key);
         if (known !== undefined) {
@@ -285,7 +286,7 @@ export class Theme {
         };
 
         // resolve the neutral roles under the person's accent over the theme's, at their contrast
-        const accent = display.accent ?? this.#accent;
+        const accent = display.accent === null ? this.#accent : this.color(display.accent);
         const own = accent === this.#accent ? undefined : accent;
         for (const entry of TOKENS.family("color").entries) {
             style[entry.variable] = this.#css(RoleName.parse(entry.key), display.contrast, own);
@@ -365,21 +366,29 @@ export class Theme {
         }
     }
 
+    /** Read the color of an accent: the theme's own for a hue, else as given. */
+    color(accent: Accent): string {
+        const hue = Hue.safeParse(accent);
+
+        return hue.success ? this.seed(hue.data) : accent;
+    }
+
     /** Read the seed of a hue: the theme's, the base for gray, else Destack's. */
-    seed(hue: Hue): Seed {
+    seed(hue: Hue): string {
         const own = this.definition.hues?.[hue];
 
         return own ?? (hue === "gray" ? (this.definition.base ?? DEFAULT_BASE) : DEFAULT_HUES[hue]);
     }
 
     /** List the swatches' seeds by token name: the accent, the statuses, the series, the hues. */
-    hues(accent: Seed = this.#accent): readonly (readonly [string, Seed])[] {
-        const series = this.#seriesOf(accent).map(
+    hues(accent: Accent = this.#accent): readonly (readonly [string, string])[] {
+        const color = this.color(accent);
+        const series = this.#seriesOf(color).map(
             (seed, index) => [`series${String(index + 1)}`, seed] as const,
         );
 
         return [
-            ["accent", accent],
+            ["accent", color],
             ...STATUS_NAMES.map((name) => [name, this.seed(STATUS_HUES[name])] as const),
             ...series,
             ...HUES.map((hue) => [hue, this.seed(hue)] as const),
@@ -387,7 +396,7 @@ export class Theme {
     }
 
     /** Format a role's color under a hue in both appearances at a contrast. */
-    #css(name: RoleName, contrast: Contrast, hue: Seed | undefined): string {
+    #css(name: RoleName, contrast: Contrast, hue: string | undefined): string {
         // resolve both appearances at the explicit or the standard level
         const pair = (level: number) =>
             [
@@ -412,7 +421,7 @@ export class Theme {
     }
 
     /** List the roles under a hue, replacing the hue's roles only under the theme's own accent. */
-    #rolesOf(hue?: Seed): Roles {
+    #rolesOf(hue?: string): Roles {
         // replace each role the ground and the definition replace, skipping hue roles under another hue
         const isOwn = hue === undefined;
         const ground = this.definition.ground;
@@ -435,7 +444,7 @@ export class Theme {
     }
 
     /** Grow the palettes of a hue once: the base's, and the hue's. */
-    #palettesOf(hue: Seed): Palettes {
+    #palettesOf(hue: string): Palettes {
         // reuse the palettes of a known hue
         const known = this.#palettes.get(hue);
         if (known !== undefined) {
@@ -453,7 +462,7 @@ export class Theme {
     }
 
     /** Pick the chart series seeds around an accent once, the accent first. */
-    #seriesOf(accent: Seed): readonly Seed[] {
+    #seriesOf(accent: string): readonly string[] {
         // reuse the series of a known accent
         const known = this.#series.get(accent);
         if (known !== undefined) {
@@ -603,12 +612,12 @@ function lightDark(light: string, dark: string): string {
 }
 
 /** Read the color a seed grows from. */
-function colorOf(seed: Seed): Oklch {
+function colorOf(seed: string): Oklch {
     return Oklch.parse(Palette.of(seed).seed);
 }
 
 /** Pick the chart series after the accent from the theme's hues. */
-function seriesOf(accent: Seed, hues: readonly Seed[]): Seed[] {
+function seriesOf(accent: string, hues: readonly string[]): string[] {
     // start from the accent
     const candidates = hues.map((seed) => ({ seed, color: colorOf(seed) }));
     const taken = [colorOf(accent)];

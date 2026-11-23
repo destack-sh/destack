@@ -1,170 +1,107 @@
 # @destack/theme
 
-Theme views with an accent, a base and roles solved for contrast, in light and dark.
+Theme views with a page, an accent and ten hues, solved for contrast in light and dark.
 
 ## Overview
 
-`@destack/theme` is Radix Themes' settings over shadcn's neutral roles, with Notion's tag hues filled in by each theme as Obsidian's themes do: themes, roles solved for contrast, display settings and StyleX tokens.
-
-Packages declare a theme:
-
-- `Theme`: a ground, an accent, a base gray, a radius, a scaling and a density.
-- `ThemeDeclaration`: a theme a package declares, with `defineTheme`.
-- `Seed`: a palette's source color: a preset such as `"orange"`, or a hex color.
-- `Hue`: a color by its meaning, from `@destack/color`, which a theme fills in with a seed.
-- `RoleName`: a neutral role such as `background` or `mutedForeground`, or a swatch role such as `solid`.
-- `RoleOverride`: a theme's color for a role.
-- `Ground`: a theme's page, text and quiet fill at one time of day.
-- `THEMES`: Destack's themes, the brand and its moons, one for each region of color.
-
-People see it under their display settings:
-
-- `Display`: a person's appearance, text size, density, contrast, motion and accent.
-- `ThemeStyle`: the theme as CSS custom properties.
-
-Components use tokens:
-
-- `@destack/theme/tokens.stylex`: the neutral roles, every hue's swatch, spacing, sizes, radii, shadows and motion as StyleX constants.
-- `@destack/theme/mark`: Destack's mark as SVG markup, `MARK`.
-- `text` and `transition`: text styles and the overlays' enter and exit transitions.
-- `@destack/theme/state`: `state`, the styles of focus, hover, pressed, disabled, selected, on, checked and other states, the same in every component.
-
-Declare a theme, then compute a view's custom properties in dark mode at more contrast:
+`@destack/theme/tokens.stylex` is shadcn/ui's neutral roles and ten hues as StyleX constants, and `defineTheme` fills them in with Radix Themes' radius and scaling.
 
 ```ts
 import { DEFAULT_DISPLAY } from "@destack/theme";
 import { defineTheme } from "@destack/theme/declare";
 
-// declare a warm theme with an orange accent
-export const theme = defineTheme({ name: "notes", base: "sand", accent: "orange" });
+// declare a theme
+export const harbour = defineTheme({
+    name: "harbour",
+    base: "#8d8d86",
+    accent: "#c2410c",
+    ground: {
+        light: { background: "#fbf7f0", foreground: "#2b2118", muted: "#efe7da" },
+        dark: { background: "#1c1712", foreground: "#efe6da", muted: "#2b241d" },
+    },
+});
 
-// compute the custom properties for dark mode at more contrast
-const variables = theme.variables({ ...DEFAULT_DISPLAY, appearance: "dark", contrast: 1 });
+// compute its custom properties
+const variables = harbour.variables({ ...DEFAULT_DISPLAY, appearance: "dark" });
 ```
-
-## Reference
-
-### Theme
-
-`defineTheme(definition)` declares a theme, and `theme.requireContrast()` refuses text below its APCA contrast and labels on fills below WCAG's 4.5 to 1.
-`destackTheme` is the theme of people who choose none, and of public pages whose package declares none.
-
-| Field     | What it sets                                                                                           |
-| --------- | ------------------------------------------------------------------------------------------------------ |
-| `name`    | the theme's name within the package                                                                    |
-| `base`    | the seed of surfaces, text and lines, `"slate"` by default                                             |
-| `accent`  | the seed of primary actions, checked controls, focus and the first chart series, `"indigo"` by default |
-| `ground`  | the `light` and `dark` `Ground`: page, text and quiet fill as hex colors, which lines follow           |
-| `hues`    | the seeds of the ten hues of tags, statuses and charts, Destack's own by default, the base for gray    |
-| `radius`  | `"none"`, `"small"`, `"medium"`, the default, `"large"` or `"full"`                                    |
-| `scaling` | `"90%"`, `"95%"`, `"100%"`, the default, `"105%"` or `"110%"`                                          |
-| `density` | `"compact"`, `"regular"`, the default, or `"spacious"`                                                 |
-| `fonts`   | the `text` and `code` font stacks, as CSS `font-family` values                                         |
-| `text`    | the `size`, `weight`, `tracking` and `font` of text styles, sizes fixed or fluid                       |
-| `roles`   | the theme's colors for roles after its ground, by `RoleName`                                           |
-
-A theme answers its colors and custom properties:
-
-| Verb                          | What it does                                                                                       |
-| ----------------------------- | -------------------------------------------------------------------------------------------------- |
-| `variables(display)`          | computes the custom properties of a view's root, with `color-scheme`                               |
-| `resolve(scheme, level, hue)` | resolves the roles in `"light"` or `"dark"` at a contrast from 0 to 1, and `color(name)` reads one |
-| `hues(accent)`                | lists the swatches' seeds by token name: the accent, the statuses, the chart series and the hues   |
-| `seed(hue)`                   | reads the seed of a hue: the theme's, the base for gray, else Destack's                            |
-| `rebase(background)`          | derives the theme over another background, such as a selected row's                                |
-
-### Roles
-
-The neutral roles follow shadcn's names, each solved for its contrast on every surface it reads on.
-
-| Neutral roles                   | What they color                                         |
-| ------------------------------- | ------------------------------------------------------- |
-| `background`, `card`, `popover` | the page, and raised and floating surfaces              |
-| `foreground`, `mutedForeground` | body text and quieter text on every surface             |
-| `muted`                         | quiet fills                                             |
-| `hover`, `selected`             | hovered and selected items, as layers of the text color |
-| `border`, `input`, `ring`       | lines, field borders and focus rings                    |
-| `scrim`                         | the shade behind a dialog                               |
-
-Every hue takes the same swatch, after Primer's functional colors: the accent, the statuses, the five chart series and the ten hues.
-
-| Swatch roles       | What they color                                                   |
-| ------------------ | ----------------------------------------------------------------- |
-| `solid`, `label`   | a filled control such as a button, and its label                  |
-| `tint`, `tintText` | a tinted area such as a tag, and text on it                       |
-| `text`             | the hue as text on every surface, such as a link or an error      |
-| `mark`             | the hue as a graphic on the page, such as a chart's line or a dot |
-
-A `RoleOverride` takes one of four forms, each with an optional `alpha` but the second.
-A palette is `base`, or `hue`, the hue a swatch grows from.
-A theme's swatch overrides apply under its own accent alone.
-
-| Override                                        | Color                                                                                       |
-| ----------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| `{ palette, lightness: { light, dark }, from }` | a palette's tone at an OKLCH lightness in each appearance, offset from a role's with `from` |
-| `{ palette }`                                   | a palette's seed                                                                            |
-| `{ from, lightness: { light, dark } }`          | another role's color, its lightness offset in each appearance                               |
-| `{ light, dark }`                               | a hex color in each appearance                                                              |
-
-### Contrast
-
-Text must reach its APCA lightness contrast Lc, and a label on a fill must also reach WCAG's 4.5 to 1.
-APCA judges light text on dark backgrounds correctly, and accessibility audits measure WCAG's ratio.
-
-| Verb                                     | What it does                                                         |
-| ---------------------------------------- | -------------------------------------------------------------------- |
-| `Srgb.contrast(background, measure)`     | measures a color as text on a background, `"apca"` or `"wcag"`       |
-| `Resolution.contrast(name, measure, on)` | measures a resolved role on a role it reads on, the first by default |
-
-`Srgb` is a color in sRGB, the screen's color space, and `Oklch` a color in OKLCH, the space palettes grow in.
-
-```ts
-import { Srgb } from "@destack/theme";
-import { destackTheme } from "@destack/theme/declare";
-
-// measure white on the brand's solid accent, and the muted text of dark mode
-Srgb.parse("#ffffff").contrast(Srgb.parse("#c75300"), "wcag");
-destackTheme.resolve("dark", 0).contrast("mutedForeground", "apca");
-```
-
-### Display
-
-`DEFAULT_DISPLAY` has each display setting's default.
-`@destack/theme/theme.css` sets element defaults and follows the device's contrast and motion.
-`@destack/theme/code.css` colors highlighted code under `[data-code]`.
-
-| Field        | What it is                                                                    |
-| ------------ | ----------------------------------------------------------------------------- |
-| `appearance` | `"system"`, `"light"` or `"dark"`                                             |
-| `textSize`   | `"xSmall"` to `"xxxLarge"`, body text from 14 to 23 points, `"medium"` at 16  |
-| `density`    | the person's density, or `null` for the theme's                               |
-| `contrast`   | `"system"`, following the device's `prefers-contrast`, or a level from 0 to 1 |
-| `motion`     | `"system"`, following `prefers-reduced-motion`, `"full"` or `"reduced"`       |
-| `accent`     | the person's accent seed, or `null` for the theme's                           |
-
-### Tokens
-
-`@destack/theme/tokens.stylex` has every token as a StyleX constant over its CSS custom property.
-`@destack/theme/tokens.json` has the same tokens in the Design Tokens format, with the default theme's values.
-`text` and `transition` are StyleX styles, from `@destack/theme/text` and `@destack/theme/motion`.
-
-| Constant     | Tokens                                                                                                                             |
-| ------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `color`      | every neutral role, such as `color.mutedForeground`                                                                                |
-| `swatch`     | every hue's `Solid`, `Label`, `Tint`, `TintText`, `Text` and `Mark`, such as `swatch.accentSolid` or `swatch.series2Mark`          |
-| `font`       | `text` and `code`                                                                                                                  |
-| `weight`     | `regular`, `medium`, `semibold` and `bold`                                                                                         |
-| `space`      | steps `1` to `9`, scaled by scaling and density                                                                                    |
-| `size`       | steps `1` to `4`, scaled by scaling and density                                                                                    |
-| `width`      | `popover`, `hoverCard`, `sidebar`, `sidebarIcon`, `toast`, `prose`, `tile` and `row`                                               |
-| `radius`     | steps `1` to `6`, scaled by the theme's radius, and `full`                                                                         |
-| `stroke`     | `border` and `ring`                                                                                                                |
-| `shadow`     | `edge`, `cast`, `raised` and `overlay`                                                                                             |
-| `motion`     | `durationShort`, `durationMedium`, `durationLong`, `easingStandard`, `easingEmphasised` and `easingSpring`                         |
-| `text`       | the text styles after Tailwind's type scale: `xs`, `sm`, `base`, `lg`, `xl` and `2xl` to `9xl`, each a size with its line height   |
-| `transition` | `popover`, `modalPopover` and `dialog`, which grow and fade, `sheet`, `notice` and `noticeLeaving`; reduced motion keeps the fades |
 
 ## Examples
+
+### Fill in the hues
+
+`hues` sets the colors of tags, statuses and charts, and a hue left out takes Destack's.
+
+```ts
+import { defineTheme } from "@destack/theme/declare";
+
+// fill in four hues
+export const solar = defineTheme({
+    name: "solar",
+    base: "#839496",
+    accent: "blue", // #268bd2
+    hues: { red: "#dc322f", yellow: "#b58900", green: "#859900", blue: "#268bd2" },
+});
+
+solar.seed("green"); // #859900
+solar.seed("purple"); // #8e4ec6
+solar.seed("gray"); // #839496
+```
+
+### Style a tag and a status
+
+`swatch` draws each hue and status as a solid fill with its label, a tint with its text, text, and a mark.
+
+```ts
+import * as style from "@destack/style";
+import { space, swatch } from "@destack/theme/tokens.stylex";
+
+// style by meaning
+export const styles = style.create({
+    tag: { backgroundColor: swatch.cyanTint, color: swatch.cyanTintText, padding: space[1] },
+    remove: { backgroundColor: swatch.destructiveSolid, color: swatch.destructiveLabel }, // red
+    warning: { color: swatch.warningText }, // yellow
+    line: { stroke: swatch.series2Mark }, // farthest from the accent
+});
+```
+
+### Style a page
+
+`color` draws the neutral roles, each reading on every ground it sits on.
+
+```ts
+import * as style from "@destack/style";
+import { text } from "@destack/theme/text";
+import { color } from "@destack/theme/tokens.stylex";
+
+// style by role
+export const styles = style.create({
+    page: { backgroundColor: color.background, color: color.foreground },
+    card: { backgroundColor: color.card, borderColor: color.border },
+    caption: { color: color.mutedForeground },
+});
+export const caption = [text.xs, styles.caption];
+```
+
+### Display a theme for a person
+
+`Display` sets a person's appearance, sizes, contrast, motion, typeface and accent over a theme.
+
+```ts
+import type { Display } from "@destack/theme";
+import { titanTheme } from "@destack/theme/declare";
+
+// set a person's display
+const display: Display = {
+    appearance: "dark",
+    textSize: "large",
+    density: null, // the theme's
+    contrast: "system", // the device's
+    motion: "reduced",
+    accent: "blue", // the theme's
+    typeface: "inter",
+};
+const variables = titanTheme.variables(display);
+```
 
 ### Override a role
 
@@ -173,29 +110,13 @@ destackTheme.resolve("dark", 0).contrast("mutedForeground", "apca");
 ```ts
 import { defineTheme } from "@destack/theme/declare";
 
-// paint the page in paper and ink
+// replace two roles
 export const paper = defineTheme({
     name: "paper",
     roles: {
         background: { light: "#f8f5ee", dark: "#0b2029" },
-        border: { from: "foreground", lightness: { light: 0, dark: 0 }, alpha: 0.2 },
+        border: { from: "foreground", lightness: { light: 0, dark: 0 }, alpha: 0.2 }, // a fifth of the ink
     },
-});
-```
-
-### Fill in the hues
-
-`hues` sets the seeds of tags, statuses and chart series: `destructive` is red, `success` green, `warning` yellow and `info` blue, and each series is the accent or a hue far from the others.
-
-```ts
-import { defineTheme } from "@destack/theme/declare";
-
-// draw tags, statuses and charts in Solarized's hues, the rest in Destack's
-export const solar = defineTheme({
-    name: "solar",
-    base: "#839496",
-    accent: "#2aa198",
-    hues: { red: "#dc322f", yellow: "#b58900", green: "#859900", blue: "#268bd2" },
 });
 ```
 
@@ -206,7 +127,7 @@ export const solar = defineTheme({
 ```ts
 import { defineTheme } from "@destack/theme/declare";
 
-// set body text a step smaller, headlines fluid, and labels in the code font
+// tune three styles
 export const publication = defineTheme({
     name: "publication",
     text: {
@@ -217,26 +138,9 @@ export const publication = defineTheme({
 });
 ```
 
-### Style with theme tokens
-
-Tokens follow the person's theme and display settings.
-
-```ts
-import * as style from "@destack/style";
-import { text } from "@destack/theme/text";
-import { color, space, swatch } from "@destack/theme/tokens.stylex";
-
-// style a cyan tag and a muted caption
-export const styles = style.create({
-    tag: { backgroundColor: swatch.cyanTint, color: swatch.cyanTintText, padding: space[1] },
-    muted: { color: color.mutedForeground },
-});
-export const caption = [text.xs, styles.muted];
-```
-
 ### Theme a nested surface
 
-`rebase` derives a theme over another background, such as a selected row.
+`rebase` derives a theme over another background, such as a selected row's.
 
 ```ts
 import { DEFAULT_DISPLAY } from "@destack/theme";
@@ -247,31 +151,65 @@ const selected = destackTheme.rebase({ light: "#c9d8ff", dark: "#1d2f66" });
 const variables = selected.variables(DEFAULT_DISPLAY);
 ```
 
+### Check a theme's contrast
+
+`requireContrast` throws where text reads below its APCA floor or a label below WCAG's 4.5 to 1.
+
+```ts
+import { titanTheme } from "@destack/theme/declare";
+
+// check its contrast
+titanTheme.requireContrast([0]); // standard
+titanTheme.requireContrast(); // every level
+```
+
+### Measure a contrast
+
+`Srgb.contrast` measures a color on another by APCA or WCAG, as Color.js does, and `Resolution.contrast` a role.
+
+```ts
+import { Srgb } from "@destack/theme";
+import { destackTheme } from "@destack/theme/declare";
+
+// measure two colors and a role
+Srgb.parse("#ffffff").contrast(Srgb.parse("#c75300"), "wcag");
+destackTheme.resolve("dark", 0).contrast("mutedForeground", "apca");
+```
+
 ## Comparison
 
 ### Radix Themes
 
-`accent`, `base`, `radius` and `scaling` follow Radix Themes' `accentColor`, `grayColor`, `radius` and `scaling`, with its color names as presets.
-Roles are solved for contrast instead of twelve fixed steps, and a theme is CSS custom properties instead of a `<Theme>` component.
-`Srgb.contrast` follows Color.js's `contrast(color, algorithm)`.
+`defineTheme` takes Radix Themes' `radius` and `scaling`, and replaces its color names with a hue or any color.
 
-| Radix Themes               | `@destack/theme`     | Difference                                                          |
-| -------------------------- | -------------------- | ------------------------------------------------------------------- |
-| `accentColor`, `grayColor` | `accent`, `base`     | A preset or any hex color.                                          |
-| `radius`, `scaling`        | the same             | The same.                                                           |
-| `appearance`               | `Display.appearance` | A person's setting, beside text size, density, contrast and motion. |
-| the 12-step color scales   | `Palette`            | Tones at any OKLCH lightness, picked for each role's contrast.      |
-| none                       | `density`            | Packs controls and content tighter or looser.                       |
+```ts
+import { defineTheme } from "@destack/theme/declare";
+
+// declare <Theme accentColor="blue" radius="large">
+export const theme = defineTheme({
+    name: "notes",
+    accent: "blue", // accentColor, the theme's own blue
+    base: "#8b8d98", // grayColor
+    radius: "large",
+    scaling: "105%",
+    density: "compact", // Radix Themes has none
+});
+```
 
 ### shadcn/ui
 
-Neutral roles follow shadcn/ui's CSS variables; its colored roles become swatches.
+`color` has shadcn/ui's neutral variables, and `swatch` its colored ones.
 
-| shadcn/ui                              | `@destack/theme`                                    | Difference                                                     |
-| -------------------------------------- | --------------------------------------------------- | -------------------------------------------------------------- |
-| `--background`, `--card`, `--muted`, … | `--destack-color-background`, …                     | The same neutral roles; text tiers serve every surface.        |
-| `--primary`, `--primary-foreground`    | `--destack-swatch-accent-solid`, `…-accent-label`   | One swatch shape for the accent, statuses, series and hues.    |
-| `--accent`                             | `--destack-color-hover`, `--destack-color-selected` | State layers of the text color, after Material.                |
-| `--chart-1` to `--chart-5`             | `--destack-swatch-series1-mark`, …                  | Full swatches, so charts fill, label and tint from the theme.  |
-| hand-picked colors per theme           | roles solved for contrast                           | A theme gives seeds, and each role is solved to read.          |
-| `.dark` class                          | `light-dark()` in one value                         | Both appearances in each property, mixed toward more contrast. |
+```ts
+import * as style from "@destack/style";
+import { color, swatch } from "@destack/theme/tokens.stylex";
+
+// style by Destack's tokens
+export const styles = style.create({
+    card: { backgroundColor: color.card, color: color.foreground }, // bg-card
+    primary: { backgroundColor: swatch.accentSolid, color: swatch.accentLabel }, // bg-primary
+    destructive: { backgroundColor: swatch.destructiveTint }, // bg-destructive/10
+    row: { backgroundColor: { default: null, ":hover": color.hover } }, // hover:bg-accent
+    line: { stroke: swatch.series2Mark }, // --chart-2
+});
+```

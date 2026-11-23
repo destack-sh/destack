@@ -1,5 +1,6 @@
 import { schema } from "@destack/schema";
-import { Seed } from "../palette/index.ts";
+import { Hue } from "@destack/color";
+import { HexColor } from "../palette/index.ts";
 
 /** The body size of each text size relative to the default medium, from 14 to 23 points over 16. */
 export const TEXT_SCALES = {
@@ -47,7 +48,7 @@ export const Contrast = schema.union([schema.literal("system"), schema.number().
 /** How far text, lines and graphics stand out. */
 export type Contrast = schema.Infer<typeof Contrast>;
 
-/** The interface typeface a person chooses, after Notion's default, serif and mono faces. */
+/** The interface typeface a person chooses. */
 export const Typeface = schema.enum([
     "plex",
     "inter",
@@ -76,6 +77,11 @@ export const Motion = schema.enum(["system", "full", "reduced"]);
 /** The motion of transitions. */
 export type Motion = schema.Infer<typeof Motion>;
 
+/** An accent: a hue, drawn in the theme's own color, or any color. */
+export const Accent = schema.union([Hue, HexColor]);
+/** An accent. */
+export type Accent = schema.Infer<typeof Accent>;
+
 /** How a person wants pages displayed, each choice read from its setting. */
 export const Display = schema.object({
     /** The appearance. */
@@ -89,7 +95,7 @@ export const Display = schema.object({
     /** The motion. */
     motion: Motion,
     /** The accent, or null for the theme's. */
-    accent: Seed.nullable(),
+    accent: Accent.nullable(),
     /** The interface typeface, or null for the theme's. */
     typeface: Typeface.nullable(),
 });
