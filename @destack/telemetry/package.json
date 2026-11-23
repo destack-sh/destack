@@ -23,20 +23,32 @@
         "@destack/environment": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
-        "@destack/resource": "workspace:*",
         "@opentelemetry/api": "1.10.0",
         "@opentelemetry/sdk-trace": "3.0.0",
         "@opentelemetry/sdk-metrics": "3.0.0",
         "@opentelemetry/sdk-logs": "3.0.0",
         "@opentelemetry/resources": "3.0.0",
-        "@opentelemetry/context-async-hooks": "3.0.0",
         "@opentelemetry/core": "3.0.0",
         "@opentelemetry/otlp-transformer": "0.300.0",
         "@destack/error": "workspace:*",
         "@destack/locale": "workspace:*"
     },
     "devDependencies": {
+        "@destack/resource": "workspace:*",
         "@destack/test": "workspace:*",
+        "@opentelemetry/context-async-hooks": "3.0.0",
         "@types/node": "26.6.1"
+    },
+    "peerDependencies": {
+        "@destack/resource": "workspace:*",
+        "@opentelemetry/context-async-hooks": "3.0.0"
+    },
+    "peerDependenciesMeta": {
+        "@destack/resource": {
+            "optional": true
+        },
+        "@opentelemetry/context-async-hooks": {
+            "optional": true
+        }
     }
 }

@@ -6,13 +6,16 @@
     "runtimes": ["browser", "bun", "workerd"],
     "exports": {
         "./browser": {
-            "runtimes": ["browser"]
+            "runtimes": ["browser"],
+            "internal": true
         },
         "./worker": {
-            "runtimes": ["bun", "workerd"]
+            "runtimes": ["bun", "workerd"],
+            "internal": true
         },
         "./bun": {
-            "runtimes": ["bun"]
+            "runtimes": ["bun"],
+            "internal": true
         },
         "./meter": {
             "runtimes": ["browser", "bun", "workerd"]
@@ -21,7 +24,8 @@
             "runtimes": ["browser", "bun", "workerd"]
         },
         "./inspect": {
-            "runtimes": ["bun", "workerd"]
+            "runtimes": ["bun", "workerd"],
+            "internal": true
         },
         "./error": {
             "runtimes": ["browser", "bun", "workerd"]
