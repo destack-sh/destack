@@ -29,7 +29,7 @@ import {
 import { present, schema } from "@destack/schema";
 import { SocialError } from "../error/index.ts";
 import { reaction } from "./reaction.ts";
-import { defineAction, nested } from "@destack/object";
+import { defineAction, nested, selected } from "@destack/object";
 
 /** The longest comment text in UTF-16 code units, about four pages. */
 const TEXT_LENGTH = 10_000;
@@ -317,7 +317,8 @@ export type Excerpt = schema.Infer<typeof Excerpt>;
 export const answer = defineAction({
     name: "reply",
     title: t`Reply`,
-    call: { object: comment, method: "reply" },
+    input: { comments: selected(comment), text: Body.shape.text },
+    call: ({ comments, text }) => comments.prepare("reply", { text }),
 });
 
 /** Reply in the notified comment's thread from a notification, typing the reply. */
