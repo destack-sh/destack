@@ -8,7 +8,7 @@ import { Directory } from "@destack/account/client";
 import * as accountObject from "@destack/account/object";
 import { type Identifier, present, schema } from "@destack/schema";
 import { InstallationMount, RequestBody, SpaceMount } from "@destack/object";
-import { type Clock, copyRequest } from "@destack/environment";
+import { type Clock, copyRequest, Forwarded } from "@destack/environment";
 import { MachineError } from "../error/index.ts";
 import { SPACE_RETRY_MILLISECONDS } from "./space.ts";
 import { CALLER_HEADER } from "@destack/access";
@@ -62,7 +62,7 @@ export interface SpaceRequest {
 
 /** Where a request to a space moves, and why. */
 export interface SpaceMove {
-    /** Whether the request named a former address, or a space another machine serves. */
+    /** Whether the request named a non-current address, or another machine's space. */
     readonly kind: "renamed" | "placed";
     /** The URL the request moves to. */
     readonly url: string;
@@ -296,16 +296,10 @@ export const SpaceRequest = {
             }
         }
 
-        // take the route the host and path take, with the route and the client's head
+        // take the route the host and path take
         const route = await names.route(url.hostname, url.pathname);
-        if (route === undefined) {
-            return undefined;
-        }
-        const headers = new Headers(request.headers);
-        headers.set(ROUTE_HEADER, route.id);
-        headers.set(CLIENT_HEAD_HEADER, ClientHead.write(request));
 
-        return addressed(copyRequest(request, { headers }), SPACE_IDENTIFIER.parse(route.scope));
+        return route === undefined ? undefined : routed(request, route);
     },
 };
 
@@ -325,6 +319,19 @@ export interface SpaceLookup {
     readonly serves: (space: Identifier<"space">) => Promise<boolean>;
     /** Read the URL of the machine serving a space, refusing a space not placed yet. */
     readonly locate: (space: Identifier<"space">) => Promise<string>;
+}
+
+/** Address a request to its route's space, with the route and the client's head. */
+function routed(
+    request: Request,
+    route: { readonly scope: string; readonly id: Identifier<"route"> },
+): SpaceRequest {
+    // mark the request with its route and the client's head
+    const headers = new Headers(request.headers);
+    headers.set(ROUTE_HEADER, route.id);
+    headers.set(CLIENT_HEAD_HEADER, ClientHead.write(request));
+
+    return addressed(copyRequest(request, { headers }), SPACE_IDENTIFIER.parse(route.scope));
 }
 
 /** Read the space of a request body. */
@@ -368,19 +375,23 @@ function located(
     origin: InstallationOrigin,
     domain: string,
 ): SpaceRequest {
-    // address a request at the current origin as it is
+    // write the current origin: the space's current name, its defaults left out
     const addressedHere = addressed(request, found.space);
     const { current } = found;
-    if (current === undefined) {
-        return addressedHere;
-    }
-
-    // point a request at a former name to the same path at the current origin
     const url = new URL(request.url);
-    url.hostname = InstallationOrigin.format(
-        { ...origin, space: current.space, handle: current.handle },
+    const hostname = InstallationOrigin.format(
+        current === undefined
+            ? origin
+            : { ...origin, space: current.space, handle: current.handle },
         domain,
     );
+
+    // address a request asked at the current origin as it is, else move it there for good
+    const asked = new URL(`http://${Forwarded.host(request)}`).hostname;
+    if (hostname === asked) {
+        return addressedHere;
+    }
+    url.hostname = hostname;
 
     return { ...addressedHere, moved: { kind: "renamed", url: url.href } };
 }

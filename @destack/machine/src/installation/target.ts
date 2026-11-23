@@ -165,7 +165,7 @@ export const InstallationTarget = {
             : ObjectReference.at("follows", columns);
     },
 
-    /** Resolve the row a declaration follows: its pin, else the host's or its built release. */
+    /** Resolve what a declaration follows: its pin, else the host's image or its built release. */
     async resolveDeclared(
         packageId: PackageId,
         declared: {
@@ -176,6 +176,8 @@ export const InstallationTarget = {
     ): Promise<{
         readonly follows: ObjectReference | undefined;
         readonly directory: string | null;
+        /** The host's image it follows, absent unless the host provides its package. */
+        readonly followedImage: Digest | null;
     }> {
         // follow the host's release without a pin when the host ships the version it was built with
         const { version } = declared;
@@ -188,11 +190,13 @@ export const InstallationTarget = {
 
         // follow the host's release without a row, and a checkout on its machine
         if (selection.kind === "host") {
-            return { follows: undefined, directory: null };
+            const provided = InstallationTarget.provided(packageId, options);
+
+            return { follows: undefined, directory: null, followedImage: provided?.image ?? null };
         } else if (selection.kind === "checkout") {
             const followed = checkout.reference(selection.machine, selection.checkout);
 
-            return { follows: followed, directory: selection.directory };
+            return { follows: followed, directory: selection.directory, followedImage: null };
         }
 
         // read a release, tag or reference at its registry's home
@@ -201,6 +205,7 @@ export const InstallationTarget = {
         return {
             follows: followed,
             directory: selection.kind === "repository" ? selection.directory : null,
+            followedImage: null,
         };
     },
 

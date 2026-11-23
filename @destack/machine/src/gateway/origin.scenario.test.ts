@@ -582,10 +582,10 @@ test("launch a view onto a session cookie serving its document", async () => {
     // open the origin's root, which serves the main view, and load a page of no view
     const port = new URL(await native.origin()).port;
     const root = await listener.fetch(
-        new Request(`http://notes--${opened.address}.localhost:${port}/`),
+        new Request(`http://notes--${opened.address}.space.localhost:${port}/`),
     );
     const missing = await listener.fetch(
-        new Request(`http://notes--${opened.address}.localhost:${port}/missing`, {
+        new Request(`http://notes--${opened.address}.space.localhost:${port}/missing`, {
             headers: { "sec-fetch-mode": "navigate", "sec-fetch-dest": "document" },
         }),
     );
@@ -641,7 +641,7 @@ test("launch a view onto a session cookie serving its document", async () => {
         unpresented,
     }).toEqual({
         granted: { id: "grant", scope: owner.id, permissions },
-        url: `http://notes--${opened.address}.localhost:${port}/home?token=…`,
+        url: `http://notes--${opened.address}.space.localhost:${port}/home?token=…`,
         target: installation.id,
         traded: [303, "/home", SESSION_COOKIE],
         cookie: ["Path=/", "HttpOnly", "SameSite=Lax", "Max-Age=1209600"],
@@ -685,7 +685,7 @@ test("serve anonymous visitors and refuse forged credentials", async () => {
         "notes",
     );
     const port = new URL(await computer.device.origin()).port;
-    const origin = `http://notes--${opened.address}.localhost:${port}`;
+    const origin = `http://notes--${opened.address}.space.localhost:${port}`;
 
     // serve the page without a cookie to an anonymous visitor, and take their telemetry
     const unopened = await listener.fetch(new Request(`${origin}/home`));
@@ -744,7 +744,7 @@ test("ask a signed-out member at the issuer for consent and permissions", async 
     const listener = computer.computer;
     await install(opened, await notesBuild(computer.environment.crypto), "notes");
     const port = new URL(await computer.device.origin()).port;
-    const origin = `http://notes--${opened.address}.localhost:${port}`;
+    const origin = `http://notes--${opened.address}.space.localhost:${port}`;
     const document = { "sec-fetch-mode": "navigate", "sec-fetch-dest": "document" };
     const loaded = await listener.fetch(new Request(`${origin}/`, { headers: document }));
 
@@ -820,7 +820,7 @@ test("sign a signed-out page load in at the issuer", async () => {
     const listener = computer.computer;
     await install(opened, await notesBuild(computer.environment.crypto), "notes");
     const port = new URL(await computer.device.origin()).port;
-    const origin = `http://notes--${opened.address}.localhost:${port}`;
+    const origin = `http://notes--${opened.address}.space.localhost:${port}`;
     const loaded = await listener.fetch(
         new Request(`${origin}/`, {
             headers: { "sec-fetch-mode": "navigate", "sec-fetch-dest": "document" },
@@ -875,7 +875,7 @@ test("sign a page load with a foreign session in again, and open a view at its o
     const listener = computer.computer;
     await install(opened, await notesBuild(computer.environment.crypto), "notes");
     const port = new URL(await computer.device.origin()).port;
-    const origin = `http://notes--${opened.address}.localhost:${port}`;
+    const origin = `http://notes--${opened.address}.space.localhost:${port}`;
 
     // load a page with a session cookie the space did not sign, as an earlier universe's
     const loaded = await listener.fetch(

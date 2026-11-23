@@ -80,7 +80,7 @@ test("give birth to placed spaces from their replicated rows with main in their 
     await home.database.transaction(async (transaction) => {
         await transaction
             .update(installation.table)
-            .set({ targetRevisionId: null, spaceStack: null })
+            .set({ targetRevisionId: null, appliedStack: null })
             .where(eq(installation.table.scope, home.id));
     });
     await home.serve();

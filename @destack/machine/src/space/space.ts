@@ -180,6 +180,8 @@ interface ResolvedStack {
     readonly digest: Digest;
     /** The release or tag the stack installation follows, absent for the host's. */
     readonly follows: ObjectReference | undefined;
+    /** The image of the host's release it follows, absent unless it follows the host. */
+    readonly followedImage: Digest | null;
 }
 
 /** An assignment's placement, whose space its change touches. */
@@ -1296,6 +1298,15 @@ export class Space {
             });
         }
 
+        // follow the host's image of each installation following the host, rolling out a changed one
+        await scope.span("destack.space.serve.follow", {}, () =>
+            Installation.follow(
+                store,
+                this.id,
+                (packageId) => InstallationTarget.provided(packageId, this.machine)?.image,
+            ),
+        );
+
         // record what the start serves of each installation, the ones its store leaves out with why
         const left = [
             ...store.refused.map((each) => ({ ...each, reason: "Refused" as const })),
@@ -2142,7 +2153,7 @@ export class Space {
                 },
                 {
                     table: installation.table,
-                    fields: ["export", "spaceStack"],
+                    fields: ["export", "appliedStack"],
                     on: { id: "scope" },
                 },
                 // take the space again once its account's scope arrives
@@ -2255,13 +2266,13 @@ export class Space {
         const { stack } = present(declared, `the row of ${spaceId}`);
         const digest = await Digest.json(stack, this.machine.environment.crypto);
         const { selection } = stack;
-        const { follows } = await InstallationTarget.resolveDeclared(
+        const { follows, followedImage } = await InstallationTarget.resolveDeclared(
             stack.packageId,
             selection.kind === "release" ? { version: selection.version } : { selection },
             this.machine,
         );
 
-        return { digest, follows };
+        return { digest, follows, followedImage };
     }
 
     /** Follow the space's stack once it changed, leaving a stack its owner applied since. */
@@ -2285,7 +2296,7 @@ export class Space {
                 ? []
                 : await snapshot.read(installation.table).findMany({ where: { id: installed.id } });
         const digest = await Digest.json(stack, transaction.database.state.environment.crypto);
-        if (digest !== followed?.spaceStack && digest === resolved.digest) {
+        if (digest !== followed?.appliedStack && digest === resolved.digest) {
             await this.#followStack(
                 store,
                 transaction,
@@ -2399,7 +2410,7 @@ export class Space {
             { transaction, scope: spaceId },
         );
 
-        // record the stack followed and drop an owner's earlier apply, so one its owner applies later stays
+        // record the stack and the host's image it follows, dropping an owner's earlier apply
         const id = installed ?? present(created, `the stack of ${spaceId}`).id;
         await store.mutate(
             store.as(installation),
@@ -2408,7 +2419,10 @@ export class Space {
                 calls: [
                     installation.call("follow", {
                         ...installation.target({ scope: spaceId, id }),
-                        spaceStack: resolved.digest,
+                        appliedStack: resolved.digest,
+                        ...(resolved.followedImage === null
+                            ? {}
+                            : { followedImage: resolved.followedImage }),
                     }),
                 ],
             },

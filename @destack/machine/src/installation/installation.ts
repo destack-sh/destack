@@ -163,11 +163,20 @@ export function implementInstallations(options: InstallationOptions) {
                     : stored(call);
             },
             follow: {
-                handle: (context) =>
-                    context.updateStatus({
-                        spaceStack: context.input.spaceStack,
-                        ...ObjectReference.columns("submittedBy", undefined),
-                    }),
+                handle: (context) => {
+                    // record what it follows now, a new stack dropping an owner's earlier apply
+                    const { appliedStack, followedImage } = context.input;
+
+                    return context.updateStatus({
+                        ...(followedImage === undefined ? {} : { followedImage }),
+                        ...(appliedStack === undefined
+                            ? {}
+                            : {
+                                  appliedStack,
+                                  ...ObjectReference.columns("submittedBy", undefined),
+                              }),
+                    });
+                },
             },
             approve: async (call) => {
                 // accept each plan waiting as the approver reviewed them, then apply
@@ -249,7 +258,15 @@ function reconcileController(options: InstallationOptions): ObjectController<typ
             {
                 table: installation.table,
                 where: { export: { isNotNull: true }, targetRevisionId: { isNull: true } },
-                fields: ["spaceStack"],
+                fields: ["appliedStack"],
+                isObserving: true,
+                on: { id: "id" },
+            },
+            // an installation following the host once the host's image of its package changes
+            {
+                table: installation.table,
+                where: { followedImage: { isNotNull: true } },
+                fields: ["followedImage"],
                 isObserving: true,
                 on: { id: "id" },
             },
