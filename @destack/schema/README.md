@@ -84,16 +84,13 @@ An identifier is `<prefix>-<uuid>`, typed by its prefix.
 
 ### Version
 
-A version is `<year>.<month>.<release>`, such as `2026.11.0`.
-A dev build is `<release>-dev`, the same for every unreleased build as Go's `(devel)`, and comes before its release.
+A version is a release, `<year>.<month>.<release>` such as `2026.11.0`, or `dev` for unreleased code, as Go's `(devel)`.
 
 | Verb                                  | What it does                                             |
 | ------------------------------------- | -------------------------------------------------------- |
-| `Version.compare(left, right)`        | orders versions, a dev build before its release          |
-| `Version.dev(release)`                | writes a dev build's version                             |
-| `Version.release(version)`            | reads the release a version leads to                     |
+| `Version.compare(left, right)`        | orders versions, dev after every release                 |
 | `Version.next(version)`               | reads the next release in the same month                 |
-| `Version.isPrerelease(version)`       | reports whether a version is a dev build                 |
+| `Version.isRelease(version)`          | reports whether a version is a release, not dev          |
 | `Version.between(keyed, after, upto)` | lists entries keyed by the releases between two versions |
 
 ### Time values
@@ -205,16 +202,15 @@ export function nextDigest(now: number): number {
 }
 ```
 
-### Stamp a dev version
+### Order dev after releases
 
-`Version.dev` writes a dev build's version from its release, ordered before the release.
+`Version.development` is the version of unreleased code, which orders after every release.
 
 ```ts
 import { Version } from "@destack/schema";
 
-// stamp a dev build, and order it before its release
-export const dev = Version.dev("2026.11.0");
-export const order = Version.compare(dev, "2026.11.0");
+// order unreleased code after a release
+export const order = Version.compare(Version.development, "2026.11.0");
 ```
 
 ### Lay a month out
