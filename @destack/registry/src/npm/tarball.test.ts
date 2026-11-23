@@ -27,7 +27,7 @@ function bytes(text: string): Uint8Array<ArrayBuffer> {
     return new TextEncoder().encode(text);
 }
 
-test("pack an image's root build below package/ in path order, with what a listing says of it", async () => {
+test("pack an image's root build below package/ in path order, with what a listing says of it, optional peers included", async () => {
     // store a package that depends on a workspace package and an npm one, in an image with the first
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -38,6 +38,8 @@ test("pack an image's root build below package/ in path order, with what a listi
         version: "2026.11.3",
         exports: { "./package": "./src/package.ts" },
         dependencies: { "@destack/object": "workspace:*", zod: "4.1.0" },
+        peerDependencies: { "@destack/test": "workspace:*" },
+        peerDependenciesMeta: { "@destack/test": { optional: true } },
         devDependencies: { "@destack/test": "workspace:*" },
     };
     const root = await store.put(
@@ -73,7 +75,8 @@ test("pack an image's root build below package/ in path order, with what a listi
     // release the package file at the linked version, the default tag where the image links none
     const released = {
         ...authored,
-        dependencies: { "@destack/object": "2026.11.2", zod: "4.1.0" },
+        dependencies: { "@destack/object": ">=2026.11.2", zod: "4.1.0" },
+        peerDependencies: { "@destack/test": "latest" },
         devDependencies: { "@destack/test": "latest" },
     };
     expect({
@@ -86,7 +89,11 @@ test("pack an image's root build below package/ in path order, with what a listi
             ["package/src/package.ts", "export {};\n"],
         ],
         listed: {
-            manifest: { dependencies: released.dependencies },
+            manifest: {
+                dependencies: released.dependencies,
+                peerDependencies: released.peerDependencies,
+                peerDependenciesMeta: authored.peerDependenciesMeta,
+            },
             integrity: `sha512-${new Uint8Array(await crypto.digest("SHA-512", packed.bytes)).toBase64()}`,
         },
         isEqual: true,

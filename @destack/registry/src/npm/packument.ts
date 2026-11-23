@@ -1,7 +1,16 @@
 import { schema, Version, type JsonObject } from "@destack/schema";
 
-/** The fields of a release's package file an npm client reads before it downloads the release. */
-const INSTALL_FIELDS = ["dependencies", "peerDependencies", "optionalDependencies", "bin"] as const;
+/** The fields of a package file npm's abbreviated metadata lists, which clients resolve by. */
+const INSTALL_FIELDS = [
+    "dependencies",
+    "optionalDependencies",
+    "peerDependencies",
+    "peerDependenciesMeta",
+    "bin",
+    "engines",
+    "os",
+    "cpu",
+] as const;
 
 /** What an npm client lists of a release, kept with it: its install fields and tarball hash. */
 export const NpmRelease = Object.assign(
