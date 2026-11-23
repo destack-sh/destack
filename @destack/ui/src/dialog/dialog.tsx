@@ -314,7 +314,7 @@ export function DialogDescription(
     const control = useDialog();
     control.describe();
 
-    return renderPart("p", "dialog-description", properties, [text.xs, styles.description], {
+    return renderPart("p", "dialog-description", properties, [text.sm, styles.description], {
         id: control.descriptionId,
     });
 }

@@ -516,7 +516,7 @@ export function PopoverDescription(
     const popover = usePopover();
     popover.describe();
 
-    return renderPart("p", "popover-description", properties, [text.xs, styles.description], {
+    return renderPart("p", "popover-description", properties, [text.sm, styles.description], {
         get id() {
             return `${popover.id}-description`;
         },

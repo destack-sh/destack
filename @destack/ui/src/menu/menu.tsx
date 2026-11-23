@@ -62,7 +62,7 @@ const MenuRadioContext = createContext<MenuRadioControl | null>(null);
 /** The styles of a menu and its elements. */
 const styles = style.create({
     content: {
-        minWidth: `calc(8 * ${space[4]})`,
+        minWidth: `calc(10 * ${space[4]})`,
         maxHeight: "100vh",
         overflowY: "auto",
         inset: "auto",
