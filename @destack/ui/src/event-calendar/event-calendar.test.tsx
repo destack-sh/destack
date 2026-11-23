@@ -1371,7 +1371,7 @@ test("preview an event on focus with its times, calendar and actions, a busy eve
     flush();
     const preview = container.ownerDocument.querySelector("[data-slot=event-calendar-preview]");
     const actions = [...(preview?.querySelectorAll<HTMLElement>("[data-action]") ?? [])];
-    actions.find((action) => action.dataset["action"] === "open")?.click();
+    actions.find((action) => action.dataset["action"] === "open-item")?.click();
 
     expect({
         text: [...(preview?.children ?? [])]

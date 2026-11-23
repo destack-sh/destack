@@ -37,6 +37,7 @@ import {
     useContext,
     useEnvironment,
     useLocale,
+    handleFailing,
 } from "@destack/view";
 import { usePageVisibility } from "@destack/view/primitives/page-visibility";
 import { createResizeObserver } from "@destack/view/primitives/resize-observer";
@@ -353,6 +354,18 @@ export function Toaster(properties: ToasterProperties): JSX.Element {
     const toaster = merge(DEFAULTS, properties);
     const locale = useLocale();
     const manager = new ToastManager();
+
+    // tell the person of an action that failed, with the reason its error declares
+    handleFailing((action, reason) => {
+        // replace the toast of its last failure
+        const title = locale.render(action.title);
+        manager.error(locale.render(t`“${title}” did not work`), {
+            id: `action-${action.package.id}/${action.name}`,
+            ...(reason === undefined
+                ? {}
+                : { description: `${reason.charAt(0).toUpperCase()}${reason.slice(1)}` }),
+        });
+    });
     let region: HTMLElement | undefined;
     let stack: HTMLElement | undefined;
 

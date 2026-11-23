@@ -424,8 +424,8 @@ export const commandSearchDetail = defineExample({
                                             <CommandItem
                                                 value={row.value}
                                                 keywords={[row.title, row.space]}
+                                                icon={<Icon icon={row.icon} />}
                                             >
-                                                <Icon icon={row.icon} />
                                                 {row.title}
                                                 <CommandItemDescription>
                                                     {row.description}

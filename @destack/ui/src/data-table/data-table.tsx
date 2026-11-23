@@ -16,6 +16,8 @@ import { media } from "@destack/style/media.stylex";
 import { color, size, space, stroke, swatch, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import {
+    handle,
+    useActions,
     type Accessor,
     createContext,
     createEffect,
@@ -80,7 +82,19 @@ import {
     DropdownMenuTrigger,
 } from "../dropdown-menu/index.ts";
 import { Badge } from "../badge/index.ts";
-import type { Action } from "../action/index.ts";
+import type { Action } from "@destack/object";
+import { ActionButton, hideColumn } from "../action/index.ts";
+import {
+    clearSort,
+    type DataTableRowAction,
+    moveColumnLeft,
+    moveColumnRight,
+    pinToEnd,
+    pinToStart,
+    sortAscending,
+    sortDescending,
+    unpin,
+} from "./actions.ts";
 import { Menu, MenuAction, MenuControl } from "../menu/index.ts";
 import { ContextMenuContent } from "../context-menu/index.ts";
 import {
@@ -468,8 +482,8 @@ export interface DataTableProperties<
     readonly onCellsChange?: (changes: readonly DataTableCellChange[]) => void;
     /** Take a row a person moved between two rows, which lets rows move by their handles. */
     readonly onRowMove?: (move: DataTableRowMove) => void;
-    /** List what can be done with rows, which a right click on a row offers in a menu. */
-    readonly rowActions?: (rows: readonly string[]) => Action[];
+    /** What the owner does with rows: in a row's menu and by its keys, read once. */
+    readonly rowActions?: readonly DataTableRowAction[];
     /** Where the row controls stand, in the margin by default where it has room. */
     readonly gutter?: DataTableGutter;
     /** The StyleX styles applied after the table's styles. */
@@ -619,19 +633,26 @@ export function DataTable<Features extends TableFeatures, Row extends RowData>(
         }
     };
 
-    // open a menu of the owner's actions on a row, with its selection, from a cell at a point
-    const menu = new MenuControl(null);
-    const [menuRows, setMenuRows] = createSignal<readonly string[]>([]);
-    const openRowMenu = (id: string, cell: HTMLElement, point: { x: number; y: number }) => {
-        // act on the selection a selected row is in, else on the row alone
+    // run the owner's actions on the selection a row is in, else on the row alone
+    const actions = useActions();
+    const rowActions = untrack(() => properties.rowActions ?? []);
+    const targetsAt = (element: Element | null) => {
+        const id = element?.closest<HTMLElement>("tr[data-row]")?.dataset["row"];
         const selected = isSelectableTable(table)
             ? table.getSelectedRowModel().rows.map((row) => row.id)
             : [];
-        const targets = selected.includes(id) ? selected : [id];
-        if (properties.rowActions === undefined || properties.rowActions(targets).length === 0) {
+
+        return id === undefined || selected.includes(id) ? selected : [id];
+    };
+    const rowHandlers = handleRowActions(rowActions, targetsAt);
+
+    // open a menu of the owner's actions on a row, with its selection, from a cell at a point
+    const menu = new MenuControl(null);
+    const openRowMenu = (id: string, cell: HTMLElement, point: { x: number; y: number }) => {
+        // leave the browser's menu where no action runs
+        if (!rowActions.some(({ action }) => actions.has(action.reference, cell))) {
             return false;
         }
-        setMenuRows(targets);
         menu.setTrigger(cell);
         menu.open("first", point);
 
@@ -654,19 +675,20 @@ export function DataTable<Features extends TableFeatures, Row extends RowData>(
             {...rest}
             ref={(element) => {
                 setRoot(element);
+                rowHandlers.forEach((attach) => attach(element));
                 setScroller(isVirtual ? element : undefined);
             }}
             onKeyDown={(event) => keyDown(event, control, openRowMenu, locale.direction)}
             onClick={(event) => {
                 // open a row's menu under its grip on a click
-                const handle =
+                const grip =
                     event.target instanceof Element
                         ? event.target.closest<HTMLElement>("[data-slot=data-table-row-handle]")
                         : null;
-                if (handle !== null) {
-                    const cell = present(handle.closest("td"), "the row grip's cell");
-                    const row = present(handle.closest("tr"), "the row grip's row").dataset["row"];
-                    const bounds = handle.getBoundingClientRect();
+                if (grip !== null) {
+                    const cell = present(grip.closest("td"), "the row grip's cell");
+                    const row = present(grip.closest("tr"), "the row grip's row").dataset["row"];
+                    const bounds = grip.getBoundingClientRect();
                     openRowMenu(present(row, "the row grip's row id"), cell, {
                         x: bounds.left,
                         y: bounds.bottom,
@@ -803,14 +825,12 @@ export function DataTable<Features extends TableFeatures, Row extends RowData>(
                         </table>
                     </Sortable>
                 </DataTableContext>
-                <Show when={properties.rowActions}>
-                    {(rowActions) => (
-                        <ContextMenuContent data-slot="data-table-row-menu">
-                            <For each={rowActions()(menuRows())} keyed={(action) => action.id}>
-                                {(action) => <MenuAction action={action()} />}
-                            </For>
-                        </ContextMenuContent>
-                    )}
+                <Show when={rowActions.length > 0}>
+                    <ContextMenuContent data-slot="data-table-row-menu">
+                        <For each={rowActions}>
+                            {({ action }) => <MenuAction action={action} />}
+                        </For>
+                    </ContextMenuContent>
                 </Show>
             </Menu>
         </div>
@@ -1351,16 +1371,11 @@ export function DataTableColumnHeader<Features extends TableFeatures, Row extend
     const priority = () =>
         (tracked().sorting ?? []).length > 1 ? column.getSortIndex() + 1 : undefined;
     const slices = useDataTableSlices();
-    const actions = () =>
-        follow(tracked, () =>
-            columnActions(column, locale).map((action) => ({
-                ...action,
-                run: () => slices.changeColumn(column.id, () => void action.run()),
-            })),
-        );
+    const handlers = handleColumnActions(column, tracked, slices);
 
     return (
         <span
+            ref={handlers}
             data-slot="data-table-column-header"
             {...style.attrs(styles.columnHeader, isEnd(column) && styles.reversed)}
         >
@@ -1390,7 +1405,11 @@ export function DataTableColumnHeader<Features extends TableFeatures, Row extend
             </Show>
 
             {/* The column's menu */}
-            <Show when={actions().length > 0}>
+            <Show
+                when={COLUMN_ACTIONS.some((action) =>
+                    follow(tracked, () => hasColumnAction(column, action)),
+                )}
+            >
                 <DropdownMenu>
                     <DropdownMenuTrigger
                         render={(attributes) => (
@@ -1409,8 +1428,8 @@ export function DataTableColumnHeader<Features extends TableFeatures, Row extend
                         <Icon icon={caretDown} />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="start">
-                        <For each={actions()} keyed={(action) => action.id}>
-                            {(action) => <MenuAction action={action()} />}
+                        <For each={COLUMN_ACTIONS}>
+                            {(action) => <MenuAction action={action} />}
                         </For>
                     </DropdownMenuContent>
                 </DropdownMenu>
@@ -1419,93 +1438,111 @@ export function DataTableColumnHeader<Features extends TableFeatures, Row extend
     );
 }
 
-/** List what a column's menu offers: sort it, hide it, pin it, or move it along the row. */
-function columnActions<Features extends TableFeatures, Row extends RowData, Value>(
+/** The actions on a column, as its menu lists them. */
+const COLUMN_ACTIONS: readonly Action[] = [
+    sortAscending,
+    sortDescending,
+    clearSort,
+    hideColumn,
+    pinToStart,
+    pinToEnd,
+    unpin,
+    moveColumnLeft,
+    moveColumnRight,
+];
+
+/** Report whether a column takes an action now: it sorts, hides, pins or moves. */
+function hasColumnAction<Features extends TableFeatures, Row extends RowData, Value>(
     column: Column<Features, Row, Value> & Column_RowSorting<Features, Row>,
-    locale: ReturnType<typeof useLocale>,
-): Action[] {
-    // sort the column either way, or clear its sort
+    action: Action,
+): boolean {
+    // sort a sortable column, and clear a sorted one
     const columnObject: object = column;
     const table: object = column.table;
-    const sorting: Action[] = column.getCanSort()
-        ? [
-              {
-                  id: "sort-ascending",
-                  title: locale.render(t`Sort ascending`),
-                  run: () => column.toggleSorting(false, false),
-              },
-              {
-                  id: "sort-descending",
-                  title: locale.render(t`Sort descending`),
-                  run: () => column.toggleSorting(true, false),
-              },
-              ...(column.getIsSorted() === false
-                  ? []
-                  : [
-                        {
-                            id: "clear-sort",
-                            title: locale.render(t`Clear sort`),
-                            run: () => column.clearSorting(),
-                        },
-                    ]),
-          ]
-        : [];
-
-    // hide the column, and pin it to either edge or unpin it
-    const hiding: Action[] =
-        isHideable(columnObject) && columnObject.getCanHide()
-            ? [
-                  {
-                      id: "hide",
-                      title: locale.render(t`Hide`),
-                      run: () => columnObject.toggleVisibility(false),
-                  },
-              ]
-            : [];
-    const pinning: Action[] =
-        isPinning(columnObject) && columnObject.getCanPin()
-            ? columnObject.getIsPinned() === false
-                ? [
-                      {
-                          id: "pin-start",
-                          title: locale.render(t`Pin to start`),
-                          run: () => columnObject.pin("start"),
-                      },
-                      {
-                          id: "pin-end",
-                          title: locale.render(t`Pin to end`),
-                          run: () => columnObject.pin("end"),
-                      },
-                  ]
-                : [
-                      {
-                          id: "unpin",
-                          title: locale.render(t`Unpin`),
-                          run: () => columnObject.pin(false),
-                      },
-                  ]
-            : [];
-
-    // move a movable column past its movable neighbour where the table orders its columns
     const isMoving = isOrderedTable(table) && isMovable({ isPlaceholder: false, column });
-    const moving: Action[] = isMoving
-        ? [
-              {
-                  id: "move-left",
-                  title: locale.render(t`Move left`),
-                  isDisabled: neighbourOf(table, column.id, -1) === undefined,
-                  run: () => moveColumn(table, column.id, -1),
-              },
-              {
-                  id: "move-right",
-                  title: locale.render(t`Move right`),
-                  isDisabled: neighbourOf(table, column.id, 1) === undefined,
-                  run: () => moveColumn(table, column.id, 1),
-              },
-          ]
-        : [];
+    if (action === sortAscending || action === sortDescending) {
+        return column.getCanSort();
+    } else if (action === clearSort) {
+        return column.getCanSort() && column.getIsSorted() !== false;
+    }
+    // hide a hideable column
+    else if (action === hideColumn) {
+        return isHideable(columnObject) && columnObject.getCanHide();
+    }
+    // pin an unpinned column, and unpin a pinned one
+    else if (action === pinToStart || action === pinToEnd || action === unpin) {
+        return (
+            isPinning(columnObject) &&
+            columnObject.getCanPin() &&
+            (columnObject.getIsPinned() === false) === (action !== unpin)
+        );
+    }
 
-    return [...sorting, ...hiding, ...pinning, ...moving];
+    // move a movable column past a neighbour
+    return (
+        isMoving && neighbourOf(table, column.id, action === moveColumnLeft ? -1 : 1) !== undefined
+    );
+}
+
+/** Run an action on a column it takes. */
+function runColumnAction<Features extends TableFeatures, Row extends RowData, Value>(
+    column: Column<Features, Row, Value> & Column_RowSorting<Features, Row>,
+    action: Action,
+): void {
+    // sort the column, or clear its sort
+    const columnObject: object = column;
+    const table: object = column.table;
+    if (action === sortAscending || action === sortDescending) {
+        column.toggleSorting(action === sortDescending, false);
+    } else if (action === clearSort) {
+        column.clearSorting();
+    }
+    // hide the column
+    else if (action === hideColumn && isHideable(columnObject)) {
+        columnObject.toggleVisibility(false);
+    }
+    // pin the column to an edge, or unpin it
+    else if (
+        isPinning(columnObject) &&
+        (action === pinToStart || action === pinToEnd || action === unpin)
+    ) {
+        columnObject.pin(action === unpin ? false : action === pinToStart ? "start" : "end");
+    }
+    // move the column past its neighbour
+    else if (isOrderedTable(table)) {
+        moveColumn(table, column.id, action === moveColumnLeft ? -1 : 1);
+    }
+}
+
+/** List what handles the actions on a column, for its header's `ref`. */
+function handleColumnActions<Features extends TableFeatures, Row extends RowData, Value>(
+    column: Column<Features, Row, Value> & Column_RowSorting<Features, Row>,
+    tracked: Accessor<unknown>,
+    slices: DataTableSlices,
+): ((element: Element) => void)[] {
+    return COLUMN_ACTIONS.map((action) =>
+        handle(action, {
+            isEnabled: () => follow(tracked, () => hasColumnAction(column, action)),
+            run: () => slices.changeColumn(column.id, () => runColumnAction(column, action)),
+        }),
+    );
+}
+
+/** List what handles the owner's actions on rows, for the `ref` of the element they are in. */
+function handleRowActions(
+    rowActions: readonly DataTableRowAction[],
+    targetsAt: (element: Element | null) => readonly string[],
+): ((element: Element) => void)[] {
+    return rowActions.map(({ action, isEnabled, run }) =>
+        handle(action, {
+            isEnabled: (element) => {
+                const targets = targetsAt(element);
+
+                return targets.length > 0 && (isEnabled?.(targets) ?? true);
+            },
+            run: ({ element }) => run(targetsAt(element)),
+        }),
+    );
 }
 
 /** Find a column's nearest movable, shown neighbour in a step's direction, none at the end. */
@@ -1827,8 +1864,8 @@ export interface DataTableBulkBarProperties<Features extends TableFeatures, Row 
         /** The table's state, read to track it. */
         readonly tracked: Accessor<unknown>;
     };
-    /** List what can be done with the selected rows. */
-    readonly actions: (rows: readonly string[]) => Action[];
+    /** What the owner does with the selected rows, read once. */
+    readonly actions: readonly DataTableRowAction[];
 }
 
 /** Render the selected rows' count and actions while rows are selected. */
@@ -1841,10 +1878,13 @@ export function DataTableBulkBar<Features extends TableFeatures, Row extends Row
         follow(properties.table.tracked, () =>
             properties.table.getSelectedRowModel().rows.map((row) => row.id),
         );
+    const rowActions = untrack(() => properties.actions);
+    const handlers = handleRowActions(rowActions, () => rows());
 
     return (
         <Show when={rows().length > 0}>
             <div
+                ref={handlers}
                 role="group"
                 aria-label={locale.render(t`Selected rows`)}
                 data-slot="data-table-bulk-bar"
@@ -1855,16 +1895,13 @@ export function DataTableBulkBar<Features extends TableFeatures, Row extends Row
                         t`${plural(rows().length, { one: "# row", other: "# rows" })} selected`,
                     )}
                 </span>
-                <For each={properties.actions(rows())}>
-                    {(action) => (
-                        <Button
-                            variant={action.isDestructive === true ? "destructive" : "outline"}
+                <For each={rowActions}>
+                    {({ action }) => (
+                        <ActionButton
+                            action={action}
+                            variant={action.isDestructive ? "destructive" : "outline"}
                             size="sm"
-                            disabled={action.isDisabled === true}
-                            onClick={() => void action.run()}
-                        >
-                            {action.title}
-                        </Button>
+                        />
                     )}
                 </For>
                 <Button

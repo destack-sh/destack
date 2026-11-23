@@ -14,10 +14,13 @@ import {
     WorkCalendar,
     WorkWeek,
     PlainTime,
+    present,
 } from "@destack/schema";
 import { type Message, t } from "@destack/locale";
 import type * as style from "@destack/style";
 import {
+    flush,
+    handle,
     type Accessor,
     createContext,
     createControllableSignal,
@@ -30,7 +33,23 @@ import {
     createSignal,
     createUniqueId,
 } from "@destack/view";
-import type { Action } from "../action/index.ts";
+import type { Action } from "@destack/object";
+import {
+    clearSelection,
+    createItem,
+    duplicateItems,
+    openItem,
+    removeItems,
+    selectAll,
+} from "../action/index.ts";
+import {
+    clearAvailability,
+    copyAvailability,
+    showNext,
+    showPrevious,
+    showToday,
+    VIEW_ACTIONS,
+} from "./actions.ts";
 import { writeClipboard } from "@destack/view/primitives/clipboard";
 import type { Draggable, DragManager, DragOperation, DragTarget } from "../drag/index.ts";
 import type { InteractionEvent } from "../interaction/index.ts";
@@ -92,16 +111,6 @@ const DAY_MAX_EVENTS = 3;
 
 /** The milliseconds of a minute. */
 const MINUTE = 60_000;
-
-/** The key that switches to each view, x for the custom days. */
-const VIEW_KEYS: Readonly<Record<EventCalendarView, string>> = {
-    day: "d",
-    days: "x",
-    week: "w",
-    month: "m",
-    year: "y",
-    agenda: "a",
-};
 
 /** The minutes of a day on the wall clock. */
 const DAY_MINUTES = 24 * 60;
@@ -329,8 +338,8 @@ export class EventCalendarControl {
     readonly #timed: Accessor<ReadonlyMap<string, readonly TimedCalendarEvent[]>>;
     /** The working hours of each weekday, the owner's or the locale's weekdays whole. */
     readonly #workWeek: Accessor<WorkWeek>;
-    /** The locale the actions' titles are written in. */
-    readonly #locale: ReturnType<typeof useLocale>;
+    /** Read the calendar's element. */
+    #root: HTMLElement | undefined;
     /** The clock today is read from when the person asks for it. */
     readonly #clock: ReturnType<typeof useEnvironment>["clock"];
 
@@ -346,7 +355,6 @@ export class EventCalendarControl {
         this.#id = createUniqueId();
         this.options = options;
         this.week = locale.week;
-        this.#locale = locale;
         this.timeZone = () => options.timeZone ?? environment.timeZone;
         this.now = () => options.now ?? ticking();
         this.today = createMemo(() => {
@@ -1051,36 +1059,6 @@ export class EventCalendarControl {
         }
     }
 
-    /** List what the person can do with an event: open, duplicate or remove it, each by its key. */
-    eventActions(key: string): Action[] {
-        // offer the actions the event allows, titled in the reader's locale
-        const offers = this.#offers(key);
-        const locale = this.#locale;
-        const actions: Action[] = [
-            {
-                id: "open",
-                title: locale.render(t`Open`),
-                shortcut: "enter",
-                run: () => this.act(key),
-            },
-            {
-                id: "duplicate",
-                title: locale.render(t`Duplicate`),
-                shortcut: "mod+d",
-                run: () => this.duplicate(key),
-            },
-            {
-                id: "delete",
-                title: locale.render(t`Delete`),
-                shortcut: "delete",
-                isDestructive: true,
-                run: () => this.remove([key]),
-            },
-        ];
-
-        return actions.filter((action) => offers.has(action.id));
-    }
-
     /** List the ids of the actions an event allows: those whose handler the calendar has. */
     #offers(key: string): ReadonlySet<string> {
         // offer nothing for a busy event or during a drag
@@ -1106,122 +1084,144 @@ export class EventCalendarControl {
         }
     }
 
-    /** List what the person can do with the calendar by keys. */
-    actions(): Action[] {
-        // offer nothing during a drag, whose keys move the event
-        if (this.manager.operation() !== undefined) {
-            return [];
-        }
+    /** Find the shown element of an event, null while none shows. */
+    elementOf(key: string): HTMLElement | null {
+        return this.#root?.querySelector<HTMLElement>(`[data-event="${CSS.escape(key)}"]`) ?? null;
+    }
 
-        // move through dates, and switch among the offered views
-        const locale = this.#locale;
-        const views = this.views();
-        const moves: Action[] = [
-            { id: "next", title: locale.render(t`Next`), shortcut: "j", run: () => this.step(1) },
-            {
-                id: "previous",
-                title: locale.render(t`Previous`),
-                shortcut: "k",
-                run: () => this.step(-1),
+    /** Remove events, the focus moving from a removed one to the shown event after or before it. */
+    #removeFocused(keys: readonly string[]): void {
+        // find the nearest event left, forward before back
+        const shown = [
+            ...(this.#root?.querySelectorAll<HTMLElement>("[data-event]") ?? []),
+        ].flatMap(({ dataset }) => dataset["event"] ?? []);
+        const at = shown.findIndex((key) => keys.includes(key));
+        const isLeft = (key: string) => !keys.includes(key);
+        const next = shown.slice(at).find(isLeft) ?? shown.slice(0, at).findLast(isLeft);
+
+        // remove them, then focus it once the focused one is gone
+        this.remove(keys);
+        queueMicrotask(() => {
+            flush();
+            const { activeElement, body } = document;
+            if (next !== undefined && (activeElement === null || activeElement === body)) {
+                this.elementOf(next)?.focus();
+            }
+        });
+    }
+
+    /** Read the key of the event around an element, absent outside one. */
+    eventAt(element: Element | null): string | undefined {
+        return element?.closest<HTMLElement>("[data-event]")?.dataset["event"];
+    }
+
+    /** List the events an action at an element takes: its event, else the selection. */
+    targetsAt(element: Element | null): string[] {
+        // take the selection an event is in with others, else the event alone
+        const key = this.eventAt(element);
+        const selected = this.selection.values().filter((each) => this.hasEvent(each));
+        const isGrouped = key !== undefined && selected.includes(key) && selected.length > 1;
+
+        return key === undefined || isGrouped ? selected : [key];
+    }
+
+    /** List what handles the actions on the calendar and its events, for its element's `ref`. */
+    handleActions(): ((element: HTMLElement) => void)[] {
+        // handle an action outside drags, whose keys move the event
+        const on = (
+            action: Action,
+            isEnabled: (element: Element | null) => boolean,
+            run: (element: Element | null) => void,
+        ) =>
+            handle(action, {
+                isEnabled: (element) =>
+                    this.manager.operation() === undefined && isEnabled(element),
+                run: ({ element }) => run(element),
+            });
+        // offer an action every event it takes offers
+        const offers = (id: string) => (element: Element | null) => {
+            const targets = this.targetsAt(element);
+
+            return targets.length > 0 && targets.every((key) => this.#offers(key).has(id));
+        };
+        const open = offers("open");
+        const isRemovable = offers("delete");
+        const isMarked = () =>
+            this.options.mode === "availability" && this.availability.spans().length > 0;
+
+        return [
+            // find events in the calendar's element
+            (element) => {
+                this.#root = element;
             },
-            {
-                id: "today",
-                title: locale.render(t`Today`),
-                shortcut: "t",
-                run: () => this.showToday(),
-            },
-            ...views.map((view) => ({
-                id: `view-${view}`,
-                title: locale.render(t`Show ${locale.render(this.viewTitle(view))}`),
-                shortcut: VIEW_KEYS[view],
-                run: () => this.setView(view),
-            })),
+
+            // move through dates, and switch among the offered views
+            on(
+                showNext,
+                () => true,
+                () => this.step(1),
+            ),
+            on(
+                showPrevious,
+                () => true,
+                () => this.step(-1),
+            ),
+            on(
+                showToday,
+                () => true,
+                () => this.showToday(),
+            ),
+            ...EVENT_CALENDAR_VIEWS.map((view) =>
+                on(
+                    VIEW_ACTIONS[view],
+                    () => this.views().includes(view),
+                    () => this.setView(view),
+                ),
+            ),
+
+            // create events, and select them
+            on(
+                createItem,
+                () => this.options.onCreate !== undefined,
+                () => this.createNow(),
+            ),
+            on(
+                selectAll,
+                () => true,
+                () => {
+                    const events = this.events().filter(
+                        (event) => !this.isBusy(event) && !CalendarEvent.isBackground(event),
+                    );
+                    this.selection.replace(events.map((event) => event.key));
+                },
+            ),
+            on(
+                clearSelection,
+                () => this.selection.values().length > 0,
+                () => this.selection.clear(),
+            ),
+
+            // open, duplicate and remove the events, by the actions each offers
+            on(
+                openItem,
+                (element) => this.eventAt(element) !== undefined && open(element),
+                (element) => this.act(present(this.eventAt(element), "the event to open")),
+            ),
+            on(duplicateItems, offers("duplicate"), (element) =>
+                this.targetsAt(element).forEach((key) => this.duplicate(key)),
+            ),
+            on(
+                removeItems,
+                (element) => isRemovable(element) && this.canRemove(this.targetsAt(element)),
+                (element) => this.#removeFocused(this.targetsAt(element)),
+            ),
+
+            // copy the free time while marking it
+            on(copyAvailability, isMarked, () => {
+                void writeClipboard(this.availability.text());
+            }),
+            on(clearAvailability, isMarked, () => this.availability.clear()),
         ];
-
-        // create, select and act on the selection, by the actions every selected event offers
-        const selected = this.selection.values().filter((key) => this.hasEvent(key));
-        const offers = selected.map((key) => this.#offers(key));
-        const shared = (id: string) =>
-            offers.length > 0 && offers.every((offered) => offered.has(id));
-        const edits: Action[] = [
-            ...(this.options.onCreate === undefined
-                ? []
-                : [
-                      {
-                          id: "create",
-                          title: locale.render(t`Create event`),
-                          shortcut: "c",
-                          run: () => this.createNow(),
-                      },
-                  ]),
-            {
-                id: "select-all",
-                title: locale.render(t`Select all`),
-                shortcut: "mod+a",
-                run: () =>
-                    this.selection.replace(
-                        this.events()
-                            .filter(
-                                (event) =>
-                                    !this.isBusy(event) && !CalendarEvent.isBackground(event),
-                            )
-                            .map((event) => event.key),
-                    ),
-            },
-            ...(selected.length === 0
-                ? []
-                : [
-                      {
-                          id: "clear",
-                          title: locale.render(t`Clear selection`),
-                          shortcut: "escape",
-                          run: () => this.selection.clear(),
-                      },
-                  ]),
-            ...(shared("duplicate")
-                ? [
-                      {
-                          id: "duplicate",
-                          title: locale.render(t`Duplicate`),
-                          shortcut: "mod+d",
-                          run: () => selected.forEach((key) => this.duplicate(key)),
-                      },
-                  ]
-                : []),
-            ...(shared("delete") && this.canRemove(selected)
-                ? [
-                      {
-                          id: "delete",
-                          title: locale.render(t`Delete`),
-                          shortcut: "delete",
-                          isDestructive: true,
-                          run: () => this.remove(selected),
-                      },
-                  ]
-                : []),
-        ];
-
-        // copy the free time while marking it
-        const sharing: Action[] =
-            this.options.mode === "availability"
-                ? [
-                      {
-                          id: "copy-availability",
-                          title: locale.render(t`Copy availability`),
-                          shortcut: "mod+shift+c",
-                          isDisabled: this.availability.spans().length === 0,
-                          run: () => writeClipboard(this.availability.text()),
-                      },
-                      {
-                          id: "clear-availability",
-                          title: locale.render(t`Clear availability`),
-                          isDisabled: this.availability.spans().length === 0,
-                          run: () => this.availability.clear(),
-                      },
-                  ]
-                : [];
-
-        return [...moves, ...edits, ...sharing];
     }
 
     /** List the zones the day views write hours in, the calendar's zone last. */

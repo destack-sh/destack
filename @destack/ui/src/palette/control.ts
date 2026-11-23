@@ -1,6 +1,5 @@
 import type { Hue } from "@destack/color";
 import type { IconBodies } from "@destack/icon";
-import type { Action } from "../action/index.ts";
 import { schema } from "@destack/schema";
 import { TelemetryScope } from "@destack/telemetry";
 import { type Accessor, createSignal, type JSX, type Setter, useEnvironment } from "@destack/view";
@@ -38,9 +37,23 @@ const SavedUses = schema.array(
 type Uses = schema.Infer<typeof SavedUses>;
 
 /** Something an entry does: the first opens it, the rest in a panel. */
-export interface PaletteAction extends Action {
-    /** Whether the palette stays open after the action runs, closing by default. */
+export interface PaletteAction {
+    /** The action's id, unique among its entry's. */
+    readonly id: string;
+    /** The title. */
+    readonly title: string;
+    /** The icon beside the title. */
+    readonly icon?: IconBodies;
+    /** The key combination that runs it. */
+    readonly shortcut?: string;
+    /** Whether it removes something, which the palette marks. */
+    readonly isDestructive?: boolean;
+    /** Whether it cannot run now. */
+    readonly isDisabled?: boolean;
+    /** Whether the palette stays open after it runs, closing by default. */
     readonly isStayingOpen?: boolean;
+    /** Do it. */
+    readonly run: () => Promise<void> | void;
 }
 
 /** A detail at an entry's end: text, or a tag in a swatch's tint. */

@@ -4,15 +4,22 @@ import { t } from "@destack/locale";
 import * as style from "@destack/style";
 import { color, radius, space, stroke, swatch, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import { createEffect, For, type JSX, omit, Show, untrack, useLocale } from "@destack/view";
-import { Action } from "../action/index.ts";
-import { Button } from "../button/index.ts";
+import {
+    useActions,
+    createEffect,
+    For,
+    type JSX,
+    omit,
+    Show,
+    untrack,
+    useLocale,
+} from "@destack/view";
+import { ActionButton, duplicateItems, openItem, removeItems } from "../action/index.ts";
 import {
     HoverCardContent,
     type HoverCardContentProperties,
     useHoverCard,
 } from "../hover-card/index.ts";
-import { useCommandPlatform } from "../kbd/index.ts";
 import { Hover, Press } from "../interaction/index.ts";
 import { mergeProperties } from "../part/index.ts";
 import { useEventCalendar } from "./control.ts";
@@ -23,6 +30,9 @@ const LIST_TIME_WIDTH = "9rem";
 
 /** The heights of a placed event too short for a second line: two lines of extra-small text. */
 const SHORT_QUERY = "@container (max-height: 2.5rem)";
+
+/** The actions an event's preview offers. */
+const PREVIEW_ACTIONS = [openItem, duplicateItems, removeItems];
 
 /** The styles of an event. */
 const styles = style.create({
@@ -221,20 +231,6 @@ export function EventCalendarEvent(properties: EventCalendarEventProperties): JS
         onBlur: () => card.closeLater(),
     });
 
-    // run the event's actions by their keys, such as Delete or Mod+D
-    const isCommand = useCommandPlatform();
-    const keys = {
-        onKeyDown: (event: KeyboardEvent) => {
-            // leave the keys of an event among several selected to the calendar's selection actions
-            const key = properties.event.key;
-            const isGrouped =
-                control.selection.isSelected(key) && control.selection.values().length > 1;
-            if (!event.defaultPrevented && !isBusy() && !isGrouped) {
-                Action.handle(control.eventActions(key), event, isCommand());
-            }
-        },
-    };
-
     // open the event on a press or Enter, and on Space in a list, where no drag takes it
     const press = new Press({
         onPress: (gesture) => (isBusy() ? undefined : control.press(properties.event.key, gesture)),
@@ -252,12 +248,10 @@ export function EventCalendarEvent(properties: EventCalendarEventProperties): JS
 
     return (
         <button
-            {...mergeProperties(
-                mergeProperties(mergeProperties(press.attributes(), keys), preview),
-                rest,
-            )}
+            {...mergeProperties(mergeProperties(press.attributes(), preview), rest)}
             type="button"
             data-slot="event-calendar-event"
+            data-event={properties.event.key}
             data-color={hue()}
             data-busy={isBusy() ? "" : undefined}
             data-selected={control.selection.isSelected(properties.event.key) ? "" : undefined}
@@ -374,9 +368,11 @@ export function EventCalendarPreview(properties: {
     /** The StyleX styles applied after the preview's styles. */
     readonly xstyle?: style.Styles;
 }): JSX.Element {
-    // read the event's times, calendar and resource
+    // read the event's times, calendar and resource, and where its actions run
     const control = useEventCalendar();
     const locale = useLocale();
+    const actions = useActions();
+    const chip = () => control.elementOf(properties.event.key);
     const source = () => control.sourceOf(properties.event);
     const resource = () => control.resourceOf(properties.event);
     const times = () => {
@@ -424,16 +420,16 @@ export function EventCalendarPreview(properties: {
 
             {/* What can be done with the event */}
             <div {...style.attrs(styles.actions)}>
-                <For each={control.eventActions(properties.event.key)}>
+                <For each={PREVIEW_ACTIONS}>
                     {(action) => (
-                        <Button
-                            size="sm"
-                            variant={action.isDestructive === true ? "destructive" : "outline"}
-                            data-action={action.id}
-                            onClick={() => void action.run()}
-                        >
-                            {action.title}
-                        </Button>
+                        <Show when={actions.has(action.reference, chip())}>
+                            <ActionButton
+                                action={action}
+                                element={chip()}
+                                size="sm"
+                                variant={action.isDestructive ? "destructive" : "outline"}
+                            />
+                        </Show>
                     )}
                 </For>
             </div>

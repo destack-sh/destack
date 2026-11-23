@@ -35,7 +35,10 @@ import {
 } from "./index.ts";
 import { createSignal, type JSX } from "@destack/view";
 import { present } from "@destack/schema";
-import type { Action } from "../action/index.ts";
+import { t } from "@destack/locale";
+import { defineAction } from "@destack/object";
+import { removeItems } from "../action/index.ts";
+import type { DataTableRowAction } from "./actions.ts";
 import { SortableMove } from "../sortable/index.ts";
 import { Cluster } from "../cluster/index.ts";
 import { Stack } from "../stack/index.ts";
@@ -437,6 +440,9 @@ const PRIORITY_LABELS: Readonly<Record<LaunchTask["priority"], string>> = {
     low: "Low",
 };
 
+/** Archive the tasks. */
+const archive = defineAction({ name: "archive-tasks", title: t`Archive` });
+
 /** Render the launch's tasks with faceted filters, editable titles and row actions. */
 function LaunchTasksTable(): JSX.Element {
     // store the tasks, changing the cells people edit or paste
@@ -458,9 +464,9 @@ function LaunchTasksTable(): JSX.Element {
     const remove = (ids: readonly string[]): void => {
         setTasks((current) => current.filter((task) => !ids.includes(task.id)));
     };
-    const actionsOf = (ids: readonly string[]): Action[] => [
-        { id: "archive", title: "Archive", run: () => remove(ids) },
-        { id: "delete", title: "Delete", isDestructive: true, run: () => remove(ids) },
+    const rowActions: readonly DataTableRowAction[] = [
+        { action: archive, run: remove },
+        { action: removeItems, run: remove },
     ];
     const columns = LAUNCH.columns([
         LAUNCH.display(orderColumn()),
@@ -529,11 +535,11 @@ function LaunchTasksTable(): JSX.Element {
                     options={LAUNCH_PRIORITIES}
                 />
             </Cluster>
-            <DataTableBulkBar table={table} actions={actionsOf} />
+            <DataTableBulkBar table={table} actions={rowActions} />
             <DataTable
                 table={table}
                 onCellsChange={change}
-                rowActions={actionsOf}
+                rowActions={rowActions}
                 onRowMove={(move) =>
                     setTasks((current) =>
                         SortableMove.place(

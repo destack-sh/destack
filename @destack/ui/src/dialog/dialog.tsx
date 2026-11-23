@@ -65,8 +65,8 @@ const styles = style.create({
     },
     close: {
         position: "absolute",
-        top: space[3],
-        right: space[3],
+        top: `calc(${space[5]} - ${space[1]})`,
+        insetInlineEnd: space[3],
     },
     header: {
         display: "flex",

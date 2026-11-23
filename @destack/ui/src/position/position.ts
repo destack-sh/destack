@@ -191,8 +191,13 @@ export const Position = {
 
     /** Move an overlay shown at a point to the point's other side where it leaves the screen. */
     fit(content: HTMLElement, point: Point): () => void {
-        // open after the point in the writing direction and below it, else before and above it
+        // leave it at the point in a page without a viewport
         const view = content.ownerDocument.documentElement;
+        if (view.clientWidth === 0) {
+            return () => undefined;
+        }
+
+        // open after the point in the writing direction and below it, else before and above it
         const width = content.offsetWidth;
         const height = content.offsetHeight;
         const isRightToLeft = getComputedStyle(content).direction === "rtl";

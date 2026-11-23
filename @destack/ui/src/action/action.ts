@@ -1,61 +1,74 @@
-import type { IconBodies } from "@destack/icon";
-import { Shortcut } from "@destack/locale";
+import { t } from "@destack/locale";
+import { defineAction } from "@destack/object";
 
-/** The elements whose keys type text. */
-const TYPING_TAGS: ReadonlySet<string> = new Set(["INPUT", "TEXTAREA", "SELECT"]);
+/** Select everything the list shows. */
+export const selectAll = defineAction({
+    name: "select-all",
+    title: t`Select all`,
+    category: t`Edit`,
+    keybinding: "mod+a",
+});
 
-/** The roles of widgets whose keys type text, after ARIA. */
-const TYPING_ROLES: ReadonlySet<string> = new Set(["textbox", "searchbox", "combobox"]);
+/** Clear the selection of the list. */
+export const clearSelection = defineAction({
+    name: "clear-selection",
+    title: t`Clear selection`,
+    category: t`Edit`,
+    keybinding: "escape",
+});
 
-/** Something a person can do, after VS Code's commands: one list feeds palettes, menus and keys. */
-export interface Action {
-    /** The action's id, unique among its list's actions. */
-    readonly id: string;
-    /** The title palettes and menus show. */
-    readonly title: string;
-    /** The icon beside the title. */
-    readonly icon?: IconBodies;
-    /** The key combination that runs it, such as `mod+d` or `t`. */
-    readonly shortcut?: string;
-    /** Whether the action destroys something, which palettes and menus color. */
-    readonly isDestructive?: boolean;
-    /** Whether it cannot run now, which greys it out and leaves its shortcut to others. */
-    readonly isDisabled?: boolean;
-    /** Do the action. */
-    readonly run: () => Promise<void> | void;
-}
+/** Select the item, or take it out of the selection. */
+export const toggleSelection = defineAction({
+    name: "toggle-selection",
+    title: t`Select`,
+    category: t`Edit`,
+    keybinding: "x",
+});
 
-/** The verbs of actions. */
-export const Action = {
-    /** Run the first enabled action a key press's shortcut matches, reporting whether one ran. */
-    handle(actions: readonly Action[], event: KeyboardEvent, isCommand: boolean): boolean {
-        // find the enabled action the press matches, leaving the press alone without one
-        const action = actions.find(
-            (each) =>
-                each.isDisabled !== true &&
-                each.shortcut !== undefined &&
-                Shortcut.matches(each.shortcut, event, isCommand),
-        );
-        if (action === undefined) {
-            return false;
-        }
+/** Open the item. */
+export const openItem = defineAction({
+    name: "open-item",
+    title: t`Open`,
+    category: t`Edit`,
+    keybinding: "enter",
+});
 
-        // take the press and run the action
-        event.preventDefault();
-        void action.run();
+/** Add an item where the person is. */
+export const createItem = defineAction({
+    name: "create-item",
+    title: t`Add`,
+    category: t`Edit`,
+    keybinding: "c",
+});
 
-        return true;
-    },
+/** Add a copy of the selected items. */
+export const duplicateItems = defineAction({
+    name: "duplicate-items",
+    title: t`Duplicate`,
+    category: t`Edit`,
+    keybinding: "mod+d",
+});
 
-    /** Report whether a key press goes to a field that takes text, whose keys type. */
-    isTyping(event: KeyboardEvent): boolean {
-        const target = event.target;
+/** Remove the selected items. */
+export const removeItems = defineAction({
+    name: "remove-items",
+    title: t`Delete`,
+    category: t`Edit`,
+    keybinding: "delete",
+    isDestructive: true,
+});
 
-        return (
-            target instanceof HTMLElement &&
-            (target.isContentEditable ||
-                TYPING_TAGS.has(target.tagName) ||
-                TYPING_ROLES.has(target.getAttribute("role") ?? ""))
-        );
-    },
-};
+/** Open the menu of what the person is on, as the menu key does. */
+export const openMenu = defineAction({
+    name: "open-menu",
+    title: t`Open menu`,
+    category: t`Edit`,
+    keybinding: "shift+f10",
+});
+
+/** Hide the column. */
+export const hideColumn = defineAction({
+    name: "hide-column",
+    title: t`Hide`,
+    category: t`View`,
+});

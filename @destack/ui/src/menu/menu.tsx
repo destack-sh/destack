@@ -15,6 +15,9 @@ import {
 } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import {
+    flush,
+    createMemo,
+    useActions,
     type Accessor,
     createContext,
     createControllableSignal,
@@ -43,7 +46,8 @@ import {
     renderPart,
 } from "../part/index.ts";
 import { type Direction, Shortcut } from "@destack/locale";
-import type { Action } from "../action/index.ts";
+import type { Action, ActionInputs, ValuesOf } from "@destack/object";
+import type { IconBodies } from "@destack/icon";
 import { useCommandPlatform } from "../kbd/index.ts";
 import { ListState } from "../focus/index.ts";
 import { type Align, type Point, Position, type Side } from "../position/index.ts";
@@ -284,6 +288,10 @@ export class MenuControl {
     #unplace: () => void;
     /** The way of a pointer from a submenu's trigger to its submenu. */
     readonly polygon: SafePolygon;
+    /** The trigger the menu last opened at. */
+    readonly #origin: Accessor<HTMLElement | undefined>;
+    /** Replace the trigger the menu last opened at. */
+    readonly #setOrigin: Setter<HTMLElement | undefined>;
     /** The pending open of a submenu whose trigger is hovered. */
     readonly #timer: Timeout;
     /** The open submenus. */
@@ -303,6 +311,11 @@ export class MenuControl {
             onChange: (isNext) => properties.onOpenChange?.(isNext),
         });
         const [point, setPoint] = createSignal<Point | undefined>(undefined);
+        const [origin, setOrigin] = createSignal<HTMLElement | undefined>(undefined, {
+            ownedWrite: true,
+        });
+        this.#origin = origin;
+        this.#setOrigin = setOrigin;
         this.id = createUniqueId();
         this.triggerId = `${this.id}-trigger`;
         this.parent = parent;
@@ -369,6 +382,11 @@ export class MenuControl {
         this.#isReturningFocus = false;
     }
 
+    /** Read where the top menu opened: its trigger, null without one. */
+    origin(): Element | null {
+        return this.root().#origin() ?? null;
+    }
+
     /** Show an open menu again, as the platform dismisses one that opened during a press. */
     keep(): void {
         if (untrack(this.isOpen) && this.#content?.matches(":popover-open") === false) {
@@ -398,7 +416,11 @@ export class MenuControl {
     open(focus: MenuFocus, point?: Point): void {
         // remember what to focus before opening and joining the parent's open submenus
         this.#focus = focus;
+        this.#setOrigin(this.#trigger);
         this.#setPoint(point);
+
+        // render the items for where it opens, so it measures and focuses those, then show it
+        flush();
         this.#setOpen(true);
         if (this.parent !== null) {
             this.parent.#children.add(this);
@@ -1002,26 +1024,47 @@ function choose(
 }
 
 /** The properties of a menu's action. */
-export interface MenuActionProperties {
+export interface MenuActionProperties<Inputs extends ActionInputs = ActionInputs> {
     /** The action. */
-    readonly action: Action;
+    readonly action: Action<Inputs>;
+    /** Where it runs, where the menu opened by default. */
+    readonly element?: Element | null;
+    /** The values the item gives, the rest from where it runs. */
+    readonly given?: Partial<ValuesOf<Inputs>>;
+    /** The icon before the title. */
+    readonly icon?: IconBodies;
+    /** The title, the action's by default. */
+    readonly children?: JSX.Element;
 }
 
-/** Render an action as the menu's item, with its icon and shortcut, a destructive one marked. */
-export function MenuAction(properties: MenuActionProperties): JSX.Element {
+/** Render an action as the menu's item with its keys, left out where it cannot run. */
+export function MenuAction<Inputs extends ActionInputs>(
+    properties: MenuActionProperties<Inputs>,
+): JSX.Element {
+    // run it where the menu opened, by the keys the person has for it
+    const actions = useActions();
+    const locale = useLocale();
     const isCommand = useCommandPlatform();
+    const control = useMenu();
+    const element = () =>
+        properties.element === undefined ? control.origin() : properties.element;
+    const isEnabled = createMemo(() => actions.has(properties.action.reference, element()));
+    const keys = () => actions.keybinding(properties.action);
 
     return (
-        <MenuItem
-            variant={properties.action.isDestructive === true ? "destructive" : "default"}
-            disabled={properties.action.isDisabled === true}
-            onSelect={() => void properties.action.run()}
-        >
-            <Show when={properties.action.icon}>{(icon) => <Icon icon={icon()} />}</Show>
-            {properties.action.title}
-            <Show when={properties.action.shortcut}>
-                {(keys) => <MenuShortcut>{Shortcut.format(keys(), isCommand())}</MenuShortcut>}
-            </Show>
-        </MenuItem>
+        <Show when={isEnabled()}>
+            <MenuItem
+                variant={properties.action.isDestructive ? "destructive" : "default"}
+                onSelect={() => actions.start(properties.action, element(), properties.given)}
+            >
+                <Show when={properties.icon}>{(icon) => <Icon icon={icon()} />}</Show>
+                {properties.children ?? locale.render(properties.action.title)}
+                <Show when={properties.given === undefined ? keys() : undefined}>
+                    {(shortcut) => (
+                        <MenuShortcut>{Shortcut.format(shortcut(), isCommand())}</MenuShortcut>
+                    )}
+                </Show>
+            </MenuItem>
+        </Show>
     );
 }

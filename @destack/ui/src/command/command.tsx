@@ -56,6 +56,12 @@ const DIALOG_INPUT_SIZE = "var(--destack-text-base-font-size)";
 /** The widest a command dialog grows, 720px. */
 const DIALOG_WIDTH = "45rem";
 
+/** The width of the column a command dialog's icons share, 20px. */
+const DIALOG_ICON = "1.25rem";
+
+/** The widest a small command dialog grows, 480px. */
+const DIALOG_SMALL_WIDTH = "30rem";
+
 /** The widest a command dialog grows beside a detail, 960px. */
 const DIALOG_DETAIL_WIDTH = "60rem";
 
@@ -84,6 +90,9 @@ const styles = style.create({
         gap: 0,
         overflow: "hidden",
     },
+    small: {
+        width: `min(100% - 2 * ${space[4]}, ${DIALOG_SMALL_WIDTH})`,
+    },
     command: {
         display: "flex",
         flexDirection: "column",
@@ -111,6 +120,13 @@ const styles = style.create({
         outlineStyle: "none",
         color: color.foreground,
         "::placeholder": { color: color.mutedForeground },
+    },
+    icon: {
+        display: "inline-flex",
+        flexShrink: 0,
+        alignItems: "center",
+        justifyContent: "center",
+        width: "1em",
     },
     list: {
         flexGrow: 1,
@@ -207,7 +223,7 @@ const dialogStyles = style.create({
         borderRadius: radius[5],
     },
     search: {
-        gap: space[3],
+        gap: space[2],
         height: size[4],
         paddingInline: DIALOG_INSET,
     },
@@ -216,20 +232,24 @@ const dialogStyles = style.create({
     },
     list: {
         maxHeight: DIALOG_LIST_HEIGHT,
-        paddingBlockStart: 0,
-        paddingBlockEnd: space[2],
-        paddingInline: space[2],
+        padding: space[2],
+    },
+    icon: {
+        width: DIALOG_ICON,
+    },
+    group: {
+        marginBlockStart: { default: space[2], ":first-child": 0 },
     },
     body: {
         flex: "1 1 auto",
         height: DIALOG_LIST_HEIGHT,
     },
     heading: {
-        paddingBlockStart: space[3],
-        paddingInline: space[3],
+        paddingBlockStart: space[1],
+        paddingInline: `calc(${space[3]} + (${DIALOG_ICON} - 1rem) / 2)`,
     },
     item: {
-        gap: space[3],
+        gap: space[2],
         minHeight: `calc(${size[2]} + ${space[1]})`,
         paddingInline: space[3],
         borderRadius: radius[3],
@@ -340,7 +360,10 @@ export type CommandElementProperties<Attributes> = Omit<Attributes, "class"> & {
 };
 
 /** The properties of a command option. */
-export type CommandItemProperties = ListBoxItemProperties;
+export interface CommandItemProperties extends ListBoxItemProperties {
+    /** The icon before its title, whose room a dialog's options keep without one. */
+    readonly icon?: JSX.Element;
+}
 
 /** The properties of a command dialog. */
 export interface CommandDialogProperties
@@ -349,6 +372,8 @@ export interface CommandDialogProperties
     readonly title?: string;
     /** The description assistive technology announces, a generic one by default. */
     readonly description?: string;
+    /** How wide it grows: a palette's width by default, small for a plain list. */
+    readonly size?: "default" | "sm";
 }
 
 /** The properties of a command group, the native element's attributes included. */
@@ -462,7 +487,9 @@ export function CommandInput(
             data-slot="command-input-wrapper"
             {...style.attrs(styles.search, isDialog && dialogStyles.search)}
         >
-            <Icon name="magnifying-glass" />
+            <span {...style.attrs(styles.icon, isDialog && dialogStyles.icon)}>
+                <Icon name="magnifying-glass" />
+            </span>
             <For each={command.pages()}>
                 {(page) => (
                     <span data-slot="command-page-chip" {...style.attrs(text.xs, styles.page)}>
@@ -515,10 +542,15 @@ export function CommandLoading(
 
 /** Render a group of options under a heading, hidden while the search matches none of them. */
 export function CommandGroup(properties: CommandGroupProperties): JSX.Element {
-    const rest = omit(properties, "heading", "children");
+    const isDialog = useContext(CommandDialogContext);
+    const rest = omit(properties, "heading", "xstyle", "children");
 
     return (
-        <ListBoxSection data-slot="command-group" {...rest}>
+        <ListBoxSection
+            data-slot="command-group"
+            {...rest}
+            xstyle={[isDialog && dialogStyles.group, properties.xstyle]}
+        >
             <Show when={"heading" in properties}>
                 <CommandGroupHeading>{properties.heading}</CommandGroupHeading>
             </Show>
@@ -545,13 +577,26 @@ export function CommandGroupHeading(
 /** Render an option that the search filters and a click or Enter chooses. */
 export function CommandItem(properties: CommandItemProperties): JSX.Element {
     const isDialog = useContext(CommandDialogContext);
+    const rest = omit(properties, "icon", "xstyle", "children");
 
     return (
         <ListBoxItem
             data-slot="command-item"
-            {...properties}
+            {...rest}
             xstyle={[isDialog && dialogStyles.item, properties.xstyle]}
-        />
+        >
+            {/* The icon, below the search's in a dialog, where every title starts on one edge */}
+            <Show when={isDialog || properties.icon !== undefined}>
+                <span
+                    data-slot="command-item-icon"
+                    aria-hidden="true"
+                    {...style.attrs(styles.icon, isDialog && dialogStyles.icon)}
+                >
+                    {properties.icon}
+                </span>
+            </Show>
+            {properties.children}
+        </ListBoxItem>
     );
 }
 
@@ -617,6 +662,7 @@ export function CommandDialog(properties: CommandDialogProperties): JSX.Element 
         "defaultOpen",
         "onOpenChange",
         "modal",
+        "size",
         "title",
         "description",
     );
@@ -626,7 +672,7 @@ export function CommandDialog(properties: CommandDialogProperties): JSX.Element 
             <DialogContent
                 data-slot="command-dialog"
                 showCloseButton={false}
-                xstyle={styles.dialog}
+                xstyle={[styles.dialog, properties.size === "sm" && styles.small]}
             >
                 <DialogTitle xstyle={visuallyHiddenStyle()}>
                     {properties.title ?? locale.render(t`Command palette`)}

@@ -230,7 +230,7 @@ const styles = style.create({
         display: "flex",
         alignItems: "center",
         insetBlock: 0,
-        right: space[2],
+        insetInlineEnd: space[2],
         color: color.mutedForeground,
         fontVariantNumeric: "tabular-nums",
         pointerEvents: "none",

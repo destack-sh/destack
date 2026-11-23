@@ -7,6 +7,7 @@ import * as style from "@destack/style";
 import { space, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import {
+    useActions,
     createEffect,
     For,
     type JSX,
@@ -17,7 +18,6 @@ import {
     useLocale,
     useNow,
 } from "@destack/view";
-import { Action } from "../action/index.ts";
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { HoverCard } from "../hover-card/index.ts";
 import { useCommandPlatform } from "../kbd/index.ts";
@@ -81,12 +81,19 @@ export function EventCalendar(properties: EventCalendarProperties): JSX.Element 
         useEnvironment(),
         useNow(NOW_INTERVAL),
     );
-    // run the calendar's actions by their keys, outside fields and keys a part took
+    // handle the calendar's actions, running their keys before those of the page
+    const actions = useActions();
     const isCommand = useCommandPlatform();
+    let root: HTMLElement | undefined;
+    const handlers = control.handleActions();
     const keys = {
+        ref: (element: HTMLElement) => {
+            root = element;
+            handlers.forEach((attach) => attach(element));
+        },
         onKeyDown: (event: KeyboardEvent) => {
-            if (!event.defaultPrevented && !Action.isTyping(event)) {
-                Action.handle(control.actions(), event, isCommand());
+            if (!event.defaultPrevented) {
+                actions.press(event, isCommand(), root);
             }
         },
     };

@@ -1,0 +1,90 @@
+import * as style from "@destack/style";
+import { space } from "@destack/theme/tokens.stylex";
+import { type Action, type ActionInputs, type ValuesOf } from "@destack/object";
+import { Icon } from "@destack/ui/icon";
+import type { IconBodies } from "@destack/icon";
+import { Shortcut } from "@destack/locale";
+import { type JSX, omit, Show, useActions, useLocale } from "@destack/view";
+import { Button, type ButtonProperties } from "../button/index.ts";
+import { useCommandPlatform } from "../kbd/index.ts";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../tooltip/index.ts";
+
+/** The style of the keys in a button's tooltip. */
+const styles = style.create({
+    keys: {
+        marginInlineStart: space[2],
+        opacity: 0.7,
+    },
+});
+
+/** The properties of a button that runs an action. */
+export interface ActionButtonProperties<Inputs extends ActionInputs = ActionInputs> extends Omit<
+    ButtonProperties,
+    "onClick"
+> {
+    /** The action. */
+    readonly action: Action<Inputs>;
+    /** The values the button gives, the rest from where the person is. */
+    readonly given?: Partial<ValuesOf<Inputs>>;
+    /** Where it runs, where the button stands or the person last was by default. */
+    readonly element?: Element | null;
+    /** The icon, beside the title or alone in an icon size. */
+    readonly icon?: IconBodies;
+}
+
+/** Render a button that runs an action where it stands, else where the person last was. */
+export function ActionButton<Inputs extends ActionInputs>(
+    properties: ActionButtonProperties<Inputs>,
+): JSX.Element {
+    // read the action's title and the keys that run it
+    const actions = useActions();
+    const locale = useLocale();
+    const isCommand = useCommandPlatform();
+    const rest = omit(properties, "action", "given", "element", "icon", "children");
+    const title = () => locale.render(properties.action.title);
+    const keys = () => actions.keybinding(properties.action);
+    const isAlone = () => properties.size === "icon" || properties.size === "icon-sm";
+    const run = (element: Element) => {
+        const { action, given } = properties;
+        const place =
+            properties.element === undefined
+                ? actions.placeOf(action, element)
+                : properties.element;
+        actions.start(action, place, given);
+    };
+
+    return (
+        <Tooltip>
+            <TooltipTrigger
+                render={(attributes) => (
+                    <Button
+                        {...attributes}
+                        {...rest}
+                        data-slot="action-button"
+                        data-action={properties.action.name}
+                        aria-label={isAlone() ? title() : undefined}
+                        aria-keyshortcuts={
+                            keys() === undefined
+                                ? undefined
+                                : Shortcut.keys(keys() ?? "", isCommand()).join("+")
+                        }
+                        onClick={(event) => run(event.currentTarget)}
+                    />
+                )}
+            >
+                <Show when={properties.icon}>{(icon) => <Icon icon={icon()} />}</Show>
+                <Show when={!isAlone()}>{properties.children ?? title()}</Show>
+            </TooltipTrigger>
+            <TooltipContent>
+                {title()}
+                <Show when={keys()}>
+                    {(shortcut) => (
+                        <span {...style.attrs(styles.keys)}>
+                            {Shortcut.format(shortcut(), isCommand())}
+                        </span>
+                    )}
+                </Show>
+            </TooltipContent>
+        </Tooltip>
+    );
+}

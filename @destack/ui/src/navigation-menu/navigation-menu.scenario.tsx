@@ -26,12 +26,21 @@ export const navigationMenuClosePanelOnEscape = defineScenario({
                     },
                     is: true,
                 },
-                { observe: { kind: "visible", target: { role: "link", name: "Tasks" } }, is: true },
+                {
+                    observe: {
+                        kind: "visible",
+                        target: { role: "link", name: "Tasks Plan the work with your team" },
+                    },
+                    is: true,
+                },
                 { observe: { kind: "focused" }, is: "Products" },
             ],
         },
         {
-            step: { action: "focus", target: { role: "link", name: "Tasks" } },
+            step: {
+                action: "focus",
+                target: { role: "link", name: "Tasks Plan the work with your team" },
+            },
             then: [
                 {
                     observe: {
@@ -41,8 +50,14 @@ export const navigationMenuClosePanelOnEscape = defineScenario({
                     },
                     is: true,
                 },
-                { observe: { kind: "visible", target: { role: "link", name: "Tasks" } }, is: true },
-                { observe: { kind: "focused" }, is: "Tasks" },
+                {
+                    observe: {
+                        kind: "visible",
+                        target: { role: "link", name: "Tasks Plan the work with your team" },
+                    },
+                    is: true,
+                },
+                { observe: { kind: "focused" }, is: "Tasks Plan the work with your team" },
             ],
         },
         {
@@ -57,7 +72,10 @@ export const navigationMenuClosePanelOnEscape = defineScenario({
                     is: false,
                 },
                 {
-                    observe: { kind: "visible", target: { role: "link", name: "Tasks" } },
+                    observe: {
+                        kind: "visible",
+                        target: { role: "link", name: "Tasks Plan the work with your team" },
+                    },
                     is: false,
                 },
                 { observe: { kind: "focused" }, is: "Products" },
@@ -135,11 +153,16 @@ export const navigationMenuTabThroughPanel = defineScenario({
         },
         {
             step: { action: "press", key: "Tab" },
-            then: [{ observe: { kind: "focused" }, is: "Notes" }],
+            then: [
+                { observe: { kind: "focused" }, is: "Notes Write things down and find them again" },
+            ],
         },
         {
-            step: { action: "focus", target: { role: "link", name: "Tasks" } },
-            then: [{ observe: { kind: "focused" }, is: "Tasks" }],
+            step: {
+                action: "focus",
+                target: { role: "link", name: "Tasks Plan the work with your team" },
+            },
+            then: [{ observe: { kind: "focused" }, is: "Tasks Plan the work with your team" }],
         },
         {
             step: { action: "press", key: "Tab" },

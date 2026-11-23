@@ -1542,3 +1542,29 @@ test("refuse a virtual list in a board column that reads no text of its cards", 
         "TypeError: board column 'backlog' is invalid: its virtual list needs textOf",
     );
 });
+
+test("open a card's menu on its first item, by a right click and by Shift and F10", () => {
+    // open the first card's menu by pointer, close it, then open it by key
+    stubPopovers();
+    const board = drawTeam({ todo: ["a"], doing: [], done: [] });
+    const card = find(board.container, "board-item", "a");
+    card.dispatchEvent(
+        new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 9, clientY: 9 }),
+    );
+    flush();
+    const byPointer = document.activeElement?.textContent;
+    pressKeyOn(document.activeElement, "Escape");
+    card.focus();
+    pressKeyOn(card, "F10", { shiftKey: true });
+    const byKey = document.activeElement?.textContent;
+
+    expect({ byPointer, byKey }).toEqual({ byPointer: "OpenEnter", byKey: "OpenEnter" });
+});
+
+/** Press a key on an element, with modifiers. */
+function pressKeyOn(target: Element | null, key: string, modifiers: KeyboardEventInit = {}): void {
+    target?.dispatchEvent(
+        new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...modifiers }),
+    );
+    flush();
+}

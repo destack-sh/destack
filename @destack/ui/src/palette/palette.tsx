@@ -48,10 +48,6 @@ const styles = style.create({
     destructive: {
         color: swatch.destructiveText,
     },
-    blank: {
-        flexShrink: 0,
-        width: "1em",
-    },
     drill: {
         color: color.mutedForeground,
     },
@@ -237,6 +233,7 @@ function PaletteEntry(properties: {
     return (
         <CommandItem
             value={item.id}
+            icon={iconOf(item.icon)}
             onSelect={() => {
                 // open the entry's page when it has no action, else run its first action
                 if (item.actions.length === 0) {
@@ -246,12 +243,6 @@ function PaletteEntry(properties: {
                 }
             }}
         >
-            <Mark
-                icon={item.icon}
-                isAligned={properties.control
-                    .page()
-                    .groups.some((group) => group.items().some((each) => each.icon !== undefined))}
-            />
             {item.title}
             <Show when={item.subtitle}>
                 {(subtitle) => <CommandItemDescription>{subtitle()}</CommandItemDescription>}
@@ -273,25 +264,9 @@ function PaletteEntry(properties: {
     );
 }
 
-/** Render an entry's icon, its room among entries with icons, so every title starts on one edge. */
-function Mark(properties: {
-    /** The icon, none for an entry without one. */
-    readonly icon: IconBodies | undefined;
-    /** Whether another entry beside it has an icon. */
-    readonly isAligned: boolean;
-}): JSX.Element {
-    return (
-        <Show
-            when={properties.icon}
-            fallback={
-                <Show when={properties.isAligned}>
-                    <span aria-hidden="true" {...style.attrs(styles.blank)} />
-                </Show>
-            }
-        >
-            {(icon) => <Icon icon={icon()} />}
-        </Show>
-    );
+/** Draw an entry's icon, nothing for an entry without one. */
+function iconOf(icon: IconBodies | undefined): JSX.Element {
+    return icon === undefined ? undefined : <Icon icon={icon} />;
 }
 
 /** Render an entry's actions in a panel over the palette's corner. */
@@ -330,18 +305,13 @@ function ActionsPanel(properties: {
                             {(action) => (
                                 <CommandItem
                                     value={action.id}
+                                    icon={iconOf(action.icon)}
                                     keywords={[action.title]}
                                     xstyle={action.isDestructive === true && styles.destructive}
                                     onSelect={() =>
                                         void properties.control.run(properties.item, action)
                                     }
                                 >
-                                    <Mark
-                                        icon={action.icon}
-                                        isAligned={properties.item.actions.some(
-                                            (each) => each.icon !== undefined,
-                                        )}
-                                    />
                                     {action.title}
                                     <Show when={action.shortcut}>
                                         {(keys) => <CommandShortcut keys={keys()} />}

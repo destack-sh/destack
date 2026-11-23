@@ -1,3 +1,5 @@
+import { t } from "@destack/locale";
+import { defineAction } from "@destack/object";
 import { beforeEach, expect, onTestFinished, test } from "@destack/test";
 import {
     cellSelectionFeature,
@@ -402,10 +404,8 @@ const PLANTS: Plant[] = [
     { id: "mint", name: "Mint", count: 2, planted: "2026-02-20", place: "sun", isDry: false },
 ];
 
-/** List the sheet's one row action, which records the rows it ran on. */
-function waterOf(acted: (readonly string[])[], rows: readonly string[]) {
-    return [{ id: "water", title: "Water", run: () => void acted.push(rows) }];
-}
+/** Water the plants. */
+const water = defineAction({ name: "water", title: t`Water` });
 
 /** Draw the plant sheet a page at a time, writing changes into its rows and recording them. */
 function drawSheet(options: { readonly pageSize?: number; readonly isReadOnly?: boolean } = {}): {
@@ -479,16 +479,18 @@ function drawSheet(options: { readonly pageSize?: number; readonly isReadOnly?: 
             enableRowSelection: true,
             initialState: { pagination: { pageIndex: 0, pageSize: options.pageSize ?? 10 } },
         });
-        const actionsOf = waterOf.bind(undefined, acted);
+        const rowActions = [
+            { action: water, run: (rows: readonly string[]) => void acted.push(rows) },
+        ];
 
         return (
             <>
-                <DataTableBulkBar table={table} actions={actionsOf} />
+                <DataTableBulkBar table={table} actions={rowActions} />
                 <DataTable
                     table={table}
                     {...(options.isReadOnly === true ? {} : { onCellsChange: write })}
                     onRowMove={(move) => moves.push(move)}
-                    rowActions={actionsOf}
+                    rowActions={rowActions}
                 />
             </>
         );
@@ -908,11 +910,13 @@ test("stop a column's header from moving once it pins, focused, and let it move 
         return lifted.includes(true);
     };
     const before = lifts();
+    await wait(0);
     chooseInHeaderMenu(sheet.container, "name", "Pin to start");
     await Promise.resolve();
     const focused = document.activeElement?.closest("th")?.dataset["column"];
     const stops = sheet.container.querySelectorAll("table [tabindex='0']").length;
     const pinned = lifts();
+    await wait(0);
     chooseInHeaderMenu(sheet.container, "name", "Unpin");
 
     // the pinned header takes the focus back from its menu
@@ -1204,10 +1208,7 @@ test("offer moving a column left or right only where a movable column stands tha
         .filter((item) => item.textContent.startsWith("Move"))
         .map((item) => [item.textContent, item.getAttribute("aria-disabled")]);
 
-    expect(moves).toEqual([
-        ["Move left", "true"],
-        ["Move right", null],
-    ]);
+    expect(moves).toEqual([["Move right", null]]);
 });
 
 test("select a block of cells by sweeping the pointer across them", () => {

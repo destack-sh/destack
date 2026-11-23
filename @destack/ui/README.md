@@ -61,7 +61,7 @@ Each entry is `@destack/ui/<entry>`.
 | Views                  | `board`, `event-calendar`, `timeline`                                                                                                                                                                                                                                                                                   |
 | Feedback and structure | `accordion`, `alert`, `aspect-ratio`, `collapsible`, `empty`, `progress`, `prose`, `resizable`, `scroll-area`, `separator`, `skeleton`, `spinner`, `visually-hidden`                                                                                                                                                    |
 | Layout                 | `stack`, `cluster`, `grid`, `center`, `switcher`, `cover`, `content`                                                                                                                                                                                                                                                    |
-| Building blocks        | `part`, `collection`, `focus`, `layer`, `position`, `selection`, `interaction`, `drag`, `sortable`, `toggle-state`, `virtualizer`, `glyph`                                                                                                                                                                              |
+| Building blocks        | `action`, `part`, `collection`, `focus`, `layer`, `position`, `selection`, `interaction`, `drag`, `sortable`, `toggle-state`, `virtualizer`, `glyph`                                                                                                                                                                    |
 
 ### Parts
 

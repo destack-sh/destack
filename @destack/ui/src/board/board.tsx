@@ -21,6 +21,9 @@ import { text } from "@destack/theme/text";
 import { present } from "@destack/schema";
 import { type Direction, t } from "@destack/locale";
 import {
+    isTextField,
+    handle,
+    type ActionRegistry,
     type Accessor,
     createContext,
     createControllableSignal,
@@ -36,9 +39,21 @@ import {
     Show,
     untrack,
     useContext,
+    useActions,
     useLocale,
 } from "@destack/view";
-import { Action } from "../action/index.ts";
+import type { Action, ActionInputs, ValuesOf } from "@destack/object";
+import {
+    clearSelection,
+    createItem,
+    hideColumn,
+    openItem,
+    openMenu,
+    removeItems,
+    selectAll,
+    toggleSelection,
+} from "../action/index.ts";
+import { moveCardDown, moveCardLeft, moveCardRight, moveCardTo, moveCardUp } from "./actions.ts";
 import { Icon } from "../icon/index.ts";
 import { Collection, CollectionBuilder } from "../collection/index.ts";
 import { ContextMenuContent } from "../context-menu/index.ts";
@@ -73,6 +88,9 @@ export const CARD_TYPE = "card";
 
 /** A card's edge inside its box, which no scrolling column clips, and its cast shadow below. */
 const CARD_SHADOW = `inset 0 0 0 ${stroke.border} ${shadow.edge}, 0 1px 2px ${shadow.cast}`;
+
+/** The actions a card's menu offers. */
+const MENU_ACTIONS = [openItem, moveCardTo, removeItems];
 
 /** The styles of a board and its parts. */
 const styles = style.create({
@@ -580,12 +598,21 @@ export class BoardControl {
     readonly #setMenuKey: (key: string | undefined) => void;
     /** The locale the actions' titles are written in. */
     readonly #locale: ReturnType<typeof useLocale>;
+    /** The page's actions, which the board handles its own among. */
+    readonly #actions: ActionRegistry;
+    /** The board's element. */
+    #root: HTMLElement | undefined;
 
     /** Collect a board's cards, columns and lanes as they mount. */
-    constructor(properties: BoardProperties, locale: ReturnType<typeof useLocale>) {
+    constructor(
+        properties: BoardProperties,
+        locale: ReturnType<typeof useLocale>,
+        actions: ActionRegistry,
+    ) {
         // collect cards, columns and lanes in document order, a remounted one replacing its earlier
         this.properties = properties;
         this.#locale = locale;
+        this.#actions = actions;
         this.#id = createUniqueId();
         this.cardType = `${this.#id} ${CARD_TYPE}`;
         this.columnType = `${this.#id} ${COLUMN_TYPE}`;
@@ -868,6 +895,11 @@ export class BoardControl {
         this.#columnMenus.add({});
     }
 
+    /** Report whether a column's menu hides columns. */
+    hasColumnMenu(): boolean {
+        return this.#columnMenus.size() > 0;
+    }
+
     /** Read the number of lists of hidden columns. */
     hiddenListCount(): number {
         return this.#hiddenLists.size();
@@ -1010,8 +1042,8 @@ export class BoardControl {
         if (
             !isFromCard ||
             event.defaultPrevented ||
-            Action.isTyping(event) ||
-            Action.handle(this.actions(), event, isCommand)
+            isTextField(event.target) ||
+            this.#actions.press(event, isCommand, this.root())
         ) {
             return;
         }
@@ -1023,31 +1055,6 @@ export class BoardControl {
         }
     }
 
-    /** List what keys do anywhere on the board: select every shown card, or clear the selection. */
-    actions(): Action[] {
-        const locale = this.#locale;
-
-        return [
-            {
-                id: "select-all",
-                title: locale.render(t`Select all`),
-                shortcut: "mod+a",
-                run: () =>
-                    this.selection.replace(this.shownCells().flatMap((cell) => this.keysIn(cell))),
-            },
-            ...(this.selection.values().length === 0
-                ? []
-                : [
-                      {
-                          id: "clear",
-                          title: locale.render(t`Clear selection`),
-                          shortcut: "escape",
-                          run: () => this.selection.clear(),
-                      },
-                  ]),
-        ];
-    }
-
     /** List the cards an action on a card takes: the selection it is in, else the card. */
     targetsOf(key: string): string[] {
         return this.selection.isSelected(key)
@@ -1055,114 +1062,160 @@ export class BoardControl {
             : [key];
     }
 
-    /** List what keys do on a card. */
-    cardActions(key: string, direction: Direction): Action[] {
-        // toggle the card, write a card into its cell, and remove the cards
-        const locale = this.#locale;
-        const options = this.properties;
-        const targets = this.targetsOf(key);
-        const cell = this.#cardOf(key).cell;
-        const composer = this.#composerIn(cell);
-        const editing: Action[] = [
-            {
-                id: "toggle",
-                title: locale.render(t`Select`),
-                shortcut: "x",
-                run: () => this.selection.toggle(key),
-            },
-            ...(options.onCreate === undefined || composer === undefined
-                ? []
-                : [
-                      {
-                          id: "create",
-                          title: locale.render(t`Add a card`),
-                          shortcut: "c",
-                          run: () => {
-                              this.setComposing({
-                                  composer,
-                                  opener: { kind: "card", key, nearest: this.#survivor([key]) },
-                              });
-                          },
-                      },
-                  ]),
-            ...this.#removing(targets),
-        ];
-
-        // move the cards a column over, and a lane over on a board with lanes
-        const isRtl = direction === "rtl";
-        const steps = [
-            { id: "move-left", title: t`Move left`, key: "left", column: isRtl ? 1 : -1, lane: 0 },
-            {
-                id: "move-right",
-                title: t`Move right`,
-                key: "right",
-                column: isRtl ? -1 : 1,
-                lane: 0,
-            },
-            ...(cell.lane === undefined
-                ? []
-                : [
-                      { id: "move-up", title: t`Move up`, key: "up", column: 0, lane: -1 },
-                      { id: "move-down", title: t`Move down`, key: "down", column: 0, lane: 1 },
-                  ]),
-        ];
-        const moving: Action[] =
-            options.onItemMove === undefined
-                ? []
-                : steps.map((step) => ({
-                      id: step.id,
-                      title: locale.render(step.title),
-                      shortcut: `shift+alt+${step.key}`,
-                      run: () => this.step(key, targets, step.column, step.lane),
-                  }));
-
-        return [...editing, ...moving];
+    /** Read the board's element, absent until it mounts. */
+    root(): HTMLElement | undefined {
+        return this.#root;
     }
 
-    /** List what the card menu offers: open the card, move the cards, or delete them. */
-    menuActions(key: string): Action[] {
-        // open a lone card, and move the cards to each other column that takes them all
-        const locale = this.#locale;
-        const options = this.properties;
-        const targets = this.targetsOf(key);
-        const from = this.#cardOf(key).cell;
-        const opening: Action[] =
-            options.onAction === undefined || targets.length > 1
-                ? []
-                : [
-                      {
-                          id: "open",
-                          title: locale.render(t`Open`),
-                          shortcut: "enter",
-                          run: () => options.onAction?.(key),
-                      },
-                  ];
-        const moving: Action[] =
-            options.onItemMove === undefined
-                ? []
-                : this.columns
-                      .items()
-                      .filter(
-                          (column) =>
-                              column.key !== from.column &&
-                              targets.every((each) => this.isAllowed(each, column.key)),
-                      )
-                      .map((column) => ({
-                          id: `move-to-${column.key}`,
-                          title: locale.render(t`Move to ${column.label()}`),
-                          run: () => {
-                              this.place(targets, { column: column.key, lane: from.lane });
-                              this.refocus(() => key);
-                          },
-                      }));
+    /** Set the board's element. */
+    setRoot(element: HTMLElement): void {
+        this.#root = element;
+    }
 
-        return [...opening, ...moving, ...this.#removing(targets)];
+    /** Find the shown element of a card, null while it shows nowhere. */
+    #elementOf(key: string): HTMLElement | null {
+        return this.#root?.querySelector<HTMLElement>(`[data-item="${CSS.escape(key)}"]`) ?? null;
+    }
+
+    /** Read the key of the card around an element, absent outside one. */
+    keyAt(element: Element | null): string | undefined {
+        const item = element?.closest<HTMLElement>("[data-slot=board-item]") ?? null;
+
+        return item?.dataset["item"];
+    }
+
+    /** List what handles the actions on the board and its cards, for its element's `ref`. */
+    handleActions(direction: () => Direction): ((element: Element) => void)[] {
+        // handle an action where a card is, on the selection it is in
+        const onCard = <Inputs extends ActionInputs>(
+            action: Action<Inputs>,
+            isEnabled: (key: string) => boolean,
+            run: (key: string, values: ValuesOf<Inputs>) => void,
+        ) =>
+            handle(action, {
+                isEnabled: (element) => {
+                    const key = this.keyAt(element);
+
+                    return key !== undefined && this.collection.has(key) && isEnabled(key);
+                },
+                run: ({ element, values }) =>
+                    run(present(this.keyAt(element), "the card an action runs on"), values),
+            });
+        const { properties } = this;
+        const composerOf = (key: string) => this.#composerIn(this.#cardOf(key).cell);
+        const sign = () => (direction() === "rtl" ? -1 : 1);
+        const isMoving = () => properties.onItemMove !== undefined;
+        const hasLanes = (key: string) => isMoving() && this.#cardOf(key).cell.lane !== undefined;
+
+        return [
+            // select all the shown cards, some of them, or none
+            handle(selectAll, {
+                run: () =>
+                    this.selection.replace(this.shownCells().flatMap((cell) => this.keysIn(cell))),
+            }),
+            handle(clearSelection, {
+                isEnabled: () => this.selection.values().length > 0,
+                run: () => this.selection.clear(),
+            }),
+            onCard(
+                toggleSelection,
+                () => true,
+                (key) => this.selection.toggle(key),
+            ),
+
+            // open a lone card, write one into its cell, and remove the cards
+            onCard(
+                openItem,
+                (key) => properties.onAction !== undefined && this.targetsOf(key).length === 1,
+                (key) => properties.onAction?.(key),
+            ),
+            onCard(
+                openMenu,
+                (key) => this.#menus > 0 && this.#elementOf(key) !== null,
+                (key) => {
+                    // open it under the card
+                    const element = present(this.#elementOf(key), "the card to open a menu on");
+                    const bounds = element.getBoundingClientRect();
+                    this.openMenu(key, element, bounds.left, bounds.bottom);
+                },
+            ),
+            onCard(
+                createItem,
+                (key) => properties.onCreate !== undefined && composerOf(key) !== undefined,
+                (key) => {
+                    this.setComposing({
+                        composer: present(composerOf(key), "the composer of a card's cell"),
+                        opener: { kind: "card", key, nearest: this.#survivor([key]) },
+                    });
+                },
+            ),
+            onCard(
+                removeItems,
+                (key) => properties.onItemRemove !== undefined && this.targetsOf(key).length > 0,
+                (key) => {
+                    // focus the card that stays nearest the removed ones, then remove them
+                    const targets = this.targetsOf(key);
+                    const next = this.#survivor(targets);
+                    properties.onItemRemove?.(targets);
+                    this.refocus(() => next);
+                },
+            ),
+
+            // move the cards a column over, and a lane over on a board with lanes
+            onCard(moveCardLeft, isMoving, (key) =>
+                this.step(key, this.targetsOf(key), -sign(), 0),
+            ),
+            onCard(moveCardRight, isMoving, (key) =>
+                this.step(key, this.targetsOf(key), sign(), 0),
+            ),
+            onCard(moveCardUp, hasLanes, (key) => this.step(key, this.targetsOf(key), 0, -1)),
+            onCard(moveCardDown, hasLanes, (key) => this.step(key, this.targetsOf(key), 0, 1)),
+
+            // move the cards to a column that takes them all
+            handle(moveCardTo, {
+                isEnabled: (element) => isMoving() && this.columnsFor(element).length > 0,
+                choices: (_input, element) =>
+                    this.columnsFor(element).map((column) => ({
+                        value: column.key,
+                        title: column.label(),
+                    })),
+                run: ({ element, values }) => {
+                    // keep the cards in their lane
+                    const key = present(this.keyAt(element), "the card an action runs on");
+                    const { lane } = this.#cardOf(key).cell;
+                    this.place(this.targetsOf(key), { column: values.column, lane });
+                    this.refocus(() => key);
+                },
+            }),
+        ];
+    }
+
+    /** List the other columns that take every card an action on an element's card takes. */
+    columnsFor(element: Element | null): BoardColumnTrack[] {
+        // take no column without a card
+        const key = this.keyAt(element);
+        if (key === undefined || !this.collection.has(key)) {
+            return [];
+        }
+        const from = this.#cardOf(key).cell.column;
+        const targets = this.targetsOf(key);
+
+        return this.columns
+            .items()
+            .filter(
+                (column) =>
+                    column.key !== from &&
+                    targets.every((each) => this.isAllowed(each, column.key)),
+            );
     }
 
     /** Open the card menu at a point for a card, selecting it alone unless it is selected. */
     openMenu(key: string, element: HTMLElement, x: number, y: number): boolean {
         // open nothing without a mounted menu or anything to offer, leaving the browser's menu
-        if (this.#menus === 0 || this.menuActions(key).length === 0) {
+        if (
+            this.#menus === 0 ||
+            !MENU_ACTIONS.some((each) => this.#actions.has(each.reference, element))
+        ) {
             return false;
         }
 
@@ -1273,28 +1326,6 @@ export class BoardControl {
     /** Write a new card into a cell. */
     create(cell: BoardCell, title: string, position: BoardPosition): void {
         this.properties.onCreate?.({ ...cell, title, position });
-    }
-
-    /** List the action that removes cards, on a board that hands removals on. */
-    #removing(targets: readonly string[]): Action[] {
-        const options = this.properties;
-
-        return options.onItemRemove === undefined || targets.length === 0
-            ? []
-            : [
-                  {
-                      id: "delete",
-                      title: this.#locale.render(t`Delete`),
-                      shortcut: "delete",
-                      isDestructive: true,
-                      run: () => {
-                          // focus the card that stays nearest the removed ones, then remove them
-                          const next = this.#survivor(targets);
-                          options.onItemRemove?.(targets);
-                          this.refocus(() => next);
-                      },
-                  },
-              ];
     }
 
     /** Read the shown card nearest removed cards: after them, before them, else the first. */
@@ -1513,7 +1544,8 @@ const BoardCellContext = createContext<BoardCell | null>(null);
 export function Board(properties: BoardProperties): JSX.Element {
     // move one focus across the cards and run the board's keys, after the keys a drag takes
     const locale = useLocale();
-    const control = new BoardControl(properties, locale);
+    const control = new BoardControl(properties, locale, useActions());
+    const handlers = control.handleActions(() => locale.direction);
     const isCommand = useCommandPlatform();
 
     // refuse a second hidden list once one replacing another has settled
@@ -1576,6 +1608,7 @@ export function Board(properties: BoardProperties): JSX.Element {
         <BoardContext value={control}>
             <Menu control={control.menu}>
                 <Sortable
+                    ref={[(element: HTMLElement) => control.setRoot(element), ...handlers]}
                     data-slot="board"
                     onMove={(move) => control.drop(move)}
                     {...mergeProperties(keys, rest)}
@@ -1697,6 +1730,12 @@ export function BoardColumn(properties: BoardColumnProperties): JSX.Element {
     control.addColumn(column);
     const id = column.key;
 
+    // hide the column where a column menu offers it
+    const hiding = handle(hideColumn, {
+        isEnabled: () => control.hasColumnMenu(),
+        run: () => control.toggleHidden(id),
+    });
+
     return (
         <BoardColumnContext value={column}>
             <BoardCellContext value={{ column: id, lane: undefined }}>
@@ -1709,7 +1748,12 @@ export function BoardColumn(properties: BoardColumnProperties): JSX.Element {
                     data-hidden={control.isHidden(id) ? "" : undefined}
                     data-over={control.isOver(id) ? "" : undefined}
                     {...mergeProperties(
-                        { ref: (created: HTMLDivElement) => (element = created) },
+                        {
+                            ref: (created: HTMLDivElement) => {
+                                element = created;
+                                hiding(created);
+                            },
+                        },
                         rest,
                     )}
                     xstyle={[
@@ -1780,25 +1824,17 @@ export function BoardColumnCount(
 
 /** The properties of a column's menu. */
 export interface BoardColumnMenuProperties {
-    /** What else can be done with the column, listed after Hide. */
-    readonly actions?: readonly Action[];
+    /** The owner's items after Hide. */
+    readonly children?: JSX.Element;
 }
 
 /** Render the nearest column's menu behind a button that shows on hover: Hide, and the owner's. */
 export function BoardColumnMenu(properties: BoardColumnMenuProperties): JSX.Element {
-    // offer to hide the column, then the owner's actions
+    // hide the column from its menu, which the owner adds its own items to
     const control = useBoard();
     const column = useBoardColumn();
     const locale = useLocale();
     control.addColumnMenu();
-    const actions = (): Action[] => [
-        {
-            id: "hide",
-            title: locale.render(t`Hide`),
-            run: () => control.toggleHidden(column.key),
-        },
-        ...(properties.actions ?? []),
-    ];
 
     return (
         <DropdownMenu>
@@ -1816,9 +1852,8 @@ export function BoardColumnMenu(properties: BoardColumnMenuProperties): JSX.Elem
                 <Icon icon={dotsThree} />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-                <For each={actions()} keyed={(action) => action.id}>
-                    {(action) => <MenuAction action={action()} />}
-                </For>
+                <MenuAction action={hideColumn} />
+                {properties.children}
             </DropdownMenuContent>
         </DropdownMenu>
     );
@@ -2183,8 +2218,6 @@ export function BoardItem(properties: BoardItemProperties): JSX.Element {
     // add the card to the board's focus and selection
     const control = useBoard();
     const cell = useBoardCell();
-    const locale = useLocale();
-    const isCommand = useCommandPlatform();
     const key = untrack(() => properties.id);
     const rest = omit(properties, "activator", "disabled", "xstyle");
     let element: HTMLElement | undefined;
@@ -2236,12 +2269,6 @@ export function BoardItem(properties: BoardItemProperties): JSX.Element {
             return isSelected() ? "" : undefined;
         },
         onFocus: () => control.focus.focusIn(key),
-        onKeyDown: (event: KeyboardEvent) => {
-            // run the card's keys, leaving those a drag or a field inside the card took
-            if (!event.defaultPrevented && !Action.isTyping(event)) {
-                Action.handle(control.cardActions(key, locale.direction), event, isCommand());
-            }
-        },
         onContextMenu: (event: MouseEvent) => {
             // open the board's card menu where the board has one, else leave the browser's
             if (
@@ -2260,6 +2287,7 @@ export function BoardItem(properties: BoardItemProperties): JSX.Element {
             disabled={properties.disabled === true || control.properties.onItemMove === undefined}
             activator={properties.activator ?? "item"}
             data-slot="board-item"
+            data-item={key}
             {...mergeProperties(mergeProperties(card, press.attributes()), rest)}
             xstyle={[
                 text.sm,
@@ -2279,22 +2307,36 @@ export function BoardItemHandle(properties: SortableHandleProperties): JSX.Eleme
     return <SortableHandle data-slot="board-item-handle" {...properties} />;
 }
 
-/** Render the card menu a right click opens: open, move to a column, or delete the cards. */
-export function BoardItemMenu(): JSX.Element {
-    // let right clicks open the menu, listing the actions for the card it opened on
+/** The properties of a board's card menu. */
+export interface BoardItemMenuProperties {
+    /** The owner's items, between the board's moves and its Delete. */
+    readonly children?: JSX.Element;
+}
+
+/** Render the card menu a right click opens: open, move to a column, the owner's, and delete. */
+export function BoardItemMenu(properties: BoardItemMenuProperties): JSX.Element {
+    // let right clicks open the menu, offering the columns the card's selection moves to
     const control = useBoard();
+    const locale = useLocale();
     control.addMenu();
-    const actions = () => {
+    const columns = () => {
         const key = control.menuKey();
 
-        return key === undefined || !control.collection.has(key) ? [] : control.menuActions(key);
+        return key === undefined ? [] : control.columnsFor(control.menu.origin());
     };
 
     return (
         <ContextMenuContent data-slot="board-item-menu">
-            <For each={actions()} keyed={(action) => action.id}>
-                {(action) => <MenuAction action={action()} />}
+            <MenuAction action={openItem} />
+            <For each={columns()} keyed={(column) => column.key}>
+                {(column) => (
+                    <MenuAction action={moveCardTo} given={{ column: column().key }}>
+                        {locale.render(t`Move to ${column().label()}`)}
+                    </MenuAction>
+                )}
             </For>
+            {properties.children}
+            <MenuAction action={removeItems} />
         </ContextMenuContent>
     );
 }
