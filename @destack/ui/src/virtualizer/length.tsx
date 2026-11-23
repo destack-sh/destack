@@ -1,5 +1,5 @@
 import * as style from "@destack/style";
-import { type Accessor, createSignal, type JSX } from "@destack/view";
+import { type Accessor, createSignal, type JSX, type Setter } from "@destack/view";
 import { createElementSize } from "@destack/view/primitives/resize-observer";
 
 /** The style of a length's element: out of sight and out of the flow, as long as the length. */
@@ -17,10 +17,12 @@ const styles = style.create({
 
 /** A CSS length read in pixels as the theme changes, from an element as long as it. */
 export class Length {
-    /** The element that measures the length, rendered inside the element whose theme sets it. */
-    readonly element: JSX.Element;
     /** The length in pixels, none until the element is measured. */
     readonly pixels: Accessor<number | undefined>;
+    /** The length, such as a size token. */
+    readonly #length: Accessor<string>;
+    /** Set the element that measures the length. */
+    readonly #setElement: Setter<HTMLElement | undefined>;
 
     /** Measure a length, such as a size token. */
     constructor(length: Accessor<string>) {
@@ -30,12 +32,18 @@ export class Length {
         });
         const size = createElementSize(element);
         this.pixels = () => size.width ?? undefined;
-        this.element = (
+        this.#length = length;
+        this.#setElement = setElement;
+    }
+
+    /** Render the element that measures the length, inside the element whose theme sets it. */
+    render(): JSX.Element {
+        return (
             <div
                 data-slot="length"
                 aria-hidden="true"
-                ref={setElement}
-                {...style.attrs(styles.element(length()))}
+                ref={(element) => this.#setElement(element)}
+                {...style.attrs(styles.element(this.#length()))}
             />
         );
     }

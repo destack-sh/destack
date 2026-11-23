@@ -665,7 +665,7 @@ export function DataTable<Features extends TableFeatures, Row extends RowData>(
             </div>
 
             {/* Row height */}
-            <Show when={isVirtual}>{rowLength.element}</Show>
+            <Show when={isVirtual}>{rowLength.render()}</Show>
 
             <Menu control={menu}>
                 <DataTableContext value={slices}>

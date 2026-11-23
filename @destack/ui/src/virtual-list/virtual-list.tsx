@@ -457,8 +457,8 @@ export function VirtualList<Item>(properties: VirtualListProperties<Item>): JSX.
                 )}
             >
                 {/* Gap length */}
-                <Show when={typeof properties.gap === "string"}>{gapLength.element}</Show>
-                {reachLength.element}
+                <Show when={typeof properties.gap === "string"}>{gapLength.render()}</Show>
+                {reachLength.render()}
 
                 {/* Before */}
                 <Show when={properties.before}>
