@@ -4,11 +4,17 @@ import info from "@destack/icon/phosphor/info";
 import warning from "@destack/icon/phosphor/warning";
 import warningCircle from "@destack/icon/phosphor/warning-circle";
 import { defineExample } from "@destack/package/declare";
+import * as style from "@destack/style";
 import { Icon } from "@destack/ui/icon";
 import { createSignal, Show } from "@destack/view";
 import { Button } from "../button/index.ts";
 import { Stack } from "../stack/index.ts";
 import { Alert, AlertAction, AlertClose, AlertDescription, AlertTitle } from "./alert.tsx";
+
+/** The styles of a list of statuses. */
+const styles = style.create({
+    statuses: { maxWidth: "100%" },
+});
 
 /** A failed sync with what to do about it. */
 export const alertFailedSync = defineExample({
@@ -54,7 +60,7 @@ export const alertStatuses = defineExample({
     name: "statuses",
     description: "each status an alert shows, from a plain notice to a failure",
     render: () => (
-        <Stack>
+        <Stack xstyle={styles.statuses}>
             <Alert>
                 <Icon icon={bell} />
                 <AlertTitle>Sync runs every few minutes</AlertTitle>

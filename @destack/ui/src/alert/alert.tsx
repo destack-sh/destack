@@ -36,7 +36,7 @@ const styles = style.create({
         display: "grid",
         gridTemplateColumns: { default: "0 1fr auto auto", ":has(> svg)": "auto 1fr auto auto" },
         // center a leading icon on the first line of the text
-        gridTemplateRows: "1lh auto",
+        gridTemplateRows: "1lh auto auto",
         alignItems: "center",
         width: "100%",
         paddingInline: space[4],
@@ -48,15 +48,15 @@ const styles = style.create({
     },
     title: {
         gridColumnStart: 2,
+        gridRow: "1 / span 2",
+        minWidth: 0,
         paddingInlineStart: { default: 0, [WITH_ICON]: space[3] },
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-        whiteSpace: "nowrap",
+        overflowWrap: "anywhere",
         fontWeight: weight.medium,
     },
     description: {
         gridColumnStart: 2,
-        gridRow: { default: "1 / span 2", [TITLED]: "2" },
+        gridRow: { default: "1 / span 2", [TITLED]: "3" },
         marginBlockStart: { default: 0, [TITLED]: space[1] },
         paddingInlineStart: { default: 0, [WITH_ICON]: space[3] },
         display: "grid",
@@ -69,7 +69,7 @@ const styles = style.create({
         gridRow: {
             default: "1",
             [NARROW_QUERY]: "auto",
-            [DESCRIBED]: { default: "1 / span 2", [NARROW_QUERY]: "auto" },
+            [DESCRIBED]: { default: "1 / span 3", [NARROW_QUERY]: "auto" },
         },
         alignSelf: "center",
         display: "flex",
@@ -84,7 +84,7 @@ const styles = style.create({
     },
     close: {
         gridColumnStart: 4,
-        gridRow: { default: "1", [DESCRIBED]: "1 / span 2" },
+        gridRow: { default: "1", [DESCRIBED]: "1 / span 3" },
         alignSelf: "start",
         marginBlock: `calc(-1 * ${space[1]})`,
         marginInlineStart: space[2],
@@ -156,7 +156,7 @@ export function Alert(properties: AlertProperties): JSX.Element {
     );
 }
 
-/** Render the title of an alert on one line. */
+/** Render the title of an alert. */
 export function AlertTitle(properties: AlertElementProperties): JSX.Element {
     return renderPart("div", "alert-title", properties, styles.title);
 }
