@@ -1,5 +1,6 @@
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
+import { space } from "@destack/theme/tokens.stylex";
 import { Icon } from "@destack/ui/icon";
 import { Button } from "../button/index.ts";
 import {
@@ -13,6 +14,11 @@ import {
     ItemTitle,
     itemVariants,
 } from "./item.tsx";
+
+/** The styles of a group of outlined items, set apart. */
+const styles = style.create({
+    apart: { gap: space[2] },
+});
 
 /** A notebook's recent notes, one archivable and one opened by a link. */
 export const itemRecentNotes = defineExample({
@@ -54,7 +60,7 @@ export const itemRecentNotesOutlined = defineExample({
         variant: "outline",
     },
     render: (properties) => (
-        <ItemGroup aria-label="Recent notes">
+        <ItemGroup aria-label="Recent notes" xstyle={styles.apart}>
             <Item {...properties}>
                 <ItemMedia variant="icon">
                     <Icon name="notebook" />
@@ -67,9 +73,11 @@ export const itemRecentNotesOutlined = defineExample({
                     <Button variant="outline">Archive</Button>
                 </ItemActions>
             </Item>
-            <ItemSeparator />
             <div role="listitem">
-                <a href="/notes/trip" {...style.attrs(itemVariants({ size: "sm" }))}>
+                <a
+                    href="/notes/trip"
+                    {...style.attrs(itemVariants({ variant: "outline", size: "sm" }))}
+                >
                     <ItemContent>
                         <ItemTitle>Trip to Lisbon</ItemTitle>
                     </ItemContent>
