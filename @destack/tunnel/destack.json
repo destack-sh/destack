@@ -3,5 +3,13 @@
     "id": "package-01a19ec6-33f4-7424-873c-4e8810be2668",
     "role": "library",
     "language": "typescript",
-    "runtimes": ["bun", "workerd"]
+    "runtimes": ["bun", "workerd"],
+    "exports": {
+        ".": {
+            "internal": true
+        },
+        "./error": {
+            "internal": true
+        }
+    }
 }
