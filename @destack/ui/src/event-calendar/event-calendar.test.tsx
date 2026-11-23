@@ -605,9 +605,11 @@ test("compose the header from its parts, render events with the caller's part, a
     });
 });
 
-/** Read the text of each element of a slot. */
-function slots(container: HTMLElement, slot: string): (string | null)[] {
-    return [...container.querySelectorAll(`[data-slot=${slot}]`)].map((each) => each.textContent);
+/** Read the text of each element of a slot, as plain text. */
+function slots(container: HTMLElement, slot: string): string[] {
+    return [...container.querySelectorAll(`[data-slot=${slot}]`)].map((each) =>
+        plain(each.textContent),
+    );
 }
 
 /** Render a day's own heading from the day around it. */
