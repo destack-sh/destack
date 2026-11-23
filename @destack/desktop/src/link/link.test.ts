@@ -31,7 +31,7 @@ test("read deep links into their view and location and write them back", () => {
     const addresses = [
         "destack://notes--personal--florian/home",
         "destack://notes--personal--florian/home/",
-        "destack://tasks--work-2--acme/board/projects/42?filter=open&sort=due",
+        "destack://tasks--work-2--example/board/projects/42?filter=open&sort=due",
     ].map((href) => parse(href));
 
     // retain the location, with its query, relative to the view
@@ -39,7 +39,7 @@ test("read deep links into their view and location and write them back", () => {
         { space: "personal--florian", installation: "notes", view: "home", path: "/" },
         { space: "personal--florian", installation: "notes", view: "home", path: "/" },
         {
-            space: "work-2--acme",
+            space: "work-2--example",
             installation: "tasks",
             view: "board",
             path: "/projects/42?filter=open&sort=due",
@@ -48,7 +48,7 @@ test("read deep links into their view and location and write them back", () => {
     expect(addresses.map((address) => links.format(address))).toEqual([
         "destack://notes--personal--florian/home",
         "destack://notes--personal--florian/home",
-        "destack://tasks--work-2--acme/board/projects/42?filter=open&sort=due",
+        "destack://tasks--work-2--example/board/projects/42?filter=open&sort=due",
     ]);
 });
 

@@ -96,7 +96,7 @@ import { Profile } from "@destack/update/release";
 
 // link to the open projects on a space's task board
 export const href = Link.of(new Profile("release")).format({
-    space: "work--acme",
+    space: "work--example",
     installation: "tasks",
     view: "board",
     path: "/projects?filter=open",
