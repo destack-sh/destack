@@ -15,6 +15,8 @@ export class BuildDirectory {
     readonly #writer: BuildWriter;
     /** The source files retained before writing, by package path. */
     readonly #retained = new Map<string, Uint8Array<ArrayBuffer>>();
+    /** The copies of source files started so far, by package path. */
+    readonly #copies = new Map<string, Promise<void>>();
 
     /** Collect the files of a build directory. */
     constructor(directory: string, environment: Environment<"files">) {
@@ -55,6 +57,27 @@ export class BuildDirectory {
     /** Write a file once, accepting a second write of equal bytes. */
     async write(path: string, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
         await this.#writer.write(path, bytes);
+    }
+
+    /** Copy a source file into the build once and record it, however many outputs reference it. */
+    copy(path: string, source: string): Promise<void> {
+        // take a copy started already
+        const started = this.#copies.get(path);
+        if (started !== undefined) {
+            return started;
+        }
+
+        // copy the file below its package path, then record it
+        const { files } = this.environment;
+        const destination = join(this.directory, path);
+        const copying = (async () => {
+            await files.mkdir(dirname(destination), { recursive: true });
+            await files.copyFile(source, destination);
+            await this.record(path);
+        })();
+        this.#copies.set(path, copying);
+
+        return copying;
     }
 
     /** Record a file a compiler wrote, hashing it without reading it whole into memory. */

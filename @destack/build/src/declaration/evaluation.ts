@@ -5,7 +5,13 @@ import { dirname, join, relative, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { stripVTControlCharacters } from "node:util";
 import { SourceTextModule, SyntheticModule } from "node:vm";
-import { type Plugin, rolldown } from "rolldown";
+import {
+    type InputOptions,
+    type OutputAsset,
+    type OutputChunk,
+    type Plugin,
+    rolldown,
+} from "rolldown";
 import { transform } from "rolldown/utils";
 import {
     DeclarationDescription,
@@ -29,6 +35,7 @@ import { HOST_RUNTIME, WORKERD_SCHEME } from "@destack/package/runtime";
 import { selectExport } from "../source/source.ts";
 import { loadExtensions, transformPlugins } from "../compile/extension.ts";
 import { assetPlugin } from "../compile/asset.ts";
+import { Bundle } from "../compile/bundle.ts";
 
 /** An installed JavaScript module, imported as the host loads it, without a query such as ?url. */
 const INSTALLED_MODULE = /\.[cm]?js$/u;
@@ -38,6 +45,9 @@ const STYLESHEET = /\.css(?:\?.*)?$/u;
 const UNAVAILABLE_PREFIX = "\0destack-unavailable:";
 /** The identifier of the generated entry. */
 const ENTRY = "\0destack-declarations";
+
+/** The output of a generated entry: one module, run in place. */
+const ENTRY_OUTPUT = { format: "esm", codeSplitting: false } as const;
 /** The resolved identifier of the declaration recorder inside the evaluation. */
 const RECORDER = `\0${DECLARED_MODULE}`;
 
@@ -111,6 +121,8 @@ export type EvaluatedDeclaration = schema.Infer<typeof EvaluatedDeclaration>;
 export interface EvaluationOptions {
     /** The build's module transformer, which its compilations reuse. */
     readonly transformer: ModuleTransformer;
+    /** The warm bundles of a package in development, by generated entry, absent in a release. */
+    readonly bundles?: Map<string, Bundle>;
 }
 
 /** The declarations a package exports. */
@@ -228,7 +240,7 @@ export const Evaluation = {
             `export const properties = [${examples.map((_, index) => `example${index}.properties`).join(", ")}];`,
         ].join("\n");
         const { properties } = EvaluatedExamples.parse(
-            await evaluateEntry(source, project, transformer),
+            await evaluateEntry(source, project, { transformer }),
         );
 
         return examples.map((example, index) => ({
@@ -258,9 +270,7 @@ async function evaluateProject(
         exports.map(([, file]) => file),
         listed,
     );
-    const evaluated = EvaluatedEntry.parse(
-        await evaluateEntry(source, project, options.transformer),
-    );
+    const evaluated = EvaluatedEntry.parse(await evaluateEntry(source, project, options));
 
     // find each exported value a constructor made, once, at its first export
     const sites = new Map<unknown, DeclarationSite>(
@@ -442,9 +452,9 @@ function locateFunction(
 async function evaluateEntry(
     source: string,
     project: PackageSource,
-    transformer: ModuleTransformer,
+    options: EvaluationOptions,
 ): Promise<unknown> {
-    return await bundleAndEvaluate(source, project, transformer).catch((cause: unknown) => {
+    return await bundleAndEvaluate(source, project, options).catch((cause: unknown) => {
         // tell the person why, since the record of a failed build has only its message
         const reason = reasonsOf(cause, project.directory).join("; ");
         throw BuildError.of(
@@ -461,63 +471,99 @@ async function evaluateEntry(
 async function bundleAndEvaluate(
     source: string,
     project: PackageSource,
-    transformer: ModuleTransformer,
+    options: EvaluationOptions,
 ): Promise<unknown> {
-    const { program } = project;
-    let bundle: Awaited<ReturnType<typeof rolldown>> | undefined;
-    try {
-        // bundle the entry with the modules it imports, recording each declaration
-        bundle = await rolldown({
-            input: ENTRY,
-            cwd: project.directory,
-            ...(project.configuration === undefined ? {} : { tsconfig: project.configuration }),
-            platform: "node",
-            external: isHostModule,
-            resolve: { conditionNames: runtimeConditions(HOST_RUNTIME) },
-            treeshake: { moduleSideEffects: true },
-            plugins: [
-                entryPlugin(source),
-                assetPlugin(project.environment.files),
-                treePlugin(project, program),
-                modulePlugin(transformer),
-                ...transformPlugins(
-                    (
-                        await loadExtensions(
-                            project.directory,
-                            project.packageJson,
-                            project.tree,
-                            project.environment.files,
-                        )
-                    ).map((loaded) => loaded.extension),
-                    {
-                        directory: project.directory,
-                        runtime: HOST_RUNTIME,
-                        server: true,
-                        dependencies: project.tree.builds,
-                        environment: project.environment,
-                    },
-                ).map((option) => serverTransform(option)),
-            ],
-        });
-        const generated = await bundle.generate({ format: "esm", codeSplitting: false });
-        const chunks = generated.output.filter((file) => file.type === "chunk");
-        const [chunk] = chunks;
-        if (chunks.length !== 1 || chunk === undefined) {
-            throw BuildError.of(
-                "INSPECTION_INVALID",
-                "declaration evaluation is invalid: it requires one JavaScript module",
-            );
-        }
-
-        // evaluate the entry, linking its externals as the host loads them
-        const module = new SourceTextModule(chunk.code);
-        await module.link(async (specifier) => linkHost(specifier, program));
-        await module.evaluate();
-
-        return module.namespace;
-    } finally {
-        await bundle?.close();
+    // bundle the entry once, or on its warm bundle while the package develops
+    const generated =
+        options.bundles === undefined
+            ? await bundleOnce(await entryOptions(source, project, options.transformer))
+            : await bundleWarm(source, project, options.transformer, options.bundles);
+    const chunks = generated.filter((file) => file.type === "chunk");
+    const [chunk] = chunks;
+    if (chunks.length !== 1 || chunk === undefined) {
+        throw BuildError.of(
+            "INSPECTION_INVALID",
+            "declaration evaluation is invalid: it requires one JavaScript module",
+        );
     }
+
+    // evaluate the entry, linking its externals as the host loads them
+    const module = new SourceTextModule(chunk.code);
+    await module.link(async (specifier) => linkHost(specifier, project.program));
+    await module.evaluate();
+
+    return module.namespace;
+}
+
+/** Bundle an entry once, closing the bundle either way. */
+async function bundleOnce(input: InputOptions): Promise<readonly (OutputChunk | OutputAsset)[]> {
+    const bundle = await rolldown(input);
+    try {
+        return (await bundle.generate(ENTRY_OUTPUT)).output;
+    } finally {
+        await bundle.close();
+    }
+}
+
+/** Bundle an entry on its warm bundle, starting the bundle on the entry's first evaluation. */
+async function bundleWarm(
+    source: string,
+    project: PackageSource,
+    transformer: ModuleTransformer,
+    bundles: Map<string, Bundle>,
+): Promise<readonly (OutputChunk | OutputAsset)[]> {
+    // start the entry's bundle once
+    let bundle = bundles.get(source);
+    if (bundle === undefined) {
+        const input = await entryOptions(source, project, transformer);
+        const { files } = project.environment;
+        bundle = await Bundle.start(input, ENTRY_OUTPUT, project.directory, files);
+        bundles.set(source, bundle);
+    }
+
+    return (await bundle.latest()).generated;
+}
+
+/** Configure the bundle of a generated entry with the modules it imports. */
+async function entryOptions(
+    source: string,
+    project: PackageSource,
+    transformer: ModuleTransformer,
+): Promise<InputOptions> {
+    // load the package's extensions, whose transforms its modules need on the host
+    const loaded = await loadExtensions(
+        project.directory,
+        project.packageJson,
+        project.tree,
+        project.environment.files,
+    );
+    const transforms = transformPlugins(
+        loaded.map((each) => each.extension),
+        {
+            directory: project.directory,
+            runtime: HOST_RUNTIME,
+            server: true,
+            dependencies: project.tree.builds,
+            environment: project.environment,
+        },
+    ).map((option) => serverTransform(option));
+
+    return {
+        input: ENTRY,
+        cwd: project.directory,
+        ...(project.configuration === undefined ? {} : { tsconfig: project.configuration }),
+        platform: "node",
+        external: isHostModule,
+        resolve: { conditionNames: runtimeConditions(HOST_RUNTIME) },
+        treeshake: { moduleSideEffects: true },
+        plugins: [
+            entryPlugin(source),
+            assetPlugin(project.environment.files),
+            treePlugin(project, project.program),
+            modulePlugin(transformer),
+            ...transforms,
+        ],
+    };
 }
 
 /** List each failure of an evaluation by its first telling line, after its place in the package. */

@@ -26,9 +26,7 @@ export function sourcePlugin(
     directory: string,
     name: string,
     files: Map<string, Uint8Array<ArrayBuffer>>,
-    sources: Pick<BuildDirectory, "retained" | "retain">,
-    destination: string,
-    paths: string[],
+    sources: Pick<BuildDirectory, "retained" | "retain" | "copy">,
     environment: Environment<"files">,
 ): Plugin {
     return {
@@ -55,10 +53,7 @@ export function sourcePlugin(
                 // preserve large assets by file copy while Vite loads them separately
                 const isModule = /\.[cm]?[jt]sx?$/u.test(path);
                 if (!sources.retained.has(local) && !isModule) {
-                    const output = resolve(destination, PackagePath.parse(local));
-                    await environment.files.mkdir(dirname(output), { recursive: true });
-                    await environment.files.copyFile(path, output);
-                    paths.push(local);
+                    await sources.copy(PackagePath.parse(local), path);
                     return null;
                 }
 

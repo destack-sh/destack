@@ -1,11 +1,13 @@
 import { resolve, sep } from "node:path";
 import { locateWorkspace } from "@destack/check/workspace";
-import { nth } from "@destack/schema";
+import { type Digest, nth } from "@destack/schema";
 import type { Toolchain } from "@destack/check/toolchain";
 import { Once } from "@destack/environment";
 import { Compiler } from "./compiler.ts";
 import type { LocalBuildStore } from "../store/local.ts";
 import { CompilerFingerprint } from "../cache/cache.ts";
+import { NpmInstallation } from "../dependency/npm.ts";
+import type { NpmRelease } from "@destack/package";
 import type {} from "@destack/package/import-meta";
 import { TelemetryScope } from "@destack/telemetry";
 
@@ -70,6 +72,8 @@ export class CompilerPool implements AsyncDisposable {
     readonly #scope: TelemetryScope;
     /** The compilers in the pool, idle and used. */
     readonly #compilers;
+    /** The npm installations opened so far, by their locked releases and conversion. */
+    readonly #installations = new Map<string, NpmInstallation>();
 
     /** Store compilers running a toolchain into a store. */
     private constructor(store: LocalBuildStore, toolchain: () => Promise<Toolchain>) {
@@ -95,6 +99,30 @@ export class CompilerPool implements AsyncDisposable {
         toolchain: () => Promise<Toolchain>,
     ): Promise<CompilerPool> {
         return new CompilerPool(store, toolchain);
+    }
+
+    /** Take the npm installation of a lockfile's releases, opened once per lockfile. */
+    installation(
+        locked: Readonly<Record<string, NpmRelease>>,
+        conversion: Digest,
+    ): NpmInstallation {
+        // take the installation opened for the same releases, as the installed copies follow the lockfile
+        const key = JSON.stringify([conversion, locked]);
+        const known = this.#installations.get(key);
+        if (known !== undefined) {
+            return known;
+        }
+
+        // open it once
+        const installation = new NpmInstallation(
+            locked,
+            this.store,
+            conversion,
+            this.store.environment,
+        );
+        this.#installations.set(key, installation);
+
+        return installation;
     }
 
     /** Read the toolchain the compilers run, once it is first needed. */

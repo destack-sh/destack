@@ -7,7 +7,7 @@ import { PackageBuild, Compiler } from "../src/index.ts";
 import type { PackageManifest } from "@destack/package/manifest";
 import { request } from "./fixture/library/request.ts";
 import { expectFiles, importBuilt, isNoteModule, type NoteModule } from "./fixture.ts";
-import { present } from "@destack/schema";
+import { present, Version } from "@destack/schema";
 import { LocalBuildStore } from "../src/store/local.ts";
 import { BuildStore } from "../src/store/store.ts";
 import { Toolchain } from "@destack/check/toolchain";
@@ -125,6 +125,54 @@ test("rebuild edited source and restore distributed output", async () => {
         expect((await PackageBuild.read(destination, environment)).manifest).toEqual(
             restored.manifest,
         );
+    } finally {
+        await files.remove(directory, { recursive: true });
+    }
+});
+
+test("rebuild edited source on warm bundles in development, each edit built right after it", async () => {
+    // compile the library in development, stamped at the development version
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await files.makeTemporaryDirectory("build-develop-");
+    const source = join(directory, "source");
+    await files.copy(fileURLToPath(new URL("./fixture/library/source/", import.meta.url)), source);
+    const name = "@destack/build-library-fixture";
+    const developing = { ...request, directory: source, versions: { [name]: Version.development } };
+    await using store = await LocalBuildStore.temporary(environment);
+    await using builder = await Compiler.start(source, {
+        store,
+        toolchain: async () => Toolchain.workspace(),
+    });
+
+    try {
+        // build, then edit a module and build at once, before any watcher could settle
+        const first = await builder.build(developing);
+        const notePath = join(source, "src/note.ts");
+        const note = await files.readTextFile(notePath);
+        await files.writeTextFile(
+            notePath,
+            note
+                .replace("complete: boolean", "complete: true")
+                .replace("complete: false", "complete: true"),
+        );
+        const edited = await builder.build(developing);
+        const editDirectory = join(directory, "edited");
+        await edited.writeDirectory(editDirectory, files);
+        const editedModule = await importNotes(
+            editDirectory,
+            rootExport(edited.manifest, "library"),
+        );
+
+        // restore the module and build at once, back to the first build's output
+        await files.writeTextFile(notePath, note);
+        const restored = await builder.build(developing);
+        expect([editedModule.createNote("Edited"), restored.manifest]).toEqual([
+            { title: "Edited", complete: true },
+            first.manifest,
+        ]);
+        await expectFiles(restored, first);
     } finally {
         await files.remove(directory, { recursive: true });
     }

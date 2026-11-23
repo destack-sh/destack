@@ -52,6 +52,7 @@ import { sourcePlugin, mapSource } from "./source.ts";
 import { dependencyPlugin, modulePath, type ModuleSource } from "./dependency.ts";
 import { ASSET, assetPlugin, directoryPlugin, moduleScriptPlugin, rawPlugin } from "./asset.ts";
 import { transformPlugins } from "./extension.ts";
+import { Bundle, type BundleOutput } from "./bundle.ts";
 
 /** The directory of the chunks entries share, below an output's directory. */
 const CHUNK_DIRECTORY = "chunk";
@@ -68,6 +69,12 @@ const PLUGIN_TIMINGS = "PLUGIN_TIMINGS";
 /** The empty module standing in for a stylesheet a server output imports. */
 const EMPTY_STYLESHEET = "\0destack-empty-stylesheet";
 
+/** A module path, by its extension. */
+const MODULE = /\.[cm]?[jt]sx?$/u;
+
+/** The encoder of generated text files. */
+const ENCODER = new TextEncoder();
+
 /** The runtime the compiler's transforms import for lowered code, bundled into each build. */
 const TRANSFORM_HELPERS = "@oxc-project/runtime";
 
@@ -83,8 +90,6 @@ export interface OutputBuild {
     bins: Record<string, string>;
     /** Generated files and captured source assets. */
     files: Map<string, Uint8Array<ArrayBuffer>>;
-    /** Generated output paths written by Vite. */
-    paths: string[];
     /** Maps for generated JavaScript. */
     sourceMaps: SourceMapReference[];
     /** The Destack packages its modules import, external to the output. */
@@ -93,12 +98,33 @@ export interface OutputBuild {
     npm: Set<string>;
 }
 
+/** How an output bundles: once per build, or warm across the builds of a package in development. */
+export type BundleMode = "release" | "development";
+
+/** An output's warm bundle and the state its plugins keep across its rebuilds. */
+interface Session {
+    /** The warm bundle. */
+    readonly bundle: Bundle;
+    /** The build the plugins record loaded files, captured assets and the inspection into. */
+    readonly state: OutputBuild;
+    /** The module starting each entry's chunk. */
+    readonly facades: Map<string, string>;
+    /** The bytes of each module the bundle loaded, by package path. */
+    readonly sources: Map<string, Uint8Array<ArrayBuffer>>;
+    /** The source file of each asset the bundle copies, by package path. */
+    readonly assets: Map<string, string>;
+    /** The directory the bundle names as its output, which it never writes. */
+    readonly directory: string;
+    /** The output of the build that started the session, taken by the first rebuild. */
+    first: BundleOutput | undefined;
+}
+
 /** The resolved dependencies, sources, destination and entries one compilation reads. */
 interface CompileInput {
     /** The resolved dependencies, by name. */
     readonly dependencies: Readonly<Record<string, DependencyRelease>>;
     /** The source bytes the build snapshots once each, by package path. */
-    readonly sources: Pick<BuildDirectory, "retained" | "retain">;
+    readonly sources: Pick<BuildDirectory, "retained" | "retain" | "copy">;
     /** The directory the build writes under. */
     readonly destinationRoot: string;
     /** The absolute source modules the output compiles. */
@@ -106,11 +132,13 @@ interface CompileInput {
 }
 
 /** One module output a build compiles with the extensions of the package's dependency closure. */
-export class OutputCompilation implements Compilation {
+export class ModuleOutput implements Compilation {
     /** The output's name. */
     readonly name: string;
     /** The output's settings. */
     readonly options: ModuleOptions;
+    /** How the output bundles. */
+    readonly mode: BundleMode;
     /** The opened package source. */
     readonly project: PackageSource;
     /** The package's declarations. */
@@ -127,11 +155,14 @@ export class OutputCompilation implements Compilation {
     readonly #transformer: ModuleTransformer;
     /** The host modules the runtime supplies, and those importers replace with nothing. */
     readonly #hosts: HostModuleResolver;
+    /** The output's warm bundle in development, once its first build starts it. */
+    #session: Session | undefined;
 
     /** Create the compilation of one output from its settings, package and inspection. */
     constructor(
         name: string,
         options: ModuleOptions,
+        mode: BundleMode,
         project: PackageSource,
         declarations: readonly EvaluatedDeclaration[],
         extensions: readonly BuildExtension[],
@@ -141,6 +172,7 @@ export class OutputCompilation implements Compilation {
         // store the output's settings, package and inspection
         this.name = name;
         this.options = options;
+        this.mode = mode;
         this.project = project;
         this.declarations = declarations.map((declaration) => declaration.description);
         this.#exported = new Map(
@@ -205,18 +237,168 @@ export class OutputCompilation implements Compilation {
         this.#entries.set(entrypoint, module);
     }
 
-    /** Compile the output with Vite and extension plugins, then let the extensions describe it. */
+    /** Compile the output into a build directory, then let the extensions describe it. */
     async compile(
         dependencies: Readonly<Record<string, DependencyRelease>>,
-        sources: Pick<BuildDirectory, "retained" | "retain">,
-        destinationRoot: string,
+        files: BuildDirectory,
     ): Promise<OutputBuild> {
-        // collect the extensions' plugins and entries before compiling
-        const { project } = this;
+        // read the output's stylesheets and pages, leaving an output without modules
         const compiled = this.#createBuild();
-        const plugins = this.#plugins();
+        const entries = await this.#readEntries(compiled);
+        if (entries === undefined) {
+            this.#recordExports(compiled, new Map());
 
+            return compiled;
+        }
+
+        // bundle once for a release, and on the warm bundle in development
+        return this.mode === "release"
+            ? await this.#compileOnce(dependencies, files, compiled, entries)
+            : await this.#compileWarm(dependencies, files, compiled, entries);
+    }
+
+    /** Bundle a browser output with Vite and a server output with Rolldown, once. */
+    async #compileOnce(
+        dependencies: Readonly<Record<string, DependencyRelease>>,
+        files: BuildDirectory,
+        compiled: OutputBuild,
+        entries: readonly string[],
+    ): Promise<OutputBuild> {
+        // bundle the entries with the extensions' plugins
+        const facades = new Map<string, string>();
+        const plugins = this.#plugins();
+        const input = { dependencies, sources: files, destinationRoot: files.directory, entries };
+        const generated =
+            this.runtime === "browser"
+                ? await runVite(this.#configuration(compiled, facades, plugins, input))
+                : await runRolldown(await this.#serverOptions(compiled, facades, plugins, input));
+
+        return this.#finish(generated, compiled, facades);
+    }
+
+    /** Take the newest output of the warm bundle, started once, into a build directory. */
+    async #compileWarm(
+        dependencies: Readonly<Record<string, DependencyRelease>>,
+        files: BuildDirectory,
+        compiled: OutputBuild,
+        entries: readonly string[],
+    ): Promise<OutputBuild> {
+        // take the newest output of the warm bundle, started once
+        this.#session ??= await this.#startSession(dependencies, entries);
+        const session = this.#session;
+        const { generated, modules } = session.first ?? (await session.bundle.latest());
+        session.first = undefined;
+
+        // keep the files of the modules still in the graph, the sources retained and the assets copied
+        const { state, sources } = session;
+        const live = new Set(modules.map((id) => relativePath(this.directory, modulePath(id))));
+        const isLive = (path: string) => !MODULE.test(path) || live.has(path);
+        for (const [path, bytes] of state.files) {
+            if (isLive(path)) {
+                compiled.files.set(path, bytes);
+            }
+        }
+        for (const [path, bytes] of sources) {
+            if (isLive(path)) {
+                files.retain(path, bytes);
+            }
+        }
+        for (const [path, source] of session.assets) {
+            if (live.has(path)) {
+                await files.copy(path, source);
+            }
+        }
+        compiled.inspection = { ...state.inspection };
+        compiled.destack = new Set(state.destack);
+        compiled.npm = new Set(state.npm);
+
+        return this.#finish(generated, compiled, session.facades);
+    }
+
+    /** Stop the output's warm bundle and remove its output directory. */
+    async [Symbol.asyncDispose](): Promise<void> {
+        const session = this.#session;
+        this.#session = undefined;
+        if (session !== undefined) {
+            await session.bundle[Symbol.asyncDispose]();
+            await this.project.environment.files.remove(session.directory, { recursive: true });
+        }
+    }
+
+    /** Start the output's warm bundle on the options a release build uses. */
+    async #startSession(
+        dependencies: Readonly<Record<string, DependencyRelease>>,
+        entries: readonly string[],
+    ): Promise<Session> {
+        // record the loaded modules across rebuilds, reading each module anew in each rebuild
+        const { files } = this.project.environment;
+        const directory = await files.makeTemporaryDirectory("destack-develop-");
+        const state = this.#createBuild();
+        const facades = new Map<string, string>();
+        const sources = new Map<string, Uint8Array<ArrayBuffer>>();
+        const retained = new Map<string, Uint8Array<ArrayBuffer>>();
+        const assets = new Map<string, string>();
+        const retaining = {
+            retained,
+            retain: (path: string, bytes: Uint8Array<ArrayBuffer>) => {
+                retained.set(path, bytes);
+                sources.set(path, bytes);
+            },
+            copy: async (path: string, source: string) => {
+                assets.set(path, source);
+            },
+        };
+        const rebuilding: Plugin = {
+            name: "@destack/build/rebuild",
+            buildStart: () => retained.clear(),
+        };
+        const plugins = [rebuilding, ...this.#plugins()];
+        const input = { dependencies, sources: retaining, destinationRoot: directory, entries };
+
+        // start a server output's bundle on its options, its first output from the bundle
+        if (this.runtime !== "browser") {
+            const options = await this.#serverOptions(state, facades, plugins, input);
+            const { output, ...rest } = options;
+            const bundle = await Bundle.start(rest, output, this.directory, files);
+
+            return { bundle, state, facades, sources, assets, directory, first: undefined };
+        }
+
+        // build a browser output with Vite once, capturing its final options for the bundle
+        const captured: {
+            input?: InputOptions;
+            output?: OutputOptions;
+            modules?: readonly string[];
+        } = {};
+        const capturing: Plugin = {
+            name: "@destack/build/capture",
+            enforce: "post",
+            options(options) {
+                captured.input = options;
+            },
+            outputOptions(options) {
+                captured.output = options;
+            },
+            generateBundle() {
+                captured.modules = [...this.getModuleIds()];
+            },
+        };
+        const configuration = this.#configuration(state, facades, [...plugins, capturing], input);
+        const generated = await runVite(configuration);
+        const { input: options, output, modules } = captured;
+        if (options === undefined || output === undefined || modules === undefined) {
+            throw BuildError.of("INVARIANT_BROKEN", "vite built without its bundler options");
+        }
+        const bundle = await Bundle.start(options, output, this.directory, files);
+        const first = { generated, modules };
+
+        return { bundle, state, facades, sources, assets, directory, first };
+    }
+
+    /** Read the output's stylesheets and pages, returning its module entries if it has any. */
+    async #readEntries(compiled: OutputBuild): Promise<string[] | undefined> {
         // export each stylesheet as the source file the build ships, compiling the modules alone
+        const { project } = this;
         const exported = Object.entries(project.exports);
         for (const [name, entry] of exported.filter(([, path]) => path.endsWith(".css"))) {
             compiled.exported[name] = PackagePath.parse(relativePath(project.directory, entry));
@@ -230,9 +412,7 @@ export class OutputCompilation implements Compilation {
             ...Object.values(project.bins),
         ];
         if (!entries.length && !this.#entries.size) {
-            this.#recordExports(compiled, new Map());
-
-            return compiled;
+            return undefined;
         }
         if (entries.some((entry) => entry.endsWith(".html")) && project.runtime !== "browser") {
             throw BuildError.of(
@@ -244,14 +424,15 @@ export class OutputCompilation implements Compilation {
         // retain HTML before Vite rewrites its module and asset references
         await retainPages(project, entries, compiled.files);
 
-        // compile a browser output with Vite, and a server output's modules with Rolldown alone
-        const facades = new Map<string, string>();
-        const input = { dependencies, sources, destinationRoot, entries };
-        const generated =
-            project.runtime === "browser"
-                ? await runVite(this.#configuration(compiled, facades, plugins, input))
-                : await runRolldown(await this.#serverOptions(compiled, facades, plugins, input));
+        return entries;
+    }
 
+    /** Map the generated files to the exports, then let the extensions describe the output. */
+    #finish(
+        generated: readonly (OutputChunk | OutputAsset)[],
+        compiled: OutputBuild,
+        facades: Map<string, string>,
+    ): OutputBuild {
         // map authored and emitted entries to generated files
         this.#collect(generated, compiled, facades);
         this.#exportEntries(generated, compiled.exported, facades);
@@ -281,7 +462,6 @@ export class OutputCompilation implements Compilation {
             exported: {},
             bins: {},
             files: new Map(),
-            paths: [],
             sourceMaps: [],
             destack: new Set(),
             npm: new Set(),
@@ -393,7 +573,7 @@ export class OutputCompilation implements Compilation {
             worker: { plugins: () => [modulePlugin(this.#transformer), baselinePlugin()] },
             build: {
                 emitAssets: true,
-                write: true,
+                write: false,
                 outDir: destination,
                 emptyOutDir: false,
                 ssr: project.runtime !== "browser",
@@ -470,8 +650,6 @@ export class OutputCompilation implements Compilation {
                 project.packageJson.package.name,
                 compiled.files,
                 input.sources,
-                input.destinationRoot,
-                compiled.paths,
                 project.environment,
             ),
             dependencyPlugin(
@@ -548,9 +726,13 @@ export class OutputCompilation implements Compilation {
         const { project } = this;
         const directory = compiled.output.directory;
         for (const entry of generated) {
-            // retain the generated path
+            // keep the generated file's bytes
             const path = PackagePath.parse(`${directory}/${entry.fileName}`);
-            compiled.paths.push(path);
+            const content = entry.type === "chunk" ? entry.code : entry.source;
+            compiled.files.set(
+                path,
+                typeof content === "string" ? ENCODER.encode(content) : Uint8Array.from(content),
+            );
 
             // export a module entry's chunk and an HTML entry's page
             for (const [name, source] of Object.entries(project.exports)) {
@@ -920,7 +1102,7 @@ async function runVite(configuration: InlineConfig): Promise<(OutputChunk | Outp
     return generated.output;
 }
 
-/** Run Rolldown and return the chunks and assets it writes. */
+/** Run Rolldown and return the chunks and assets it generates. */
 async function runRolldown(
     options: RolldownOptions & { readonly output: OutputOptions },
 ): Promise<(OutputChunk | OutputAsset)[]> {
@@ -928,9 +1110,9 @@ async function runRolldown(
     let bundle: Awaited<ReturnType<typeof rolldown>> | undefined;
     try {
         bundle = await rolldown(options);
-        const written = await bundle.write(options.output);
+        const generated = await bundle.generate(options.output);
 
-        return written.output;
+        return generated.output;
     } catch (error) {
         throw bundleFailureOf(error);
     } finally {

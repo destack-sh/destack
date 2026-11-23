@@ -13,7 +13,7 @@ import {
     PackageJson,
     TEST_EXPORT,
 } from "@destack/package";
-import { Digest, found, type JsonObject, present, schema } from "@destack/schema";
+import { Digest, found, type JsonObject, present, schema, Version } from "@destack/schema";
 import { ObjectDescription } from "@destack/object";
 import type { BuildExtension, TransformCache } from "@destack/package/build";
 import { type SourceMapReference } from "@destack/package/source";
@@ -28,7 +28,8 @@ import {
     readPackageJson,
     type SourceOptions,
 } from "../source/index.ts";
-import { OutputCompilation, type OutputBuild } from "../compile/compilation.ts";
+import { type BundleMode, ModuleOutput, type OutputBuild } from "../compile/output.ts";
+import type { Bundle } from "../compile/bundle.ts";
 import { loadExtensions } from "../compile/extension.ts";
 import { checkInputs } from "../compile/runtime.ts";
 import { Template } from "../template/index.ts";
@@ -90,6 +91,8 @@ interface CompileContext {
     readonly cache: TransformCache;
     /** The build's module transformer, stamping each module once across its outputs. */
     readonly transformer: ModuleTransformer;
+    /** How the build's outputs bundle. */
+    readonly mode: BundleMode;
 }
 
 /** The compiler inside the sandbox, retaining the last package's state across requests. */
@@ -108,6 +111,12 @@ export class CompilerWorker {
     readonly #modules = new Map<string, OutlineModule>();
     /** The spans of the compiler's steps, recorded for the host. */
     readonly #scope: TelemetryScope;
+    /** The build inputs the warm outputs and bundles started from, absent without any. */
+    #warm: string | undefined;
+    /** The warm outputs of the package in development, by output name, with their inputs. */
+    readonly #outputs = new Map<string, { readonly key: string; readonly output: ModuleOutput }>();
+    /** The warm bundles of the package's evaluated entries in development, by generated source. */
+    readonly #evaluations = new Map<string, Bundle>();
 
     /** Compile with a toolchain on an environment, sharing the linked modules. */
     constructor(
@@ -269,11 +278,13 @@ export class CompilerWorker {
             },
         });
 
-        // evaluate each export entry in the first project with it
+        // evaluate each export entry in the first project with it, on warm bundles in development
         const catalog = new ConstructorCatalog(options.versions ?? {}, this.environment.files);
         const evaluated = new Set([opened.primary, ...opened.projects.values()]);
+        const mode = await this.#mode(options, packageJson);
         const { declarations } = await Evaluation.evaluate([...evaluated.values()], catalog, {
             transformer: opened.transformer,
+            ...(mode === "release" ? {} : { bundles: this.#evaluations }),
         });
 
         return [...declarations];
@@ -299,6 +310,7 @@ export class CompilerWorker {
             files,
             cache,
             opened.transformer,
+            await this.#mode(options, opened.packageJson),
         );
 
         // render the extensions' pages from the compiled outputs into the build, distributing no prerender output
@@ -412,6 +424,60 @@ export class CompilerWorker {
 
         // describe its own tables, as a protocol's tables are the host's
         return ObjectDescription.tables([...depended.flat(), ...own], [source.id]).tables;
+    }
+
+    /** Read how a build bundles, dropping the warm outputs and bundles of other inputs. */
+    async #mode(options: RequestedBuild, packageJson: PackageJson): Promise<BundleMode> {
+        // build in development when the package's version is stamped so, keyed by the inputs the bundles start from
+        const isDevelopment = options.versions?.[packageJson.package.name] === Version.development;
+        const inputs = JSON.stringify([
+            options.directory,
+            options.dependencies,
+            options.tree,
+            options.versions ?? {},
+            options.configuration ?? null,
+            options.members ?? [],
+        ]);
+        const warm = isDevelopment ? inputs : undefined;
+
+        // drop the warm outputs and bundles of other inputs
+        if (this.#warm !== undefined && this.#warm !== warm) {
+            for (const bundle of this.#evaluations.values()) {
+                await bundle[Symbol.asyncDispose]();
+            }
+            for (const { output } of this.#outputs.values()) {
+                await output[Symbol.asyncDispose]();
+            }
+            this.#evaluations.clear();
+            this.#outputs.clear();
+        }
+        this.#warm = warm;
+
+        return isDevelopment ? "development" : "release";
+    }
+
+    /** Take an output kept warm, starting anew once its options or declarations change. */
+    async #warmOutput(
+        name: string,
+        output: ModuleOptions,
+        context: CompileContext,
+    ): Promise<ModuleOutput> {
+        // reuse the output while its options and declarations hold
+        const key = JSON.stringify([
+            output,
+            context.declarations.map((declaration) => declaration.description),
+        ]);
+        const warm = this.#outputs.get(name);
+        if (warm?.key === key) {
+            return warm.output;
+        }
+
+        // start a new one, stopping the stale one
+        await warm?.output[Symbol.asyncDispose]();
+        const created = createOutput(name, output, context);
+        this.#outputs.set(name, { key, output: created });
+
+        return created;
     }
 
     /** Plan a package's outputs with its closure's extensions, and open each output's project. */
@@ -531,12 +597,22 @@ export class CompilerWorker {
         files: BuildDirectory,
         cache: TransformCache,
         transformer: ModuleTransformer,
+        mode: BundleMode,
     ): Promise<{
         outputs: Map<string, Pick<OutputBuild, "output" | "inspection" | "npm">>;
         sourceMaps: SourceMapReference[];
     }> {
         // compile every output at once
-        const context = { options, projects, declarations, extensions, files, cache, transformer };
+        const context = {
+            options,
+            projects,
+            declarations,
+            extensions,
+            files,
+            cache,
+            transformer,
+            mode,
+        };
         const compiled = await Promise.all(
             [...planned].map(async ([name, output]) => {
                 const built = await this.#module(name, output, context);
@@ -571,14 +647,14 @@ export class CompilerWorker {
         output: ModuleOptions,
         context: CompileContext,
     ): Promise<Pick<OutputBuild, "output" | "inspection" | "npm" | "sourceMaps">> {
-        // compile the output and write its files
-        const compilation = createCompilation(name, output, context);
-        const compiled = await compilation.compile(
-            context.options.dependencies,
-            context.files,
-            context.files.directory,
-        );
-        await writeFiles(compiled.files, compiled.paths, context.files);
+        // compile the output, kept warm in development, and write its files
+        const { options, files } = context;
+        const compilation =
+            context.mode === "release"
+                ? createOutput(name, output, context)
+                : await this.#warmOutput(name, output, context);
+        const compiled = await compilation.compile(options.dependencies, files);
+        await writeFiles(compiled.files, files);
         // check the runtime of each module a shipped output loads, as the prerender output ships none
         if (name !== PRERENDER_OUTPUT) {
             checkInputs(compiled.inspection, compilation.runtime);
@@ -778,11 +854,7 @@ function plan(
 }
 
 /** Create the compilation of one planned output. */
-function createCompilation(
-    name: string,
-    output: ModuleOptions,
-    context: CompileContext,
-): OutputCompilation {
+function createOutput(name: string, output: ModuleOptions, context: CompileContext): ModuleOutput {
     // take the package's declarations the output's own exports make, beside its dependencies'
     const project = found(context.projects, name);
     const exported = new Set(Object.values(project.exports));
@@ -792,9 +864,10 @@ function createCompilation(
             declaration.description.symbol.package.id !== own || exported.has(declaration.file),
     );
 
-    return new OutputCompilation(
+    return new ModuleOutput(
         name,
         output,
+        context.mode,
         project,
         declarations,
         context.extensions,
@@ -832,20 +905,13 @@ async function retain(project: PackageSource, files: BuildDirectory): Promise<vo
     }
 }
 
-/** Write a compilation's generated files, and record the files its compiler wrote. */
+/** Write a compiled output's files into its build directory. */
 async function writeFiles(
     generated: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,
-    paths: readonly string[],
     files: BuildDirectory,
 ): Promise<void> {
-    // write the generated files
     for (const [path, bytes] of generated) {
         await files.write(path, bytes);
-    }
-
-    // record the files the compiler wrote
-    for (const path of paths) {
-        await files.record(path);
     }
 }
 

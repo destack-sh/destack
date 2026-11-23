@@ -68,7 +68,10 @@ export type WorkspaceUnitOptions = Pick<
 >;
 
 /** The compilers a workspace builds with, and the store they build into. */
-export type WorkspaceCompilers = Pick<CompilerPool, "store" | "fingerprint" | "use">;
+export type WorkspaceCompilers = Pick<
+    CompilerPool,
+    "store" | "fingerprint" | "use" | "installation"
+>;
 
 /** Find a release outside the workspace by its image's digest, storing its image and builds. */
 export type ReleaseResolver = (dependency: PackageVersion) => Promise<Digest>;
@@ -229,7 +232,7 @@ export class Workspace {
         const checkout = await Checkout.list(workspace, environment);
         const locked = lockfile === undefined ? {} : readLockedReleases(lockfile);
         const conversion = await compilers.fingerprint.conversion();
-        const npm = new NpmInstallation(locked, compilers.store, conversion, environment);
+        const npm = compilers.installation(locked, conversion);
 
         return new Workspace(directory, compilers, { toolchain, checkout, npm, members }, options);
     }
