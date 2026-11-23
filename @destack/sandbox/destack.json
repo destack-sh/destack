@@ -13,5 +13,16 @@
                 "reason": "the launcher's preload resolves as Bun loads modules, which only Bun's resolver over the process's own files does"
             }
         ]
+    },
+    "exports": {
+        "./main": {
+            "internal": true
+        },
+        ".": {
+            "internal": true
+        },
+        "./error": {
+            "internal": true
+        }
     }
 }
