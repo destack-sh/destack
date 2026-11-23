@@ -1,7 +1,7 @@
 import { styleText } from "node:util";
 import type { Environment } from "@destack/environment";
 import { Localization, LocaleTag } from "@destack/locale";
-import { DEFAULT_HUES, type Hue, PRESETS } from "@destack/color";
+import { DEFAULT_HUES, type Hue } from "@destack/color";
 import type { KeyPress } from "@destack/locale";
 import { Prompt } from "./prompt.ts";
 
@@ -20,8 +20,8 @@ const plain: Style = (_, text) => text;
 /** The colours of a terminal's tones: the brand's orange, and the green and red swatches. */
 const TONES = {
     accent: "#ff792e",
-    done: PRESETS.green,
-    failed: PRESETS.red,
+    done: DEFAULT_HUES.green,
+    failed: DEFAULT_HUES.red,
 } as const;
 
 /** The COLORTERM values of terminals painting 24-bit colour. */
