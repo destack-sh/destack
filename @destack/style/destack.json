@@ -6,7 +6,8 @@
     "runtimes": ["browser", "bun", "workerd"],
     "exports": {
         "./build": {
-            "runtimes": ["bun"]
+            "runtimes": ["bun"],
+            "internal": true
         }
     },
     "build": "./build#styleExtension"
