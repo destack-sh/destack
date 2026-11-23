@@ -23,7 +23,7 @@ const machineId = schema
 const otherId = schema.identifier("machine").parse("machine-01996ab0-0000-7000-8000-0000000000d2");
 
 /** The name the relay routes to the machine. */
-const NAME = "laptop--acme.destack.computer";
+const NAME = "laptop--example.destack.computer";
 
 /** The account the machine is enrolled in. */
 const ACCOUNT = schema.identifier("account").parse("account-01996ab0-0000-7000-8000-0000000000d3");
@@ -180,7 +180,7 @@ function forward(
     running: Tunnel,
     path: string,
 ): Promise<string | readonly [string, string, string]> {
-    return running.fetch(new Request(`https://notes--personal--acme.destack.space${path}`)).then(
+    return running.fetch(new Request(`https://notes--personal--example.destack.space${path}`)).then(
         (response) => response.text(),
         (error: unknown) => refusal(Promise.reject(error)),
     );
@@ -426,7 +426,7 @@ test("refuse a rename the machine refuses to renew for", async () => {
     await connect("host", TEST_START + 60_000, 503);
 
     // rename the machine, whose session answers its renewal with a 503
-    expect(await refusal(running.rename("renamed--acme.destack.computer"))).toEqual([
+    expect(await refusal(running.rename("renamed--example.destack.computer"))).toEqual([
         "BAD_GATEWAY",
         "RENEWAL_UNREACHABLE",
         "could not renew the tunnel: HTTP 503",
@@ -484,7 +484,7 @@ test("verify woken sockets once their standing reads, again after a failed read,
         throw new TypeError("the root is starting");
     };
     const failed = await woken
-        .fetch(new Request("https://notes--personal--acme.destack.space/a"))
+        .fetch(new Request("https://notes--personal--example.destack.space/a"))
         .catch((error: unknown) => error);
     standing.standing = async () => ({ name: NAME, account: ACCOUNT });
     standing.keys.clear();

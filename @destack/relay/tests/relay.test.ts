@@ -124,8 +124,8 @@ test("route a machine's name within its account through its tunnel", async () =>
     // call the machine itself, and nothing by a name no standing machine of the account has
     expect([
         await computer.request(relay, await computer.computer(), "/status"),
-        await computer.request(relay, "missing--acme.destack.computer", "/status"),
-    ]).toEqual(["hello GET /status", unresolved("missing--acme.destack.computer")]);
+        await computer.request(relay, "missing--example.destack.computer", "/status"),
+    ]).toEqual(["hello GET /status", unresolved("missing--example.destack.computer")]);
 });
 
 test("tell a machine its name as its tunnel opens, and again at once after its rename", async () => {
@@ -143,7 +143,7 @@ test("tell a machine its name as its tunnel opens, and again at once after its r
     });
 
     // call the machine by its new name once the relay tells it
-    const renamed = "renamed--acme.destack.computer";
+    const renamed = "renamed--example.destack.computer";
     await computer.waitUntil(() => computer.names.at(-1) === renamed);
     await computer.waitCaughtUp(relay);
     expect([
@@ -160,9 +160,9 @@ test("refuse names that lead nowhere, and a named machine that has no tunnel and
     // refuse other handles, spaces, shapes and domains, and the machine before it connects
     const names = [
         "notes--work--rival.destack.space",
-        "notes--missing--acme.destack.space",
-        "work--acme.destack.space",
-        "notes.work.acme.example.com",
+        "notes--missing--example.destack.space",
+        "work--example.destack.space",
+        "notes.work.example.example.com",
     ];
     const answers = await Promise.all(names.map((name) => computer.request(relay, name, "/")));
     expect([...answers, await computer.request(relay, computer.notes, "/")]).toEqual([
@@ -180,7 +180,7 @@ test("refuse a forwarded request without its host, and one for a name another re
 
     // forward to the relay's own host with a Forwarded header lacking the host, then naming a cloud space
     const host = new URL(relay.origin).host;
-    const site = "notes--site--acme.destack.space";
+    const site = "notes--site--example.destack.space";
     expect([
         await computer.request(relay, host, "/", { headers: { forwarded: "for=192.0.2.1" } }),
         await computer.request(relay, host, "/", {
@@ -430,7 +430,7 @@ test("route a branch to its space's machine under the branch's name", async () =
     const relay = await computer.relay();
     await computer.tunnel(relay);
 
-    const branch = "notes--feature-x---work--acme.destack.space";
+    const branch = "notes--feature-x---work--example.destack.space";
     expect([await computer.request(relay, branch, "/"), computer.received]).toEqual([
         "hello GET /",
         [`GET ${branch}/`],
@@ -444,7 +444,7 @@ test("forward a name or an S3 origin a cloud machine serves to the machine's end
     const site = await computer.place("site");
     await computer.waitCaughtUp(relay);
 
-    const name = "notes--site--acme.destack.space";
+    const name = "notes--site--example.destack.space";
     const s3 = S3Origin.format(site, TEST_UNIVERSE.domains.space);
     expect([
         await computer.request(relay, name, "/"),
@@ -460,7 +460,7 @@ test("route the name of a space whose account lives in another residency through
     await computer.place("site");
     await computer.waitCaughtUp(relay);
 
-    const name = "notes--site--acme.destack.space";
+    const name = "notes--site--example.destack.space";
     expect(await computer.request(relay, name, "/")).toBe(`us host=${name};proto=http`);
 });
 
@@ -521,7 +521,7 @@ test("follow a space's rename", async () => {
     await computer.waitCaughtUp(relay);
 
     // route the former name and the new one to the space's machine
-    const renamed = "notes--renamed--acme.destack.space";
+    const renamed = "notes--renamed--example.destack.space";
     expect([
         before,
         await computer.request(relay, computer.notes, "/"),
@@ -543,12 +543,12 @@ test("resolve a handle from the relay's replica after the account renames it", a
         ...target,
         requestId: RequestId.create(computer.environment),
         revision: current.revision,
-        handle: "acme-renamed",
+        handle: "example-renamed",
     });
     await computer.waitCaughtUp(relay);
 
     // route the former handle and the new one to the space's machine
-    const renamed = "notes--work--acme-renamed.destack.space";
+    const renamed = "notes--work--example-renamed.destack.space";
     expect([
         before,
         await computer.request(relay, computer.notes, "/"),

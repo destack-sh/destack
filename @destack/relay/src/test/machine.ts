@@ -35,7 +35,7 @@ const RESIDENCIES: UniverseDefinition["residencies"] = [
 ];
 
 /** The handle of the account the computer belongs to. */
-const HANDLE = "acme";
+const HANDLE = "example";
 
 /** The name of the space the computer serves. */
 const SPACE = "work";
@@ -107,7 +107,7 @@ export class TestTunnelMachine implements AsyncDisposable {
         this.spaceId = fields.spaceId;
     }
 
-    /** Enroll a computer of the acme account in a residency, Europe by default. */
+    /** Enroll a computer of the example account in a residency, Europe by default. */
     static async open(residency: ResidencyCode = "eu"): Promise<TestTunnelMachine> {
         // run the universe in a simulation, driving its opening
         const simulation = testSimulation();
@@ -128,14 +128,14 @@ export class TestTunnelMachine implements AsyncDisposable {
         });
         opening.use(universe);
 
-        // create the acme account in the residency as its owner
+        // create the example account in the residency as its owner
         const owner = await universe.signIn("owner@example.test");
         const client = owner.client(accountPackage);
         const created = await client.account.create({
             scope: owner.id,
             requestId: RequestId.create(simulation.environment("universe")),
             handle: HANDLE,
-            name: "Acme",
+            name: "Example",
             kind: "shared",
             residencyId: residency,
         });
