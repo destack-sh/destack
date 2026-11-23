@@ -149,10 +149,8 @@ function isReady(target: Installation): boolean {
 }
 
 test("follow a published release's tag, then pin the installation to the release", async () => {
-    // create the example organization as the owner
+    // open the owner's terminal, whose example account publishes the fixtures
     const terminal = await TerminalFixture.open({ NO_COLOR: "1" });
-    const words = ["organization", "create", "--name", "Example", "--handle", "example"];
-    const organized = await terminal.printed([...words, "--residency-id", "eu"]);
 
     // publish a committed checkout under latest, allowing the stack to publish, then tag its version stable
     const directory = await notebooksCheckout("committed");
@@ -196,13 +194,11 @@ test("follow a published release's tag, then pin the installation to the release
         message: "0 workloads deployed",
     };
     expect({
-        organized: [organized.code, organized.error],
         tagged: [tagged.code, tagged.output, tagged.error],
         version,
         installations: [readiness(converged), readiness(settled)],
         builds,
     }).toEqual({
-        organized: [0, ""],
         tagged: [0, `Tagged  release '${PACKAGE.name}@${version}' stable\n`, ""],
         version: NEXT_RELEASE,
         installations: [
@@ -221,10 +217,8 @@ test("follow a published release's tag, then pin the installation to the release
 });
 
 test("publish a committed checkout at the registry's next release, whatever its package file says, and refuse uncommitted changes", async () => {
-    // create the example organization as the owner
+    // open the owner's terminal, whose example account publishes the fixtures
     const terminal = await TerminalFixture.open({ NO_COLOR: "1" });
-    const words = ["organization", "create", "--name", "Example", "--handle", "example"];
-    await terminal.printed([...words, "--residency-id", "eu"]);
 
     // publish a committed checkout, allowing the stack to publish with --yes, then one with uncommitted changes
     const committed = await notebooksCheckout("committed");
