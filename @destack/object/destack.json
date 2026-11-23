@@ -7,22 +7,31 @@
     "runtimes": ["browser", "bun", "workerd"],
     "exports": {
         "./browser": {
-            "runtimes": ["browser"]
+            "runtimes": ["browser"],
+            "internal": true
         },
         "./bun": {
-            "runtimes": ["bun"]
+            "runtimes": ["bun"],
+            "internal": true
         },
         "./cloudflare": {
-            "runtimes": ["bun", "workerd"]
+            "runtimes": ["bun", "workerd"],
+            "internal": true
         },
         "./inspect": {
-            "runtimes": ["bun", "workerd"]
+            "runtimes": ["bun", "workerd"],
+            "internal": true
         },
         "./server": {
-            "runtimes": ["bun", "workerd"]
+            "runtimes": ["bun", "workerd"],
+            "internal": true
         },
         "./workload": {
-            "runtimes": ["bun", "workerd"]
+            "runtimes": ["bun", "workerd"],
+            "internal": true
+        },
+        "./scenario": {
+            "internal": true
         }
     },
     "declarations": {

@@ -21,7 +21,6 @@
     },
     "dependencies": {
         "@destack/access": "workspace:*",
-        "@destack/bucket": "workspace:*",
         "@destack/color": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/environment": "workspace:*",
@@ -47,7 +46,16 @@
         "fractional-indexing": "3.2.0"
     },
     "devDependencies": {
+        "@destack/bucket": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.4"
+    },
+    "peerDependencies": {
+        "@destack/bucket": "workspace:*"
+    },
+    "peerDependenciesMeta": {
+        "@destack/bucket": {
+            "optional": true
+        }
     }
 }
