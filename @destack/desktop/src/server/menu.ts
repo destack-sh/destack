@@ -102,23 +102,26 @@ export class Menu {
     /** List an action's entry on a target, none where the target misses its call's condition. */
     async offer(
         offered: MenuAction,
-        client: Pick<ObjectClient, "queryType" | "call">,
+        client: Pick<ObjectClient, "queryType" | "perform" | "scope">,
         id: string,
     ): Promise<MenuEntry[]> {
         // leave out an action calling nothing, or whose condition the target misses, or which the person may not call
         const { action, after } = offered;
         const { call } = action;
-        const target =
+        const found =
             call === undefined
                 ? undefined
                 : await client.queryType(call.object).findFirst(call.query([id]));
-        if (call === undefined || target === undefined) {
+        if (call === undefined || found === undefined) {
             return [];
         }
 
         // call it on the target, then run what follows it
         const run = async () => {
-            await client.call(call.object, call.method, call.input({ id })).confirmed;
+            // perform it on the object in the client's scope
+            const target = call.object.policy.reference(client.scope, id);
+            const values = call.target === undefined ? {} : { [call.target]: target };
+            await client.perform(action, { values }).confirmed;
             await after?.(id);
         };
         const title = this.#localization.render(action.title);
@@ -129,7 +132,7 @@ export class Menu {
     /** Offer a watched row's actions in a section at each change, none without a row. */
     async follow(
         section: MenuSection,
-        client: Pick<ObjectClient, "queryType" | "call">,
+        client: Pick<ObjectClient, "queryType" | "perform" | "scope">,
         rows: AsyncIterable<{ readonly id: string } | undefined>,
         actions: readonly MenuAction[],
     ): Promise<void> {

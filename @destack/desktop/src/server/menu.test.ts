@@ -1,5 +1,5 @@
 import { Localization, SOURCE_LOCALE, t } from "@destack/locale";
-import { defineAction } from "@destack/object";
+import { defineAction, selected } from "@destack/object";
 import { testSimulation } from "@destack/object/test";
 import { expect, refusal, test } from "@destack/test";
 import { window } from "../object/index.ts";
@@ -58,7 +58,8 @@ test("offer an action only on targets meeting its call's condition, and run it o
         {
             name: "focus-view",
             title: t`Focus`,
-            call: { object: window, method: "focus", when: { kind: "view" } },
+            input: { windows: selected(window, { kind: "view" }) },
+            call: ({ windows }) => windows.prepare("focus", {}),
         },
         { package: window.package },
     );
