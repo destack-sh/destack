@@ -6,7 +6,11 @@
     "runtimes": ["browser", "bun"],
     "exports": {
         "./view": {
-            "runtimes": ["browser", "bun"]
+            "runtimes": ["browser", "bun"],
+            "internal": true
+        },
+        "./package": {
+            "internal": true
         }
     }
 }
