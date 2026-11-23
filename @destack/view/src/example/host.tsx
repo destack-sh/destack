@@ -17,6 +17,8 @@ import {
     createMemo,
     createSignal,
     For,
+    getOwner,
+    runWithOwner,
     Show,
     untrack,
 } from "solid-js";
@@ -254,8 +256,7 @@ function hostExample(
     element.append(bar, stage);
 
     // render the example once loaded, again only as its locale or width changes
-    let dispose: (() => void) | undefined;
-    const disposeBar = render(() => {
+    return render(() => {
         // follow the URL's settings, then load the example and render it for each locale and width
         const settings = new ExampleSettings(url, environment.navigation);
         const [example, setExample] =
@@ -269,19 +270,24 @@ function hostExample(
                 ? undefined
                 : `${String(globals.locale)} ${String(globals.width)}`;
         });
+        const owner = getOwner();
         createEffect(renderKey, (key) => {
-            // render again in place of the last render
+            // wait for the example
             const loaded = untrack(example);
             if (key === undefined || loaded === undefined) {
                 return;
             }
-            dispose?.();
+
+            // render under the page's owner, until the next render or the page ends
             const query = untrack(() => settings.query());
             stage.className = style.attrs(styles.stage, styles[loaded.layout]).class ?? "";
-            dispose = renderExample(
-                stage,
-                { example: loaded, globals: query.globals, theme: themeOf(query) },
-                environment,
+
+            return runWithOwner(owner, () =>
+                renderExample(
+                    stage,
+                    { example: loaded, globals: query.globals, theme: themeOf(query) },
+                    environment,
+                ),
             );
         });
 
@@ -305,11 +311,6 @@ function hostExample(
             </nav>
         );
     }, bar);
-
-    return () => {
-        disposeBar();
-        dispose?.();
-    };
 }
 
 /** The settings of a page of examples: the ones in its URL, and the ones a person previews. */

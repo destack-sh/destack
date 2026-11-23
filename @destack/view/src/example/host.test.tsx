@@ -1,6 +1,23 @@
-import { expect, test } from "@destack/test";
+import type { JSX } from "@solidjs/web";
+import { defineExample } from "@destack/package/declare";
+import { expect, onTestFinished, test, vi } from "@destack/test";
 import { Typeface } from "@destack/theme";
-import { paint, queryOf } from "./host.tsx";
+import { testBrowser } from "../test/browser.ts";
+import { wait } from "../test/dom.ts";
+import { hostExamples, paint, queryOf } from "./host.tsx";
+
+/** Greet everyone. */
+function Greeting(): JSX.Element {
+    return <p>Hello</p>;
+}
+
+/** A plain greeting. */
+export const greetingPlain = defineExample({
+    of: Greeting,
+    name: "plain",
+    description: "a plain greeting",
+    render: () => <Greeting />,
+});
 
 /** Read the page of examples a URL's query asks for. */
 function pageOf(search: string): URL {
@@ -37,4 +54,35 @@ test("refuse a display setting outside its choices", () => {
             message: `Invalid option: expected one of ${Typeface.options.map((face) => `"${face}"`).join("|")}`,
         },
     ]);
+});
+
+test("host the example its path names, rendering it again in place as the locale changes", async () => {
+    // open the example's page
+    const environment = testBrowser();
+    const { navigation } = environment;
+    navigation.navigate("/.destack/examples/example/plain?width=320", { history: "replace" });
+    const page = document.createElement("main");
+    document.body.append(page);
+    const dispose = hostExamples(
+        page,
+        [{ module: "/src/example/host.test.tsx", export: "greetingPlain", name: "plain" }],
+        environment,
+    );
+    onTestFinished(() => page.remove());
+
+    // read the frames the page shows, loaded and then in another locale
+    const frames = () =>
+        [...page.querySelectorAll<HTMLElement>("[data-slot=example]")].map((frame) => [
+            frame.lang,
+            frame.style.width,
+            frame.textContent,
+        ]);
+    await vi.waitFor(() => expect(frames()).toEqual([["en", "320px", "Hello"]]));
+    const options = [...page.querySelectorAll<HTMLButtonElement>("[role=option]")];
+    options.find((option) => option.textContent === "ar-EG")?.click();
+    await wait(0);
+    const changed = frames();
+    dispose();
+
+    expect([changed, frames()]).toEqual([[["ar-EG", "320px", "Hello"]], []]);
 });
