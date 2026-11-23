@@ -41,6 +41,8 @@ const styles = style.create({
         backgroundColor: color.popover,
         color: color.foreground,
         boxShadow: shadow.overlay,
+        // take the focus without a ring where nothing inside takes it
+        outlineStyle: "none",
         "::backdrop": {
             backgroundColor: color.scrim,
         },
