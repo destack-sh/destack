@@ -16,52 +16,85 @@ import { Expression } from "../expression/expression.ts";
 import { ResourceError } from "@destack/resource/error";
 import { testSimulation } from "@destack/test/world";
 
+/** This package's current release, which the tables migrating to the next release start from. */
+const CURRENT_RELEASE = { package: { ...import.meta.destack.package, version: "2026.10.0" } };
+
 /** Folders with documents, as first released. */
-const folderOne = defineTable("folder", {
-    id: text("id").primaryKey(),
-    extra: text("extra"),
-});
+const folderOne = defineTable(
+    "folder",
+    {
+        id: text("id").primaryKey(),
+        extra: text("extra"),
+    },
+    {},
+    CURRENT_RELEASE,
+);
 
 /** Folders after dropping their extra column. */
-const folderTwo = defineTable("folder", {
-    id: text("id").primaryKey(),
-});
+const folderTwo = defineTable(
+    "folder",
+    {
+        id: text("id").primaryKey(),
+    },
+    {},
+    CURRENT_RELEASE,
+);
 
 /** Documents referencing their folder. */
-const document = defineTable("document", {
-    id: text("id").primaryKey(),
-    folderId: text("folder_id")
-        .notNull()
-        .references(() => folderTwo.id),
-});
+const document = defineTable(
+    "document",
+    {
+        id: text("id").primaryKey(),
+        folderId: text("folder_id")
+            .notNull()
+            .references(() => folderTwo.id),
+    },
+    {},
+    CURRENT_RELEASE,
+);
 
 /** Pages, each in a folder. */
-const page = defineTable("page", {
-    id: text("id").primaryKey(),
-    folderId: text("folder_id")
-        .notNull()
-        .references(() => folderTwo.id),
-});
+const page = defineTable(
+    "page",
+    {
+        id: text("id").primaryKey(),
+        folderId: text("folder_id")
+            .notNull()
+            .references(() => folderTwo.id),
+    },
+    {},
+    CURRENT_RELEASE,
+);
 
 /** Albums naming their cover photo, which the photos' album references back. */
-const album = defineTable("album", {
-    id: text("id").primaryKey(),
-    coverId: text("cover_id").references((): Column => photo.id),
-});
+const album = defineTable(
+    "album",
+    {
+        id: text("id").primaryKey(),
+        coverId: text("cover_id").references((): Column => photo.id),
+    },
+    {},
+    CURRENT_RELEASE,
+);
 
 /** Photos referencing their album. */
-const photo = defineTable("photo", {
-    id: text("id").primaryKey(),
-    albumId: text("album_id")
-        .notNull()
-        .references(() => album.id),
-});
+const photo = defineTable(
+    "photo",
+    {
+        id: text("id").primaryKey(),
+        albumId: text("album_id")
+            .notNull()
+            .references(() => album.id),
+    },
+    {},
+    CURRENT_RELEASE,
+);
 
 /** Another package's release, declaring its documents' attachments. */
 const ATTACHMENT_RELEASE = {
     package: PackageVersion.parse({
         id: "package-01996ab0-0000-7000-8000-0000000000f1",
-        name: "@acme/attachment",
+        name: "@example/attachment",
         version: "2026.10.0",
     }),
 };
@@ -80,16 +113,26 @@ const attachment = defineTable(
 );
 
 /** Labels whose codes may repeat. */
-const labelPlain = defineTable("label", {
-    id: text("id").primaryKey(),
-    code: text("code").notNull(),
-});
+const labelPlain = defineTable(
+    "label",
+    {
+        id: text("id").primaryKey(),
+        code: text("code").notNull(),
+    },
+    {},
+    CURRENT_RELEASE,
+);
 
 /** Labels with unique codes. */
-const labelUnique = defineTable("label", {
-    id: text("id").primaryKey(),
-    code: text("code").notNull().unique(),
-});
+const labelUnique = defineTable(
+    "label",
+    {
+        id: text("id").primaryKey(),
+        code: text("code").notNull().unique(),
+    },
+    {},
+    CURRENT_RELEASE,
+);
 
 /** Tasks as first released. */
 const taskOne = defineTable(
@@ -102,6 +145,7 @@ const taskOne = defineTable(
         note: text("note"),
     },
     { log: {} },
+    CURRENT_RELEASE,
 );
 
 /** Tasks after renaming name to title, dropping the note and adding a due time and index. */
@@ -119,16 +163,17 @@ const taskTwo = defineTable(
         moved: { columns: { title: "name" } },
         constraints: (task) => [index("task_due").on(task.dueAt)],
     },
+    CURRENT_RELEASE,
 );
 
-/** This package's release as the tests run. */
-const CURRENT_VERSION = taskOne[TABLE].package.version;
+/** This package's version in its current release. */
+const CURRENT_VERSION = CURRENT_RELEASE.package.version;
 
 /** The version of this package's next release, the one after the current. */
 const NEXT_VERSION = Version.next(CURRENT_VERSION);
 
 /** This package's next release, declaring the converted tasks. */
-const NEXT_RELEASE = { package: { ...taskOne[TABLE].package, version: NEXT_VERSION } };
+const NEXT_RELEASE = { package: { ...CURRENT_RELEASE.package, version: NEXT_VERSION } };
 
 /** Tasks after converting the urgent flag into a priority, in the next release. */
 const taskThree = defineTable(
@@ -175,21 +220,31 @@ const taskDropped = defineTable(
 );
 
 /** Tasks declaring the urgent flag as text. */
-const taskText = defineTable("task", {
-    id: text("id").primaryKey(),
-    name: text("name").notNull(),
-    urgent: text("urgent").notNull(),
-    note: text("note"),
-});
+const taskText = defineTable(
+    "task",
+    {
+        id: text("id").primaryKey(),
+        name: text("name").notNull(),
+        urgent: text("urgent").notNull(),
+        note: text("note"),
+    },
+    {},
+    CURRENT_RELEASE,
+);
 
 /** Tasks with an unfillable required column. */
-const taskUnfilled = defineTable("task", {
-    id: text("id").primaryKey(),
-    name: text("name").notNull(),
-    urgent: integer("urgent").notNull(),
-    note: text("note"),
-    owner: text("owner").notNull(),
-});
+const taskUnfilled = defineTable(
+    "task",
+    {
+        id: text("id").primaryKey(),
+        name: text("name").notNull(),
+        urgent: integer("urgent").notNull(),
+        note: text("note"),
+        owner: text("owner").notNull(),
+    },
+    {},
+    CURRENT_RELEASE,
+);
 
 /** Units with the predefined rows every database has, in a logged table. */
 const unit = defineTable(
@@ -208,6 +263,7 @@ const unit = defineTable(
             { id: "kilometre", scope: "si", name: "Kilometre", factor: 1000, aliases: ["km"] },
         ],
     },
+    CURRENT_RELEASE,
 );
 
 /** Notes with a log of their own, beside the tasks. */
@@ -219,6 +275,7 @@ const note = defineTable(
         body: text("body").notNull(),
     },
     { log: {} },
+    CURRENT_RELEASE,
 );
 
 /** List which of some tables a plan's statements drop or create triggers of. */
@@ -251,13 +308,18 @@ test("reinstall the triggers of the tables a plan changes alone", async () => {
 });
 
 /** The outbox queueing rows for their global indexes' home. */
-const outbox = defineTable("outbox", {
-    requestId: text("request_id").primaryKey(),
-    objectId: text("object_id").primaryKey(),
-    owner: text("owner").notNull(),
-    index: text("index").notNull(),
-    expiresAt: integer("expires_at").notNull(),
-});
+const outbox = defineTable(
+    "outbox",
+    {
+        requestId: text("request_id").primaryKey(),
+        objectId: text("object_id").primaryKey(),
+        owner: text("owner").notNull(),
+        index: text("index").notNull(),
+        expiresAt: integer("expires_at").notNull(),
+    },
+    {},
+    CURRENT_RELEASE,
+);
 
 /** Declare the columns of members with handles. */
 function memberColumns() {
@@ -269,33 +331,43 @@ function memberColumns() {
 }
 
 /** Members with handles, as first released without a global index. */
-const memberOne = defineTable("member", memberColumns());
+const memberOne = defineTable("member", memberColumns(), {}, CURRENT_RELEASE);
 
 /** Members whose handles a global index keeps unique. */
-const memberTwo = defineTable("member", memberColumns(), {
-    globalIndexes: () => [
-        {
-            name: "member/handle",
-            declaration: '{"on":["handle"]}',
-            id: "id",
-            scope: "scope",
-            outbox,
-        },
-    ],
-});
+const memberTwo = defineTable(
+    "member",
+    memberColumns(),
+    {
+        globalIndexes: () => [
+            {
+                name: "member/handle",
+                declaration: '{"on":["handle"]}',
+                id: "id",
+                scope: "scope",
+                outbox,
+            },
+        ],
+    },
+    CURRENT_RELEASE,
+);
 
 /** Members whose global index folds the handles' hyphens. */
-const memberThree = defineTable("member", memberColumns(), {
-    globalIndexes: () => [
-        {
-            name: "member/handle",
-            declaration: '{"fold":"hyphens","on":["handle"]}',
-            id: "id",
-            scope: "scope",
-            outbox,
-        },
-    ],
-});
+const memberThree = defineTable(
+    "member",
+    memberColumns(),
+    {
+        globalIndexes: () => [
+            {
+                name: "member/handle",
+                declaration: '{"fold":"hyphens","on":["handle"]}',
+                id: "id",
+                scope: "scope",
+                outbox,
+            },
+        ],
+    },
+    CURRENT_RELEASE,
+);
 
 /** Open an empty test database. */
 async function open(tables: readonly Table[]) {
@@ -469,6 +541,7 @@ test("drop a column a partial unique index uses, keeping the index's name over a
                     .where({ revokedAt: { isNull: true } }),
             ],
         },
+        CURRENT_RELEASE,
     );
     const deleted = defineTable(
         "machine",
@@ -484,6 +557,7 @@ test("drop a column a partial unique index uses, keeping the index's name over a
                     .where({ deletedAt: { isNull: true } }),
             ],
         },
+        CURRENT_RELEASE,
     );
     const database = await open([]);
     await database.migrate([revoked]);
@@ -632,10 +706,15 @@ test("name what the declarations must fix instead of planning", async () => {
 });
 
 /** Preferences whose mode takes three values. */
-const preferenceOne = defineTable("preference", {
-    id: text("id").primaryKey(),
-    mode: json("mode", schema.enum(["standard", "vim", "emacs"])),
-});
+const preferenceOne = defineTable(
+    "preference",
+    {
+        id: text("id").primaryKey(),
+        mode: json("mode", schema.enum(["standard", "vim", "emacs"])),
+    },
+    {},
+    CURRENT_RELEASE,
+);
 
 /** Preferences in the next release, whose mode also takes a fourth value. */
 const preferenceWide = defineTable(
@@ -743,10 +822,15 @@ test("refuse a release changing a row conversion an applied release has", async 
 });
 
 /** Layouts whose settings name a theme. */
-const layoutOne = defineTable("layout", {
-    id: text("id").primaryKey(),
-    settings: json("settings", schema.object({ theme: schema.string() })),
-});
+const layoutOne = defineTable(
+    "layout",
+    {
+        id: text("id").primaryKey(),
+        settings: json("settings", schema.object({ theme: schema.string() })),
+    },
+    {},
+    CURRENT_RELEASE,
+);
 
 /** Layouts in the next release, whose settings require a size the stored rows lack. */
 const layoutSized = defineTable(
@@ -841,6 +925,7 @@ const preferenceRebuilt = defineTable(
             },
         },
     },
+    CURRENT_RELEASE,
 );
 
 test("convert rows by the conversion a rebuilt release adds, once", async () => {
@@ -988,10 +1073,15 @@ test("fill a new required column without a default by its edition's conversion o
 });
 
 /** Leases keyed by their holder alone, as first released. */
-const leaseOne = defineTable("lease", {
-    holder: text("holder").primaryKey(),
-    until: integer("until").notNull(),
-});
+const leaseOne = defineTable(
+    "lease",
+    {
+        holder: text("holder").primaryKey(),
+        until: integer("until").notNull(),
+    },
+    {},
+    CURRENT_RELEASE,
+);
 
 /** Leases in the next release, keyed by holder and a new required owner its conversion fills. */
 const leaseOwned = defineTable(
@@ -1539,11 +1629,16 @@ test("add foreign keys to local tables and leave references elsewhere logical", 
 
 test("let replicas leave out the sensitive columns their log never records", () => {
     // declare a required secret beside a required name
-    const credential = defineTable("credential", {
-        id: text("id").primaryKey(),
-        name: text("name").notNull(),
-        secret: text("secret").notNull().sensitive(),
-    });
+    const credential = defineTable(
+        "credential",
+        {
+            id: text("id").primaryKey(),
+            name: text("name").notNull(),
+            secret: text("secret").notNull().sensitive(),
+        },
+        {},
+        CURRENT_RELEASE,
+    );
     const nullable = (isReplica: boolean) =>
         declareState([credential], TestDatabase.target(), { isReplica }).flatMap((state) =>
             state.table.columns.map((column) => [column.name, column.nullable]),
@@ -1570,13 +1665,19 @@ test("declare a replicated table without its unique constraints or the foreign k
         "list",
         { id: text("id").primaryKey(), name: text("name").notNull() },
         { constraints: (columns) => [uniqueIndex("list_name").on(columns.name)] },
+        CURRENT_RELEASE,
     );
-    const item = defineTable("item", {
-        id: text("id").primaryKey(),
-        listId: text("list_id")
-            .notNull()
-            .references(() => list.id, { onDelete: "cascade" }),
-    });
+    const item = defineTable(
+        "item",
+        {
+            id: text("id").primaryKey(),
+            listId: text("list_id")
+                .notNull()
+                .references(() => list.id, { onDelete: "cascade" }),
+        },
+        {},
+        CURRENT_RELEASE,
+    );
     const shape = (replicated: readonly string[]) =>
         declareState([list, item], TestDatabase.target(), { replicated: new Set(replicated) }).map(
             (state) => [
