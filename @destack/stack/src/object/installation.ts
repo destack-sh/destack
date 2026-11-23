@@ -590,7 +590,9 @@ export const Installation = {
                           Failure.of(Installation.blocked(row, refused.message)),
                       );
             const isCleared =
-                refusal === undefined && earlier?.message === row.conditions[SYNCED]?.message;
+                refusal === undefined &&
+                served !== null &&
+                earlier?.message === row.conditions[SYNCED]?.message;
 
             // report Synced failed for a refusal, and synced again once a refused one is served
             const report = {
