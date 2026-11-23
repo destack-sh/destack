@@ -51,7 +51,7 @@ export const GalleryPage = {
     },
 
     /** Write each row's title for a program. */
-    records(rows: readonly JsonObject[], type: ObjectType): string[][] {
-        return rows.map((row) => [Frame.titleText(type, row)]);
+    records(frame: Frame, rows: readonly JsonObject[], type: ObjectType): string[][] {
+        return rows.map((row) => [frame.titleText(type, row)]);
     },
 };

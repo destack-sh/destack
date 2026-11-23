@@ -1,14 +1,7 @@
 import { Condition, TABLE } from "@destack/db";
 import { connectBunSqlite } from "@destack/db/bun";
 import { ObjectClient, type ObjectConnection } from "@destack/object/client";
-import {
-    CalendarLayout,
-    type ObjectType,
-    type Layout,
-    Presentation,
-    ObjectView,
-    type ObjectQuery,
-} from "@destack/object";
+import { CalendarLayout, type Layout, ObjectView, type ObjectQuery } from "@destack/object";
 import { principal } from "@destack/access";
 import { Scope } from "@destack/sync";
 import { type JsonObject, type JsonValue, present, schema, type TimeScale } from "@destack/schema";
@@ -253,7 +246,7 @@ async function page(paging: {
             } else {
                 nextKey = keys.next();
                 const drawn = frame.page(
-                    titled(rows, type, pager.filter),
+                    frame.titled(rows, type, pager.filter),
                     shaped.layout,
                     type,
                     shaped.window,
@@ -279,7 +272,7 @@ async function page(paging: {
 
             // draw the page under the pager
             const drawn = frame.page(
-                titled(rows, type, pager.filter),
+                frame.titled(rows, type, pager.filter),
                 shaped.layout,
                 type,
                 shaped.window,
@@ -290,13 +283,6 @@ async function page(paging: {
         await keys.return(undefined);
         await followed.return(undefined);
     }
-}
-
-/** Filter rows to those whose title contains a text, ignoring case. */
-function titled(rows: readonly JsonObject[], type: ObjectType, filter: string): JsonObject[] {
-    return rows.filter((row) =>
-        Presentation.title(type.presentation, row).toLowerCase().includes(filter.toLowerCase()),
-    );
 }
 
 /** Run an action's call on each target, telling what it did or why it failed. */
@@ -617,7 +603,7 @@ async function renderResult(
 
     // say what happened to the object, by its title, with its identifier beside it
     const { id } = schema.looseObject({ id: schema.string().exactOptional() }).parse(row.data);
-    const title = noun.type.presentation?.title;
+    const title = noun.type.presentation.title;
     const named = title === undefined ? undefined : row.data[title];
     const subject = typeof named === "string" ? `${noun.name} '${named}'` : noun.name;
 

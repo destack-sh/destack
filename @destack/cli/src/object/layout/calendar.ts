@@ -143,7 +143,7 @@ export const CalendarPage = {
         window?: TimeScale,
     ): string[][] {
         return CalendarLayout.days(layout, rows, frame.terminal.timeZone, window).flatMap((day) =>
-            day.rows.map((row) => [day.date, Frame.titleText(type, row)]),
+            day.rows.map((row) => [day.date, frame.titleText(type, row)]),
         );
     },
 };

@@ -5,7 +5,6 @@ import {
     ObjectDetail,
     type ObjectType,
     ObjectValue,
-    Presentation,
     TableLayout,
 } from "@destack/object";
 import { TABLE } from "@destack/db";
@@ -141,12 +140,19 @@ export class Frame {
 
     /** Read the field titling a type's objects, the identifier for a type titling none. */
     static title(type: ObjectType): string {
-        return type.presentation?.title ?? "id";
+        return type.presentation.title ?? "id";
     }
 
-    /** Read a row's title as text, else its identifier. */
-    static titleText(type: ObjectType, row: JsonObject): string {
-        return Presentation.title(type.presentation, row);
+    /** Filter rows to those whose title contains a text, ignoring case. */
+    titled(rows: readonly JsonObject[], type: ObjectType, filter: string): JsonObject[] {
+        return rows.filter((row) =>
+            this.titleText(type, row).toLowerCase().includes(filter.toLowerCase()),
+        );
+    }
+
+    /** Read a row's title as text in the terminal's locale, else its identifier. */
+    titleText(type: ObjectType, row: JsonObject): string {
+        return ObjectAppearance.title(type, row, this.terminal.localization, this.key(type, row));
     }
 
     /** Write a key the cursor and folds follow: text as it is, any other value as JSON. */
@@ -157,7 +163,7 @@ export class Frame {
     /** Read the columns a table shows: its layout's, else the title, first fields and id. */
     static columns(type: ObjectType, layout: TableLayout): readonly string[] {
         // take the layout's columns as named, else the title, the first shown fields and the identifier
-        const title = type.presentation?.title;
+        const title = type.presentation.title;
         const shown = TableLayout.columns({ kind: "table" }, ObjectDetail.shown(type));
 
         return (
@@ -173,7 +179,13 @@ export class Frame {
         // read the row's accent at the frame's moment
         const { terminal } = this;
         const moment = { now: this.now, timeZone: terminal.timeZone };
-        const { color } = ObjectAppearance.of(type, row, moment);
+        const { color } = ObjectAppearance.of(
+            type,
+            row,
+            moment,
+            terminal.localization,
+            this.key(type, row),
+        );
 
         return columns.map((column) => {
             // write the identifier people use, dim, and a program's id whole
@@ -190,10 +202,18 @@ export class Frame {
             const cell =
                 referenced === undefined || object === undefined
                     ? Cell.of(ObjectValue.of(type, column, value), terminal, this.now)
-                    : Cell.plain(ObjectAppearance.of(referenced.type, object, moment).title);
+                    : Cell.plain(
+                          ObjectAppearance.of(
+                              referenced.type,
+                              object,
+                              moment,
+                              terminal.localization,
+                              this.key(referenced.type, object),
+                          ).title,
+                      );
 
             // mark the title with the object's accent
-            return column === type.presentation?.title && color !== undefined
+            return column === type.presentation.title && color !== undefined
                 ? {
                       ...cell,
                       text: `${ACCENT_DOT} ${cell.text}`,
@@ -214,18 +234,21 @@ export class Frame {
 
     /** Read the identifier people use for a row, such as TRK-214. */
     identifier(type: ObjectType, row: JsonObject): string {
-        // read the key of the object the row's number counts within, when it counts within one
+        return ObjectAppearance.identifier(type, row, this.key(type, row));
+    }
+
+    /** Read the key of the object a row's number counts within, none when it counts within none. */
+    key(type: ObjectType, row: JsonObject): string | undefined {
+        // find the owner among the frame's referenced rows, and read its key
         const within = type.numbering?.within;
         const value = within === undefined ? undefined : row[within];
         const holder = within === undefined ? undefined : this.references.get(within);
         const owner = typeof value === "string" ? holder?.rows.get(value) : undefined;
         const keyed = holder?.type.keyed;
-        const key =
-            owner === undefined || keyed === undefined
-                ? undefined
-                : schema.string().parse(owner[keyed]);
 
-        return ObjectAppearance.identifier(type, row, key);
+        return owner === undefined || keyed === undefined
+            ? undefined
+            : schema.string().parse(owner[keyed]);
     }
 
     /** Draw rows as a table: a header, one row a line and their count, else tab-separated rows. */
@@ -252,7 +275,7 @@ export class Frame {
     record(row: JsonObject, type: ObjectType): string {
         // head a person's record with the object's title and identifier, its other fields below
         const { terminal } = this;
-        const title = type.presentation?.title;
+        const title = type.presentation.title;
         const headed = terminal.isTerminal && title !== undefined && typeof row[title] === "string";
         const fields = Object.keys(row).filter(
             (field) => !headed || (field !== title && field !== "id"),
@@ -323,14 +346,14 @@ export class Frame {
         }
         const records =
             layout.kind === "tree"
-                ? TreePage.records(rows, layout, type)
+                ? TreePage.records(this, rows, layout, type)
                 : layout.kind === "timeline"
-                  ? TimelinePage.records(rows, layout, type)
+                  ? TimelinePage.records(this, rows, layout, type)
                   : layout.kind === "board"
-                    ? BoardPage.records(rows, layout, type)
+                    ? BoardPage.records(this, rows, layout, type)
                     : layout.kind === "calendar"
                       ? CalendarPage.records(this, rows, layout, type, window)
-                      : GalleryPage.records(rows, type);
+                      : GalleryPage.records(this, rows, type);
 
         return records.map((record) => record.join("\t")).join("\n");
     }

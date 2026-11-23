@@ -131,11 +131,16 @@ export const TimelinePage = {
     },
 
     /** Write each timed row's start, end and title for a program. */
-    records(rows: readonly JsonObject[], layout: TimelineLayout, type: ObjectType): string[][] {
+    records(
+        frame: Frame,
+        rows: readonly JsonObject[],
+        layout: TimelineLayout,
+        type: ObjectType,
+    ): string[][] {
         return (TimelineLayout.axis(layout, rows)?.entries ?? []).map((each) => [
             new Date(each.start).toISOString(),
             new Date(each.end).toISOString(),
-            Frame.titleText(type, each.row),
+            frame.titleText(type, each.row),
         ]);
     },
 };

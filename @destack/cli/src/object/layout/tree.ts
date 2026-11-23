@@ -38,11 +38,16 @@ export const TreePage = {
     },
 
     /** Write each row's depth, key and title for a program. */
-    records(rows: readonly JsonObject[], layout: TreeLayout, type: ObjectType): string[][] {
+    records(
+        frame: Frame,
+        rows: readonly JsonObject[],
+        layout: TreeLayout,
+        type: ObjectType,
+    ): string[][] {
         return TreeLayout.nest(layout, rows).map(({ row, isLast }) => [
             String(isLast.length),
             Frame.key(row[layout.id]),
-            Frame.titleText(type, row),
+            frame.titleText(type, row),
         ]);
     },
 };

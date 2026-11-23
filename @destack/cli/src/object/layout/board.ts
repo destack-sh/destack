@@ -50,9 +50,14 @@ export const BoardPage = {
     },
 
     /** Write each row's column value and title for a program. */
-    records(rows: readonly JsonObject[], layout: BoardLayout, type: ObjectType): string[][] {
+    records(
+        frame: Frame,
+        rows: readonly JsonObject[],
+        layout: BoardLayout,
+        type: ObjectType,
+    ): string[][] {
         return BoardLayout.group(layout, rows, type.fields).flatMap((group) =>
-            group.rows.map((row) => [group.value, Frame.titleText(type, row)]),
+            group.rows.map((row) => [group.value, frame.titleText(type, row)]),
         );
     },
 };
