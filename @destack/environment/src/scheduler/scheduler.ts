@@ -12,7 +12,7 @@ export interface Scheduler {
     readonly yield: () => Promise<void>;
     /** Run real work as one operation, completed in the order operations began. */
     readonly run: <Value>(start: () => Promise<Value>, options?: RunOptions) => Promise<Value>;
-    /** Keep the world's time until real work ends, completing it as a long operation at idle. */
+    /** Wait for real work outside the world, completing it as a long operation at idle. */
     readonly waitUntil: <Value>(settled: Promise<Value>) => Promise<Value>;
     /** Run the world's own work, counted in flight until it settles. */
     readonly task: <Value>(start: () => Promise<Value>) => Promise<Value>;

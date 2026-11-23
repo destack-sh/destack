@@ -88,7 +88,7 @@ export class SimulatedScheduler implements Scheduler {
         /** The seed delaying each real work's settling by a real random time, absent for none. */
         readonly jitter?: number;
     }) {
-        // keep the options, leaving the failure unhandled until a wait races it
+        // set the options, leaving the failure unhandled until a wait races it
         this.#isOrdered = options.isOrdered;
         this.#isRecordingSites =
             options.isRecordingSites === true || options.telemetry !== undefined;
@@ -137,7 +137,7 @@ export class SimulatedScheduler implements Scheduler {
 
         // complete a long one at idle, as its length follows the host
         if (flight.isLong) {
-            return this.#holdLong(work, flight);
+            return this.#deferLong(work, flight);
         }
 
         // complete a short one in its order, in the batch settling with it
@@ -145,14 +145,14 @@ export class SimulatedScheduler implements Scheduler {
         this.#sequence.short += 1;
 
         return this.#count(
-            this.#held(work, flight, (completion) =>
+            this.#defer(work, flight, (completion) =>
                 this.#short.set(order, { ...completion, order }),
             ),
             flight,
         );
     }
 
-    /** Keep the world's time until real work ends, completing it as a long operation at idle. */
+    /** Wait for real work outside the world, completing it as a long operation at idle. */
     waitUntil<Value>(settled: Promise<Value>): Promise<Value> {
         // wait for real work a running operation begins as part of it, as the world sees it whole
         if (this.#runningOperation() !== undefined) {
@@ -160,16 +160,16 @@ export class SimulatedScheduler implements Scheduler {
         }
 
         // complete it as a long operation
-        return this.#holdLong(settled, this.#flight("operation", true));
+        return this.#deferLong(settled, this.#flight("operation", true));
     }
 
-    /** Hold a long operation until the world is idle, completing it in the order it began. */
-    #holdLong<Value>(work: Promise<Value>, flight: Flight): Promise<Value> {
+    /** Defer a long operation's completion until the world is idle, in the order it began. */
+    #deferLong<Value>(work: Promise<Value>, flight: Flight): Promise<Value> {
         const order = this.#sequence.long;
         this.#sequence.long += 1;
 
         return this.#count(
-            this.#held(work, flight, (completion) => {
+            this.#defer(work, flight, (completion) => {
                 this.#long.push({ ...completion, order });
                 this.#long.sort((left, right) => left.order - right.order);
             }),
@@ -242,7 +242,7 @@ export class SimulatedScheduler implements Scheduler {
 
     /** Fail the world with its first failure, returning how many settled completions it refused. */
     fail(error: unknown): number {
-        // keep the first failure, rejecting its waiters and waking the loop to fail the world
+        // record the first failure, rejecting its waiters and waking the loop to fail the world
         this.#failure ??= { error };
         this.#failed.reject(this.#failure.error);
         this.#wake();
@@ -346,11 +346,11 @@ export class SimulatedScheduler implements Scheduler {
         };
     }
 
-    /** Keep a settled operation for the loop to complete, or complete it at once without a loop. */
-    #held<Value>(
+    /** Defer a settled operation's completion to the loop, or complete it at once without one. */
+    #defer<Value>(
         work: Promise<Value>,
         flight: Flight,
-        keep: (completion: Omit<Completion, "order">) => void,
+        queue: (completion: Omit<Completion, "order">) => void,
     ): Promise<Value> {
         // complete the work once the loop does, or fail it with the loop's failure
         const completed = Promise.withResolvers<Value>();
@@ -363,7 +363,7 @@ export class SimulatedScheduler implements Scheduler {
             }
             // leave it for the loop
             else if (this.#isOrdered) {
-                keep({ complete, fail });
+                queue({ complete, fail });
                 this.#wake();
             }
             // complete it at once without a loop

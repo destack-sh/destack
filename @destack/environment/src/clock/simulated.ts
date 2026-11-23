@@ -10,8 +10,8 @@ interface SimulatedSleep {
     readonly release: () => void;
     /** Fail the wait with a failure of the world it waits in. */
     readonly fail: (error: unknown) => void;
-    /** Whether the wait keeps the process running: a sleep does, a timeout signal does not. */
-    readonly isHeld: boolean;
+    /** Whether the wait references the process: a sleep does, a timeout signal does not. */
+    readonly isReferenced: boolean;
     /** Whether the wait was withdrawn before its deadline. */
     isWithdrawn: boolean;
 }
@@ -26,8 +26,8 @@ export class SimulatedClock implements Clock {
     #timer: ReturnType<typeof setTimeout> | undefined;
     /** The pending waits as a binary heap, earliest deadline first, withdrawn ones skipped. */
     readonly #sleeps: SimulatedSleep[] = [];
-    /** The pending waits not withdrawn that stop the process from exiting. */
-    #held = 0;
+    /** The count of pending waits that reference the process, stopping it from exiting. */
+    #referenced = 0;
     /** The order of the next wait. */
     #order = 0;
     /** The waits begun so far. */
@@ -98,7 +98,7 @@ export class SimulatedClock implements Clock {
     }
 
     /** Add a wait until the clock passes some milliseconds from now, a zero wait due at once. */
-    #wait(milliseconds: number, isHeld: boolean, signal?: AbortSignal): Promise<void> {
+    #wait(milliseconds: number, isReferenced: boolean, signal?: AbortSignal): Promise<void> {
         // refuse aborted waits, and every wait once the loop failed
         if (signal?.aborted === true) {
             return Promise.reject(signal.reason);
@@ -119,18 +119,18 @@ export class SimulatedClock implements Clock {
                 signal?.removeEventListener("abort", abort);
                 reject(error);
             },
-            isHeld,
+            isReferenced,
             isWithdrawn: false,
         };
         const abort = () => {
             // withdraw the wait, and follow the next one
             sleep.isWithdrawn = true;
-            this.#held -= isHeld ? 1 : 0;
+            this.#referenced -= isReferenced ? 1 : 0;
             this.#follow();
             reject(signal?.reason);
         };
         this.#order += 1;
-        this.#held += isHeld ? 1 : 0;
+        this.#referenced += isReferenced ? 1 : 0;
         push(this.#sleeps, sleep);
         signal?.addEventListener("abort", abort, { once: true });
         this.#wakeActivity();
@@ -161,7 +161,7 @@ export class SimulatedClock implements Clock {
         // fail the waits the process runs for, dropping timeout signals
         let failed = 0;
         for (let sleep = pop(this.#sleeps); sleep !== undefined; sleep = pop(this.#sleeps)) {
-            if (!sleep.isWithdrawn && sleep.isHeld) {
+            if (!sleep.isWithdrawn && sleep.isReferenced) {
                 sleep.fail(error);
                 failed += 1;
             }
@@ -361,7 +361,7 @@ export class SimulatedClock implements Clock {
         const now = this.now();
         while (this.next !== undefined && this.next <= now) {
             const sleep = pop(this.#sleeps);
-            this.#held -= sleep?.isHeld === true ? 1 : 0;
+            this.#referenced -= sleep?.isReferenced === true ? 1 : 0;
             sleep?.release();
         }
 
@@ -375,11 +375,11 @@ export class SimulatedClock implements Clock {
         clearTimeout(this.#timer);
         this.#timer = undefined;
 
-        // wake at the earliest deadline while flowing, keeping the process running for held waits alone
+        // wake at the earliest deadline while flowing, unreferenced while no wait references the process
         const next = this.next;
         if (this.#resumedAt !== undefined && next !== undefined) {
             const timer = setTimeout(() => this.#wake(), Math.max(next - this.now(), 0));
-            if (this.#held === 0) {
+            if (this.#referenced === 0) {
                 timer.unref();
             }
             this.#timer = timer;
