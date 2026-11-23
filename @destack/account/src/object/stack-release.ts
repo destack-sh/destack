@@ -6,7 +6,7 @@ import { schema } from "@destack/schema";
 export const StackRelease = schema.object({
     /** The stack package. */
     packageId: PackageId,
-    /** The release the space follows: a version, pinned or not, or a tag such as latest. */
+    /** The release the space follows: a version, a tag such as latest, or its host's. */
     selection: ReleaseSelection,
     /** The export declaring the space. */
     export: schema.string().min(1),
