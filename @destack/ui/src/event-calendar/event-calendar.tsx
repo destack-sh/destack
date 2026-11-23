@@ -274,7 +274,6 @@ export function EventCalendarViewSwitcher(): JSX.Element {
 
     return (
         <ToggleGroup
-            variant="outline"
             data-slot="event-calendar-view-switcher"
             behavior="replace"
             disallowEmptySelection
