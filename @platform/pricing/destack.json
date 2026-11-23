@@ -3,5 +3,16 @@
     "id": "package-01a10de8-c378-717f-a708-8f475c95d6b3",
     "role": "library",
     "language": "typescript",
-    "runtimes": ["browser", "bun", "workerd"]
+    "runtimes": ["browser", "bun", "workerd"],
+    "exports": {
+        ".": {
+            "internal": true
+        },
+        "./cloudflare": {
+            "internal": true
+        },
+        "./hetzner": {
+            "internal": true
+        }
+    }
 }
