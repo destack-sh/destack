@@ -288,8 +288,11 @@ export class LocalUniverse {
 
         // declare the universe, and write the distribution its machines ship
         const definition = deployment.definition(OPERATOR, custody, build);
-        await build.writeDistribution(this.distribution, DistributionPlatform.of(environment.host));
-        await build.writeLayer(this.distribution);
+        await build.writeDistribution(
+            this.distribution,
+            DistributionPlatform.of(environment.host),
+            true,
+        );
         this.scope.log.info("platform.distribution.written", { "file.path": this.distribution });
 
         // start the universe and its cloud machines, the platform residency's at the universe's port, until a signal
