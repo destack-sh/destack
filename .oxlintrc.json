@@ -314,7 +314,7 @@
                 {
                     "directory": "@destack/color",
                     "name": "@destack/color",
-                    "description": "Name the preset color palettes and the seed each one grows from."
+                    "description": "Name the hues colors mean things in, which each theme fills in."
                 },
                 {
                     "directory": "@destack/connection",
