@@ -487,7 +487,7 @@ function objectCommand(noun: CatalogType): CommandBody {
     // call the type's create method by the word new too, unless a method or an action has the word
     const created = creates.find(([, method]) => method.kind === "create");
     const isTaken =
-        creates.some(([name]) => name === NEW) || onScope.some((action) => action.name === NEW);
+        creates.some(([name]) => name === NEW) || onScope.some((action) => action.verb === NEW);
     const added: [string, Command][] =
         created === undefined || isTaken ? [] : [[NEW, methodCommand(noun, created[0], undefined)]];
     const called = methods.filter(([, method]) => method.target === "object");
@@ -504,7 +504,7 @@ function objectCommand(noun: CatalogType): CommandBody {
             ]),
             ...added,
             ...onScope.map((action): [string, Command] => [
-                action.name,
+                action.verb,
                 actionCommand(noun, action, undefined),
             ]),
         ]),
@@ -525,7 +525,7 @@ function objectCommand(noun: CatalogType): CommandBody {
                         methodCommand(noun, name, id),
                     ]),
                     ...onObject.map((action): [string, Command] => [
-                        action.name,
+                        action.verb,
                         actionCommand(noun, action, id),
                     ]),
                 ]),
@@ -655,14 +655,14 @@ function actionCommand(noun: CatalogType, action: Action, id: string | undefined
                 if (applies === undefined) {
                     throw CliError.of(
                         "COMMAND_BLOCKED",
-                        `cannot run '${action.name}' on ${noun.name} '${id}': it does not apply`,
+                        `cannot run '${action.verb}' on ${noun.name} '${id}': it does not apply`,
                     );
                 }
             }
 
             // ask before an action that removes its target for good
             if (call.isDestructive) {
-                await requireConfirmation(action.name, noun, id, given.options, context);
+                await requireConfirmation(action.verb, noun, id, given.options, context);
             }
 
             // fill the inputs from the JSON option, the flags and the object, refusing a missing one
@@ -676,7 +676,7 @@ function actionCommand(noun: CatalogType, action: Action, id: string | undefined
             if (missing !== undefined) {
                 throw CliError.of(
                     "USAGE_INVALID",
-                    `input '${missing.name}' of action '${action.name}' is invalid: it must be given`,
+                    `input '${missing.name}' of action '${action.verb}' is invalid: it must be given`,
                 );
             }
 
