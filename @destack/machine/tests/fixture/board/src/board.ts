@@ -43,7 +43,7 @@ export const cards = card.implement({
 
 /** Retitle a card Ideas, for cards of another title. */
 export const retitle = defineAction({
-    name: "retitle-ideas",
+    name: "card.retitleIdeas",
     title: t`Retitle to Ideas`,
     input: { cards: selected(cards, { title: { ne: "Ideas" } }) },
     call: (variables) => variables.cards.prepare("update", { title: "Ideas" }),
@@ -51,7 +51,7 @@ export const retitle = defineAction({
 
 /** Create a card titled Ideas. */
 export const ideas = defineAction({
-    name: "new-ideas",
+    name: "card.newIdeas",
     title: t`New Ideas Card`,
     call: () => cards.prepare("create", { title: "Ideas" }),
 });
