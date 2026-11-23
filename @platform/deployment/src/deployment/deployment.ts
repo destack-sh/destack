@@ -105,7 +105,7 @@ export class Deployment {
     readonly name: string;
     /** The universe's address: its origin, such as https://destack.app, and its domains. */
     readonly universe: UniverseOrigin;
-    /** The distribution tag of the first-party releases the universe's spaces follow. */
+    /** The distribution tag the first-party releases are published at. */
     readonly tag: string;
     /** Each residency's cloud machine's origin, by residency code. */
     readonly machines: Readonly<Record<ResidencyCode, string>>;
@@ -324,7 +324,7 @@ export class Deployment {
                 operator,
                 ...this.#domains(),
                 homes: this.homes(build),
-                stacks: build.stacks(this.tag),
+                stacks: build.stacks(),
                 machines,
             },
         };
