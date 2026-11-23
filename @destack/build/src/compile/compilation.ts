@@ -703,6 +703,11 @@ export class OutputCompilation implements Compilation {
             );
         }
 
+        // refuse the package's own import of an internal export, the build's generated entries aside
+        if (importer?.startsWith(`${this.project.directory}/`) === true) {
+            this.project.tree.refuseInternal(specifier);
+        }
+
         // keep a Destack dependency external
         const selected = dependencies[dependency];
         if (selected?.kind === "destack") {

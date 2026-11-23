@@ -684,6 +684,11 @@ function treePlugin(project: PackageSource, program: Program): Plugin {
     return {
         name: "destack-dependency-builds",
         async resolveId(specifier, importer, options) {
+            // refuse the package's own import of an internal export, the build's own loads aside
+            if (importer?.startsWith(`${project.directory}/`) === true) {
+                tree.refuseInternal(specifier);
+            }
+
             // import a Destack dependency's host module from its build, else bundle the output runtime's
             const modules = tree.export(specifier);
             const host = modules?.[HOST_RUNTIME];

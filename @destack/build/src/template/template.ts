@@ -161,7 +161,7 @@ export class Template {
         return { manifest, definition };
     }
 
-    /** Instantiate a package into a new directory, formatted by a toolchain. */
+    /** Instantiate a package into a directory, refusing existing files. */
     async write(
         directory: string,
         parameters: TemplateInput,
@@ -175,8 +175,7 @@ export class Template {
             PackagePath.parse(path);
         }
         const root = resolve(directory);
-        await files.mkdir(dirname(root), { recursive: true });
-        await files.mkdir(root);
+        await files.mkdir(root, { recursive: true });
 
         // preserve binary contents and refuse existing files
         for (const [path, bytes] of contents) {

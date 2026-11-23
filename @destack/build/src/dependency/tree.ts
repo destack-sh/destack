@@ -104,16 +104,25 @@ export class BuildTree {
     readonly roles: ReadonlyMap<string, PackageRole>;
     /** The exports of each Destack dependency, by package name. */
     readonly #exports: ReadonlyMap<string, schema.Infer<typeof MaterializedExports>>;
+    /** The internal subpaths of each Destack dependency, by package name. */
+    readonly #internal: ReadonlyMap<string, ReadonlySet<string>>;
+    /** The dependencies in the importer's workspace, free to import internal subpaths. */
+    readonly #members: ReadonlySet<string>;
 
-    /** Read a tree from its dependencies' directories, their roles and their exports. */
+    /** Read a tree from its dependencies' directories, roles, exports and workspace members. */
     private constructor(
         directories: Readonly<Record<string, string>>,
         roles: ReadonlyMap<string, PackageRole>,
         exports: ReadonlyMap<string, schema.Infer<typeof MaterializedExports>>,
+        internal: ReadonlyMap<string, ReadonlySet<string>>,
+        members: ReadonlySet<string>,
     ) {
+        // take the directories, roles, exports, internal subpaths and members
         this.directories = directories;
         this.roles = roles;
         this.#exports = exports;
+        this.#internal = internal;
+        this.#members = members;
     }
 
     /** Materialize the builds a package compiles against in the store's trees, once each. */
@@ -279,6 +288,8 @@ export class BuildTree {
             { ...placedIn("npm"), ...tree.directories },
             tree.roles,
             tree.#exports,
+            tree.#internal,
+            tree.#members,
         );
     }
 
@@ -583,10 +594,12 @@ export class BuildTree {
     static async read(
         directories: Readonly<Record<string, string>>,
         files: FileSystem,
+        members: readonly string[] = [],
     ): Promise<BuildTree> {
-        // read each package's exports, and its role where it declares one
+        // read each package's exports, its internal ones, and its role where it declares one
         const roles = new Map<string, PackageRole>();
         const exports = new Map<string, schema.Infer<typeof MaterializedExports>>();
+        const internal = new Map<string, ReadonlySet<string>>();
         for (const [name, directory] of Object.entries(directories)) {
             // read a Destack package's role and runtime exports, an npm package having neither
             const definition = join(directory, DEFINITION_FILE);
@@ -594,12 +607,22 @@ export class BuildTree {
                 const packageJson = MaterializedPackage.parse(
                     JSON.parse(await files.readTextFile(join(directory, "package.json"))),
                 );
+                const read = PackageDefinition.read(await files.readTextFile(definition));
+                const settings = Object.entries(read.exports ?? {});
                 exports.set(name, packageJson.exports);
-                roles.set(name, PackageDefinition.read(await files.readTextFile(definition)).role);
+                roles.set(name, read.role);
+                internal.set(
+                    name,
+                    new Set(
+                        settings.flatMap(([subpath, each]) =>
+                            each.internal === true ? [subpath] : [],
+                        ),
+                    ),
+                );
             }
         }
 
-        return new BuildTree(directories, roles, exports);
+        return new BuildTree(directories, roles, exports, internal, new Set(members));
     }
 
     /** List the real roots a tree's packages link to, each once. */
@@ -694,6 +717,19 @@ export class BuildTree {
         }
 
         return paths;
+    }
+
+    /** Refuse a package's own import of an internal export from outside its workspace. */
+    refuseInternal(specifier: string): void {
+        // find the package by its name, and the subpath past it
+        const name = DependencyName.of(specifier);
+        const subpath = specifier === name ? "." : `.${specifier.slice(name.length)}`;
+        if (!this.#members.has(name) && this.#internal.get(name)?.has(subpath) === true) {
+            throw BuildError.of(
+                "DEPENDENCY_INVALID",
+                `dependency '${specifier}' is invalid: it is internal to the platform`,
+            );
+        }
     }
 
     /** Find the export a specifier names among the Destack dependencies, by its runtime modules. */

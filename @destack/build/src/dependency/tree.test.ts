@@ -160,3 +160,50 @@ test("place a running tree's npm units as their Bun outputs under runtime roots,
         ].toSorted(),
     });
 });
+
+test("refuse an import of an internal export from outside its workspace, and allow it within", async () => {
+    // place a dependency with a public and an internal export
+    await using simulation = testSimulation();
+    const { files } = simulation.environment("test");
+    const directory = await files.makeTemporaryDirectory("tree-");
+    const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value));
+    await files.writeFile(
+        join(directory, "package.json"),
+        encode({
+            name: "@example/store",
+            exports: { ".": { bun: "./index.js" }, "./server": { bun: "./server.js" } },
+        }),
+    );
+    await files.writeFile(
+        join(directory, "destack.json"),
+        encode({
+            $schema: "https://destack.app/schemas/2026.11.0/destack.json",
+            id: "package-01996ab0-0000-7000-8000-0000000000a1",
+            role: "library",
+            language: "typescript",
+            exports: { "./server": { internal: true } },
+        }),
+    );
+
+    // read the tree from outside the dependency's workspace, and from within it
+    const directories = { "@example/store": directory };
+    const outside = await BuildTree.read(directories, files);
+    const within = await BuildTree.read(directories, files, ["@example/store"]);
+    const attempt = (tree: BuildTree, specifier: string) =>
+        refusal(() => tree.refuseInternal(specifier));
+
+    // refuse the internal export from outside alone
+    expect({
+        public: await attempt(outside, "@example/store"),
+        outside: await attempt(outside, "@example/store/server"),
+        within: await attempt(within, "@example/store/server"),
+    }).toEqual({
+        public: "done",
+        outside: [
+            "BAD_REQUEST",
+            "DEPENDENCY_INVALID",
+            "dependency '@example/store/server' is invalid: it is internal to the platform",
+        ],
+        within: "done",
+    });
+});

@@ -270,6 +270,8 @@ export interface PackageBuildOptions {
     timeout?: number;
     /** The versions the build releases its source packages at, by package name. */
     versions?: Readonly<Record<string, Version>>;
+    /** The workspace members among the dependencies, free to import internal exports. */
+    members?: readonly string[];
 }
 
 /** List the module outputs a package ships, or the ones a build selects. */

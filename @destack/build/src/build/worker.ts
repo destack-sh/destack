@@ -452,6 +452,7 @@ export class CompilerWorker {
                 ...(output.entries === undefined ? {} : { entries: output.entries }),
                 isPrerender,
                 ...(options.versions === undefined ? {} : { versions: options.versions }),
+                ...(options.members === undefined ? {} : { members: options.members }),
                 tree: options.tree,
             },
             this.environment,

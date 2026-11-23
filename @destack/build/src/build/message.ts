@@ -72,6 +72,8 @@ export const RequestedBuild = schema.object({
     configuration: schema.string().exactOptional(),
     /** The versions the build releases its source packages at, by package name. */
     versions: schema.record(PackageName, Version).readonly().exactOptional(),
+    /** The workspace members among the dependencies, free to import internal exports. */
+    members: schema.array(PackageName).readonly().exactOptional(),
     /** The directory the host materialized each dependency's build in, by dependency name. */
     tree: schema.record(DependencyName, schema.string()).readonly(),
 });
@@ -86,6 +88,7 @@ const RequestedSource = schema.object({
     configuration: schema.string().exactOptional(),
     tree: RequestedBuild.shape.tree,
     versions: RequestedBuild.shape.versions,
+    members: RequestedBuild.shape.members,
 });
 
 /** The declarations, members and relationships a build recorded, which its index reads. */

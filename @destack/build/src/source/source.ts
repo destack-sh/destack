@@ -49,6 +49,8 @@ export interface SourceOptions {
     configuration?: string;
     /** The versions the build releases its source packages at, by package name. */
     versions?: Readonly<Record<string, Version>>;
+    /** The workspace members among the dependencies, free to import internal exports. */
+    members?: readonly string[];
 }
 
 /** A package's inputs opened for evaluation, indexing and compilation. */
@@ -95,7 +97,7 @@ export const PackageSource = {
         }
 
         // read the dependencies' builds and list the root modules
-        const tree = await BuildTree.read(options.tree, files);
+        const tree = await BuildTree.read(options.tree, files, options.members ?? []);
         const roots = [
             ...Object.values(definition.exports),
             ...Object.values(definition.types),
@@ -286,14 +288,14 @@ export async function readPackageJson(
     });
     const definition = packageJson.definition;
 
-    // require each runtime override to refer to an export of package.json
+    // require each export's settings to refer to an export of package.json
     const overridden = Object.keys(definition.exports ?? {});
     const exported = overridden.length === 0 ? {} : mapExports(packageJson);
     const stale = overridden.find((name) => !Object.hasOwn(exported, name));
     if (stale !== undefined) {
         throw PackageError.of(
             "DEFINITION_INVALID",
-            `runtime override '${stale}' is invalid: destack.json overrides an export missing from package.json`,
+            `export settings '${stale}' are invalid: destack.json sets an export missing from package.json`,
         );
     }
 

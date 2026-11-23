@@ -164,6 +164,14 @@ export class Workspace {
         this.#selection = options.selection ?? "all";
     }
 
+    /** Report whether a host's builtin version meets a range, unreleased code meeting any. */
+    static meets(version: string, range: string): boolean {
+        return (
+            !Version.isRelease(version) ||
+            (range !== Version.development && Bun.semver.satisfies(version, range))
+        );
+    }
+
     /** Read a checkout's workspace once: its members, files, npm installation and toolchain. */
     static open(
         directory: string,
@@ -483,10 +491,27 @@ export class WorkspacePackage {
     async #resolveReleases(): Promise<ReadonlyMap<string, WorkspaceRelease>> {
         // take each package the host provides as a builtin from its image
         const releases = new Map<string, WorkspaceRelease>();
+        const versions = new Map<string, string>();
         for (const image of this.workspace.host) {
-            const { name } = (await this.workspace.manifest(image.root)).package;
+            const { name, version } = (await this.workspace.manifest(image.root)).package;
             const root = present((await this.#store.entriesOf(image))[name], `the root of ${name}`);
             releases.set(name, { image, root, source: "host" });
+            versions.set(name, version);
+        }
+
+        // refuse a builtin whose host version misses a unit's range, unreleased code meeting any
+        for (const unit of this.units) {
+            const ranges = PackageJson.ranges(unit.packageJson);
+            for (const release of unit.releases) {
+                const version = versions.get(release.name);
+                const range = ranges[release.name] ?? "*";
+                if (version !== undefined && !Workspace.meets(version, range)) {
+                    throw BuildError.of(
+                        "DEPENDENCY_INVALID",
+                        `dependency '${release.name}' of '${unit.name}' is invalid: it requires '${range}' and the host provides '${version}'`,
+                    );
+                }
+            }
         }
 
         // refuse the other required releases to a workspace without a resolver
@@ -765,6 +790,7 @@ export class WorkspacePackage {
             compiler.declarations({
                 ...request,
                 directory: this.root.directory,
+                members: this.#closureOf(this.root).map((member) => member.name),
                 dependencies,
                 links,
             }),
@@ -782,7 +808,13 @@ export class WorkspacePackage {
 
         return await this.workspace.compilers.use(this.root.directory, (compiler) =>
             compiler.index(
-                { ...request, directory: this.root.directory, dependencies, links },
+                {
+                    ...request,
+                    directory: this.root.directory,
+                    members: this.#closureOf(this.root).map((member) => member.name),
+                    dependencies,
+                    links,
+                },
                 declared,
             ),
         );
@@ -1038,6 +1070,7 @@ export class WorkspacePackage {
         return {
             ...request,
             versions,
+            members: this.#closureOf(unit).map((member) => member.name),
             directory: unit.directory,
             dependencies,
             links: await this.#releaseLinks(),
