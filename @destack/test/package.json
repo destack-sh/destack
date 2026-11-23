@@ -19,8 +19,6 @@
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/telemetry": "workspace:*",
-        "@vitest/coverage-v8": "5.0.1",
-        "@vitest/ui": "5.1.0",
         "vite": "8.3.8",
         "vitest": "5.1.0"
     },
@@ -28,6 +26,20 @@
         "node": "^22.12.0 || ^24.0.0 || >=26.0.0"
     },
     "devDependencies": {
-        "@destack/environment": "workspace:*"
+        "@destack/environment": "workspace:*",
+        "@vitest/coverage-v8": "5.0.1",
+        "@vitest/ui": "5.1.0"
+    },
+    "peerDependencies": {
+        "@vitest/coverage-v8": "5.0.1",
+        "@vitest/ui": "5.1.0"
+    },
+    "peerDependenciesMeta": {
+        "@vitest/coverage-v8": {
+            "optional": true
+        },
+        "@vitest/ui": {
+            "optional": true
+        }
     }
 }
