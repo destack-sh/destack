@@ -53,8 +53,9 @@ const styles = style.create({
     list: {
         display: "inline-flex",
         alignItems: "center",
-        justifyContent: "center",
+        justifyContent: "safe center",
         width: "fit-content",
+        maxWidth: "100%",
         color: color.mutedForeground,
     },
     trigger: {
@@ -117,7 +118,12 @@ const orientations = style.create({
 
 /** The direction of each orientation's tabs within the list. */
 const lists = style.create({
-    horizontal: { flexDirection: "row" },
+    horizontal: {
+        flexDirection: "row",
+        // scroll tabs that do not fit
+        overflowX: "auto",
+        scrollbarWidth: "none",
+    },
     vertical: { flexDirection: "column", alignItems: "stretch", alignSelf: "flex-start" },
 });
 
@@ -367,7 +373,7 @@ export function TabsTrigger(properties: TabsTriggerProperties): JSX.Element {
             style.attributes(
                 [
                     text.sm,
-                    state.focus,
+                    state.focusInset,
                     state.disabled,
                     styles.trigger,
                     triggers[control.properties.orientation],
