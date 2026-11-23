@@ -1,6 +1,6 @@
 import type { Hue } from "@destack/color";
 import * as style from "@destack/style";
-import { color, space, stroke, swatch } from "@destack/theme/tokens.stylex";
+import { color, radius, space, stroke, swatch } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import { For, type JSX, omit, Show } from "@destack/view";
 import { useTimeline, type TimelinePartProperties } from "./control.ts";
@@ -19,18 +19,25 @@ const styles = style.create({
     marker: {
         position: "absolute",
         insetBlock: 0,
-        width: stroke.ring,
-        backgroundColor: swatch.accentMark,
+        width: stroke.border,
+        backgroundColor: color.foreground,
+        color: color.background,
         pointerEvents: "none",
-        zIndex: 2,
+    },
+    now: {
+        width: stroke.ring,
+        backgroundColor: swatch.accentSolid,
+        color: swatch.accentLabel,
     },
     markerLabel: {
         position: "absolute",
+        // write the label over the bars, which cover the line
+        zIndex: 2,
         insetBlockStart: 0,
-        insetInlineStart: stroke.ring,
+        insetInlineStart: "100%",
         paddingInline: space[1],
-        backgroundColor: swatch.accentSolid,
-        color: swatch.accentLabel,
+        borderEndEndRadius: radius[1],
+        backgroundColor: "inherit",
         whiteSpace: "nowrap",
     },
     grid: {
@@ -145,13 +152,21 @@ export function TimelineMarker(properties: TimelineMarkerProperties): JSX.Elemen
     );
 }
 
-/** Render a marker at the current time. */
+/** Render a marker at the current time, in the accent. */
 export function TimelineNow(properties: Omit<TimelineMarkerProperties, "at">): JSX.Element {
     const control = useTimeline();
+    const rest = omit(properties, "xstyle");
 
     return (
         <Show when={control.window.now()}>
-            {(now) => <TimelineMarker data-slot="timeline-now" at={now()} {...properties} />}
+            {(now) => (
+                <TimelineMarker
+                    data-slot="timeline-now"
+                    at={now()}
+                    {...rest}
+                    xstyle={[styles.now, properties.xstyle]}
+                />
+            )}
         </Show>
     );
 }
