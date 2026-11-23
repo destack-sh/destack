@@ -17,7 +17,7 @@ const shared = defineVault({ name: "shared" });
 /** A package whose installation binds nothing. */
 const STRANGER = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000c3",
-    name: "@acme/stranger",
+    name: "@example/stranger",
     version: "2026.10.0",
 });
 

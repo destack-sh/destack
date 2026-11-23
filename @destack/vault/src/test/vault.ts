@@ -28,14 +28,14 @@ import vaultPackage from "../package.ts";
 /** The application the test vault's space installs, declaring its vaults. */
 export const APPLICATION = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000c1",
-    name: "@acme/application",
+    name: "@example/application",
     version: "2026.10.0",
 });
 
 /** A second application, whose installation binds a vault or a secret beside the first's. */
 export const CONSUMER = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000c2",
-    name: "@acme/consumer",
+    name: "@example/consumer",
     version: "2026.10.0",
 });
 
