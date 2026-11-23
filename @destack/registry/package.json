@@ -14,9 +14,7 @@
     "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
-        "@destack/build": "workspace:*",
         "@destack/db": "workspace:*",
-        "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
         "@destack/git": "workspace:*",
         "@destack/locale": "workspace:*",
@@ -28,8 +26,22 @@
         "semver": "7.8.5"
     },
     "devDependencies": {
+        "@destack/build": "workspace:*",
+        "@destack/environment": "workspace:*",
         "@destack/test": "workspace:*",
-        "@types/semver": "7.8.0",
-        "@types/bun": "1.4.4"
+        "@types/bun": "1.4.4",
+        "@types/semver": "7.8.0"
+    },
+    "peerDependencies": {
+        "@destack/build": "workspace:*",
+        "@destack/environment": "workspace:*"
+    },
+    "peerDependenciesMeta": {
+        "@destack/build": {
+            "optional": true
+        },
+        "@destack/environment": {
+            "optional": true
+        }
     }
 }
