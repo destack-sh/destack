@@ -71,13 +71,11 @@ const SERIES_COUNT = 5;
 /** The opacity of a line drawn in the text color, a hairline on any ground. */
 const LINE_ALPHA = 0.18;
 
-/** The appearances and contrast levels each theme is checked under. */
-const CHECKS = [
-    ["light", 0],
-    ["light", 1],
-    ["dark", 0],
-    ["dark", 1],
-] as const satisfies readonly (readonly [ColorScheme, number])[];
+/** The appearances a theme's contrast is checked under. */
+const SCHEMES = ["light", "dark"] as const satisfies readonly ColorScheme[];
+
+/** The contrast levels a theme is checked at: standard and more. */
+const LEVELS = [0, 1] as const;
 
 /** The custom property the stylesheet sets to 1 when the device asks for more contrast. */
 const CONTRAST_VARIABLE = `${VARIABLE_PREFIX}-contrast`;
@@ -160,7 +158,7 @@ export type Ground = schema.Infer<typeof Ground>;
 
 /** A theme as authored, every field beside the name optional. */
 export const ThemeDefinition = schema.object({
-    /** The package-local name. */
+    /** The name, package-local for a declared theme. */
     name: ThemeName,
     /** The seed of surfaces, text and lines, slate when absent. */
     base: Seed.exactOptional(),
@@ -237,8 +235,6 @@ const PLEX_EX_HEIGHT = 0.516;
 
 /** A theme: seeds, ground, roles, corners, scaling, fonts and density. */
 export class Theme {
-    /** The declaring package. */
-    readonly package: PackageVersion;
     /** The name, seeds, ground, corners, scaling, fonts, density and role replacements. */
     readonly definition: ThemeDefinition;
     /** The color roles with the theme's replacements, under its accent. */
@@ -253,15 +249,14 @@ export class Theme {
     readonly #resolutions = new Map<string, Resolution>();
 
     /** Create a theme, applying its role replacements under its accent. */
-    constructor(owner: PackageVersion, definition: ThemeDefinition) {
+    constructor(definition: ThemeDefinition) {
         // set the definition, then apply its replacements under its accent
-        this.package = owner;
         this.definition = definition;
         this.#accent = definition.accent ?? DEFAULT_ACCENT;
         this.roles = this.#rolesOf(this.#accent);
     }
 
-    /** The package-local name. */
+    /** The name. */
     get name(): string {
         return this.definition.name;
     }
@@ -270,7 +265,7 @@ export class Theme {
     rebase(background: RoleOverride): Theme {
         const roles = { ...this.definition.roles, background };
 
-        return new Theme(this.package, { ...this.definition, roles });
+        return new Theme({ ...this.definition, roles });
     }
 
     /** Resolve the roles of an appearance at a contrast level from 0 to 1, under a hue. */
@@ -335,9 +330,13 @@ export class Theme {
         return style;
     }
 
-    /** Refuse a theme whose text reads below its APCA floor, or whose labels below 4.5 to 1. */
-    requireContrast(): void {
-        for (const [scheme, level] of CHECKS) {
+    /** Refuse text below its APCA floor and labels below 4.5 to 1, at each contrast level. */
+    requireContrast(levels: readonly number[] = LEVELS): void {
+        // check each appearance at each level
+        const checks = SCHEMES.flatMap((scheme) =>
+            levels.map((level) => ({ scheme, level }) as const),
+        );
+        for (const { scheme, level } of checks) {
             for (const [hue, seed] of this.hues(this.#accent)) {
                 // check every role under the accent, and each other hue's swatch
                 const resolution = this.resolve(scheme, level, seed);

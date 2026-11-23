@@ -116,7 +116,7 @@ test("give every preset accent on every base five chart series of hues apart, st
     const failures = GRAY_PRESETS.flatMap((base) =>
         PRESET_NAMES.flatMap((accent) => {
             // resolve the series' marks and the background in both appearances
-            const theme = new Theme(notes, { name: "preset", base, accent });
+            const theme = new Theme({ name: "preset", base, accent });
             const series = theme
                 .hues()
                 .filter(([name]) => name.startsWith("series"))
@@ -160,7 +160,7 @@ test("give every preset accent on every base five chart series of hues apart, st
 test("pass every role's contrast for every preset accent on every base", () => {
     const refused = GRAY_PRESETS.flatMap((base) =>
         PRESET_NAMES.flatMap((accent) => {
-            const theme = new Theme(notes, { name: "preset", base, accent });
+            const theme = new Theme({ name: "preset", base, accent });
             try {
                 theme.requireContrast();
 
@@ -317,7 +317,7 @@ test("check the roles a theme replaces like every other role", async () => {
         defineTheme(
             { name: "fog", roles: { background: { light: "#8b8d98", dark: "#101113" } } },
             { package: notes },
-        ),
+        ).requireContrast(),
     );
     expect(await refusal(illegible)).toEqual([
         "BAD_REQUEST",

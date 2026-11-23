@@ -4,14 +4,25 @@ import { Theme, ThemeDefinition, ThemeDescription } from "../theme/index.ts";
 /** The theme declaration kind, which theme defines. */
 export const THEME_KIND = defineKind({ name: "theme", description: ThemeDescription });
 
-/** Declare a theme, refusing text below its APCA floor and labels below WCAG's 4.5 to 1. */
-export function defineTheme(definition: ThemeDefinition, module?: ModuleMetadata): Theme {
-    // stamp the declaring package
+/** A theme a package declares. */
+export class ThemeDeclaration extends Theme {
+    /** The declaring package. */
+    readonly package: PackageVersion;
+
+    /** Declare a theme of a package. */
+    constructor(owner: PackageVersion, definition: ThemeDefinition) {
+        super(definition);
+        this.package = owner;
+    }
+}
+
+/** Declare a theme. */
+export function defineTheme(
+    definition: ThemeDefinition,
+    module?: ModuleMetadata,
+): ThemeDeclaration {
+    // stamp the declaring package on the validated fields
     const owner = PackageVersion.parse(ModuleMetadata.require(module, "defineTheme").package);
 
-    // validate the fields and check the contrast of every role that reads on another
-    const theme = new Theme(owner, ThemeDefinition.parse(definition));
-    theme.requireContrast();
-
-    return theme;
+    return new ThemeDeclaration(owner, ThemeDefinition.parse(definition));
 }

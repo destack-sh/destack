@@ -54,7 +54,7 @@ export const iapetusTheme = defineTheme({
     status: { destructive: "#d47169", success: "#92d3b9", warning: "#e0ba6a", info: "#97bdf4" },
     series: ["#97bdf4", "#92d3b9", "#d4a3dc", "#85cbd3"],
     ground: {
-        light: { background: "#faf1de", foreground: "#352516", muted: "#ece3d0" },
+        light: { background: "#f9efda", foreground: "#352516", muted: "#ebe1cc" },
         dark: { background: "#2a2116", foreground: "#efe5d0", muted: "#3c3327" },
     },
     fonts: DESTACK_FONTS,
@@ -99,8 +99,8 @@ export const europaTheme = defineTheme({
     status: { destructive: "#bf616a", success: "#a3be8c", warning: "#ebcb8b", info: "#81a1c1" },
     series: ["#b48ead", "#a3be8c", "#d08770", "#8fbcbb"],
     ground: {
-        light: { background: "#eef1f5", foreground: "#414858", muted: "#e2e5ea" },
-        dark: { background: "#2e3440", foreground: "#e2e6ef", muted: "#3e4450" },
+        light: { background: "#e5e9f0", foreground: "#414858", muted: "#dadee5" },
+        dark: { background: "#2e3440", foreground: "#eceff4", muted: "#3d434f" },
     },
     fonts: DESTACK_FONTS,
     text: DESTACK_TEXT,
@@ -129,8 +129,8 @@ export const arielTheme = defineTheme({
     status: { destructive: "#d20f39", success: "#40a02b", warning: "#df8e1d", info: "#1e66f5" },
     series: ["#ea76cb", "#1e66f5", "#179299", "#fe640b"],
     ground: {
-        light: { background: "#f0f2f6", foreground: "#4c4f69", muted: "#e5e7ec" },
-        dark: { background: "#1e1e2e", foreground: "#d2daf5", muted: "#2e2f40" },
+        light: { background: "#eff1f5", foreground: "#4c4f69", muted: "#e4e6eb" },
+        dark: { background: "#1e1e2e", foreground: "#d7def6", muted: "#2e2f40" },
     },
     fonts: DESTACK_FONTS,
     text: DESTACK_TEXT,

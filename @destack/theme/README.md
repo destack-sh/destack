@@ -8,7 +8,8 @@ Theme views with an accent, a base and roles solved for contrast, in light and d
 
 Packages declare a theme:
 
-- `Theme`: an accent, a base gray, a radius, a scaling and a density, declared with `defineTheme`.
+- `Theme`: a ground, an accent, a base gray, a radius, a scaling and a density.
+- `ThemeDeclaration`: a theme a package declares, with `defineTheme`.
 - `Seed`: a palette's source color: a preset such as `"orange"`, or a hex color.
 - `RoleName`: a neutral role such as `background` or `mutedForeground`, or a swatch role such as `solid`.
 - `RoleOverride`: a theme's color for a role.
@@ -44,8 +45,8 @@ const variables = theme.variables({ ...DEFAULT_DISPLAY, appearance: "dark", cont
 
 ### Theme
 
-`defineTheme(definition)` declares a theme, refusing text below its APCA contrast and labels on fills below WCAG's 4.5 to 1.
-`destackTheme` is the theme of packages that declare none.
+`defineTheme(definition)` declares a theme, and `theme.requireContrast()` refuses text below its APCA contrast and labels on fills below WCAG's 4.5 to 1.
+`destackTheme` is the theme of people who choose none, and of public pages whose package declares none.
 
 | Field     | What it sets                                                                                           |
 | --------- | ------------------------------------------------------------------------------------------------------ |

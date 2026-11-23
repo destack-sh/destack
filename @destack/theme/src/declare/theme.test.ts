@@ -32,7 +32,6 @@ test("describe a declared theme with its package", () => {
 });
 
 test("declare Destack's themes, the brand and the neutrals before the hues of their nights", () => {
-    // every theme passed its contrast check when its module declared it
     expect(THEMES.map((theme) => theme.definition.name)).toEqual([
         "destack",
         "enceladus",
@@ -45,6 +44,20 @@ test("declare Destack's themes, the brand and the neutrals before the hues of th
         "charon",
         "ariel",
     ]);
+});
+
+test("read every role of Destack's themes at its standard contrast", () => {
+    const refused = THEMES.flatMap((theme) => {
+        try {
+            theme.requireContrast([0]);
+
+            return [];
+        } catch (error) {
+            return [String(error)];
+        }
+    });
+
+    expect(refused).toEqual([]);
 });
 
 test("set every two themes' pages apart, whatever accent a person chooses", () => {
