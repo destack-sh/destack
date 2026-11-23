@@ -6,10 +6,12 @@
     "runtimes": ["browser", "bun", "workerd"],
     "exports": {
         "./inspect": {
-            "runtimes": ["bun", "workerd"]
+            "runtimes": ["bun", "workerd"],
+            "internal": true
         },
         "./server": {
-            "runtimes": ["bun", "workerd"]
+            "runtimes": ["bun", "workerd"],
+            "internal": true
         }
     },
     "declarations": {
@@ -25,7 +27,9 @@
         }
     },
     "stamps": {
-        "defineSetting": { "module": 1 }
+        "defineSetting": {
+            "module": 1
+        }
     },
     "check": {
         "expect": [

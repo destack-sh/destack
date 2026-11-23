@@ -17,17 +17,29 @@
     "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/db": "workspace:*",
-        "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
         "@destack/locale": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
-        "@destack/resource": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/sync": "workspace:*"
     },
     "devDependencies": {
+        "@destack/environment": "workspace:*",
+        "@destack/resource": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.4"
+    },
+    "peerDependencies": {
+        "@destack/environment": "workspace:*",
+        "@destack/resource": "workspace:*"
+    },
+    "peerDependenciesMeta": {
+        "@destack/environment": {
+            "optional": true
+        },
+        "@destack/resource": {
+            "optional": true
+        }
     }
 }
