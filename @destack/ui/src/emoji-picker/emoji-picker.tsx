@@ -29,12 +29,14 @@ import {
     GridListCell,
     type GridListCellProperties,
     GridListControl,
+    SquareColumns,
     type GridListElementProperties,
     GridListEmpty,
     GridListLoading,
     GridListProvider,
     GridListViewport,
 } from "../grid-list/index.ts";
+import { mergeProperties } from "../part/index.ts";
 import { RadioGroup, RadioGroupItem } from "../radio-group/index.ts";
 
 /** The emoji in each row of a picker's grid by default. */
@@ -272,6 +274,7 @@ export function EmojiPicker(properties: EmojiPickerProperties): JSX.Element {
     // load the emoji once and lay out the ones the search finds in the chosen tone
     const autocomplete = new AutocompleteControl({});
     const emoji = new Load(loadEmoji(untrack(() => locale.tag)));
+    const columns = new SquareColumns(() => properties.columns ?? COLUMNS);
     const grid = new GridListControl<EmojiEntry>({
         load: emoji,
         sections: () =>
@@ -283,7 +286,7 @@ export function EmojiPicker(properties: EmojiPickerProperties): JSX.Element {
             ),
         key: (entry) => entry.emoji,
         text: (entry) => entry.label,
-        columns: () => properties.columns ?? COLUMNS,
+        columns: columns.count,
         autocomplete,
         onAction: (entry) => properties.onEmojiSelect(entry),
     });
@@ -306,9 +309,13 @@ export function EmojiPicker(properties: EmojiPickerProperties): JSX.Element {
                 <GridListProvider control={grid}>
                     <div
                         data-slot="emoji-picker"
-                        {...rest}
-                        {...style.attributes([layout.picker, properties.xstyle], properties.style)}
+                        {...mergeProperties({ ref: columns.measure }, rest)}
+                        {...style.attributes(
+                            [layout.picker, columns.style(), properties.xstyle],
+                            properties.style,
+                        )}
                     />
+                    {columns.render()}
                 </GridListProvider>
             </AutocompleteContext>
         </EmojiPickerContext>

@@ -18,12 +18,14 @@ import {
     GridListCell,
     type GridListCellProperties,
     GridListControl,
+    SquareColumns,
     type GridListElementProperties,
     GridListEmpty,
     GridListLoading,
     GridListProvider,
     GridListViewport,
 } from "../grid-list/index.ts";
+import { mergeProperties } from "../part/index.ts";
 
 /** The icons in each row of a picker's grid by default. */
 const COLUMNS = 9;
@@ -131,13 +133,14 @@ export function IconPicker(properties: IconPickerProperties): JSX.Element {
     );
     const autocomplete = new AutocompleteControl({});
     const icons = new Load(loadIcons());
+    const columns = new SquareColumns(() => properties.columns ?? COLUMNS);
     const grid = new GridListControl<IconName>({
         load: icons,
         sections: () =>
             layOutIcons(icons.value(), autocomplete.value().trim().toLowerCase(), locale),
         key: (icon) => icon,
         text: (icon) => icon,
-        columns: () => properties.columns ?? COLUMNS,
+        columns: columns.count,
         autocomplete,
         onAction: (icon) => properties.onIconSelect(icon),
     });
@@ -158,9 +161,13 @@ export function IconPicker(properties: IconPickerProperties): JSX.Element {
                 <GridListProvider control={grid}>
                     <div
                         data-slot="icon-picker"
-                        {...rest}
-                        {...style.attributes([styles.picker, properties.xstyle], properties.style)}
+                        {...mergeProperties({ ref: columns.measure }, rest)}
+                        {...style.attributes(
+                            [styles.picker, columns.style(), properties.xstyle],
+                            properties.style,
+                        )}
                     />
+                    {columns.render()}
                 </GridListProvider>
             </AutocompleteContext>
         </IconPickerContext>
