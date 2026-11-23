@@ -98,9 +98,6 @@ export class Swipe {
                 return offset() === undefined ? undefined : "";
             },
             onPointerDown: move.onPointerDown,
-            onPointerMove: move.onPointerMove,
-            onPointerUp: move.onPointerUp,
-            onPointerCancel: move.onPointerCancel,
         };
     }
 

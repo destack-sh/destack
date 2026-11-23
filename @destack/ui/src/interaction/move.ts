@@ -1,5 +1,6 @@
 import type { Axis } from "../position/index.ts";
 import type { Clock } from "@destack/environment";
+import { present } from "@destack/schema";
 import { type Accessor, createSignal, onCleanup, type Setter } from "@destack/view";
 import { access, type MaybeAccessor } from "@destack/view/primitives/utils";
 import type { Orientation } from "../focus/index.ts";
@@ -77,7 +78,7 @@ interface Sample {
     readonly time: number;
 }
 
-/** A pointer held on a movable element. */
+/** A pointer pressed on a movable element. */
 interface MoveRun {
     /** The pointer. */
     readonly pointerId: number;
@@ -95,13 +96,13 @@ interface MoveRun {
     event: PointerEvent;
     /** The timer of a finger waiting for the delay. */
     timer: number | undefined;
-    /** Stop deciding whether a finger moves the element or scrolls. */
-    releaseTouch: (() => void) | undefined;
+    /** The listeners that follow the pressed pointer anywhere on the page until it lets go. */
+    readonly listening: AbortController;
     /** Whether the move started. */
     isMoving: boolean;
 }
 
-/** A held pointer or the arrow keys moving an element, after React Aria's useMove. */
+/** A pressed pointer or the arrow keys moving an element, after React Aria's useMove. */
 export class Move {
     /** Whether the element moves. */
     readonly isMoving: Accessor<boolean>;
@@ -111,7 +112,7 @@ export class Move {
     readonly #clock: Pick<Clock, "setTimeout" | "clearTimeout">;
     /** Replace the moving state. */
     readonly #setMoving: Setter<boolean>;
-    /** The held pointer. */
+    /** The pressed pointer. */
     #run: MoveRun | undefined = undefined;
     /** Whether the move takes its pointer from the element's other gestures right now. */
     #isTaking = false;
@@ -125,7 +126,7 @@ export class Move {
         this.#clock = clock;
         this.#setMoving = setMoving;
 
-        // let go of a held pointer once the owner goes
+        // let go of a pressed pointer once the owner goes
         onCleanup(() => (this.#run === undefined ? undefined : this.#release(this.#run)));
     }
 
@@ -138,9 +139,6 @@ export class Move {
                 return isMoving() ? "" : undefined;
             },
             onPointerDown: (event: PointerEvent) => this.#pointerDown(event),
-            onPointerMove: (event: PointerEvent) => this.#pointerMove(event),
-            onPointerUp: (event: PointerEvent) => this.#pointerEnd(event, false),
-            onPointerCancel: (event: PointerEvent) => this.#pointerEnd(event, true),
             onKeyDown: (event: KeyboardEvent) => this.#keyDown(event),
         };
     }
@@ -171,10 +169,18 @@ export class Move {
             previous: sample,
             event,
             timer: undefined,
-            releaseTouch: undefined,
+            listening: new AbortController(),
             isMoving: false,
         };
         this.#run = run;
+
+        // follow the pointer on the window as events start out, before any element stops them
+        const signal = run.listening.signal;
+        const view = present(element.ownerDocument.defaultView, "the moved element's window");
+        const options = { signal, capture: true };
+        view.addEventListener("pointermove", (each) => this.#pointerMove(each), options);
+        view.addEventListener("pointerup", (each) => this.#pointerEnd(each, false), options);
+        view.addEventListener("pointercancel", (each) => this.#pointerEnd(each, true), options);
 
         // take a finger's gesture from the page's scrolling wherever it moves the element
         if (run.pointerType === "touch") {
@@ -183,11 +189,10 @@ export class Move {
                     touch.preventDefault();
                 }
             };
-            element.addEventListener("touchmove", claim, { passive: false });
-            run.releaseTouch = () => element.removeEventListener("touchmove", claim);
+            element.addEventListener("touchmove", claim, { passive: false, signal });
         }
 
-        // start a finger's move once it held for the delay
+        // start a finger's move once it rested for the delay
         const delay = this.#options.delay;
         if (run.pointerType === "touch" && delay !== undefined) {
             run.timer = this.#clock.setTimeout(() => {
@@ -197,9 +202,9 @@ export class Move {
         }
     }
 
-    /** Follow the held pointer. */
+    /** Follow the pressed pointer. */
     #pointerMove(event: PointerEvent): void {
-        // follow only the held pointer
+        // follow only the pressed pointer
         const run = this.#run;
         if (run?.pointerId !== event.pointerId) {
             return;
@@ -236,7 +241,7 @@ export class Move {
 
     /** End the move as the pointer lets go or the browser takes it over. */
     #pointerEnd(event: PointerEvent, isCancelled: boolean): void {
-        // end only the held pointer
+        // end only the pressed pointer
         const run = this.#run;
         if (run?.pointerId !== event.pointerId || this.#isTaking) {
             return;
@@ -245,8 +250,16 @@ export class Move {
         this.#release(run);
         if (run.isMoving) {
             this.#setMoving(false);
+            this.#swallowClick(run.element);
             this.#options.onMoveEnd?.(this.#stepOf("moveend", run, run.previous, isCancelled));
         }
+    }
+
+    /** Swallow the click the browser sends the captured element after a move ends. */
+    #swallowClick(element: HTMLElement): void {
+        // stop the next click on its way to the element, and stop listening once this task ends
+        element.addEventListener("click", stopClick, { capture: true, once: true });
+        this.#clock.setTimeout(() => element.removeEventListener("click", stopClick, true), 0);
     }
 
     /** Move one whole step on an arrow key along the followed axes. */
@@ -320,14 +333,14 @@ export class Move {
         return followed === "both" || (followed === "horizontal" ? x >= y : y >= x);
     }
 
-    /** Let go of the held pointer, its timer and its finger's gesture. */
+    /** Let go of the pressed pointer, its timer and its finger's gesture. */
     #release(run: MoveRun): void {
         // stop a pending delay
         if (run.timer !== undefined) {
             this.#clock.clearTimeout(run.timer);
             run.timer = undefined;
         }
-        run.releaseTouch?.();
+        run.listening.abort();
         this.#run = undefined;
     }
 
@@ -357,4 +370,10 @@ export class Move {
 
         return followed === "both" || followed === axis ? distance : 0;
     }
+}
+
+/** Stop a click from reaching the element under it, and the default the browser runs for it. */
+function stopClick(click: MouseEvent): void {
+    click.preventDefault();
+    click.stopPropagation();
 }

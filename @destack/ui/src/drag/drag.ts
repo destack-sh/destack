@@ -1,3 +1,4 @@
+import { present } from "@destack/schema";
 import type { Environment } from "@destack/environment";
 import { type Direction, type Localization, type Message, t } from "@destack/locale";
 import {
@@ -15,6 +16,10 @@ import { Scroll } from "../position/index.ts";
 
 /** The milliseconds a finger rests on an item before it lifts, as iOS and Android wait. */
 const LIFT_DELAY = 500;
+
+/** The elements inside a lifted element that a press acts on instead: controls, links, fields. */
+const INTERACTIVE =
+    "button, a[href], input, select, textarea, label, summary, [contenteditable], [role=button], [role=menuitem], [role=checkbox], [role=switch], [role=tab], [role=link]";
 
 /** The pixels from a scroller's edge where a drag scrolls it, about a finger's width. */
 const SCROLL_EDGE = 48;
@@ -130,7 +135,7 @@ export interface DragOperation {
     readonly type: string;
     /** What the drag does to it. */
     readonly kind: DragKind;
-    /** Whether a drop moves the item or copies it, a copy while Alt is held. */
+    /** Whether a drop moves the item or copies it, a copy while Alt is down. */
     readonly effect: DragEffect;
     /** What moves it: a mouse, a pen, a finger or the keyboard. */
     readonly pointer: PointerType;
@@ -162,6 +167,8 @@ export interface DraggableOptions {
     readonly element: () => HTMLElement | undefined;
     /** Read where the item stands. */
     readonly home: () => DragTarget;
+    /** Report whether the item stays where it is, which leaves it unlifted and plain. */
+    readonly isDisabled?: () => boolean;
 }
 
 /** The options of a droppable. */
@@ -188,6 +195,10 @@ export interface DroppableOptions {
     readonly describe: (target: DragTarget, operation: DragOperation) => DragPlace;
     /** Handle a drop on one of its targets other than where the item stood. */
     readonly drop: (operation: DragOperation & { readonly target: DragTarget }) => void;
+    /** Read the element that scrolls its items, its element's scrolling ancestor when absent. */
+    readonly scroller?: () => HTMLElement | undefined;
+    /** Bring a target into view as a keyboard drag steps there or cancels back to it. */
+    readonly reveal?: (target: DragTarget, item: string) => void;
 }
 
 /** An item a person drags. */
@@ -208,6 +219,8 @@ export class Draggable {
     readonly home: () => DragTarget;
     /** The manager that follows its drags. */
     readonly #manager: DragManager;
+    /** Report whether the item stays where it is. */
+    readonly #isDisabled: (() => boolean) | undefined;
 
     /** Create a draggable and add it to a manager until its owner goes. */
     constructor(options: DraggableOptions, manager: DragManager) {
@@ -219,6 +232,7 @@ export class Draggable {
         this.label = options.label;
         this.element = options.element;
         this.home = options.home;
+        this.#isDisabled = options.isDisabled;
         this.#manager = manager;
         manager.addDraggable(this);
     }
@@ -228,14 +242,60 @@ export class Draggable {
         return this.#manager.isDragging(this.item);
     }
 
+    /** Report whether the item stays where it is. */
+    isDisabled(): boolean {
+        return this.#isDisabled?.() === true;
+    }
+
+    /** Read the handlers that lift it by pointer alone, the keys left to its element. */
+    pointerAttributes() {
+        return this.#move().attributes();
+    }
+
     /** Read the handlers and state the element that lifts it spreads. */
     attributes(lifts: readonly string[]) {
-        // lift a mouse or pen past the distance and a finger held still
+        // lift by pointer, as pointerAttributes does
         const manager = this.#manager;
-        const move = new Move(
+        const move = this.#move();
+
+        // lift, drop, cancel and step on the keys
+        const keys = {
+            onKeyDown: (event: KeyboardEvent) => this.#key(event, lifts),
+            onBlur: () =>
+                manager.current()?.pointer === "keyboard" ? manager.cancel() : undefined,
+        };
+
+        // describe the element and mark it while dragged
+        const isDragging = () => this.isDragging();
+        const isDisabled = () => this.isDisabled();
+        const state = {
+            get role(): "button" | undefined {
+                return isDisabled() ? undefined : "button";
+            },
+            get "aria-roledescription"(): string | undefined {
+                return isDisabled() ? undefined : manager.locale.render(t`draggable`);
+            },
+            get "aria-describedby"(): string | undefined {
+                return isDisabled() ? undefined : manager.instructionsId;
+            },
+            get "data-dragging"(): "" | undefined {
+                return isDragging() ? "" : undefined;
+            },
+        };
+
+        return mergeProperties(mergeProperties(state, keys), move.attributes());
+    }
+
+    /** Create the move that lifts it: a mouse or pen past the distance, a finger resting still. */
+    #move(): Move {
+        const manager = this.#manager;
+
+        return new Move(
             {
                 delay: LIFT_DELAY,
                 keys: [],
+                isDisabled: () => this.isDisabled(),
+                canStart: (event) => !isOnControl(event),
                 onMoveStart: (event) => manager.lift(this.id, this.kind, event.pointerType),
                 onMove: (event) =>
                     manager.follow(
@@ -252,36 +312,24 @@ export class Draggable {
             },
             manager.environment.clock,
         );
-
-        // lift, drop, cancel and step on the keys
-        const keys = {
-            onKeyDown: (event: KeyboardEvent) => this.#key(event, lifts),
-            onBlur: () =>
-                manager.current()?.pointer === "keyboard" ? manager.cancel() : undefined,
-        };
-
-        // describe the element and mark it while dragged
-        const isDragging = () => this.isDragging();
-        const state = {
-            role: "button" as const,
-            "aria-roledescription": manager.locale.render(t`draggable`),
-            "aria-describedby": manager.instructionsId,
-            get "data-dragging"(): "" | undefined {
-                return isDragging() ? "" : undefined;
-            },
-        };
-
-        return mergeProperties(mergeProperties(state, keys), move.attributes());
     }
 
     /** Lift, drop, cancel or step a keyboard drag on a key pressed on the element. */
     #key(event: KeyboardEvent, lifts: readonly string[]): void {
-        // lift on a lifting key, else hand the key to the drag in progress
+        // leave keys alone on a disabled item between drags
         const manager = this.#manager;
-        if (manager.current() === undefined && lifts.includes(event.key)) {
+        const isIdle = manager.current() === undefined;
+        if (this.isDisabled() && isIdle) {
+            return;
+        }
+
+        // lift on a lifting key
+        if (isIdle && lifts.includes(event.key)) {
             event.preventDefault();
             manager.lift(this.id, this.kind, "keyboard");
-        } else {
+        }
+        // else hand the key to the drag in progress
+        else {
             manager.key(event);
         }
     }
@@ -311,6 +359,10 @@ export class Droppable {
     readonly describe: DroppableOptions["describe"];
     /** Handle a drop on one of its targets. */
     readonly drop: DroppableOptions["drop"];
+    /** Read the element that scrolls its items, none for its element's scrolling ancestor. */
+    readonly scroller: DroppableOptions["scroller"];
+    /** Bring a target into view, none where every target shows. */
+    readonly reveal: DroppableOptions["reveal"];
 
     /** Create a droppable and add it to a manager until its owner goes. */
     constructor(options: DroppableOptions, manager: DragManager) {
@@ -326,6 +378,8 @@ export class Droppable {
         this.enter = options.enter;
         this.describe = options.describe;
         this.drop = options.drop;
+        this.scroller = options.scroller;
+        this.reveal = options.reveal;
         manager.addDroppable(this);
     }
 }
@@ -370,6 +424,10 @@ export class DragManager {
     #pointer: { readonly x: number; readonly y: number } | undefined = undefined;
     /** The wait for autoscroll's next frame. */
     #frame: AbortController | undefined = undefined;
+    /** The listener that aims a pointer drag again as anything under it scrolls. */
+    #scrolling: AbortController | undefined = undefined;
+    /** The wait for the frame a scroll aims the drag again in, once the views under it render. */
+    #aiming: AbortController | undefined = undefined;
 
     /** Create the drags of a view. */
     constructor(locale: Localization, environment: Environment<"display">) {
@@ -418,6 +476,11 @@ export class DragManager {
         return this.#current;
     }
 
+    /** Read the id of the dragged item, none between drags, once per drag. */
+    item(): string | undefined {
+        return this.#item();
+    }
+
     /** Read whether an item is dragged. */
     isDragging(item: string): boolean {
         return this.#item() === item;
@@ -458,6 +521,18 @@ export class DragManager {
         this.#set(operation);
         this.#measure(draggable, operation);
         this.#announce("lift", operation);
+
+        // aim a pointer drag again whenever a scroller under it moves, by wheel or by autoscroll
+        if (pointer !== "keyboard") {
+            const scrolling = new AbortController();
+            this.#scrolling = scrolling;
+            const page = present(draggable.element(), `the lifted draggable '${id}'`).ownerDocument;
+            page.addEventListener("scroll", () => this.#aimNextFrame(), {
+                capture: true,
+                passive: true,
+                signal: scrolling.signal,
+            });
+        }
     }
 
     /** Follow a pointer to the target under it and scroll near a scroller's edge. */
@@ -517,6 +592,7 @@ export class DragManager {
         }
         const moved = { ...operation, target: next };
         this.#set(moved);
+        this.#droppables.get(next.droppable)?.reveal?.(next, operation.item);
         this.#announce("move", moved);
 
         return true;
@@ -582,6 +658,12 @@ export class DragManager {
     cancel(): void {
         const operation = this.#current;
         if (operation !== undefined) {
+            // bring a keyboard drag's item back into view at its place
+            if (operation.pointer === "keyboard") {
+                this.#droppables
+                    .get(operation.from.droppable)
+                    ?.reveal?.(operation.from, operation.item);
+            }
             this.#announce("cancel", operation);
             this.#end();
         }
@@ -630,7 +712,7 @@ export class DragManager {
                       {
                           droppable,
                           bounds: element.getBoundingClientRect(),
-                          scroller: Scroll.parentOf(element),
+                          scroller: droppable.scroller?.() ?? Scroll.parentOf(element),
                       },
                   ];
         });
@@ -664,24 +746,44 @@ export class DragManager {
             return;
         }
 
-        // find the scroller under the pointer and how far into its edges the pointer reaches
+        // find, along each axis, the nearest scroller under the pointer near its edge that way
         const under = this.#measured.find(
             (each) => each.scroller !== undefined && contains(each.bounds, pointer.x, pointer.y),
         );
-        const scroller = under?.scroller;
-        if (scroller === undefined) {
-            return;
+        let [deltaX, deltaY] = [0, 0];
+        let [scrollerX, scrollerY]: (HTMLElement | undefined)[] = [undefined, undefined];
+        for (
+            let each = under?.scroller;
+            each !== undefined && (scrollerX === undefined || scrollerY === undefined);
+            each = each.parentElement === null ? undefined : Scroll.parentOf(each.parentElement)
+        ) {
+            // read how far into the scroller's edges the pointer reaches on the axes it scrolls
+            const bounds = each.getBoundingClientRect();
+            const { overflowX, overflowY } = getComputedStyle(each);
+            const x = Scroll.isScrolling(overflowX)
+                ? roomFor(
+                      edgeSpeed(pointer.x, bounds.left, bounds.right),
+                      each.scrollLeft,
+                      each.scrollWidth - each.clientWidth,
+                  )
+                : 0;
+            const y = Scroll.isScrolling(overflowY)
+                ? roomFor(
+                      edgeSpeed(pointer.y, bounds.top, bounds.bottom),
+                      each.scrollTop,
+                      each.scrollHeight - each.clientHeight,
+                  )
+                : 0;
+
+            // take the scroller for each axis it moves along first
+            if (scrollerX === undefined && x !== 0) {
+                [scrollerX, deltaX] = [each, x];
+            }
+            if (scrollerY === undefined && y !== 0) {
+                [scrollerY, deltaY] = [each, y];
+            }
         }
-        // scroll only along an axis the scroller lets people scroll
-        const bounds = scroller.getBoundingClientRect();
-        const { overflowX, overflowY } = getComputedStyle(scroller);
-        const deltaX = Scroll.isScrolling(overflowX)
-            ? edgeSpeed(pointer.x, bounds.left, bounds.right)
-            : 0;
-        const deltaY = Scroll.isScrolling(overflowY)
-            ? edgeSpeed(pointer.y, bounds.top, bounds.bottom)
-            : 0;
-        if (deltaX === 0 && deltaY === 0) {
+        if (scrollerX === undefined && scrollerY === undefined) {
             return;
         }
 
@@ -689,18 +791,10 @@ export class DragManager {
         const frame = new AbortController();
         this.#frame = frame;
         const step = () => {
-            // scroll by the edge's speed
+            // scroll each axis's scroller by its edge's speed, whose scroll aims the drag again
             this.#frame = undefined;
-            scroller.scrollBy(deltaX, deltaY);
-
-            // measure the moved droppables and aim again from the latest pointer
-            const draggable = this.#draggables.get(operation.draggable);
-            const current = this.#current;
-            const latest = this.#pointer;
-            if (draggable !== undefined && current !== undefined && latest !== undefined) {
-                this.#measure(draggable, current);
-                this.follow(latest.x, latest.y, current.offsetX, current.offsetY, current.effect);
-            }
+            scrollerX?.scrollBy(deltaX, 0);
+            scrollerY?.scrollBy(0, deltaY);
         };
 
         // wait for the frame
@@ -711,13 +805,53 @@ export class DragManager {
         });
     }
 
+    /** Aim the drag again on the next frame, once per frame, after the scrolled views render. */
+    #aimNextFrame(): void {
+        // wait for one frame at a time
+        if (this.#aiming !== undefined) {
+            return;
+        }
+        const aiming = new AbortController();
+        this.#aiming = aiming;
+
+        // aim once the frame comes, unless the drag ends first
+        void this.environment.display.frame(aiming.signal).then(
+            () => {
+                this.#aiming = undefined;
+                this.#aim();
+            },
+            (error: unknown) => {
+                if (!aiming.signal.aborted) {
+                    throw error;
+                }
+            },
+        );
+    }
+
+    /** Measure the droppables again and aim from the latest pointer, as they scrolled under it. */
+    #aim(): void {
+        // aim a drag the pointer leads, with its draggable still added
+        const current = this.#current;
+        const draggable =
+            current === undefined ? undefined : this.#draggables.get(current.draggable);
+        const latest = this.#pointer;
+        if (draggable !== undefined && current !== undefined && latest !== undefined) {
+            this.#measure(draggable, current);
+            this.follow(latest.x, latest.y, current.offsetX, current.offsetY, current.effect);
+        }
+    }
+
     /** End the drag and its scrolling. */
     #end(): void {
-        // clear the drag, its measures and its scrolling
+        // clear the drag, its measures, its scrolling and its listener
         this.#set(undefined);
         this.#measured = [];
         this.#pointer = undefined;
         this.#stopScroll();
+        this.#scrolling?.abort();
+        this.#scrolling = undefined;
+        this.#aiming?.abort();
+        this.#aiming = undefined;
     }
 
     /** Stop a pending autoscroll frame. */
@@ -822,4 +956,21 @@ function edgeSpeed(position: number, start: number, end: number): number {
     }
 
     return 0;
+}
+
+/** Read a scroll speed where the scroller has room that way, none at its end. */
+function roomFor(speed: number, offset: number, end: number): number {
+    return (speed > 0 && Math.abs(offset) >= end) || (speed < 0 && offset <= 0) ? 0 : speed;
+}
+
+/** Report whether a press lands on a control inside the pressed element, which acts instead. */
+function isOnControl(event: PointerEvent): boolean {
+    const control = event.target instanceof Element ? event.target.closest(INTERACTIVE) : null;
+
+    return (
+        control !== null &&
+        control !== event.currentTarget &&
+        event.currentTarget instanceof Node &&
+        event.currentTarget.contains(control)
+    );
 }

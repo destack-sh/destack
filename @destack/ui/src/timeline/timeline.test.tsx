@@ -488,6 +488,7 @@ test("show a chip at the edge a bar lies past, which brings the bar back into vi
         ["pointermove", 500],
         ["pointermove", 300],
         ["pointerup", 300],
+        ["click", 300],
     ] as const) {
         track?.dispatchEvent(
             new PointerEvent(type, { bubbles: true, clientX: x, clientY: 30, pointerId: 6 }),

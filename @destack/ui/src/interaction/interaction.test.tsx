@@ -388,6 +388,39 @@ test("start a move once the pointer travels the distance, and report steps, offs
     });
 });
 
+test("end a move whose element stops its release, and swallow the one click the release sends", () => {
+    // move, let go on an element that stops the release, then click it twice, a task apart
+    const { element, ends, clock } = drawMove({ distance: 0 });
+    const clicks: string[] = [];
+    element.addEventListener("pointerup", (event) => event.stopPropagation());
+    element.addEventListener("click", () => clicks.push("click"));
+    pointer(element, "pointerdown", 10, 10);
+    pointer(element, "pointermove", 30, 10);
+    pointer(element, "pointerup", 30, 10);
+    pointer(element, "click", 30, 10);
+    clock.pass(0);
+    pointer(element, "click", 30, 10);
+
+    expect({ ends: ends.length, clicks }).toEqual({ ends: 1, clicks: ["click"] });
+});
+
+test("leave the click of a press that never moved, and of a move whose task has passed", () => {
+    // press and let go in place, then move and let the release's task pass without a click
+    const { element, clock } = drawMove({ distance: 5 });
+    const clicks: string[] = [];
+    element.addEventListener("click", () => clicks.push("click"));
+    pointer(element, "pointerdown", 10, 10);
+    pointer(element, "pointerup", 10, 10);
+    pointer(element, "click", 10, 10);
+    pointer(element, "pointerdown", 10, 10);
+    pointer(element, "pointermove", 40, 10);
+    pointer(element, "pointerup", 40, 10);
+    clock.pass(0);
+    pointer(element, "click", 40, 10);
+
+    expect(clicks).toEqual(["click", "click"]);
+});
+
 test("follow one axis only, and cancel a move the browser takes over", () => {
     // move diagonally, then let the browser take the pointer
     const { element, steps, ends } = drawMove({ orientation: "horizontal", distance: 0 });
@@ -449,18 +482,6 @@ test("cancel a press on the same element as a move starts, so a drag completes n
         onPointerDown: (event: PointerEvent) => {
             gestures.press.attributes().onPointerDown(event);
             gestures.move.attributes().onPointerDown(event);
-        },
-        onPointerMove: (event: PointerEvent) => {
-            gestures.press.attributes().onPointerMove(event);
-            gestures.move.attributes().onPointerMove(event);
-        },
-        onPointerUp: (event: PointerEvent) => {
-            gestures.press.attributes().onPointerUp(event);
-            gestures.move.attributes().onPointerUp(event);
-        },
-        onPointerCancel: (event: PointerEvent) => {
-            gestures.press.attributes().onPointerCancel(event);
-            gestures.move.attributes().onPointerCancel(event);
         },
     }));
     pointer(element, "pointerdown", 10, 10);

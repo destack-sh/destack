@@ -1560,6 +1560,7 @@ test("mark time free by sweeps that join where they meet, write it out, and take
         pointer("pointerdown", from * 48 + 2);
         pointer("pointermove", to * 48);
         pointer("pointerup", to * 48);
+        pointer("click", to * 48);
     }
     const blocks = [...container.querySelectorAll("[data-slot=event-calendar-availability]")].map(
         (block) => plain(block.textContent).replace("×", ""),
