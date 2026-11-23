@@ -82,8 +82,6 @@
         "@capsizecss/unpack": "4.0.1",
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
-        "@destack/color": "workspace:*",
-        "@destack/db": "workspace:*",
         "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
         "@destack/locale": "workspace:*",
@@ -104,25 +102,51 @@
         "@solidjs/meta": "2.0.0",
         "@solidjs/router": "2.0.1",
         "@solidjs/signals": "2.0.3",
-        "@solidjs/vite-plugin": "3.0.1",
         "@solidjs/web": "2.0.3",
-        "dom-accessibility-api": "0.7.1",
-        "happy-dom": "21.0.4",
-        "playwright": "1.65.1",
-        "sharp": "0.35.5",
         "solid-js": "2.0.3"
     },
     "peerDependencies": {
         "@destack/build": "workspace:*",
+        "@destack/color": "workspace:*",
+        "@destack/db": "workspace:*",
         "@destack/test": "workspace:*",
+        "@solidjs/vite-plugin": "3.0.1",
+        "dom-accessibility-api": "0.7.1",
+        "happy-dom": "21.0.4",
+        "playwright": "1.65.1",
         "rolldown": "1.2.19",
+        "sharp": "0.35.5",
         "vite": "8.3.8"
     },
     "peerDependenciesMeta": {
         "@destack/build": {
             "optional": true
         },
+        "@destack/color": {
+            "optional": true
+        },
+        "@destack/db": {
+            "optional": true
+        },
         "@destack/test": {
+            "optional": true
+        },
+        "@solidjs/vite-plugin": {
+            "optional": true
+        },
+        "dom-accessibility-api": {
+            "optional": true
+        },
+        "happy-dom": {
+            "optional": true
+        },
+        "playwright": {
+            "optional": true
+        },
+        "rolldown": {
+            "optional": true
+        },
+        "sharp": {
             "optional": true
         },
         "vite": {
@@ -132,8 +156,15 @@
     "devDependencies": {
         "@destack/build": "workspace:*",
         "@destack/check": "workspace:*",
+        "@destack/color": "workspace:*",
+        "@destack/db": "workspace:*",
         "@destack/test": "workspace:*",
+        "@solidjs/vite-plugin": "3.0.1",
+        "dom-accessibility-api": "0.7.1",
+        "happy-dom": "21.0.4",
+        "playwright": "1.65.1",
         "rolldown": "1.2.19",
+        "sharp": "0.35.5",
         "vite": "8.3.8"
     }
 }

@@ -7,25 +7,34 @@
     "entrypoints": ["src/build/prerender/program.ts", "src/test/browser.ts"],
     "exports": {
         "./browser": {
-            "runtimes": ["browser"]
+            "runtimes": ["browser"],
+            "internal": true
         },
         "./device": {
-            "runtimes": ["browser"]
+            "runtimes": ["browser"],
+            "internal": true
         },
         "./static/browser": {
             "runtimes": ["browser"]
         },
         "./example": {
-            "runtimes": ["browser"]
+            "runtimes": ["browser"],
+            "internal": true
         },
         "./build": {
-            "runtimes": ["bun"]
+            "runtimes": ["bun"],
+            "internal": true
         },
         "./prerender": {
-            "runtimes": ["bun"]
+            "runtimes": ["bun"],
+            "internal": true
         },
         "./inspect": {
-            "runtimes": ["bun"]
+            "runtimes": ["bun"],
+            "internal": true
+        },
+        "./scenario": {
+            "internal": true
         }
     },
     "build": "./build#viewExtension",
