@@ -62,7 +62,6 @@ export const span = defineObject(
         },
         // present spans by name, as a waterfall of their start and duration and as a tree of their parents
         presentable: {
-            title: "name",
             icon: false,
             color: false,
             views: [
