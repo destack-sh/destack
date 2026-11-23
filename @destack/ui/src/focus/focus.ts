@@ -172,6 +172,11 @@ export class Focus<Key> {
         this.#setFocusedWithin(true);
     }
 
+    /** Follow the DOM focus moving to a control inside the collection, none of its items. */
+    focusAway(): void {
+        this.#setFocusedWithin(false);
+    }
+
     /** Follow the DOM focus leaving the collection's element for one outside it. */
     focusOut(event: FocusEvent & { readonly currentTarget: Element }): void {
         if (
