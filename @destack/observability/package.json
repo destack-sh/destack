@@ -15,7 +15,6 @@
     "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
-        "@destack/bucket": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/error": "workspace:*",
         "@destack/event": "workspace:*",
@@ -23,21 +22,38 @@
         "@destack/notification": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
-        "@destack/resource": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/setting": "workspace:*",
         "@destack/social": "workspace:*",
         "@destack/stack": "workspace:*",
         "@destack/sync": "workspace:*",
         "@destack/telemetry": "workspace:*",
-        "@destack/workflow": "workspace:*",
-        "@jridgewell/trace-mapping": "0.3.31"
+        "@destack/workflow": "workspace:*"
     },
     "devDependencies": {
+        "@destack/bucket": "workspace:*",
         "@destack/environment": "workspace:*",
         "@destack/identity": "workspace:*",
         "@destack/machine": "workspace:*",
+        "@destack/resource": "workspace:*",
         "@destack/test": "workspace:*",
+        "@jridgewell/trace-mapping": "0.3.31",
         "@types/node": "26.6.1"
+    },
+    "peerDependencies": {
+        "@destack/bucket": "workspace:*",
+        "@destack/resource": "workspace:*",
+        "@jridgewell/trace-mapping": "0.3.31"
+    },
+    "peerDependenciesMeta": {
+        "@destack/bucket": {
+            "optional": true
+        },
+        "@destack/resource": {
+            "optional": true
+        },
+        "@jridgewell/trace-mapping": {
+            "optional": true
+        }
     }
 }

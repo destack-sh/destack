@@ -6,7 +6,8 @@
     "runtimes": ["browser", "bun", "workerd"],
     "exports": {
         "./server": {
-            "runtimes": ["bun", "workerd"]
+            "runtimes": ["bun", "workerd"],
+            "internal": true
         },
         "./setting": {
             "runtimes": ["bun", "workerd"]
