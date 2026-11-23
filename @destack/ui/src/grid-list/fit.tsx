@@ -12,10 +12,10 @@ const styles = style.create({
     }),
 });
 
-/** The columns of square cells a picker draws: the ones it asks for, or as many as fit. */
-export class SquareColumns {
+/** The fit of a picker's square cells in its width: the columns it asks for, or as many as fit. */
+export class ColumnFit {
     /** The columns to draw. */
-    readonly count: Accessor<number>;
+    readonly columns: Accessor<number>;
     /** Take the picker's element, whose width the columns fit. */
     readonly measure: (element: HTMLElement) => void;
     /** The columns the picker asks for. */
@@ -37,7 +37,7 @@ export class SquareColumns {
         };
 
         // draw the ones asked for until both are measured
-        this.count = () => {
+        this.columns = () => {
             const cell = this.#cell.pixels();
             const { width } = measured;
 

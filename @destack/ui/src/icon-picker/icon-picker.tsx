@@ -18,7 +18,7 @@ import {
     GridListCell,
     type GridListCellProperties,
     GridListControl,
-    SquareColumns,
+    ColumnFit,
     type GridListElementProperties,
     GridListEmpty,
     GridListLoading,
@@ -133,14 +133,14 @@ export function IconPicker(properties: IconPickerProperties): JSX.Element {
     );
     const autocomplete = new AutocompleteControl({});
     const icons = new Load(loadIcons());
-    const columns = new SquareColumns(() => properties.columns ?? COLUMNS);
+    const fit = new ColumnFit(() => properties.columns ?? COLUMNS);
     const grid = new GridListControl<IconName>({
         load: icons,
         sections: () =>
             layOutIcons(icons.value(), autocomplete.value().trim().toLowerCase(), locale),
         key: (icon) => icon,
         text: (icon) => icon,
-        columns: columns.count,
+        columns: fit.columns,
         autocomplete,
         onAction: (icon) => properties.onIconSelect(icon),
     });
@@ -161,13 +161,13 @@ export function IconPicker(properties: IconPickerProperties): JSX.Element {
                 <GridListProvider control={grid}>
                     <div
                         data-slot="icon-picker"
-                        {...mergeProperties({ ref: columns.measure }, rest)}
+                        {...mergeProperties({ ref: fit.measure }, rest)}
                         {...style.attributes(
-                            [styles.picker, columns.style(), properties.xstyle],
+                            [styles.picker, fit.style(), properties.xstyle],
                             properties.style,
                         )}
                     />
-                    {columns.render()}
+                    {fit.render()}
                 </GridListProvider>
             </AutocompleteContext>
         </IconPickerContext>

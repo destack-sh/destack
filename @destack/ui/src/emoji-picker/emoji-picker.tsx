@@ -29,7 +29,7 @@ import {
     GridListCell,
     type GridListCellProperties,
     GridListControl,
-    SquareColumns,
+    ColumnFit,
     type GridListElementProperties,
     GridListEmpty,
     GridListLoading,
@@ -274,7 +274,7 @@ export function EmojiPicker(properties: EmojiPickerProperties): JSX.Element {
     // load the emoji once and lay out the ones the search finds in the chosen tone
     const autocomplete = new AutocompleteControl({});
     const emoji = new Load(loadEmoji(untrack(() => locale.tag)));
-    const columns = new SquareColumns(() => properties.columns ?? COLUMNS);
+    const fit = new ColumnFit(() => properties.columns ?? COLUMNS);
     const grid = new GridListControl<EmojiEntry>({
         load: emoji,
         sections: () =>
@@ -286,7 +286,7 @@ export function EmojiPicker(properties: EmojiPickerProperties): JSX.Element {
             ),
         key: (entry) => entry.emoji,
         text: (entry) => entry.label,
-        columns: columns.count,
+        columns: fit.columns,
         autocomplete,
         onAction: (entry) => properties.onEmojiSelect(entry),
     });
@@ -309,13 +309,13 @@ export function EmojiPicker(properties: EmojiPickerProperties): JSX.Element {
                 <GridListProvider control={grid}>
                     <div
                         data-slot="emoji-picker"
-                        {...mergeProperties({ ref: columns.measure }, rest)}
+                        {...mergeProperties({ ref: fit.measure }, rest)}
                         {...style.attributes(
-                            [layout.picker, columns.style(), properties.xstyle],
+                            [layout.picker, fit.style(), properties.xstyle],
                             properties.style,
                         )}
                     />
-                    {columns.render()}
+                    {fit.render()}
                 </GridListProvider>
             </AutocompleteContext>
         </EmojiPickerContext>
