@@ -90,9 +90,10 @@ export class PaletteOverlay {
             event.preventDefault();
 
             // run a handled action there, else open the palette at the action
-            if (this.#actions.has(binding.action, focus)) {
+            const bound = this.#actions.find(binding.action);
+            if (bound !== undefined && this.#actions.has(binding.action, focus)) {
                 void this.#actions
-                    .run(binding.action, focus)
+                    .run(bound, focus)
                     .catch((error: unknown) => globalThis.reportError(error));
             } else {
                 this.open(focus, binding.action);
@@ -117,7 +118,7 @@ export class PaletteOverlay {
             // run the page's, leaving a disabled one to nothing as a greyed menu item does
             else if (this.#actions.has(action.reference, focus)) {
                 void this.#actions
-                    .run(action.reference, focus)
+                    .run(action, focus)
                     .catch((error: unknown) => globalThis.reportError(error));
             }
         };
@@ -139,7 +140,11 @@ export class PaletteOverlay {
             );
         const declared = isOffered
             ? this.#declared.map((action) =>
-                  Keybinding.of(action, { key: action.keybinding, focus: "page" }, overrides),
+                  Keybinding.of(
+                      action,
+                      { key: action.description.keybinding, focus: "page" },
+                      overrides,
+                  ),
               )
             : [];
 
@@ -220,7 +225,11 @@ export class PaletteOverlay {
         // run an action once the palette closes, where the person was when it opened
         else if (message.action === "action.run") {
             dialog.close();
-            await this.#actions.run(message.reference, focus);
+            const action = present(
+                this.#actions.find(message.reference),
+                `the action ${message.reference.name}`,
+            );
+            this.#actions.start(action, focus);
         }
         // refuse a message only the page sends
         else {

@@ -1,7 +1,7 @@
 import { DeclarationReference } from "@destack/package/declare";
 import { Shortcut } from "@destack/locale";
 import { schema } from "@destack/schema";
-import { ActionFocus } from "@destack/object";
+import { type ActionDescription, ActionFocus } from "@destack/object";
 
 /** A key combination running an action, outside form fields or anywhere. */
 const keybinding = schema.object({
@@ -32,10 +32,8 @@ export const Keybinding = Object.assign(keybinding, {
 /** A key combination running an action. */
 export type Keybinding = schema.Infer<typeof keybinding>;
 
-/** An action calling a method that a package declares, with the key combination it declares. */
-export const ActionDeclaration = DeclarationReference.extend({
-    /** The key combination the package declares, absent for none. */
-    keybinding: Shortcut.exactOptional(),
-});
-/** An action calling a method that a package declares, with its key combination. */
-export type ActionDeclaration = schema.Infer<typeof ActionDeclaration>;
+/** An action calling a method that a package declares, as its build describes it. */
+export interface ActionDeclaration extends DeclarationReference {
+    /** The action's description. */
+    readonly description: ActionDescription;
+}

@@ -1,3 +1,5 @@
+import { Action, type ObjectType, Place } from "@destack/object";
+import { createSignal } from "solid-js";
 import { TelemetryScope } from "@destack/telemetry";
 import type { Environment } from "@destack/environment";
 import type { BrowserCapability, BrowserEnvironment } from "@destack/environment/browser";
@@ -147,13 +149,36 @@ export async function mount(
 
     // render the root component under the view, its clients and its actions, once its package's catalogs arrive
     const { default: Component } = await view.component();
-    const actions = new ActionRegistry();
+    const [keybindings, setKeybindings] = createSignal(first.keybindings, { ownedWrite: true });
+    const actions = new ActionRegistry(keybindings);
+    actions.attach({ clients, scope: context.space });
+
+    // act on the object the view opened for, and offer the package's actions on the types it opens
+    const { target } = context;
+    if (target !== undefined) {
+        actions.provide(() => Place.showing(target));
+    }
+    for (const { name, description } of declared.actions) {
+        const types = [
+            description.call,
+            ...(description.call?.inputs.map(({ type }) => type) ?? []),
+        ];
+        const isOpened = types.every(
+            (type) => type === undefined || typeOf(view, type) !== undefined,
+        );
+        if (isOpened) {
+            const read = (type: ObjectTypeReference) =>
+                present(typeOf(view, type), `the type ${type.type}`);
+            actions.offer(Action.of(name, description, read));
+        }
+    }
     const rendering = await LocalizedRendering.open(
         (locale, localization) =>
             renderView(Component, document.body, {
                 package: { ...view.package, version: release },
                 environment: { ...environment, telemetry },
                 localization,
+                actions,
                 mount: {
                     context,
                     clients,
@@ -161,7 +186,6 @@ export async function mount(
                     packages,
                     origin: call,
                     connect,
-                    actions,
                 },
             }),
         {
@@ -200,7 +224,7 @@ export async function mount(
         },
         isEnabled: pageUndo.canRedo,
     });
-    actions.handle(palette, { run: (focus) => overlay.open(focus) });
+    actions.handle(palette, { run: (event) => overlay.open(event.element) });
 
     // restyle on each change, render again in a new language and follow the keybindings
     void (async () => {
@@ -208,6 +232,7 @@ export async function mount(
             restyle(next);
             rendering.switch(next.locale);
             presented = next;
+            setKeybindings(next.keybindings);
         }
     })().catch((error: unknown) => {
         if (!stopping.signal.aborted) {
@@ -622,4 +647,12 @@ function pageOrigin(
     authorization: PageAuthorization,
 ): (path: string) => ClientOptions {
     return (path) => ({ url: `${root}${path}`, fetch: (request) => authorization.fetch(request) });
+}
+
+/** Find a type a view opens, absent for another. */
+function typeOf(
+    view: View,
+    { packageId, type }: Pick<ObjectTypeReference, "packageId" | "type">,
+): ObjectType | undefined {
+    return view.objects.find((each) => each.package.id === packageId && each.name === type);
 }

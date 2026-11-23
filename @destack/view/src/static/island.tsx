@@ -4,6 +4,7 @@ import { isServer, type JSX } from "@solidjs/web";
 import type { PackageVersion } from "@destack/package";
 import { ViewError } from "../error/error.ts";
 import { useLocale } from "../page/locale.ts";
+import { useActions } from "../page/action.ts";
 import { ViewRoot } from "../page/mount.ts";
 import { useEnvironment } from "../page/context.ts";
 
@@ -74,6 +75,7 @@ export function island<Properties extends IslandProperties<Properties>>(
                     <ViewRoot
                         package={page.package}
                         environment={useEnvironment()}
+                        actions={useActions()}
                         localization={useLocale()}
                     >
                         <Island {...properties} {...slotted} />

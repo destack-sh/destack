@@ -365,15 +365,15 @@ export function entryPlugin(views: readonly LocatedView[], compilation: ViewPack
     const actions = own
         .filter((declaration) => ACTION_KIND.is(declaration.kind, declaration.package.id))
         .flatMap((declaration) => {
-            const { keybinding, call } = ActionDescription.parse(declaration.description);
+            const description = ActionDescription.parse(declaration.description);
 
-            return call === undefined
+            return description.call === undefined
                 ? []
                 : [
                       {
                           packageId: compilation.package.id,
                           name: declaration.name,
-                          ...(keybinding === undefined ? {} : { keybinding }),
+                          description,
                       },
                   ];
         });

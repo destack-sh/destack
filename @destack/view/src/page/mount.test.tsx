@@ -81,8 +81,8 @@ function readText(locale: LocaleTag, environment: BrowserEnvironment): string {
     const element = document.createElement("div");
     const dispose = renderView(Status, element, {
         package: import.meta.destack.package,
+        actions: new ActionRegistry(),
         mount: {
-            actions: new ActionRegistry(),
             context: CONTEXT,
             clients: new Map(),
             packages: new Map(),
@@ -182,8 +182,8 @@ test("call a package the view declares where the host mounts it, and refuse it t
     const element = document.createElement("div");
     const dispose = renderView(Count, element, {
         package: import.meta.destack.package,
+        actions: new ActionRegistry(),
         mount: {
-            actions: new ActionRegistry(),
             context: CONTEXT,
             clients: new Map(),
             packages,
@@ -215,8 +215,8 @@ test("call a package the view declares where the host mounts it, and refuse it t
         refused,
         {
             package: import.meta.destack.package,
+            actions: new ActionRegistry(),
             mount: {
-                actions: new ActionRegistry(),
                 context: CONTEXT,
                 clients: new Map(),
                 packages: new Map(),
@@ -249,8 +249,8 @@ test("show the time on the view's clock, moving on each second until the view go
     const element = document.createElement("div");
     const dispose = renderView(Now, element, {
         package: import.meta.destack.package,
+        actions: new ActionRegistry(),
         mount: {
-            actions: new ActionRegistry(),
             context: CONTEXT,
             clients: new Map(),
             packages: new Map(),

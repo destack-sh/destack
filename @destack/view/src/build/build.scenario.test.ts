@@ -128,12 +128,14 @@ test("generate the module mounting a view with its package's theme and the actio
         keybinding?: string,
         isCall = true,
     ) => ({
-        name,
         package: declaring,
+        name,
         title: { package: declaring.id, id: name, source: name, values: {} },
         ...(keybinding === undefined ? {} : { keybinding }),
         focus: "page",
-        ...(isCall ? { call: { packageId: owner.id, type: "note", method: name, input: {} } } : {}),
+        ...(isCall
+            ? { call: { packageId: owner.id, type: "note", method: name, input: {}, inputs: [] } }
+            : {}),
     });
     const ocean = { name: "ocean", package: owner };
     const entries = new Map<string, string>();
@@ -177,8 +179,12 @@ test("generate the module mounting a view with its package's theme and the actio
 
     // import the declaring module and mount its view with the package's own theme, method actions and one device worker
     const actions = [
-        { packageId: owner.id, name: "complete", keybinding: "mod+enter" },
-        { packageId: owner.id, name: "archive" },
+        {
+            packageId: owner.id,
+            name: "complete",
+            description: action("complete", owner, "mod+enter"),
+        },
+        { packageId: owner.id, name: "archive", description: action("archive", owner) },
     ];
     expect([[...entries.keys()], loaded.split("\n"), device.split("\n"), described]).toEqual([
         ["./view/main"],

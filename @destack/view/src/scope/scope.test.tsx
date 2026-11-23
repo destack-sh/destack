@@ -156,8 +156,8 @@ test("show a query's rows after loading, and re-render only the row a predicted 
             element,
             {
                 package: import.meta.destack.package,
+                actions: new ActionRegistry(),
                 mount: {
-                    actions: new ActionRegistry(),
                     context: CONTEXT,
                     clients: new Map([[BOARD_ID, client]]),
                     packages: new Map(),
@@ -215,8 +215,8 @@ test("open and close another space with a component", async () => {
         element,
         {
             package: import.meta.destack.package,
+            actions: new ActionRegistry(),
             mount: {
-                actions: new ActionRegistry(),
                 context: CONTEXT,
                 clients: new Map(),
                 open,
@@ -254,8 +254,8 @@ test("fail access to an object type the view's space does not hold into the erro
             element,
             {
                 package: import.meta.destack.package,
+                actions: new ActionRegistry(),
                 mount: {
-                    actions: new ActionRegistry(),
                     context: CONTEXT,
                     clients: new Map([[BOARD_ID, client]]),
                     packages: new Map(),
@@ -317,8 +317,8 @@ test("show a setting's value for the page's person, and the device's value once 
     onTestFinished(
         renderView(() => <EditorMode />, element, {
             package: import.meta.destack.package,
+            actions: new ActionRegistry(),
             mount: {
-                actions: new ActionRegistry(),
                 context: {
                     ...CONTEXT,
                     space: "space-01996ab0-0000-7000-8000-000000000005",
@@ -375,8 +375,8 @@ test("refuse following a space's setting as the page's person into the error bou
             element,
             {
                 package: import.meta.destack.package,
+                actions: new ActionRegistry(),
                 mount: {
-                    actions: new ActionRegistry(),
                     context: CONTEXT,
                     clients: new Map([[BOARD_ID, client]]),
                     packages: new Map(),

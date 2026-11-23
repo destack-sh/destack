@@ -4,7 +4,8 @@ import { render } from "@solidjs/web";
 import { createComponent } from "solid-js";
 import { type Catalog, Localization, LocaleTag, SOURCE_LOCALE } from "@destack/locale";
 import { LocaleContext } from "../page/locale.ts";
-import { EnvironmentContext } from "../page/context.ts";
+import { ActionRegistry } from "../page/action.ts";
+import { PageRoot } from "../page/root.ts";
 import type { Example } from "@destack/package/declare";
 import type { Globals } from "../scenario/interaction.ts";
 import { View } from "../declare/view.ts";
@@ -88,11 +89,17 @@ export function renderExample<Properties extends object>(
     }
     element.append(container);
 
+    // run the keys of the actions the example handles until it unmounts
+    const closing = new AbortController();
+    const actions = new ActionRegistry();
+    actions.listen(closing.signal);
+
     // render the example under the localization, which gives components the frame's direction, removing the frame on unmount
     const dispose = render(
         () =>
-            createComponent(EnvironmentContext, {
-                value: environment,
+            createComponent(PageRoot, {
+                environment,
+                actions,
                 get children() {
                     return createComponent(LocaleContext, {
                         value: localization,
@@ -106,6 +113,7 @@ export function renderExample<Properties extends object>(
     );
 
     return () => {
+        closing.abort();
         dispose();
         container.remove();
     };

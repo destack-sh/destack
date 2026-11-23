@@ -1,7 +1,9 @@
 import type { BrowserEnvironment } from "@destack/environment/browser";
 import { setContext } from "@solidjs/signals";
 import { createComponent, createRoot, flush } from "solid-js";
-import { EnvironmentContext } from "../page/context.ts";
+import { ActionRegistry } from "../page/action.ts";
+import { ActionRegistryContext, EnvironmentContext } from "../page/context.ts";
+import { PageRoot } from "../page/root.ts";
 import { onTestFinished } from "@destack/test";
 import type { JSX } from "@solidjs/web";
 import * as web from "@solidjs/web";
@@ -32,6 +34,8 @@ export interface RenderOptions {
     readonly renderId?: string;
     /** The environment an element renders in, the test's simulated tab by default. */
     readonly environment?: BrowserEnvironment;
+    /** The actions the components handle, a registry of its own by default. */
+    readonly actions?: ActionRegistry;
 }
 
 /** A rendered element: its container, and how to unmount it before the test ends. */
@@ -82,12 +86,16 @@ export function render<Properties extends object>(
 
     // render an element under the given environment, the test's simulated tab by default
     const environment = options.environment ?? testBrowser();
+    const closing = new AbortController();
+    const actions = options.actions ?? new ActionRegistry();
+    actions.listen(closing.signal);
     const element =
         typeof ui !== "function"
             ? ui
             : () =>
-                  createComponent(EnvironmentContext, {
-                      value: environment,
+                  createComponent(PageRoot, {
+                      environment,
+                      actions,
                       get children() {
                           return ui();
                       },
@@ -123,6 +131,7 @@ export function render<Properties extends object>(
     const unmount = (): void => {
         if (isMounted) {
             isMounted = false;
+            closing.abort();
             dispose();
             container.remove();
         }
@@ -171,6 +180,7 @@ export function createPageRoot<Result>(
 ): Result {
     return createRoot((dispose) => {
         setContext(EnvironmentContext, environment);
+        setContext(ActionRegistryContext, new ActionRegistry());
 
         return run(dispose);
     });

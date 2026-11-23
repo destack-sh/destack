@@ -41,6 +41,13 @@ const send = defineAction({
     focus: "any",
 });
 
+/** Archive a note, which the package declares. */
+const archive = defineAction({
+    name: "archive",
+    title: t`Archive`,
+    keybinding: "mod+shift+a",
+});
+
 /** Bold the text of an editor. */
 const bold = defineAction({ name: "bold", title: t`Bold` });
 
@@ -55,7 +62,7 @@ function palette(overrides: Readonly<Record<string, string | null>> = {}) {
     actions.select(() => [NOTE]);
     const overlay = new PaletteOverlay({
         actions,
-        declared: [{ packageId: NOTES, name: "archive", keybinding: "mod+shift+a" }],
+        declared: [{ packageId: NOTES, name: "archive", description: archive.describe() }],
         navigation: {
             currentEntry: {
                 url: "http://notes--personal--florian.localhost:7470/home",
@@ -166,7 +173,7 @@ test("list and run the actions handled where the person was when the palette ope
     const editor = document.createElement("textarea");
     document.body.append(editor);
     onTestFinished(() => editor.remove());
-    actions.handle(bold, { run: () => void ran.push("bold"), within: () => editor });
+    actions.handle(bold, { run: () => void ran.push("bold") }, editor);
     const list = (focus: Element | null) => {
         const sent: PaletteMessage[] = [];
         overlay.open(focus);
@@ -190,7 +197,8 @@ test("list and run the actions handled where the person was when the palette ope
     expect({ atPage: listedNames(atPage.sent), atEditor: listedNames(atEditor.sent), ran }).toEqual(
         {
             atPage: ["copy-link", "zoom", "send"],
-            atEditor: ["copy-link", "zoom", "send", "bold"],
+            // the innermost element's actions first
+            atEditor: ["bold", "copy-link", "zoom", "send"],
             ran: ["bold"],
         },
     );

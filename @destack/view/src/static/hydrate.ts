@@ -12,6 +12,7 @@ import type { PackageVersion } from "@destack/package";
 import type { View } from "../declare/view.ts";
 import { recordVisits } from "../browser/visit.ts";
 import { ViewError } from "../error/error.ts";
+import { ActionRegistry } from "../page/action.ts";
 import { ViewRoot, type ViewRootProperties } from "../page/mount.ts";
 import { type IslandProperties, IslandSlot } from "./island.tsx";
 import { StaticPage, TELEMETRY_META } from "./page.ts";
@@ -37,8 +38,10 @@ export async function hydrateStatic(
     );
     const dispose = hydrate(() => page.render(), document);
 
-    // follow the page until it goes
-    followPage(view, telemetry, environment, [dispose]);
+    // run the keys of its actions, and follow the page until it goes
+    const closing = new AbortController();
+    page.actions.listen(closing.signal);
+    followPage(view, telemetry, environment, [dispose, () => closing.abort()]);
 }
 
 /** Hydrate each island of a static view's page from its module, leaving the rest as HTML. */
@@ -54,17 +57,23 @@ export async function hydrateIslands(
     const roots = [...document.querySelectorAll<HTMLElement>("[data-island]")];
     const loaded = await Promise.all(roots.map((root) => loadIsland(root, islands)));
 
+    // run the keys of the actions its islands share
+    const closing = new AbortController();
+    const actions = new ActionRegistry();
+    actions.listen(closing.signal);
+
     // hydrate each root in document order by the id the server rendered it under, its children kept in its slot
     const disposals = loaded.map(({ root, Island, properties }) =>
         hydrateIsland(root, Island, properties, {
             package: view.package,
             environment: rendered,
+            actions,
             localization,
         }),
     );
 
     // follow the page until it goes
-    followPage(view, telemetry, environment, disposals);
+    followPage(view, telemetry, environment, [...disposals, () => closing.abort()]);
 }
 
 /** Load an island root's component and read its properties, its children in its slot. */

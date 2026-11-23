@@ -99,14 +99,29 @@ A static view has an `origin`, `pages` with its paths, an optional `document`, a
 `handleAction(action, handler)` runs an action that `defineAction` from `@destack/object` declares without a call, while a component is mounted.
 Its keys run it outside form fields, unless its `focus` is `"any"`.
 
+`useActions()` answers the page's actions, which menus, buttons, keys and the palette run.
+
+| Method                           | What it does                                                            |
+| -------------------------------- | ----------------------------------------------------------------------- |
+| `run(action, element, given?)`   | runs it at an element, asking what neither places nor `given` answer    |
+| `start(action, element, given?)` | runs it as a person does, telling them where it fails                   |
+| `at(element)`                    | lists every action at an element, each titled method of the objects too |
+| `has(reference, element)`        | reports whether it runs there now                                       |
+| `keybinding(action)`             | reads the person's keys for it, else its own                            |
+
+`provide(variable, value)` gives the actions in the element it is the `ref` of a variable's value, such as the sprint a section shows, and `provideVariable` the whole page's.
+`handleFailing(fail)` tells the person which action failed and why, as `Toaster` of `@destack/ui` does.
+`handleAsking(ask)` asks the person for what is missing, as `ActionDialog` of `@destack/ui` does.
+
 ### Handlers
 
-`handleAction` picks a handler as macOS's responder chain does: the innermost one `within` the focus, else the page's, while `isEnabled` reads true.
+An action bubbles as a DOM event does: from the focus through the elements around it to the page, until a handler whose `isEnabled` reads true takes it.
+`handle(action, handler)` handles it in the element it is the `ref` of, and `handleAction` for the whole page.
 
 | Field       | What it is                                                                      |
 | ----------- | ------------------------------------------------------------------------------- |
-| `run`       | runs the action                                                                 |
-| `within`    | the element focus is within for the handler to run                              |
+| `run`       | runs the action, with its inputs' `values` and the `element` it runs at         |
+| `choices`   | lists the values a person picks an input from                                   |
 | `isEnabled` | a Solid accessor: false leaves the keys to the page and hides it in the palette |
 
 ### Standard actions
@@ -143,11 +158,11 @@ Each primitive is `@destack/view/primitives/<name>`, after Solid Primitives: `ac
 
 ### Bold the focused editor's selection
 
-`handleAction` runs `bold` for the editor that has focus, while it has a selection.
+`handle` runs `bold` for the editor that has focus, while it has a selection.
 
 ```tsx
 import { t } from "@destack/locale";
-import { createSignal, handleAction } from "@destack/view";
+import { handle } from "@destack/view";
 import { defineAction } from "@destack/object";
 
 // declare bolding the selected text
@@ -163,14 +178,14 @@ export function Editor(properties: {
     readonly hasSelection: () => boolean;
     readonly bold: () => void;
 }) {
-    const [element, setElement] = createSignal<HTMLTextAreaElement>();
-    handleAction(bold, {
-        run: () => properties.bold(),
-        within: element,
-        isEnabled: properties.hasSelection,
-    });
-
-    return <textarea ref={setElement} />;
+    return (
+        <textarea
+            ref={handle(bold, {
+                run: () => properties.bold(),
+                isEnabled: properties.hasSelection,
+            })}
+        />
+    );
 }
 ```
 

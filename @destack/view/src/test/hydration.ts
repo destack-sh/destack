@@ -1,3 +1,4 @@
+import { ActionRegistry } from "../page/action.ts";
 import { resolve } from "node:path";
 import { loadTransforms } from "@destack/build/local";
 import { BrowserEnvironment } from "@destack/environment/browser";
@@ -6,8 +7,8 @@ import { modulePlugin } from "@destack/package/vite";
 import { ModuleTransformer } from "@destack/package/transform";
 import { createServer } from "vite";
 
-/** The module of the environment context, loaded alone to skip compiling the package's index. */
-const CONTEXT_MODULE = resolve(import.meta.dirname, "../page/context.ts");
+/** The module of the page's root, loaded alone to skip compiling the package's index. */
+const ROOT_MODULE = resolve(import.meta.dirname, "../page/root.ts");
 
 /** Render each component a module of the tested package exports on a server. */
 export async function renderOnServer(module: string): Promise<Record<string, string>> {
@@ -36,16 +37,16 @@ export async function renderOnServer(module: string): Promise<Record<string, str
             ],
         });
         try {
-            // load the module, the runtime rendering its components and the environment context they read
+            // load the module, the runtime rendering its components and the root they render under
             const loaded = await server.ssrLoadModule(resolve(root, module));
             const runtime = await server.ssrLoadModule("@solidjs/web");
-            const view = await server.ssrLoadModule(CONTEXT_MODULE);
-            const context: unknown = Reflect.get(view, "EnvironmentContext");
+            const view = await server.ssrLoadModule(ROOT_MODULE);
+            const pageRoot: unknown = Reflect.get(view, "PageRoot");
             const render: unknown = Reflect.get(runtime, "renderToString");
             const create: unknown = Reflect.get(runtime, "createComponent");
-            if (!isRenderer(render) || !isCreator(create) || !isFunction(context)) {
+            if (!isRenderer(render) || !isCreator(create) || !isFunction(pageRoot)) {
                 throw new TypeError(
-                    "the server runtime has no renderToString, createComponent or environment context",
+                    "the server runtime has no renderToString, createComponent or page root",
                 );
             }
 
@@ -60,8 +61,9 @@ export async function renderOnServer(module: string): Promise<Record<string, str
                     throw new TypeError(`'${module}' exports '${name}', which is not a component`);
                 }
                 rendered[name] = await render(() =>
-                    create(context, {
-                        value: environment,
+                    create(pageRoot, {
+                        environment,
+                        actions: new ActionRegistry(),
                         get children() {
                             return create(component, {});
                         },

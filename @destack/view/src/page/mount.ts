@@ -4,13 +4,10 @@ import { TelemetryScope } from "@destack/telemetry";
 import { type Component, createComponent } from "solid-js";
 import { type JSX, render } from "@solidjs/web";
 import type { Localization } from "@destack/locale";
+import type { ActionRegistry } from "./action.ts";
 import { LocaleContext } from "./locale.ts";
-import {
-    EnvironmentContext,
-    TelemetryContext,
-    type ViewMount,
-    ViewMountContext,
-} from "./context.ts";
+import { PageRoot } from "./root.ts";
+import { TelemetryContext, type ViewMount, ViewMountContext } from "./context.ts";
 
 /** What a view's components render under, mounted in a page or prerendered as a static page. */
 export interface ViewRootProperties {
@@ -18,6 +15,8 @@ export interface ViewRootProperties {
     readonly package: PackageVersion;
     /** The environment the components run in. */
     readonly environment: BrowserEnvironment;
+    /** The actions the components handle. */
+    readonly actions: ActionRegistry;
     /** The person's localization. */
     readonly localization: Localization;
     /** The mounted view, absent on a static page. */
@@ -39,8 +38,9 @@ export function ViewRoot(properties: ViewRootProperties): JSX.Element {
         });
     const { mount } = properties;
 
-    return createComponent(EnvironmentContext, {
-        value: properties.environment,
+    return createComponent(PageRoot, {
+        environment: properties.environment,
+        actions: properties.actions,
         get children() {
             return createComponent(TelemetryContext, {
                 value: telemetry,

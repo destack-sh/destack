@@ -19,8 +19,6 @@ export interface ViewMount {
     readonly origin: (path: string) => ClientOptions;
     /** Connect to a scope at the store below a path of the page's origin, as the page. */
     readonly connect: (path: string, scope: string) => ObjectConnection;
-    /** The actions the page's components handle while they are mounted. */
-    readonly actions: ActionRegistry;
 }
 
 /** The mounted view. */
@@ -28,6 +26,9 @@ export const ViewMountContext = createContext<ViewMount>();
 
 /** The environment views and components run in, which every render provides. */
 export const EnvironmentContext = createContext<BrowserEnvironment>();
+
+/** The actions a page's components handle while they are mounted, which every render provides. */
+export const ActionRegistryContext = createContext<ActionRegistry>();
 
 /** Read the environment the rendering runs in. */
 export function useEnvironment(): BrowserEnvironment {

@@ -6,6 +6,7 @@ import { type Component, createComponent, NoHydration } from "solid-js";
 import { createRequestEvent, createSSRResponse, type JSX, renderToStream } from "@solidjs/web";
 import type { StaticSite, View } from "../declare/view.ts";
 import { ViewError } from "../error/error.ts";
+import { ActionRegistry } from "../page/action.ts";
 import { ViewRoot } from "../page/mount.ts";
 import { ViewDocument } from "./document.tsx";
 import { IslandContext, IslandPage } from "./island.tsx";
@@ -23,6 +24,8 @@ export class StaticPage {
     readonly document: Component<{ readonly children?: JSX.Element }>;
     /** The environment the components run in. */
     readonly environment: BrowserEnvironment;
+    /** The actions the components handle. */
+    readonly actions: ActionRegistry;
     /** The view's pages module once loaded, on the server only. */
     #pages: Promise<StaticSite> | undefined;
 
@@ -38,6 +41,7 @@ export class StaticPage {
         this.component = component;
         this.document = document;
         this.environment = environment;
+        this.actions = new ActionRegistry();
     }
 
     /** Open a view's page, in the view's own shell or the runtime's under the package's theme. */
@@ -71,13 +75,14 @@ export class StaticPage {
     /** Render the page: the component under its view root inside the page shell. */
     render(): JSX.Element {
         // render the component under its view root inside the shell
-        const { component, view, environment } = this;
+        const { component, view, environment, actions } = this;
         const page = (): JSX.Element =>
             createComponent(this.document, {
                 get children() {
                     return createComponent(ViewRoot, {
                         package: view.package,
                         environment,
+                        actions,
                         localization: Localization.of(SOURCE_LOCALE, []),
                         get children() {
                             return createComponent(component, {});
