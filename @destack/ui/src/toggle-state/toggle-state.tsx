@@ -1,7 +1,13 @@
 import { Timeout } from "@destack/view/primitives/timer";
 import * as style from "@destack/style";
 import { visuallyHiddenStyle } from "../visually-hidden/index.ts";
-import { type Accessor, createControllableSignal, type JSX, onSettled } from "@destack/view";
+import {
+    type Accessor,
+    createControllableSignal,
+    type JSX,
+    onSettled,
+    untrack,
+} from "@destack/view";
 
 /** The styles of the hidden native input that submits a control's state with its form. */
 const styles = style.create({
@@ -60,7 +66,7 @@ export class ToggleState {
         const [isChecked, setChecked] = createControllableSignal({
             isControlled: () => properties.checked !== undefined,
             value: () => properties.checked === true,
-            defaultValue: properties.defaultChecked === true,
+            defaultValue: untrack(() => properties.defaultChecked) === true,
             onChange: (checked) => properties.onCheckedChange?.(checked),
         });
         this.isChecked = isChecked;

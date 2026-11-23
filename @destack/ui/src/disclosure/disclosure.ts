@@ -1,4 +1,4 @@
-import type { Accessor } from "@destack/view";
+import { type Accessor, untrack } from "@destack/view";
 
 /** Take a native disclosure's toggle, leaving a controlled one at its owner's state. */
 export function followToggle(
@@ -9,14 +9,14 @@ export function followToggle(
 ): void {
     // ignore a toggle to the state it already has
     const element = event.currentTarget;
-    if (element.open === isOpen()) {
+    if (element.open === untrack(isOpen)) {
         return;
     }
 
     // record the change and show the owner's state until the owner takes it
     setOpen(element.open);
     if (isControlled) {
-        element.open = isOpen();
+        element.open = untrack(isOpen);
     }
 }
 

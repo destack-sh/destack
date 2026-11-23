@@ -563,9 +563,13 @@ export class BoardControl {
     /** Replace the mounted composers. */
     readonly #setComposers: Setter<ReadonlyMap<string, number>>;
     /** The hidden list's row of each hidden column, which drags aim at, none without a list. */
-    readonly #hiddenRows: Accessor<ReadonlyMap<string, HTMLElement> | undefined>;
+    readonly #hiddenRows: Accessor<
+        ReadonlyMap<string, Accessor<HTMLElement | undefined>> | undefined
+    >;
     /** Replace the hidden list's rows. */
-    readonly #setHiddenRows: Setter<ReadonlyMap<string, HTMLElement> | undefined>;
+    readonly #setHiddenRows: Setter<
+        ReadonlyMap<string, Accessor<HTMLElement | undefined>> | undefined
+    >;
     /** The number of column menus mounted, whose Hide needs a hidden list. */
     readonly #columnMenus: Accessor<number>;
     /** Replace the number of column menus mounted. */
@@ -673,7 +677,7 @@ export class BoardControl {
 
         // follow the hidden list's rows and count the column menus as they mount
         [this.#hiddenRows, this.#setHiddenRows] = createSignal<
-            ReadonlyMap<string, HTMLElement> | undefined
+            ReadonlyMap<string, Accessor<HTMLElement | undefined>> | undefined
         >(undefined, { ownedWrite: true });
         [this.#columnMenus, this.#setColumnMenus] = createSignal(0, { ownedWrite: true });
         this.menu = new MenuControl(null, {
@@ -974,7 +978,7 @@ export class BoardControl {
     }
 
     /** Add a hidden column's row in the hidden list until it unmounts. */
-    addHiddenRow(column: string, element: HTMLElement): void {
+    addHiddenRow(column: string, element: Accessor<HTMLElement | undefined>): void {
         // add the row to the mounted list's rows, and remove it while the list stands
         this.#setHiddenRows((rows) =>
             new Map(present(rows, "the board's hidden list")).set(column, element),
@@ -997,7 +1001,7 @@ export class BoardControl {
         }
 
         return present(
-            untrack(this.#hiddenRows)?.get(cell.column),
+            untrack(this.#hiddenRows)?.get(cell.column)?.(),
             `the hidden list's row of column '${cell.column}'`,
         );
     }
@@ -1668,34 +1672,40 @@ export function BoardHiddenList(
             >
                 <span {...style.attrs(styles.hiddenTitle)}>{locale.render(t`Hidden`)}</span>
                 <For each={hidden()}>
-                    {(column) => (
-                        <div
-                            data-slot="board-hidden-column"
-                            data-column={column.key}
-                            data-over={isAimed(column.key) ? "" : undefined}
-                            ref={(element: HTMLDivElement) =>
-                                control.addHiddenRow(column.key, element)
-                            }
-                            {...style.attrs(
-                                styles.hiddenRow,
-                                isAimed(column.key) && styles.hiddenRowAimed,
-                            )}
-                        >
-                            <span {...style.attrs(styles.hiddenLabel)}>{column.label()}</span>
-                            <span {...style.attrs(styles.count)}>
-                                {locale.number(control.count(column.key))}
-                            </span>
-                            <button
-                                type="button"
-                                data-slot="board-column-show"
-                                aria-label={locale.render(t`Show ${column.label()}`)}
-                                onClick={() => control.toggleHidden(column.key)}
-                                {...style.attrs(state.hover, styles.toggle, styles.end)}
+                    {(column) => {
+                        // add the row as the place drags aim at for its column, once it mounts
+                        const [row, setRow] = createSignal<HTMLElement | undefined>(undefined, {
+                            ownedWrite: true,
+                        });
+                        control.addHiddenRow(column.key, row);
+
+                        return (
+                            <div
+                                data-slot="board-hidden-column"
+                                ref={setRow}
+                                data-column={column.key}
+                                data-over={isAimed(column.key) ? "" : undefined}
+                                {...style.attrs(
+                                    styles.hiddenRow,
+                                    isAimed(column.key) && styles.hiddenRowAimed,
+                                )}
                             >
-                                <Icon icon={eye} />
-                            </button>
-                        </div>
-                    )}
+                                <span {...style.attrs(styles.hiddenLabel)}>{column.label()}</span>
+                                <span {...style.attrs(styles.count)}>
+                                    {locale.number(control.count(column.key))}
+                                </span>
+                                <button
+                                    type="button"
+                                    data-slot="board-column-show"
+                                    aria-label={locale.render(t`Show ${column.label()}`)}
+                                    onClick={() => control.toggleHidden(column.key)}
+                                    {...style.attrs(state.hover, styles.toggle, styles.end)}
+                                >
+                                    <Icon icon={eye} />
+                                </button>
+                            </div>
+                        );
+                    }}
                 </For>
             </div>
         </Show>

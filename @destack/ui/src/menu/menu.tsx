@@ -429,7 +429,9 @@ export function MenuContent(properties: MenuContentProperties): JSX.Element {
     const locale = useLocale();
     const content = merge(DEFAULTS, properties);
     const rest = omit(content, "side", "align", "sideOffset", "xstyle", "style");
-    createEffect(control.isOpen, (isOpen) => control.sync(isOpen));
+
+    // show and hide the menu as it opens and closes
+    createEffect(control.isOpen, (isOpen) => untrack(() => control.sync(isOpen)));
 
     // place a context menu at its point
     const position = (): style.Styles => {

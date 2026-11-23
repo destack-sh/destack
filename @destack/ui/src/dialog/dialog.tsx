@@ -223,22 +223,30 @@ export function DialogContent(properties: DialogContentProperties): JSX.Element 
     });
 
     // show or close the dialog element as the state changes
-    createEffect(control.isOpen, (isOpen) => {
-        // wait for the dialog element to mount
-        if (element === undefined) {
-            return;
-        }
+    createEffect(
+        () => ({ isOpen: control.isOpen(), isModal: control.isModal() }),
+        ({ isOpen, isModal }) =>
+            untrack(() => {
+                // wait for the dialog element to mount
+                if (element === undefined) {
+                    return;
+                }
 
-        // open it modally on top of the document's stack, beside the page, or close it
-        if (isOpen && !element.open && control.isModal()) {
-            element.showModal();
-            LayerStack.of(element).open(element);
-        } else if (isOpen && !element.open) {
-            element.show();
-        } else if (!isOpen && element.open) {
-            element.close();
-        }
-    });
+                // open it modally on top of the document's stack
+                if (isOpen && !element.open && isModal) {
+                    element.showModal();
+                    LayerStack.of(element).open(element);
+                }
+                // open it beside the page
+                else if (isOpen && !element.open) {
+                    element.show();
+                }
+                // close it
+                else if (!isOpen && element.open) {
+                    element.close();
+                }
+            }),
+    );
 
     return (
         <TopLayer>

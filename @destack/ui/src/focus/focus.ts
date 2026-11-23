@@ -192,11 +192,13 @@ export class Focus<Key> {
         createEffect(
             () => this.mode === "roving" && this.isFocused() && this.isActive(key()),
             (isTaking) => {
-                // focus the element unless it already has the focus, its handlers reading untracked
-                const target = element();
-                if (isTaking && target !== undefined && target !== document.activeElement) {
-                    untrack(() => target.focus());
-                }
+                // focus the element unless it already has the focus
+                untrack(() => {
+                    const target = element();
+                    if (isTaking && target !== undefined && target !== document.activeElement) {
+                        target.focus();
+                    }
+                });
             },
         );
     }

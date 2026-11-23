@@ -114,6 +114,25 @@ test("show the next tooltip of a group at once and without motion while the last
     }).toEqual({ isShown: true, isInstant: [false, true] });
 });
 
+test("mark its trigger hovered while a mouse rests on it, and not once it leaves", () => {
+    stubPopovers();
+    const { container } = render(() => (
+        <Tooltip>
+            <TooltipTrigger>A</TooltipTrigger>
+            <TooltipContent>Archive note</TooltipContent>
+        </Tooltip>
+    ));
+    const trigger = find(container, "[data-slot=tooltip-trigger]");
+    const pointer = (type: string) => {
+        trigger.dispatchEvent(new PointerEvent(type, { pointerType: "mouse" }));
+        flush();
+
+        return trigger.hasAttribute("data-hovered");
+    };
+
+    expect([pointer("pointerenter"), pointer("pointerleave")]).toEqual([true, false]);
+});
+
 test("set a tooltip's gap from its trigger", () => {
     stubPopovers();
     render(() => (

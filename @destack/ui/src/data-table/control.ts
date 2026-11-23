@@ -708,7 +708,22 @@ export class DataTableControl<
 
     /** Move the focus to a cell and its element's control, bringing a virtual row into view. */
     focusCell(key: CellKey): void {
-        // forget a refused paste of another cell
+        // move the focus and render the cell
+        this.#enter(key);
+        this.focus.reveal(key);
+        flush();
+        this.#focusRendered(key);
+    }
+
+    /** Give the focus back to an open edit's field, whose cell renders while the edit is open. */
+    focusEdit(edit: DataTableEdit): void {
+        const key = { kind: "body", row: edit.row, column: edit.column } as const;
+        this.#enter(key);
+        this.#focusRendered(key);
+    }
+
+    /** Move the focus to a key, forgetting a refused paste of another cell. */
+    #enter(key: CellKey): void {
         const refusal = untrack(this.refusal);
         if (
             refusal !== undefined &&
@@ -716,13 +731,11 @@ export class DataTableControl<
         ) {
             this.#setRefusal(undefined);
         }
-
-        // move the focus and render the cell
         this.focus.enter(key);
-        this.focus.reveal(key);
-        flush();
+    }
 
-        // focus the cell's element where it rendered, unless the focus already rests inside it
+    /** Focus a rendered cell's element, unless the focus already rests inside it. */
+    #focusRendered(key: CellKey): void {
         const selector = `[data-cell="${keyText(key)}"]`;
         const cell = this.#options.root()?.querySelector<HTMLElement>(selector);
         if (cell !== null && cell !== undefined && !cell.contains(document.activeElement)) {

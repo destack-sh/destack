@@ -10,6 +10,7 @@ import type * as style from "@destack/style";
 import {
     type Accessor,
     createContext,
+    createEffect,
     createMemo,
     createSignal,
     type JSX,
@@ -298,8 +299,11 @@ export class TimelineControl {
         this.tree.commit([{ ...this.tree.item(key), start, end }]);
     }
 
-    /** Report whether a bar's label overflows it as the bar resizes, until the bar unmounts. */
-    observeClip(element: HTMLElement, onClip: (isClipped: boolean) => void): void {
+    /** Report whether a bar's label overflows it as the bar resizes, for each element it mounts. */
+    observeClip(
+        element: Accessor<HTMLElement | undefined>,
+        onClip: (isClipped: boolean) => void,
+    ): void {
         // measure every resized bar in one pass after layout, then report each
         this.#clipObserver ??= new ResizeObserver((entries) => {
             const clips = entries.map((entry) => {
@@ -311,11 +315,20 @@ export class TimelineControl {
                 this.#clips.get(target)?.(isClipped);
             }
         });
-        this.#clips.set(element, onClip);
-        this.#clipObserver.observe(element);
-        onCleanup(() => {
-            this.#clips.delete(element);
-            this.#clipObserver?.unobserve(element);
+        const observer = this.#clipObserver;
+
+        // observe each element the bar mounts, and stop as it unmounts
+        createEffect(element, (each) => {
+            if (each === undefined) {
+                return undefined;
+            }
+            this.#clips.set(each, onClip);
+            observer.observe(each);
+
+            return () => {
+                this.#clips.delete(each);
+                observer.unobserve(each);
+            };
         });
     }
 

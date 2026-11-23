@@ -395,7 +395,7 @@ export function PopoverContent(properties: PopoverContentProperties): JSX.Elemen
     const modalRest = omit(rest, "tabindex");
 
     // show and hide the popover as it opens and closes
-    createEffect(popover.isOpen, (isOpen) => popover.sync(isOpen));
+    createEffect(popover.isOpen, (isOpen) => untrack(() => popover.sync(isOpen)));
 
     return (
         <TopLayer>

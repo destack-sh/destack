@@ -1,7 +1,15 @@
-import { type ElementPartProperties, renderPart } from "../part/index.ts";
+import { type ElementPartProperties, renderPart, mergeProperties } from "../part/index.ts";
 import * as style from "@destack/style";
 import { color, radius, shadow, space, stroke, width } from "@destack/theme/tokens.stylex";
-import { createContext, createEffect, type JSX, merge, omit, useContext } from "@destack/view";
+import {
+    createContext,
+    createEffect,
+    type JSX,
+    merge,
+    omit,
+    useContext,
+    untrack,
+} from "@destack/view";
 import { Hover } from "../interaction/index.ts";
 import { HoverPopover, type HoverPopoverProperties } from "../popover/index.ts";
 import { type Align, Position, type Side } from "../position/index.ts";
@@ -97,15 +105,20 @@ export function HoverCardTrigger(properties: HoverCardTriggerProperties): JSX.El
         onHoverEnd: () => card.closeLater(),
     });
 
-    return renderPart("a", "hover-card-trigger", properties, [], {
-        ...hover.attributes(),
-        get "data-popup-open"() {
-            return card.isOpen() ? "" : undefined;
-        },
-        ref: (element: HTMLElement) => card.setTrigger(element),
-        onFocus: () => card.openLater(),
-        onBlur: () => card.closeLater(),
-    });
+    return renderPart(
+        "a",
+        "hover-card-trigger",
+        properties,
+        [],
+        mergeProperties(hover.attributes(), {
+            get "data-popup-open"() {
+                return card.isOpen() ? "" : undefined;
+            },
+            ref: (element: HTMLElement) => card.setTrigger(element),
+            onFocus: () => card.openLater(),
+            onBlur: () => card.closeLater(),
+        }),
+    );
 }
 
 /** Render a preview in the top layer beside its link and open while the pointer rests on it. */
@@ -116,7 +129,7 @@ export function HoverCardContent(properties: HoverCardContentProperties): JSX.El
     const rest = omit(content, "side", "align", "sideOffset", "xstyle", "style");
 
     // show and hide the card as it opens and closes
-    createEffect(card.isOpen, (isOpen) => card.sync(isOpen));
+    createEffect(card.isOpen, (isOpen) => untrack(() => card.sync(isOpen)));
 
     // leave the card open while a pointer rests on it
     const hover = new Hover({

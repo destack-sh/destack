@@ -2588,12 +2588,15 @@ function DataTableCellEditor<Features extends TableFeatures, Data extends RowDat
     const editor = untrack(() => properties.editor);
     const initial = untrack(() => control.edit()?.initial);
     let field: HTMLInputElement | HTMLSelectElement | undefined;
-    onSettled(() => {
-        field?.focus();
-        if (field instanceof HTMLInputElement && field.type === "text") {
-            field.setSelectionRange(field.value.length, field.value.length);
-        }
-    });
+    onSettled(() =>
+        untrack(() => {
+            // focus the field with the caret at the end
+            field?.focus();
+            if (field instanceof HTMLInputElement && field.type === "text") {
+                field.setSelectionRange(field.value.length, field.value.length);
+            }
+        }),
+    );
 
     // follow the person's choice in a select until Enter or the focus leaving commits it
     const [choice, setChoice] = createSignal(
@@ -2609,11 +2612,13 @@ function DataTableCellEditor<Features extends TableFeatures, Data extends RowDat
               : element.value;
 
     // end an edit whose row leaves the table with the text it has
-    onCleanup(() => {
-        if (field !== undefined && control.edit() !== undefined) {
-            control.leave(textOf(field));
-        }
-    });
+    onCleanup(() =>
+        untrack(() => {
+            if (field !== undefined && control.edit() !== undefined) {
+                control.leave(textOf(field));
+            }
+        }),
+    );
 
     // commit on Enter and move down, on Tab and move across, and cancel on Escape
     const onKeyDown = (
@@ -2634,7 +2639,10 @@ function DataTableCellEditor<Features extends TableFeatures, Data extends RowDat
     // end the edit where the focus leaves it with a value, else mark the text and go on editing
     const onBlur = (
         event: FocusEvent & { readonly currentTarget: HTMLInputElement | HTMLSelectElement },
-    ) => (control.edit() === undefined ? undefined : control.leave(textOf(event.currentTarget)));
+    ) =>
+        untrack(() =>
+            control.edit() === undefined ? undefined : control.leave(textOf(event.currentTarget)),
+        );
     const isInvalid = () => (control.edit()?.isInvalid === true ? "true" : undefined);
 
     return (
@@ -2734,7 +2742,7 @@ function useGridCell<Features extends TableFeatures, Data extends RowData>(
             // hand the focus back to an open edit's field, which only Escape or a value ends
             const edit = control.edit();
             if (edit !== undefined && !control.isEditing(key())) {
-                control.focusCell({ kind: "body", row: edit.row, column: edit.column });
+                control.focusEdit(edit);
 
                 return;
             }

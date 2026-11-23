@@ -12,9 +12,10 @@ import {
     omit,
     useContext,
     useEnvironment,
+    untrack,
 } from "@destack/view";
 import { Hover } from "../interaction/index.ts";
-import { type ElementPartProperties, renderPart } from "../part/index.ts";
+import { type ElementPartProperties, renderPart, mergeProperties } from "../part/index.ts";
 import { HoverPopover, type HoverPopoverProperties } from "../popover/index.ts";
 import { type Align, Position, type Side } from "../position/index.ts";
 import { TopLayer } from "../layer/index.ts";
@@ -230,26 +231,31 @@ export function TooltipTrigger(properties: TooltipTriggerProperties): JSX.Elemen
         onHoverEnd: () => tooltip.closeLater(),
     });
 
-    return renderPart("button", "tooltip-trigger", properties, [], {
-        type: "button",
-        ...hover.attributes(),
-        get "data-popup-open"() {
-            return tooltip.isOpen() ? "" : undefined;
-        },
-        "aria-describedby": tooltip.id,
-        ref: (element: HTMLElement) => tooltip.setTrigger(element),
-        onFocus: (event) => {
-            // show a tooltip the keyboard reaches at once and without motion
-            tooltip.open({ isImmediate: event.currentTarget.matches(":focus-visible") });
-        },
-        onBlur: () => tooltip.close(),
-        onKeyDown: (event) => {
-            // dismiss the tooltip on Escape
-            if (event.key === "Escape") {
-                tooltip.close();
-            }
-        },
-    });
+    return renderPart(
+        "button",
+        "tooltip-trigger",
+        properties,
+        [],
+        mergeProperties(hover.attributes(), {
+            type: "button" as const,
+            get "data-popup-open"() {
+                return tooltip.isOpen() ? "" : undefined;
+            },
+            "aria-describedby": tooltip.id,
+            ref: (element: HTMLElement) => tooltip.setTrigger(element),
+            onFocus: (event: FocusEvent & { readonly currentTarget: HTMLElement }) => {
+                // show a tooltip the keyboard reaches at once and without motion
+                tooltip.open({ isImmediate: event.currentTarget.matches(":focus-visible") });
+            },
+            onBlur: () => tooltip.close(),
+            onKeyDown: (event: KeyboardEvent) => {
+                // dismiss the tooltip on Escape
+                if (event.key === "Escape") {
+                    tooltip.close();
+                }
+            },
+        }),
+    );
 }
 
 /** Render the text that describes its trigger, in the top layer beside it. */
@@ -261,7 +267,7 @@ export function TooltipContent(properties: TooltipContentProperties): JSX.Elemen
     const rest = omit(content, "side", "align", "sideOffset", "xstyle", "style");
 
     // show and hide the tooltip as it opens and closes
-    createEffect(tooltip.isOpen, (isOpen) => tooltip.sync(isOpen));
+    createEffect(tooltip.isOpen, (isOpen) => untrack(() => tooltip.sync(isOpen)));
 
     // leave the tooltip open while a pointer rests on it
     const hover = new Hover({

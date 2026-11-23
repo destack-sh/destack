@@ -82,12 +82,14 @@ export function createTable<Features extends TableFeatures, Row extends RowData>
         // drop the selected cells for any new order, and go to the first page for new rows
         const [sorting, ...filtering] = next;
         const isFiltered = filtering.some((slice, index) => slice !== previous[index + 1]);
-        if (isSelectingTable(view) && (sorting !== previous[0] || isFiltered)) {
-            view.resetCellSelection(true);
-        }
-        if (isPagingTable(view) && isFiltered) {
-            view.setPageIndex(0);
-        }
+        untrack(() => {
+            if (isSelectingTable(view) && (sorting !== previous[0] || isFiltered)) {
+                view.resetCellSelection(true);
+            }
+            if (isPagingTable(view) && isFiltered) {
+                view.setPageIndex(0);
+            }
+        });
     });
     createEffect(
         () => {
@@ -105,7 +107,7 @@ export function createTable<Features extends TableFeatures, Row extends RowData>
                 count !== undefined &&
                 index >= count
             ) {
-                view.setPageIndex(Math.max(count - 1, 0));
+                untrack(() => view.setPageIndex(Math.max(count - 1, 0)));
             }
         },
     );
@@ -114,7 +116,13 @@ export function createTable<Features extends TableFeatures, Row extends RowData>
     createEffect(
         () => ({ ...options, state: { ...options.state } }),
         (next) =>
-            table.setOptions((previous) => ({ ...previous, ...next, features: previous.features })),
+            untrack(() =>
+                table.setOptions((previous) => ({
+                    ...previous,
+                    ...next,
+                    features: previous.features,
+                })),
+            ),
     );
 
     return Object.assign(table, { tracked: () => tracked().state });

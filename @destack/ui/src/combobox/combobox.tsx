@@ -321,7 +321,7 @@ export function ComboboxContent(
 ): JSX.Element {
     // show and hide the list as the combobox opens and closes
     const control = useCombobox();
-    createEffect(control.isOpen, (isOpen) => control.sync(isOpen));
+    createEffect(control.isOpen, (isOpen) => untrack(() => control.sync(isOpen)));
 
     return (
         <TopLayer>

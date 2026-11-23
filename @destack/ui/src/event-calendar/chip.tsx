@@ -285,13 +285,15 @@ export function EventCalendarEvent(properties: EventCalendarEventProperties): JS
             <Show when={properties.layout === "list"}>
                 <span {...style.attrs(styles.time)}>
                     <Show when={timed()} fallback={locale.render(t`All day`)}>
-                        {(current) =>
-                            locale.dateRange(current().start, current().end, {
-                                hour: "numeric",
-                                minute: "2-digit",
-                                timeZone: control.timeZone(),
-                            })
-                        }
+                        {(current) => (
+                            <>
+                                {locale.dateRange(current().start, current().end, {
+                                    hour: "numeric",
+                                    minute: "2-digit",
+                                    timeZone: control.timeZone(),
+                                })}
+                            </>
+                        )}
                     </Show>
                 </span>
                 <span {...style.attrs(styles.dot, fills.dot(swatch[`${preset()}Mark`]))} />

@@ -1,7 +1,16 @@
 import * as style from "@destack/style";
 import { color, radius, shadow, space, stroke, swatch } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import { createEffect, createUniqueId, For, type JSX, omit, onSettled, Show } from "@destack/view";
+import {
+    createEffect,
+    createUniqueId,
+    For,
+    type JSX,
+    omit,
+    onSettled,
+    Show,
+    untrack,
+} from "@destack/view";
 import type { ChartPoint, ChartTheme, ChartValue, DomChartDefinition } from "@tanstack/charts";
 import { createChartRendererAdapter } from "@tanstack/charts/adapter/renderer";
 import { createCanvasChartRenderer } from "@tanstack/charts/canvas";
@@ -121,7 +130,7 @@ export function Chart<
     );
     const prefix = `chart-${createUniqueId().replaceAll(/[^\w-]/gu, "")}`;
     const renderer =
-        properties.renderer === "canvas"
+        untrack(() => properties.renderer) === "canvas"
             ? createCanvasChartRenderer<Datum, XValue, YValue>()
             : createSvgChartRenderer<Datum, XValue, YValue>(renderChartSvg);
     const options = () => ({
@@ -138,7 +147,7 @@ export function Chart<
             properties.onFocusChange?.(point),
         onSelect: (point: ChartPoint<Datum, XValue, YValue> | null) => properties.onSelect?.(point),
     });
-    const adapter = createChartRendererAdapter<Datum, XValue, YValue>(options());
+    const adapter = createChartRendererAdapter<Datum, XValue, YValue>(untrack(options));
     const markup = adapter.prerender();
 
     // mount the host over the rendered markup, following changed properties until unmounted

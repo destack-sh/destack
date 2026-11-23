@@ -533,16 +533,18 @@ function BarTrack(
 
     // write a clipped bar's or a milestone's label beside it
     const [isClipped, setClipped] = createSignal(false, { ownedWrite: true });
+    const [body, setBody] = createSignal<HTMLElement | undefined>(undefined, { ownedWrite: true });
+    control.observeClip(body, setClipped);
     const registerBody = (created: HTMLElement) => {
         elements.set("body", created);
-        control.observeClip(created, setClipped);
+        setBody(created);
     };
     const measuredLabel = untrack(() => item().label);
     createEffect(
         () => item().label,
         (label) => {
             // measure again when the label changes, the observer measuring the first one
-            const element = elements.get("body");
+            const element = untrack(body);
             if (element !== undefined && label !== measuredLabel) {
                 setClipped(element.scrollWidth > element.clientWidth + 1);
             }

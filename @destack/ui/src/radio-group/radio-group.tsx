@@ -12,6 +12,7 @@ import {
     Show,
     useContext,
     useLocale,
+    untrack,
 } from "@destack/view";
 import { ToggleInput, isSubmitted } from "../toggle-state/index.ts";
 import { ListState } from "../focus/index.ts";
@@ -138,7 +139,7 @@ export class RadioGroupControl {
             }
         };
         this.properties = properties;
-        this.name = properties.name ?? createUniqueId();
+        this.name = untrack(() => properties.name) ?? createUniqueId();
         this.selection = new Selection(
             "value" in properties
                 ? {
@@ -147,7 +148,7 @@ export class RadioGroupControl {
                       },
                       onValueChange,
                   }
-                : { ...defaultOf(properties.defaultValue), onValueChange },
+                : { ...defaultOf(untrack(() => properties.defaultValue)), onValueChange },
         );
 
         // put the tab stop on the checked radio, else the first available one, moving on every arrow

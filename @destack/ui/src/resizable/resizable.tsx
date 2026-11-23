@@ -20,6 +20,7 @@ import {
     useContext,
     useEnvironment,
     useLocale,
+    untrack,
 } from "@destack/view";
 import { createElementSize } from "@destack/view/primitives/resize-observer";
 import { Move } from "../interaction/index.ts";
@@ -145,14 +146,11 @@ export class ResizableControl {
         this.#properties = properties;
         const environment = useEnvironment();
         this.#telemetry = TelemetryScope.of(import.meta.destack.package, environment.telemetry);
+        const autoSaveId = untrack(() => properties.autoSaveId);
         this.#stored =
-            properties.autoSaveId === undefined
+            autoSaveId === undefined
                 ? undefined
-                : new StoredItem(
-                      `${LAYOUT_KEY}${properties.autoSaveId}`,
-                      environment,
-                      this.#telemetry,
-                  );
+                : new StoredItem(`${LAYOUT_KEY}${autoSaveId}`, environment, this.#telemetry);
         this.#setPanels = setPanels;
         this.#handles = 0;
         const [element, setElement] = createSignal<HTMLElement>();
