@@ -64,7 +64,7 @@ export async function resolveImage(
 `package.publish` takes `visibility` when given, else the `publishConfig.access` of the image's `package.json`, as npm reads it.
 It points `tag` at the release, `latest` when absent, and each of `tags` too.
 
-A release's version is a calendar version, or a dev version `<release>-dev.<time>.<key>` for a prerelease.
+A release's version is a calendar version; the forge refuses publishing `dev`.
 
 ### Mounts
 

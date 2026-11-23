@@ -4,7 +4,7 @@ import { NpmPackument } from "./packument.ts";
 
 /** The address of a release's tarball at the fixture forge. */
 function tarball(version: string): string {
-    return `https://forge.test/npm/@acme/notes/-/notes-${version}.tgz`;
+    return `https://forge.test/npm/@example/notes/-/notes-${version}.tgz`;
 }
 
 test("list a package's releases in release order with their install fields, and its tags at listed releases", () => {
@@ -15,7 +15,7 @@ test("list a package's releases in release order with their install fields, and 
         tarball: tarball(version),
     });
     const packument = NpmPackument.of(
-        "@acme/notes",
+        "@example/notes",
         { stable: "2026.11.3", latest: "2026.11.3", gone: "2026.10.0" },
         [
             release("2026.11.3", {
@@ -26,17 +26,17 @@ test("list a package's releases in release order with their install fields, and 
         ],
     );
     expect(packument).toEqual({
-        name: "@acme/notes",
+        name: "@example/notes",
         "dist-tags": { latest: "2026.11.3", stable: "2026.11.3" },
         versions: {
             "2026.9.0": {
-                name: "@acme/notes",
+                name: "@example/notes",
                 version: "2026.9.0",
                 dist: { tarball: tarball("2026.9.0"), integrity: "sha512-2026.9.0" },
                 deprecated: "use 2026.11",
             },
             "2026.11.3": {
-                name: "@acme/notes",
+                name: "@example/notes",
                 version: "2026.11.3",
                 dependencies: { "@destack/object": "2026.11.2" },
                 bin: { notes: "./src/main.ts" },

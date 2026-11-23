@@ -11,7 +11,7 @@ import { NpmTarball } from "./tarball.ts";
 /** The app the fixture build releases. */
 const NOTES = PackageVersion.parse({
     id: "package-019f5530-8000-7000-8000-0000000000a1",
-    name: "@acme/notes",
+    name: "@example/notes",
     version: "2026.11.3",
 });
 
@@ -34,7 +34,7 @@ test("pack an image's root build below package/ in path order, with what a listi
     const { crypto, compression } = environment;
     await using store = await TestBuildStore.create(environment);
     const authored = {
-        name: "@acme/notes",
+        name: "@example/notes",
         version: "2026.11.3",
         exports: { "./package": "./src/package.ts" },
         dependencies: { "@destack/object": "workspace:*", zod: "4.1.0" },

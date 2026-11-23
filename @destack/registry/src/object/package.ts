@@ -177,7 +177,7 @@ export const packageObject = defineObject(
             permission: "read",
             target: "scope",
             input: schema.object({
-                /** The global name, such as @acme/notebooks. */
+                /** The global name, such as @example/notebooks. */
                 name: PackageName,
             }),
             prepared: ObjectReference,
@@ -188,7 +188,7 @@ export const packageObject = defineObject(
             permission: "read",
             target: "scope",
             input: schema.object({
-                /** The package's global name, such as @acme/notebooks. */
+                /** The package's global name, such as @example/notebooks. */
                 name: PackageName,
             }),
             output: schema.object({
