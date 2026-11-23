@@ -13,7 +13,10 @@ runs:
           shell: bash
           env:
               PACKAGES: ${{ inputs.packages }}
-          run: echo "key=apt-${ImageOS}-${ImageVersion}-${RUNNER_ARCH}-${PACKAGES// /-}" >> "$GITHUB_OUTPUT"
+          run: |
+              # key by a digest of the sorted packages, as a list of names outgrows the cache key's 512 characters
+              digest="$(tr ' ' '\n' <<< "$PACKAGES" | sed '/^$/d' | sort | sha256sum | cut -c1-16)"
+              echo "key=apt-${ImageOS}-${ImageVersion}-${RUNNER_ARCH}-${digest}" >> "$GITHUB_OUTPUT"
         - name: Restore package archives
           id: cache
           uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
