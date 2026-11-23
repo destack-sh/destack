@@ -161,7 +161,7 @@ test("refuse names that lead nowhere, and a named machine that has no tunnel and
     const names = [
         "notes--work--rival.destack.space",
         "notes--missing--example.destack.space",
-        "work--example.destack.space",
+        "missing--example.destack.space",
         "notes.work.example.example.com",
     ];
     const answers = await Promise.all(names.map((name) => computer.request(relay, name, "/")));
