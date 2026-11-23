@@ -18,6 +18,7 @@ export {
     getOwner,
     isDisposed,
     isEqual,
+    isHydrating,
     isPending,
     isWrappable,
     latest,
