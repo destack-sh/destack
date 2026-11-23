@@ -48,7 +48,14 @@ export function DropdownMenuTrigger(properties: DropdownMenuTriggerProperties): 
         },
         "aria-controls": control.id,
         ref: (element: HTMLElement) => control.setTrigger(element),
-        onClick: () => (control.isOpen() ? control.close(true) : control.open("first")),
+        onPointerDown: (event) => control.release.press(event),
+        onMouseDown: (event) => {
+            // leave the focus to the menu a mouse opens
+            if (control.isOpen()) {
+                event.preventDefault();
+            }
+        },
+        onClick: (event) => control.release.click(event),
         onKeyDown: (event) => {
             // open on the arrow keys where they open it, focusing the first or the last item
             const isArrow = event.key === "ArrowDown" || event.key === "ArrowUp";

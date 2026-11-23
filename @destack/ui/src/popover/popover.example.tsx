@@ -1,6 +1,7 @@
 import { defineExample } from "@destack/package/declare";
 import { Button } from "../button/index.ts";
 import { Field, FieldLabel } from "../field/index.ts";
+import { Stack } from "../stack/index.ts";
 import { Input } from "../input/index.ts";
 import {
     Popover,
@@ -70,13 +71,15 @@ export const popoverRenameModal = defineExample({
                 Rename
             </PopoverTrigger>
             <PopoverContent align="start">
-                <Field>
-                    <FieldLabel>Title</FieldLabel>
-                    <Input name="title" value="Groceries" />
-                </Field>
-                <PopoverClose render={(attributes) => <Button {...attributes} />}>
-                    Save
-                </PopoverClose>
+                <Stack>
+                    <Field>
+                        <FieldLabel>Title</FieldLabel>
+                        <Input name="title" value="Groceries" />
+                    </Field>
+                    <PopoverClose render={(attributes) => <Button {...attributes} />}>
+                        Save
+                    </PopoverClose>
+                </Stack>
             </PopoverContent>
         </Popover>
     ),

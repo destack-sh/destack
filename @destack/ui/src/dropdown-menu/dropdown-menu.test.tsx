@@ -80,3 +80,67 @@ test("render an item as a link with the item's role, closing the menu when follo
         find(container, "[data-slot=dropdown-menu-trigger]").getAttribute("aria-expanded"),
     ]).toEqual(["#settings", "dropdown-menu-item", "Settings", "false"]);
 });
+
+/** Send a mouse event to an element at a point and a time in milliseconds. */
+function point(type: string, element: Element, x: number, at: number): void {
+    const event = new PointerEvent(type, {
+        bubbles: true,
+        cancelable: true,
+        view: window,
+        pointerType: "mouse",
+        clientX: x,
+        detail: type === "click" ? 1 : 0,
+    });
+    Object.defineProperty(event, "timeStamp", { value: at });
+    element.dispatchEvent(event);
+    flush();
+}
+
+test("open on a press, choose the item a drag is let go over and close over none", () => {
+    // a menu of one action
+    stubPopovers();
+    const ran: string[] = [];
+    const { container } = render(() => (
+        <DropdownMenu>
+            <DropdownMenuTrigger>Note</DropdownMenuTrigger>
+            <DropdownMenuContent>
+                <DropdownMenuItem onSelect={() => ran.push("rename")}>Rename</DropdownMenuItem>
+            </DropdownMenuContent>
+        </DropdownMenu>
+    ));
+    const trigger = find(container, "[data-slot=dropdown-menu-trigger]");
+    const item = find(container, "[data-menu-item]");
+    const isOpen = () => trigger.getAttribute("aria-expanded");
+    const run = (target: Element, x: number, at: number): (string | null)[] => {
+        // press the trigger and let go over a target, with the click of a press in place
+        point("pointerdown", trigger, 0, 0);
+        const pressed = isOpen();
+        point("pointerup", target, x, at);
+        if (target === trigger) {
+            point("click", trigger, x, at);
+        }
+
+        return [pressed, isOpen()];
+    };
+
+    expect({
+        click: run(trigger, 0, 90),
+        secondClick: run(trigger, 0, 90),
+        drag: run(item, 40, 300),
+        brief: run(item, 40, 100),
+        close: run(trigger, 0, 90),
+        outside: run(document.body, 400, 300),
+        ran,
+    }).toEqual({
+        // a click leaves it open, the next one closes it
+        click: ["true", "true"],
+        secondClick: ["true", "false"],
+        // a drag to the item chooses it, a press too brief for a drag leaves the menu open
+        drag: ["true", "false"],
+        brief: ["true", "true"],
+        close: ["true", "false"],
+        // a drag to nothing closes it
+        outside: ["true", "false"],
+        ran: ["rename"],
+    });
+});

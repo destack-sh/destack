@@ -1,4 +1,6 @@
+import * as style from "@destack/style";
 import { type JSX } from "@destack/view";
+import { Timeout } from "@destack/view/primitives/timer";
 import {
     Menu,
     MenuCheckboxItem,
@@ -23,6 +25,17 @@ import {
 } from "../menu/index.ts";
 import { renderPart } from "../part/index.ts";
 
+/** The time a finger stays before it opens the menu, in milliseconds, as iOS and Android wait. */
+const LONG_PRESS = 500;
+
+/** The styles of the area a context menu opens over. */
+const styles = style.create({
+    trigger: {
+        // leave a long press to the menu on iOS
+        WebkitTouchCallout: "none",
+    },
+});
+
 /** Hold the open state of a menu that a right click or the context menu key opens. */
 export function ContextMenu(properties: MenuRootProperties): JSX.Element {
     return <Menu control={new MenuControl(null, properties)}>{properties.children}</Menu>;
@@ -30,17 +43,47 @@ export function ContextMenu(properties: MenuRootProperties): JSX.Element {
 
 /** Render the area whose context menu event opens the menu at the pointer. */
 export function ContextMenuTrigger(
-    properties: Omit<MenuElementProperties<HTMLDivElement>, "ref" | "onContextMenu">,
+    properties: Omit<
+        MenuElementProperties<HTMLDivElement>,
+        | "ref"
+        | "onContextMenu"
+        | "onPointerDown"
+        | "onPointerMove"
+        | "onPointerUp"
+        | "onPointerCancel"
+    >,
 ): JSX.Element {
     const control = useMenu();
+    const timer = new Timeout();
 
-    return renderPart("div", "context-menu-trigger", properties, null, {
+    return renderPart("div", "context-menu-trigger", properties, styles.trigger, {
         ref: (element) => control.setTrigger(element),
         onContextMenu: (event) => {
-            // open at the pointer and focus the first item
+            // open at the pointer, wait for one still down, and focus the first item
             event.preventDefault();
             control.open("first", { x: event.clientX, y: event.clientY });
+            if (event.buttons !== 0) {
+                control.release.await(event);
+            }
         },
+        onPointerDown: (event) => {
+            // open under a finger that stays
+            if (event.pointerType === "touch") {
+                const point = { x: event.clientX, y: event.clientY };
+                timer.set(() => {
+                    control.open("first", point);
+                    control.release.await(event);
+                }, LONG_PRESS);
+            }
+        },
+        onPointerMove: (event) => {
+            // leave a finger that scrolls alone
+            if (event.pointerType === "touch") {
+                timer.clear();
+            }
+        },
+        onPointerUp: () => timer.clear(),
+        onPointerCancel: () => timer.clear(),
     });
 }
 

@@ -5,6 +5,12 @@ import { space } from "@destack/theme/tokens.stylex";
 /** The CSS anchor positioning property whose support places popovers without script. */
 const ANCHOR_PROPERTY = "position-area";
 
+/** The area whose support places popovers in their own writing direction. */
+const ANCHOR_AREA = "self-block-end span-self-inline-end";
+
+/** The gap between an overlay at a point and the edges of the screen, in pixels. */
+const EDGE = 4;
+
 /** An axis things run along. */
 export type Axis = "horizontal" | "vertical";
 
@@ -28,7 +34,10 @@ type PhysicalSide = "top" | "right" | "bottom" | "left";
 /** The styles that place an overlay at a point. */
 const styles = style.create({
     point: {
-        margin: 0,
+        marginBlockStart: 0,
+        marginBlockEnd: 0,
+        marginInlineStart: 0,
+        marginInlineEnd: 0,
         positionArea: "none",
     },
     at: (left: string, top: string) => ({ left, top }),
@@ -36,89 +45,105 @@ const styles = style.create({
     offsetInline: (marginInline: string) => ({ marginInline }),
 });
 
-/** The area each side and alignment places an overlay in, growing from its anchor either way. */
+/** The area of each side and alignment, a gap from its anchor and from the edges of the screen. */
 const areas = style.create({
     "top-start": {
         marginBlock: space[1],
-        marginInline: 0,
-        positionArea: "block-start span-inline-end",
-        positionTryFallbacks: "flip-block",
+        marginInlineStart: 0,
+        marginInlineEnd: space[1],
+        positionArea: "self-block-start span-self-inline-end",
+        positionTryFallbacks:
+            "flip-block, flip-inline, flip-block flip-inline, self-block-start, self-block-end",
         transformOrigin: { default: "bottom left", ":dir(rtl)": "bottom right" },
     },
     "top-center": {
         marginBlock: space[1],
-        marginInline: 0,
-        positionArea: "block-start",
+        marginInlineStart: space[1],
+        marginInlineEnd: space[1],
+        positionArea: "self-block-start",
         positionTryFallbacks: "flip-block",
         transformOrigin: "bottom center",
     },
     "top-end": {
         marginBlock: space[1],
-        marginInline: 0,
-        positionArea: "block-start span-inline-start",
-        positionTryFallbacks: "flip-block",
+        marginInlineStart: space[1],
+        marginInlineEnd: 0,
+        positionArea: "self-block-start span-self-inline-start",
+        positionTryFallbacks:
+            "flip-block, flip-inline, flip-block flip-inline, self-block-start, self-block-end",
         transformOrigin: { default: "bottom right", ":dir(rtl)": "bottom left" },
     },
     "right-start": {
-        marginBlock: 0,
+        marginBlockStart: 0,
+        marginBlockEnd: space[1],
         marginInline: space[1],
-        positionArea: "inline-end span-block-end",
+        positionArea: "self-inline-end span-self-block-end",
         positionTryFallbacks: "flip-inline",
         transformOrigin: { default: "left top", ":dir(rtl)": "right top" },
     },
     "right-center": {
-        marginBlock: 0,
+        marginBlockStart: space[1],
+        marginBlockEnd: space[1],
         marginInline: space[1],
-        positionArea: "inline-end",
+        positionArea: "self-inline-end",
         positionTryFallbacks: "flip-inline",
         transformOrigin: { default: "left center", ":dir(rtl)": "right center" },
     },
     "right-end": {
-        marginBlock: 0,
+        marginBlockStart: space[1],
+        marginBlockEnd: 0,
         marginInline: space[1],
-        positionArea: "inline-end span-block-start",
+        positionArea: "self-inline-end span-self-block-start",
         positionTryFallbacks: "flip-inline",
         transformOrigin: { default: "left bottom", ":dir(rtl)": "right bottom" },
     },
     "bottom-start": {
         marginBlock: space[1],
-        marginInline: 0,
-        positionArea: "block-end span-inline-end",
-        positionTryFallbacks: "flip-block",
+        marginInlineStart: 0,
+        marginInlineEnd: space[1],
+        positionArea: "self-block-end span-self-inline-end",
+        positionTryFallbacks:
+            "flip-block, flip-inline, flip-block flip-inline, self-block-end, self-block-start",
         transformOrigin: { default: "top left", ":dir(rtl)": "top right" },
     },
     "bottom-center": {
         marginBlock: space[1],
-        marginInline: 0,
-        positionArea: "block-end",
+        marginInlineStart: space[1],
+        marginInlineEnd: space[1],
+        positionArea: "self-block-end",
         positionTryFallbacks: "flip-block",
         transformOrigin: "top center",
     },
     "bottom-end": {
         marginBlock: space[1],
-        marginInline: 0,
-        positionArea: "block-end span-inline-start",
-        positionTryFallbacks: "flip-block",
+        marginInlineStart: space[1],
+        marginInlineEnd: 0,
+        positionArea: "self-block-end span-self-inline-start",
+        positionTryFallbacks:
+            "flip-block, flip-inline, flip-block flip-inline, self-block-end, self-block-start",
         transformOrigin: { default: "top right", ":dir(rtl)": "top left" },
     },
     "left-start": {
-        marginBlock: 0,
+        marginBlockStart: 0,
+        marginBlockEnd: space[1],
         marginInline: space[1],
-        positionArea: "inline-start span-block-end",
+        positionArea: "self-inline-start span-self-block-end",
         positionTryFallbacks: "flip-inline",
         transformOrigin: { default: "right top", ":dir(rtl)": "left top" },
     },
     "left-center": {
-        marginBlock: 0,
+        marginBlockStart: space[1],
+        marginBlockEnd: space[1],
         marginInline: space[1],
-        positionArea: "inline-start",
+        positionArea: "self-inline-start",
         positionTryFallbacks: "flip-inline",
         transformOrigin: { default: "right center", ":dir(rtl)": "left center" },
     },
     "left-end": {
-        marginBlock: 0,
+        marginBlockStart: space[1],
+        marginBlockEnd: 0,
         marginInline: space[1],
-        positionArea: "inline-start span-block-start",
+        positionArea: "self-inline-start span-self-block-start",
         positionTryFallbacks: "flip-inline",
         transformOrigin: { default: "right bottom", ":dir(rtl)": "left bottom" },
     },
@@ -164,10 +189,34 @@ export const Position = {
         return [styles.point, styles.at(`${String(point.x)}px`, `${String(point.y)}px`)];
     },
 
+    /** Move an overlay shown at a point to the point's other side where it leaves the screen. */
+    fit(content: HTMLElement, point: Point): () => void {
+        // open after the point in the writing direction and below it, else before and above it
+        const view = content.ownerDocument.documentElement;
+        const width = content.offsetWidth;
+        const height = content.offsetHeight;
+        const isRightToLeft = getComputedStyle(content).direction === "rtl";
+        const isBefore = isRightToLeft
+            ? point.x - width >= EDGE
+            : point.x + width > view.clientWidth - EDGE;
+        const isAbove = point.y + height > view.clientHeight - EDGE;
+        const left = isBefore ? point.x - width : point.x;
+        const top = isAbove ? point.y - height : point.y;
+
+        // write the position over the point's, away from the screen's edges
+        content.style.left = `${String(clamp(left, EDGE, view.clientWidth - width - EDGE))}px`;
+        content.style.top = `${String(clamp(top, EDGE, view.clientHeight - height - EDGE))}px`;
+
+        return () => {
+            content.style.removeProperty("left");
+            content.style.removeProperty("top");
+        };
+    },
+
     /** Attach an overlay to its anchor by the overlay's id, where the browser anchors overlays. */
     attach(content: HTMLElement, anchor: HTMLElement, id: string): () => void {
         // leave placement to script where the browser lacks CSS anchor positioning
-        if (typeof CSS === "undefined" || !CSS.supports(ANCHOR_PROPERTY, "block-end")) {
+        if (typeof CSS === "undefined" || !CSS.supports(ANCHOR_PROPERTY, ANCHOR_AREA)) {
             return () => undefined;
         }
 
@@ -203,17 +252,19 @@ export const Position = {
     /** Place a shown overlay beside its anchor where the browser lacks CSS anchor positioning. */
     place(content: HTMLElement, anchor: HTMLElement): () => void {
         // leave placement to the browser where it anchors overlays itself
-        if (typeof CSS === "undefined" || CSS.supports(ANCHOR_PROPERTY, "block-end")) {
+        if (typeof CSS === "undefined" || CSS.supports(ANCHOR_PROPERTY, ANCHOR_AREA)) {
             return () => undefined;
         }
 
-        // read the overlay's margin toward its anchor as its gap
-        const { marginTop, marginLeft } = getComputedStyle(content);
+        // read the overlay's margins as its gaps from its anchor and from the screen's edges
+        const { marginTop, marginRight, marginBottom, marginLeft } = getComputedStyle(content);
         const side = content.dataset["side"] ?? "bottom";
-        const gap = Number.parseFloat(isBlock(side) ? marginTop : marginLeft);
+        const block = Math.max(Number.parseFloat(marginTop), Number.parseFloat(marginBottom));
+        const inline = Math.max(Number.parseFloat(marginLeft), Number.parseFloat(marginRight));
+        const [gap, edge] = isBlock(side) ? [block, inline] : [inline, block];
         const place = (): void => {
             // write the position over the margin as inline styles
-            const [left, top] = positionOf(content, anchor, gap);
+            const [left, top] = positionOf(content, anchor, gap, edge);
             content.style.margin = "0";
             content.style.left = `${String(left)}px`;
             content.style.top = `${String(top)}px`;
@@ -253,7 +304,12 @@ function isBlock(side: string): boolean {
 }
 
 /** Compute an overlay's viewport position beside its anchor on its side and alignment. */
-function positionOf(content: HTMLElement, anchor: HTMLElement, gap: number): [number, number] {
+function positionOf(
+    content: HTMLElement,
+    anchor: HTMLElement,
+    gap: number,
+    edge: number,
+): [number, number] {
     // read the anchor's box, the overlay's size, the viewport and the writing direction
     const box = anchor.getBoundingClientRect();
     const width = content.offsetWidth;
@@ -274,7 +330,7 @@ function positionOf(content: HTMLElement, anchor: HTMLElement, gap: number): [nu
         const left =
             align === "start" ? start : align === "end" ? end : box.left + (box.width - width) / 2;
 
-        return [clamp(left, view.clientWidth - width), isBelow ? below : above];
+        return [clamp(left, edge, view.clientWidth - width - edge), isBelow ? below : above];
     }
 
     // open beside, flipped when the side lacks room, lined up along the block axis
@@ -288,7 +344,7 @@ function positionOf(content: HTMLElement, anchor: HTMLElement, gap: number): [nu
               ? box.bottom - height
               : box.top + (box.height - height) / 2;
 
-    return [isAfter ? after : before, clamp(top, view.clientHeight - height)];
+    return [isAfter ? after : before, clamp(top, edge, view.clientHeight - height - edge)];
 }
 
 /** Read the physical side of a logical one, right and left swapping in right-to-left text. */
@@ -305,9 +361,9 @@ function physicalSide(side: string, isRightToLeft: boolean): PhysicalSide {
     return "bottom";
 }
 
-/** Keep a coordinate between the viewport's start and the largest one that fits. */
-function clamp(value: number, largest: number): number {
-    return Math.max(0, Math.min(value, largest));
+/** Keep a coordinate between the smallest and the largest one that fit. */
+function clamp(value: number, smallest: number, largest: number): number {
+    return Math.max(smallest, Math.min(value, largest));
 }
 
 /** Add the rule that turns an anchor's name into its anchor name and its overlays' anchor. */

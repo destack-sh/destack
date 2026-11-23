@@ -31,7 +31,9 @@ import {
     useContext,
     useLocale,
 } from "@destack/view";
-import { Hover, type InteractionEvent } from "../interaction/index.ts";
+import { present } from "@destack/schema";
+import { Timeout } from "@destack/view/primitives/timer";
+import { Hover, type HoverEvent, SafePolygon } from "../interaction/index.ts";
 import {
     type ElementPartProperties,
     type PartAttributes,
@@ -46,6 +48,18 @@ import { useCommandPlatform } from "../kbd/index.ts";
 import { ListState } from "../focus/index.ts";
 import { type Align, type Point, Position, type Side } from "../position/index.ts";
 import { TopLayer } from "../layer/index.ts";
+
+/** The wait before a hovered trigger opens its submenu, in milliseconds. */
+const SUBMENU_DELAY = 100;
+
+/** The distance a held pointer moves before letting it go chooses an item, in pixels. */
+const DRAG_DISTANCE = 4;
+
+/** The time a pointer is held before letting it go chooses an item, in milliseconds. */
+const DRAG_TIME = 200;
+
+/** The time after a release in which the platform may dismiss the menu, in milliseconds. */
+const KEEP_TIME = 100;
 
 /** The side and alignment of a menu that sets neither. */
 const DEFAULTS: Required<Pick<MenuContentProperties, "side" | "align">> = {
@@ -63,7 +77,8 @@ const MenuRadioContext = createContext<MenuRadioControl | null>(null);
 const styles = style.create({
     content: {
         minWidth: `calc(10 * ${space[4]})`,
-        maxHeight: "100vh",
+        maxWidth: `calc(100vw - 2 * ${space[1]})`,
+        maxHeight: `calc(100dvh - 2 * ${space[1]})`,
         overflowY: "auto",
         inset: "auto",
         padding: space[1],
@@ -75,7 +90,7 @@ const styles = style.create({
         boxShadow: shadow.overlay,
     },
     submenu: {
-        marginBlock: `calc(-1 * (${space[1]} + ${stroke.border}))`,
+        marginBlockStart: `calc(-1 * (${space[1]} + ${stroke.border}))`,
     },
     item: {
         position: "relative",
@@ -91,6 +106,9 @@ const styles = style.create({
         color: { default: "inherit", ":focus": color.foreground },
         cursor: "default",
         userSelect: "none",
+    },
+    open: {
+        backgroundColor: color.selected,
     },
     destructive: {
         color: { default: swatch.destructiveText, ":focus": swatch.destructiveText },
@@ -131,6 +149,111 @@ const styles = style.create({
 /** The item a newly opened menu focuses. */
 export type MenuFocus = "first" | "last" | "none";
 
+/** A pointer held down since it opened a menu, which chooses the item it is let go over. */
+export class MenuRelease {
+    /** The menu the pointer opened. */
+    readonly #control: MenuControl;
+    /** Stop waiting for the pointer to be let go. */
+    #stop: () => void;
+    /** Whether the next click is the one the press that opened the menu leaves behind. */
+    #isClickSwallowed: boolean;
+    /** Whether the menu outlasts the platform's dismissal. */
+    #isKeeping: boolean;
+    /** The time the menu outlasts it. */
+    readonly #timer: Timeout;
+
+    /** Create a release of a menu, waiting for no pointer. */
+    constructor(control: MenuControl) {
+        // start with the pointer up
+        this.#control = control;
+        this.#stop = () => undefined;
+        this.#isClickSwallowed = false;
+        this.#isKeeping = false;
+        this.#timer = new Timeout();
+        onCleanup(() => this.#stop());
+    }
+
+    /** Open the menu as a mouse presses its trigger, leaving a finger and other buttons alone. */
+    press(event: PointerEvent): void {
+        // leave a press that closes the menu to its click
+        this.#isClickSwallowed = false;
+        const isPlain = event.button === 0 && !event.ctrlKey;
+        if (event.pointerType !== "mouse" || !isPlain || untrack(this.#control.isOpen)) {
+            return;
+        }
+
+        // open it and wait for the pointer
+        this.#isClickSwallowed = true;
+        this.#control.open("first");
+        this.await(event);
+    }
+
+    /** Open or close the menu on a click, unless its press opened it. */
+    click(event: MouseEvent): void {
+        // leave the click of the press that opened the menu alone, never a key's
+        const isSwallowed = this.#isClickSwallowed && event.detail !== 0;
+        this.#isClickSwallowed = false;
+        if (isSwallowed) {
+            this.#control.keep();
+
+            return;
+        }
+
+        // open or close the menu
+        if (untrack(this.#control.isOpen)) {
+            this.#control.close(true);
+        } else {
+            this.#control.open("first");
+        }
+    }
+
+    /** Wait for a held pointer to be let go: over an item it chooses it, elsewhere it closes. */
+    await(event: Pick<PointerEvent, "clientX" | "clientY" | "timeStamp" | "view">): void {
+        // follow one pointer at a time
+        this.#stop();
+        const document = event.view?.document;
+        const up = (released: PointerEvent) => {
+            // leave a click in place, which moves and takes little, alone
+            this.#stop();
+            const distance = Math.hypot(
+                released.clientX - event.clientX,
+                released.clientY - event.clientY,
+            );
+            const isClick =
+                distance < DRAG_DISTANCE || released.timeStamp - event.timeStamp < DRAG_TIME;
+            if (isClick || !(released.target instanceof Element)) {
+                this.#keep();
+
+                return;
+            }
+
+            // choose the item under it, else close the menu unless a trigger or menu is under it
+            const item = released.target.closest<HTMLElement>("[data-menu-item]");
+            const isWithin = released.target.closest("[role=menu], [aria-haspopup=menu]") !== null;
+            if (item !== null) {
+                item.click();
+            } else if (isWithin) {
+                this.#keep();
+            } else {
+                this.#control.close(true);
+            }
+        };
+        document?.addEventListener("pointerup", up, true);
+        this.#stop = () => document?.removeEventListener("pointerup", up, true);
+    }
+
+    /** Report whether the menu outlasts the platform's dismissal. */
+    isKeeping(): boolean {
+        return this.#isKeeping;
+    }
+
+    /** Let the menu outlast the platform's dismissal for a moment. */
+    #keep(): void {
+        this.#isKeeping = true;
+        this.#timer.set(() => (this.#isKeeping = false), KEEP_TIME);
+    }
+}
+
 /** The open state, elements and focus of a menu or submenu. */
 export class MenuControl {
     /** The id of the menu element. */
@@ -145,6 +268,8 @@ export class MenuControl {
     readonly point: Accessor<Point | undefined>;
     /** The menu's own items in document order. */
     readonly list: ListState;
+    /** Choose the item a pointer that opened the menu is let go over, after a drag to it. */
+    readonly release: MenuRelease;
     /** Handle a horizontal arrow key a top menu leaves unused. */
     onCross: ((event: KeyboardEvent, direction: Direction) => void) | undefined;
     /** The element that opens the menu and anchors it. */
@@ -157,6 +282,10 @@ export class MenuControl {
     #isReturningFocus: boolean;
     /** Stop placing the shown menu beside its trigger. */
     #unplace: () => void;
+    /** The way of a pointer from a submenu's trigger to its submenu. */
+    readonly polygon: SafePolygon;
+    /** The pending open of a submenu whose trigger is hovered. */
+    readonly #timer: Timeout;
     /** The open submenus. */
     readonly #children: Set<MenuControl>;
     /** Replace whether the menu is open and tell the change handler. */
@@ -187,6 +316,9 @@ export class MenuControl {
         this.#isReturningFocus = false;
         this.#unplace = () => undefined;
         this.#children = new Set();
+        this.polygon = new SafePolygon();
+        this.release = new MenuRelease(this);
+        this.#timer = new Timeout();
         this.#setOpen = setOpen;
         this.#setPoint = setPoint;
 
@@ -215,13 +347,16 @@ export class MenuControl {
         // show it beside its trigger, or at its point, and focus the item asked for
         if (isOpen) {
             const trigger = this.#trigger;
-            const isBeside = trigger !== undefined && untrack(this.point) === undefined;
+            const point = untrack(this.point);
+            const isBeside = trigger !== undefined && point === undefined;
             const detach = isBeside ? Position.attach(content, trigger, this.id) : () => undefined;
             content.showPopover(isBeside ? { source: trigger } : undefined);
             const unplace = isBeside ? Position.place(content, trigger) : () => undefined;
+            const unfit = point === undefined ? () => undefined : Position.fit(content, point);
             this.#unplace = () => {
                 detach();
                 unplace();
+                unfit();
             };
             untrack(() => this.#focusItem(content));
         } else {
@@ -232,6 +367,14 @@ export class MenuControl {
             }
         }
         this.#isReturningFocus = false;
+    }
+
+    /** Show an open menu again, as the platform dismisses one that opened during a press. */
+    keep(): void {
+        if (untrack(this.isOpen) && this.#content?.matches(":popover-open") === false) {
+            this.#unplace();
+            this.sync(true);
+        }
     }
 
     /** Focus the item a newly shown menu asks for, or the menu itself when it has no items. */
@@ -267,12 +410,48 @@ export class MenuControl {
         // close the submenus first
         this.closeSubmenus();
 
-        // close the menu
+        // close the menu and forget where the pointer headed
+        this.#timer.clear();
+        this.polygon.stop();
         this.#isReturningFocus = isReturningFocus;
         this.#setOpen(false);
         if (this.parent !== null) {
             this.parent.#children.delete(this);
         }
+    }
+
+    /** Focus a hovered item in place of an open submenu, unless the pointer heads for that one. */
+    hover(element: HTMLElement, applies: () => boolean): void {
+        this.polygon.defer(applies, () => {
+            element.focus();
+            this.closeSubmenus();
+        });
+    }
+
+    /** Open the submenu of a hovered trigger a moment later, in place of any other. */
+    hoverTrigger(element: HTMLElement, applies: () => boolean): void {
+        // return to the trigger of an open submenu
+        const parent = present(this.parent, "the submenu's parent menu");
+        if (untrack(this.isOpen)) {
+            parent.polygon.stop();
+            element.focus();
+
+            return;
+        }
+
+        // close the other submenus once the pointer stops heading for one
+        parent.polygon.defer(applies, () => {
+            element.focus();
+            parent.closeSubmenus();
+            this.#timer.set(() => this.open("none"), SUBMENU_DELAY);
+        });
+    }
+
+    /** Let the pointer leave the trigger of a submenu on its way to it. */
+    leaveTrigger(event: HoverEvent): void {
+        this.#timer.clear();
+        const parent = present(this.parent, "the submenu's parent menu");
+        parent.polygon.enter(event, untrack(this.isOpen) ? this.#content : undefined);
     }
 
     /** Close the open submenus of this menu. */
@@ -286,7 +465,11 @@ export class MenuControl {
     /** Follow the platform closing the menu, such as on a click outside. */
     follow(event: ToggleEvent): void {
         if (event.newState === "closed" && this.isOpen()) {
-            this.close(false);
+            if (this.release.isKeeping()) {
+                this.keep();
+            } else {
+                this.close(false);
+            }
         }
     }
 
@@ -476,7 +659,9 @@ export function MenuItem(properties: MenuItemProperties): JSX.Element {
     const control = useMenu();
     const rest = omit(properties, "onSelect", "disabled", "variant", "xstyle", "style", "render");
     const item = control.join(() => properties.disabled === true);
-    const hover = new Hover({ onHoverStart: (event) => focusItem(event, control) });
+    const hover: Hover = new Hover({
+        onHoverStart: (event) => control.hover(event.target, () => hover.isHovered()),
+    });
     const part: PartAttributes = merge(
         hover.attributes(),
         {
@@ -534,7 +719,9 @@ export function MenuCheckboxItem(properties: MenuCheckboxItemProperties): JSX.El
         "children",
     );
     const item = control.join(() => properties.disabled === true);
-    const hover = new Hover({ onHoverStart: (event) => focusItem(event, control) });
+    const hover: Hover = new Hover({
+        onHoverStart: (event) => control.hover(event.target, () => hover.isHovered()),
+    });
 
     return (
         <div
@@ -614,7 +801,9 @@ export function MenuRadioItem(properties: MenuRadioItemProperties): JSX.Element 
     );
     const isChecked = (): boolean => radio.value() === properties.value;
     const item = control.join(() => properties.disabled === true);
-    const hover = new Hover({ onHoverStart: (event) => focusItem(event, control) });
+    const hover: Hover = new Hover({
+        onHoverStart: (event) => control.hover(event.target, () => hover.isHovered()),
+    });
 
     return (
         <div
@@ -702,14 +891,13 @@ export function MenuSubTrigger(
         key === (locale.direction === "rtl" ? "ArrowLeft" : "ArrowRight");
 
     // focus an enabled trigger under the pointer and open its submenu in place of any other
-    const hover = new Hover({
+    const hover: Hover = new Hover({
         onHoverStart: (event) => {
             if (isEnabled()) {
-                event.target.focus();
-                parent.closeSubmenus();
-                control.open("none");
+                control.hoverTrigger(event.target, () => hover.isHovered());
             }
         },
+        onHoverEnd: (event) => control.leaveTrigger(event),
     });
 
     return (
@@ -737,7 +925,12 @@ export function MenuSubTrigger(
             }}
             {...hover.attributes()}
             {...style.attributes(
-                [styles.item, properties.disabled === true && state.inert, properties.xstyle],
+                [
+                    styles.item,
+                    control.isOpen() && styles.open,
+                    properties.disabled === true && state.inert,
+                    properties.xstyle,
+                ],
                 properties.style,
             )}
         >
@@ -780,12 +973,6 @@ function navigate(
     else {
         control.list.focus.move(event, direction);
     }
-}
-
-/** Focus a hovered item and close the submenus of its menu. */
-function focusItem(event: InteractionEvent, control: MenuControl): void {
-    event.target.focus();
-    control.closeSubmenus();
 }
 
 /** Click an item on Enter and Space, as buttons do. */

@@ -211,7 +211,10 @@ export function EventCalendarEvent(properties: EventCalendarEventProperties): JS
             card.openLater();
         }
     };
-    const hover = new Hover({ onHoverStart: openPreview, onHoverEnd: () => card.closeLater() });
+    const hover = new Hover({
+        onHoverStart: openPreview,
+        onHoverEnd: (event) => card.leave(event),
+    });
     const preview = mergeProperties(hover.attributes(), {
         ref: (created: HTMLButtonElement) => (element = created),
         onFocus: openPreview,

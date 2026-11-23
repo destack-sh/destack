@@ -34,6 +34,9 @@ const HoverCardContext = createContext<HoverPopover | null>(null);
 const styles = style.create({
     content: {
         width: width.hoverCard,
+        maxWidth: `calc(100vw - 2 * ${space[1]})`,
+        maxHeight: `calc(100dvh - 2 * ${space[1]})`,
+        overflowWrap: "anywhere",
         inset: "auto",
         padding: space[4],
         borderWidth: stroke.border,
@@ -101,7 +104,7 @@ export function HoverCardTrigger(properties: HoverCardTriggerProperties): JSX.El
     const card = useHoverCard();
     const hover = new Hover({
         onHoverStart: () => card.openLater(),
-        onHoverEnd: () => card.closeLater(),
+        onHoverEnd: (event) => card.leave(event),
     });
 
     return renderPart(

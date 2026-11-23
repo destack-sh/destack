@@ -29,6 +29,9 @@ const CLOSE_DELAY = 100;
 /** The time after a tooltip hides in which the next one shows at once, in milliseconds. */
 const TIMEOUT = 300;
 
+/** The widest a tooltip grows before its text wraps, 320px. */
+const WIDTH = "20rem";
+
 /** The side and alignment of a tooltip that sets neither. */
 const DEFAULTS: Required<Pick<TooltipContentProperties, "side" | "align">> = {
     side: "top",
@@ -155,6 +158,7 @@ export function TooltipProvider(properties: TooltipProviderProperties): JSX.Elem
 const styles = style.create({
     content: {
         width: "fit-content",
+        maxWidth: `min(${WIDTH}, 100vw - 2 * ${space[1]})`,
         inset: "auto",
         paddingBlock: space[1],
         paddingInline: space[3],
@@ -162,6 +166,7 @@ const styles = style.create({
         backgroundColor: color.foreground,
         color: color.background,
         textWrap: "balance",
+        overflowWrap: "anywhere",
     },
     instant: {
         transitionDuration: "0s",
@@ -225,9 +230,13 @@ export function Tooltip(properties: TooltipProperties): JSX.Element {
 export function TooltipTrigger(properties: TooltipTriggerProperties): JSX.Element {
     // open the tooltip on hover after its delay, and on focus at once
     const tooltip = useTooltip();
+    let isPressed = false;
     const hover = new Hover({
         onHoverStart: () => tooltip.openLater(),
-        onHoverEnd: () => tooltip.closeLater(),
+        onHoverEnd: (event) => {
+            isPressed = false;
+            tooltip.leave(event);
+        },
     });
 
     return renderPart(
@@ -243,9 +252,17 @@ export function TooltipTrigger(properties: TooltipTriggerProperties): JSX.Elemen
             "aria-describedby": tooltip.id,
             ref: (element: HTMLElement) => tooltip.setTrigger(element),
             onFocus: (event: FocusEvent & { readonly currentTarget: HTMLElement }) => {
-                // show a tooltip the keyboard reaches at once and without motion
-                tooltip.open({ isImmediate: event.currentTarget.matches(":focus-visible") });
+                // show a tooltip the keyboard reaches at once and without motion, none for a press
+                if (!isPressed) {
+                    tooltip.open({ isImmediate: event.currentTarget.matches(":focus-visible") });
+                }
             },
+            onPointerDown: () => {
+                isPressed = true;
+                tooltip.close();
+            },
+            onPointerUp: () => (isPressed = false),
+            onPointerCancel: () => (isPressed = false),
             onBlur: () => tooltip.close(),
             onKeyDown: (event: KeyboardEvent) => {
                 // dismiss the tooltip on Escape

@@ -173,7 +173,13 @@ export function MenubarMenu(properties: MenuRootProperties): JSX.Element {
 export function MenubarTrigger(
     properties: Omit<
         MenuElementProperties<HTMLButtonElement>,
-        "ref" | "onClick" | "onKeyDown" | "onFocus" | "onPointerEnter"
+        | "ref"
+        | "onClick"
+        | "onPointerDown"
+        | "onMouseDown"
+        | "onKeyDown"
+        | "onFocus"
+        | "onPointerEnter"
     >,
 ): JSX.Element {
     // read the bar and the menu the trigger opens
@@ -219,7 +225,14 @@ export function MenubarTrigger(
                 element = trigger;
                 menu.setTrigger(trigger);
             },
-            onClick: () => (menu.isOpen() ? menu.close(true) : menu.open("first")),
+            onPointerDown: (event) => menu.release.press(event),
+            onMouseDown: (event) => {
+                // leave the focus to the menu a mouse opens
+                if (menu.isOpen()) {
+                    event.preventDefault();
+                }
+            },
+            onClick: (event) => menu.release.click(event),
             onKeyDown: (event) => {
                 // open on the down arrow key, focusing the first item
                 if (event.key === "ArrowDown") {

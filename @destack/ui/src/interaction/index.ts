@@ -6,3 +6,4 @@ export * from "./move.ts";
 export * from "./zoom.ts";
 export * from "./swipe.ts";
 export * from "./sweep.ts";
+export * from "./polygon.ts";

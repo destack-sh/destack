@@ -18,6 +18,7 @@ import {
 import { transition } from "@destack/theme/motion";
 import { LayerStack, TopLayer } from "../layer/index.ts";
 import { Timeout } from "@destack/view/primitives/timer";
+import { type HoverEvent, SafePolygon } from "../interaction/index.ts";
 import { type Align, Position, type Side } from "../position/index.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
 import { CollectionBuilder } from "../collection/index.ts";
@@ -35,6 +36,9 @@ const PopoverContext = createContext<PopoverControl | null>(null);
 const styles = style.create({
     content: {
         width: width.popover,
+        maxWidth: `calc(100vw - 2 * ${space[1]})`,
+        maxHeight: `calc(100dvh - 2 * ${space[1]})`,
+        overflowWrap: "anywhere",
         inset: "auto",
         padding: space[4],
         borderWidth: stroke.border,
@@ -123,6 +127,11 @@ export class PopoverControl {
             this.#unplace();
             this.#detach();
         });
+    }
+
+    /** Read the popover element, undefined until it mounts. */
+    protected get content(): HTMLElement | undefined {
+        return this.#content;
     }
 
     /** Set the button that opens the popover. */
@@ -259,6 +268,8 @@ export class HoverPopover extends PopoverControl {
     readonly closeDelay: Accessor<number>;
     /** The pending open or close. */
     readonly #timer: Timeout;
+    /** The way of a pointer from the trigger to the popover. */
+    readonly #polygon: SafePolygon;
 
     /** Create a popover that waits the given delays and cancels them when its owner disposes. */
     constructor(
@@ -271,10 +282,21 @@ export class HoverPopover extends PopoverControl {
         this.delay = delay;
         this.closeDelay = closeDelay;
         this.#timer = new Timeout();
+        this.#polygon = new SafePolygon();
+    }
+
+    /** Close the popover as the pointer leaves its trigger, unless it heads for the popover. */
+    leave(event: HoverEvent): void {
+        this.#polygon.enter(event, this.isOpen() ? this.content : undefined);
+        this.#polygon.defer(
+            () => true,
+            () => this.closeLater(),
+        );
     }
 
     /** Open the popover after the open delay. */
     openLater(): void {
+        this.#polygon.stop();
         this.#timer.set(() => this.open(), this.delay());
     }
 
@@ -285,12 +307,14 @@ export class HoverPopover extends PopoverControl {
 
     /** Open the popover now, cancelling a pending change. */
     override open(): void {
+        this.#polygon.stop();
         this.#timer.clear();
         super.open();
     }
 
     /** Close the popover now, cancelling a pending change. */
     override close(): void {
+        this.#polygon.stop();
         this.#timer.clear();
         super.close();
     }

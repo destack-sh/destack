@@ -11,6 +11,7 @@ import {
     type MoveOptions,
     Press,
     type PressOptions,
+    SafePolygon,
     Sweep,
     Zoom,
     type ZoomEvent,
@@ -983,5 +984,85 @@ test("sweep a span out from the press in either direction, by an owner's span, h
         during: ["40-70", "20-50"],
         swept: ["40-70", "20-50"],
         cancelled: undefined,
+    });
+});
+
+/** Send a move of the pointer over an element at a point of the viewport. */
+function moveOver(element: Element, x: number, y: number): void {
+    element.dispatchEvent(
+        new PointerEvent("pointermove", { clientX: x, clientY: y, bubbles: true }),
+    );
+}
+
+test("hold back what a pointer crosses on its way to an overlay until it turns away", () => {
+    // a trigger 100 wide, and a taller overlay 20 to the right of it
+    const trigger = document.createElement("button");
+    const overlay = document.createElement("div");
+    const sibling = document.createElement("p");
+    document.body.append(trigger, overlay, sibling);
+    onTestFinished(() => {
+        trigger.remove();
+        overlay.remove();
+        sibling.remove();
+    });
+    trigger.getBoundingClientRect = () => DOMRect.fromRect({ width: 100, height: 20 });
+    overlay.getBoundingClientRect = () =>
+        DOMRect.fromRect({ x: 120, y: 0, width: 100, height: 200 });
+    let polygon: SafePolygon | undefined;
+    render(() => {
+        polygon = new SafePolygon();
+
+        return null;
+    });
+
+    // leave the trigger's bottom at 80, then move through points and report what ran after each
+    const walk = (applies: boolean, points: readonly (readonly [Element, number, number])[]) => {
+        const ran: string[] = [];
+        polygon?.enter(
+            {
+                type: "hoverend",
+                pointerType: "mouse",
+                target: trigger,
+                x: 80,
+                y: 20,
+                shiftKey: false,
+                metaKey: false,
+                ctrlKey: false,
+                altKey: false,
+                isCancelled: false,
+            },
+            overlay,
+        );
+        polygon?.defer(
+            () => applies,
+            () => ran.push("sibling"),
+        );
+
+        return points.map(([element, x, y]) => {
+            moveOver(element, x, y);
+
+            return ran.length;
+        });
+    };
+
+    expect({
+        arrives: walk(true, [
+            [sibling, 95, 60],
+            [sibling, 110, 120],
+            [overlay, 125, 150],
+            [sibling, 60, 150],
+        ]),
+        turnsAway: walk(true, [
+            [sibling, 95, 60],
+            [sibling, 80, 80],
+        ]),
+        leaves: walk(false, [[sibling, 60, 80]]),
+    }).toEqual({
+        // nothing it crossed ran, even after it left the overlay again
+        arrives: [0, 0, 0, 0],
+        // what it crossed ran as it turned down, out of the way
+        turnsAway: [0, 1],
+        // what it left again ran not at all
+        leaves: [0],
     });
 });

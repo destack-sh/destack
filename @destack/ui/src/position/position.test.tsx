@@ -96,3 +96,55 @@ test("share one anchor name between the overlays of one anchor, dropping it with
         none: { anchor: null, tooltip: null, popover: null, rules: 0 },
     });
 });
+
+/** Fit a 100 by 50 overlay at a point into the viewport, then drop its position. */
+function fitted(x: number, y: number, direction = "ltr"): string[] {
+    // fit it once, then drop the position
+    const content = document.createElement("div");
+    content.style.direction = direction;
+    document.body.append(content);
+    layOut(content, { x, y, width: 100, height: 50 });
+    const stop = Position.fit(content, { x, y });
+    const position = [content.style.left, content.style.top];
+    stop();
+    content.remove();
+
+    return [...position, content.style.left];
+}
+
+test("open an overlay over the other side of its point where it would leave the screen", () => {
+    // lay out a 100 by 50 overlay at points of a 400 by 300 viewport
+    Object.defineProperty(document.documentElement, "clientWidth", {
+        value: 400,
+        configurable: true,
+    });
+    Object.defineProperty(document.documentElement, "clientHeight", {
+        value: 300,
+        configurable: true,
+    });
+
+    expect([
+        fitted(50, 40),
+        fitted(350, 40),
+        fitted(50, 280),
+        fitted(350, 280),
+        fitted(200, 40, "rtl"),
+        fitted(50, 40, "rtl"),
+        fitted(0, 0),
+    ]).toEqual([
+        // after and below the point
+        ["50px", "40px", ""],
+        // before the point, as it would leave the end
+        ["250px", "40px", ""],
+        // above the point, as it would leave the bottom
+        ["50px", "230px", ""],
+        // before and above the point in the corner
+        ["250px", "230px", ""],
+        // before the point in right-to-left text
+        ["100px", "40px", ""],
+        // after the point, as right-to-left text leaves no room before it
+        ["50px", "40px", ""],
+        // away from the screen's corner
+        ["4px", "4px", ""],
+    ]);
+});

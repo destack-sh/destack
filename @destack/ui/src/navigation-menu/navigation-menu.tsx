@@ -29,9 +29,10 @@ import {
     useContext,
     useEnvironment,
     useLocale,
+    untrack,
 } from "@destack/view";
 import { Timeout } from "@destack/view/primitives/timer";
-import { Hover } from "../interaction/index.ts";
+import { Hover, type HoverEvent, SafePolygon } from "../interaction/index.ts";
 import { type PartAttributes, type Render, useRender, renderPart } from "../part/index.ts";
 import { ListState, tabbablesIn } from "../focus/index.ts";
 
@@ -40,6 +41,9 @@ const TOP = "[data-navigation-top]";
 
 /** The anchor name of the open trigger, scoped to each navigation menu. */
 const ACTIVE_ANCHOR = "--destack-navigation-menu-active";
+
+/** The browsers that place a panel by its anchor, which shifts it into view. */
+const ANCHORED = "@supports (position-area: self-block-end span-self-inline-end)";
 
 /** The wait before a resting pointer opens a panel, in milliseconds. */
 const DELAY = 200;
@@ -106,11 +110,18 @@ const styles = style.create({
         anchorName: ACTIVE_ANCHOR,
     },
     surface: {
-        position: "absolute",
-        top: "100%",
-        insetInlineStart: 0,
+        position: { default: "absolute", [ANCHORED]: "fixed" },
+        positionAnchor: ACTIVE_ANCHOR,
+        positionArea: "self-block-end span-self-inline-end",
+        top: { default: "100%", [ANCHORED]: "auto" },
+        insetInlineStart: { default: 0, [ANCHORED]: "auto" },
         zIndex: 1,
         marginTop: space[2],
+        marginInlineEnd: space[2],
+        // stay below the menu and scroll where the page is short
+        alignSelf: { default: null, [ANCHORED]: "start" },
+        maxHeight: { default: null, [ANCHORED]: `calc(100% - ${space[4]})` },
+        overflowY: "auto",
         borderWidth: stroke.border,
         borderColor: color.border,
         borderRadius: radius[4],
@@ -170,6 +181,8 @@ export class NavigationMenuControl {
     readonly #setViewport: Setter<HTMLElement | undefined>;
     /** The page's clock. */
     readonly #clock: Clock;
+    /** The way of a pointer from a trigger to its panel. */
+    readonly polygon: SafePolygon;
     /** The pending open of a hovered trigger. */
     readonly #timer: Timeout;
     /** The time the pointer last left a trigger, on the page's clock. */
@@ -199,6 +212,7 @@ export class NavigationMenuControl {
         this.#setViewport = setViewport;
         this.#prefix = createUniqueId();
         this.#clock = useEnvironment().clock;
+        this.polygon = new SafePolygon();
         this.#timer = new Timeout();
         this.#leftAt = Number.NEGATIVE_INFINITY;
     }
@@ -227,10 +241,17 @@ export class NavigationMenuControl {
         }
     }
 
-    /** Cancel a pending open and remember when the pointer left a trigger. */
-    leave(): void {
+    /** Cancel a pending open and let the pointer leave a trigger on its way to the open panel. */
+    leave(item: string, event: HoverEvent): void {
+        // remember when it left
         this.#timer.clear();
         this.#leftAt = this.#clock.now();
+
+        // head for the trigger's own panel
+        const document = event.target.ownerDocument;
+        const panel = document.getElementById(this.contentId(item));
+        const overlay = this.viewport() ?? panel ?? undefined;
+        this.polygon.enter(event, untrack(this.open) === item ? overlay : undefined);
     }
 
     /** Set the element open panels render into. */
@@ -332,7 +353,15 @@ export function NavigationMenu(properties: NavigationMenuProperties): JSX.Elemen
         "style",
         "children",
     );
-    const hover = new Hover({ onHoverEnd: () => control.hide() });
+    const hover: Hover = new Hover({
+        onHoverStart: () => control.polygon.stop(),
+        onHoverEnd: () => {
+            control.polygon.defer(
+                () => !hover.isHovered(),
+                () => control.hide(),
+            );
+        },
+    });
 
     return (
         <NavigationMenuContext value={control}>
@@ -435,9 +464,13 @@ export function NavigationMenuTrigger(
     const isOpen = (): boolean => control.open() === item;
     let element: HTMLButtonElement | undefined;
     control.join(item, () => element);
-    const hover = new Hover({
-        onHoverStart: () => control.enter(item),
-        onHoverEnd: () => control.leave(),
+    const hover: Hover = new Hover({
+        onHoverStart: () =>
+            control.polygon.defer(
+                () => hover.isHovered(),
+                () => control.enter(item),
+            ),
+        onHoverEnd: (event) => control.leave(item, event),
     });
 
     return (
