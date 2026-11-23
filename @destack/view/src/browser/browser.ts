@@ -3,7 +3,7 @@ import type { Environment } from "@destack/environment";
 import type { BrowserCapability, BrowserEnvironment } from "@destack/environment/browser";
 import "../styles/styles.ts";
 import { Catalog, Locale, type LocaleTag, Localization, SOURCE_LOCALE } from "@destack/locale";
-import { present, schema } from "@destack/schema";
+import { present, schema, Version } from "@destack/schema";
 import { OriginPath, PackageId } from "@destack/package";
 import { BrowserTab } from "@destack/object/browser";
 import { BrowserClient } from "@destack/account/browser";
@@ -12,7 +12,13 @@ import { principal } from "@destack/access";
 import { type ClientOptions, ObjectConnection } from "@destack/object/client";
 import { reportToDevtools, startTelemetry } from "@destack/telemetry/browser";
 import { OtlpExporter } from "@destack/telemetry/otlp";
-import { CONTEXT_ELEMENT, ScopePath, ViewContext, CONTEXT_SCOPES } from "../declare/context.ts";
+import {
+    BUILD_PARAMETER,
+    CONTEXT_ELEMENT,
+    CONTEXT_SCOPES,
+    ScopePath,
+    ViewContext,
+} from "../declare/context.ts";
 import type { ActionDeclaration } from "../palette/keybinding.ts";
 import { PageUndo } from "../page/undo.ts";
 import { account, space, user } from "@destack/account/object";
@@ -128,6 +134,16 @@ export async function mount(
     }
     const first = opened.value;
     restyle(first);
+
+    // reload a development build once its origin serves another build, as live reload servers do
+    if (release === Version.development) {
+        void reloadOnChange(
+            `${root}${OriginPath.reload}`,
+            context.build,
+            environment,
+            stopping.signal,
+        );
+    }
 
     // render the root component under the view, its clients and its actions, once its package's catalogs arrive
     const { default: Component } = await view.component();
@@ -403,6 +419,38 @@ async function* follow(
         if (changed.changes.length > 0) {
             yield await presented();
         }
+    }
+}
+
+/** Reload the page once its origin's reload stream ends: on another build, or a lost origin. */
+async function reloadOnChange(
+    path: string,
+    build: string,
+    environment: Pick<BrowserEnvironment, "network" | "navigation">,
+    signal: AbortSignal,
+): Promise<void> {
+    // open the stream, a lost origin ending it at once
+    const url = `${path}?${new URLSearchParams({ [BUILD_PARAMETER]: build }).toString()}`;
+    const response = await environment.network.fetch(new Request(url, { signal })).then(
+        (opened) => opened,
+        () => undefined,
+    );
+
+    // refuse a refused stream, which a reload would only meet again
+    if (response !== undefined && !response.ok) {
+        throw ViewError.of(
+            "RESPONSE_INVALID",
+            `reload stream is invalid: its origin answered '${String(response.status)}'`,
+        );
+    }
+
+    // read it to its end, a lost origin ending it too, then reload unless the page stopped it
+    await response?.text().then(
+        () => undefined,
+        () => undefined,
+    );
+    if (!signal.aborted) {
+        environment.navigation.reload();
     }
 }
 

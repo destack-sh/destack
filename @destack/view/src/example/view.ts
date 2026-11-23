@@ -6,7 +6,7 @@ import { SqliteDatabase } from "@destack/db/sqlite";
 import type { ObjectType } from "@destack/object";
 import { ObjectClient, ObjectConnection, ObjectRemote } from "@destack/object/client";
 import type { ExampleObjects } from "@destack/package/declare";
-import { schema } from "@destack/schema";
+import { Digest, schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { CONTEXT_SCOPES, type ViewContext } from "../declare/context.ts";
 import type { View } from "../declare/view.ts";
@@ -25,6 +25,11 @@ const SAMPLE_HOME = "space-01996ab0-0000-7000-8000-00000000e002";
 
 /** The sample universe's origin, the platform's own. */
 const SAMPLE_UNIVERSE = "https://destack.app";
+
+/** The image of the sample page's build: the SHA-256 digest of no bytes. */
+const SAMPLE_BUILD = Digest.parse(
+    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+);
 
 /** The account of the sample space. */
 const SAMPLE_ACCOUNT = "account-01996ab0-0000-7000-8000-00000000e003";
@@ -87,6 +92,7 @@ async function openSample(
         residencyHome: SAMPLE_RESIDENCY_HOME,
         home: SAMPLE_HOME,
         view: view.name,
+        build: SAMPLE_BUILD,
         base: "",
         universe: SAMPLE_UNIVERSE,
         catalogs: [],

@@ -4,7 +4,7 @@ import { none, principal, relation } from "@destack/access";
 import { TestDatabase } from "@destack/db/test";
 import { defineObject, field } from "@destack/object";
 import { ObjectClient, ObjectRemote } from "@destack/object/client";
-import { schema } from "@destack/schema";
+import { Digest, schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import { renderView } from "../page/mount.ts";
@@ -70,7 +70,6 @@ const card = defineObject(
 /** The board the view opens. */
 const BOARD_ID = schema.identifier("board").parse("board-01996ab0-0000-7000-8000-000000000001");
 
-/** The view the cards open in, on the board's space. */
 /** The view context the tests mount. */
 const CONTEXT = {
     installation: "installation-cards",
@@ -78,6 +77,7 @@ const CONTEXT = {
     account: "account-01996ab0-0000-7000-8000-000000000002",
     residencyHome: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000003"),
     view: "cards",
+    build: Digest.parse("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"),
     base: "",
     universe: "https://destack.app",
     catalogs: [],

@@ -1,6 +1,6 @@
 import { DeclarationName, OriginPath } from "@destack/package";
 import { ImportMap } from "@destack/package/manifest";
-import { schema } from "@destack/schema";
+import { Digest, schema } from "@destack/schema";
 import { ObjectReference, Subject } from "@destack/sync";
 import { ViewError } from "../error/error.ts";
 
@@ -60,6 +60,12 @@ export const TOKEN_PARAMETER = "token";
 /** The query parameter of a view's address with a share link's secret. */
 export const LINK_PARAMETER = "link";
 
+/** The query parameter of a reload stream with the image of the page's build. */
+export const BUILD_PARAMETER = "build";
+
+/** The event a reload stream sends once its origin serves another build than the page's. */
+export const RELOAD_EVENT = "change";
+
 /** The scopes a host opens for a view, by their key in its context. */
 export const CONTEXT_SCOPES = ["space", "account", "home"] as const;
 
@@ -78,6 +84,8 @@ const viewContext = schema.object({
     residencyHome: schema.identifier("space"),
     /** The declared view's name. */
     view: DeclarationName,
+    /** The image of the build the page was served from. */
+    build: Digest,
     /** The route path the page serves below, empty at its installation's own origin. */
     base: schema.string().regex(/^(?:\/[^\s?#/]+)*$/u),
     /** The person using the view, or an anonymous visitor. */

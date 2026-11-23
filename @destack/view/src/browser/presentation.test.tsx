@@ -3,7 +3,7 @@ import { testSimulation } from "@destack/test/world";
 import { TestDatabase } from "@destack/db/test";
 import { PackageVersion } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
-import { type JsonValue, schema } from "@destack/schema";
+import { Digest, type JsonValue, schema } from "@destack/schema";
 import type { Setting } from "@destack/setting";
 import { deviceSetting, setting } from "@destack/setting/object";
 import { DEFAULT_DISPLAY, Theme, TOKENS } from "@destack/theme";
@@ -48,6 +48,7 @@ const page: Page = {
             .identifier("space")
             .parse("space-01996ab0-0000-7000-8000-0000000000e7"),
         view: "home",
+        build: Digest.parse("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"),
         base: "",
         universe: "https://destack.app",
         catalogs: [],

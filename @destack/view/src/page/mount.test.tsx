@@ -14,7 +14,7 @@ import { definePackage } from "@destack/object";
 import { defineObject, method } from "@destack/object";
 import { none } from "@destack/access";
 import { PackageVersion } from "@destack/package";
-import { schema } from "@destack/schema";
+import { Digest, schema } from "@destack/schema";
 import { createSignal } from "solid-js";
 import { Errored } from "../solid/flow.ts";
 import { useLocale } from "./locale.ts";
@@ -54,6 +54,7 @@ const CONTEXT: ViewContext = {
     account: "account-florian",
     residencyHome: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000e05"),
     view: "notes",
+    build: Digest.parse("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"),
     base: "",
     universe: "https://destack.app",
     catalogs: [],
