@@ -20,6 +20,9 @@ import { reportError } from "../error/report.ts";
 import { CallFrame } from "../replica/frame.ts";
 import type { Voucher } from "../server/http.ts";
 
+/** The status of an instance starting or stopping, which answers no socket event: 503. */
+const UNAVAILABLE_STATUS = 503;
+
 /** The path where a host and an instance exchange a hibernated socket's messages and closes. */
 export const SOCKET_PATH = "/.destack/socket";
 
@@ -672,8 +675,9 @@ export class HibernationHost {
         );
         await response.arrayBuffer();
 
-        // report a close the instance refuses, which its connection's lapse then sweeps
-        if (!response.ok && request.method === "DELETE") {
+        // report a refused close unless the instance is starting or stopping
+        const isClose = request.method === "DELETE";
+        if (!response.ok && isClose && response.status !== UNAVAILABLE_STATUS) {
             this.#instruments.captureException(
                 ObjectError.of(
                     "INSTANCE_UNREACHABLE",
@@ -682,7 +686,7 @@ export class HibernationHost {
             );
         }
         // close a socket whose message the instance refuses
-        else if (!response.ok) {
+        else if (!response.ok && !isClose) {
             socket.close();
         }
     }
