@@ -65,7 +65,7 @@ import {
     EventCalendarPrevious,
     EventCalendarTime,
     EventCalendarToday,
-    EventCalendarViews,
+    EventCalendarViewSwitcher,
 } from "@destack/ui/event-calendar";
 import { Button } from "@destack/ui/button";
 import {
@@ -1105,7 +1105,7 @@ function Week(properties: { isRemixed: boolean }) {
                             <EventCalendarPrevious />
                             <EventCalendarToday />
                             <EventCalendarNext />
-                            <EventCalendarViews />
+                            <EventCalendarViewSwitcher />
                         </EventCalendarHeader>
                         <EventCalendarBody>
                             <EventCalendarMonth />
