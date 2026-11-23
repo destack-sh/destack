@@ -56,13 +56,8 @@ const FORMAT_BUILDERS: Readonly<Record<string, readonly (() => z.ZodStringFormat
     ...Object.fromEntries(HASHES.map(([format, create]) => [format, [create]])),
 };
 
-/** The builders of each format with the pattern each describes, none for a format without one. */
-const FORMATS: ReadonlyMap<string, readonly FormatBuilder[]> = new Map(
-    Object.entries(FORMAT_BUILDERS).map(([format, builders]) => [
-        format,
-        builders.map((create) => ({ create, pattern: z.toJSONSchema(create()).pattern })),
-    ]),
-);
+/** The builders of each format with the pattern each describes, described on first use. */
+let formats: ReadonlyMap<string, readonly FormatBuilder[]> | undefined;
 
 /** The descriptive keywords any node may have, which the built validator carries as metadata. */
 const ANNOTATIONS = ["title", "description", "deprecated", "examples"] as const;
@@ -394,13 +389,25 @@ function patternOf(entry: JsonSchemaValue): string {
 
 /** Find the builder of a format whose own pattern is among the given ones. */
 function formatOf(format: string, patterns: readonly string[]): FormatBuilder {
-    const found = FORMATS.get(format)?.find(({ pattern }) =>
-        pattern === undefined ? patterns.length === 0 : patterns.includes(pattern),
+    // describe every format's patterns once, as describing them costs about 12 ms
+    formats ??= new Map(
+        Object.entries(FORMAT_BUILDERS).map(([name, builders]) => [
+            name,
+            builders.map((create) => ({ create, pattern: z.toJSONSchema(create()).pattern })),
+        ]),
     );
+
+    // take the builder whose own pattern is among the given ones
+    const found = formats
+        .get(format)
+        ?.find(({ pattern }) =>
+            pattern === undefined ? patterns.length === 0 : patterns.includes(pattern),
+        );
     if (found !== undefined) {
         return found;
     }
 
+    // refuse a format whose patterns no builder describes
     throw new TypeError(
         `json schema format '${format}' with patterns '${patterns.join(", ")}' is not declarable`,
     );
