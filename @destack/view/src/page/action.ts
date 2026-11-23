@@ -1,3 +1,4 @@
+import { isServer } from "@solidjs/web";
 import { DeclarationReference } from "@destack/package/declare";
 import { type Accessor, createSignal, onCleanup, type Setter, useContext } from "solid-js";
 import type { ObjectReference } from "@destack/sync";
@@ -126,7 +127,10 @@ export class ActionRegistry {
 
     /** Tell readers of the actions that the handlers changed. */
     #changed(): void {
-        this.#setRevision((count) => count + 1);
+        // write no signal on a server, which renders once
+        if (!isServer) {
+            this.#setRevision((count) => count + 1);
+        }
     }
 
     /** Choose an action's handler: the innermost around the focus, else the page's latest. */
