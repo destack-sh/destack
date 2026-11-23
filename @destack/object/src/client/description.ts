@@ -1,7 +1,8 @@
 import type { Kind } from "@destack/package";
 import { present, type schema } from "@destack/schema";
 import { ObjectTypeReference } from "@destack/sync";
-import { Action, ACTION_KIND } from "../declare/action.ts";
+import { Action } from "../declare/action.ts";
+import { ACTION_KIND } from "../declare/description.ts";
 import { ObjectDescription, ObjectTypePool } from "../object/description.ts";
 import type { ObjectType } from "../object/object.ts";
 import type { Client } from "../procedure/index.ts";
@@ -89,14 +90,32 @@ export class ObjectStoreDescription {
     }
 
     /** List the actions a package declares that call a type's methods, on that type. */
-    actions(implementation: PackageImplementationDescription, type: ObjectType): Action[] {
+    async actions(
+        implementation: PackageImplementationDescription,
+        type: ObjectType,
+    ): Promise<Action[]> {
+        // take the actions on the type, and the types of the objects their inputs take
         const { packageId, type: name } = type.typeReference;
+        const declared = this.declarations(implementation, ACTION_KIND).filter(
+            ({ description }) =>
+                description.call?.packageId === packageId && description.call.type === name,
+        );
+        const types = new Map([[ObjectTypeReference.key(type.typeReference), type]]);
+        for (const { description } of declared) {
+            for (const input of description.call?.inputs ?? []) {
+                if (input.type !== undefined) {
+                    types.set(ObjectTypeReference.key(input.type), await this.type(input.type));
+                }
+            }
+        }
 
-        return this.declarations(implementation, ACTION_KIND)
-            .filter(
-                ({ description }) =>
-                    description.call?.packageId === packageId && description.call.type === name,
-            )
-            .map((declared) => Action.of(declared.name, declared.description, type));
+        return declared.map((each) =>
+            Action.of(each.name, each.description, (reference) =>
+                present(
+                    types.get(ObjectTypeReference.key(reference)),
+                    `the type ${reference.type}`,
+                ),
+            ),
+        );
     }
 }

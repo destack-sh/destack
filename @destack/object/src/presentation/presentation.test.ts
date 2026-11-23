@@ -117,7 +117,7 @@ test("read an object's appearance, its key fields by the declared card or the fi
         reference: task.reference("space-1", "task-1"),
         key: [
             [
-                ["state", { kind: "choice", value: "started" }],
+                ["state", { kind: "choice", value: "started", title: "started" }],
                 ["dueAt", { kind: "time", value: 1000 }],
             ],
         ],
@@ -126,7 +126,10 @@ test("read an object's appearance, its key fields by the declared card or the fi
             {
                 title: "Plan",
                 fields: [
-                    { field: "state", value: { kind: "choice", value: "started" } },
+                    {
+                        field: "state",
+                        value: { kind: "choice", value: "started", title: "started" },
+                    },
                     { field: "dueAt", value: { kind: "time", value: 1000 } },
                     {
                         field: "projectId",

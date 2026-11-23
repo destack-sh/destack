@@ -1,19 +1,39 @@
 import { testIdentity } from "../test/index.ts";
 import { none, principal } from "@destack/access";
+import { now } from "@destack/db";
 import { connectBunSqlite } from "@destack/db/bun";
 import { argument, plural, t } from "@destack/locale";
 import { PackageVersion, PackageId } from "@destack/package";
-import { Identifier, present, schema } from "@destack/schema";
-import { Scope } from "@destack/sync";
+import { Identifier, type JsonObject, present, schema } from "@destack/schema";
+import { ObjectReference, Scope } from "@destack/sync";
 import { expect, expectTypeOf, onTestFinished, refusal, test } from "@destack/test";
 import { ObjectClient, ObjectRemote } from "../client/index.ts";
 import { testSimulation } from "../test/world.ts";
 import { field } from "../field/index.ts";
 import { defineObject, device } from "../object/index.ts";
 import type { ShortcutText } from "@destack/locale";
-import { Action, type ActionCallDefinition, defineAction } from "./action.ts";
+import { Action, defineAction } from "./action.ts";
+import { ActionCall } from "./call.ts";
+import { Place } from "./place.ts";
+import { ActionDescription } from "./description.ts";
+import { type ActionContext, Template } from "./template.ts";
+import {
+    creating,
+    current,
+    defineVariable,
+    me,
+    type ObjectInput,
+    picked,
+    selected,
+    space,
+    Variable,
+    type VariableInput,
+    type VariablesOf,
+} from "./variable.ts";
+import type { CallInput } from "../method/index.ts";
+import type { ObjectType } from "../object/index.ts";
 import { definePackage } from "./package.ts";
-import { controlled, recoverable } from "../index.ts";
+import { archivable, controlled, recoverable } from "../index.ts";
 
 /** The declaring package. */
 const notes = PackageVersion.parse({
@@ -21,6 +41,17 @@ const notes = PackageVersion.parse({
     name: "@example/notes",
     version: "2026.9.0",
 });
+
+/** The person the actions run for, at noon on the first of January 2026 in UTC. */
+const PERSON: ActionContext & { readonly subject: ObjectReference } = {
+    subject: principal.user.reference(
+        Scope.universe.id,
+        "user-019f7480-0000-7000-8000-000000000002",
+    ),
+    scope: "device-1",
+    moment: { now: 1_767_268_800_000, timeZone: "UTC" },
+    places: [],
+};
 
 /** The notes of a space, which open, mark, archive and purge. */
 const note = defineObject(
@@ -103,63 +134,67 @@ const task = defineObject(
     }),
 );
 
-test("describe actions by their keys and the call each makes, and read them back from their descriptions", () => {
-    // declare an action marking a note done under a category, one creating notes on a shortcut, and one a view handles
+test("describe actions by their keys, inputs and template, and read them back from their descriptions", () => {
+    // declare an action marking open notes done, one creating notes by a title and one a view handles
+    const owner = { package: notes };
     const done = defineAction(
         {
             name: "mark-done",
             title: t`Mark Done`,
+            summary: t`Mark ${argument("notes")} done`,
             category: t`Note`,
-            call: {
-                object: note,
-                method: "mark",
-                input: { status: "done" },
-                when: { status: "open" },
-            },
+            keywords: t`complete, finish`,
+            input: { notes: selected(note, { status: "open" }) },
+            call: (variables) => variables.notes.prepare("mark", { status: "done" }),
         },
-        { package: notes },
+        owner,
     );
     const create = defineAction(
         {
             name: "new-note",
             title: t`New Note`,
             keybinding: "mod+n",
-            call: { object: note, method: "create" },
+            input: { title: field.string(schema.string()).labeled(t`Title`) },
+            call: ({ title }) => note.prepare("create", { title }),
         },
-        { package: notes },
+        owner,
     );
-
     const pin = defineAction(
         { name: "pin", title: t`Pin`, keybinding: "mod+p", focus: "any" },
-        { package: notes },
+        owner,
     );
 
     // describe each, then read each back from its description
     const described = [done, create, pin].map((action) => action.describe());
-    const read = [done, create, pin].map((action) =>
-        Action.of(
-            action.name,
-            action.describe(),
-            action.call === undefined ? undefined : note,
-        ).describe(),
-    );
+    const reread = described.map((each) => Action.of(each.name, each, () => note).describe());
 
-    // expect the calls, the preset input, the condition, the keys and the focus, the same once read back
+    // expect the calls, the inputs, the keys and the focus, the same once read back
     const called = { packageId: note.package.id, type: "note" };
-    expect({ package: done.package, described, read }).toEqual({
-        package: notes,
+    expect({ described, read: reread }).toEqual({
         described: [
             {
                 package: notes,
                 name: "mark-done",
                 title: t`Mark Done`,
+                summary: t`Mark ${argument("notes")} done`,
                 category: t`Note`,
+                keywords: t`complete, finish`,
                 focus: "page",
                 call: {
                     ...called,
                     method: "mark",
                     input: { status: "done" },
-                    when: { status: "open" },
+                    target: "notes",
+                    inputs: [
+                        {
+                            name: "notes",
+                            need: "required",
+                            kind: "object",
+                            type: note.typeReference,
+                            source: "selected",
+                            where: { status: "open" },
+                        },
+                    ],
                 },
             },
             {
@@ -168,7 +203,12 @@ test("describe actions by their keys and the call each makes, and read them back
                 title: t`New Note`,
                 keybinding: "mod+n",
                 focus: "page",
-                call: { ...called, method: "create", input: {} },
+                call: {
+                    ...called,
+                    method: "create",
+                    input: { title: { placeholder: "title" } },
+                    inputs: [{ name: "title", label: t`Title`, need: "required", kind: "text" }],
+                },
             },
             { package: notes, name: "pin", title: t`Pin`, keybinding: "mod+p", focus: "any" },
         ],
@@ -176,74 +216,48 @@ test("describe actions by their keys and the call each makes, and read them back
     });
 });
 
-test("type an action's method as one clients call, its preset as the method's fields, its input as the rest and its keys by their syntax", () => {
-    // declare an action presetting a note's status
-    const done = defineAction(
-        {
-            name: "mark-done",
-            title: t`Mark Done`,
-            call: { object: note, method: "mark", input: { status: "done" } },
-        },
-        { package: notes },
+test("type an action's calls by the methods and inputs they take, its summary by its inputs and its keys by their syntax", () => {
+    // expect a variable only where the method's input takes its value
+    type Title = VariableInput<CallInput<typeof note, "create">>["title"];
+    expectTypeOf<Variable<string>>().toExtend<Title>();
+    expectTypeOf<Variable<number>>().not.toExtend<Title>();
+    expectTypeOf<Parameters<typeof note.prepare<typeof note, "create">>[1]>().not.toHaveProperty(
+        "titel",
     );
 
-    // expect the methods clients call, and the input without the preset status
-    expectTypeOf<ActionCallDefinition<typeof note>["method"]>().toEqualTypeOf<
-        "get" | "list" | "create" | "open" | "mark" | "delete" | "attach" | "detach"
-    >();
-    type Input = Parameters<NonNullable<typeof done.call>["input"]>[0];
-    expectTypeOf<Input>().toHaveProperty("id");
-    expectTypeOf<Input>().not.toHaveProperty("status");
-
-    // expect a misspelled preset field typed never, and keys checked against the keybinding syntax
-    type Misspelled = NonNullable<
-        ActionCallDefinition<typeof note, "mark", { stauts: "done" }>["input"]
-    >;
-    expectTypeOf<Misspelled["stauts"]>().toBeNever();
+    // expect the fields of an input's object, and keys checked against the keybinding syntax
+    type Fields = VariablesOf<{ note: ObjectInput<typeof note> }>["note"];
+    expectTypeOf<Fields["title"]>().toEqualTypeOf<Variable<string>>();
     expectTypeOf<ShortcutText<"mod+shift+k">>().toEqualTypeOf<"mod+shift+k">();
     expectTypeOf<ShortcutText<"hyper+x">>().toBeNever();
     expectTypeOf<ShortcutText<"mod+">>().toBeNever();
 });
 
-test("read what an action's call acts on, the input it asks for and whether it removes its target", () => {
-    // declare actions marking, creating and deleting notes, one moving a draft to the trash, one deleting a job
-    const owner = { package: notes };
-    const done = defineAction(
-        {
-            name: "mark-done",
-            title: t`Mark Done`,
-            call: { object: note, method: "mark", input: { status: "done" } },
-        },
-        owner,
-    );
-    const create = defineAction(
-        { name: "new-note", title: t`New Note`, call: { object: note, method: "create" } },
-        owner,
-    );
-    const remove = defineAction(
-        { name: "delete-note", title: t`Delete Note`, call: { object: note, method: "delete" } },
-        owner,
-    );
-    const trash = defineAction(
-        { name: "trash-draft", title: t`Move to Trash`, call: { object: draft, method: "delete" } },
-        owner,
-    );
-    const cancel = defineAction(
-        { name: "cancel-job", title: t`Cancel Job`, call: { object: job, method: "delete" } },
-        owner,
-    );
+/** Read what a method's own action acts on, its inputs and whether it removes for good. */
+function read(object: ObjectType, method: string) {
+    const call = ActionCall.of(object, method);
 
-    // expect each on one object but the create, asking for the rest, the deletes without a trash for good
-    expect([done, create, remove, trash, cancel].map(readCall)).toEqual([
-        { target: "object", asked: ["priority", "tags"], isDestructive: false },
-        { target: "scope", asked: ["title", "tags"], isDestructive: false },
-        { target: "object", asked: [], isDestructive: true },
-        { target: "object", asked: [], isDestructive: false },
-        { target: "object", asked: [], isDestructive: true },
+    return [call.target, call.inputs.map(({ name }) => name), call.isDestructive];
+}
+
+test("read the inputs a method's own action asks for, and whether it removes its target", () => {
+    // expect each on the selected objects but the create, the deletes without a trash for good
+    expect([
+        read(note, "mark"),
+        read(note, "create"),
+        read(note, "delete"),
+        read(draft, "delete"),
+        read(job, "delete"),
+    ]).toEqual([
+        ["target", ["target", "status", "priority", "tags"], false],
+        [undefined, ["title", "tags"], false],
+        ["target", ["target"], true],
+        ["target", ["target"], false],
+        ["target", ["target"], true],
     ]);
 });
 
-test("query the targets an action's call applies to and write its input from the preset fields", async () => {
+test("query the targets an action's call applies to and call it on one", async () => {
     // store a device's tasks locally, one open and one done
     const environment = testSimulation().environment("device");
     const database = await connectBunSqlite(":memory:", [], { environment });
@@ -270,20 +284,17 @@ test("query the targets an action's call applies to and write its input from the
         {
             name: "mark-done",
             title: t`Mark Done`,
-            call: {
-                object: task,
-                method: "mark",
-                input: { status: "done" },
-                when: { status: "open" },
-            },
+            input: { tasks: selected(task, { status: "open" }) },
+            call: ({ tasks }) => tasks.prepare("mark", { status: "done" }),
         },
         { package: notes },
     );
     const call = present(markDone.call, "the action's call");
     const applies = async (id: string) =>
-        (await client.queryType(task).findFirst(call.query([id]))) !== undefined;
+        (await client.queryType(call.object).findFirst(call.query([id]))) !== undefined;
     const before = [await applies(open.id), await applies(done.id)];
-    await client.call(task, call.method, call.input({ id: open.id })).confirmed;
+    const target = task.policy.reference(owner.id, open.id);
+    await client.perform(markDone, { values: { tasks: target } }).confirmed;
 
     // expect the query of the method's permission, applying to the open task until it is done
     expect({
@@ -300,11 +311,16 @@ test("query the targets an action's call applies to and write its input from the
     });
 });
 
-test("refuse a condition on a call without a target, and a key combination editors do not write", async () => {
-    // declare a create with a condition, and read back an action on keys the compiler cannot check
+test("refuse a call reading what is no input, and a key combination editors do not write", async () => {
+    // declare a call reading another action's input, and read back an action on keys the compiler cannot check
     const owner = { package: notes };
     const open = defineAction(
-        { name: "open-note", title: t`Open`, call: { object: note, method: "open" } },
+        {
+            name: "open-note",
+            title: t`Open`,
+            input: { notes: selected(note) },
+            call: (variables) => variables.notes.prepare("open", {}),
+        },
         owner,
     );
     const refused = [
@@ -313,22 +329,22 @@ test("refuse a condition on a call without a target, and a key combination edito
                 {
                     name: "new-note",
                     title: t`New Note`,
-                    call: { object: note, method: "create", when: { status: "open" } },
+                    call: () => note.prepare("create", { title: new Variable<string>("title") }),
                 },
                 owner,
             ),
         ),
         await refusal(() =>
-            Action.of("open-note", { ...open.describe(), keybinding: "hyper+o" }, note),
+            Action.of("open-note", { ...open.describe(), keybinding: "hyper+o" }, () => note),
         ),
     ];
 
-    // expect both refused, the condition by its method and the keys by their syntax
+    // expect both refused, the call by its variable and the keys by their syntax
     expect(refused).toEqual([
         [
             "BAD_REQUEST",
             "DEFINITION_INVALID",
-            "action 'new-note' is invalid: it has a condition, but 'note.create' acts on its scope",
+            "action 'new-note' is invalid: its call reads 'title', which is no input of it",
         ],
         [
             "BAD_REQUEST",
@@ -345,16 +361,27 @@ test("list a package's actions on its own objects, refusing a call of a type it 
         {
             name: "mark-done",
             title: t`Mark Done`,
-            call: { object: task, method: "mark", input: { status: "done" } },
+            input: { tasks: selected(task) },
+            call: ({ tasks }) => tasks.prepare("mark", { status: "done" }),
         },
         owner,
     );
     const stray = defineAction(
-        { name: "finish", title: t`Finish`, call: { object: note, method: "mark" } },
+        {
+            name: "finish",
+            title: t`Finish`,
+            input: { notes: selected(note) },
+            call: (variables) => variables.notes.prepare("mark", { status: "done" }),
+        },
         owner,
     );
     const named = defineAction(
-        { name: "mark", title: t`Mark`, call: { object: task, method: "mark" } },
+        {
+            name: "mark",
+            title: t`Mark`,
+            input: { tasks: selected(task) },
+            call: ({ tasks }) => tasks.prepare("mark", { status: "done" }),
+        },
         owner,
     );
 
@@ -408,20 +435,6 @@ test("list a package's actions on its own objects, refusing a call of a type it 
     });
 });
 
-/** Read what an action's call acts on, the input it asks for and whether it removes for good. */
-function readCall(action: Action) {
-    const call = present(action.call, "the action's call");
-    const { properties } = schema
-        .looseObject({ properties: schema.jsonObject() })
-        .parse(call.parameters);
-
-    return {
-        target: call.target,
-        asked: Object.keys(properties),
-        isDestructive: call.isDestructive,
-    };
-}
-
 test("offer the declared actions meeting their condition, then each titled method and valid transition", () => {
     // define tickets moving from todo through started to done, with an edit, a delete and a ping
     const ticket = defineObject(
@@ -451,17 +464,19 @@ test("offer the declared actions meeting their condition, then each titled metho
     );
 
     // escalate a ticket still to do through its ping
-    const escalate = new Action(notes, {
-        name: "escalate",
-        title: t`Escalate`,
-        call: { object: ticket, method: "ping", when: { state: "todo" } },
-    });
+    const escalate = defineAction(
+        {
+            name: "escalate",
+            title: t`Escalate`,
+            input: { tickets: selected(ticket, { state: "todo" }) },
+            call: ({ tickets }) => tickets.prepare("ping", {}),
+        },
+        { package: notes },
+    );
     const todo = { id: "ticket-1", title: "Write", state: "todo" };
     const started = { id: "ticket-2", title: "Ship", state: "started" };
     const names = (rows: readonly (typeof todo)[]) =>
-        Action.available(ticket, rows, [escalate], { now: 0, timeZone: "UTC" }).map(
-            (each) => each.name,
-        );
+        ticket.actions(rows, [escalate], { now: 0, timeZone: "UTC" }).map((each) => each.name);
 
     expect({
         todo: names([todo]),
@@ -471,5 +486,616 @@ test("offer the declared actions meeting their condition, then each titled metho
         todo: ["escalate", "edit", "delete", "start"],
         started: ["edit", "delete", "finish"],
         both: ["edit", "delete"],
+    });
+});
+
+/** The projects of a device. */
+const project = defineObject(
+    {
+        name: "project",
+        plural: "projects",
+        title: t`${plural(argument("count"), { one: "Project", other: "Projects" })}`,
+        scope: device,
+        fields: { title: field.string(schema.string()) },
+        access: { permissions: { update: none() } },
+    },
+    () => ({}),
+);
+
+/** The columns of an issue's assignee. */
+const ASSIGNEE = ["assigneePackageId", "assigneeType", "assigneeScope", "assigneeId"] as const;
+
+/** The issues of a device, each in a project. */
+const issue = defineObject(
+    {
+        name: "issue",
+        plural: "issues",
+        title: t`${plural(argument("count"), { one: "Issue", other: "Issues" })}`,
+        scope: device,
+        fields: {
+            title: field.string(schema.string()).labeled(t`Title`),
+            status: field
+                .enum(["todo", "doing", "done"])
+                .default("todo")
+                .labeled(t`Status`),
+            assignee: field
+                .subject(principal.user)
+                .optional()
+                .labeled(t`Assignee`),
+            project: field
+                .reference(project, { delete: "keep" })
+                .optional()
+                .labeled(t`Project`),
+            dueAt: field
+                .time()
+                .optional()
+                .labeled(t`Due`),
+        },
+        access: { permissions: { create: none(), update: none() } },
+    },
+    (method) => ({
+        create: method.create("create", {
+            fields: ["title", "status", ...ASSIGNEE, "projectId", "dueAt"],
+        }),
+        edit: method.update("update", {
+            fields: ["title", "status", ...ASSIGNEE, "projectId", "dueAt"],
+        }),
+    }),
+);
+
+/** Write the calls of an action on values for the person, reading each object's row from some. */
+function invoked(
+    action: Action,
+    values: JsonObject,
+    rows: readonly (JsonObject & { readonly id: string })[] = [],
+    context: ActionContext = PERSON,
+) {
+    return present(action.call, "the action's call").invocations(
+        { values },
+        { context, read: async (_type, { id }) => rows.find((row) => row.id === id) },
+    );
+}
+
+/** The identifiers of two issues. */
+const ISSUES = [
+    "issue-019f7480-0000-7000-8000-000000000003",
+    "issue-019f7480-0000-7000-8000-000000000004",
+] as const;
+
+test("read the person, the time and a field of an input's object where the action runs", async () => {
+    // take an issue oneself due in a day, and add one under another in its project
+    const owner = { package: notes };
+    const take = defineAction(
+        {
+            name: "take",
+            title: t`Assign to me`,
+            input: { issues: selected(issue) },
+            call: ({ issues }) =>
+                issues.prepare("edit", { assignee: me, dueAt: now.plus({ days: 1 }) }),
+        },
+        owner,
+    );
+    const add = defineAction(
+        {
+            name: "add-similar",
+            title: t`New similar issue`,
+            input: {
+                similar: current(issue),
+                title: field.string(schema.string()).labeled(t`Title`),
+                due: field
+                    .time()
+                    .labeled(t`Due`)
+                    .optional(),
+            },
+            call: ({ similar, title, due }) =>
+                issue.prepare("create", {
+                    title,
+                    dueAt: due,
+                    projectId: similar.projectId,
+                    assignee: similar.assignee,
+                }),
+        },
+        owner,
+    );
+    const one = issue.policy.reference("device-1", ISSUES[0]);
+    const two = issue.policy.reference("device-2", ISSUES[1]);
+    const row = {
+        id: ISSUES[0],
+        projectId: "project-1",
+        ...ObjectReference.columns("assignee", PERSON.subject),
+    };
+
+    expect({
+        take: await invoked(take, { issues: [one, two] }),
+        add: await invoked(add, { similar: one, title: "Write" }, [row]),
+    }).toEqual({
+        // one call for each target, in its own scope
+        take: ISSUES.map((id, index) => ({
+            scope: `device-${index + 1}`,
+            input: {
+                id,
+                ...ObjectReference.columns("assignee", PERSON.subject),
+                dueAt: 1_767_355_200_000,
+            },
+        })),
+        // the optional due date left out
+        add: [
+            {
+                scope: undefined,
+                input: {
+                    title: "Write",
+                    projectId: "project-1",
+                    ...ObjectReference.columns("assignee", PERSON.subject),
+                },
+            },
+        ],
+    });
+});
+
+/** The reviews of a device, each by a person stored by their identifier. */
+const review = defineObject(
+    {
+        name: "review",
+        plural: "reviews",
+        title: t`${plural(argument("count"), { one: "Review", other: "Reviews" })}`,
+        scope: device,
+        fields: { reviewer: field.reference(principal.user).optional() },
+        access: { permissions: { update: none() } },
+    },
+    (method) => ({ edit: method.update("update", { fields: ["reviewerId"] }) }),
+);
+
+test("read the person's identifier where a field stores one, refusing to while nobody is signed in", async () => {
+    // take a review oneself
+    const taken = defineAction(
+        {
+            name: "review-myself",
+            title: t`Review myself`,
+            input: { reviews: selected(review) },
+            call: ({ reviews }) => reviews.prepare("edit", { reviewerId: me.id }),
+        },
+        { package: notes },
+    );
+    const values = { reviews: review.policy.reference("device-1", "review-1") };
+
+    expect(await invoked(taken, values)).toEqual([
+        { scope: "device-1", input: { id: "review-1", reviewerId: PERSON.subject.id } },
+    ]);
+    await expect(invoked(taken, values, [], { ...PERSON, subject: undefined })).rejects.toThrow(
+        new TypeError("variable 'me' has no person: nobody is signed in"),
+    );
+});
+
+/** Fill an action from places, reading what it still asks as each input's name and kind. */
+function filled(action: Action, places: readonly Place[], given: JsonObject = {}) {
+    const { values, initial, asked } = present(action.call, "the action's call").resolve(
+        { places },
+        given,
+    );
+
+    return { values, initial, asked: asked.map((each) => [each.name, each.value.kind]) };
+}
+
+test("fill an action from its places, the nearest first, and ask for the rest", () => {
+    // a project's page with a board column, two selected issues and one alone
+    const scope = "device-1";
+    const atlas = project.policy.reference(scope, "project-1");
+    const [one, two, three] = ["issue-1", "issue-2", "issue-3"].map((id) =>
+        issue.policy.reference(scope, id),
+    );
+    const page = new Place().with(current(project), atlas);
+    const column = new Place().with(creating(issue), { status: "doing" });
+    const single = new Place().with(current(issue), present(one, "an issue"));
+    const several = new Place().with(selected(issue), [
+        present(two, "an issue"),
+        present(three, "an issue"),
+    ]);
+
+    // move issues to a picked project, add one under another, and add one to the page's project
+    const owner = { package: notes };
+    const move = defineAction(
+        {
+            name: "move",
+            title: t`Move to project…`,
+            summary: t`Move ${argument("issues")} to ${argument("project")}`,
+            input: { issues: selected(issue), project: picked(project) },
+            call: (variables) =>
+                variables.issues.prepare("edit", { projectId: variables.project.id }),
+        },
+        owner,
+    );
+    const addUnder = defineAction(
+        {
+            name: "add-under",
+            title: t`New similar issue`,
+            input: { similar: current(issue), title: field.string(schema.string()) },
+            call: ({ similar, title }) =>
+                issue.prepare("create", { title, projectId: similar.projectId }),
+        },
+        owner,
+    );
+    const add = defineAction(
+        {
+            name: "add",
+            title: t`New issue`,
+            input: {
+                project: current(project).optional(),
+                status: field.enum(["todo", "doing", "done"]).default("todo"),
+                title: field.string(schema.string()),
+            },
+            call: (variables) =>
+                issue.prepare("create", {
+                    title: variables.title,
+                    status: variables.status,
+                    projectId: variables.project.id,
+                }),
+        },
+        owner,
+    );
+
+    // fill the issues' own edit, a method's
+    const { asked: offered } = ActionCall.of(issue, "edit").resolve({ places: [single] }, {});
+    expect({
+        moveOne: filled(move, [single, column, page]),
+        moveSelection: filled(move, [several, single, page]),
+        moveNowhere: filled(move, [page]),
+        moveGiven: filled(move, [], { issues: [one ?? null], project: atlas }),
+        addUnderOne: filled(addUnder, [single, page]),
+        addUnderSelection: filled(addUnder, [several, page]),
+        addInColumn: filled(add, [column, page]),
+        addNowhere: filled(add, []),
+        addGiven: filled(add, [column, page], { title: "Write", status: "done" }),
+        editOne: offered.map(({ name }) => name),
+    }).toEqual({
+        // act on the nearest issues, asking for the project on its own page too
+        moveOne: { values: { issues: [one] }, initial: {}, asked: [["project", "object"]] },
+        moveSelection: {
+            values: { issues: [two, three] },
+            initial: {},
+            asked: [["project", "object"]],
+        },
+        moveNowhere: {
+            values: {},
+            initial: {},
+            asked: [
+                ["issues", "object"],
+                ["project", "object"],
+            ],
+        },
+        moveGiven: { values: { issues: [one], project: atlas }, initial: {}, asked: [] },
+        // take the one issue around, none of several
+        addUnderOne: { values: { similar: one }, initial: {}, asked: [["title", "text"]] },
+        addUnderSelection: {
+            values: {},
+            initial: {},
+            asked: [
+                ["similar", "object"],
+                ["title", "text"],
+            ],
+        },
+        // start an issue as its column and page do
+        addInColumn: {
+            values: { project: atlas, status: "doing" },
+            initial: {},
+            asked: [["title", "text"]],
+        },
+        addNowhere: { values: {}, initial: {}, asked: [["title", "text"]] },
+        addGiven: {
+            values: { project: atlas, status: "done", title: "Write" },
+            initial: {},
+            asked: [],
+        },
+        // offer every field a person can give of a method's own edit
+        editOne: ["title", "status", "assignee", "projectId", "dueAt"],
+    });
+});
+
+test("label the inputs of a method's own action by the fields they write, with what each takes", () => {
+    expect(
+        ActionCall.of(issue, "edit").inputs.map((each) => [each.name, each.label, each.value.kind]),
+    ).toEqual([
+        ["target", undefined, "object"],
+        ["title", t`Title`, "text"],
+        ["status", t`Status`, "choice"],
+        ["assignee", t`Assignee`, "person"],
+        ["projectId", t`Project`, "object"],
+        ["dueAt", t`Due`, "time"],
+        ["tags", undefined, "json"],
+    ]);
+});
+
+/** The teams of a device, each with a name, as variables are read by. */
+const team = defineObject(
+    {
+        name: "team",
+        plural: "teams",
+        title: t`${plural(argument("count"), { one: "Team", other: "Teams" })}`,
+        scope: device,
+        fields: {
+            name: field.string(schema.string()),
+            status: field.enum(["open", "closed"]).default("open"),
+        },
+        access: { permissions: { create: none(), update: none() } },
+    },
+    (method) => ({ create: method.create("create"), edit: method.update("update") }),
+);
+
+test("read a field named as a variable's own name, and start a creation as its place does", async () => {
+    // add a team named after the current one
+    const copy = defineAction(
+        {
+            name: "copy",
+            title: t`Duplicate`,
+            input: { source: current(team) },
+            call: ({ source }) => team.prepare("create", { name: source.name }),
+        },
+        { package: notes },
+    );
+    const call = present(copy.call, "the action's call");
+    const source = team.policy.reference("device-1", "team-1");
+    const place = new Place()
+        .with(current(team), source)
+        .with(creating(team), { status: "closed" });
+    const resolved = call.resolve({ places: [place] }, {});
+    const row = { id: "team-1", name: "Atlas" };
+
+    expect({
+        resolved,
+        invocations: await call.invocations(resolved, {
+            context: PERSON,
+            read: async () => row,
+        }),
+    }).toEqual({
+        // the column's status kept for the created team, which no input sets
+        resolved: { values: { source }, initial: { status: "closed" }, asked: [] },
+        invocations: [{ scope: undefined, input: { status: "closed", name: "Atlas" } }],
+    });
+});
+
+test("describe whether an action removes and what it asks for, and read both back", () => {
+    // describe an action a view handles as JSON stores it
+    const clear = defineAction(
+        {
+            name: "clear",
+            title: t`Clear`,
+            isDestructive: true,
+            input: { color: field.enum(["red", "blue"]) },
+        },
+        { package: notes },
+    );
+    const stored = ActionDescription.parse(JSON.parse(JSON.stringify(clear.describe())));
+    const declared = Action.of("clear", stored, () => team);
+
+    expect([declared.isDestructive, declared.inputs]).toEqual([true, clear.inputs]);
+});
+
+test("keep the nulls of a list a call prepares", () => {
+    const template = Template.of({ order: ["a", null, new Variable("last")] });
+
+    expect(template.bind({ values: { last: "z" }, rows: new Map(), context: PERSON })).toEqual({
+        order: ["a", null, "z"],
+    });
+});
+
+test("offer only what runs on an object as it is: in use, archived, in the trash, or declared", () => {
+    // list the methods of pages that archive and recover
+    const page = defineObject(
+        {
+            name: "page",
+            plural: "pages",
+            title: t`${plural(argument("count"), { one: "Page", other: "Pages" })}`,
+            scope: device,
+            fields: { title: field.string() },
+            access: { permissions: { write: none() } },
+            traits: [
+                archivable({ by: "write" }),
+                recoverable({ within: { days: 30 }, by: "write" }),
+            ],
+        },
+        (method) => ({ update: method.update("write") }),
+    );
+    const names = (row: JsonObject) =>
+        page.actions([{ id: "page-1", ...row }], [], PERSON.moment).map(({ name }) => name);
+
+    expect({
+        used: names({}),
+        archived: names({ archivedAt: 1 }),
+        deleted: names({ deletedAt: 1 }),
+        managed: names({ managerInstallationId: "installation-1" }),
+        detached: names({ managerInstallationId: "installation-1", detachedAt: 1 }),
+    }).toEqual({
+        used: ["update", "delete", "archive"],
+        archived: ["delete", "unarchive"],
+        deleted: ["restore", "purge"],
+        managed: ["update", "delete", "archive", "detach"],
+        detached: ["update", "delete", "archive", "attach"],
+    });
+});
+
+test("offer a method's own action beside one that presets some of it", () => {
+    // close teams by a preset, and rename them by one of the fields an edit takes
+    const owner = { package: notes };
+    const close = defineAction(
+        {
+            name: "close",
+            title: t`Close`,
+            input: { teams: selected(team) },
+            call: ({ teams }) => teams.prepare("edit", { status: "closed" }),
+        },
+        owner,
+    );
+    const rename = defineAction(
+        {
+            name: "rename",
+            title: t`Rename`,
+            input: { teams: selected(team), name: field.string(schema.string()) },
+            call: ({ teams, name }) => teams.prepare("edit", { name }),
+        },
+        owner,
+    );
+    const names = (declared: readonly Action[]) =>
+        team.actions([{ id: "team-1" }], declared, PERSON.moment).map((action) => action.name);
+
+    // expect the edit beside both, and the methods every object takes
+    expect([names([close]), names([rename])]).toEqual([
+        ["close", "edit"],
+        ["rename", "edit"],
+    ]);
+});
+
+test("refuse a reserved input name and several objects for one value, and an input's object its condition leaves out", async () => {
+    const owner = { package: notes };
+    const refused = [
+        await refusal(() =>
+            defineAction(
+                {
+                    name: "reserved",
+                    title: t`Reserved`,
+                    input: { me: field.string(schema.string()) },
+                    call: (variables) => team.prepare("create", { name: variables.me }),
+                },
+                owner,
+            ),
+        ),
+        await refusal(() =>
+            defineAction(
+                {
+                    name: "several",
+                    title: t`Several`,
+                    input: { teams: selected(team) },
+                    call: ({ teams }) => team.prepare("create", { name: teams.name }),
+                },
+                owner,
+            ),
+        ),
+    ];
+
+    // read a closed team where only open ones apply, on an input that is no target
+    const copy = defineAction(
+        {
+            name: "copy-open",
+            title: t`Duplicate`,
+            input: { source: current(team, { status: "open" }) },
+            call: ({ source }) => team.prepare("create", { name: source.name }),
+        },
+        owner,
+    );
+    const source = team.policy.reference("device-1", "team-1");
+    const row = { id: "team-1", name: "Atlas", status: "closed" };
+
+    expect([...refused, await refusal(() => invoked(copy, { source }, [row]))]).toEqual([
+        [
+            "BAD_REQUEST",
+            "DEFINITION_INVALID",
+            "action 'reserved' is invalid: its input 'me' has a name calls read for themselves",
+        ],
+        [
+            "BAD_REQUEST",
+            "DEFINITION_INVALID",
+            "action 'several' is invalid: its input 'teams' takes several objects, but the call acts on others",
+        ],
+        [
+            "PRECONDITION_FAILED",
+            "CALL_BLOCKED",
+            "cannot call 'team.create': it does not apply to team 'team-1'",
+        ],
+    ]);
+});
+
+test("read what a schema takes, its choices, and whether it must be given", () => {
+    // a page's own action over each kind of schema
+    const group = defineAction(
+        {
+            name: "group",
+            title: t`Group by…`,
+            input: {
+                field: schema.enum(["status", "assignee"]),
+                limit: schema.number().default(10),
+                title: schema.string().exactOptional(),
+                isShown: schema.boolean(),
+                range: schema.object({ start: schema.number() }),
+            },
+        },
+        { package: notes },
+    );
+
+    expect(group.inputs.map(({ name, need, value }) => [name, need, value])).toEqual([
+        [
+            "field",
+            "required",
+            { kind: "choice", choices: [{ value: "status" }, { value: "assignee" }] },
+        ],
+        ["limit", "default", { kind: "number" }],
+        ["title", "optional", { kind: "text" }],
+        ["isShown", "required", { kind: "boolean" }],
+        ["range", "required", { kind: "json" }],
+    ]);
+});
+
+test("read a declared variable the nearest place gives, the space, and refuse one nobody gives", async () => {
+    // plan the week a calendar shows, named by its space
+    const owner = { package: notes };
+    const visibleWeek = defineVariable(
+        {
+            name: "visible-week",
+            label: t`Week`,
+            value: schema.object({ start: schema.number(), end: schema.number() }),
+        },
+        owner,
+    );
+    const plan = defineAction(
+        {
+            name: "plan-week",
+            title: t`Plan this week`,
+            input: { week: visibleWeek },
+            call: ({ week }) => issue.prepare("create", { title: space, dueAt: week.end }),
+        },
+        owner,
+    );
+    const call = present(plan.call, "the action's call");
+    const calendar = new Place().with(visibleWeek, { start: 1, end: 2 });
+    const page = new Place().with(visibleWeek, { start: 3, end: 4 });
+    const resolved = call.resolve({ places: [calendar, page] }, {});
+
+    expect({
+        described: call.describe().inputs,
+        resolved,
+        invocations: await invoked(plan, resolved.values),
+        missing: await refusal(() => invoked(plan, {})),
+        wrong: await Promise.all(
+            [
+                { issues: project.policy.reference("device-1", "project-1") },
+                { issues: "issue-1" },
+            ].map((values) =>
+                refusal(() =>
+                    ActionCall.of(issue, "edit").invocations(
+                        { values: { target: values.issues } },
+                        { context: PERSON, read: async () => undefined },
+                    ),
+                ),
+            ),
+        ),
+    }).toEqual({
+        described: [
+            {
+                name: "week",
+                label: t`Week`,
+                need: "required",
+                kind: "json",
+                variable: visibleWeek.key,
+            },
+        ],
+        resolved: { values: { week: { start: 1, end: 2 } }, initial: {}, asked: [] },
+        invocations: [{ scope: undefined, input: { title: "device-1", dueAt: 2 } }],
+        missing: [
+            "PRECONDITION_FAILED",
+            "CALL_BLOCKED",
+            "cannot call 'issue.create': input 'week' is missing",
+        ],
+        // a project, and a bare identifier, where an issue belongs
+        wrong: [
+            ["BAD_REQUEST", "INPUT_INVALID", "invalid input: target: it takes issue"],
+            ["BAD_REQUEST", "INPUT_INVALID", "invalid input: target: it takes issue"],
+        ],
     });
 });

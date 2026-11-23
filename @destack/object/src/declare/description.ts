@@ -1,4 +1,4 @@
-import { Message } from "@destack/locale";
+import { Message, Shortcut } from "@destack/locale";
 import { ReasonDescription } from "@destack/error";
 import { schema, Version } from "@destack/schema";
 import {
@@ -7,10 +7,20 @@ import {
     PermissionScope,
     type PermissionSet,
 } from "@destack/access";
-import { defineKind, DeclarationName, type graph, PackageId, Sandbox } from "@destack/package";
+import {
+    defineKind,
+    DeclarationName,
+    type graph,
+    PackageId,
+    PackageVersion,
+    Sandbox,
+} from "@destack/package";
 import { Hue } from "@destack/color";
 import type { BuildReader } from "@destack/package/manifest";
 import { ObjectTypeReference } from "@destack/sync";
+import { ActionFocus } from "./action.ts";
+import { ActionCallDescription } from "./call.ts";
+import { ActionInputDescription } from "./input.ts";
 
 /** A JSON Schema. */
 const JsonSchema = schema.jsonObject();
@@ -217,3 +227,34 @@ export const PackageDescription = Object.assign(packageDescription, {
 });
 /** A declared package: its API, objects, mounts, views and requested permissions. */
 export type PackageDescription = schema.Infer<typeof PackageDescription>;
+
+/** An operation people invoke, as menus and the command palette offer it. */
+export const ActionDescription = schema.object({
+    /** The package declaring the action. */
+    package: PackageVersion,
+    /** The name, unique among the package's actions. */
+    name: schema.string().min(1),
+    /** The action's title. */
+    title: Message,
+    /** The sentence for the action with its inputs. */
+    summary: Message.exactOptional(),
+    /** The group the command palette shows the title under. */
+    category: Message.exactOptional(),
+    /** The further words a search finds the action by. */
+    keywords: Message.exactOptional(),
+    /** The key combination running it. */
+    keybinding: Shortcut.exactOptional(),
+    /** Where focus may be for the keys to run it. */
+    focus: ActionFocus,
+    /** Whether it removes something, a method's own when absent. */
+    isDestructive: schema.boolean().exactOptional(),
+    /** The inputs of an action the open view handles, none when absent. */
+    inputs: schema.array(ActionInputDescription).exactOptional(),
+    /** The method it calls, absent for an action the open view handles. */
+    call: ActionCallDescription.exactOptional(),
+});
+/** An operation people invoke, as its declaration describes it. */
+export type ActionDescription = schema.Infer<typeof ActionDescription>;
+
+/** The action declaration kind, which object defines. */
+export const ACTION_KIND = defineKind({ name: "action", description: ActionDescription });

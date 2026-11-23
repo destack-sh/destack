@@ -71,7 +71,7 @@ export const ObjectDetail = {
             sections: [
                 {
                     title: DEFAULT_SECTION,
-                    fields: names.map((name) => ObjectDetail.field(type, row, name)),
+                    fields: names.map((name) => ObjectDetail.field(type, row, name, localization)),
                 },
             ],
             related: [],
@@ -120,7 +120,9 @@ export const ObjectDetail = {
             ...identify(type, row, moment, localization, key),
             sections: sections.map((section) => ({
                 title: section.title,
-                fields: section.fields.map((name) => ObjectDetail.field(type, row, name)),
+                fields: section.fields.map((name) =>
+                    ObjectDetail.field(type, row, name, localization),
+                ),
             })),
             related,
         };
@@ -174,11 +176,16 @@ export const ObjectDetail = {
     },
 
     /** Read one field of an object. */
-    field(type: ObjectType, row: JsonObject, name: string): ObjectField {
+    field(
+        type: ObjectType,
+        row: JsonObject,
+        name: string,
+        localization: Localization,
+    ): ObjectField {
         return {
             field: name,
             label: type.fields[name]?.label,
-            value: ObjectValue.of(type, name, row[name]),
+            value: ObjectValue.of(type, name, row[name], localization),
         };
     },
 };

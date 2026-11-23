@@ -38,7 +38,7 @@ export type Layout = schema.Infer<typeof kinds>;
 export const Layout = Object.assign(kinds, {
     /** List the layouts of a type. */
     list(source: LayoutSource): Layout[] {
-        // derive a tree from the type's own parent, a board per enum, a calendar per time field
+        // derive a tree from the type's own parent, a board per grouping field, a calendar per time field
         const fields = Object.entries(source.fields);
         const derived: Layout[] = [
             { kind: "table" },
@@ -46,7 +46,7 @@ export const Layout = Object.assign(kinds, {
                 ? []
                 : [{ kind: "tree" as const, id: source.tree.id, parent: source.tree.parent }]),
             ...fields
-                .filter(([, field]) => field.type === "enum" || field.type === "state")
+                .filter(([, field]) => BoardLayout.isGrouping(field))
                 .map(([property]) => ({
                     kind: "board" as const,
                     by: property,

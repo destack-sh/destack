@@ -55,9 +55,9 @@ type MoveParentOf<Nested, Ordered> = Nested extends { readonly move: string }
 
 /** The field of an ordering that callers write. */
 type MoveField<Fields extends Readonly<Record<string, Field>>, Ordered> = Ordered extends {
-    readonly within: infer Within;
+    readonly within: infer Within extends string;
 }
-    ? Extract<Within, UpdatedField<Fields>>
+    ? Extract<Within | `${Within}Id`, UpdatedField<Fields>>
     : never;
 
 /** The method moving objects between parents and among siblings. */
@@ -118,9 +118,11 @@ export const Move = {
 
         // write the ordering's field where callers write it
         const ordering = Orderable.of(definition);
-        const fields = (ordering?.within ?? []).filter(
-            (name) => definition.fields?.[name]?.written === true,
-        );
+        const within = orderable === undefined || orderable === true ? undefined : orderable.within;
+        const { fields: declared = {} } = definition;
+        const field =
+            within === undefined ? undefined : (declared[within] ?? declared[`${within}Id`]);
+        const fields = field?.written === true ? (ordering?.within ?? []) : [];
 
         return {
             permission,

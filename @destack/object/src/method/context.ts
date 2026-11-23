@@ -34,14 +34,10 @@ import { ViewSubscriber } from "./query.ts";
 import type { RelationGraph } from "../query/query.ts";
 import type { ObjectQueries } from "../client/client.ts";
 import type { ObjectQueryBuilder } from "../client/query.ts";
-import {
-    found,
-    Identifier,
-    present,
-    schema,
-    type JsonObject,
-    type JsonValue,
-} from "@destack/schema";
+import { found, Identifier, present, schema, type JsonObject, JsonValue } from "@destack/schema";
+import type { Action } from "../declare/action.ts";
+import type { ActionArguments } from "../declare/call.ts";
+import type { ActionInputs } from "../declare/variable.ts";
 import type { Kind, graph, PackageId } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import { Catalog } from "@destack/locale";
@@ -199,6 +195,41 @@ export class MethodContext<
         }
 
         return MethodContext.results([...this.objects, ...this.replicas], calls, results);
+    }
+
+    /** Run an action's call on resolved inputs in this call's transaction as a caller. */
+    async perform<Inputs extends ActionInputs>(
+        caller: AccessContext,
+        action: Action<Inputs>,
+        { values, initial = {} }: ActionArguments<Inputs>,
+    ): Promise<readonly unknown[]> {
+        // write the calls from the transaction's rows
+        const call = present(action.call, `the call of action '${action.name}'`);
+        const { packageId, type: name, scope, id } = caller.subject;
+        const invocations = await call.invocations(
+            { values: JsonValue.object(values), initial },
+            {
+                context: {
+                    subject: { packageId, type: name, scope, id },
+                    scope: this.scope,
+                    moment: { now: caller.now, timeZone: this.environment.timeZone },
+                    places: [],
+                },
+                read: async (type, reference) => {
+                    const row = await this.read(type).findFirst({ where: { id: reference.id } });
+
+                    return row === undefined ? undefined : JsonValue.object(row);
+                },
+            },
+        );
+
+        // run each as the caller, those without a scope in this call's
+        return this.mutate(
+            caller,
+            invocations.map(({ scope: target, input }) =>
+                call.object.record(call.method, input, target ?? this.scope),
+            ),
+        );
     }
 
     /** The environment the call runs in: its store's or its installation's. */

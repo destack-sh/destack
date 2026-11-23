@@ -1,4 +1,5 @@
-import type { Message } from "@destack/locale";
+import { type Localization, type Message, t } from "@destack/locale";
+import { ObjectAppearance } from "../presentation/appearance.ts";
 import { Layout } from "../layout/layout.ts";
 import { ObjectDetail } from "../presentation/detail.ts";
 import { ObjectView } from "../presentation/view.ts";
@@ -29,10 +30,12 @@ import {
 import {
     Expression,
     Condition,
+    type JsonCondition,
     eq,
     inArray,
     DatabaseError,
     Key,
+    type Moment,
     type Row,
     type RowImage,
     type Select,
@@ -61,6 +64,15 @@ import {
 } from "@destack/schema";
 
 import type { AuditAction } from "../audit/action.ts";
+import { Action } from "../declare/action.ts";
+import { ActionCall, type ActionCallDescription } from "../declare/call.ts";
+import { ActionInput } from "../declare/input.ts";
+import {
+    type ActionInputs,
+    type ActionTemplate,
+    Variable,
+    type VariableInput,
+} from "../declare/variable.ts";
 import { ModuleMetadata, type PackageVersion } from "@destack/package";
 import { type Delivery, EventKind, type EventRetention, EventTable } from "@destack/event";
 import { Field, type FieldsByColumn, type ReferenceOf, type TextField } from "../field/field.ts";
@@ -236,6 +248,56 @@ const JSON_OBJECT = schema.jsonObject();
 
 /** The input field naming a change's request, which a mutation's identifier takes. */
 const REQUEST_FIELD = "requestId";
+
+/** The titles of the built-in methods people run on objects from a list. */
+const METHOD_TITLES: Readonly<Partial<Record<MethodKind, Message>>> = {
+    update: t`Edit`,
+    delete: t`Delete`,
+    archive: t`Archive`,
+    unarchive: t`Unarchive`,
+    restore: t`Restore`,
+    purge: t`Delete for good`,
+};
+
+/** The columns telling what state an object is in, each set while it is. */
+const STATE_COLUMNS = { deleted: "deletedAt", archived: "archivedAt" } as const;
+
+/** The state objects are in for a method kind to run on them, any where left out. */
+const METHOD_STATES: Readonly<
+    Partial<Record<MethodKind, Partial<Record<keyof typeof STATE_COLUMNS, boolean>>>>
+> = {
+    custom: { deleted: false },
+    update: { deleted: false, archived: false },
+    delete: { deleted: false },
+    archive: { deleted: false, archived: false },
+    unarchive: { deleted: false, archived: true },
+    restore: { deleted: true },
+    purge: { deleted: true },
+};
+
+/** The methods of objects a declaration manages, and whether it lets go of them first. */
+const MANAGED_METHODS: Readonly<Record<string, boolean>> = { attach: true, detach: false };
+
+/** The input fields an action never asks for: the request, and the revision a change expects. */
+const FILLED_FIELDS: ReadonlySet<string> = new Set(["requestId", "revision"]);
+
+/** The input field of the object a method acts on. */
+const TARGET_FIELD = "id";
+
+/** The method kinds whose input writes the object's fields by name. */
+const WRITING_KINDS: ReadonlySet<MethodKind> = new Set(["create", "update"]);
+
+/** A method's input as JSON Schema: an object with its properties and the required ones. */
+const METHOD_INPUT = schema.looseObject({
+    properties: schema.record(schema.string(), schema.json()).exactOptional(),
+    required: schema.array(schema.string()).exactOptional(),
+});
+
+/** The verb an action's variable of an object prepares calls by, beside the object's fields. */
+const PREPARE = "prepare";
+
+/** The method kinds that remove their target, for good unless its type has a trash. */
+const DELETING_KINDS: ReadonlySet<string> = new Set(["delete", "deleteMany"]);
 
 /** The methods an object in the trash still takes. */
 const TRASH_METHODS: ReadonlySet<MethodKind> = new Set([
@@ -1366,6 +1428,225 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return this.policy.permission(name);
     }
 
+    /** List the inputs a method takes from a person, a reference's columns as one. */
+    inputs(this: ObjectType, method: string): ActionInput[] {
+        // read the method's input as callers write it
+        const described = present(
+            this.describeMethods()[method],
+            `the method '${method}' of ${this.name}`,
+        );
+        const { properties = {}, required = [] } = METHOD_INPUT.parse(described.input);
+
+        // leave out the target, the scope, what calls fill, and a reference's further columns
+        const route = this.route.field;
+        const left = new Set([
+            ...FILLED_FIELDS,
+            TARGET_FIELD,
+            ...(route === undefined ? [] : [route]),
+        ]);
+        const fields = WRITING_KINDS.has(this.method(method).kind) ? this.fields : {};
+        const names = Object.keys(properties).filter((name) => !left.has(name));
+        const spread = new Set(
+            names.flatMap((name) => {
+                const { id, ...columns } = Field.columnsOf(fields[name]?.relation ?? "");
+
+                return id === name && fields[name]?.reference === "object"
+                    ? Object.values(columns)
+                    : [];
+            }),
+        );
+
+        return names
+            .filter((name) => !spread.has(name))
+            .map((name) => {
+                // take what the field it writes takes, else what its schema does
+                const field = fields[name];
+                const need = required.includes(name) ? "required" : "optional";
+                if (field === undefined) {
+                    return ActionInput.ofSchema(name, properties[name] ?? {}, need);
+                }
+                const property = field.type === "subject" ? (field.relation ?? name) : name;
+
+                return field.actionInput(property, need);
+            });
+    }
+
+    /** Read how an object of the type looks from its row: its title in a locale, icon and color. */
+    appearance(
+        this: ObjectType,
+        row: JsonObject,
+        moment: Moment,
+        localization: Localization,
+    ): ObjectAppearance {
+        return ObjectAppearance.of(this, row, moment, localization, undefined);
+    }
+
+    /** Write a condition on the type's objects as JSON. */
+    condition(where: Parameters<typeof Condition.json>[0]): JsonCondition {
+        return Condition.json(where);
+    }
+
+    /** Build the call of an action on the type from its inputs and its template. */
+    actionCall(
+        this: ObjectType,
+        name: string,
+        inputs: ActionInputs,
+        template: ActionTemplate,
+    ): ActionCall {
+        return ActionCall.prepared(name, inputs, template);
+    }
+
+    /** Read the call of an action on the type from its description, finding its inputs' types. */
+    describedCall(
+        this: ObjectType,
+        name: string,
+        description: ActionCallDescription,
+        typeOf: (reference: ObjectTypeReference) => ObjectType,
+    ): ActionCall {
+        return ActionCall.from(name, this, description, typeOf);
+    }
+
+    /** Prepare an action's call of a method, its values variables where it reads them. */
+    prepare<Self extends ObjectType, Name extends MethodName<Self>>(
+        this: Self,
+        method: Name,
+        input: VariableInput<CallInput<Self, Name>>,
+    ): ActionTemplate {
+        return { object: this, method, input };
+    }
+
+    /** Build the variable an action's call reads an object of the type by. */
+    variable(this: ObjectType, name: string): Variable {
+        // read each column, and each person or object by their field
+        const columns = Object.keys(this.table[TABLE].columns);
+        const references = Object.entries(this.fields).flatMap(([column, field]) =>
+            field.reference === "object" && Field.columnsOf(field.relation ?? "").id === column
+                ? [field.relation ?? column]
+                : [],
+        );
+        const fields = new Map(
+            [...columns, ...references].map((field) => [field, new Variable(`${name}.${field}`)]),
+        );
+        if (PREPARE in this.table[TABLE].columns) {
+            throw new TypeError(
+                `field '${PREPARE}' of '${this.name}' is invalid: actions prepare their calls by that name`,
+            );
+        }
+        const prepare = (
+            method: string,
+            input: Readonly<Record<string, unknown>>,
+        ): ActionTemplate => ({
+            object: this,
+            method,
+            input,
+            target: name,
+        });
+
+        return Object.assign(new Variable(name), {
+            ...Object.fromEntries<Variable>(fields),
+            [PREPARE]: prepare,
+        });
+    }
+
+    /** List the actions on some rows: the declared calls applying, then one per titled method. */
+    actions(
+        this: ObjectType,
+        rows: readonly JsonObject[],
+        declared: readonly Action[],
+        moment: Moment,
+    ): Action[] {
+        // take the declared calls on the type's objects applying to every row
+        const own = declared.filter(
+            (action) =>
+                action.call?.object === this &&
+                action.call.target !== undefined &&
+                rows.every((row) => action.applies(row, moment)),
+        );
+
+        // derive an action per titled method clients run on an object, left out by the declared ones
+        const covered = new Set(
+            declared.flatMap((action) =>
+                action.call?.object === this && action.call.isWhole ? [action.call.method] : [],
+            ),
+        );
+        const derived = Object.keys(this.methods).flatMap((name) => {
+            // title the method when clients call it on an object
+            const title = this.#actionTitle(name, rows);
+
+            return covered.has(name) ||
+                !this.#isClientMethod(name) ||
+                title === undefined ||
+                !rows.every((row) => this.#runsOn(name, row))
+                ? []
+                : [new Action(this.package, { name, title }, ActionCall.of(this, name))];
+        });
+
+        return [...own, ...derived];
+    }
+
+    /** Report whether a method removes its target for good, which people confirm first. */
+    isDestructive(method: string): boolean {
+        const { kind } = this.method(method);
+
+        // count a delete as final unless the type has a trash: a controller's deletion removes for good
+        const isRecoverable = this.lifecycle.recoverable !== undefined;
+
+        return kind === "purge" || (DELETING_KINDS.has(kind) && !isRecoverable);
+    }
+
+    /** Report whether a method runs on an object as it is: in use, archived or in the trash. */
+    #runsOn(name: string, row: JsonObject): boolean {
+        // compare each column the state needs with the row's, an object without it never in it
+        const isSet = (column: string) => row[column] !== undefined && row[column] !== null;
+        const states = METHOD_STATES[this.method(name).kind] ?? {};
+        const isFit = (["deleted", "archived"] as const).every((state) => {
+            const needed = states[state];
+
+            return needed === undefined || needed === isSet(STATE_COLUMNS[state]);
+        });
+
+        // let go of and take back only what a declaration manages
+        const isDetached = MANAGED_METHODS[name];
+
+        return (
+            isFit &&
+            (isDetached === undefined ||
+                (isSet("managerInstallationId") && isDetached === isSet("detachedAt")))
+        );
+    }
+
+    /** Report whether clients call a method on an object. */
+    #isClientMethod(name: string): boolean {
+        const { target, visibility = "client" } = this.method(name);
+
+        return target !== "scope" && visibility === "client";
+    }
+
+    /** Title a method people run on objects, absent for one they do not run from a list. */
+    #actionTitle(name: string, rows: readonly JsonObject[]): Message | undefined {
+        // title a transition by the state it enters
+        const method = this.method(name);
+        const machine = Object.entries(this.fields).find(
+            ([, field]) => field.machine?.transitions[name] !== undefined,
+        );
+        const transition = machine?.[1].machine?.transitions[name];
+        if (method.kind === "transition") {
+            const state = machine?.[0];
+            const isLeft =
+                state !== undefined &&
+                rows.every((row) => {
+                    const value = row[state];
+
+                    return typeof value === "string" && transition?.from.includes(value) === true;
+                });
+
+            return transition !== undefined && isLeft ? t`Move to ${transition.to}` : undefined;
+        }
+
+        // title a custom method by its declaration, and the built-in ones by their kind
+        return method.kind === "custom" ? method.title : METHOD_TITLES[method.kind];
+    }
+
     /** Report whether a name is one of the object's declared permissions. */
     isPermission<Self extends ObjectType>(this: Self, name: string): name is PermissionOf<Self> {
         return this.permissions.includes(name);
@@ -1546,6 +1827,16 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         input: Input & ExtraFields<Input, CallInput<Self, Name>>,
     ): ObjectCall<Self, MethodOutput<Self, Name>> {
         return ObjectType.#record(this, name, input);
+    }
+
+    /** Record a method's call from JSON input in a scope. */
+    record(this: ObjectType, name: string, input: JsonObject, scope: string): Call {
+        const { field } = this.route;
+
+        return ObjectType.#record(this, name, {
+            ...(field === undefined ? {} : { [field]: scope }),
+            ...input,
+        });
     }
 
     /** Build a routed method's call from JSON input in a scope: a query or a mutation. */

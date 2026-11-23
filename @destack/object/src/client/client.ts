@@ -1,3 +1,8 @@
+import type { Action } from "../declare/action.ts";
+import type { ActionArguments } from "../declare/call.ts";
+import type { ActionInputs } from "../declare/variable.ts";
+import type { Place } from "../declare/place.ts";
+import type { ActionContext } from "../declare/template.ts";
 import { ObjectReference, type Item, Subject, RequestId } from "@destack/sync";
 import { TelemetryScope } from "@destack/telemetry";
 import { ObjectError } from "../error/error.ts";
@@ -26,7 +31,7 @@ import {
     Duration,
     found,
     type JsonObject,
-    type JsonValue,
+    JsonValue,
     mapValues,
     nth,
     present,
@@ -777,6 +782,95 @@ export class ObjectClient<
             predicted: pending.predicted.then(() => result),
             confirmed: pending.confirmed,
         };
+    }
+
+    /** Run an action's call on resolved inputs as one mutation, predicted and undone as one. */
+    perform<Inputs extends ActionInputs>(
+        action: Action<Inputs>,
+        { values, initial = {} }: ActionArguments<Inputs>,
+    ): Submission<readonly unknown[]> {
+        // read the rows from the replica, refusing an object of another scope
+        const call = present(action.call, `the call of action '${action.name}'`);
+        const invocations = call.invocations(
+            { values: JsonValue.object(values), initial },
+            {
+                context: this.context(),
+                read: (type, reference) => this.find(type, reference),
+            },
+        );
+
+        // run an ephemeral or local method call by call, and any other as one mutation
+        const { object, method } = call;
+        const isSingle = object.storage === "ephemeral" || object.storage === "local";
+        const submitted = invocations.then((each): Submission<readonly unknown[]>[] =>
+            isSingle
+                ? each.map(({ input }) => {
+                      const { predicted, confirmed } = this.call(object, method, input);
+
+                      return { predicted: predicted.then((result) => [result]), confirmed };
+                  })
+                : [
+                      this.#mutation(async (mutation) => {
+                          const results: unknown[] = [];
+                          for (const { input } of each) {
+                              results.push(await mutation.invoke(object, method, input));
+                          }
+
+                          return results;
+                      }, this.#isBranchType(object)),
+                  ],
+        );
+        const predicted = submitted.then(async (each) =>
+            (await Promise.all(each.map((submission) => submission.predicted))).flat(),
+        );
+        const confirmed = submitted.then(async (each) => {
+            await Promise.all(each.map((submission) => submission.confirmed));
+        });
+
+        // mark the confirmation handled, and answer its failure in the returned submission
+        confirmed.catch(() => {});
+
+        return { predicted, confirmed };
+    }
+
+    /** Read what actions read here: who the client is for, its scope, the time, and some places. */
+    context(places: readonly Place[] = []): ActionContext {
+        const { packageId, type, scope, id } = this.caller;
+        const { clock, timeZone } = this.environment;
+
+        return {
+            subject: { packageId, type, scope, id },
+            scope: this.scope,
+            moment: { now: clock.now(), timeZone },
+            places,
+        };
+    }
+
+    /** Read an object's row from the replica, from the server where the replica lacks it. */
+    async find(type: ObjectType, reference: ObjectReference): Promise<JsonObject | undefined> {
+        // refuse an object the client does not replicate
+        if (reference.scope !== this.scope) {
+            throw new TypeError(
+                `${reference.type} '${reference.id}' is in scope '${reference.scope}', not '${this.scope}'`,
+            );
+        }
+
+        // take the row the replica has, else wait for the server's answer
+        const live = this.queryType(type)
+            .findFirst({ where: { id: reference.id } })
+            .subscribe();
+        try {
+            const known = await live.read();
+            if (known !== undefined) {
+                return JsonValue.object(known);
+            }
+            await live.ready;
+            const answered = await live.read();
+
+            return answered === undefined ? undefined : JsonValue.object(answered);
+        } finally {
+            await live.close();
+        }
     }
 
     /** Open one text field of an object for editing. */

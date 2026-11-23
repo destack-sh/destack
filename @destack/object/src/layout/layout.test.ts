@@ -1,4 +1,4 @@
-import { argument, plural, t } from "@destack/locale";
+import { argument, Localization, plural, SOURCE_LOCALE, t } from "@destack/locale";
 import { expect, test } from "@destack/test";
 import { through } from "@destack/access";
 import { defineObject, field } from "../index.ts";
@@ -10,6 +10,9 @@ import { CalendarLayout } from "./calendar.ts";
 import { TimelineLayout } from "./timeline.ts";
 import { TreeLayout } from "./tree.ts";
 import { ObjectError } from "../error/error.ts";
+
+/** The locale declarations are written in. */
+const SOURCE = Localization.of(SOURCE_LOCALE, []);
 
 /** Tasks nested under each other, with a state, two times and a declared timeline. */
 const task = defineObject({
@@ -54,15 +57,19 @@ test("offer a table, a tree from the nesting, a board per enum, a calendar per t
 });
 
 test("read a board's columns from its enum in declared order, and refuse a field of another type", () => {
-    expect(BoardLayout.columns({ kind: "board", by: "state", empty: "show" }, task.fields)).toEqual(
-        ["todo", "started", "done"],
-    );
+    expect(
+        BoardLayout.choices({ kind: "board", by: "state", empty: "show" }, task.fields, SOURCE),
+    ).toEqual([
+        { value: "todo", title: "todo" },
+        { value: "started", title: "started" },
+        { value: "done", title: "done" },
+    ]);
     expect(() =>
-        BoardLayout.columns({ kind: "board", by: "title", empty: "show" }, task.fields),
+        BoardLayout.choices({ kind: "board", by: "title", empty: "show" }, task.fields, SOURCE),
     ).toThrow(
         ObjectError.of(
             "DECLARATION_BROKEN",
-            "board field 'title' is invalid: it is not an enum or a state",
+            "board field 'title' is invalid: it is not an enum, a state or a reference to ordered objects",
         ),
     );
 });
@@ -136,17 +143,15 @@ test("nest rows depth first under their parents, and read a timeline's periods i
 });
 
 test("group a board by its columns, place a calendar's objects on days, and lay a timeline's objects on one axis", () => {
-    // group tasks by state, an unknown state in no column
+    // group tasks by state, an unknown state under no value
     const tasks = [
         { title: "a", state: "done", dueAt: 0 },
         { title: "b", state: "todo", dueAt: 86_400_000 + 5 },
         { title: "c", state: "lost", dueAt: 86_400_000 * 3 },
     ];
-    const groups = BoardLayout.group(
-        { kind: "board", by: "state", empty: "show" },
-        tasks,
-        task.fields,
-    );
+    const layout = { kind: "board", by: "state", empty: "show" } as const;
+    const choices = BoardLayout.choices(layout, task.fields, SOURCE) ?? [];
+    const groups = BoardLayout.group(layout, tasks, choices, SOURCE);
 
     // place them on days, and on an axis from the first start to the last end
     const days = CalendarLayout.days({ kind: "calendar", by: "dueAt" }, tasks, "UTC");
@@ -162,7 +167,7 @@ test("group a board by its columns, place a calendar's objects on days, and lay 
         { id: "z", start: 120, end: null },
     ]);
     expect({
-        groups: groups.map((group) => [group.value, group.rows.map((row) => row["title"])]),
+        groups: groups.map((group) => [group.choice.title, group.rows.map((row) => row["title"])]),
         days: days.map((day) => [day.date, day.rows.map((row) => row["title"])]),
         axis: {
             window: axis?.window,
@@ -171,6 +176,7 @@ test("group a board by its columns, place a calendar's objects on days, and lay 
         open: TimelineLayout.axis(timeline, [{ id: "z", start: 120, end: null }]),
     }).toEqual({
         groups: [
+            ["No value", ["c"]],
             ["todo", ["b"]],
             ["started", []],
             ["done", ["a"]],

@@ -70,13 +70,7 @@ export const Orderable = {
 
         // order within the given field, the parent, or the whole scope
         if (orderable !== true && orderable.within !== undefined) {
-            if (!Object.hasOwn(definition.fields ?? {}, orderable.within)) {
-                throw new TypeError(
-                    `object '${definition.name}' orders within '${orderable.within}', but does not declare it`,
-                );
-            }
-
-            return { within: [orderable.within] };
+            return { within: [Orderable.column(definition, orderable.within)] };
         } else if (definition.nested === undefined) {
             return { within: [] };
         } else if (definition.nested.in === "any") {
@@ -84,6 +78,21 @@ export const Orderable = {
         } else {
             return { within: ["parentId"] };
         }
+    },
+
+    /** Read the column a field orders within, a reference's its object's identifier. */
+    column(definition: Pick<ObjectDefinition, "name" | "fields">, within: string): string {
+        // take the field as declared, or by its column once references are expanded
+        const { fields = {} } = definition;
+        const identifier = `${within}Id`;
+        const declared = fields[within];
+        if (declared === undefined && fields[identifier] === undefined) {
+            throw new TypeError(
+                `object '${definition.name}' orders within '${within}', but does not declare it`,
+            );
+        }
+
+        return declared === undefined || declared.reference !== "none" ? identifier : within;
     },
 
     /** Place an object with some values among its siblings there. */

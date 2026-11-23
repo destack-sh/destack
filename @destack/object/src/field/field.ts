@@ -1,3 +1,9 @@
+import {
+    ActionInput,
+    type ActionNeed,
+    type ActionValue,
+    type VALUE_KINDS,
+} from "../declare/input.ts";
 import { PackageId } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
 import {
@@ -33,6 +39,7 @@ import { Policy } from "@destack/access";
 import { FractionalIndex } from "./fractional-index.ts";
 import { type FileBucket, ObjectFile } from "./file.ts";
 import type { MethodVisibility } from "../method/method.ts";
+import { ChoiceDefinition, type ChoiceDefinitions, type FieldChoice } from "./choice.ts";
 
 import {
     type TextMarkType,
@@ -95,6 +102,17 @@ const BUILDER_TYPES: Readonly<Record<FieldSource["builder"], FieldType>> = {
     reference: "reference",
 };
 
+/** The kinds of value people give for a field, by its meaning. */
+const VALUE_KIND: Readonly<Partial<Record<FieldType, (typeof VALUE_KINDS)[number]>>> = {
+    string: "text",
+    text: "text",
+    integer: "number",
+    number: "number",
+    boolean: "boolean",
+    time: "time",
+    subject: "person",
+};
+
 /** The extra permissions reading or writing one field requires. */
 export interface FieldAccess {
     /** The permission a caller needs to read the value. */
@@ -107,6 +125,8 @@ export interface FieldAccess {
 export interface StateMachine {
     /** The state new objects start in. */
     readonly initial: string;
+    /** How each state looks, by state, as stored without it. */
+    readonly states?: ChoiceDefinitions;
     /** Transitions by method name. */
     readonly transitions: Readonly<
         Record<
@@ -132,6 +152,19 @@ export type StateStage = "initial" | "active" | "final";
 
 /** A state machine a field follows. */
 export const StateMachine = {
+    /** List a machine's states, the initial one first, the others as transitions reach them. */
+    states(machine: StateMachine): [string, ...string[]] {
+        // list what transitions leave and enter beside the initial state
+        const reached = Object.values(machine.transitions).flatMap((each) => [
+            ...each.from,
+            each.to,
+        ]);
+        const others = new Set(reached);
+        others.delete(machine.initial);
+
+        return [machine.initial, ...others];
+    },
+
     /** Read where a state lies in a machine. */
     stage(machine: StateMachine, state: string): StateStage {
         // start at the initial state, end where no transition leaves, and pass the rest
@@ -167,7 +200,13 @@ export type FieldSource =
               | "max";
           readonly arguments: readonly [];
       }
-    | { readonly builder: "enum"; readonly arguments: readonly [readonly [string, ...string[]]] }
+    | {
+          readonly builder: "enum";
+          readonly arguments: readonly [
+              values: readonly [string, ...string[]],
+              choices?: ChoiceDefinitions,
+          ];
+      }
     | { readonly builder: "json"; readonly arguments: readonly [schema.Schema] }
     | { readonly builder: "file"; readonly arguments: readonly [FileBucket] }
     | {
@@ -202,6 +241,14 @@ export const FIELD_MODIFIERS = [
     "guardWrite",
     "relate",
 ] as const;
+
+/** How each value of an enum looks, by value. */
+const ChoiceMap = schema.record(schema.string(), ChoiceDefinition);
+
+/** The values an enum field stores: a list's, or a map's keys. */
+type EnumValueOf<Values> = Values extends readonly string[]
+    ? Values[number]
+    : keyof Values & string;
 
 /** Every state a state machine lists. */
 export type StateOf<Machine extends StateMachine> =
@@ -502,6 +549,27 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
         return this.#reference?.kind === "principal" ? [this.#reference.target] : undefined;
     }
 
+    /** Build the action input the field takes: an object, a choice, or a value of its kind. */
+    actionInput(name: string, need?: ActionNeed): ActionInput {
+        // take an object of a reference's type, a choice of an enum's, or a value
+        const type = this.type === "reference" ? this.target?.() : undefined;
+        const { source } = this;
+        const value: ActionValue =
+            type !== undefined
+                ? { kind: "object", type, source: "picked", where: undefined }
+                : source.builder === "enum"
+                  ? { kind: "choice", choices: this.choices ?? [] }
+                  : {
+                        kind:
+                            this.principals === undefined
+                                ? (VALUE_KIND[this.type] ?? "json")
+                                : "person",
+                    };
+        const declared = this.isDefault ? "default" : this.required ? "required" : "optional";
+
+        return new ActionInput({ name, label: this.label, need: need ?? declared, value });
+    }
+
     /** The aggregate function maintaining the value. */
     get aggregate(): AggregateFunction | undefined {
         const { builder } = this.source;
@@ -509,6 +577,21 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
         return builder === "count" || builder === "sum" || builder === "min" || builder === "max"
             ? builder
             : undefined;
+    }
+
+    /** The values an enum or a state takes, with how each looks, absent for other fields. */
+    get choices(): readonly FieldChoice[] | undefined {
+        // read an enum's values, or a machine's states from the initial one as they are reached
+        const { machine, source } = this;
+        const values =
+            source.builder === "enum"
+                ? source.arguments[0]
+                : machine === undefined
+                  ? undefined
+                  : StateMachine.states(machine);
+        const choices = source.builder === "enum" ? source.arguments[1] : machine?.states;
+
+        return values?.map((value) => ({ value, ...choices?.[value] }));
     }
 
     /** The state machine the value follows. */
@@ -1101,14 +1184,12 @@ export class StateField<Machine extends StateMachine = StateMachine> extends Fie
 
     /** Declare the field, listing every state the machine has, the initial one first. */
     constructor(machine: Machine) {
-        // list the states, the initial one first
-        const others = new Set<string>();
-        for (const transition of Object.values(machine.transitions)) {
-            transition.from.forEach((name) => others.add(name));
-            others.add(transition.to);
+        // list the states, refusing to describe one no transition reaches
+        const names = StateMachine.states(machine);
+        const unknown = Object.keys(machine.states ?? {}).find((name) => !names.includes(name));
+        if (unknown !== undefined) {
+            throw new TypeError(`state '${unknown}' is invalid: no transition reaches it`);
         }
-        others.delete(machine.initial);
-        const names: [string, ...string[]] = [machine.initial, ...others];
 
         // start in the initial state, which only transitions change
         super({
@@ -1234,11 +1315,25 @@ export const field = {
         return Field.required({ builder: "time", arguments: [] }, integer);
     },
 
-    /** One of a fixed set of strings. */
-    enum<const Values extends readonly [string, ...string[]]>(values: Values) {
-        return Field.required({ builder: "enum", arguments: [values] }, (name) =>
-            textEnum(name, values),
-        );
+    /** One of a fixed set of strings: a list, or each value with how it looks. */
+    enum<const Values extends readonly [string, ...string[]] | ChoiceDefinitions>(
+        values: Values,
+        choices?: ChoiceDefinitions,
+    ): FieldOf<{ value: EnumValueOf<Values> }> {
+        // read the values in order, of a map by its keys
+        const isList = Array.isArray(values);
+        const [first, ...rest] = isList ? values.map(String) : Object.keys(values);
+        if (first === undefined) {
+            throw new TypeError("an enum field needs a value");
+        }
+        const names: [string, ...string[]] = [first, ...rest];
+        const looks = isList ? choices : ChoiceMap.parse(values);
+
+        return new Field<FieldConfigurationOf<{ value: EnumValueOf<Values> }>>({
+            source: { builder: "enum", arguments: looks === undefined ? [names] : [names, looks] },
+            build: (name) => textEnum(name, names),
+            ...WRITTEN,
+        });
     },
 
     /** A state machine changed by its transition methods. */

@@ -11,5 +11,6 @@ export {
     StateMachine,
     type StateStage,
 } from "./field.ts";
+export { ChoiceDefinition, type ChoiceDefinitions, FieldChoice } from "./choice.ts";
 export { FractionalIndex } from "./fractional-index.ts";
 export { type FileBucket, ObjectFile } from "./file.ts";

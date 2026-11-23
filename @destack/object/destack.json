@@ -112,6 +112,9 @@
         },
         "defineAction": {
             "module": 1
+        },
+        "defineVariable": {
+            "module": 1
         }
     },
     "check": {

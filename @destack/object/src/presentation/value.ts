@@ -1,6 +1,8 @@
 import { type JsonValue, schema } from "@destack/schema";
-import { type FieldType, StateMachine, type StateStage } from "../field/field.ts";
+import { type Field, type FieldType, StateMachine, type StateStage } from "../field/field.ts";
+import type { Localization } from "@destack/locale";
 import type { ObjectType } from "../object/object.ts";
+import { Choice } from "./choice.ts";
 
 /** A field's value with what it means for drawing it, by its field's type. */
 export type ObjectValue =
@@ -9,8 +11,8 @@ export type ObjectValue =
     | { readonly kind: "number"; readonly value: number }
     | { readonly kind: "boolean"; readonly value: boolean }
     | { readonly kind: "time"; readonly value: number }
-    | { readonly kind: "choice"; readonly value: string }
-    | { readonly kind: "state"; readonly value: string; readonly stage: StateStage }
+    | (Choice & { readonly kind: "choice"; readonly value: string })
+    | (Choice & { readonly kind: "state"; readonly value: string; readonly stage: StateStage })
     | { readonly kind: "reference"; readonly value: string; readonly target: string }
     | { readonly kind: "json"; readonly value: JsonValue };
 
@@ -40,8 +42,13 @@ const KINDS: Readonly<Record<FieldType, Exclude<ObjectValue["kind"], "absent">>>
 
 /** A field's value with what it means for drawing it. */
 export const ObjectValue = {
-    /** Read a field's stored value by its field's type, refusing a value its type cannot store. */
-    of(type: ObjectType, name: string, value: JsonValue | undefined): ObjectValue {
+    /** Read a field's stored value in a locale, refusing a value its type cannot store. */
+    of(
+        type: ObjectType,
+        name: string,
+        value: JsonValue | undefined,
+        localization: Localization,
+    ): ObjectValue {
         // read absence, a column outside the fields such as the identifier as text, then by kind
         const field = type.fields[name];
         if (value === undefined || value === null) {
@@ -60,12 +67,15 @@ export const ObjectValue = {
             return { kind, value: schema.boolean().parse(value) };
         } else if (kind === "state" && machine !== undefined) {
             const state = schema.string().parse(value);
+            const stage = StateMachine.stage(machine, state);
 
-            return { kind, value: state, stage: StateMachine.stage(machine, state) };
+            return { ...choiceOf(field, state, localization), kind, value: state, stage };
         } else if (kind === "reference" && target !== undefined) {
             return { kind, value: schema.string().parse(value), target };
         } else if (kind === "choice") {
-            return { kind, value: schema.string().parse(value) };
+            const chosen = schema.string().parse(value);
+
+            return { ...choiceOf(field, chosen, localization), kind, value: chosen };
         } else if (kind === "text" || kind === "reference") {
             return { kind: "text", value: schema.string().parse(value) };
         }
@@ -73,3 +83,10 @@ export const ObjectValue = {
         return { kind: "json", value };
     },
 };
+
+/** Read a field's stored value as a choice, titled as stored where the field lists it no more. */
+function choiceOf(field: Field, value: string, localization: Localization): Choice {
+    const listed = field.choices?.find((each) => each.value === value);
+
+    return Choice.of(listed ?? { value }, localization);
+}

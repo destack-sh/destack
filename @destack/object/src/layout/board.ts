@@ -1,11 +1,13 @@
+import { type Localization, t } from "@destack/locale";
 import { type JsonObject, schema } from "@destack/schema";
 import type { Field } from "../field/field.ts";
 import { ObjectError } from "../error/error.ts";
+import { Choice } from "../presentation/choice.ts";
 
 /** One column of a board: a value of its field and the objects with it. */
 export interface BoardGroup {
-    /** The value. */
-    readonly value: string;
+    /** The value, null for the objects without one of the listed. */
+    readonly choice: Choice;
     /** The objects with the value. */
     readonly rows: readonly JsonObject[];
 }
@@ -14,7 +16,7 @@ export interface BoardGroup {
 const boardLayout = schema.object({
     /** The kind. */
     kind: schema.literal("board"),
-    /** The enum or state field grouping the objects. */
+    /** The field grouping the objects: an enum, a state or a reference. */
     by: schema.string().min(1),
     /** Whether the columns without objects show. */
     empty: schema.enum(["show", "hide"]),
@@ -24,45 +26,51 @@ export type BoardLayout = schema.Infer<typeof boardLayout>;
 
 /** One column per value of a field. */
 export const BoardLayout = Object.assign(boardLayout, {
-    /** Read the values a board groups by: an enum's in order, or a state machine's as reached. */
-    columns(layout: BoardLayout, fields: Readonly<Record<string, Field>>): string[] {
-        // take an enum's values
+    /** List the columns of a board by an enum or a state, absent for one by a reference. */
+    choices(
+        layout: BoardLayout,
+        fields: Readonly<Record<string, Field>>,
+        localization: Localization,
+    ): Choice[] | undefined {
+        // refuse a field that groups into no columns
         const field = fields[layout.by];
-        const machine = field?.machine;
-        if (field?.source.builder === "enum") {
-            return [...field.source.arguments[0]];
-        }
-        // take the states from the initial one in transition order
-        else if (machine !== undefined) {
-            const reached = Object.values(machine.transitions).flatMap((each) => [
-                ...each.from,
-                each.to,
-            ]);
-
-            return [...new Set([machine.initial, ...reached])];
-        }
-        // refuse a field of another type
-        else {
+        if (field === undefined || !BoardLayout.isGrouping(field)) {
             throw ObjectError.of(
                 "DECLARATION_BROKEN",
-                `board field '${layout.by}' is invalid: it is not an enum or a state`,
+                `board field '${layout.by}' is invalid: it is not an enum, a state or a reference to ordered objects`,
             );
         }
+
+        return field.choices?.map((each) => Choice.of(each, localization));
     },
 
-    /** Group objects into the board's columns, in the columns' order. */
+    /** Report whether a field groups objects: an enum, a state or a reference to ordered ones. */
+    isGrouping(field: Field): boolean {
+        return field.choices !== undefined || field.target?.().ordering !== undefined;
+    },
+
+    /** Group objects into a board's columns in order, those in none of them under no value. */
     group(
         layout: BoardLayout,
         rows: readonly JsonObject[],
-        fields: Readonly<Record<string, Field>>,
+        choices: readonly Choice[],
+        localization: Localization,
     ): BoardGroup[] {
         // group by value, then leave out the empty columns a layout hides
-        const groups = BoardLayout.columns(layout, fields).map((value) => ({
-            value,
-            rows: rows.filter((row) => row[layout.by] === value),
+        const groups = choices.map((choice) => ({
+            choice,
+            rows: rows.filter((row) => row[layout.by] === choice.value),
         }));
+        const shown =
+            layout.empty === "show" ? groups : groups.filter((group) => group.rows.length > 0);
 
-        return layout.empty === "show" ? groups : groups.filter((group) => group.rows.length > 0);
+        // put the objects without a listed value first
+        const rest = rows.filter((row) =>
+            choices.every((choice) => choice.value !== row[layout.by]),
+        );
+        const none: Choice = { value: null, title: localization.render(t`No value`) };
+
+        return rest.length === 0 ? shown : [{ choice: none, rows: rest }, ...shown];
     },
 
     /** Extend a list query to read the objects in column order. */

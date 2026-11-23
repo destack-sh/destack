@@ -83,7 +83,7 @@ import {
     zip,
 } from "@destack/schema";
 import type { ServerContext } from "../workload/workload.ts";
-import { ACTION_KIND } from "../declare/action.ts";
+import { ACTION_KIND } from "../declare/description.ts";
 import { copyRequest, type Clock, type Environment } from "@destack/environment";
 import { implement, type Router } from "./handler.ts";
 import type { ServerAccess, RequestContext } from "./context.ts";

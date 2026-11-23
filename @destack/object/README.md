@@ -363,26 +363,54 @@ store ─► sandbox: authorize, relate, expand, prepare, handle(next ─► sto
 
 `defineAction(definition)` declares an operation people run, as VS Code's commands: with a `call`, it calls a method of one of the package's types; without one, a view handles it.
 
-| Option          | What it is                                                                  |
-| --------------- | --------------------------------------------------------------------------- |
-| `name`, `title` | the name, unique among the package's actions, and the title people read     |
-| `category`      | the group menus and the palette show it under                               |
-| `keybinding`    | the key combination, such as `"mod+shift+g"`                                |
-| `focus`         | `"page"` by default, outside form fields, or `"any"`                        |
-| `call`          | the `object` and `method` it calls, its preset `input` and `when` condition |
+| Option                | What it is                                                              |
+| --------------------- | ----------------------------------------------------------------------- |
+| `name`, `title`       | the name, unique among the package's actions, and the title people read |
+| `summary`, `keywords` | what it does, and other words people search it by                       |
+| `category`            | the group menus and the palette show it under                           |
+| `keybinding`          | the key combination, such as `"mod+shift+g"`                            |
+| `focus`               | `"page"` by default, outside form fields, or `"any"`                    |
+| `isDestructive`       | whether it removes, which people confirm where a call removes for good  |
+| `input`               | what it takes, each from where the person is or asked                   |
+| `call`                | the method it calls, prepared from its inputs                           |
+
+### Action inputs
+
+An action's inputs come from the place the person is in, from what is given, else the person is asked.
+
+| Input                                                       | What it takes                                       |
+| ----------------------------------------------------------- | --------------------------------------------------- |
+| `selected(type, where?)`                                    | the selected objects, else the one the person is at |
+| `current(type, where?)`                                     | the object the person is at                         |
+| `picked(type, where?)`                                      | an object the person picks                          |
+| `field.…`, `schema.…`                                       | a value the person gives                            |
+| `defineVariable({ name, label, value })`                    | a value a place provides                            |
+| `me`, `space`, `now`                                        | the person, the space, and the time                 |
+| `type.prepare(method, input)`, `input.prepare(…)` in `call` | the call of a method on the type, or on the objects |
+
+### Choices
+
+`field.choices` lists the values of an enum or a state, with how each looks; a person, a picker, a board and a filter read each as a `Choice`.
+
+| Who owns the values | How to declare them                                                                    |
+| ------------------- | -------------------------------------------------------------------------------------- |
+| code                | ``field.enum({ low: { title: t`Low`, icon: "arrow-down", color: "gray" } })``          |
+| code, as states     | ``field.state({ initial, transitions, states: { open: { title: t`Open` } } })``        |
+| people              | an object type with an appearance and `orderable`, and `field.reference(status)` to it |
+| nobody reads them   | `field.enum(["current", "staged"])`                                                    |
 
 ### Layouts
 
 `type.layouts` lists the layouts of a type.
 
-| Layout           | For                              | What it does                           |
-| ---------------- | -------------------------------- | -------------------------------------- |
-| `TableLayout`    | every type                       | shows a row per object                 |
-| `TreeLayout`     | a type with its own parent field | nests objects under their parents      |
-| `BoardLayout`    | each enum or state field         | groups objects into a column per value |
-| `CalendarLayout` | each time field                  | shows objects on their days            |
-| `TimelineLayout` | a type that declares one         | draws objects along a time axis        |
-| `GalleryLayout`  | a type with a cover              | shows a card per object                |
+| Layout           | For                                                | What it does                           |
+| ---------------- | -------------------------------------------------- | -------------------------------------- |
+| `TableLayout`    | every type                                         | shows a row per object                 |
+| `TreeLayout`     | a type with its own parent field                   | nests objects under their parents      |
+| `BoardLayout`    | each enum, state, and reference to ordered objects | groups objects into a column per value |
+| `CalendarLayout` | each time field                                    | shows objects on their days            |
+| `TimelineLayout` | a type that declares one                           | draws objects along a time axis        |
+| `GalleryLayout`  | a type with a cover                                | shows a card per object                |
 
 ### definePackage
 
