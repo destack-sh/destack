@@ -1,10 +1,10 @@
 import { TelemetryScope } from "@destack/telemetry";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { account, type StackRelease } from "@destack/account/object";
 import type { Session } from "@destack/account/client";
 import type { PlatformDefinition } from "@destack/account/server";
 import * as stacks from "@platform/stack";
-import { RESIDENCIES } from "@platform/stack";
+import { PLATFORM_INPUTS, RESIDENCIES } from "@platform/stack";
 import { Claim, PackageMount, SERVER_EXPORT, SpaceMount } from "@destack/object";
 import { InstallationDefinition } from "@destack/stack/declare";
 import {
@@ -32,10 +32,13 @@ import type { packageObject } from "@destack/registry/object";
 import registryPackage from "@destack/registry/package";
 import { RequestId } from "@destack/sync";
 import { Toolchain } from "@destack/check/toolchain";
-import { releaseVersion } from "../distribution/distribution.ts";
+import { readReleaseCommit, releaseVersion } from "../distribution/distribution.ts";
 
 /** The prefix of a layer written beside the asset layers before it moves under its digest. */
 const ASSETS_STAGING = ".staging";
+
+/** The file mapping each platform input to a local checkout, as Nix's `--override-input`. */
+const INPUTS_FILE = "inputs.json";
 
 /** The package declaring the homes' stacks, by its directory below the checkout's root. */
 const STACK = "@platform/stack";
@@ -148,10 +151,67 @@ export class PlatformBuild implements AsyncDisposable {
             }
         }
 
+        // link each input to this build's packages: its builtins as the host's, the rest resolved by name
+        const checkouts = await PlatformBuild.#checkouts(root, host);
+        const links = await workspace.members();
+        const builtins = await Promise.all(
+            [...releases]
+                .filter(([, reader]) => reader.manifest.role === "builtin")
+                .map(([builtin]) => store.image(found(images, builtin))),
+        );
+
+        // build each input from its checkout, a release's at its pinned commit
+        for (const input of PLATFORM_INPUTS) {
+            // find the input's checkout, refusing a release's at another commit
+            const { name } = input.package;
+            const checkout = checkouts[name];
+            if (checkout === undefined) {
+                throw new Error(`input '${name}' has no checkout: map it in '${INPUTS_FILE}'`);
+            }
+            const directory = resolve(root, checkout);
+            const commit =
+                options.isUnreleased === true
+                    ? undefined
+                    : await readReleaseCommit(directory, host);
+            if (commit !== undefined && commit !== input.commit) {
+                throw new Error(
+                    `input '${name}' is at '${commit}', not its pinned '${input.commit}'`,
+                );
+            }
+
+            // build the input in its own workspace on this build's packages
+            const outside = await Workspace.open(directory, compilers, {
+                version,
+                links,
+                host: builtins,
+                resolver: async (dependency) => found(images, dependency.name),
+            });
+            const unitPackage = await outside.package(join(directory, input.directory));
+            const { build, image } = found(await unitPackage.imageUnits(options), name);
+            releases.set(name, await store.contents(build.manifest));
+            images.set(name, image);
+        }
+
         // hand the store to the build, which closes it
         opened.move();
 
         return new PlatformBuild(store, releases, images, version);
+    }
+
+    /** Read the local checkouts of the platform's inputs by package name. */
+    static async #checkouts(
+        root: string,
+        host: Environment<"files">,
+    ): Promise<Readonly<Record<string, string>>> {
+        // read the file, refusing a build without it
+        const path = join(root, INPUTS_FILE);
+        if (!(await host.files.exists(path))) {
+            throw new Error(`the platform's inputs have no checkouts: write '${path}'`);
+        }
+
+        return schema
+            .record(schema.string(), schema.string())
+            .parse(JSON.parse(await host.files.readTextFile(path)));
     }
 
     /** Publish each image under a tag into its account's forge, after the handles it requires. */
