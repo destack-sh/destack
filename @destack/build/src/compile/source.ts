@@ -88,27 +88,71 @@ async function retainTypeImports(
     environment: Environment<"files">,
     resolveImport: (specifier: string, importer: string) => Promise<string | undefined>,
 ): Promise<void> {
-    // walk the kept TypeScript modules, adding each type-only target once
-    const pending = [...files.keys()].filter((path) => /\.[cm]?tsx?$/u.test(path));
-    for (let path = pending.pop(); path !== undefined; path = pending.pop()) {
-        const text = new TextDecoder().decode(present(files.get(path), `source '${path}'`));
-        for (const specifier of typeImports(path, text).filter((each) => isOwn(each, name))) {
-            // keep a target inside the package once, resolved from the importing module
-            const resolved = await resolveImport(specifier, resolve(directory, path));
-            const target =
-                resolved === undefined ? undefined : packageFile(directory, modulePath(resolved));
+    // walk the kept TypeScript modules in waves, resolving each wave's type-only imports at once
+    let wave = [...files.keys()].filter((path) => /\.[cm]?tsx?$/u.test(path));
+    while (wave.length > 0) {
+        // resolve every type-only import of the wave's modules to a package file
+        const targets = await Promise.all(
+            wave.flatMap((path) => {
+                const text = new TextDecoder().decode(present(files.get(path), `source '${path}'`));
+
+                return typeImports(path, text)
+                    .filter((each) => isOwn(each, name))
+                    .map(async (specifier) => {
+                        const resolved = await resolveImport(specifier, resolve(directory, path));
+
+                        return resolved === undefined
+                            ? undefined
+                            : packageFile(directory, modulePath(resolved));
+                    });
+            }),
+        );
+
+        // keep each new target once, and walk the kept ones next
+        const next = new Set<string>();
+        for (const target of targets) {
             if (target !== undefined && !files.has(PackagePath.parse(target))) {
-                const bytes = await environment.files.readFile(resolve(directory, target));
-                sources.retain(target, bytes);
-                files.set(PackagePath.parse(target), bytes);
-                pending.push(PackagePath.parse(target));
+                next.add(PackagePath.parse(target));
             }
         }
+        await Promise.all(
+            [...next].map(async (target) => {
+                const bytes = await environment.files.readFile(resolve(directory, target));
+                sources.retain(target, bytes);
+                files.set(target, bytes);
+            }),
+        );
+        wave = [...next];
     }
 }
 
-/** List the specifiers a module imports or exports only for types. */
-function typeImports(path: string, text: string): string[] {
+/**
+ * The type-only specifiers of each module a process parsed, by path, with their text.
+ *
+ * Unchanged modules keep their text between builds, so a rebuild parses only the changed ones.
+ */
+const TYPE_IMPORTS = new Map<
+    string,
+    { readonly text: string; readonly specifiers: readonly string[] }
+>();
+
+/** List the specifiers a module imports or exports only for types, parsing each text once. */
+function typeImports(path: string, text: string): readonly string[] {
+    // take the specifiers of the module's text as parsed last
+    const known = TYPE_IMPORTS.get(path);
+    if (known?.text === text) {
+        return known.specifiers;
+    }
+
+    // parse the text, replacing the module's earlier one
+    const specifiers = parseTypeImports(path, text);
+    TYPE_IMPORTS.set(path, { text, specifiers });
+
+    return specifiers;
+}
+
+/** Parse the specifiers a module imports or exports only for types. */
+function parseTypeImports(path: string, text: string): string[] {
     // read the module's declarations, refusing one that does not parse
     const parsed = parseSync(path, text);
     if (parsed.errors.length > 0) {
