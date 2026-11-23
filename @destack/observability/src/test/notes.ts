@@ -11,7 +11,7 @@ import { argument, plural, t } from "@destack/locale";
 /** The notes application, whose builds the test space installs and whose failures it groups. */
 export const NOTES = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000b4",
-    name: "@acme/notebook",
+    name: "@example/notebook",
     version: "2026.9.0",
 });
 
