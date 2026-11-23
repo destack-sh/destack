@@ -12,7 +12,7 @@ import { argument, plural, t } from "@destack/locale";
 /** The articles application, whose articles carry every social attachment. */
 export const ARTICLES = PackageVersion.parse({
     id: "package-019f5530-8000-7000-8000-0000000000e2",
-    name: "@acme/articles",
+    name: "@example/articles",
     version: "2026.10.0",
 });
 

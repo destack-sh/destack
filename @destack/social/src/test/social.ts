@@ -57,7 +57,7 @@ export const PACKAGES: readonly TestPackage[] = [
 /** The agent package, whose installation comments and reacts beside the people. */
 const AGENT = PackageVersion.parse({
     id: "package-019f5530-8000-7000-8000-0000000000e3",
-    name: "@acme/agent",
+    name: "@example/agent",
     version: "2026.10.0",
 });
 
