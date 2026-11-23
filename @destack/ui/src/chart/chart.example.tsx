@@ -81,7 +81,7 @@ export const chartLine = defineExample({
                     x: MONTHS,
                     y: { scale: scaleLinear, nice: true, grid: true },
                 },
-                color: { legend: colorLegend({ label: "Notebook" }) },
+                color: { legend: colorLegend() },
                 tooltip,
             })}
             table={{
@@ -216,7 +216,7 @@ export const chartPie = defineExample({
                     }),
                 ],
                 scales: { x: null, y: null },
-                color: { legend: colorLegend({ label: "Notebook" }) },
+                color: { legend: colorLegend() },
                 tooltip,
             })}
             table={{
@@ -328,7 +328,7 @@ export const chartStackedBar = defineExample({
                     x: { scale: () => scaleBand().padding(0.4), axis: { label: "Month" } },
                     y: { scale: scaleLinear, nice: true, grid: true, axis: { label: "Notes" } },
                 },
-                color: { legend: colorLegend({ label: "Notebook" }) },
+                color: { legend: colorLegend() },
                 tooltip,
             })}
         />
