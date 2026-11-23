@@ -8,6 +8,8 @@ export const OriginPath = {
     request: "/.destack/request",
     /** Register the browser as the person's client and bind the page's session to it. */
     session: "/.destack/session",
+    /** Stream a change event once the origin serves another build than the page's. */
+    reload: "/.destack/reload",
     /** Take the page's OTLP exports, each signal below at `/v1/<signal>`. */
     telemetry: "/.destack/telemetry",
     /** Serve the build's content-addressed files, each below its digest. */
