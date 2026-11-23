@@ -184,6 +184,7 @@ const styles = style.create({
     fixed: {
         height: size[2],
         paddingBlock: 0,
+        paddingInline: space[2],
     },
     lined: {
         borderBlockEndWidth: stroke.border,

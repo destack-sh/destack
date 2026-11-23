@@ -39,8 +39,8 @@ const styles = style.create({
         },
     },
     head: {
-        height: size[2],
-        paddingInline: space[2],
+        height: size[3],
+        paddingInline: space[3],
         textAlign: "start",
         verticalAlign: "middle",
         whiteSpace: "nowrap",
@@ -48,9 +48,9 @@ const styles = style.create({
         fontWeight: weight.medium,
     },
     cell: {
-        height: size[2],
-        paddingBlock: space[1],
-        paddingInline: space[2],
+        height: size[3],
+        paddingBlock: space[2],
+        paddingInline: space[3],
         verticalAlign: "middle",
         whiteSpace: "nowrap",
     },
