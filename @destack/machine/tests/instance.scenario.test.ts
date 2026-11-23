@@ -69,7 +69,7 @@ import {
 } from "@destack/access";
 import { space } from "@destack/account/object";
 import type { ServerRuntime } from "@destack/package/runtime";
-import { BuildReader } from "@destack/package/manifest";
+import { BuildReader, BuildListCache } from "@destack/package/manifest";
 import * as object from "@destack/stack/object";
 import { KNOWN_TYPES } from "@destack/stack/stack";
 import * as accountObject from "@destack/account/object";
@@ -925,7 +925,12 @@ async function deployBuiltWith(built: string) {
     await serveControllers(fixture);
     const { crypto } = fixture.environment;
     const build = await fixtureBuild(ids.package, "2026.9.0", crypto);
-    const released = new BuildReader({ ...build.manifest, destack: built }, build.stream, crypto);
+    const released = new BuildReader(
+        { ...build.manifest, destack: built },
+        build.stream,
+        crypto,
+        new BuildListCache(),
+    );
     const notes = await installNotes(fixture, ids.notes, released);
     await fixture.simulation.idle();
 

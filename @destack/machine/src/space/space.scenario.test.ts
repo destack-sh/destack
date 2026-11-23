@@ -8,7 +8,7 @@ import { type Capability, Package } from "@destack/object";
 import { implementPackage } from "@destack/object/server";
 import type { ServerContext } from "@destack/object/workload";
 import { defineKind, PackageId, PackageVersion } from "@destack/package";
-import { BuildReader } from "@destack/package/manifest";
+import { BuildReader, BuildListCache } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import { testHost } from "@destack/test/host";
 import { STACKS } from "@destack/account/test";
@@ -233,7 +233,12 @@ test("serve an installation only once it is bound and main applied its tables", 
         const built = await open(packageId, image);
 
         return packageId === stack.packageId
-            ? new VaultedReader(built.manifest, built.stream, fixture.environment.crypto)
+            ? new VaultedReader(
+                  built.manifest,
+                  built.stream,
+                  fixture.environment.crypto,
+                  new BuildListCache(),
+              )
             : built;
     };
 

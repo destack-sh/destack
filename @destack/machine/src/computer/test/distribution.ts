@@ -186,7 +186,12 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
             ...root.manifest,
             package: { ...PackageManifest.package(root.manifest), version },
         };
-        const reader = new BuildReader(manifest, root.stream, store.environment.crypto);
+        const reader = new BuildReader(
+            manifest,
+            root.stream,
+            store.environment.crypto,
+            store.lists,
+        );
         const released = await TestDistribution.#putIndexed(store, reader);
 
         // make an image of it in the root's place with the root's links
