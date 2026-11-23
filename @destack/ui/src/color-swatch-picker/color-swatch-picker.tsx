@@ -47,6 +47,9 @@ const styles = style.create({
     swatch: {
         width: `calc(${size[1]} * 0.75)`,
         height: `calc(${size[1]} * 0.75)`,
+        minHeight: 0,
+        paddingBlock: 0,
+        paddingInline: 0,
         borderRadius: radius.full,
         cursor: "pointer",
         boxShadow: {
