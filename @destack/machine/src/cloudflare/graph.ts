@@ -13,7 +13,8 @@ import type { ObjectType } from "@destack/object";
 import type { BuildStore } from "@destack/build/store";
 import type { ExternalStorage } from "@destack/object/server";
 import { Digest, schema } from "@destack/schema";
-import { catalog, declaration, BuildGraph, module, symbol } from "@destack/stack/object";
+import { catalog, declaration, module, symbol } from "@destack/stack/object";
+import { BuildGraph } from "@destack/stack/workload";
 
 /** The origin of the requests to an index object, which its stub routes by path alone. */
 const OBJECT_ORIGIN = "https://graph.invalid";

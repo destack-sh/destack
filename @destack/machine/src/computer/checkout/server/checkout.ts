@@ -91,13 +91,14 @@ export class CheckoutServer {
             methods: {
                 create: {
                     prepare: async (context) => {
-                        // write a template's package before its repository is initialized
+                        // open the working tree, then write a template's package into it
                         const { directory, source } = context.input;
+                        const tree = await new Git(host).open(directory, source);
                         if (source.kind === "template") {
                             await this.#instantiate(directory, source);
                         }
 
-                        return new Git(host).open(directory, source);
+                        return tree;
                     },
                     handle: (context, next) =>
                         next(

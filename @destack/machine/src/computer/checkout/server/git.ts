@@ -51,18 +51,24 @@ export class Git {
         else if (source.kind === "clone") {
             return this.clone(directory, source.remote, source.ref);
         }
-        // initialize a new repository, around the package a template made
+        // initialize a new repository, tracking a template's empty remote as a clone of it does
         else {
-            return this.initialize(directory);
+            return this.initialize(
+                directory,
+                source.kind === "template" ? source.remote : undefined,
+            );
         }
     }
 
-    /** Create a directory with a new Git repository, answering its working tree. */
-    async initialize(directory: string): Promise<WorkingTree> {
+    /** Create a directory with a new Git repository, its origin a remote when given. */
+    async initialize(directory: string, remote?: string): Promise<WorkingTree> {
         // create the directory and the repository in it
         Git.#requireAbsolute(directory);
         await this.host.files.mkdir(directory, { recursive: true });
         await this.#git(directory, "init", "--quiet");
+        if (remote !== undefined) {
+            await this.#git(directory, "remote", "add", "origin", remote);
+        }
 
         return this.root(directory);
     }

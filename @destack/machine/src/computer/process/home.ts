@@ -5,6 +5,9 @@ import type { DistributionHost } from "@destack/update/server";
 import type {} from "@destack/package/import-meta";
 import { Profile } from "@destack/update/release";
 
+/** The directory under a user's home that keeps every profile's checkouts, as ghq keeps `~/ghq`. */
+const CHECKOUTS = "Destack";
+
 /** A profile installed at a device directory for one user, signing in at a universe. */
 export class UniverseHome {
     /** The profile installed here, which names its commands, directory and application. */
@@ -41,6 +44,15 @@ export class UniverseHome {
             environment.host.home,
             variables["DESTACK_DIRECTORY"],
         );
+    }
+
+    /** Place a repository's checkout at its remote's host and path, as `~/Destack/<host>/@a/b`. */
+    checkout(remote: string): string {
+        // read the remote against the universe, then drop the scheme, the port and the `.git` suffix
+        const url = new URL(remote, this.universe);
+        const path = url.pathname.replace(/\.git$/u, "");
+
+        return join(this.#user, CHECKOUTS, url.hostname, path);
     }
 
     /** Whether the device directory is an explicit one, apart from the profile's own. */

@@ -10,7 +10,8 @@ import { LocalBlobStorage } from "@destack/bucket/bun";
 import type { PackageFile } from "@destack/package/file";
 import { Digest, present } from "@destack/schema";
 import type { BuildStore } from "@destack/build/store";
-import { catalog, declaration, BuildGraph, module, symbol } from "@destack/stack/object";
+import { catalog, declaration, module, symbol } from "@destack/stack/object";
+import { BuildGraph } from "@destack/stack/workload";
 
 /** The most parameters SQLite binds to a statement: SQLITE_MAX_VARIABLE_NUMBER since 3.32. */
 const SQLITE_PARAMETERS = 32_766;

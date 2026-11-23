@@ -23,8 +23,10 @@ export const WorkingTreeSource = schema.discriminatedUnion("kind", [
         ref: schema.string().min(1).exactOptional(),
     }),
     schema.object({
-        /** Initialize a Git repository with a package made from a published template. */
+        /** Track a new, empty repository and write a package from a published template into it. */
         kind: schema.literal("template"),
+        /** The empty remote Git repository. */
+        remote: schema.string().min(1),
         /** The template package. */
         template: PackageId,
         /** The template's release: a version or a tag. */
