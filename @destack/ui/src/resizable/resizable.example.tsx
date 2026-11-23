@@ -16,6 +16,7 @@ const styles = style.create({
     },
     fixed: {
         width: "800px",
+        maxWidth: "100%",
     },
     pane: {
         height: "100%",

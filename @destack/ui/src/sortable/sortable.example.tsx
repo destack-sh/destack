@@ -16,8 +16,11 @@ const ROW_HEIGHT = 36;
 
 /** The styles of a long list. */
 const styles = style.create({
-    list: {
+    frame: {
         width: "20rem",
+        maxWidth: "100%",
+    },
+    list: {
         height: "18rem",
     },
     row: {
@@ -134,6 +137,7 @@ export const sortableLongList = defineExample({
 
         return (
             <Sortable
+                xstyle={styles.frame}
                 onMove={(move) =>
                     setTasks((current) =>
                         SortableMove.place(current, move.id, move, (task) => task),
