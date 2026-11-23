@@ -60,11 +60,9 @@ const styles = style.create({
         touchAction: "pan-y",
     },
     summary: {
-        borderWidth: stroke.border,
-        borderStyle: "solid",
-        borderColor: color.border,
-        backgroundColor: color.muted,
-        color: color.mutedForeground,
+        // cover the grid, unlike the translucent borders
+        backgroundColor: `color-mix(in oklab, ${color.foreground} 12%, ${color.background})`,
+        color: color.foreground,
     },
     bar: {
         position: "absolute",
@@ -75,7 +73,7 @@ const styles = style.create({
         whiteSpace: "nowrap",
         overflow: "hidden",
         textOverflow: "ellipsis",
-        paddingInline: space[1],
+        paddingInline: space[2],
         cursor: "default",
         zIndex: 1,
     },
