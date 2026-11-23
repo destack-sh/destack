@@ -1,3 +1,4 @@
+import type { IconBodies } from "@destack/icon";
 import caretRight from "@destack/icon/phosphor/caret-right";
 import { Shortcut, t } from "@destack/locale";
 import * as style from "@destack/style";
@@ -29,7 +30,10 @@ import { type PaletteItem, PaletteControl, type PalettePage } from "./control.ts
 /** The styles of a palette's actions panel and its entries' marks. */
 const styles = style.create({
     panel: {
+        // stay inside the palette however many actions there are, the list scrolling
         position: "absolute",
+        display: "flex",
+        maxHeight: `calc(100% - ${space[8]} - 2 * ${space[2]})`,
         insetBlockEnd: `calc(${space[8]} + ${space[2]})`,
         insetInlineEnd: space[3],
         zIndex: 1,
@@ -43,6 +47,10 @@ const styles = style.create({
     },
     destructive: {
         color: swatch.destructiveText,
+    },
+    blank: {
+        flexShrink: 0,
+        width: "1em",
     },
     drill: {
         color: color.mutedForeground,
@@ -238,7 +246,12 @@ function PaletteEntry(properties: {
                 }
             }}
         >
-            <Show when={item.icon}>{(icon) => <Icon icon={icon()} />}</Show>
+            <Mark
+                icon={item.icon}
+                isAligned={properties.control
+                    .page()
+                    .groups.some((group) => group.items().some((each) => each.icon !== undefined))}
+            />
             {item.title}
             <Show when={item.subtitle}>
                 {(subtitle) => <CommandItemDescription>{subtitle()}</CommandItemDescription>}
@@ -257,6 +270,27 @@ function PaletteEntry(properties: {
                 </Show>
             </CommandItemMeta>
         </CommandItem>
+    );
+}
+
+/** Render an entry's icon, its room among entries with icons, so every title starts on one edge. */
+function Mark(properties: {
+    /** The icon, none for an entry without one. */
+    readonly icon: IconBodies | undefined;
+    /** Whether another entry beside it has an icon. */
+    readonly isAligned: boolean;
+}): JSX.Element {
+    return (
+        <Show
+            when={properties.icon}
+            fallback={
+                <Show when={properties.isAligned}>
+                    <span aria-hidden="true" {...style.attrs(styles.blank)} />
+                </Show>
+            }
+        >
+            {(icon) => <Icon icon={icon()} />}
+        </Show>
     );
 }
 
@@ -302,9 +336,12 @@ function ActionsPanel(properties: {
                                         void properties.control.run(properties.item, action)
                                     }
                                 >
-                                    <Show when={action.icon}>
-                                        {(icon) => <Icon icon={icon()} />}
-                                    </Show>
+                                    <Mark
+                                        icon={action.icon}
+                                        isAligned={properties.item.actions.some(
+                                            (each) => each.icon !== undefined,
+                                        )}
+                                    />
                                     {action.title}
                                     <Show when={action.shortcut}>
                                         {(keys) => <CommandShortcut keys={keys()} />}

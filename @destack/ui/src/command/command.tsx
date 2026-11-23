@@ -1,9 +1,9 @@
 import { Icon } from "@destack/ui/icon";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
+import { media } from "@destack/style/media.stylex";
 import { color, radius, size, space, stroke } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import { Shortcut } from "@destack/locale";
 import {
     type Accessor,
     createContext,
@@ -44,7 +44,7 @@ import {
     useListBox,
 } from "../list-box/index.ts";
 import { visuallyHiddenStyle } from "../visually-hidden/index.ts";
-import { KbdShortcut, useCommandPlatform } from "../kbd/index.ts";
+import { KbdShortcut } from "../kbd/index.ts";
 import { mergeProperties, renderPart } from "../part/index.ts";
 
 /** The distance of a command dialog from the viewport's top. */
@@ -53,15 +53,30 @@ const DIALOG_OFFSET = "12vh";
 /** The size of a command dialog's search: the base text style's, a step above the options'. */
 const DIALOG_INPUT_SIZE = "var(--destack-text-base-font-size)";
 
-/** The widest a command dialog grows, room for a result's title and excerpt. */
-const DIALOG_WIDTH = "40rem";
+/** The widest a command dialog grows, 720px as Linear's palette. */
+const DIALOG_WIDTH = "45rem";
+
+/** The widest a command dialog grows beside a detail, 960px, near Notion's 1006px search. */
+const DIALOG_DETAIL_WIDTH = "60rem";
+
+/** The viewport height a command dialog's search, footer and offsets take. */
+const DIALOG_CHROME = `(2 * ${DIALOG_OFFSET} + 2 * ${size[4]})`;
+
+/** The tallest a command dialog's options grow, and their fixed height in a body, as Linear's. */
+const DIALOG_LIST_HEIGHT = `min(25rem, 100dvh - ${DIALOG_CHROME})`;
+
+/** The inset of a command dialog's icons, headings and footer: the list's and an option's. */
+const DIALOG_INSET = `calc(${space[2]} + ${space[3]})`;
 
 /** The styles of a command and its elements. */
 const styles = style.create({
     dialog: {
         // open and close at once, as a palette opened many times a day should, after Raycast
         transitionDuration: "0s",
-        width: `min(100% - 2 * ${space[4]}, ${DIALOG_WIDTH})`,
+        width: {
+            default: `min(100% - 2 * ${space[4]}, ${DIALOG_WIDTH})`,
+            ':has([data-slot="command-detail"])': `min(100% - 2 * ${space[4]}, ${DIALOG_DETAIL_WIDTH})`,
+        },
         marginBlockStart: DIALOG_OFFSET,
         marginBlockEnd: "auto",
         padding: 0,
@@ -81,10 +96,8 @@ const styles = style.create({
         display: "flex",
         alignItems: "center",
         gap: space[2],
-        height: {
-            default: size[3],
-            [style.when.ancestor('[data-slot="command-dialog"]')]: size[4],
-        },
+        flexShrink: 0,
+        height: size[3],
         paddingInline: space[3],
         borderBottomStyle: "solid",
         borderBottomWidth: stroke.border,
@@ -94,34 +107,24 @@ const styles = style.create({
     input: {
         flex: 1,
         height: "100%",
-        fontSize: {
-            default: null,
-            [style.when.ancestor('[data-slot="command-dialog"]')]: DIALOG_INPUT_SIZE,
-        },
         outlineStyle: "none",
         color: color.foreground,
         "::placeholder": { color: color.mutedForeground },
     },
     list: {
-        maxHeight: {
-            default: `calc(8 * ${size[3]})`,
-            [style.when.ancestor('[data-slot="command-dialog"]')]:
-                `min(28rem, 100dvh - 2 * ${DIALOG_OFFSET})`,
-        },
+        flexGrow: 1,
+        minWidth: 0,
+        maxHeight: `calc(8 * ${size[3]})`,
         overflowX: "hidden",
         overflowY: "auto",
         padding: space[1],
     },
-    item: {
-        paddingBlock: {
-            default: null,
-            [style.when.ancestor('[data-slot="command-dialog"]')]: space[1],
-        },
+    separator: {
+        marginBlock: space[1],
     },
     shortcut: {
         marginInlineStart: "auto",
         color: color.mutedForeground,
-        letterSpacing: "0.1em",
     },
     description: {
         overflow: "hidden",
@@ -183,10 +186,13 @@ const styles = style.create({
         flex: "0 0 40%",
         minWidth: 0,
         overflowY: "auto",
+        marginBlock: space[1],
+        marginInlineEnd: space[1],
         padding: space[4],
-        borderInlineStartStyle: "solid",
-        borderInlineStartWidth: stroke.border,
-        borderInlineStartColor: color.border,
+        borderWidth: stroke.border,
+        borderStyle: "solid",
+        borderColor: color.border,
+        borderRadius: radius[2],
     },
     page: {
         flexShrink: 0,
@@ -197,6 +203,59 @@ const styles = style.create({
         color: color.foreground,
     },
 });
+
+/** The styles a command and its elements add inside a dialog, roomier after Linear and Notion. */
+const dialogStyles = style.create({
+    command: {
+        borderRadius: radius[4],
+    },
+    search: {
+        gap: space[3],
+        height: size[4],
+        paddingInline: DIALOG_INSET,
+        borderBottomStyle: "none",
+    },
+    input: {
+        fontSize: DIALOG_INPUT_SIZE,
+    },
+    list: {
+        maxHeight: DIALOG_LIST_HEIGHT,
+        paddingBlockStart: 0,
+        paddingBlockEnd: space[2],
+        paddingInline: space[2],
+    },
+    body: {
+        flex: "1 1 auto",
+        height: DIALOG_LIST_HEIGHT,
+    },
+    heading: {
+        paddingBlockStart: space[3],
+        paddingInline: space[3],
+    },
+    item: {
+        gap: space[3],
+        minHeight: `calc(${size[2]} + ${space[1]})`,
+        paddingInline: space[3],
+        borderRadius: radius[3],
+        whiteSpace: "nowrap",
+    },
+    separator: {
+        marginBlock: `${space[2]} 0`,
+        marginInline: `calc(-1 * ${space[2]})`,
+    },
+    footer: {
+        paddingInline: DIALOG_INSET,
+    },
+    detail: {
+        display: { default: null, [media.maxMd]: "none" },
+        marginBlock: `0 ${space[2]}`,
+        marginInlineEnd: space[2],
+        borderRadius: radius[3],
+    },
+});
+
+/** Whether a command sits in a command dialog. */
+const CommandDialogContext = createContext(false);
 
 /** A page a command shows in place of its root, such as the people an assignment picks from. */
 export interface CommandPageEntry {
@@ -328,6 +387,7 @@ export function Command(properties: CommandProperties): JSX.Element {
         },
     });
     const command = new CommandControl(autocomplete);
+    const isDialog = useContext(CommandDialogContext);
     const list = new ListBoxControl({
         autocomplete,
         get activeValue() {
@@ -361,7 +421,12 @@ export function Command(properties: CommandProperties): JSX.Element {
                         data-slot="command"
                         {...rest}
                         {...style.attributes(
-                            [text.sm, styles.command, properties.xstyle],
+                            [
+                                text.sm,
+                                styles.command,
+                                isDialog && dialogStyles.command,
+                                properties.xstyle,
+                            ],
                             properties.style,
                         )}
                     />
@@ -386,6 +451,7 @@ export function CommandInput(
 ): JSX.Element {
     // take the search field's attributes from the command's search, going back before steering
     const command = useCommand();
+    const isDialog = useContext(CommandDialogContext);
     const locale = useLocale();
     command.search.follow(properties);
     const search = command.search.input(() => locale.direction);
@@ -399,7 +465,10 @@ export function CommandInput(
     };
 
     return (
-        <div data-slot="command-input-wrapper" {...style.attrs(styles.search)}>
+        <div
+            data-slot="command-input-wrapper"
+            {...style.attrs(styles.search, isDialog && dialogStyles.search)}
+        >
             <Icon name="magnifying-glass" />
             <For each={command.pages()}>
                 {(page) => (
@@ -412,7 +481,7 @@ export function CommandInput(
                 "input",
                 "command-input",
                 omit(properties, "onKeyDown", "value", "defaultValue", "onValueChange"),
-                [text.sm, styles.input],
+                [text.sm, styles.input, isDialog && dialogStyles.input],
                 merge(mergeProperties(omit(search, "onKeyDown"), back)),
             )}
         </div>
@@ -425,12 +494,14 @@ export function CommandList(
         Omit<JSX.HTMLAttributes<HTMLDivElement>, "onKeyDown" | "onFocusOut">
     >,
 ): JSX.Element {
+    const isDialog = useContext(CommandDialogContext);
+
     return (
         <ListBox
             control={useListBox()}
             data-slot="command-list"
             {...properties}
-            xstyle={[styles.list, properties.xstyle]}
+            xstyle={[styles.list, isDialog && dialogStyles.list, properties.xstyle]}
         />
     );
 }
@@ -467,16 +538,26 @@ export function CommandGroup(properties: CommandGroupProperties): JSX.Element {
 export function CommandGroupHeading(
     properties: CommandElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
-    return <ListBoxSectionHeading data-slot="command-group-heading" {...properties} />;
+    const isDialog = useContext(CommandDialogContext);
+
+    return (
+        <ListBoxSectionHeading
+            data-slot="command-group-heading"
+            {...properties}
+            xstyle={[isDialog && dialogStyles.heading, properties.xstyle]}
+        />
+    );
 }
 
 /** Render an option that the search filters and a click or Enter chooses. */
 export function CommandItem(properties: CommandItemProperties): JSX.Element {
+    const isDialog = useContext(CommandDialogContext);
+
     return (
         <ListBoxItem
             data-slot="command-item"
             {...properties}
-            xstyle={[styles.item, properties.xstyle]}
+            xstyle={[isDialog && dialogStyles.item, properties.xstyle]}
         />
     );
 }
@@ -485,7 +566,15 @@ export function CommandItem(properties: CommandItemProperties): JSX.Element {
 export function CommandSeparator(
     properties: CommandElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
-    return <ListBoxSeparator data-slot="command-separator" {...properties} />;
+    const isDialog = useContext(CommandDialogContext);
+
+    return (
+        <ListBoxSeparator
+            data-slot="command-separator"
+            {...properties}
+            xstyle={[styles.separator, isDialog && dialogStyles.separator, properties.xstyle]}
+        />
+    );
 }
 
 /** Render the options of one page while it is shown, the root's without a name. */
@@ -510,17 +599,20 @@ export type CommandShortcutProperties = CommandElementProperties<
 
 /** Render the keyboard shortcut of an option at its end, from its keys or its text. */
 export function CommandShortcut(properties: CommandShortcutProperties): JSX.Element {
-    // label the keys for the viewer's platform
-    const isCommand = useCommandPlatform();
-    const rest = omit(properties, "keys");
+    // draw the keys as the footer's hints do, else the caller's own text
+    const rest = omit(properties, "keys", "xstyle", "style");
 
-    return renderPart("span", "command-shortcut", rest, [text.xs, styles.shortcut], {
-        get children() {
-            const keys = properties.keys;
-
-            return keys === undefined ? properties.children : Shortcut.format(keys, isCommand());
-        },
-    });
+    return (
+        <span
+            data-slot="command-shortcut"
+            {...rest}
+            {...style.attributes([text.xs, styles.shortcut, properties.xstyle], properties.style)}
+        >
+            <Show when={properties.keys} fallback={properties.children}>
+                {(keys) => <KbdShortcut keys={keys()} />}
+            </Show>
+        </span>
+    );
 }
 
 /** Render a command in a modal dialog near the viewport's top, titled for assistive technology. */
@@ -541,7 +633,7 @@ export function CommandDialog(properties: CommandDialogProperties): JSX.Element 
             <DialogContent
                 data-slot="command-dialog"
                 showCloseButton={false}
-                xstyle={[style.defaultMarker(), styles.dialog]}
+                xstyle={styles.dialog}
             >
                 <DialogTitle xstyle={visuallyHiddenStyle()}>
                     {properties.title ?? locale.render(t`Command palette`)}
@@ -549,7 +641,9 @@ export function CommandDialog(properties: CommandDialogProperties): JSX.Element 
                 <DialogDescription xstyle={visuallyHiddenStyle()}>
                     {properties.description ?? locale.render(t`Search for a command to run`)}
                 </DialogDescription>
-                <Command {...command} />
+                <CommandDialogContext value={true}>
+                    <Command {...command} />
+                </CommandDialogContext>
             </DialogContent>
         </Dialog>
     );
@@ -560,7 +654,7 @@ export function CommandItemDescription(
     properties: CommandElementProperties<JSX.HTMLAttributes<HTMLSpanElement>>,
 ): JSX.Element {
     return renderPart("span", "command-item-description", properties, [
-        text.sm,
+        text.xs,
         styles.description,
     ]);
 }
@@ -576,7 +670,13 @@ export function CommandItemMeta(
 export function CommandFooter(
     properties: CommandElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
-    return renderPart("div", "command-footer", properties, [text.xs, styles.footer]);
+    const isDialog = useContext(CommandDialogContext);
+
+    return renderPart("div", "command-footer", properties, [
+        text.xs,
+        styles.footer,
+        isDialog && dialogStyles.footer,
+    ]);
 }
 
 /** The properties of a key hint: what the keys do and the keys. */
@@ -607,7 +707,12 @@ export function CommandHint(properties: CommandHintProperties): JSX.Element {
 export function CommandBody(
     properties: CommandElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
 ): JSX.Element {
-    return renderPart("div", "command-body", properties, styles.body);
+    const isDialog = useContext(CommandDialogContext);
+
+    return renderPart("div", "command-body", properties, [
+        styles.body,
+        isDialog && dialogStyles.body,
+    ]);
 }
 
 /** The properties of the detail of a command's highlighted option. */
@@ -621,9 +726,13 @@ export interface CommandDetailProperties {
 /** Render the detail of the highlighted option beside the options, after Raycast's list detail. */
 export function CommandDetail(properties: CommandDetailProperties): JSX.Element {
     const list = useListBox();
+    const isDialog = useContext(CommandDialogContext);
 
     return (
-        <div data-slot="command-detail" {...style.attrs(styles.detail, properties.xstyle)}>
+        <div
+            data-slot="command-detail"
+            {...style.attrs(styles.detail, isDialog && dialogStyles.detail, properties.xstyle)}
+        >
             {properties.children(list.activeValue())}
         </div>
     );
