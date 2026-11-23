@@ -16,10 +16,7 @@ export interface ViewDocumentProperties {
 /** Render a static view's page shell, styled by the package's theme and hydrating the page. */
 export function ViewDocument(properties: ViewDocumentProperties): JSX.Element {
     // style the root by the package's theme in the default display, following the visitor's appearance
-    const theme =
-        properties.theme === undefined
-            ? destackTheme
-            : new Theme(properties.theme.package, properties.theme);
+    const theme = properties.theme === undefined ? destackTheme : new Theme(properties.theme);
     const variables = theme.variables(DEFAULT_DISPLAY);
 
     return (

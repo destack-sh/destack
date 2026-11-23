@@ -3,10 +3,11 @@ import type { PackageId } from "@destack/package";
 import { principal } from "@destack/access";
 import { schema } from "@destack/schema";
 import type { DeviceSettingValue, SettingValue } from "@destack/setting/object";
-import { type Theme } from "@destack/theme";
+import { Theme } from "@destack/theme";
+import { destackTheme } from "@destack/theme/declare";
 import type { ViewContext } from "../declare/context.ts";
 import { keybindings, sources } from "../palette/index.ts";
-import { DISPLAY_SETTINGS, resolveDisplay } from "../setting/display.ts";
+import { DISPLAY_SETTINGS, resolveDisplay, theme } from "../setting/display.ts";
 
 /** What a page presents for its person: their language, the theme's style and their keybindings. */
 export interface Presentation {
@@ -29,7 +30,7 @@ export interface Page {
     readonly context: ViewContext;
     /** The package serving the view. */
     readonly packageId: PackageId;
-    /** The theme the page shows in. */
+    /** The theme the page shows visitors in. */
     readonly theme: Theme;
 }
 
@@ -43,9 +44,10 @@ export const Presentation = {
         device: readonly DeviceSettingValue[],
     ): Presentation {
         // select the person, or an anonymous visitor's defaults, in the page's space and its package's installation
-        const { context, packageId, theme } = page;
+        const { context, packageId } = page;
+        const isPerson = principal.user.is(context.user);
         const selection = {
-            scope: principal.user.is(context.user) ? context.user.id : null,
+            scope: isPerson ? context.user.id : null,
             package: packageId,
             space: schema.identifier("space").parse(context.space),
             installation: schema.identifier("installation").parse(context.installation),
@@ -56,9 +58,14 @@ export const Presentation = {
         const display = resolveDisplay(selection, values, chain, device);
         const offered = sources.resolve(selection, values, chain, device).value;
 
+        // show a person their own theme, else Destack's, and a visitor the page's
+        const chosen = theme.resolve(selection, values, chain, device).value;
+        const own = chosen === null ? destackTheme : new Theme(chosen);
+        const shown = isPerson ? own : page.theme;
+
         return {
             locale: person.locale,
-            style: theme.variables(display),
+            style: shown.variables(display),
             keybindings: keybindings.resolve(selection, values, chain, device).value,
             isOffered: offered[packageId] !== false,
         };

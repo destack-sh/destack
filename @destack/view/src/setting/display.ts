@@ -11,9 +11,17 @@ import {
     type Display,
     Seed,
     TextSize,
+    ThemeDefinition,
     Typeface,
 } from "@destack/theme";
 import { t } from "@destack/locale";
+
+/** Where a person's look lives, the same in every app and applied at once. */
+const LOOK = {
+    scope: "user",
+    overrides: ["space", "device"],
+    apply: "immediate",
+} satisfies Pick<SettingDefinition, "scope" | "overrides" | "apply">;
 
 /** Where a display preference lives, applied at once. */
 const PREFERENCE = {
@@ -46,7 +54,7 @@ export const textSize = defineSetting({
 export const density = defineSetting({
     name: "density",
     title: t`Density`,
-    description: t`Pack controls and content compactly or spaciously, or keep each app's own density.`,
+    description: t`Pack controls and content compactly or spaciously, or use the theme's density.`,
     schema: Density.nullable(),
     default: DEFAULT_DISPLAY.density,
     ...PREFERENCE,
@@ -72,24 +80,34 @@ export const motion = defineSetting({
     ...PREFERENCE,
 });
 
-/** The accent a person selects over every app's own. */
+/** The theme a person sees in every app, whole, or null for Destack's. */
+export const theme = defineSetting({
+    name: "theme",
+    title: t`Theme`,
+    description: t`The colors of every app.`,
+    schema: ThemeDefinition.nullable(),
+    default: null,
+    ...LOOK,
+});
+
+/** The accent a person selects over their theme's. */
 export const accent = defineSetting({
     name: "accent",
     title: t`Accent color`,
-    description: t`Use each app's own accent, or one accent color in every app.`,
+    description: t`Use the theme's accent, or another accent color.`,
     schema: Seed.nullable(),
     default: DEFAULT_DISPLAY.accent,
-    ...PREFERENCE,
+    ...LOOK,
 });
 
-/** The interface typeface a person reads in over every app's. */
+/** The interface typeface a person reads in over their theme's. */
 export const typeface = defineSetting({
     name: "typeface",
     title: t`Font`,
-    description: t`Use each app's font, or one font in every app.`,
+    description: t`Use the theme's font, or another font.`,
     schema: Typeface.nullable(),
     default: DEFAULT_DISPLAY.typeface,
-    ...PREFERENCE,
+    ...LOOK,
 });
 
 /** The settings a person's display comes from. */
@@ -100,6 +118,7 @@ export const DISPLAY_SETTINGS: readonly DeclarationReference[] = [
     density,
     motion,
     textSize,
+    theme,
     typeface,
 ].map((setting) => setting.reference);
 

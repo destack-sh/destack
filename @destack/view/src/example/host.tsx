@@ -668,7 +668,7 @@ function themeOf(query: Query): Theme {
 
     return query.radius === undefined
         ? theme
-        : new Theme(theme.package, { ...theme.definition, radius: query.radius });
+        : new Theme({ ...theme.definition, radius: query.radius });
 }
 
 /** Read a JSON value as text, absent unless it is a string. */

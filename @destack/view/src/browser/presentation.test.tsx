@@ -1,3 +1,4 @@
+import type { Simulation } from "@destack/environment/simulation";
 import { testSimulation } from "@destack/test/world";
 import { TestDatabase } from "@destack/db/test";
 import { PackageVersion } from "@destack/package";
@@ -5,12 +6,12 @@ import { DeclarationReference } from "@destack/package/declare";
 import { type JsonValue, schema } from "@destack/schema";
 import type { Setting } from "@destack/setting";
 import { deviceSetting, setting } from "@destack/setting/object";
-import { DEFAULT_DISPLAY } from "@destack/theme";
-import { destackTheme } from "@destack/theme/declare";
+import { DEFAULT_DISPLAY, Theme, TOKENS } from "@destack/theme";
+import { defineTheme, destackTheme } from "@destack/theme/declare";
 import { ANONYMOUS, principal, accessRelationship } from "@destack/access";
 import { expect, onTestFinished, test } from "@destack/test";
 import { keybindings, sources } from "../palette/index.ts";
-import { appearance } from "../setting/index.ts";
+import { appearance, theme } from "../setting/index.ts";
 import { Presentation, type Page } from "./presentation.ts";
 
 /** The person a page presents for. */
@@ -22,6 +23,18 @@ const notes = PackageVersion.parse({
     name: "@example/notes",
     version: "2026.9.0",
 });
+
+/** A page's ground. */
+const GROUND = {
+    light: { background: "#fef2f4", foreground: "#42222f", muted: "#f6e6ea" },
+    dark: { background: "#200f16", foreground: "#e8d6dc", muted: "#2e1c23" },
+};
+
+/** A person's ground. */
+const CHOSEN = {
+    light: { background: "#f1f9ef", foreground: "#1e3323", muted: "#e2ece1" },
+    dark: { background: "#0c1b10", foreground: "#d8e3d6", muted: "#1c2c20" },
+};
 
 /** The notes home view's page. */
 const page: Page = {
@@ -45,15 +58,16 @@ const page: Page = {
     theme: destackTheme,
 };
 
-test("present a page in its person's language, their display settings' style and their keybindings, offering no commands once they turn the package off, and its device's own values over theirs", async () => {
-    // place the person's dark appearance and their keybinding of the archive command, each under its own id
-    await using simulation = testSimulation();
-    const environment = simulation.environment("page");
+/** Open a database of settings, placing the person's values in it. */
+async function placing(environment: ReturnType<Simulation["environment"]>) {
+    // open the database, closed with the test
     const storage = await TestDatabase.create(
         [accessRelationship, setting.table, deviceSetting.table],
         { environment, isMigrated: true },
     );
     onTestFinished(() => storage.close());
+
+    // place each value under its own id
     let placed = 0;
     const place = async (declared: Pick<Setting, "reference" | "package">, value: JsonValue) => {
         const now = environment.clock.now();
@@ -76,6 +90,15 @@ test("present a page in its person's language, their display settings' style and
                 }),
         );
     };
+
+    return { storage, place };
+}
+
+test("present a page in its person's language, their display settings' style and their keybindings, offering no commands once they turn the package off, and its device's own values over theirs", async () => {
+    // place the person's dark appearance and their keybinding of the archive command, each under its own id
+    await using simulation = testSimulation();
+    const environment = simulation.environment("page");
+    const { storage, place } = await placing(environment);
     const archive = DeclarationReference.key({ packageId: notes.id, name: "archive" });
     await place(appearance, "dark");
     await place(keybindings, { [archive]: "mod+a" });
@@ -138,4 +161,32 @@ test("present a page to an anonymous visitor in the browser's language and the t
         keybindings: {},
         isOffered: true,
     });
+});
+
+test("show a person the theme they chose, else Destack's, and a visitor the page's", async () => {
+    // give the page a theme of its own, and place the person's choice of another
+    await using simulation = testSimulation();
+    const { storage, place } = await placing(simulation.environment("page"));
+    const own = defineTheme({ name: "own", ground: GROUND }, { package: notes });
+    const chosen = { name: "chosen", ground: CHOSEN };
+    const unchosen = await storage.database.select().from(setting.table);
+    await place(theme, chosen);
+    const values = await storage.database.select().from(setting.table);
+
+    // read the page's background for its person before and after they choose, and for a visitor
+    const person = { locale: "en", chain: [PERSON] } as const;
+    const shown = { ...page, theme: own };
+    const visiting = { ...shown, context: { ...page.context, user: ANONYMOUS } };
+    const background = TOKENS.entry(["color", "background"]).variable;
+    const presented = [
+        Presentation.resolve(shown, person, unchosen, []),
+        Presentation.resolve(shown, person, values, []),
+        Presentation.resolve(visiting, { ...person, chain: [] }, [], []),
+    ];
+
+    expect(presented.map(({ style }) => style[background])).toEqual(
+        [destackTheme, new Theme(chosen), own].map(
+            (each) => each.variables(DEFAULT_DISPLAY)[background],
+        ),
+    );
 });

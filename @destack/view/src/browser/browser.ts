@@ -109,12 +109,9 @@ export async function mount(
         return connection;
     };
 
-    // resolve what the page shows the person against the package's theme, else Destack's
+    // resolve what the page shows its person, or a visitor under the package's theme, else Destack's
     const stopping = new AbortController();
-    const theme =
-        declared.theme === undefined
-            ? destackTheme
-            : new Theme(declared.theme.package, declared.theme);
+    const theme = declared.theme === undefined ? destackTheme : new Theme(declared.theme);
     const page = { context, packageId: view.package.id, theme };
     const shown =
         device === undefined
