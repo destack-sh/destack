@@ -23,17 +23,12 @@
         "./test": "./src/test/index.ts"
     },
     "dependencies": {
-        "@better-auth/core": "1.7.25",
-        "@better-auth/passkey": "1.7.25",
         "@destack/access": "workspace:*",
-        "@destack/bucket": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
-        "@destack/event": "workspace:*",
         "@destack/identity": "workspace:*",
         "@destack/locale": "workspace:*",
-        "@destack/mail": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/resource": "workspace:*",
@@ -44,14 +39,39 @@
         "better-auth": "1.7.25"
     },
     "peerDependencies": {
+        "@better-auth/core": "1.7.25",
+        "@better-auth/passkey": "1.7.25",
+        "@destack/bucket": "workspace:*",
+        "@destack/event": "workspace:*",
+        "@destack/mail": "workspace:*",
         "@destack/test": "workspace:*"
     },
     "peerDependenciesMeta": {
+        "@better-auth/core": {
+            "optional": true
+        },
+        "@better-auth/passkey": {
+            "optional": true
+        },
+        "@destack/bucket": {
+            "optional": true
+        },
+        "@destack/event": {
+            "optional": true
+        },
+        "@destack/mail": {
+            "optional": true
+        },
         "@destack/test": {
             "optional": true
         }
     },
     "devDependencies": {
+        "@better-auth/core": "1.7.25",
+        "@better-auth/passkey": "1.7.25",
+        "@destack/bucket": "workspace:*",
+        "@destack/event": "workspace:*",
+        "@destack/mail": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/node": "26.6.1"
     }

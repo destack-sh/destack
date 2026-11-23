@@ -6,19 +6,24 @@
     "runtimes": ["browser", "bun", "workerd"],
     "exports": {
         "./browser": {
-            "runtimes": ["browser"]
+            "runtimes": ["browser"],
+            "internal": true
         },
         "./better-auth": {
-            "runtimes": ["bun", "workerd"]
+            "runtimes": ["bun", "workerd"],
+            "internal": true
         },
         "./server": {
-            "runtimes": ["bun", "workerd"]
+            "runtimes": ["bun", "workerd"],
+            "internal": true
         },
         "./inspect": {
-            "runtimes": ["bun"]
+            "runtimes": ["bun"],
+            "internal": true
         },
         "./native": {
-            "runtimes": ["bun"]
+            "runtimes": ["bun"],
+            "internal": true
         }
     },
     "declarations": {
