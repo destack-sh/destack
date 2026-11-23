@@ -15,5 +15,10 @@
     },
     "test": {
         "databases": ["sqlite", "postgresql"]
+    },
+    "exports": {
+        "./scenario": {
+            "internal": true
+        }
     }
 }
