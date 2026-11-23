@@ -193,7 +193,7 @@ const document = defineObject(
 
 // reply to a document
 export const reply = defineAction({
-    name: "reply",
+    name: "document.reply",
     title: t`Reply`,
     input: { documents: selected(document), text: schema.string().min(1) },
     call: ({ documents, text }) => documents.prepare("reply", { text }),

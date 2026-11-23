@@ -213,7 +213,7 @@ export const changes = write`${plural(argument("count"), { one: "# change", othe
 /** Reply to a document's thread from a notification. */
 export const reply = defineAction(
     {
-        name: "reply",
+        name: "document.reply",
         title: t`Reply`,
         input: { documents: selected(document), text: schema.string().min(1) },
         call: ({ documents, text }) => documents.prepare("reply", { text }),
@@ -224,7 +224,7 @@ export const reply = defineAction(
 /** Approve a document from a notification. */
 export const approve = defineAction(
     {
-        name: "approve",
+        name: "document.approve",
         title: t`Approve`,
         input: { documents: selected(document) },
         call: ({ documents }) => documents.prepare("approve", {}),

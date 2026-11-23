@@ -43,7 +43,7 @@ test("describe a declared notification for manifests with its actions, and key i
         summary: mention.definition.summary,
         actions: [
             {
-                name: "reply",
+                name: "document.reply",
                 title: reply.title,
                 text: { placeholder: "Reply", button: "Send" },
                 type: document.typeReference,

@@ -75,7 +75,7 @@ test("push a review request through a focus that defers a change, answer it on i
             activity.call("act", {
                 ...fixture.scope,
                 id: request.activity.id,
-                action: "approve",
+                action: "document.approve",
                 text: "looks good",
             }),
         ),
@@ -83,11 +83,15 @@ test("push a review request through a focus that defers a change, answer it on i
     expect(refused).toEqual([
         "BAD_REQUEST",
         "TEXT_INVALID",
-        "action 'approve' of 'review' is invalid: it takes text exactly when it declares text",
+        "action 'document.approve' of 'review' is invalid: it takes text exactly when it declares text",
     ]);
     await fixture.call(
         "bob",
-        activity.call("act", { ...fixture.scope, id: request.activity.id, action: "approve" }),
+        activity.call("act", {
+            ...fixture.scope,
+            id: request.activity.id,
+            action: "document.approve",
+        }),
     );
     await fixture.call(
         "bob",

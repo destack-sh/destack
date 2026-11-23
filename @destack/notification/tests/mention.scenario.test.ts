@@ -77,7 +77,9 @@ test("send mentions to the desktop and the phone, email them after 15 unread min
                 body: "⁨@bob, tighten the intro⁩",
             },
             activity: { scope: fixture.scope.spaceId, id: first.activity.id },
-            actions: [{ name: "reply", title: "Reply", isDestructive: false, hasText: true }],
+            actions: [
+                { name: "document.reply", title: "Reply", isDestructive: false, hasText: true },
+            ],
         },
         [["normal", 86_400, 32]],
     ]);
