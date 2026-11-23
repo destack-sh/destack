@@ -24,7 +24,11 @@ const styles = style.create({
     },
     row: {
         borderBottomStyle: "solid",
-        borderBottomWidth: stroke.border,
+        // end the body without a line, which its frame or the page draws
+        borderBottomWidth: {
+            default: stroke.border,
+            ":is(tbody:not(:has(~ tfoot)) > :last-child)": 0,
+        },
         borderBottomColor: color.border,
         backgroundColor: {
             default: "transparent",
@@ -35,16 +39,18 @@ const styles = style.create({
         },
     },
     head: {
-        height: size[3],
+        height: size[2],
         paddingInline: space[2],
         textAlign: "start",
         verticalAlign: "middle",
         whiteSpace: "nowrap",
-        color: color.foreground,
+        color: color.mutedForeground,
         fontWeight: weight.medium,
     },
     cell: {
-        padding: space[2],
+        height: size[2],
+        paddingBlock: space[1],
+        paddingInline: space[2],
         verticalAlign: "middle",
         whiteSpace: "nowrap",
     },
@@ -105,7 +111,7 @@ export function TableRow(
 export function TableHead(
     properties: TableElementProperties<JSX.ThHTMLAttributes<HTMLTableCellElement>>,
 ): JSX.Element {
-    return renderPart("th", "table-head", properties, styles.head);
+    return renderPart("th", "table-head", properties, [text.xs, styles.head]);
 }
 
 /** Render a data cell. */

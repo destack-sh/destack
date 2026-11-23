@@ -10,7 +10,11 @@ const styles = style.create({
         display: "flex",
         alignItems: "center",
         gap: space[2],
-        fontWeight: weight.medium,
+        fontWeight: {
+            default: weight.medium,
+            // read as text beside the control it wraps
+            ":has(input, button)": weight.regular,
+        },
         lineHeight: 1,
         color: {
             default: null,

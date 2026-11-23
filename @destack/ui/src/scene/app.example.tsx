@@ -56,7 +56,7 @@ import {
     InputGroupButton,
     InputGroupTextarea,
 } from "../input-group/index.ts";
-import { Kbd } from "../kbd/index.ts";
+import { Kbd, KbdShortcut } from "../kbd/index.ts";
 import { Label } from "../label/index.ts";
 import {
     Sidebar,
@@ -65,7 +65,6 @@ import {
     SidebarGroup,
     SidebarGroupLabel,
     SidebarHeader,
-    SidebarInput,
     SidebarInset,
     SidebarMenu,
     SidebarMenuBadge,
@@ -316,7 +315,7 @@ const styles = style.create({
         display: "flex",
         flexGrow: 1,
         alignItems: "center",
-        justifyContent: "space-between",
+        gap: space[2],
     },
     document: {
         display: "grid",
@@ -338,19 +337,12 @@ const styles = style.create({
         alignItems: "center",
         rowGap: space[2],
         margin: 0,
-        paddingBlockEnd: space[4],
-        borderBlockEndWidth: stroke.border,
-        borderBlockEndStyle: "solid",
-        borderBlockEndColor: color.border,
     },
     value: {
         margin: 0,
     },
-    comment: {
-        paddingBlockEnd: space[4],
-        borderBlockEndWidth: stroke.border,
-        borderBlockEndStyle: "solid",
-        borderBlockEndColor: color.border,
+    send: {
+        alignSelf: "flex-end",
     },
     thread: {
         width: "100%",
@@ -434,7 +426,17 @@ function App(properties: {
                         <span aria-hidden="true" {...style.attrs(styles.mark)} />
                         Harbour Studio
                     </Cluster>
-                    <SidebarInput placeholder="Search" aria-label="Search" />
+                    <SidebarMenu>
+                        <SidebarMenuItem>
+                            <SidebarMenuButton>
+                                <Icon name="magnifying-glass" />
+                                Search
+                            </SidebarMenuButton>
+                            <SidebarMenuBadge>
+                                <KbdShortcut keys="mod+k" />
+                            </SidebarMenuBadge>
+                        </SidebarMenuItem>
+                    </SidebarMenu>
                 </SidebarHeader>
                 <SidebarContent>
                     <For each={properties.groups}>
@@ -978,7 +980,7 @@ export const appDocument = defineExample({
                     aria-label="Comments"
                     render={(attributes) => <aside {...attributes} />}
                 >
-                    <Stack space="2" xstyle={styles.comment}>
+                    <Stack space="2">
                         <Cluster
                             space="2"
                             align="center"
@@ -993,7 +995,7 @@ export const appDocument = defineExample({
                             Monthly and yearly, or only monthly on day one?
                         </p>
                     </Stack>
-                    <Stack space="2" xstyle={styles.comment}>
+                    <Stack space="2">
                         <Cluster
                             space="2"
                             align="center"
@@ -1009,7 +1011,9 @@ export const appDocument = defineExample({
                         </p>
                     </Stack>
                     <Textarea placeholder="Reply" aria-label="Reply" />
-                    <Button>Comment</Button>
+                    <Button size="sm" xstyle={styles.send}>
+                        Comment
+                    </Button>
                 </Stack>
             </div>
         </App>
