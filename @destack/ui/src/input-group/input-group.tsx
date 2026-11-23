@@ -60,6 +60,10 @@ const styles = style.create({
             [style.when.descendant('[aria-invalid="true"]', controlMarker)]: swatch.destructiveMark,
         },
         borderRadius: radius[3],
+        opacity: {
+            default: 1,
+            [style.when.descendant(":disabled", controlMarker)]: 0.5,
+        },
         transitionProperty: "border-color, outline-color",
         transitionDuration: motion.durationShort,
         transitionTimingFunction: motion.easingStandard,
@@ -76,6 +80,7 @@ const styles = style.create({
     },
     control: {
         flex: 1,
+        opacity: 1,
         borderWidth: 0,
         borderRadius: 0,
         backgroundColor: "transparent",
