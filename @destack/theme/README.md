@@ -13,7 +13,7 @@ Packages declare a theme:
 - `RoleName`: a neutral role such as `background` or `mutedForeground`, or a swatch role such as `solid`.
 - `RoleOverride`: a theme's color for a role.
 - `Ground`: a theme's page, text and quiet fill at one time of day.
-- `THEMES`: Destack's themes, the brand and one per planet.
+- `THEMES`: Destack's themes, the brand and its moons, each after a palette people know.
 
 People see it under their display settings:
 
