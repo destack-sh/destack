@@ -49,7 +49,7 @@ export function useAccordionItem(): AccordionItemControl {
 const styles = style.create({
     item: {
         borderBottomStyle: "solid",
-        borderBottomWidth: stroke.border,
+        borderBottomWidth: { default: stroke.border, ":last-child": 0 },
         borderBottomColor: color.border,
         interpolateSize: "allow-keywords",
         "::details-content": {
@@ -80,7 +80,10 @@ const styles = style.create({
     },
     chevron: {
         display: "inline-flex",
+        alignItems: "center",
         flexShrink: 0,
+        // center on the title's first line
+        height: "1lh",
         color: color.mutedForeground,
         transform: { default: "none", [style.when.ancestor(":open")]: "rotate(180deg)" },
         transitionProperty: "transform",
