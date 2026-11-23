@@ -14,7 +14,7 @@ import {
 import { type BuildReader, BuildImage, PackageManifest } from "@destack/package/manifest";
 import { PackageLocator } from "@destack/package/locator";
 import { PRIMARY_RUNTIMES } from "@destack/package/runtime";
-import { Digest, found, nth, present, Version } from "@destack/schema";
+import { Digest, found, nth, present, schema, Version } from "@destack/schema";
 import { NpmInstallation, type NpmUnit } from "./npm.ts";
 import { outputsOf, type PackageBuildOptions } from "../build/build.ts";
 import type { Compiler } from "../build/compiler.ts";
@@ -22,7 +22,7 @@ import type { CompilerPool } from "../build/pool.ts";
 import { BuildError } from "../error/index.ts";
 import {
     readLockedReleases,
-    readLockfile,
+    readLockfileMaybe,
     readPackageJson,
     type SourceOptions,
 } from "../source/index.ts";
@@ -96,7 +96,12 @@ export interface WorkspaceOptions {
     readonly host?: readonly BuildImage[];
     /** The version every unit releases at, as a release of the whole workspace gives one. */
     readonly version?: Version;
+    /** The directories of packages from outside the checkout, by name, as `go.work`'s `use`. */
+    readonly links?: Readonly<Record<string, string>>;
 }
+
+/** The npm name a workspace member's `package.json` gives it. */
+const MemberName = schema.looseObject({ name: schema.string().min(1) });
 
 /** A checkout's Destack workspace as read once: its members, files, npm releases and toolchain. */
 export class Workspace {
@@ -116,6 +121,8 @@ export class Workspace {
     readonly host: readonly BuildImage[];
     /** The version every unit releases at, absent where each build gives its own. */
     readonly version: Version | undefined;
+    /** The directories of packages taken from outside the checkout, by name. */
+    readonly links: Readonly<Record<string, string>>;
     /** The real directories of the workspace's members. */
     readonly #members: ReadonlySet<string>;
     /** Which members compile as units: all of them, or those of each package's account. */
@@ -153,6 +160,7 @@ export class Workspace {
         this.resolver = options.resolver;
         this.host = options.host ?? [];
         this.version = options.version;
+        this.links = options.links ?? {};
         this.#selection = options.selection ?? "all";
     }
 
@@ -176,14 +184,22 @@ export class Workspace {
         compilers: WorkspaceCompilers,
         options: WorkspaceOptions,
     ): Promise<Workspace> {
-        // read the workspace's members by their real directories, refusing a missing one
+        // read the workspace's members by their real directories, the package alone without a lockfile
         const { environment } = compilers.store;
         const { files } = environment;
-        const lockfile = await readLockfile(directory, files);
-        const workspace = await Workspace.#locate(lockfile, files);
+        const lockfile = await readLockfileMaybe(directory, files);
+        const workspace =
+            lockfile === undefined
+                ? await files.realPath(directory)
+                : await Workspace.#locate(lockfile, files);
         const members = new Set(
             await Promise.all(
-                Object.entries(lockfile.workspaces).map(async ([path, member]) => {
+                (lockfile === undefined
+                    ? [[".", undefined] as const]
+                    : Object.entries(lockfile.workspaces).map(
+                          ([path, member]) => [path, member.name] as const,
+                      )
+                ).map(async ([path, memberName]) => {
                     const location = join(workspace, path);
 
                     return await files.realPath(location).catch((cause: unknown) => {
@@ -192,7 +208,7 @@ export class Workspace {
                         }
                         throw BuildError.of(
                             "MEMBER_NOT_FOUND",
-                            `workspace member '${member.name ?? path}' at '${location}' not found`,
+                            `workspace member '${memberName ?? path}' at '${location}' not found`,
                             { cause },
                         );
                     });
@@ -203,7 +219,7 @@ export class Workspace {
         // read the toolchain, the checkout and the locked npm releases the units' keys read
         const toolchain = await compilers.fingerprint.digest();
         const checkout = await Checkout.list(workspace, environment);
-        const locked = readLockedReleases(lockfile);
+        const locked = lockfile === undefined ? {} : readLockedReleases(lockfile);
         const conversion = await compilers.fingerprint.conversion();
         const npm = new NpmInstallation(locked, compilers.store, conversion, environment);
 
@@ -229,6 +245,7 @@ export class Workspace {
         const locator = new PackageLocator(files);
         const walk = {
             locator,
+            links: this.links,
             files,
             members: this.#members,
             compiled,
@@ -238,6 +255,22 @@ export class Workspace {
         const visited = await Workspace.#visit(root, walk);
 
         return new WorkspacePackage(Workspace.#ordered(visited, units), this);
+    }
+
+    /** Read the directories of the workspace's members by package name, as another links them. */
+    async members(): Promise<Readonly<Record<string, string>>> {
+        const { files } = this.compilers.store.environment;
+        const named = await Promise.all(
+            [...this.#members].map(async (directory) => {
+                // read each member's npm name, a Destack package or not
+                const text = await files.readTextFile(join(directory, "package.json"));
+                const { name } = MemberName.parse(JSON.parse(text));
+
+                return [name, directory] as const;
+            }),
+        );
+
+        return Object.fromEntries(named);
     }
 
     /** Read a stored build's manifest once per workspace, as its digest names its content. */
@@ -334,6 +367,7 @@ export class Workspace {
         from: string,
         walk: {
             readonly locator: PackageLocator;
+            readonly links: Readonly<Record<string, string>>;
             readonly files: FileSystem;
             readonly members: ReadonlySet<string>;
             readonly compiled: (name: string) => boolean;
@@ -365,7 +399,9 @@ export class Workspace {
             ...PackageJson.runtimeDependencies(packageJson),
             ...listed,
         ])) {
-            const installed = await walk.locator.directory(dependency, from);
+            // find the dependency where the workspace links it, else where it is installed
+            const installed =
+                walk.links[dependency] ?? (await walk.locator.directory(dependency, from));
             const resolved =
                 installed === undefined ? undefined : await walk.files.realPath(installed);
             const isOptional =

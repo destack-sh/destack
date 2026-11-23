@@ -204,7 +204,7 @@ export function isAuthored(root: string, file: string): boolean {
 
 /** Read the nearest Bun lockfile used by the source package, refusing other formats. */
 export async function readLockfile(directory: string, files: FileSystem): Promise<BunLockfile> {
-    const lockfile = await BunLockfile.read(directory, files);
+    const lockfile = await readLockfileMaybe(directory, files);
     if (lockfile === undefined) {
         throw BuildError.of(
             "LOCKFILE_INVALID",
@@ -212,7 +212,17 @@ export async function readLockfile(directory: string, files: FileSystem): Promis
         );
     }
 
-    return requireLockfileVersion(lockfile);
+    return lockfile;
+}
+
+/** Read a package's lockfile in the supported format, none when the package has none. */
+export async function readLockfileMaybe(
+    directory: string,
+    files: FileSystem,
+): Promise<BunLockfile | undefined> {
+    const lockfile = await BunLockfile.read(directory, files);
+
+    return lockfile === undefined ? undefined : requireLockfileVersion(lockfile);
 }
 
 /** Require a lockfile in the format the package records follow. */
