@@ -1,3 +1,4 @@
+import * as style from "@destack/style";
 import { expect, test } from "@destack/test";
 import { markup, render } from "@destack/view/test";
 import { mergeProperties, type PartAttributes, renderPart, useRender } from "./index.ts";
@@ -11,6 +12,13 @@ const PROPERTIES = {
     disabled: true,
     children: "Save",
 };
+
+/** The styles of two test parts, one rendering the other: both set the position. */
+const styles = style.create({
+    outer: { position: "relative", opacity: 0.5 },
+    inner: { position: "sticky", color: "red" },
+    caller: { position: "sticky" },
+});
 
 /** The attributes a test part gives its element. */
 const PART: PartAttributes = { "data-slot": "button", role: "link", tabindex: 0 };
@@ -80,4 +88,28 @@ test("merge a part's attributes under its caller's, running both sides' handlers
         title: undefined,
         calls: ["caller", "part"],
     });
+});
+
+test("compose an outer part's styles between a kit part's styles and its caller's, in one call", () => {
+    const { container } = render(() =>
+        renderPart(
+            "div",
+            "outer",
+            {
+                render: (attributes) =>
+                    renderPart(
+                        "span",
+                        "inner",
+                        { ...attributes, xstyle: styles.caller },
+                        styles.inner,
+                    ),
+            },
+            styles.outer,
+        ),
+    );
+
+    // resolve the position once, the caller's sticky over the outer part's relative
+    expect(container.querySelector("span")?.getAttribute("class")).toBe(
+        style.attributes([styles.inner, styles.outer, styles.caller]).class,
+    );
 });

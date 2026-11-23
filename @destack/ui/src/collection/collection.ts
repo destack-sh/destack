@@ -196,9 +196,13 @@ export class CollectionBuilder<Item> {
     /** The items unmounted since the last change. */
     readonly #unmounted: Set<Item>;
     /** Count each change to the items. */
+    readonly #revision: Accessor<number>;
+    /** Count a change to the items. */
     readonly #setRevision: (revise: (revision: number) => number) => void;
     /** Read an item's key, a newer item of a key replacing an earlier one, as a move remounts. */
     readonly #key: ((item: Item) => string) | undefined;
+    /** The latest item of each key, which a newer item of the key replaces at once. */
+    readonly #byKey = new Map<string, Item>();
 
     /** Start without items, ordering them by their elements and replacing them by their keys. */
     constructor(element?: (item: Item) => Element | undefined, key?: (item: Item) => string) {
@@ -206,6 +210,7 @@ export class CollectionBuilder<Item> {
         const [revision, setRevision] = createSignal(0, { ownedWrite: true });
         this.#items = [];
         this.#unmounted = new Set();
+        this.#revision = revision;
         this.#setRevision = setRevision;
         this.#key = key;
         this.items = createMemo(() => {
@@ -225,17 +230,23 @@ export class CollectionBuilder<Item> {
         });
     }
 
+    /** Read the latest item of a key, read at once as items mount, none for a key of none. */
+    item(key: string): Item | undefined {
+        this.#revision();
+
+        return this.#byKey.get(key);
+    }
+
     /** Add an item until the component adding it unmounts, replacing an earlier one of its key. */
     add(item: Item): void {
         // drop an earlier item of the key, which a move remounts before the earlier one unmounts
-        const key = this.#key;
-        if (key !== undefined) {
-            const name = key(item);
-            for (const earlier of this.#items) {
-                if (key(earlier) === name) {
-                    this.#unmounted.add(earlier);
-                }
-            }
+        const name = this.#key?.(item);
+        const earlier = name === undefined ? undefined : this.#byKey.get(name);
+        if (earlier !== undefined) {
+            this.#unmounted.add(earlier);
+        }
+        if (name !== undefined) {
+            this.#byKey.set(name, item);
         }
 
         // append in place, one copy per flush however many items mount
@@ -248,6 +259,9 @@ export class CollectionBuilder<Item> {
         });
         onCleanup(() => {
             this.#unmounted.add(item);
+            if (name !== undefined && this.#byKey.get(name) === item) {
+                this.#byKey.delete(name);
+            }
             this.#setRevision((revision) => revision + 1);
         });
     }

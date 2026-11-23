@@ -1,4 +1,4 @@
-import type { JSX } from "@destack/view";
+import { type JSX, omit } from "@destack/view";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
 import {
     Menu,
@@ -25,7 +25,10 @@ import {
 
 /** The properties of a dropdown menu's trigger, a native button's attributes included. */
 export type DropdownMenuTriggerProperties = ElementPartProperties &
-    Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, "class" | "style" | "ref">;
+    Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, "class" | "style" | "ref"> & {
+        /** Whether the up and down arrows open the menu, as they do outside a grid's cells. */
+        readonly isOpenedByArrows?: boolean;
+    };
 
 /** Hold the open state of a menu that a button opens. */
 export function DropdownMenu(properties: MenuRootProperties): JSX.Element {
@@ -36,7 +39,7 @@ export function DropdownMenu(properties: MenuRootProperties): JSX.Element {
 export function DropdownMenuTrigger(properties: DropdownMenuTriggerProperties): JSX.Element {
     const control = useMenu();
 
-    return renderPart("button", "dropdown-menu-trigger", properties, [], {
+    return renderPart("button", "dropdown-menu-trigger", omit(properties, "isOpenedByArrows"), [], {
         type: "button",
         id: control.triggerId,
         "aria-haspopup": "menu",
@@ -47,8 +50,9 @@ export function DropdownMenuTrigger(properties: DropdownMenuTriggerProperties): 
         ref: (element: HTMLElement) => control.setTrigger(element),
         onClick: () => (control.isOpen() ? control.close(true) : control.open("first")),
         onKeyDown: (event) => {
-            // open on the arrow keys, focusing the first or the last item
-            if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+            // open on the arrow keys where they open it, focusing the first or the last item
+            const isArrow = event.key === "ArrowDown" || event.key === "ArrowUp";
+            if (properties.isOpenedByArrows !== false && isArrow) {
                 event.preventDefault();
                 control.open(event.key === "ArrowDown" ? "first" : "last");
             }

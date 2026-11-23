@@ -40,7 +40,9 @@ import {
     useRender,
     renderPart,
 } from "../part/index.ts";
-import type { Direction } from "@destack/locale";
+import { type Direction, Shortcut } from "@destack/locale";
+import type { Action } from "../action/index.ts";
+import { useCommandPlatform } from "../kbd/index.ts";
 import { ListState } from "../focus/index.ts";
 import { type Align, type Point, Position, type Side } from "../position/index.ts";
 import { TopLayer } from "../layer/index.ts";
@@ -842,4 +844,29 @@ function choose(
     if (!event.defaultPrevented) {
         control.root().close(true);
     }
+}
+
+/** The properties of a menu's action. */
+export interface MenuActionProperties {
+    /** The action. */
+    readonly action: Action;
+}
+
+/** Render an action as the menu's item, with its icon and shortcut, a destructive one marked. */
+export function MenuAction(properties: MenuActionProperties): JSX.Element {
+    const isCommand = useCommandPlatform();
+
+    return (
+        <MenuItem
+            variant={properties.action.isDestructive === true ? "destructive" : "default"}
+            disabled={properties.action.isDisabled === true}
+            onSelect={() => void properties.action.run()}
+        >
+            <Show when={properties.action.icon}>{(icon) => <Icon icon={icon()} />}</Show>
+            {properties.action.title}
+            <Show when={properties.action.shortcut}>
+                {(keys) => <MenuShortcut>{Shortcut.format(keys(), isCommand())}</MenuShortcut>}
+            </Show>
+        </MenuItem>
+    );
 }

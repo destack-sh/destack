@@ -2,6 +2,9 @@ import * as style from "@destack/style";
 import { Dynamic, type JSX, merge, omit, untrack } from "@destack/view";
 import { access, type MaybeAccessor } from "@destack/view/primitives/utils";
 
+/** The key a part's styles stand under for a kit part its caller renders, which composes them. */
+export const PART_STYLES = Symbol("part styles");
+
 /** The attributes a part gives the element it renders, and the reference that takes the element. */
 export interface PartAttributes
     extends Partial<Record<"ref", (element: HTMLElement) => void>>, JSX.AriaAttributes {
@@ -9,6 +12,8 @@ export interface PartAttributes
     readonly class?: string | undefined;
     /** The inline style: the part's dynamic values, then the caller's. */
     readonly style?: string | undefined;
+    /** The part's StyleX styles, which a kit part composes with the kit's in place of the class. */
+    readonly [PART_STYLES]?: style.Styles;
     /** The element's id, such as the one a label or `aria-controls` names. */
     readonly id?: string | undefined;
     /** The address a link part points at. */
@@ -133,6 +138,10 @@ export interface ElementPartProperties {
     readonly style?: JSX.HTMLAttributes<HTMLElement>["style"];
     /** Render another element with the part's attributes, the part's own element by default. */
     readonly render?: Render;
+    /** An outer part's class, which its styles under `PART_STYLES` stand in for. */
+    readonly class?: string | undefined;
+    /** An outer part's styles, composed between the part's styles and the caller's. */
+    readonly [PART_STYLES]?: style.Styles;
 }
 
 /** Render a part's own element of a tag, or the element its caller renders, with its attributes. */
@@ -158,11 +167,24 @@ export function renderPart<Tag extends keyof JSX.IntrinsicElements>(
     styles: MaybeAccessor<style.Styles>,
     attributes?: ElementAttributes<Tag>,
 ): JSX.Element {
-    // mark the part and give it its styles with the caller's last
-    const rest = omit(properties, "xstyle", "style", "render");
-    const part = merge({ "data-slot": slot }, attributes ?? {}, () =>
-        style.attributes([access(styles), properties.xstyle], properties.style),
-    );
+    // refuse a class that comes without an outer part's styles, which it stands for
+    if (untrack(() => properties.class !== undefined && properties[PART_STYLES] === undefined)) {
+        throw new TypeError(
+            `part '${slot}' is invalid: a class comes only with an outer part's styles`,
+        );
+    }
+
+    // mark the part and give it its styles, then an outer part's it renders for, then the caller's
+    const rest = omit(properties, "xstyle", "style", "render", "class", PART_STYLES);
+    const composed = (): style.Styles => [
+        access(styles),
+        properties[PART_STYLES],
+        properties.xstyle,
+    ];
+    const part = merge({ "data-slot": slot }, attributes ?? {}, () => ({
+        ...style.attributes(composed(), properties.style),
+        [PART_STYLES]: composed(),
+    }));
 
     // read the caller's element once
     const render = untrack(() => properties.render);
