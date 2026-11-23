@@ -638,9 +638,9 @@ export class Compiler implements AsyncDisposable {
             });
         });
 
-        // await the compiler's exit once it read the end of its input
+        // wait for the compiler's exit as real work its world sees
         try {
-            await this.#closed;
+            await this.store.environment.scheduler.waitUntil(this.#closed);
             if (this.#exitCode !== 0 && !this.#stopping) {
                 throw present(this.#failure, "the failure of the exited compiler");
             }
