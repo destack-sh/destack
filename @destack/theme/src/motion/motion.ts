@@ -16,10 +16,22 @@ const SHORT_FADE = `max(${motion.durationShort}, ${REDUCED_FADE})`;
 /** A popover's fade leaving: two thirds of its entrance, as a dismissal is quick. */
 const SHORT_FADE_EXIT = `calc(${SHORT_FADE} * 2 / 3)`;
 
+/** A dialog's movement: two thirds of a sheet's, which travels farther, as shadcn/ui's. */
+const DIALOG_MOVE = `calc(${motion.durationMedium} * 2 / 3)`;
+
 /** A dialog's fade: its entrance, and at least the reduced fade. */
+const DIALOG_FADE = `max(${DIALOG_MOVE}, ${REDUCED_FADE})`;
+
+/** The durations of a dialog entering. */
+const DIALOG = `${DIALOG_FADE}, ${DIALOG_MOVE}, ${DIALOG_FADE}, ${DIALOG_FADE}`;
+
+/** The durations of a dialog leaving, two thirds of its entrance. */
+const DIALOG_EXIT = `calc(${DIALOG_FADE} * 2 / 3), calc(${DIALOG_MOVE} * 2 / 3), calc(${DIALOG_FADE} * 2 / 3), calc(${DIALOG_FADE} * 2 / 3)`;
+
+/** A sheet's fade: its entrance, and at least the reduced fade. */
 const MEDIUM_FADE = `max(${motion.durationMedium}, ${REDUCED_FADE})`;
 
-/** A dialog's fade leaving: two thirds of its entrance. */
+/** A sheet's fade leaving: two thirds of its entrance. */
 const MEDIUM_FADE_EXIT = `calc(${MEDIUM_FADE} * 2 / 3)`;
 
 /** The durations of a popover entering, for each of the properties. */
@@ -28,19 +40,19 @@ const SHORT = `${SHORT_FADE}, ${motion.durationShort}, ${SHORT_FADE}, ${SHORT_FA
 /** The durations of a popover leaving. */
 const SHORT_EXIT = `${SHORT_FADE_EXIT}, calc(${motion.durationShort} * 2 / 3), ${SHORT_FADE_EXIT}, ${SHORT_FADE_EXIT}`;
 
-/** The durations of a dialog entering, which moves for longer than a popover. */
+/** The durations of a sheet entering, which moves for longer than a popover. */
 const MEDIUM = `${MEDIUM_FADE}, ${motion.durationMedium}, ${MEDIUM_FADE}, ${MEDIUM_FADE}`;
 
-/** The durations of a dialog leaving. */
+/** The durations of a sheet leaving. */
 const MEDIUM_EXIT = `${MEDIUM_FADE_EXIT}, calc(${motion.durationMedium} * 2 / 3), ${MEDIUM_FADE_EXIT}, ${MEDIUM_FADE_EXIT}`;
 
-/** A notice's movement: Sonner's slower slide, four thirds of a dialog's. */
+/** A notice's movement: Sonner's slower slide, four thirds of a sheet's. */
 const NOTICE_MOVE = `calc(${motion.durationMedium} * 4 / 3)`;
 
 /** A notice's fade: its slide, and at least the reduced fade. */
 const NOTICE_FADE = `max(${NOTICE_MOVE}, ${REDUCED_FADE})`;
 
-/** A notice's movement leaving: two thirds of a dialog's entrance, as Sonner's exit. */
+/** A notice's movement leaving: two thirds of a sheet's entrance, as Sonner's exit. */
 const NOTICE_MOVE_EXIT = `calc(${motion.durationMedium} * 2 / 3)`;
 
 /** A notice's fade leaving: its slide out, and at least two thirds of the reduced fade. */
@@ -86,7 +98,7 @@ export const transition = style.create({
             ":modal": { default: "none", "@starting-style": HIDDEN_SCALE },
         },
         transitionProperty: PROPERTIES,
-        transitionDuration: { default: MEDIUM_EXIT, ":modal": MEDIUM },
+        transitionDuration: { default: DIALOG_EXIT, ":modal": DIALOG },
         transitionTimingFunction: motion.easingEmphasised,
         transitionBehavior: "allow-discrete",
     },
