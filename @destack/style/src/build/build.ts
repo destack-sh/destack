@@ -34,8 +34,11 @@ const Rule = schema.tuple([
 /** The rules file a build keeps for the builds depending on it, by module path in its package. */
 const RuleFile = schema.array(schema.tuple([schema.string().min(1), schema.array(Rule)]));
 
+/** The package of the styles. */
+const STYLE_PACKAGE = "@destack/style";
+
 /** The packages whose imports StyleX compiles. */
-const IMPORT_SOURCES = ["@stylexjs/stylex", "@destack/style"];
+const IMPORT_SOURCES = ["@stylexjs/stylex", STYLE_PACKAGE];
 
 /**
  * The pattern of code that imports from StyleX or `@destack/style`.
@@ -137,6 +140,10 @@ function sheetPlugin(
 
     return {
         name: "destack:style-sheet",
+        config: () => ({
+            // include the runtime compiled modules import, as the scan reads their source
+            optimizeDeps: { include: [`${STYLE_PACKAGE} > @stylexjs/stylex`] },
+        }),
         configureServer: (devServer) => {
             server = devServer;
         },
