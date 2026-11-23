@@ -7,7 +7,7 @@ import {
     type DurableObjectStorage,
     durableObjectConnector,
 } from "@destack/db/cloudflare";
-import { BuildReader, PackageManifest } from "@destack/package/manifest";
+import { BuildListCache, BuildReader, PackageManifest } from "@destack/package/manifest";
 import { present, schema } from "@destack/schema";
 import { TelemetryScope } from "@destack/telemetry";
 import { startTelemetry } from "@destack/telemetry/worker";
@@ -217,6 +217,7 @@ export class DurableObjectRunner {
                 return present(response.body, `the hosting object's body of build file ${path}`);
             },
             this.#runner.environment.crypto,
+            new BuildListCache(),
         );
         // address the installation's own facet for its alarm and sockets, proving it with the start's secret
         const facet = `https://partition/${started.start.installation}`;

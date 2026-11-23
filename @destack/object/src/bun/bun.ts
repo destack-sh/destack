@@ -19,7 +19,7 @@ import {
 } from "../workload/index.ts";
 
 import type {} from "@destack/package/import-meta";
-import { BuildReader } from "@destack/package/manifest";
+import { BuildListCache, BuildReader } from "@destack/package/manifest";
 
 /** A request handler served on a network interface's port or on a Unix socket. */
 export type BunEndpoint = (
@@ -141,6 +141,7 @@ export async function runWorkload(
         host.workingDirectory,
         runner.environment.files,
         runner.environment.crypto,
+        new BuildListCache(),
     );
     await using workload = await startWorkload(runner, start, build, (error) =>
         host.stderr.writeSync(`workload failed: ${String(error)}\n`),
