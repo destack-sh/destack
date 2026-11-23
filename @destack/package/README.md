@@ -110,7 +110,7 @@ An image is `{ root, builds }`: a root build, and one build per package it runs 
 
 ### BuildReader
 
-`BuildReader.open(location, fetch, crypto)` opens a build a store serves, and `openDirectory` one on disk.
+`BuildReader.open(location, fetch, crypto, lists)` opens a build a store serves, and `openDirectory` one on disk; readers of one owner share a `BuildListCache`, which parses each listed file once per digest.
 
 | Verb                         | What it does                                           |
 | ---------------------------- | ------------------------------------------------------ |
@@ -166,13 +166,18 @@ export const badgeMany = defineExample({
 `BuildReader.open` checks every file it reads against the manifest.
 
 ```ts
-import { BuildReader, type PackageLocation } from "@destack/package/manifest";
+import { BuildListCache, BuildReader, type PackageLocation } from "@destack/package/manifest";
 import { BunEnvironment } from "@destack/environment/bun";
 
 /** Read the README a build ships. */
 export async function readReadme(location: PackageLocation): Promise<string> {
     // open the build, then read the file against its digest
-    const reader = await BuildReader.open(location, fetch, BunEnvironment.system.crypto);
+    const reader = await BuildReader.open(
+        location,
+        fetch,
+        BunEnvironment.system.crypto,
+        new BuildListCache(),
+    );
     const bytes = await reader.load("README.md");
 
     return new TextDecoder().decode(bytes);

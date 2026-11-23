@@ -14,6 +14,57 @@ export const MANIFEST_PATH = "manifest.json";
 /** The status of a server unable to answer now, Service Unavailable (RFC 9110 15.6.4). */
 const SERVICE_UNAVAILABLE = 503;
 
+/** The most source bytes of parsed lists a cache keeps: 8 MiB, about 25 MB once parsed. */
+const KEPT_LIST_BYTES = 8 * 1024 * 1024;
+
+/** The parsed lists of builds by their file's digest, kept within a byte budget. */
+export class BuildListCache {
+    /** Each kept list's parse and source bytes, the least recently read first. */
+    readonly #lists = new Map<
+        Digest,
+        { readonly value: Promise<unknown>; readonly bytes: number }
+    >();
+    /** The source bytes of the kept lists. */
+    #bytes = 0;
+
+    /** Read a list's value, parsing it once per digest while kept. */
+    read(file: PackageFile, parse: () => Promise<unknown>): Promise<unknown> {
+        // take a kept list, marking it the most recently read
+        const kept = this.#lists.get(file.digest);
+        if (kept !== undefined) {
+            this.#lists.delete(file.digest);
+            this.#lists.set(file.digest, kept);
+
+            return kept.value;
+        }
+
+        // parse it once, frozen as every reader shares it, forgetting a failed parse
+        const value = parse().then(freeze);
+        this.#lists.set(file.digest, { value, bytes: file.size });
+        this.#bytes += file.size;
+        value.catch(() => this.#forget(file.digest));
+
+        // forget the least recently read lists past the budget, keeping this one
+        for (const digest of this.#lists.keys()) {
+            if (this.#bytes <= KEPT_LIST_BYTES || digest === file.digest) {
+                break;
+            }
+            this.#forget(digest);
+        }
+
+        return value;
+    }
+
+    /** Forget a kept list. */
+    #forget(digest: Digest): void {
+        const kept = this.#lists.get(digest);
+        if (kept !== undefined) {
+            this.#lists.delete(digest);
+            this.#bytes -= kept.bytes;
+        }
+    }
+}
+
 /** A build's manifest and files, read through a file transport. */
 export class BuildReader {
     /** Manifest describing the stored package. */
@@ -32,12 +83,21 @@ export class BuildReader {
     readonly #digest = new Once<Digest>();
     /** The crypto verifying the files' digests. */
     readonly #crypto: Crypto;
+    /** The parsed lists the reader shares with its owner's other readers. */
+    readonly #lists: BuildListCache;
 
-    /** Bind a manifest to local, registry or browser file access, verifying with the crypto. */
-    constructor(manifest: PackageManifest, stream: BuildReader["stream"], crypto: Crypto) {
+    /** Bind a manifest to file access, verifying with the crypto and sharing parsed lists. */
+    constructor(
+        manifest: PackageManifest,
+        stream: BuildReader["stream"],
+        crypto: Crypto,
+        lists: BuildListCache,
+    ) {
+        // keep the build's manifest, its transport, its crypto and its owner's parsed lists
         this.manifest = manifest;
         this.stream = stream;
         this.#crypto = crypto;
+        this.#lists = lists;
     }
 
     /** Take the digest of the build's manifest, its address in every store, once. */
@@ -202,8 +262,10 @@ export class BuildReader {
 
     /** Read a listed JSON file, typed by its verified digest as the build wrote it. */
     async read<Value>(file: PackageFile): Promise<Value> {
+        const parsed = await this.#lists.read(file, async () => decode(await this.load(file.path)));
+
         // oxlint-disable-next-line typescript/consistent-type-assertions, typescript/no-unsafe-type-assertion -- the verified digest fixes the bytes the build wrote
-        return decode(await this.load(file.path)) as Value;
+        return parsed as Value;
     }
 
     /** Write the build, or the files given of it, to a new directory, its manifest last. */
@@ -232,6 +294,7 @@ export class BuildReader {
         directory: string,
         files: FileSystem,
         crypto: Crypto,
+        lists: BuildListCache,
         missing?: BuildReader["stream"],
     ): Promise<BuildReader> {
         // read the manifest, then stream each file it lists from the directory, else from where the caller keeps it
@@ -245,7 +308,7 @@ export class BuildReader {
                 : missing(path, signal);
         };
 
-        return new BuildReader(manifest, stream, crypto);
+        return new BuildReader(manifest, stream, crypto, lists);
     }
 
     /** Open an immutable remote package and verify its root manifest. */
@@ -253,6 +316,7 @@ export class BuildReader {
         location: PackageLocation,
         fetch: (input: URL, init: RequestInit) => Promise<Response>,
         crypto: Crypto,
+        lists: BuildListCache,
         signal?: AbortSignal,
     ): Promise<BuildReader> {
         // restrict relative reads to this package's HTTP endpoint
@@ -292,6 +356,7 @@ export class BuildReader {
                 return present(file.body, "a package file's body");
             },
             crypto,
+            lists,
         );
     }
 
@@ -412,4 +477,17 @@ async function streamFile(
 /** Decode a JSON file's verified bytes. */
 function decode(bytes: Uint8Array<ArrayBuffer>): unknown {
     return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+}
+
+/** Freeze a parsed value and every object and array in it, as readers share it. */
+function freeze<Value>(value: Value): Value {
+    // freeze each object once, then what it holds
+    if (typeof value === "object" && value !== null && !Object.isFrozen(value)) {
+        Object.freeze(value);
+        for (const nested of Object.values(value)) {
+            freeze(nested);
+        }
+    }
+
+    return value;
 }

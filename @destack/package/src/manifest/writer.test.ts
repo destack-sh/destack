@@ -3,7 +3,7 @@ import { expect, test } from "@destack/test";
 import { found } from "@destack/schema";
 import { PackageVersion } from "../definition/package.ts";
 import { PackageFile } from "../file/file.ts";
-import { BuildReader } from "./reader.ts";
+import { BuildListCache, BuildReader } from "./reader.ts";
 import { BuildWriter } from "./writer.ts";
 
 /** The package whose build the writer writes. */
@@ -48,6 +48,7 @@ test("write a file's equal bytes once, a concurrent writer waiting for them, and
         manifest,
         (path) => Promise.resolve(new Blob([stored.get(path) ?? new Uint8Array()]).stream()),
         crypto,
+        new BuildListCache(),
     );
     const listed = await reader.files();
 
@@ -119,6 +120,7 @@ test("list each output's loaded files: its own but maps and types, the package.j
         manifest,
         async (path) => new Blob([found(stored, path)]).stream(),
         crypto,
+        new BuildListCache(),
     );
     expect({
         bun: pathsOf(await reader.loaded("bun")),

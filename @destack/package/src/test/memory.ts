@@ -3,7 +3,7 @@ import { found } from "@destack/schema";
 import type { PackageVersion } from "../definition/package.ts";
 import { Declaration } from "../graph/declaration.ts";
 import { Moniker } from "../graph/moniker.ts";
-import { BuildReader } from "../manifest/reader.ts";
+import { BuildListCache, BuildReader } from "../manifest/reader.ts";
 import { type BuildContent, BuildWriter } from "../manifest/writer.ts";
 
 /** The module declarations live in unless they name one, the package's entry. */
@@ -49,6 +49,7 @@ export const MemoryBuild = {
             await writer.finish({ ...contents, package: identity, destack: DESTACK_VERSION }),
             async (path) => new Blob([found(stored, path)]).stream(),
             crypto,
+            new BuildListCache(),
         );
     },
 

@@ -3,7 +3,7 @@ import type { PackageFile } from "../file/index.ts";
 import { PackageError } from "../error/index.ts";
 import { BuildImage } from "./image.ts";
 import { PackageManifest } from "./manifest.ts";
-import { BuildReader, MANIFEST_PATH } from "./reader.ts";
+import { BuildListCache, BuildReader, MANIFEST_PATH } from "./reader.ts";
 import { Digest, present, schema } from "@destack/schema";
 
 /** The file of a layer directory indexing its releases, builds and files. */
@@ -246,6 +246,8 @@ export class BuildLayer {
     readonly digest: Digest | undefined;
     /** The packs read last, by number, the least recently read first. */
     readonly #packs = new Map<number, Promise<Uint8Array<ArrayBuffer>>>();
+    /** The parsed lists of the layer's builds, shared by the readers it opens. */
+    readonly #lists = new BuildListCache();
 
     /** Create a layer from where its files lie and its index. */
     private constructor(
@@ -561,7 +563,7 @@ export class BuildLayer {
             const { files, crypto } = source.environment;
             const directory = files.join(source.directory, digest);
 
-            return await BuildReader.openDirectory(directory, files, crypto, missing);
+            return await BuildReader.openDirectory(directory, files, crypto, this.#lists, missing);
         }
 
         // open one in assets by its manifest
@@ -582,6 +584,7 @@ export class BuildLayer {
                 return new Blob([bytes]).stream();
             },
             source.crypto,
+            this.#lists,
         );
 
         return reader;

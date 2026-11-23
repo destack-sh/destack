@@ -5,7 +5,7 @@ import { Digest } from "@destack/schema";
 import { PackageVersion } from "../definition/package.ts";
 import { PackageError } from "../error/error.ts";
 import { MemoryBuild } from "../test/memory.ts";
-import { BuildReader } from "./reader.ts";
+import { BuildListCache, BuildReader } from "./reader.ts";
 import { BuildWriter } from "./writer.ts";
 
 /** The package whose builds the reader opens. */
@@ -33,6 +33,7 @@ test("refuse a distributed file whose bytes differ from its listing, and an unli
                     ? Promise.resolve(new Blob([bytes]).stream())
                     : build.stream(path),
             crypto,
+            new BuildListCache(),
         );
     const changed = new TextEncoder().encode("export {}!\n");
     const longer = new TextEncoder().encode("export {};\nexport {};\n");
@@ -92,6 +93,7 @@ test("open a remote build by its manifest digest, and refuse other bytes and uns
         { manifest: digest, url: "https://registry.example/build" },
         fetch,
         crypto,
+        new BuildListCache(),
     );
     expect([reader.manifest, await reader.load("src/index.js")]).toEqual([build.manifest, content]);
 
@@ -105,6 +107,7 @@ test("open a remote build by its manifest digest, and refuse other bytes and uns
                 },
                 fetch,
                 crypto,
+                new BuildListCache(),
             ),
         ),
     ).toEqual([
@@ -118,6 +121,7 @@ test("open a remote build by its manifest digest, and refuse other bytes and uns
                 { manifest: digest, url: "https://user:secret@registry.example/build/" },
                 fetch,
                 crypto,
+                new BuildListCache(),
             ),
         ),
     ).toEqual([
@@ -131,6 +135,7 @@ test("open a remote build by its manifest digest, and refuse other bytes and uns
                 { manifest: digest, url: "https://registry.example/missing/" },
                 fetch,
                 crypto,
+                new BuildListCache(),
             ),
         ),
     ).toEqual([
@@ -173,6 +178,7 @@ test("read each list once, and read a list again after a failed read", async () 
             return await build.stream(path);
         },
         crypto,
+        new BuildListCache(),
     );
     const { lists } = build.manifest;
     expect(await refusal(reader.files())).toEqual([
@@ -197,6 +203,35 @@ test("read each list once, and read a list again after a failed read", async () 
     // answer the second reads with the first reads' lists, deriving the same declarations
     const isReused = second.slice(0, 2).map((value, index) => value === first[index]);
     expect([isReused, second[2]]).toEqual([[true, true], first[2]]);
+});
+
+test("share a parsed list between readers of one cache, frozen against changes", async () => {
+    // open the same build twice over one cache, counting the loads of its file list
+    await using simulation = testSimulation();
+    const { crypto } = simulation.environment("test");
+    const build = await MemoryBuild.of(app, [], crypto);
+    const lists = new BuildListCache();
+    const loaded: string[] = [];
+    const open = () =>
+        new BuildReader(
+            build.manifest,
+            async (path) => {
+                loaded.push(path);
+
+                return await build.stream(path);
+            },
+            crypto,
+            lists,
+        );
+
+    // read the file list through both readers, loading it once, and refuse changing it
+    const [first, second] = [await open().files(), await open().files()];
+    const path = build.manifest.lists.files.path;
+    expect({
+        loads: loaded.filter((each) => each === path).length,
+        isShared: first === second,
+        isFrozen: Object.isFrozen(first),
+    }).toEqual({ loads: 1, isShared: true, isFrozen: true });
 });
 
 test("read a build a directory keeps: its manifest, its file list and each file's bytes", async () => {
@@ -226,7 +261,12 @@ test("read a build a directory keeps: its manifest, its file list and each file'
     });
 
     // read it back through the directory
-    const build = await BuildReader.openDirectory(directory, files, world.crypto);
+    const build = await BuildReader.openDirectory(
+        directory,
+        files,
+        world.crypto,
+        new BuildListCache(),
+    );
     expect({
         manifest: build.manifest,
         files: (await build.files()).map((file) => file.path),
