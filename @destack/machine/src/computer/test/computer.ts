@@ -585,10 +585,16 @@ export class TestComputer implements AsyncDisposable {
 
     /** Describe the world of the owner's home and organizations, which the run writes once. */
     static homeTemplate(
-        organizations: readonly TestOrganization[],
+        given: readonly TestOrganization[],
         installs: readonly TestInstall[] = [],
         published: readonly string[] = [],
     ): TestTemplate<HomeWorld, { readonly universe: typeof Universe.database }> {
+        // create the organization publishing the fixtures in every world, beside the given ones
+        const organizations = [
+            PUBLISHER,
+            ...given.filter((organization) => organization.handle !== PUBLISHER.handle),
+        ];
+
         // name the template by what its world holds
         const handles = organizations.map((organization) => organization.handle);
         const installed = installs.map((install) => `${install.fixture}@${install.name}`);
@@ -625,9 +631,6 @@ export class TestComputer implements AsyncDisposable {
                 const login = await home.signIn(OWNER_EMAIL);
                 await home.ready(world.owner.home);
 
-                // sign the platform's operator in as its organization's owner, who publishes the fixtures
-                await world.universe.operator();
-
                 // serve the residency's home and each organization's, their stacks applied
                 const { owner } = world;
                 const accounts = await home.machine.accounts();
@@ -651,7 +654,7 @@ export class TestComputer implements AsyncDisposable {
                     const { id } = PackageManifest.package(build.manifest);
                     if (!sent.has(fixture) && !home.machine.shipped.has(id)) {
                         sent.add(fixture);
-                        await home.publish(TestDistribution.imageOf(fixture));
+                        await home.publish(TestDistribution.imageOf(fixture), owner);
                     }
                     await home.install(login.id, owner.home, build, name);
                 }
@@ -787,10 +790,9 @@ export class TestComputer implements AsyncDisposable {
         return created.id;
     }
 
-    /** Publish an image in the run's store on the computer's machine, the operator's by default. */
-    async publish(image: Digest, publisher?: TestPublisher): Promise<void> {
-        const by = publisher ?? (await this.world.universe.operator());
-        await this.world.distribution.publish(image, by, this.machine);
+    /** Publish an image in the run's store on the computer's machine, the owner's by default. */
+    async publish(image: Digest, publisher: TestPublisher = this.world.owner): Promise<void> {
+        await this.world.distribution.publish(image, publisher, this.machine);
     }
 
     /** Install a build's shipped or published release in a space as a person, until applied. */
