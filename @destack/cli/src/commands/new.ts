@@ -1,4 +1,5 @@
 import { resolve } from "node:path";
+import { UniverseHome } from "@destack/machine/computer";
 import { PackageName } from "@destack/package";
 import { present } from "@destack/schema";
 import { RequestId } from "@destack/sync";
@@ -8,7 +9,7 @@ import { readSpecifier } from "./install.ts";
 /** The template a package is made from unless another is asked for. */
 const DEFAULT_TEMPLATE = "@destack/blank";
 
-/** Make a package from a published template in a new checkout on this computer. */
+/** Make a package from a published template in a new repository, checked out on this computer. */
 export const newCommand: CommandBody = {
     arguments: [
         { name: "package", usage: "@handle/name" },
@@ -23,31 +24,56 @@ export const newCommand: CommandBody = {
     },
     isJson: true,
     async run({ arguments: { package: named, directory }, options, isJson: json }, context) {
-        // read the package's name, its directory and the template's release
+        // read the package's name and the template's release
         const name = PackageName.parse(present(named, "the package argument"));
-        const target = resolve(
-            directory === undefined || directory === "" ? PackageName.split(name).local : directory,
-        );
         const template = readSpecifier(
             CommandOption.string(options["template"], "template") ?? DEFAULT_TEMPLATE,
         );
 
         // find the template at its forge
-        const { client, home } = await context.registry(template.name);
-        const found = await client.package.resolve({ spaceId: home, name: template.name });
+        const templates = await context.registry(template.name);
+        const found = await templates.client.package.resolve({
+            spaceId: templates.home,
+            name: template.name,
+        });
 
-        // make the package in a new checkout of this computer
+        // create the package's repository in its account, at its universe's address
         const device = await context.native();
+        const forge = await context.registry(name);
+        await forge.client.repository.create({
+            spaceId: forge.home,
+            accountId: forge.accountId,
+            requestId: RequestId.create(device.environment),
+            name: PackageName.split(name).local,
+            hosting: "platform",
+        });
+        const { universe } = (await context.launcher()).session;
+        const remote = new URL(`/${name}.git`, universe).href;
+
+        // check the repository out under the checkouts directory, else where asked, with the package in it
+        const target =
+            directory === undefined || directory === ""
+                ? UniverseHome.current(context.environment).checkout(remote)
+                : resolve(directory);
         const created = await device.machine().checkout.create({
             machineId: (await device.loopback.computer()).machineId,
             requestId: RequestId.create(device.environment),
             directory: target,
-            source: { kind: "template", template: found.id, release: template.release, name },
+            source: {
+                kind: "template",
+                remote,
+                template: found.id,
+                release: template.release,
+                name,
+            },
         });
         const { terminal } = context;
         const lines = [
             terminal.event("Created", "done", `package '${name}'`, created.directory),
-            terminal.hint("next", `cd ${created.directory} && bun install && destack dev`),
+            terminal.hint(
+                "next",
+                `cd ${created.directory} && bun install && git add . && git commit -m "start" && git push && destack dev`,
+            ),
         ];
         await context.terminal.print(
             json

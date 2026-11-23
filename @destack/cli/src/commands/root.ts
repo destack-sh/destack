@@ -96,7 +96,8 @@ const COMMANDS = {
 
     // this computer's checkouts and their repositories
     new: {
-        description: "Make a package from a template in a new directory, as a checkout",
+        description:
+            "Make a package from a template in a new repository, checked out under ~/Destack",
         load: async (context) => (await context.module(() => import("./new.ts"))).newCommand,
     },
     dev: {

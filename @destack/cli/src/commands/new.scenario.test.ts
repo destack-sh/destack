@@ -15,12 +15,12 @@ const Created = schema.object({
     checkout: schema.identifier("checkout"),
 });
 
-test("make a package from a published template in a new checkout, its registries at the universe", async () => {
+test("make a package from a published template in a new repository and its checkout, tracking its forge remote and registries at the universe", async () => {
     // open the owner's home, the template published by their example organization
     const published = { organizations: [PUBLISHER], published: ["starter"] };
     const terminal = await TerminalFixture.open({ NO_COLOR: "1" }, [], published);
 
-    // make a package from the template in a new directory
+    // make a package from the template in a new repository, checked out in a directory
     const directory = join(terminal.native.home, "notes");
     const options = ["--template", "@example/starter", "--json"];
     const printed = await terminal.printed(["new", "@example/notes", directory, ...options]);
@@ -44,6 +44,7 @@ test("make a package from a published template in a new checkout, its registries
         definition,
         isOwn: id !== STARTER_ID,
         bunfig: await read("bunfig.toml"),
+        origin: /url = (?<url>\S+)/u.exec(await read(".git/config"))?.groups?.["url"],
     }).toEqual({
         code: [0, ""],
         name: "@example/notes",
@@ -69,5 +70,6 @@ test("make a package from a published template in a new checkout, its registries
             `"@example" = { url = "${universe.origin}/npm/" }`,
             "",
         ].join("\n"),
+        origin: `${universe.origin}/@example/notes.git`,
     });
 });
