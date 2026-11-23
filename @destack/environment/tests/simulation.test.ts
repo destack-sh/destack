@@ -325,7 +325,7 @@ test("route a name to its exact host first, else to the wildcard of its nearest 
         });
     serve("relay", "*.destack.computer");
     serve("nearer", "*.eu.destack.computer");
-    serve("exact", "laptop--acme.destack.computer");
+    serve("exact", "laptop--example.destack.computer");
     const client = simulation.environment("client").network;
     const answer = (host: string) =>
         client.fetch(new Request(`https://${host}/`)).then(
@@ -334,8 +334,8 @@ test("route a name to its exact host first, else to the wildcard of its nearest 
         );
 
     expect([
-        await answer("laptop--acme.destack.computer"),
-        await answer("desktop--acme.destack.computer"),
+        await answer("laptop--example.destack.computer"),
+        await answer("desktop--example.destack.computer"),
         await answer("a.b.destack.computer"),
         await answer("desktop.eu.destack.computer"),
         await answer("destack.computer"),
@@ -369,13 +369,13 @@ test("route localhost and the names below it to the loopback listener of their p
 
     expect([
         await answer("http://localhost:4000/"),
-        await answer("http://notes--home--acme.localhost:4000/"),
-        await answer("http://notes--home--acme.localhost:4001/"),
+        await answer("http://notes--home--example.localhost:4000/"),
+        await answer("http://notes--home--example.localhost:4001/"),
         await answer("http://localhost.example:4000/"),
     ]).toEqual([
         "localhost",
-        "notes--home--acme.localhost",
-        "fetch failed: nothing serves http://notes--home--acme.localhost:4001",
+        "notes--home--example.localhost",
+        "fetch failed: nothing serves http://notes--home--example.localhost:4001",
         "fetch failed: nothing serves http://localhost.example:4000",
     ]);
 });
