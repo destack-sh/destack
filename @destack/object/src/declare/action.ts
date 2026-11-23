@@ -9,6 +9,7 @@ import { DeclarationReference } from "@destack/package/declare";
 import { type JsonObject, mapValues, schema } from "@destack/schema";
 import type { Moment } from "@destack/db";
 import type { ObjectTypeReference } from "@destack/sync";
+import { Casing } from "../object/name.ts";
 import type { ObjectType } from "../object/object.ts";
 import type { ActionCall } from "./call.ts";
 import type { ActionDescription } from "./description.ts";
@@ -119,6 +120,16 @@ export class Action<Inputs extends ActionInputs = ActionInputs> {
         return { packageId: this.package.id, name: DeclarationName.parse(this.name) };
     }
 
+    /** The word for the action on its object, as a command line writes it. */
+    get verb(): string {
+        return Casing.kebab(this.name.slice(this.name.lastIndexOf(".") + 1));
+    }
+
+    /** Build the name of an action on a type from its verb, such as `task.moveTo`. */
+    static nameOf(type: ObjectType, verb: string): string {
+        return `${Casing.camel(type.name)}.${verb}`;
+    }
+
     /** Report whether the action applies to a row at a moment, by its call's condition. */
     applies(row: JsonObject, moment: Moment): boolean {
         return this.call?.applies(row, moment) ?? true;
@@ -179,6 +190,9 @@ export function defineAction<
     // write the call as a template over the inputs' variables
     const inputs: ActionInputs = input ?? {};
     const template = call?.(mapValues(input ?? {}, variableOf));
+    if (template !== undefined) {
+        requireName(definition.name, template);
+    }
     const taken = Object.entries(inputs).map(([name, each]) => ActionInput.of(name, each));
 
     return new Action<Inputs>(
@@ -187,6 +201,26 @@ export function defineAction<
         template?.object.actionCall(definition.name, inputs, template),
         taken,
     );
+}
+
+/** Refuse an action whose name leaves out the type it calls, or is another method's of it. */
+function requireName(name: string, { object, method }: ActionTemplate): void {
+    // refuse a name without the type
+    const prefix = Action.nameOf(object, "");
+    const verb = name.slice(prefix.length);
+    if (!name.startsWith(prefix)) {
+        throw PackageError.of(
+            "DEFINITION_INVALID",
+            `action '${name}' is invalid: it calls '${object.name}', so its name starts with '${prefix}'`,
+        );
+    }
+    // refuse the name of another method's own action
+    else if (verb !== method && Object.hasOwn(object.methods, verb)) {
+        throw PackageError.of(
+            "DEFINITION_INVALID",
+            `action '${name}' is invalid: it calls '${method}', but has the name of method '${verb}'`,
+        );
+    }
 }
 
 /** Build the variable a call reads an input by, with the fields of its object or value. */

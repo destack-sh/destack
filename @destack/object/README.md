@@ -363,16 +363,16 @@ store ─► sandbox: authorize, relate, expand, prepare, handle(next ─► sto
 
 `defineAction(definition)` declares an operation people run, as VS Code's commands: with a `call`, it calls a method of one of the package's types; without one, a view handles it.
 
-| Option                | What it is                                                              |
-| --------------------- | ----------------------------------------------------------------------- |
-| `name`, `title`       | the name, unique among the package's actions, and the title people read |
-| `summary`, `keywords` | what it does, and other words people search it by                       |
-| `category`            | the group menus and the palette show it under                           |
-| `keybinding`          | the key combination, such as `"mod+shift+g"`                            |
-| `focus`               | `"page"` by default, outside form fields, or `"any"`                    |
-| `isDestructive`       | whether it removes, which people confirm where a call removes for good  |
-| `input`               | what it takes, each from where the person is or asked                   |
-| `call`                | the method it calls, prepared from its inputs                           |
+| Option                | What it is                                                             |
+| --------------------- | ---------------------------------------------------------------------- |
+| `name`, `title`       | the name with the type it calls, such as `task.moveTo`, and the title  |
+| `summary`, `keywords` | what it does, and other words people search it by                      |
+| `category`            | the group menus and the palette show it under                          |
+| `keybinding`          | the key combination, such as `"mod+shift+g"`                           |
+| `focus`               | `"page"` by default, outside form fields, or `"any"`                   |
+| `isDestructive`       | whether it removes, which people confirm where a call removes for good |
+| `input`               | what it takes, each from where the person is or asked                  |
+| `call`                | the method it calls, prepared from its inputs                          |
 
 ### Action inputs
 

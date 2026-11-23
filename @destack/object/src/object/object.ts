@@ -1566,7 +1566,10 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         // derive an action per titled method clients run on an object, left out by the declared ones
         const covered = new Set(
             declared.flatMap((action) =>
-                action.call?.object === this && action.call.isWhole ? [action.call.method] : [],
+                action.call?.object === this &&
+                (action.call.isWhole || action.name === Action.nameOf(this, action.call.method))
+                    ? [action.call.method]
+                    : [],
             ),
         );
         const derived = Object.keys(this.methods).flatMap((name) => {
@@ -1578,10 +1581,17 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
                 title === undefined ||
                 !rows.every((row) => this.#runsOn(name, row))
                 ? []
-                : [new Action(this.package, { name, title }, ActionCall.of(this, name))];
+                : [this.#action(name, title)];
         });
 
         return [...own, ...derived];
+    }
+
+    /** Build a method's own action, with the method's name on the type. */
+    #action(this: ObjectType, method: string, title: Message): Action {
+        const name = Action.nameOf(this, method);
+
+        return new Action(this.package, { name, title }, ActionCall.of(this, method));
     }
 
     /** Report whether a method removes its target for good, which people confirm first. */

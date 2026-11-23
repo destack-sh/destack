@@ -49,7 +49,7 @@ const job = defineObject(
 
 /** Take open jobs oneself, marking each by its name. */
 const take = defineAction({
-    name: "take",
+    name: "job.take",
     title: t`Take`,
     input: { jobs: selected(job, { status: "open" }) },
     call: ({ jobs }) => jobs.prepare("update", { status: "taken", takenBy: me, name: jobs.name }),

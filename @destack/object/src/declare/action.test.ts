@@ -139,7 +139,7 @@ test("describe actions by their keys, inputs and template, and read them back fr
     const owner = { package: notes };
     const done = defineAction(
         {
-            name: "mark-done",
+            name: "note.markDone",
             title: t`Mark Done`,
             summary: t`Mark ${argument("notes")} done`,
             category: t`Note`,
@@ -151,7 +151,7 @@ test("describe actions by their keys, inputs and template, and read them back fr
     );
     const create = defineAction(
         {
-            name: "new-note",
+            name: "note.newNote",
             title: t`New Note`,
             keybinding: "mod+n",
             input: { title: field.string(schema.string()).labeled(t`Title`) },
@@ -174,7 +174,7 @@ test("describe actions by their keys, inputs and template, and read them back fr
         described: [
             {
                 package: notes,
-                name: "mark-done",
+                name: "note.markDone",
                 title: t`Mark Done`,
                 summary: t`Mark ${argument("notes")} done`,
                 category: t`Note`,
@@ -199,7 +199,7 @@ test("describe actions by their keys, inputs and template, and read them back fr
             },
             {
                 package: notes,
-                name: "new-note",
+                name: "note.newNote",
                 title: t`New Note`,
                 keybinding: "mod+n",
                 focus: "page",
@@ -282,7 +282,7 @@ test("query the targets an action's call applies to and call it on one", async (
     // mark the open task done through an action, reading where it applies before and after
     const markDone = defineAction(
         {
-            name: "mark-done",
+            name: "task.markDone",
             title: t`Mark Done`,
             input: { tasks: selected(task, { status: "open" }) },
             call: ({ tasks }) => tasks.prepare("mark", { status: "done" }),
@@ -316,7 +316,7 @@ test("refuse a call reading what is no input, and a key combination editors do n
     const owner = { package: notes };
     const open = defineAction(
         {
-            name: "open-note",
+            name: "note.openNote",
             title: t`Open`,
             input: { notes: selected(note) },
             call: (variables) => variables.notes.prepare("open", {}),
@@ -327,7 +327,7 @@ test("refuse a call reading what is no input, and a key combination editors do n
         await refusal(() =>
             defineAction(
                 {
-                    name: "new-note",
+                    name: "note.newNote",
                     title: t`New Note`,
                     call: () => note.prepare("create", { title: new Variable<string>("title") }),
                 },
@@ -344,7 +344,7 @@ test("refuse a call reading what is no input, and a key combination editors do n
         [
             "BAD_REQUEST",
             "DEFINITION_INVALID",
-            "action 'new-note' is invalid: its call reads 'title', which is no input of it",
+            "action 'note.newNote' is invalid: its call reads 'title', which is no input of it",
         ],
         [
             "BAD_REQUEST",
@@ -359,7 +359,7 @@ test("list a package's actions on its own objects, refusing a call of a type it 
     const owner = { package: task.package };
     const markDone = defineAction(
         {
-            name: "mark-done",
+            name: "task.markDone",
             title: t`Mark Done`,
             input: { tasks: selected(task) },
             call: ({ tasks }) => tasks.prepare("mark", { status: "done" }),
@@ -368,21 +368,33 @@ test("list a package's actions on its own objects, refusing a call of a type it 
     );
     const stray = defineAction(
         {
-            name: "finish",
+            name: "note.finish",
             title: t`Finish`,
             input: { notes: selected(note) },
             call: (variables) => variables.notes.prepare("mark", { status: "done" }),
         },
         owner,
     );
-    const named = defineAction(
-        {
-            name: "mark",
-            title: t`Mark`,
-            input: { tasks: selected(task) },
-            call: ({ tasks }) => tasks.prepare("mark", { status: "done" }),
-        },
-        owner,
+    const named = await refusal(() =>
+        defineAction(
+            {
+                name: "task.mark",
+                title: t`Mark`,
+                call: () => task.prepare("create", { status: "done" }),
+            },
+            owner,
+        ),
+    );
+    const bare = await refusal(() =>
+        defineAction(
+            {
+                name: "finish",
+                title: t`Finish`,
+                input: { tasks: selected(task) },
+                call: ({ tasks }) => tasks.prepare("mark", { status: "done" }),
+            },
+            owner,
+        ),
     );
 
     // list each on a package serving the tasks alone
@@ -405,31 +417,28 @@ test("list a package's actions on its own objects, refusing a call of a type it 
                 owner,
             ),
         ),
-        await refusal(() =>
-            definePackage(
-                {
-                    ...testIdentity,
-                    objects: [task],
-                    actions: [named],
-                },
-                owner,
-            ),
-        ),
+        named,
+        bare,
     ];
 
-    // expect the action listed, and both others refused by name
+    // expect the action listed, and the others refused by name
     expect({ listed: Object.keys(handle.actions), refused }).toEqual({
-        listed: ["mark-done"],
+        listed: ["task.markDone"],
         refused: [
             [
                 "BAD_REQUEST",
                 "DEFINITION_INVALID",
-                `action 'finish' is invalid: '${task.package.name}' lists it on note, which it does not serve`,
+                `action 'note.finish' is invalid: '${task.package.name}' lists it on note, which it does not serve`,
             ],
             [
                 "BAD_REQUEST",
                 "DEFINITION_INVALID",
-                "action 'mark' is invalid: it takes the name of a method of task",
+                "action 'task.mark' is invalid: it calls 'create', but has the name of method 'mark'",
+            ],
+            [
+                "BAD_REQUEST",
+                "DEFINITION_INVALID",
+                "action 'finish' is invalid: it calls 'task', so its name starts with 'task.'",
             ],
         ],
     });
@@ -466,7 +475,7 @@ test("offer the declared actions meeting their condition, then each titled metho
     // escalate a ticket still to do through its ping
     const escalate = defineAction(
         {
-            name: "escalate",
+            name: "ticket.escalate",
             title: t`Escalate`,
             input: { tickets: selected(ticket, { state: "todo" }) },
             call: ({ tickets }) => tickets.prepare("ping", {}),
@@ -483,9 +492,9 @@ test("offer the declared actions meeting their condition, then each titled metho
         started: names([started]),
         both: names([todo, started]),
     }).toEqual({
-        todo: ["escalate", "edit", "delete", "start"],
-        started: ["edit", "delete", "finish"],
-        both: ["edit", "delete"],
+        todo: ["ticket.escalate", "ticket.edit", "ticket.delete", "ticket.start"],
+        started: ["ticket.edit", "ticket.delete", "ticket.finish"],
+        both: ["ticket.edit", "ticket.delete"],
     });
 });
 
@@ -567,7 +576,7 @@ test("read the person, the time and a field of an input's object where the actio
     const owner = { package: notes };
     const take = defineAction(
         {
-            name: "take",
+            name: "issue.take",
             title: t`Assign to me`,
             input: { issues: selected(issue) },
             call: ({ issues }) =>
@@ -577,7 +586,7 @@ test("read the person, the time and a field of an input's object where the actio
     );
     const add = defineAction(
         {
-            name: "add-similar",
+            name: "issue.addSimilar",
             title: t`New similar issue`,
             input: {
                 similar: current(issue),
@@ -649,7 +658,7 @@ test("read the person's identifier where a field stores one, refusing to while n
     // take a review oneself
     const taken = defineAction(
         {
-            name: "review-myself",
+            name: "review.reviewMyself",
             title: t`Review myself`,
             input: { reviews: selected(review) },
             call: ({ reviews }) => reviews.prepare("edit", { reviewerId: me.id }),
@@ -695,7 +704,7 @@ test("fill an action from its places, the nearest first, and ask for the rest", 
     const owner = { package: notes };
     const move = defineAction(
         {
-            name: "move",
+            name: "issue.move",
             title: t`Move to project…`,
             summary: t`Move ${argument("issues")} to ${argument("project")}`,
             input: { issues: selected(issue), project: picked(project) },
@@ -706,7 +715,7 @@ test("fill an action from its places, the nearest first, and ask for the rest", 
     );
     const addUnder = defineAction(
         {
-            name: "add-under",
+            name: "issue.addUnder",
             title: t`New similar issue`,
             input: { similar: current(issue), title: field.string(schema.string()) },
             call: ({ similar, title }) =>
@@ -716,7 +725,7 @@ test("fill an action from its places, the nearest first, and ask for the rest", 
     );
     const add = defineAction(
         {
-            name: "add",
+            name: "issue.add",
             title: t`New issue`,
             input: {
                 project: current(project).optional(),
@@ -824,7 +833,7 @@ test("read a field named as a variable's own name, and start a creation as its p
     // add a team named after the current one
     const copy = defineAction(
         {
-            name: "copy",
+            name: "team.copy",
             title: t`Duplicate`,
             input: { source: current(team) },
             call: ({ source }) => team.prepare("create", { name: source.name }),
@@ -904,11 +913,11 @@ test("offer only what runs on an object as it is: in use, archived, in the trash
         managed: names({ managerInstallationId: "installation-1" }),
         detached: names({ managerInstallationId: "installation-1", detachedAt: 1 }),
     }).toEqual({
-        used: ["update", "delete", "archive"],
-        archived: ["delete", "unarchive"],
-        deleted: ["restore", "purge"],
-        managed: ["update", "delete", "archive", "detach"],
-        detached: ["update", "delete", "archive", "attach"],
+        used: ["page.update", "page.delete", "page.archive"],
+        archived: ["page.delete", "page.unarchive"],
+        deleted: ["page.restore", "page.purge"],
+        managed: ["page.update", "page.delete", "page.archive", "page.detach"],
+        detached: ["page.update", "page.delete", "page.archive", "page.attach"],
     });
 });
 
@@ -917,7 +926,7 @@ test("offer a method's own action beside one that presets some of it", () => {
     const owner = { package: notes };
     const close = defineAction(
         {
-            name: "close",
+            name: "team.close",
             title: t`Close`,
             input: { teams: selected(team) },
             call: ({ teams }) => teams.prepare("edit", { status: "closed" }),
@@ -926,7 +935,7 @@ test("offer a method's own action beside one that presets some of it", () => {
     );
     const rename = defineAction(
         {
-            name: "rename",
+            name: "team.rename",
             title: t`Rename`,
             input: { teams: selected(team), name: field.string(schema.string()) },
             call: ({ teams, name }) => teams.prepare("edit", { name }),
@@ -938,8 +947,8 @@ test("offer a method's own action beside one that presets some of it", () => {
 
     // expect the edit beside both, and the methods every object takes
     expect([names([close]), names([rename])]).toEqual([
-        ["close", "edit"],
-        ["rename", "edit"],
+        ["team.close", "team.edit"],
+        ["team.rename", "team.edit"],
     ]);
 });
 
@@ -949,7 +958,7 @@ test("refuse a reserved input name and several objects for one value, and an inp
         await refusal(() =>
             defineAction(
                 {
-                    name: "reserved",
+                    name: "team.reserved",
                     title: t`Reserved`,
                     input: { me: field.string(schema.string()) },
                     call: (variables) => team.prepare("create", { name: variables.me }),
@@ -960,7 +969,7 @@ test("refuse a reserved input name and several objects for one value, and an inp
         await refusal(() =>
             defineAction(
                 {
-                    name: "several",
+                    name: "team.several",
                     title: t`Several`,
                     input: { teams: selected(team) },
                     call: ({ teams }) => team.prepare("create", { name: teams.name }),
@@ -973,7 +982,7 @@ test("refuse a reserved input name and several objects for one value, and an inp
     // read a closed team where only open ones apply, on an input that is no target
     const copy = defineAction(
         {
-            name: "copy-open",
+            name: "team.copyOpen",
             title: t`Duplicate`,
             input: { source: current(team, { status: "open" }) },
             call: ({ source }) => team.prepare("create", { name: source.name }),
@@ -987,12 +996,12 @@ test("refuse a reserved input name and several objects for one value, and an inp
         [
             "BAD_REQUEST",
             "DEFINITION_INVALID",
-            "action 'reserved' is invalid: its input 'me' has a name calls read for themselves",
+            "action 'team.reserved' is invalid: its input 'me' has a name calls read for themselves",
         ],
         [
             "BAD_REQUEST",
             "DEFINITION_INVALID",
-            "action 'several' is invalid: its input 'teams' takes several objects, but the call acts on others",
+            "action 'team.several' is invalid: its input 'teams' takes several objects, but the call acts on others",
         ],
         [
             "PRECONDITION_FAILED",
@@ -1045,7 +1054,7 @@ test("read a declared variable the nearest place gives, the space, and refuse on
     );
     const plan = defineAction(
         {
-            name: "plan-week",
+            name: "issue.planWeek",
             title: t`Plan this week`,
             input: { week: visibleWeek },
             call: ({ week }) => issue.prepare("create", { title: space, dueAt: week.end }),

@@ -215,22 +215,16 @@ function handleOf<const Options extends PackageOptions, Identity extends object>
         );
     }
 
-    // refuse a call of an object type the package does not serve, or an action named as one of its methods
+    // refuse a call of an object type the package does not serve
     const served = new Set<unknown>(Object.values(objects));
     const calls = Object.values(actions).flatMap((action) =>
         action.call === undefined ? [] : [{ name: action.name, object: action.call.object }],
     );
     const stray = calls.find((call) => !served.has(call.object));
-    const renaming = calls.find((call) => call.name in call.object.methods);
     if (stray !== undefined) {
         throw PackageError.of(
             "DEFINITION_INVALID",
             `action '${stray.name}' is invalid: '${owner.name}' lists it on ${stray.object.name}, which it does not serve`,
-        );
-    } else if (renaming !== undefined) {
-        throw PackageError.of(
-            "DEFINITION_INVALID",
-            `action '${renaming.name}' is invalid: it takes the name of a method of ${renaming.object.name}`,
         );
     }
 
