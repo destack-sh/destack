@@ -3,5 +3,10 @@
     "id": "package-01a0c80b-614b-700d-a9f3-53016b869b9a",
     "role": "library",
     "language": "typescript",
-    "runtimes": ["bun"]
+    "runtimes": ["bun"],
+    "exports": {
+        "./scenario": {
+            "internal": true
+        }
+    }
 }
