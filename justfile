@@ -132,7 +132,7 @@ test directory *arguments:
     cd "{{justfile_directory()}}/@destack/cli"
     bun run --silent dev test "{{justfile_directory()}}/{{directory}}" ${options[@]+"${options[@]}"} ${files[@]+"${files[@]}"}
 
-# bench every package's scenarios, --count times each in a fresh world, then print the medians
+# bench every package's scenarios --count times in one run, then print the medians
 bench *arguments:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -145,6 +145,9 @@ bench *arguments:
         if [ "$1" = --count ]; then
             count="$2"
             shift 2
+        elif [ "$1" = --cpuprofile ]; then
+            export DESTACK_BENCH_CPUPROFILE=1
+            shift
         else
             packages="$packages $1"
             shift
@@ -164,9 +167,7 @@ bench *arguments:
         echo "bench $directory"
         name="$(jq --raw-output .name "$directory/package.json")"
         rm -rf "target/bench/$baseline/$name"
-        for run in $(seq 1 "$count"); do
-            just test "$directory" --bench
-        done
+        DESTACK_BENCH_COUNT="$count" just test "$directory" --bench
     done
     bun run @destack/test/src/bench/main.ts target/bench "$baseline"
 
