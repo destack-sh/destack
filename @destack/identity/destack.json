@@ -15,7 +15,8 @@
     },
     "exports": {
         "./bun": {
-            "runtimes": ["bun"]
+            "runtimes": ["bun"],
+            "internal": true
         }
     }
 }
