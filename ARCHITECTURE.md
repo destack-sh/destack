@@ -100,7 +100,7 @@ What every package uses: schemas, errors, effects, messages, telemetry, mail and
 | [`@destack/error`](@destack/error) | Declare the errors a package's callers receive, each with a stable reason, an HTTP code and typed data. | gRPC status codes |
 | [`@destack/environment`](@destack/environment) | Take every effect through one environment: time, randomness and the network, real or simulated. | FoundationDB simulation, TigerBeetle VOPR |
 | [`@destack/icon`](@destack/icon) | Name Phosphor icons and store their SVG bodies, each one loaded only where it is used. | Phosphor, Lucide |
-| [`@destack/color`](@destack/color) | Name the preset color palettes and the seed each one grows from. | Radix Colors |
+| [`@destack/color`](@destack/color) | Name the hues colors mean things in, and the preset palettes accents grow from. | Notion, Radix Colors |
 | [`@destack/locale`](@destack/locale) | Localise messages and format numbers, money and dates for a person's language and region. | Lingui, MessageFormat 2 |
 | [`@destack/telemetry`](@destack/telemetry) | Instrument Destack packages with traces, metrics, logs, exceptions and analytics. | OpenTelemetry, Sentry |
 | [`@destack/mail`](@destack/mail) | Send email over SMTP or Amazon SES, or print it on machines without a provider. | — |
