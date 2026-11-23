@@ -424,10 +424,10 @@ function TimeView(properties: EventCalendarPartProperties): JSX.Element {
         >
             {properties.children ?? (
                 <>
-                    <EventCalendarResourceHeadings />
-                    <EventCalendarDayHeadings />
+                    <EventCalendarResourceHeader />
+                    <EventCalendarDayHeader />
                     <EventCalendarAllDay />
-                    <EventCalendarHours />
+                    <EventCalendarTimeGrid />
                 </>
             )}
         </div>
@@ -435,9 +435,7 @@ function TimeView(properties: EventCalendarPartProperties): JSX.Element {
 }
 
 /** Render the row of resource labels above their days' headings, none without resources. */
-export function EventCalendarResourceHeadings(
-    properties: EventCalendarPartProperties,
-): JSX.Element {
+export function EventCalendarResourceHeader(properties: EventCalendarPartProperties): JSX.Element {
     // label each resource across its shown days
     const control = useEventCalendar();
     const rest = omit(properties, "children", "xstyle", "style");
@@ -445,7 +443,7 @@ export function EventCalendarResourceHeadings(
     return (
         <Show when={(control.options.resources ?? []).length > 0}>
             <div
-                data-slot="event-calendar-resources"
+                data-slot="event-calendar-resource-header"
                 {...rest}
                 {...style.attributes(
                     [
@@ -481,7 +479,7 @@ export function EventCalendarResourceHeadings(
 }
 
 /** Render the row of day headings, each from the function given or as a weekday and a date. */
-export function EventCalendarDayHeadings(
+export function EventCalendarDayHeader(
     properties: EventCalendarDaysProperties & Omit<EventCalendarPartProperties, "children">,
 ): JSX.Element {
     // head each shown day, the week of the year above the hour labels
@@ -491,7 +489,7 @@ export function EventCalendarDayHeadings(
 
     return (
         <div
-            data-slot="event-calendar-headings"
+            data-slot="event-calendar-day-header"
             {...rest}
             {...style.attributes(
                 [
@@ -729,8 +727,8 @@ export function EventCalendarAllDay(properties: EventCalendarPartProperties): JS
     );
 }
 
-/** Render the scrolling hours: the hour labels and the day columns by default. */
-export function EventCalendarHours(properties: EventCalendarPartProperties): JSX.Element {
+/** Render the scrolling time grid: the time axis and the day columns by default. */
+export function EventCalendarTimeGrid(properties: EventCalendarPartProperties): JSX.Element {
     // read the hour height and the shown days the grid lays out
     const control = useEventCalendar();
     const rest = omit(properties, "children", "xstyle", "style");
@@ -749,7 +747,7 @@ export function EventCalendarHours(properties: EventCalendarPartProperties): JSX
 
     return (
         <div
-            data-slot="event-calendar-scroller"
+            data-slot="event-calendar-time-grid"
             {...mergeProperties({ ref: setScroller }, rest)}
             {...style.attributes([styles.scroller, properties.xstyle], properties.style)}
         >
@@ -762,8 +760,8 @@ export function EventCalendarHours(properties: EventCalendarPartProperties): JSX
             >
                 {properties.children ?? (
                     <>
-                        <EventCalendarHourLabels />
-                        <EventCalendarColumns />
+                        <EventCalendarTimeAxis />
+                        <EventCalendarDayColumnList />
                     </>
                 )}
             </div>
@@ -772,7 +770,7 @@ export function EventCalendarHours(properties: EventCalendarPartProperties): JSX
 }
 
 /** Render the first shown day's hours in each zone, now and the pointer's time marked. */
-export function EventCalendarHourLabels(properties: EventCalendarPartProperties): JSX.Element {
+export function EventCalendarTimeAxis(properties: EventCalendarPartProperties): JSX.Element {
     // mark each local hour of the day, a daylight-saving day showing 23 or 25
     const control = useEventCalendar();
     const locale = useLocale();
@@ -814,7 +812,7 @@ export function EventCalendarHourLabels(properties: EventCalendarPartProperties)
     return (
         <div
             aria-hidden="true"
-            data-slot="event-calendar-hours"
+            data-slot="event-calendar-time-axis"
             {...rest}
             {...style.attributes([styles.zones, properties.xstyle], properties.style)}
         >
@@ -906,7 +904,7 @@ export function EventCalendarHoverLine(properties: EventCalendarPartProperties):
 }
 
 /** Render a column per shown day, each from the function given or as the default column. */
-export function EventCalendarColumns(properties: EventCalendarDaysProperties): JSX.Element {
+export function EventCalendarDayColumnList(properties: EventCalendarDaysProperties): JSX.Element {
     const control = useEventCalendar();
 
     return (
@@ -1071,9 +1069,9 @@ export function EventCalendarColumn(properties: EventCalendarPartProperties): JS
                 {properties.children ?? (
                     <>
                         <EventCalendarNonWorking />
-                        <EventCalendarHourLines />
+                        <EventCalendarHourGrid />
                         <EventCalendarHoverLine />
-                        <EventCalendarColumnEvents />
+                        <EventCalendarColumnContent />
                         <EventCalendarAvailability />
                         <EventCalendarSweep />
                         <EventCalendarLanding />
@@ -1086,7 +1084,7 @@ export function EventCalendarColumn(properties: EventCalendarPartProperties): JS
 }
 
 /** Render a line at each slot of a column's day, the hours' lines stronger. */
-export function EventCalendarHourLines(): JSX.Element {
+export function EventCalendarHourGrid(): JSX.Element {
     const control = useEventCalendar();
     const column = useEventCalendarColumn();
 
@@ -1140,7 +1138,7 @@ export function EventCalendarNonWorking(properties: EventCalendarPartProperties)
 }
 
 /** Render a column's timed events packed side by side, and its shading events behind them. */
-export function EventCalendarColumnEvents(): JSX.Element {
+export function EventCalendarColumnContent(): JSX.Element {
     // read the day's timed events, cut to the day and packed side by side
     const control = useEventCalendar();
     const column = useEventCalendarColumn();

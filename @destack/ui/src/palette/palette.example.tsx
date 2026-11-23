@@ -10,7 +10,7 @@ import * as style from "@destack/style";
 import { color, space, weight } from "@destack/theme/tokens.stylex";
 import { createSignal } from "@destack/view";
 import { Button } from "../button/index.ts";
-import { CommandDetailField, CommandDetailFields } from "../command/index.ts";
+import { CommandDetailField, CommandDetailMetadata } from "../command/index.ts";
 import type { PaletteItem, PalettePage } from "./control.ts";
 import { CommandPalette } from "./palette.tsx";
 
@@ -100,12 +100,12 @@ function rootOf(report: (summary: string) => void): PalettePage {
             <>
                 <h3 {...style.attrs(styles.title)}>{task.title}</h3>
                 <p {...style.attrs(styles.line)}>{task.summary}</p>
-                <CommandDetailFields>
+                <CommandDetailMetadata>
                     <CommandDetailField label="Key">{task.key}</CommandDetailField>
                     <CommandDetailField label="Status">{task.status}</CommandDetailField>
                     <CommandDetailField label="Assignee">{task.assignee}</CommandDetailField>
                     <CommandDetailField label="Due">{task.due}</CommandDetailField>
-                </CommandDetailFields>
+                </CommandDetailMetadata>
             </>
         ),
     }));

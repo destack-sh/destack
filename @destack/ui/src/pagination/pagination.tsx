@@ -178,11 +178,11 @@ export function PaginationEllipsis(
     });
 }
 
-/** The page list's entries: a page number, or a gap of left-out pages. */
+/** The page range's entries: a page number, or a gap of left-out pages. */
 export type PaginationEntry = number | "ellipsis";
 
-/** The properties of a page list: the pages, the current one and the links to each. */
-export interface PaginationPagesProperties {
+/** The properties of a page range: the pages, the current one and the links to each. */
+export interface PaginationRangeProperties {
     /** The number of pages. */
     readonly count: number;
     /** The current page, from one, which makes the state controlled. */
@@ -204,7 +204,7 @@ function pageRange(from: number, to: number): number[] {
     return Array.from({ length: Math.max(to - from + 1, 0) }, (_, index) => from + index);
 }
 
-/** List the entries of a page list. */
+/** List the entries of a page range. */
 export function paginationEntries(
     page: number,
     count: number,
@@ -243,7 +243,7 @@ export function paginationEntries(
 }
 
 /** Render the steps and the links to each page around the current one. */
-export function PaginationPages(properties: PaginationPagesProperties): JSX.Element {
+export function PaginationRange(properties: PaginationRangeProperties): JSX.Element {
     // follow the controlled page or the list's own
     const [page, setPage] = createControllableSignal({
         isControlled: () => properties.page !== undefined,

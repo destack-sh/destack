@@ -7,7 +7,7 @@ import {
     PaginationItem,
     PaginationLink,
     PaginationNext,
-    PaginationPages,
+    PaginationRange,
     PaginationPrevious,
     paginationEntries,
 } from "./index.ts";
@@ -65,7 +65,7 @@ test("page in place when the owner handles the change, marking the current page"
     const changes: number[] = [];
     const { container } = render(() => (
         <Pagination>
-            <PaginationPages
+            <PaginationRange
                 count={20}
                 defaultPage={6}
                 href={(page) => `?page=${page}`}

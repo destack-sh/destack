@@ -32,7 +32,7 @@ const places = style.create({
 });
 
 /** Render the calendars in their colors, each shown or hidden by its box, after Google. */
-export function EventCalendarSources(properties: EventCalendarPartProperties): JSX.Element {
+export function EventCalendarSourceList(properties: EventCalendarPartProperties): JSX.Element {
     // list each calendar with a box that shows or hides its events
     const control = useEventCalendar();
     const rest = omit(properties, "children", "xstyle", "style");
@@ -40,7 +40,7 @@ export function EventCalendarSources(properties: EventCalendarPartProperties): J
     return (
         <div
             role="list"
-            data-slot="event-calendar-sources"
+            data-slot="event-calendar-source-list"
             {...rest}
             {...style.attributes([styles.list, properties.xstyle], properties.style)}
         >

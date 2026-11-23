@@ -40,11 +40,11 @@ export {
     TimelineCell,
     TimelineRow,
     TimelineRowLabel,
-    TimelineRows,
-    type TimelineRowsProperties,
+    TimelineRowList,
+    type TimelineRowListProperties,
 } from "./row.tsx";
 export { TimelineBar, type TimelineBarProperties } from "./bar.tsx";
-export { TimelineLinks } from "./links.tsx";
+export { TimelineLinkLayer } from "./links.tsx";
 export {
     TimelineGrid,
     TimelineMarker,

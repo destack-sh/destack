@@ -6,7 +6,7 @@ import {
     PaginationItem,
     PaginationLink,
     PaginationNext,
-    PaginationPages,
+    PaginationRange,
     PaginationPrevious,
 } from "./pagination.tsx";
 
@@ -42,12 +42,12 @@ export const paginationSecondPage = defineExample({
 
 /** The pages of a long search, the sixth current. */
 export const paginationSearchPages = defineExample({
-    of: PaginationPages,
+    of: PaginationRange,
     name: "search-pages",
     description: "the pages of a long search, the sixth current",
     render: () => (
         <Pagination>
-            <PaginationPages count={20} defaultPage={6} href={(page) => `?page=${page}`} />
+            <PaginationRange count={20} defaultPage={6} href={(page) => `?page=${page}`} />
         </Pagination>
     ),
 });
@@ -59,7 +59,7 @@ export const paginationFirstPageDisabled = defineExample({
     description: "the first page of a search, with no way back",
     render: () => (
         <Pagination>
-            <PaginationPages count={20} defaultPage={1} href={(page) => `?page=${page}`} />
+            <PaginationRange count={20} defaultPage={1} href={(page) => `?page=${page}`} />
         </Pagination>
     ),
 });

@@ -365,7 +365,7 @@ import {
     type TimelineItem,
     TimelineRow,
     TimelineRowLabel,
-    TimelineRows,
+    TimelineRowList,
 } from "@destack/ui/timeline";
 
 /** Show a trace without a minimap, its failed spans solid red. */
@@ -378,7 +378,7 @@ export function Trace(properties: {
             <TimelineHeader corner="Span" />
             <TimelineBody>
                 <TimelineGrid />
-                <TimelineRows>
+                <TimelineRowList>
                     {(node) => (
                         <TimelineRow>
                             <TimelineRowLabel />
@@ -389,7 +389,7 @@ export function Trace(properties: {
                             )}
                         </TimelineRow>
                     )}
-                </TimelineRows>
+                </TimelineRowList>
             </TimelineBody>
         </Timeline>
     );
@@ -443,13 +443,13 @@ import {
     type CalendarEvent,
     EventCalendar,
     EventCalendarColumn,
-    EventCalendarColumnEvents,
-    EventCalendarColumns,
-    EventCalendarDayHeadings,
+    EventCalendarColumnContent,
+    EventCalendarDayColumnList,
+    EventCalendarDayHeader,
     EventCalendarHeader,
-    EventCalendarHourLabels,
-    EventCalendarHourLines,
-    EventCalendarHours,
+    EventCalendarTimeAxis,
+    EventCalendarHourGrid,
+    EventCalendarTimeGrid,
     EventCalendarLanding,
     EventCalendarTime,
     useEventCalendarDay,
@@ -468,19 +468,19 @@ export function Schedule(properties: {
         >
             <EventCalendarHeader />
             <EventCalendarTime>
-                <EventCalendarDayHeadings>{() => <DateHeading />}</EventCalendarDayHeadings>
-                <EventCalendarHours>
-                    <EventCalendarHourLabels />
-                    <EventCalendarColumns>
+                <EventCalendarDayHeader>{() => <DateHeading />}</EventCalendarDayHeader>
+                <EventCalendarTimeGrid>
+                    <EventCalendarTimeAxis />
+                    <EventCalendarDayColumnList>
                         {() => (
                             <EventCalendarColumn>
-                                <EventCalendarHourLines />
-                                <EventCalendarColumnEvents />
+                                <EventCalendarHourGrid />
+                                <EventCalendarColumnContent />
                                 <EventCalendarLanding />
                             </EventCalendarColumn>
                         )}
-                    </EventCalendarColumns>
-                </EventCalendarHours>
+                    </EventCalendarDayColumnList>
+                </EventCalendarTimeGrid>
             </EventCalendarTime>
         </EventCalendar>
     );

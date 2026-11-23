@@ -58,7 +58,7 @@ const styles = style.create({
 });
 
 /** Render the dependencies between the visible rows as elbow arrows, each removable with Delete. */
-export function TimelineLinks(properties: {
+export function TimelineLinkLayer(properties: {
     /** The StyleX styles applied after the links' styles. */
     readonly xstyle?: style.Styles;
 }): JSX.Element {
@@ -170,7 +170,7 @@ export function TimelineLinks(properties: {
 
     return (
         <svg
-            data-slot="timeline-links"
+            data-slot="timeline-link-layer"
             height={control.rowTop(control.tree.rows().length)}
             {...style.attrs(styles.links, places.track(control.labelArea()), properties.xstyle)}
         >

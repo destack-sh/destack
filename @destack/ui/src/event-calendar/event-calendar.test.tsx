@@ -14,14 +14,14 @@ import {
     EventCalendarAgenda,
     EventCalendarBody,
     EventCalendarColumn,
-    EventCalendarColumnEvents,
-    EventCalendarColumns,
+    EventCalendarColumnContent,
+    EventCalendarDayColumnList,
     EventCalendarDate,
-    EventCalendarDayEvents,
-    EventCalendarDayHeadings,
+    EventCalendarDayContent,
+    EventCalendarDayHeader,
     EventCalendarHeader,
-    EventCalendarHourLines,
-    EventCalendarHours,
+    EventCalendarHourGrid,
+    EventCalendarTimeGrid,
     EventCalendarMonth,
     EventCalendarMonthDay,
     EventCalendarNext,
@@ -31,8 +31,8 @@ import {
     type EventCalendarView,
     EventCalendarWeek,
     EventCalendarPreviewCard,
-    EventCalendarSources,
-    EventCalendarWeeks,
+    EventCalendarSourceList,
+    EventCalendarDayGrid,
     EventCalendarYear,
     useEventCalendarDay,
 } from "./index.ts";
@@ -350,7 +350,7 @@ test("move an overnight event by its part after midnight, the part with its end 
 function countHourLabels(date: string): number {
     const { container } = drawCalendar("en-GB", date, [], "day");
 
-    return container.querySelectorAll("[data-slot=event-calendar-scroller] [aria-hidden] span")
+    return container.querySelectorAll("[data-slot=event-calendar-time-grid] [aria-hidden] span")
         .length;
 }
 
@@ -638,17 +638,17 @@ test("compose the week and the month from their parts, each replaced or left out
                 timeZone={ZONE}
             >
                 <EventCalendarTime>
-                    <EventCalendarDayHeadings>{() => <OwnHeading />}</EventCalendarDayHeadings>
-                    <EventCalendarHours>
-                        <EventCalendarColumns>
+                    <EventCalendarDayHeader>{() => <OwnHeading />}</EventCalendarDayHeader>
+                    <EventCalendarTimeGrid>
+                        <EventCalendarDayColumnList>
                             {() => (
                                 <EventCalendarColumn>
-                                    <EventCalendarHourLines />
-                                    <EventCalendarColumnEvents />
+                                    <EventCalendarHourGrid />
+                                    <EventCalendarColumnContent />
                                 </EventCalendarColumn>
                             )}
-                        </EventCalendarColumns>
-                    </EventCalendarHours>
+                        </EventCalendarDayColumnList>
+                    </EventCalendarTimeGrid>
                 </EventCalendarTime>
             </EventCalendar>
         </LocaleContext>
@@ -662,18 +662,18 @@ test("compose the week and the month from their parts, each replaced or left out
                 timeZone={ZONE}
             >
                 <EventCalendarMonth>
-                    <EventCalendarWeeks>
+                    <EventCalendarDayGrid>
                         {() => (
                             <EventCalendarWeek>
                                 {() => (
                                     <EventCalendarMonthDay>
                                         <EventCalendarDate>·</EventCalendarDate>
-                                        <EventCalendarDayEvents />
+                                        <EventCalendarDayContent />
                                     </EventCalendarMonthDay>
                                 )}
                             </EventCalendarWeek>
                         )}
-                    </EventCalendarWeeks>
+                    </EventCalendarDayGrid>
                 </EventCalendarMonth>
             </EventCalendar>
         </LocaleContext>
@@ -684,7 +684,7 @@ test("compose the week and the month from their parts, each replaced or left out
         columns: slots(week.container, "event-calendar-column").length,
         events: slots(week.container, "event-calendar-event"),
         nowLines: slots(week.container, "event-calendar-now").length,
-        weekdays: slots(month.container, "event-calendar-weekdays").length,
+        weekdays: slots(month.container, "event-calendar-weekday-header").length,
         dates: new Set(slots(month.container, "event-calendar-date")),
         monthEvents: slots(month.container, "event-calendar-event").length,
     }).toEqual({
@@ -1007,9 +1007,9 @@ test("offer the views the parts compose, the days view showing four shown days a
     flush();
 
     expect({
-        views: [...container.querySelectorAll("[data-slot=event-calendar-views] button")].map(
-            (button) => (button.textContent ?? "").replaceAll(ISOLATES, ""),
-        ),
+        views: [
+            ...container.querySelectorAll("[data-slot=event-calendar-view-switcher] button"),
+        ].map((button) => (button.textContent ?? "").replaceAll(ISOLATES, "")),
         first,
         next: { columns: columns(), title: title() },
     }).toEqual({
@@ -1131,7 +1131,7 @@ test("color events by their calendar, hide a calendar by its box, and show a tea
                 timeZone={ZONE}
                 onAction={(key) => opened.push(key)}
             >
-                <EventCalendarSources />
+                <EventCalendarSourceList />
                 <EventCalendarBody>
                     <EventCalendarTime />
                 </EventCalendarBody>

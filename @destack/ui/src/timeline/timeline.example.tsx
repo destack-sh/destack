@@ -14,13 +14,13 @@ import {
     TimelineHeader,
     type TimelineItem,
     type TimelineRowMove,
-    TimelineLinks,
+    TimelineLinkLayer,
     TimelineMinimap,
     TimelineNow,
     TimelineRange,
     TimelineRow,
     TimelineRowLabel,
-    TimelineRows,
+    TimelineRowList,
     TimelineToday,
     TimelineToolbar,
     TimelineZoom,
@@ -109,7 +109,7 @@ export const timelineTrace = defineExample({
             <TimelineHeader corner="Span" />
             <TimelineBody>
                 <TimelineGrid />
-                <TimelineRows>
+                <TimelineRowList>
                     {(node) => (
                         <TimelineRow>
                             <TimelineRowLabel />
@@ -121,7 +121,7 @@ export const timelineTrace = defineExample({
                             />
                         </TimelineRow>
                     )}
-                </TimelineRows>
+                </TimelineRowList>
             </TimelineBody>
             <TimelineMinimap />
         </Timeline>
@@ -313,14 +313,16 @@ export const timelinePlan = defineExample({
                             Launch week
                         </TimelineRange>
                         <TimelineNow />
-                        <TimelineLinks />
-                        <TimelineRows>
+                        <TimelineLinkLayer />
+                        <TimelineRowList>
                             {(node) => (
                                 <TimelineRow>
                                     <TimelineRowLabel />
                                     <TimelineCell>
                                         <Show when={node().item.progress}>
-                                            {(done) => `${String(Math.round(done() * 100))}%`}
+                                            {(done) => (
+                                                <>{`${String(Math.round(done() * 100))}%`}</>
+                                            )}
                                         </Show>
                                     </TimelineCell>
                                     <TimelineBar
@@ -333,7 +335,7 @@ export const timelinePlan = defineExample({
                                     />
                                 </TimelineRow>
                             )}
-                        </TimelineRows>
+                        </TimelineRowList>
                     </TimelineBody>
                     <TimelineMinimap />
                 </Timeline>
@@ -464,7 +466,7 @@ export const timelineTeam = defineExample({
                 <TimelineBody>
                     <TimelineGrid />
                     <TimelineNow />
-                    <TimelineRows />
+                    <TimelineRowList />
                 </TimelineBody>
             </Timeline>
         );

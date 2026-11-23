@@ -162,7 +162,7 @@ export function EventCalendarHeader(properties: EventCalendarPartProperties): JS
                     <EventCalendarToday />
                     <EventCalendarNext />
                     <EventCalendarTitle />
-                    <EventCalendarViews />
+                    <EventCalendarViewSwitcher />
                 </>
             )}
         </div>
@@ -268,14 +268,14 @@ export function EventCalendarTitle(properties: EventCalendarPartProperties): JSX
 }
 
 /** Render the choice among the views the calendar's view parts offer. */
-export function EventCalendarViews(): JSX.Element {
+export function EventCalendarViewSwitcher(): JSX.Element {
     const control = useEventCalendar();
     const locale = useLocale();
 
     return (
         <ToggleGroup
             variant="outline"
-            data-slot="event-calendar-views"
+            data-slot="event-calendar-view-switcher"
             behavior="replace"
             disallowEmptySelection
             value={control.view()}

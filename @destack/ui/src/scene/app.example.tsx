@@ -86,9 +86,9 @@ import {
     TimelineGrid,
     TimelineHeader,
     type TimelineItem,
-    TimelineLinks,
+    TimelineLinkLayer,
     TimelineMarker,
-    TimelineRows,
+    TimelineRowList,
     TimelineNow,
 } from "../timeline/index.ts";
 
@@ -648,8 +648,8 @@ function TaskTimeline(): JSX.Element {
                 <TimelineGrid />
                 <TimelineNow />
                 <TimelineMarker at={wallTime(LAUNCH_DAY, "00:00")}>Launch</TimelineMarker>
-                <TimelineLinks />
-                <TimelineRows />
+                <TimelineLinkLayer />
+                <TimelineRowList />
             </TimelineBody>
         </Timeline>
     );

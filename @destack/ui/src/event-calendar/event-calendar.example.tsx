@@ -9,7 +9,7 @@ import { EventCalendarMonth } from "./month.tsx";
 import { EventCalendarTime } from "./time.tsx";
 import { EventCalendarYear } from "./year.tsx";
 import { EventCalendarNavigator } from "./navigator.tsx";
-import { EventCalendarSources } from "./sources.tsx";
+import { EventCalendarSourceList } from "./sources.tsx";
 import { EventCalendarPreviewCard } from "./chip.tsx";
 import { Label } from "../label/index.ts";
 import { Switch } from "../switch/index.ts";
@@ -348,7 +348,7 @@ function TeamCalendar(properties: Partial<EventCalendarProperties>) {
         >
             <div {...style.attrs(layout.side)}>
                 <EventCalendarNavigator />
-                <EventCalendarSources />
+                <EventCalendarSourceList />
                 <Label xstyle={layout.share}>
                     <Switch checked={isSharing()} onCheckedChange={setSharing} />
                     Share availability

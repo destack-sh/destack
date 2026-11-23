@@ -6,7 +6,7 @@ export {
     EventCalendarPrevious,
     EventCalendarTitle,
     EventCalendarToday,
-    EventCalendarViews,
+    EventCalendarViewSwitcher,
 } from "./event-calendar.tsx";
 export {
     CalendarEvent,
@@ -44,16 +44,16 @@ export {
 } from "./chip.tsx";
 export {
     EventCalendarDate,
-    EventCalendarDayEvents,
+    EventCalendarDayContent,
     EventCalendarMonth,
     EventCalendarMonthControl,
     EventCalendarMonthDay,
     EventCalendarMore,
     type CalendarWeek,
     EventCalendarWeek,
-    EventCalendarWeekdays,
-    EventCalendarWeeks,
-    type EventCalendarWeeksProperties,
+    EventCalendarWeekdayHeader,
+    EventCalendarDayGrid,
+    type EventCalendarDayGridProperties,
     useEventCalendarMonth,
     useEventCalendarWeek,
 } from "./month.tsx";
@@ -62,25 +62,25 @@ export {
     EventCalendarAvailability,
     EventCalendarColumn,
     EventCalendarColumnControl,
-    EventCalendarColumnEvents,
-    EventCalendarColumns,
+    EventCalendarColumnContent,
+    EventCalendarDayColumnList,
     EventCalendarDayHeading,
-    EventCalendarDayHeadings,
-    EventCalendarHourLabels,
-    EventCalendarHourLines,
+    EventCalendarDayHeader,
+    EventCalendarTimeAxis,
+    EventCalendarHourGrid,
     EventCalendarHoverLine,
     EventCalendarNonWorking,
-    EventCalendarHours,
+    EventCalendarTimeGrid,
     EventCalendarLanding,
     EventCalendarNow,
-    EventCalendarResourceHeadings,
+    EventCalendarResourceHeader,
     EventCalendarSweep,
     EventCalendarTime,
     useEventCalendarColumn,
 } from "./time.tsx";
 export { EventCalendarAgenda } from "./agenda.tsx";
 export { EventCalendarYear } from "./year.tsx";
-export { EventCalendarSources } from "./sources.tsx";
+export { EventCalendarSourceList } from "./sources.tsx";
 export { EventCalendarNavigator, type EventCalendarNavigatorProperties } from "./navigator.tsx";
 export {
     type AvailabilitySpan,

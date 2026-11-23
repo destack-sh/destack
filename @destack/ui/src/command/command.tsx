@@ -630,10 +630,10 @@ export function CommandDetail(properties: CommandDetailProperties): JSX.Element 
 }
 
 /** Render the fields of a detail, label beside value, after Raycast's detail metadata. */
-export function CommandDetailFields(
+export function CommandDetailMetadata(
     properties: CommandElementProperties<JSX.HTMLAttributes<HTMLDListElement>>,
 ): JSX.Element {
-    return renderPart("dl", "command-detail-fields", properties, [text.xs, styles.fields]);
+    return renderPart("dl", "command-detail-metadata", properties, [text.xs, styles.fields]);
 }
 
 /** The properties of one field of a detail: its label and its value. */

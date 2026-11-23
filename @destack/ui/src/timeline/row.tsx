@@ -100,13 +100,13 @@ const styles = style.create({
 });
 
 /** The properties of a timeline's rows. */
-export interface TimelineRowsProperties {
+export interface TimelineRowListProperties {
     /** Render a row, a label and a bar by default. */
     readonly children?: (node: Accessor<TimelineNode>) => JSX.Element;
 }
 
 /** Render the rows in view, each from the function given or as a label and a bar. */
-export function TimelineRows(properties: TimelineRowsProperties): JSX.Element {
+export function TimelineRowList(properties: TimelineRowListProperties): JSX.Element {
     const control = useTimeline();
 
     return (

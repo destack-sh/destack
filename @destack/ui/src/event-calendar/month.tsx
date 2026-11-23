@@ -332,8 +332,8 @@ function MonthView(properties: EventCalendarPartProperties): JSX.Element {
             >
                 {properties.children ?? (
                     <>
-                        <EventCalendarWeekdays />
-                        <EventCalendarWeeks />
+                        <EventCalendarWeekdayHeader />
+                        <EventCalendarDayGrid />
                     </>
                 )}
             </div>
@@ -342,7 +342,7 @@ function MonthView(properties: EventCalendarPartProperties): JSX.Element {
 }
 
 /** Render the row of weekday names above the weeks. */
-export function EventCalendarWeekdays(properties: EventCalendarPartProperties): JSX.Element {
+export function EventCalendarWeekdayHeader(properties: EventCalendarPartProperties): JSX.Element {
     // name the weekdays of the first week, the hidden ones left out
     const locale = useLocale();
     const month = useEventCalendarMonth();
@@ -351,7 +351,7 @@ export function EventCalendarWeekdays(properties: EventCalendarPartProperties): 
     return (
         <div
             role="row"
-            data-slot="event-calendar-weekdays"
+            data-slot="event-calendar-weekday-header"
             {...rest}
             {...style.attributes(
                 [styles.weekdays, places.columns(nth(month.weeks(), 0).length), properties.xstyle],
@@ -375,13 +375,13 @@ export function EventCalendarWeekdays(properties: EventCalendarPartProperties): 
 }
 
 /** The properties of the list of a month's weeks. */
-export interface EventCalendarWeeksProperties {
+export interface EventCalendarDayGridProperties {
     /** Render a week's part, the default week when absent. */
     readonly children?: (week: CalendarWeek) => JSX.Element;
 }
 
 /** Render the month's weeks, each from the function given or as the default week. */
-export function EventCalendarWeeks(properties: EventCalendarWeeksProperties): JSX.Element {
+export function EventCalendarDayGrid(properties: EventCalendarDayGridProperties): JSX.Element {
     const control = useEventCalendar();
     const month = useEventCalendarMonth();
 
@@ -524,7 +524,7 @@ export function EventCalendarMonthDay(properties: EventCalendarPartProperties): 
             {properties.children ?? (
                 <>
                     <EventCalendarDate />
-                    <EventCalendarDayEvents />
+                    <EventCalendarDayContent />
                     <EventCalendarMore />
                 </>
             )}
@@ -586,7 +586,7 @@ export function EventCalendarDate(
 }
 
 /** Render the events that start on a day, up to the calendar's limit. */
-export function EventCalendarDayEvents(): JSX.Element {
+export function EventCalendarDayContent(): JSX.Element {
     // read the week's stacked events that start on the day
     const control = useEventCalendar();
     const { day } = useEventCalendarDay();

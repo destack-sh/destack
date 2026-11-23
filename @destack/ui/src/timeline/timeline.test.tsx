@@ -16,7 +16,7 @@ import {
     TimelineColumn,
     TimelineGrid,
     TimelineHeader,
-    TimelineLinks,
+    TimelineLinkLayer,
     TimelineNow,
     type TimelineProperties,
     TimelineRange,
@@ -26,7 +26,7 @@ import {
     type TimelineRowMove,
     TimelineRow,
     TimelineRowLabel,
-    TimelineRows,
+    TimelineRowList,
     TimelineToday,
     TimelineZoom,
     useTimeline,
@@ -42,8 +42,8 @@ function Plan(properties: TimelineProperties): JSX.Element {
             <TimelineBody>
                 <TimelineGrid />
                 <TimelineNow />
-                <TimelineLinks />
-                <TimelineRows />
+                <TimelineLinkLayer />
+                <TimelineRowList />
             </TimelineBody>
             <TimelineMinimap />
         </Timeline>
@@ -154,7 +154,7 @@ test("mark a trace's axis in offsets from its start, and fill a bar the caller c
         <Timeline items={TRACE} axis="offset">
             <TimelineHeader />
             <TimelineBody>
-                <TimelineRows>
+                <TimelineRowList>
                     {(node) => (
                         <TimelineRow>
                             <TimelineRowLabel />
@@ -165,7 +165,7 @@ test("mark a trace's axis in offsets from its start, and fill a bar the caller c
                             />
                         </TimelineRow>
                     )}
-                </TimelineRows>
+                </TimelineRowList>
             </TimelineBody>
         </Timeline>
     ));
@@ -771,8 +771,8 @@ test("resize the window by the minimap lens's grips, and pan it by the lens betw
             <TimelineBody>
                 <TimelineGrid />
                 <TimelineNow />
-                <TimelineLinks />
-                <TimelineRows />
+                <TimelineLinkLayer />
+                <TimelineRowList />
             </TimelineBody>
             <TimelineMinimap />
         </Timeline>
@@ -856,8 +856,8 @@ test("leave the toolbar's keys to it, leave a pressed preset pressed, and lift n
             <TimelineBody>
                 <TimelineGrid />
                 <TimelineNow />
-                <TimelineLinks />
-                <TimelineRows />
+                <TimelineLinkLayer />
+                <TimelineRowList />
             </TimelineBody>
         </Timeline>
     ));
@@ -1088,8 +1088,8 @@ test("zoom to a week, a month or a quarter per column, bring today to the middle
             <TimelineBody>
                 <TimelineGrid />
                 <TimelineNow />
-                <TimelineLinks />
-                <TimelineRows />
+                <TimelineLinkLayer />
+                <TimelineRowList />
             </TimelineBody>
         </Timeline>
     ));
@@ -1142,14 +1142,14 @@ test("shade a range down the track, mark a bar late past its deadline, and draw 
                 <TimelineRange start={DAY_MS} end={4 * DAY_MS} color="violet">
                     Cycle 12
                 </TimelineRange>
-                <TimelineRows>
+                <TimelineRowList>
                     {() => (
                         <TimelineRow>
                             <TimelineRowLabel />
                             <TimelineBar before="Started" after="Ada" />
                         </TimelineRow>
                     )}
-                </TimelineRows>
+                </TimelineRowList>
             </TimelineBody>
         </Timeline>
     ));
@@ -1191,7 +1191,7 @@ test("lay a column out beside the labels in the header and every row, the track 
             </TimelineHeader>
             <TimelineBody>
                 <TimelineMarker at={DAY_MS}>Kickoff</TimelineMarker>
-                <TimelineRows>
+                <TimelineRowList>
                     {(node) => (
                         <TimelineRow>
                             <TimelineRowLabel />
@@ -1201,7 +1201,7 @@ test("lay a column out beside the labels in the header and every row, the track 
                             <TimelineBar />
                         </TimelineRow>
                     )}
-                </TimelineRows>
+                </TimelineRowList>
             </TimelineBody>
         </Timeline>
     ));
@@ -1559,7 +1559,7 @@ test("fold every parent and unfold them again, by the tree's verbs and the aster
     const { container } = render(() => (
         <Timeline items={items} timeZone="UTC">
             <TimelineBody>
-                <TimelineRows />
+                <TimelineRowList />
             </TimelineBody>
             <Probe read={(read) => (control = read)} />
         </Timeline>
