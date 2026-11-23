@@ -13,7 +13,7 @@ async function output(terminal: TerminalFixture, words: readonly string[]): Prom
 
 test("set, list and reset a device setting in this computer's local objects", async () => {
     const terminal = await TerminalFixture.open();
-    const link = "destack-local://home--home--acme/home";
+    const link = "destack-local://home--home--example/home";
 
     // set the start link at the client, read it back, then reset it
     const Shown = schema.looseObject({ value: schema.json(), state: schema.string() });
@@ -42,7 +42,7 @@ test("set, list and reset a device setting in this computer's local objects", as
 
 test("show a setting's effective value and where it comes from without --scope, bare for a program", async () => {
     const terminal = await TerminalFixture.open();
-    const link = "destack-local://home--home--acme/home";
+    const link = "destack-local://home--home--example/home";
     await output(terminal, ["setting", "start", "set", link, "--scope", "device"]);
 
     // read the effective value as JSON, on a terminal and through a pipe

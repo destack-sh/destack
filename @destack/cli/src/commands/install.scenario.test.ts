@@ -1,10 +1,10 @@
-import { PUBLISHER } from "@destack/machine/computer/test";
-import { schema, Version } from "@destack/schema";
+import { FIXTURE_RELEASE, PUBLISHER } from "@destack/machine/computer/test";
+import { schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { jsonLines, TerminalFixture, type TerminalInput } from "../test/terminal.ts";
 
-/** The home's world: Acme with its notebooks published. */
-const ACME = { organizations: [PUBLISHER], published: ["notebooks"] };
+/** The home's world: Example with its notebooks published. */
+const EXAMPLE = { organizations: [PUBLISHER], published: ["notebooks"] };
 
 /** A printed installation. */
 const Installed = schema.object({
@@ -46,12 +46,12 @@ function identify(printed: { readonly output: string }) {
 }
 
 test("install a published app, returning once the space serves its revision", async () => {
-    // open the owner's home, the notebooks published by their acme organization
-    const terminal = await TerminalFixture.open({ NO_COLOR: "1" }, [], ACME);
+    // open the owner's home, the notebooks published by their example organization
+    const terminal = await TerminalFixture.open({ NO_COLOR: "1" }, [], EXAMPLE);
     const run = (words: readonly string[]) => terminal.printed(["--space", "home", ...words]);
 
     // install the latest release in the owner's home, which returns once the home serves it
-    const installing = await run(["install", "@acme/notebooks", "--json"]);
+    const installing = await run(["install", "@example/notebooks", "--json"]);
     const lines = jsonLines(installing.output);
     const installed = Installed.parse(lines.at(-1));
     const statuses = Statuses.parse(lines.slice(0, -1));
@@ -79,7 +79,7 @@ test("install a published app, returning once the space serves its revision", as
         ],
         served: served.servedRevisionId,
         installed,
-        version: Version.release(installed.version),
+        version: installed.version,
         watched: [watched.code, jsonLines(watched.output), watched.error],
         calls: calls
             .map((call) => call.data.method)
@@ -99,11 +99,11 @@ test("install a published app, returning once the space serves its revision", as
             id: installed.id,
             tag: "latest",
             name: "notebooks",
-            package: "@acme/notebooks",
+            package: "@example/notebooks",
             version: installed.version,
         },
-        // install the release as the run built it, unreleased
-        version: Version.development,
+        // install the release the run built the fixture at
+        version: FIXTURE_RELEASE,
         watched: [130, [[], [JSON.parse(created.output)]], ""],
         calls: ["notebook.create"],
         // record the creation as one activity on the notebook, with the fields it wrote
@@ -119,15 +119,15 @@ test("install a published app, returning once the space serves its revision", as
 });
 
 test("keep a package's one installation on a second install, and refuse another name for it", async () => {
-    // install acme's published notebooks in the owner's home
-    const terminal = await TerminalFixture.open({ NO_COLOR: "1" }, [], ACME);
+    // install example's published notebooks in the owner's home
+    const terminal = await TerminalFixture.open({ NO_COLOR: "1" }, [], EXAMPLE);
     const run = (words: readonly string[], input: TerminalInput = {}) =>
         terminal.printed(["--space", "home", ...words], input);
-    const first = await run(["install", "@acme/notebooks", "--json"]);
+    const first = await run(["install", "@example/notebooks", "--json"]);
 
     // install them again, under no name and under another
-    const again = await run(["install", "@acme/notebooks", "--json"]);
-    const renamed = await run(["install", "@acme/notebooks", "--name", "journal"]);
+    const again = await run(["install", "@example/notebooks", "--json"]);
+    const renamed = await run(["install", "@example/notebooks", "--name", "journal"]);
     expect({
         installed: [first.code, again.code, identify(again)],
         renamed: [renamed.code, renamed.error],
@@ -141,21 +141,21 @@ test("keep a package's one installation on a second install, and refuse another 
 });
 
 test("uninstall a package's installation once confirmed, and refuse one the space lacks", async () => {
-    // install the acme notebooks in the owner's home
-    const terminal = await TerminalFixture.open({ NO_COLOR: "1" }, [], ACME);
+    // install the example notebooks in the owner's home
+    const terminal = await TerminalFixture.open({ NO_COLOR: "1" }, [], EXAMPLE);
     const run = (words: readonly string[]) => terminal.printed(["--space", "home", ...words]);
     const names = async () =>
         schema
             .array(schema.looseObject({ name: schema.string() }))
             .parse(JSON.parse((await run(["installations", "--json"])).output))
             .map(({ name }) => name);
-    await run(["install", "@acme/notebooks", "--json"]);
+    await run(["install", "@example/notebooks", "--json"]);
     const before = await names();
 
     // refuse its delete and its uninstall unconfirmed, uninstall it once confirmed, then by its name again
     const deleting = await run(["installation", "notebooks", "delete"]);
-    const unconfirmed = await run(["uninstall", "@acme/notebooks"]);
-    const uninstalling = await run(["uninstall", "@acme/notebooks", "--yes"]);
+    const unconfirmed = await run(["uninstall", "@example/notebooks"]);
+    const uninstalling = await run(["uninstall", "@example/notebooks", "--yes"]);
     const after = await names();
     const again = await run(["uninstall", "notebooks", "--yes"]);
     const { home } = terminal.computer.world.owner;

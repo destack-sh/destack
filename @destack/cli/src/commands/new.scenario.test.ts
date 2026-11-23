@@ -5,7 +5,7 @@ import { schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { TerminalFixture } from "../test/terminal.ts";
 
-/** The identifier of Acme's template, which a package made from it replaces. */
+/** The identifier of Example's template, which a package made from it replaces. */
 const STARTER_ID = "package-01996ab0-0000-7000-8000-0000000000d5";
 
 /** What `new --json` prints. */
@@ -16,14 +16,14 @@ const Created = schema.object({
 });
 
 test("make a package from a published template in a new checkout, its registries at the universe", async () => {
-    // open the owner's home, the template published by their acme organization
+    // open the owner's home, the template published by their example organization
     const published = { organizations: [PUBLISHER], published: ["starter"] };
     const terminal = await TerminalFixture.open({ NO_COLOR: "1" }, [], published);
 
     // make a package from the template in a new directory
     const directory = join(terminal.native.home, "notes");
-    const options = ["--template", "@acme/starter", "--json"];
-    const printed = await terminal.printed(["new", "@acme/notes", directory, ...options]);
+    const options = ["--template", "@example/starter", "--json"];
+    const printed = await terminal.printed(["new", "@example/notes", directory, ...options]);
     expect([printed.code, printed.error]).toEqual([0, ""]);
     const created = Created.parse(JSON.parse(printed.output));
 
@@ -46,10 +46,10 @@ test("make a package from a published template in a new checkout, its registries
         bunfig: await read("bunfig.toml"),
     }).toEqual({
         code: [0, ""],
-        name: "@acme/notes",
+        name: "@example/notes",
         entries: [".git", "bunfig.toml", "destack.json", "package.json", "src"],
         manifest: {
-            name: "@acme/notes",
+            name: "@example/notes",
             type: "module",
             exports: { "./package": "./src/package.ts" },
             dependencies: { "@destack/locale": "latest", "@destack/object": "latest" },
@@ -65,7 +65,7 @@ test("make a package from a published template in a new checkout, its registries
             'preload = ["@destack/package/bun/preload"]',
             "",
             "[install.scopes]",
-            `"@acme" = { url = "${universe.origin}/npm/" }`,
+            `"@example" = { url = "${universe.origin}/npm/" }`,
             `"@destack" = { url = "${universe.origin}/npm/" }`,
             "",
         ].join("\n"),

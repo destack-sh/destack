@@ -12,7 +12,7 @@ Sign in, install a package, and work with its objects:
 ```sh
 destack login
 destack switch work
-destack install @acme/notebooks
+destack install @example/notebooks
 destack notebook new --name Plans
 destack notebooks --where 'name = Plans' --watch
 ```
@@ -50,7 +50,7 @@ Each type the space installs adds a plural and a singular, such as `notebooks` a
 Every command takes `--space`, `--json` and `--help`, and a command that cannot be undone takes `--yes`.
 
 ```sh
-destack notebooks --space work--acme        # act in another space
+destack notebooks --space work--example        # act in another space
 destack notebooks --json                    # print JSON, one value a line when following
 destack notebook plans delete --yes         # delete without the question
 ```
@@ -73,10 +73,10 @@ A failed command prints one error and exits with a status.
 `install` follows a tag, or stays on a version, and `uninstall` removes the installation with its resources.
 
 ```sh
-destack install @acme/notebooks                         # follow latest
-destack install @acme/notebooks@next                    # follow next
-destack install @acme/notebooks@2026.10.0 --name notes  # stay on 2026.10.0
-destack uninstall @acme/notebooks
+destack install @example/notebooks                         # follow latest
+destack install @example/notebooks@next                    # follow next
+destack install @example/notebooks@2026.10.0 --name notes  # stay on 2026.10.0
+destack uninstall @example/notebooks
 ```
 
 ### Apply a stack
@@ -94,7 +94,7 @@ destack approve notes --plan 9a2e…
 `new` makes a package from a template, `dev` previews it, `check` and `test` run its pinned toolchain, and `publish` releases it under a tag.
 
 ```sh
-destack new @acme/notebooks
+destack new @example/notebooks
 destack dev ./notebooks
 destack check ./notebooks
 destack test ./notebooks --tier unit
@@ -121,9 +121,9 @@ An event, a question and a hint put one word in a gutter of ten characters, so a
 
 ```console
 $ destack publish
-  Building  package '@acme/notebooks' 3 outputs
- Published  release '@acme/notebooks@2026.11.1'
-      next  destack install @acme/notebooks
+  Building  package '@example/notebooks' 3 outputs
+ Published  release '@example/notebooks@2026.11.1'
+      next  destack install @example/notebooks
 
 $ destack notebook plans delete
          ?  Delete notebook 'plans'? This cannot be undone. yes/no
@@ -179,8 +179,8 @@ A list marks how each row stands with a dot.
 An event names its noun and quotes its name, and its word's tense says how it stands.
 
 ```console
-  Building  package '@acme/notebooks'
- Published  release '@acme/notebooks@2026.11.1'
+  Building  package '@example/notebooks'
+ Published  release '@example/notebooks@2026.11.1'
      error  cannot uninstall 'notebooks': it deletes the installation's resources, so confirm it with --yes
 ```
 

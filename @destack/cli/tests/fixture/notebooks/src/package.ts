@@ -27,7 +27,7 @@ export const notebook = defineObject(
     }),
 );
 
-/** The notebooks Acme publishes. */
+/** The notebooks Example publishes. */
 export default definePackage({
     title: t`Notebooks`,
     description: t`Keep notebooks.`,

@@ -1,13 +1,13 @@
 import { Observation } from "@destack/object";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { type JsonValue, present, schema, Version } from "@destack/schema";
+import { type JsonValue, present, schema } from "@destack/schema";
 import type { Installation } from "@destack/stack/object";
 import { expect, onTestFinished, test } from "@destack/test";
 import { testHost } from "@destack/test/host";
 import { TerminalFixture, type TerminalInput } from "../test/terminal.ts";
 
-/** The checkout Acme publishes the notebooks package from. */
+/** The checkout Example publishes the notebooks package from. */
 const NOTEBOOKS = fileURLToPath(new URL("../../tests/fixture/notebooks/", import.meta.url));
 
 /** The workspace packages the notebooks package requires, which a standalone checkout links. */
@@ -25,7 +25,7 @@ const NEXT_RELEASE = "2026.10.0";
 /** The notebooks package as its checkout declares it. */
 const PACKAGE = {
     id: "package-01996ab0-0000-7000-8000-0000000000d4",
-    name: "@acme/notebooks",
+    name: "@example/notebooks",
     version: "2026.11.0",
 } as const;
 
@@ -104,7 +104,7 @@ async function notebooksCheckout(state: "committed" | "uncommitted"): Promise<st
     await files.writeTextFile(join(directory, "package.json"), JSON.stringify(manifest));
     const lock = {
         lockfileVersion: 2,
-        workspaces: { "": { name: "@acme/workspace" }, notebooks: { name: PACKAGE.name } },
+        workspaces: { "": { name: "@example/workspace" }, notebooks: { name: PACKAGE.name } },
         packages: {},
     };
     await files.writeTextFile(join(root, "bun.lock"), JSON.stringify(lock));
@@ -149,9 +149,9 @@ function isReady(target: Installation): boolean {
 }
 
 test("follow a published release's tag, then pin the installation to the release", async () => {
-    // create the acme organization as the owner
+    // create the example organization as the owner
     const terminal = await TerminalFixture.open({ NO_COLOR: "1" });
-    const words = ["organization", "create", "--name", "Acme", "--handle", "acme"];
+    const words = ["organization", "create", "--name", "Example", "--handle", "example"];
     const organized = await terminal.printed([...words, "--residency-id", "eu"]);
 
     // publish a committed checkout under latest, allowing the stack to publish, then tag its version stable
@@ -198,7 +198,7 @@ test("follow a published release's tag, then pin the installation to the release
     expect({
         organized: [organized.code, organized.error],
         tagged: [tagged.code, tagged.output, tagged.error],
-        version: Version.release(version),
+        version,
         installations: [readiness(converged), readiness(settled)],
         builds,
     }).toEqual({
@@ -221,9 +221,9 @@ test("follow a published release's tag, then pin the installation to the release
 });
 
 test("publish a committed checkout at the registry's next release, whatever its package file says, and refuse uncommitted changes", async () => {
-    // create the acme organization as the owner
+    // create the example organization as the owner
     const terminal = await TerminalFixture.open({ NO_COLOR: "1" });
-    const words = ["organization", "create", "--name", "Acme", "--handle", "acme"];
+    const words = ["organization", "create", "--name", "Example", "--handle", "example"];
     await terminal.printed([...words, "--residency-id", "eu"]);
 
     // publish a committed checkout, allowing the stack to publish with --yes, then one with uncommitted changes

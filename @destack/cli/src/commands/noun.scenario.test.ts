@@ -1,10 +1,10 @@
 import { TerminalSize } from "@destack/environment";
 import { join } from "node:path";
-import { card } from "@destack/machine-board-fixture/object";
+import { card } from "@example/board/object";
 import { schema } from "@destack/schema";
 import { expect, onTestFinished, single, test } from "@destack/test";
 import { testHost } from "@destack/test/host";
-import { type TestInstall, WORK_BOARD } from "@destack/machine/computer/test";
+import { PUBLISHER, type TestInstall, WORK_BOARD } from "@destack/machine/computer/test";
 import { jsonLines, TerminalFixture } from "../test/terminal.ts";
 
 /** A bucket identifier for reading its verbs' help. */
@@ -161,8 +161,13 @@ test("list a type's objects by its plural, restricted by field flags, a filter, 
 });
 
 test("offer every object type an installation lists as a noun, and refuse a word two installations serve", async () => {
+    // open the work board with mention published by example
+    const terminal = await TerminalFixture.open({ NO_COLOR: "1" }, WORK_BOARD, {
+        organizations: [PUBLISHER],
+        published: ["mention"],
+    });
+
     // list the work cards and the archive's cards before the archive's install
-    const terminal = await open(WORK_BOARD);
     const listed = async (words: string[]) => {
         const { code, output, error } = await line(terminal, words);
 
@@ -171,7 +176,6 @@ test("offer every object type an installation lists as a noun, and refuse a word
     const before = [await listed(["cards", "--json"]), await listed(["archive:cards", "--json"])];
 
     // install as the archive another package declaring cards
-    await terminal.publish("mention");
     await terminal.install("mention", "archive");
 
     // refuse the bare nouns, and list a qualified one
@@ -258,7 +262,7 @@ test("print help for a command line without words as destack help does, and a no
         root: await line(terminal, ["help"]),
         // list the verbs by journey, a line each, then the stores' nouns wrapped under one word
         journeys: [
-            "Destack 9999.12.0: destack <nouns> to list, destack <noun> <id> [method] to get and call",
+            "Destack dev: destack <nouns> to list, destack <noun> <id> [method] to get and call",
             "",
             "Usage: destack <command>",
             "",

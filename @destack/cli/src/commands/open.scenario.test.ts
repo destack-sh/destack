@@ -1,5 +1,5 @@
 import { window } from "@destack/desktop/object";
-import { card } from "@destack/machine-board-fixture/object";
+import { card } from "@example/board/object";
 import { DesktopLock } from "@destack/desktop/workload";
 import { schema } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
@@ -16,7 +16,7 @@ async function output(terminal: TerminalFixture, words: readonly string[]): Prom
 test("open a link as a window of the running desktop", async () => {
     const terminal = await TerminalFixture.open({ DESTACK_PROFILE: "local" });
     const { native } = terminal;
-    const link = "destack-local://home--home--acme/home/inbox";
+    const link = "destack-local://home--home--example/home/inbox";
 
     // open the link while a desktop runs
     await using desktop = await new DesktopLock(

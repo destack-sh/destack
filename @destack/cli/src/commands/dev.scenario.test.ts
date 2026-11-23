@@ -38,7 +38,7 @@ export const language = defineSetting({
 /** The notebooks package as a build of its checkout that leads to no release has it. */
 const PACKAGE = {
     id: "package-01996ab0-0000-7000-8000-0000000000d4",
-    name: "@acme/notebooks",
+    name: "@example/notebooks",
     version: Version.development,
 } as const;
 
@@ -98,12 +98,12 @@ test("build a checkout's package in the space through each phase, and start a pr
 });
 
 test("have a preview take over the package's installation, and an install take it back", async () => {
-    // install acme's published notebooks in the owner's home
+    // install example's published notebooks in the owner's home
     const published = { organizations: [PUBLISHER], published: ["notebooks"] };
     const terminal = await TerminalFixture.open({ NO_COLOR: "1" }, [], published);
     const run = (words: readonly string[], stdin?: string) =>
         terminal.printed(["--space", "home", ...words], stdin === undefined ? {} : { stdin });
-    const installed = await run(["install", "@acme/notebooks", "--json"]);
+    const installed = await run(["install", "@example/notebooks", "--json"]);
 
     // preview the checkout, then install the release again, reading what the installation follows
     const follows = async () => {
@@ -125,7 +125,7 @@ test("have a preview take over the package's installation, and an install take i
     const released = await follows();
     const previewed = await run(["dev", NOTEBOOKS, "--json"]);
     const previewing = await follows();
-    const reinstalled = await run(["install", "@acme/notebooks", "--json"]);
+    const reinstalled = await run(["install", "@example/notebooks", "--json"]);
     expect({
         codes: [installed.code, previewed.code, previewed.error, reinstalled.code],
         follows: [released, previewing, await follows()],
@@ -168,7 +168,7 @@ test("refuse a preview whose setting takes fewer values without a conversion, wi
     const second = await terminal.printed(["--space", "home", "dev", directory]);
 
     // refuse the second preview with the setting's problem, which the machine captured, at the checkout's dev build version
-    const version = Version.dev(Version.development);
+    const version = Version.development;
     const problem = `cannot upgrade installation 'notebooks' to '${version}': setting/language: declare a conversion for ${version}`;
     const captured = terminal.computer.world.telemetry.take().map((exception) => exception.message);
     expect({
