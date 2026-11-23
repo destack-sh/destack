@@ -23,16 +23,16 @@ export const Tag = schema.object({
     tag: schema.string().min(1),
 });
 
-/** A published release an installation follows: by version, or by a tag. */
-export const ReleaseSelection = schema.discriminatedUnion("kind", [Release, Tag]);
-/** A published release an installation follows. */
-export type ReleaseSelection = schema.Infer<typeof ReleaseSelection>;
-
 /** The release its host provides, which moves as the host upgrades. */
 export const Host = schema.object({
     /** Follow the release the host provides. */
     kind: schema.literal("host"),
 });
+
+/** A release an installation follows: by version, by a tag, or as its host provides it. */
+export const ReleaseSelection = schema.discriminatedUnion("kind", [Release, Tag, Host]);
+/** A release an installation follows. */
+export type ReleaseSelection = schema.Infer<typeof ReleaseSelection>;
 
 /** The schema of what an installation follows. */
 const selections = schema.discriminatedUnion("kind", [
