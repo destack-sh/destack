@@ -60,7 +60,7 @@ const styles = style.create({
         marginInline: "auto",
         flexShrink: 0,
         borderRadius: radius.full,
-        backgroundColor: color.muted,
+        backgroundColor: color.border,
     },
     snapping: {
         maxHeight: "none",
