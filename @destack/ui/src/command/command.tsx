@@ -128,6 +128,8 @@ const styles = style.create({
         color: color.mutedForeground,
     },
     description: {
+        // shrink before the option's name wraps
+        flexShrink: 9999,
         overflow: "hidden",
         color: color.mutedForeground,
         whiteSpace: "nowrap",
@@ -180,6 +182,7 @@ const styles = style.create({
         marginInlineEnd: "auto",
     },
     detail: {
+        display: { default: null, [media.maxMd]: "none" },
         flex: "0 0 40%",
         minWidth: 0,
         overflowY: "auto",
@@ -240,7 +243,6 @@ const dialogStyles = style.create({
         paddingInline: DIALOG_INSET,
     },
     detail: {
-        display: { default: null, [media.maxMd]: "none" },
         paddingInline: DIALOG_INSET,
     },
 });
