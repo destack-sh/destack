@@ -117,13 +117,15 @@ const definition = schema.object({
     test: TestSettings.exactOptional(),
     /** The settings of the workspace this package's directory roots. */
     workspace: WorkspaceSettings.exactOptional(),
-    /** Runtime overrides keyed by the names in package.json exports. */
+    /** Settings of the exports keyed by the names in package.json exports. */
     exports: schema
         .record(
             schema.string(),
             schema.object({
                 /** The runtimes this export compiles for, replacing the package's. */
-                runtimes: schema.array(Runtime).min(1),
+                runtimes: schema.array(Runtime).min(1).exactOptional(),
+                /** Whether only builtins import the export, as Go's internal packages. */
+                internal: schema.boolean().exactOptional(),
             }),
         )
         .exactOptional(),
@@ -315,7 +317,7 @@ function requireRuntimes(value: PackageDefinition): PackageDefinition {
     // run workloads in a Bun process only from a package compiling for Bun
     const runtimes = [
         ...(value.runtimes ?? []),
-        ...Object.values(value.exports ?? {}).flatMap((entry) => entry.runtimes),
+        ...Object.values(value.exports ?? {}).flatMap((entry) => entry.runtimes ?? []),
     ];
     if (value.sandbox?.process !== undefined && !runtimes.includes("bun")) {
         throw PackageError.of(
