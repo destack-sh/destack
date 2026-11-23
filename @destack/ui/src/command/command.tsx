@@ -168,10 +168,6 @@ const styles = style.create({
         columnGap: space[4],
         rowGap: space[2],
         marginBlock: space[4],
-        paddingBlockStart: space[4],
-        borderTopStyle: "solid",
-        borderTopWidth: stroke.border,
-        borderTopColor: color.border,
     },
     label: {
         color: color.mutedForeground,
@@ -186,13 +182,10 @@ const styles = style.create({
         flex: "0 0 40%",
         minWidth: 0,
         overflowY: "auto",
-        marginBlock: space[1],
-        marginInlineEnd: space[1],
         padding: space[4],
-        borderWidth: stroke.border,
-        borderStyle: "solid",
-        borderColor: color.border,
-        borderRadius: radius[2],
+        borderInlineStartStyle: "solid",
+        borderInlineStartWidth: stroke.border,
+        borderInlineStartColor: color.border,
     },
     page: {
         flexShrink: 0,
@@ -213,7 +206,6 @@ const dialogStyles = style.create({
         gap: space[3],
         height: size[4],
         paddingInline: DIALOG_INSET,
-        borderBottomStyle: "none",
     },
     input: {
         fontSize: DIALOG_INPUT_SIZE,
@@ -248,9 +240,7 @@ const dialogStyles = style.create({
     },
     detail: {
         display: { default: null, [media.maxMd]: "none" },
-        marginBlock: `0 ${space[2]}`,
-        marginInlineEnd: space[2],
-        borderRadius: radius[3],
+        paddingInline: DIALOG_INSET,
     },
 });
 
