@@ -73,9 +73,6 @@ const FLUID_WINDOWS = { min: 360, max: 1280 } as const;
 /** The chart series a theme has, the accent first. */
 const SERIES_COUNT = 5;
 
-/** The opacity of a line drawn in the text color, a hairline on any ground. */
-const LINE_ALPHA = 0.18;
-
 /** The appearances a theme's contrast is checked under. */
 const SCHEMES = ["light", "dark"] as const satisfies readonly ColorScheme[];
 
@@ -582,7 +579,6 @@ function groundOf(
         background: { light: light.background, dark: dark.background },
         foreground: { light: light.foreground, dark: dark.foreground },
         muted: { light: light.muted, dark: dark.muted },
-        border: { from: "foreground", lightness: { light: 0, dark: 0 }, alpha: LINE_ALPHA },
     };
 }
 

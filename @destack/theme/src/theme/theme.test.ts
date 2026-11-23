@@ -1,6 +1,6 @@
 import { PackageVersion } from "@destack/package";
 import { expect, refusal, test } from "@destack/test";
-import { defineTheme } from "../declare/index.ts";
+import { defineTheme, THEMES } from "../declare/index.ts";
 import { Oklch, Srgb } from "../palette/index.ts";
 import { DEFAULT_HUES, HUES } from "@destack/color";
 import {
@@ -208,6 +208,55 @@ test("keep a legible hue's seed and label it with the darkest text that reads be
     expect([resolution.color("solid"), resolution.color("label")]).toEqual([
         DEFAULT_HUES.yellow,
         standard.resolve("light", 0).color("foreground"),
+    ]);
+});
+
+test("draw control lines on every surface of a theme, with a ground of its own and without", () => {
+    // blend each theme's control line into each surface, whose lightness it has to leave
+    const bare = defineTheme({ name: "bare" }, { package: notes });
+    const faint = [bare, ...THEMES].flatMap((theme) =>
+        (["light", "dark"] as const).flatMap((scheme) =>
+            (["background", "card", "popover"] as const).flatMap((surface) => {
+                const resolution = theme.resolve(scheme, 0);
+                const ground = resolution.color(surface);
+                const blended = Srgb.composite(resolution.color("input"), ground);
+                const step = Math.abs(
+                    Oklch.parse(blended).lightness - Oklch.parse(ground).lightness,
+                );
+
+                return step < 0.08 ? [`${theme.name} ${scheme} ${surface} ${step.toFixed(3)}`] : [];
+            }),
+        ),
+    );
+
+    expect(faint).toEqual([]);
+});
+
+test("take a role's opacity in each appearance, or one for both", () => {
+    // replace two roles, one at an opacity per appearance
+    const from = { from: "foreground", lightness: { light: 0, dark: 0 } } as const;
+    const theme = defineTheme(
+        {
+            name: "lined",
+            ground: {
+                light: { background: "#ffffff", foreground: "#000000", muted: "#eeeeee" },
+                dark: { background: "#000000", foreground: "#ffffff", muted: "#222222" },
+            },
+            roles: {
+                border: { ...from, alpha: 0.4 },
+                input: { ...from, alpha: { light: 0.4, dark: 0.6 } },
+            },
+        },
+        { package: notes },
+    );
+    const colors = (["light", "dark"] as const).map((scheme) => [
+        theme.resolve(scheme, 0).color("border"),
+        theme.resolve(scheme, 0).color("input"),
+    ]);
+
+    expect(colors).toEqual([
+        ["#00000066", "#00000066"],
+        ["#ffffff66", "#ffffff99"],
     ]);
 });
 
@@ -489,9 +538,9 @@ test("emit the default theme's custom properties for the system appearance", () 
         "--destack-color-hover": "light-dark(#1f1f220a, #ededf20a)",
         "--destack-color-selected": "light-dark(#1f1f220f, #ededf20f)",
         "--destack-color-border":
-            "light-dark(color-mix(in oklab, #d8d9e0, #c3c4cd calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #393a3f, #757781 calc(var(--destack-contrast, 0) * 100%)))",
+            "light-dark(color-mix(in oklab, #1f1f222e, #1f1f2241 calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #ededf22e, #ededf276 calc(var(--destack-contrast, 0) * 100%)))",
         "--destack-color-input":
-            "light-dark(color-mix(in oklab, #ccced5, #c3c4cd calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #46474e, #757781 calc(var(--destack-contrast, 0) * 100%)))",
+            "light-dark(color-mix(in oklab, #1f1f2233, #1f1f2241 calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #ededf240, #ededf276 calc(var(--destack-contrast, 0) * 100%)))",
         "--destack-color-ring":
             "light-dark(color-mix(in oklab, #83a6ff, #5f85f3 calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #6b92fa, #91b1ff calc(var(--destack-contrast, 0) * 100%)))",
         "--destack-color-scrim": "light-dark(#1f1f2259, #00000059)",

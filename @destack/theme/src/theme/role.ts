@@ -79,6 +79,12 @@ const HOVER_ALPHA = 0.04;
 /** The opacity of the text color over a selected item, after Material's state layers. */
 const SELECTED_ALPHA = 0.06;
 
+/** The opacity of the text color in hairlines. */
+const LINE_ALPHA = 0.18;
+
+/** The opacity of the text color in the lines of controls, as the seventh steps of Radix Colors. */
+const INPUT_ALPHA = { light: 0.2, dark: 0.25 } as const;
+
 /** The opacity of the scrim behind modal surfaces, light enough to read the page behind. */
 const SCRIM_ALPHA = 0.35;
 
@@ -152,7 +158,7 @@ export type RoleSource =
           /** The lightness offset. */
           readonly lightness: Lightness;
           /** The opacity from 0 to 1, opaque when absent. */
-          readonly alpha?: number;
+          readonly alpha?: Alpha;
       }
     | {
           /** A palette's tone, moved away from the role it reads on until it reads. */
@@ -166,7 +172,7 @@ export type RoleSource =
           /** The least lightness, none when absent. */
           readonly least?: number;
           /** The opacity from 0 to 1, opaque when absent. */
-          readonly alpha?: number;
+          readonly alpha?: Alpha;
       }
     | {
           /** A palette's seed, shifted by the least lightness that lets it and its label read. */
@@ -186,7 +192,7 @@ export type RoleSource =
           /** The dark appearance's six-digit sRGB hex color. */
           readonly dark: string;
           /** The opacity from 0 to 1, opaque when absent. */
-          readonly alpha?: number;
+          readonly alpha?: Alpha;
       };
 
 /** A color role name. */
@@ -203,7 +209,12 @@ const LightnessPair = schema.object({
 });
 
 /** An opacity from 0 to 1. */
-const Alpha = schema.number().min(0).max(1);
+const Opacity = schema.number().min(0).max(1);
+
+/** An opacity from 0 to 1, one for both appearances or one in each. */
+const Alpha = schema.union([Opacity, schema.object({ light: Opacity, dark: Opacity })]);
+/** An opacity, one for both appearances or one in each. */
+export type Alpha = schema.Infer<typeof Alpha>;
 
 /** A theme's replacement for one role, in the sources the built-in roles use. */
 export const RoleOverride = schema.union([
@@ -431,25 +442,27 @@ export class Resolution {
     }
 
     /** Apply an opacity to a color. */
-    #translucent(color: string, alpha: number | undefined, role: Role): string {
+    #translucent(color: string, alpha: Alpha | undefined, role: Role): string {
         // return an opaque color, and a translucent one reading on nothing, as they are
         const reading = role.reading;
         if (alpha === undefined) {
             return color;
-        } else if (reading === undefined) {
-            return Srgb.translucent(color, alpha);
+        }
+        const opacity = typeof alpha === "number" ? alpha : alpha[this.scheme];
+        if (reading === undefined) {
+            return Srgb.translucent(color, opacity);
         }
 
         // find the least opacity at or above the declared one whose blend reads at the floor on every ground
         const grounds = reading.on.map((on) => this.color(on));
         const floor = this.floor(reading.contrast);
-        const reads = (opacity: number) =>
+        const reads = (candidate: number) =>
             grounds.every((ground) => {
-                const blended = Srgb.composite(Srgb.translucent(color, opacity), ground);
+                const blended = Srgb.composite(Srgb.translucent(color, candidate), ground);
 
                 return Math.abs(Srgb.parse(blended).contrast(Srgb.parse(ground), "apca")) >= floor;
             });
-        let low = alpha;
+        let low = opacity;
         let high = 1;
         if (reads(low) || !reads(high)) {
             return Srgb.translucent(color, reads(low) ? low : high);
@@ -523,8 +536,8 @@ export const COLOR_ROLES: Roles = {
     selected: shift("foreground", SAME, SELECTED_ALPHA),
 
     // lines
-    border: readable("base", { light: 0.886, dark: 0.348 }, ["background"], LINE_CONTRAST),
-    input: readable("base", { light: 0.852, dark: 0.4 }, ["background"], LINE_CONTRAST),
+    border: line(LINE_ALPHA),
+    input: line(INPUT_ALPHA),
     ring: readable("hue", { light: 0.736, dark: 0.532 }, ["background"], GRAPHIC_CONTRAST),
 
     // overlays
@@ -540,7 +553,7 @@ export const COLOR_ROLES: Roles = {
 };
 
 /** A role moving another role's color in lightness, at an opacity when given. */
-function shift(from: RoleName, lightness: Lightness, alpha?: number): Role {
+function shift(from: RoleName, lightness: Lightness, alpha?: Alpha): Role {
     return new Role(
         alpha === undefined
             ? { kind: "shift", from, lightness }
@@ -548,11 +561,19 @@ function shift(from: RoleName, lightness: Lightness, alpha?: number): Role {
     );
 }
 
+/** A line in the text color at an opacity, which shows on every surface. */
+function line(alpha: Alpha): Role {
+    return new Role(
+        { kind: "shift", from: "foreground", lightness: SAME, alpha },
+        { on: SURFACES, contrast: LINE_CONTRAST },
+    );
+}
+
 /** A role reading a palette's tone at a lightness. */
 function tone(
     palette: PaletteName,
     lightness: Lightness,
-    placement: { from?: RoleName; least?: number; alpha?: number } = {},
+    placement: { from?: RoleName; least?: number; alpha?: Alpha } = {},
 ): Role {
     return new Role({ kind: "tone", palette, lightness, ...placement });
 }
