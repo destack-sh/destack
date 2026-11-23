@@ -40,7 +40,7 @@ test("read runtime overrides of a package's exports, and refuse one of an export
     expect(await refusal(readPackageJson(gone, files))).toEqual([
         "BAD_REQUEST",
         "DEFINITION_INVALID",
-        "runtime override './gone' is invalid: destack.json overrides an export missing from package.json",
+        "export settings './gone' are invalid: destack.json sets an export missing from package.json",
     ]);
     expect(read.definition.exports).toEqual({ "./server": { runtimes: ["workerd"] } });
 });

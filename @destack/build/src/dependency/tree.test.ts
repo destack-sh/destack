@@ -14,6 +14,16 @@ const CONTEXT = Digest.parse("802596258260ddeb8be4565d4ec5b9afd34a32b950022f39c6
 /** The default export of a module. */
 const DefaultExport = schema.looseObject({ default: schema.unknown() });
 
+/** Encode a value as a JSON file's bytes. */
+function encode(value: unknown): Uint8Array {
+    return new TextEncoder().encode(JSON.stringify(value));
+}
+
+/** Settle a tree's check of a specifier as done or refused. */
+function attempt(tree: BuildTree, specifier: string) {
+    return refusal(() => tree.refuseInternal(specifier));
+}
+
 /** The scope of a compile's tree. */
 const COMPILE = { kind: "compile" } as const;
 
@@ -166,7 +176,6 @@ test("refuse an import of an internal export from outside its workspace, and all
     await using simulation = testSimulation();
     const { files } = simulation.environment("test");
     const directory = await files.makeTemporaryDirectory("tree-");
-    const encode = (value: unknown) => new TextEncoder().encode(JSON.stringify(value));
     await files.writeFile(
         join(directory, "package.json"),
         encode({
@@ -189,9 +198,6 @@ test("refuse an import of an internal export from outside its workspace, and all
     const directories = { "@example/store": directory };
     const outside = await BuildTree.read(directories, files);
     const within = await BuildTree.read(directories, files, ["@example/store"]);
-    const attempt = (tree: BuildTree, specifier: string) =>
-        refusal(() => tree.refuseInternal(specifier));
-
     // refuse the internal export from outside alone
     expect({
         public: await attempt(outside, "@example/store"),
