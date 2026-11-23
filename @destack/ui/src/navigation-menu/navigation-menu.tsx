@@ -77,7 +77,7 @@ const styles = style.create({
         justifyContent: "center",
         gap: space[1],
         height: size[2],
-        paddingInline: space[4],
+        paddingInline: space[3],
         borderRadius: radius[3],
         backgroundColor: {
             default: color.background,

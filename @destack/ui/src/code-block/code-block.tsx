@@ -1,7 +1,7 @@
 import { state } from "@destack/theme/state";
 import * as style from "@destack/style";
 import { text } from "@destack/theme/text";
-import { color, font, radius, space, stroke } from "@destack/theme/tokens.stylex";
+import { color, font, radius, size, space, stroke } from "@destack/theme/tokens.stylex";
 import { createContext, type JSX, omit, useContext } from "@destack/view";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
 
@@ -23,7 +23,7 @@ const styles = style.create({
         alignItems: "center",
         justifyContent: "space-between",
         gap: space[2],
-        minHeight: space[8],
+        minHeight: size[3],
         paddingInlineStart: space[3],
         paddingInlineEnd: space[1],
         borderBottomWidth: stroke.border,

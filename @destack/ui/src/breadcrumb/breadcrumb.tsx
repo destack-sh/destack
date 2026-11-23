@@ -5,7 +5,7 @@ import caretRight from "@destack/icon/phosphor/caret-right";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
-import { color, motion, space } from "@destack/theme/tokens.stylex";
+import { color, motion, size, space } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import { type JSX, merge, omit, Show, useLocale } from "@destack/view";
 import { type PartAttributes, type Render, useRender, renderPart } from "../part/index.ts";
@@ -38,8 +38,8 @@ const styles = style.create({
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
-        width: space[5],
-        height: space[5],
+        width: size[1],
+        height: size[1],
     },
 });
 

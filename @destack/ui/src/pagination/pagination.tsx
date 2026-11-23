@@ -3,7 +3,7 @@ import caretLeft from "@destack/icon/phosphor/caret-left";
 import caretRight from "@destack/icon/phosphor/caret-right";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
-import { space } from "@destack/theme/tokens.stylex";
+import { size, space } from "@destack/theme/tokens.stylex";
 import { createControllableSignal, For, type JSX, merge, omit, useLocale } from "@destack/view";
 import {
     type ElementPartProperties,
@@ -34,8 +34,8 @@ const styles = style.create({
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
-        width: space[6],
-        height: space[6],
+        width: size[2],
+        height: size[2],
     },
 });
 

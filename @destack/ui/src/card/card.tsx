@@ -33,8 +33,7 @@ const styles = style.create({
     },
     title: {
         gridColumnStart: 1,
-        fontWeight: weight.semibold,
-        lineHeight: 1,
+        fontWeight: weight.medium,
     },
     description: {
         gridColumnStart: 1,

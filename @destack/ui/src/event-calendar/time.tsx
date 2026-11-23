@@ -124,7 +124,7 @@ const styles = style.create({
         minWidth: size[2],
         borderRadius: radius.full,
         color: color.foreground,
-        fontWeight: weight.semibold,
+        fontWeight: weight.medium,
     },
     allDay: {
         gridAutoRows: `minmax(${ALL_DAY_ROW}, auto)`,

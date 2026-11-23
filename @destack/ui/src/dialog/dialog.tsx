@@ -64,8 +64,7 @@ const styles = style.create({
         gap: space[2],
     },
     title: {
-        fontWeight: weight.semibold,
-        lineHeight: 1,
+        fontWeight: weight.medium,
     },
     description: {
         color: color.mutedForeground,

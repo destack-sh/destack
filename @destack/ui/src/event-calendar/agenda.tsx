@@ -41,7 +41,7 @@ const styles = style.create({
     },
     date: {
         margin: 0,
-        fontWeight: weight.semibold,
+        fontWeight: weight.medium,
     },
     today: {
         color: swatch.accentText,

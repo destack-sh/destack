@@ -48,7 +48,7 @@ const styles = style.create({
         marginBlockEnd: space[1],
         paddingInline: space[1],
         textAlign: "start",
-        fontWeight: weight.semibold,
+        fontWeight: weight.medium,
         color: color.foreground,
     },
     weekday: {

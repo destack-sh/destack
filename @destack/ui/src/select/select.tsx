@@ -13,7 +13,7 @@ import {
 import { useFieldControl } from "../field/control.ts";
 import { inputStyle } from "../input/index.ts";
 import { useJoin } from "../join/index.ts";
-import { type ElementPartProperties, renderPart } from "../part/index.ts";
+import { type ElementPartProperties, mergeProperties, renderPart } from "../part/index.ts";
 
 /** The styles of a select, its picker and its options. */
 const styles = style.create({
@@ -37,7 +37,8 @@ const styles = style.create({
         alignItems: "center",
         justifyContent: "space-between",
         gap: space[2],
-        paddingBlock: space[2],
+        minHeight: size[2],
+        paddingBlock: space[1],
         paddingInline: space[2],
         borderRadius: radius[2],
         backgroundColor: {
@@ -116,10 +117,14 @@ export function Select(properties: SelectProperties): JSX.Element {
             data-slot="select"
             multiple={properties.multiple}
             {...field?.attributes()}
-            {...rest}
-            ref={(created) => {
-                element = created;
-            }}
+            {...mergeProperties(
+                {
+                    ref: (created: HTMLSelectElement) => {
+                        element = created;
+                    },
+                },
+                rest,
+            )}
             onChange={(event) => {
                 // record the person's choice and show the owner's until the owner takes it
                 const select = event.currentTarget;

@@ -49,7 +49,7 @@ const styles = style.create({
         outlineStyle: "none",
     },
     segment: {
-        paddingInline: "1px",
+        paddingInline: `calc(${space[1]} / 4)`,
         borderRadius: radius[1],
         caretColor: "transparent",
         outlineStyle: "none",
@@ -60,7 +60,7 @@ const styles = style.create({
         color: color.mutedForeground,
     },
     literal: {
-        paddingInline: "1px",
+        paddingInline: `calc(${space[1]} / 4)`,
         color: color.mutedForeground,
     },
 });

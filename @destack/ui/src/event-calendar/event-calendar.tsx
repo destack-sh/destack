@@ -59,7 +59,7 @@ const styles = style.create({
         flexGrow: 1,
         margin: 0,
         marginInlineStart: space[3],
-        fontWeight: weight.semibold,
+        fontWeight: weight.medium,
     },
 });
 
