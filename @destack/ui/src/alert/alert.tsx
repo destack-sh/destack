@@ -20,6 +20,9 @@ const DESCRIBED = ":is([data-slot=alert]:has(> [data-slot=alert-description]) > 
 /** The selector of an alert's element when the alert leads with an icon, which the text clears. */
 const WITH_ICON = ":is([data-slot=alert]:has(> svg) > *)";
 
+/** The selector of an alert's element when the alert has a title, which the description follows. */
+const TITLED = ":is([data-slot=alert]:has(> [data-slot=alert-title]) > *)";
+
 /** The variant of an alert that sets none. */
 const DEFAULTS: Required<Pick<AlertProperties, "variant">> = { variant: "default" };
 
@@ -32,8 +35,9 @@ const styles = style.create({
         containIntrinsicInlineSize: `auto ${INTRINSIC_WIDTH}`,
         display: "grid",
         gridTemplateColumns: { default: "0 1fr auto auto", ":has(> svg)": "auto 1fr auto auto" },
-        alignItems: "start",
-        rowGap: space[1],
+        // center a leading icon on the first line of the text
+        gridTemplateRows: "1lh auto",
+        alignItems: "center",
         width: "100%",
         paddingInline: space[4],
         paddingBlock: space[3],
@@ -52,6 +56,8 @@ const styles = style.create({
     },
     description: {
         gridColumnStart: 2,
+        gridRow: { default: "1 / span 2", [TITLED]: "2" },
+        marginBlockStart: { default: 0, [TITLED]: space[1] },
         paddingInlineStart: { default: 0, [WITH_ICON]: space[3] },
         display: "grid",
         justifyItems: "start",
@@ -79,6 +85,7 @@ const styles = style.create({
     close: {
         gridColumnStart: 4,
         gridRow: { default: "1", [DESCRIBED]: "1 / span 2" },
+        alignSelf: "start",
         marginBlock: `calc(-1 * ${space[1]})`,
         marginInlineStart: space[2],
         marginInlineEnd: `calc(-1 * ${space[2]})`,
