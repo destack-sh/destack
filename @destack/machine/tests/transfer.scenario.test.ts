@@ -273,6 +273,22 @@ test("move a space and back, each source destroying its copy", async () => {
     });
 });
 
+test("release a moved space's sockets on its source, so a closing client reaches nothing it left", async () => {
+    // connect the source machine to the space's stack over a socket it accepts
+    const { source, target, targetId } = await openMove();
+    await source.serve();
+    const connection = await source.machine.connection(stackPackage, ids.space);
+    await connection.list(object.installation, {});
+
+    // move the space to the target, then close the source's socket to it
+    await moveSpace(source, target, targetId);
+    connection.close();
+    await source.simulation.idle();
+
+    // refuse nothing at the close, as the move released the socket on the source
+    expect(source.takeRefusals()).toEqual([]);
+});
+
 test("refuse a transfer without step-up or to a foreign machine", async () => {
     // replicate one machine of another account next to the fixture's cloud machine
     const fixture = await TestSpace.open();

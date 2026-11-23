@@ -920,8 +920,7 @@ export class Space {
                     );
                 }
 
-                // release the store's sockets and stop its instance
-                this.machine.hibernation?.release(this.id);
+                // stop the instance, which closes each start's connections
                 await this.#instance?.close();
 
                 // destroy each resource this machine provisioned apart from the main database
@@ -2891,6 +2890,10 @@ export class Space {
         const role = await this.role();
         const serving = this.#start;
         if (serving !== undefined && role !== serving.role) {
+            // release the space's sockets once it stops serving here as primary, its clients resuming at its primary
+            if (serving.role === "primary") {
+                this.machine.hibernation?.release(this.id);
+            }
             await serving.context.reload();
         }
 
