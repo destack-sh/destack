@@ -7,7 +7,29 @@
     "entrypoints": ["src/test/command.ts"],
     "exports": {
         "./release": {
-            "runtimes": ["browser", "bun", "workerd"]
+            "runtimes": ["browser", "bun", "workerd"],
+            "internal": true
+        },
+        ".": {
+            "internal": true
+        },
+        "./apple": {
+            "internal": true
+        },
+        "./error": {
+            "internal": true
+        },
+        "./object": {
+            "internal": true
+        },
+        "./publish": {
+            "internal": true
+        },
+        "./server": {
+            "internal": true
+        },
+        "./package": {
+            "internal": true
         }
     }
 }
