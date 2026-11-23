@@ -69,6 +69,8 @@ export interface TemplateWorld {
 export interface TemplateBuild<Databases extends TemplateDatabases = TemplateDatabases> {
     /** The template's databases, a parent's with its rows. */
     readonly databases: TemplateStorage<Databases>;
+    /** The variables of the run building it, such as the images its world reads. */
+    readonly variables: Readonly<Record<string, string>>;
     /** The directory for the files the build writes, a parent's with its files. */
     readonly directory: string;
     /** The world the build runs in, a parent's forked at its end. */

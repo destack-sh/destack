@@ -59,6 +59,8 @@ export const RunRecord = schema.object({
     deadline: schema.number(),
     /** When the run opened, in UTC epoch milliseconds, which marks the builds that failed in it. */
     openedAt: schema.number(),
+    /** The variables the images depend on beside the sources, which template builds read. */
+    variables: schema.record(schema.string(), schema.string()),
 });
 /** Where a run keeps its images and what they are of. */
 export type RunRecord = schema.Infer<typeof RunRecord>;
@@ -135,6 +137,7 @@ export const TestRun = {
                 dialect,
                 deadline,
                 openedAt: HOST.clock.now(),
+                variables,
             },
             release,
         };

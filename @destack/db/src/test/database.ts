@@ -6,6 +6,7 @@ import { Simulation } from "@destack/environment/simulation";
 import type { DatabaseConnection, DatabaseEnvironment } from "../database/connection.ts";
 import type { Model } from "../query/model.ts";
 import { Dialect } from "../dialect/dialect.ts";
+import type { RunRecord } from "./run.ts";
 import type { Table } from "../table/table.ts";
 import type * as declaration from "../declare/database.ts";
 import {
@@ -255,7 +256,7 @@ export class TestDatabase<
     static async build<Value extends JsonValue, Databases extends TemplateDatabases>(
         template: TestTemplate<Value, Databases>,
         dialect: Dialect,
-        run: { readonly id: string; readonly directory: string },
+        run: Pick<RunRecord, "id" | "directory" | "variables">,
         parent: ImageRecord | undefined,
         signal: AbortSignal,
     ): Promise<ImageRecord> {
@@ -341,6 +342,7 @@ export class TestDatabase<
             });
             const building = template.build({
                 databases,
+                variables: run.variables,
                 directory: files,
                 simulation,
                 open,
@@ -398,7 +400,7 @@ export class TestDatabase<
         tables: TemplateDatabase,
         dialect: Dialect,
         key: string,
-        run: { readonly id: string; readonly directory: string },
+        run: Pick<RunRecord, "id" | "directory" | "variables">,
         environment: DatabaseEnvironment,
         from?: ImageSource,
     ): Promise<ImageDatabase> {
