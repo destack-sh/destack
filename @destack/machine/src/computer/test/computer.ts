@@ -320,11 +320,13 @@ export class TestComputer implements AsyncDisposable {
             databases: { universe: Universe.database },
             value: UniverseTemplate,
             world: { seed: SEED, start: START },
-            build: async ({ databases, simulation }) => {
+            build: async ({ databases, simulation, variables }) => {
                 // start the universe over the template's database
                 await using lifetime = new AsyncDisposableStack();
                 const distribution = await TestDistribution.build(
                     simulation.environment(FILES_NODE),
+                    [],
+                    variables,
                 );
                 const world = await TestComputer.#start(
                     distribution,
@@ -605,7 +607,7 @@ export class TestComputer implements AsyncDisposable {
             databases: { universe: Universe.database },
             value: HomeWorld,
             world: { seed: SEED, start: START },
-            build: async ({ databases, directory, simulation }) => {
+            build: async ({ databases, directory, simulation, variables }) => {
                 // start the world over the template's database, closed once built
                 await using lifetime = new AsyncDisposableStack();
                 const defer: Defer = (cleanup) => {
@@ -613,6 +615,8 @@ export class TestComputer implements AsyncDisposable {
                 };
                 const distribution = await TestDistribution.build(
                     simulation.environment(FILES_NODE),
+                    [],
+                    variables,
                 );
                 const world = await TestComputer.#start(
                     distribution,

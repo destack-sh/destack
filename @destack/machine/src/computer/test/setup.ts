@@ -1,12 +1,14 @@
 import { CompilerPool, Workspace } from "@destack/build";
 import { fileURLToPath } from "node:url";
 import { testStore } from "@destack/build/test";
-import { TestRun } from "@destack/db/test/run";
+import { type RunRecord, TestRun } from "@destack/db/test/run";
+import { TestDatabase } from "@destack/db/test";
 import { canonicalize, type Digest, present, Version } from "@destack/schema";
 import type { TestProject } from "@destack/test";
 import { testHost } from "@destack/test/host";
 import {
     BUILDS_VARIABLE,
+    SCENARIOS_VARIABLE,
     DESKTOP_PACKAGE,
     PLATFORM_PACKAGES,
     RUNTIME_PACKAGE,
@@ -22,9 +24,13 @@ import { COMPUTER_RUNTIMES } from "../computer.ts";
 /** Set a run up with a package's own fixtures beside the machine's, by name and directory. */
 export function setupRun(
     fixtures: Readonly<Record<string, string>> = {},
+    images: readonly RunImage[] = [],
 ): (project: TestProject) => Promise<() => Promise<void>> {
-    return (project) => setup(project, fixtures);
+    return (project) => setup(project, fixtures, images);
 }
+
+/** Build an image a package's tests fork in the run, before any test starts. */
+type RunImage = (run: RunRecord) => Promise<unknown>;
 
 /** Set the machine's own run up. */
 export default setupRun();
@@ -33,6 +39,7 @@ export default setupRun();
 async function setup(
     project: TestProject,
     fixtures: Readonly<Record<string, string>>,
+    images: readonly RunImage[],
 ): Promise<() => Promise<void>> {
     // build the platform's packages, the stacks and the fixtures at once, so each world only reads the run's store
     const built: Record<string, Digest> = {};
@@ -102,11 +109,22 @@ async function setup(
         await store.writeLinkedLayer(shipped, COMPUTER_RUNTIMES);
     }
 
-    // hand the images to the tests
+    // hand the images to the tests and to the templates the setup builds
     project.provide("built", built);
     project.provide("scenarios", scenario);
-    const variables = { [BUILDS_VARIABLE]: canonicalize(built) };
-    const remove = await TestRun.setup(new URL(import.meta.url), variables)(project);
+    const variables = {
+        [BUILDS_VARIABLE]: canonicalize(built),
+        [SCENARIOS_VARIABLE]: canonicalize(scenario),
+    };
+
+    // open the run, building the images the package's tests fork, so no test pays for them
+    const run = await TestRun.open(new URL(import.meta.url), TestDatabase.target(project), {
+        variables,
+    });
+    project.provide("run", run.record);
+    for (const image of images) {
+        await image(run.record);
+    }
 
     // move the computers' state directories into one trash, removed with the run, as Bazel's execroots
     const { files } = testHost();
@@ -114,7 +132,7 @@ async function setup(
     project.provide("trash", trash);
 
     return async () => {
-        await remove();
+        await run.release();
         await files.remove(trash, { recursive: true, force: true });
     };
 }

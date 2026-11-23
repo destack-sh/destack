@@ -45,6 +45,9 @@ declare module "vitest" {
 /** The variable the run's setup writes templates with: its images' digests by name. */
 export const BUILDS_VARIABLE = "DESTACK_MACHINE_BUILDS";
 
+/** The run variable with the images of the packages only scenarios install, by name. */
+export const SCENARIOS_VARIABLE = "DESTACK_MACHINE_SCENARIOS";
+
 /** The platform packages a test distribution ships, built from the workspace as releases are. */
 export const PLATFORM_PACKAGES = [
     "@destack/vault",
@@ -125,11 +128,12 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
     static async build(
         host: Environment<"files" | "process" | "host">,
         given: readonly BuildReader[] = [],
+        variables: Readonly<Record<string, string>> = {},
     ): Promise<TestDistribution> {
         // read the run's images in its store
         await using opened = new AsyncDisposableStack();
         const store = opened.use(await testStore(host));
-        const built = TestDistribution.built();
+        const built = TestDistribution.built(variables);
         const imageOf = (name: string) => present(built[name], `the run's image of ${name}`);
         const read = async (name: string) => store.root(imageOf(name));
 
@@ -216,8 +220,10 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
     }
 
     /** Read the digests of the run's images by name: the platform, the stacks and the fixtures. */
-    static built(): Readonly<Record<string, Digest>> {
-        const written = testHost().process.variables[BUILDS_VARIABLE];
+    static built(
+        variables: Readonly<Record<string, string>> = {},
+    ): Readonly<Record<string, Digest>> {
+        const written = variables[BUILDS_VARIABLE] ?? testHost().process.variables[BUILDS_VARIABLE];
         const built: unknown =
             written === undefined ? (inject("built") ?? {}) : JSON.parse(written);
 
@@ -225,8 +231,14 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
     }
 
     /** Read the images of the packages only scenarios install, which no distribution ships. */
-    static scenarios(): Readonly<Record<string, Digest>> {
-        return schema.record(schema.string(), Digest).parse(inject("scenarios") ?? {});
+    static scenarios(
+        variables: Readonly<Record<string, string>> = {},
+    ): Readonly<Record<string, Digest>> {
+        const written = variables[SCENARIOS_VARIABLE];
+        const scenarios: unknown =
+            written === undefined ? (inject("scenarios") ?? {}) : JSON.parse(written);
+
+        return schema.record(schema.string(), Digest).parse(scenarios);
     }
 
     /** Find the run's image rooted at a given build, refusing a build the run did not image. */
