@@ -93,3 +93,40 @@ export const drawerNoteComments = defineExample({
         </Drawer>
     ),
 });
+
+/** A drawer that shares a note, and opens another one over it to pick a person. */
+export const drawerPickPerson = defineExample({
+    of: Drawer,
+    name: "pick-person",
+    description: "a drawer that shares a note, and opens another one over it to pick a person",
+    render: () => (
+        <Drawer defaultOpen>
+            <DrawerContent>
+                <DrawerHeader>
+                    <DrawerTitle>Share Groceries</DrawerTitle>
+                    <DrawerDescription>Choose who can see the note.</DrawerDescription>
+                </DrawerHeader>
+                <DrawerFooter>
+                    <Drawer>
+                        <DrawerTrigger
+                            render={(attributes) => <Button {...attributes} variant="outline" />}
+                        >
+                            Add person
+                        </DrawerTrigger>
+                        <DrawerContent>
+                            <DrawerHeader>
+                                <DrawerTitle>Add person</DrawerTitle>
+                                <DrawerDescription>They can read and change it.</DrawerDescription>
+                            </DrawerHeader>
+                            <DrawerFooter>
+                                <DrawerClose render={(attributes) => <Button {...attributes} />}>
+                                    Add Grace
+                                </DrawerClose>
+                            </DrawerFooter>
+                        </DrawerContent>
+                    </Drawer>
+                </DrawerFooter>
+            </DrawerContent>
+        </Drawer>
+    ),
+});
