@@ -13,7 +13,7 @@ import {
     isNoteModule,
 } from "./fixture.ts";
 import * as library from "./fixture/library/request.ts";
-import { BuildReader } from "@destack/package/manifest";
+import { BuildReader, BuildListCache } from "@destack/package/manifest";
 import { Catalog } from "@destack/locale";
 import { PackageDefinition } from "@destack/package";
 
@@ -46,6 +46,7 @@ test.concurrent("relocate the library build and call its exports, refusing corru
             return new Blob([bytes]).stream();
         },
         environment.crypto,
+        new BuildListCache(),
     );
     expect(await refusal(corrupt.files())).toEqual([
         "BAD_REQUEST",

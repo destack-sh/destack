@@ -14,6 +14,7 @@ import {
     type OutputContent,
     BuildImage,
     PackageManifest,
+    BuildListCache,
 } from "@destack/package/manifest";
 import { CallError } from "@destack/object";
 import { Digest, found, present } from "@destack/schema";
@@ -105,6 +106,7 @@ async function written(
         manifest,
         async (path) => new Blob([found(bytes, path)]).stream(),
         crypto,
+        new BuildListCache(),
     );
 }
 
@@ -701,6 +703,7 @@ test("serve a stored build over HTTP after the host authorizes each read", async
         { manifest: digest, url },
         fetchPackage,
         environment.crypto,
+        new BuildListCache(),
     );
     expect([reader.manifest, await reader.files()]).toEqual([build.manifest, await build.files()]);
     expect(
@@ -709,6 +712,7 @@ test("serve a stored build over HTTP after the host authorizes each read", async
                 { manifest: Digest.parse("0".repeat(64)), url },
                 fetchPackage,
                 environment.crypto,
+                new BuildListCache(),
             ),
         ),
     ).toEqual([

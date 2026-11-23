@@ -19,6 +19,7 @@ import { DependencyName, type DependencyRelease, graph, type PackageId } from "@
 import { PackageFile } from "@destack/package/file";
 import {
     BuildLayer,
+    BuildListCache,
     BuildReader,
     ImportMap,
     BuildImage,
@@ -286,6 +287,8 @@ export class BuildStore<
     readonly blobs: BlobStore<Storage>;
     /** The crypto and clock the store digests and expires with. */
     readonly environment: StoreEnvironment;
+    /** The parsed lists of the builds it opens, shared by their readers within a byte budget. */
+    readonly lists = new BuildListCache();
     /** The manifest of each build its users read, parsed once, by digest. */
     readonly #manifests = new Map<Digest, Promise<PackageManifest>>();
     /** The source keeping each build of an image read through it, which keeps the image whole. */
@@ -817,6 +820,7 @@ export class BuildStore<
                   PackageManifest.parse(BuildStore.#json(bytes)),
                   stream,
                   this.environment.crypto,
+                  this.lists,
               );
     }
 
@@ -1189,6 +1193,7 @@ export class BuildStore<
                 return signal ? Pipe.through(stream, new TransformStream(), signal) : stream;
             },
             this.environment.crypto,
+            this.lists,
         );
 
         return reader;
@@ -1866,7 +1871,10 @@ export class BuildStore<
             const bytes = await this.#bytesOf(digest, buffers);
             const manifest = PackageManifest.parse(BuildStore.#json(bytes));
             const stream = async (path: string) => this.#streamList(buffers, readers, digest, path);
-            readers.set(digest, new BuildReader(manifest, stream, this.environment.crypto));
+            readers.set(
+                digest,
+                new BuildReader(manifest, stream, this.environment.crypto, this.lists),
+            );
             sizes.set(digest, bytes.byteLength);
         }
 

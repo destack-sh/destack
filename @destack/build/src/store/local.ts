@@ -344,7 +344,7 @@ export class LocalBuildStore
     async #move(directory: string, signal: AbortSignal | undefined): Promise<Digest> {
         // store each missing file by moving it in, recorded under a lease
         const { files, crypto, clock } = this.environment;
-        const source = await BuildReader.openDirectory(directory, files, crypto);
+        const source = await BuildReader.openDirectory(directory, files, crypto, this.lists);
         const digest = await this.store(
             source,
             async (moved) => {

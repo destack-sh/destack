@@ -3,7 +3,7 @@ import { Digest, type DigestCrypto, found, nth, present, schema } from "@destack
 import { CallError } from "@destack/object";
 import type { Environment } from "@destack/environment";
 import { PackageFile } from "@destack/package/file";
-import { BuildImage, BuildReader } from "@destack/package/manifest";
+import { BuildImage, BuildListCache, BuildReader } from "@destack/package/manifest";
 import { BuildError } from "../error/index.ts";
 import { BuildObject, type BuildStore, MAX_WRITE_BYTES } from "./store.ts";
 
@@ -40,6 +40,7 @@ export class RemoteBuildStore {
             location,
             (input, request) => fetch(new Request(input.href, request)),
             crypto,
+            new BuildListCache(),
         );
     }
 

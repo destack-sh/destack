@@ -1,5 +1,5 @@
 import type { Environment, FileSystem } from "@destack/environment";
-import { BuildReader } from "@destack/package/manifest";
+import { BuildReader, BuildListCache } from "@destack/package/manifest";
 import { found } from "@destack/schema";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -300,6 +300,7 @@ export async function expectManifest(
             return new Blob([await files.readFile(join(destination, path))]).stream();
         },
         environment.crypto,
+        new BuildListCache(),
     );
 
     // read each list independently and compare its complete serialized contents

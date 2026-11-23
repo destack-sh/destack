@@ -3,7 +3,13 @@ import type { Crypto } from "@destack/environment";
 import { dirname, join } from "node:path";
 import { Simulation } from "@destack/environment/simulation";
 import { PackageVersion, type PackageRole } from "@destack/package";
-import { BuildReader, BuildWriter, BuildImage, PackageManifest } from "@destack/package/manifest";
+import {
+    BuildReader,
+    BuildWriter,
+    BuildImage,
+    PackageManifest,
+    BuildListCache,
+} from "@destack/package/manifest";
 import { Digest, found, present } from "@destack/schema";
 import { expect, refusal, test } from "@destack/test";
 import { testHost } from "@destack/test/host";
@@ -77,6 +83,7 @@ async function written(
         manifest,
         async (path) => new Blob([found(bytes, path)]).stream(),
         crypto,
+        new BuildListCache(),
     );
 }
 

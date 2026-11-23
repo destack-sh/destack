@@ -8,7 +8,12 @@ import {
 } from "@destack/package";
 import { PackageFile } from "@destack/package/file";
 import { PackageLocator } from "@destack/package/locator";
-import { BuildReader, BuildWriter, type OutputContent } from "@destack/package/manifest";
+import {
+    BuildListCache,
+    BuildReader,
+    BuildWriter,
+    type OutputContent,
+} from "@destack/package/manifest";
 import { HOST_RUNTIME, Runtime } from "@destack/package/runtime";
 import { NpmConversion } from "../compile/conversion.ts";
 import { Digest, found, nth, schema } from "@destack/schema";
@@ -343,6 +348,7 @@ export class NpmUnit {
             manifest,
             async (path) => new Blob([found(written, path)]).stream(),
             this.#environment.crypto,
+            new BuildListCache(),
         );
     }
 

@@ -11,7 +11,12 @@ import { Runtime } from "@destack/package/runtime";
 import { type Digest, schema, type Version } from "@destack/schema";
 import { join, resolve } from "node:path";
 import type { Environment, FileSystem } from "@destack/environment";
-import { BuildReader, MANIFEST_PATH, PackageManifest } from "@destack/package/manifest";
+import {
+    BuildListCache,
+    BuildReader,
+    MANIFEST_PATH,
+    PackageManifest,
+} from "@destack/package/manifest";
 import type { PackageFile } from "@destack/package/file";
 import { digestFile } from "./directory.ts";
 import { PackageError } from "@destack/package/error";
@@ -80,6 +85,7 @@ export class PackageBuild implements AsyncDisposable {
             destination,
             files,
             store.environment.crypto,
+            new BuildListCache(),
         );
 
         return new PackageBuild(written, destination, "temporary", files);
@@ -89,7 +95,12 @@ export class PackageBuild implements AsyncDisposable {
     static async read(directory: string, environment: Environment<"files">): Promise<PackageBuild> {
         // follow verified file references without retaining source or executable contents
         const { files, crypto } = environment;
-        const reader = await BuildReader.openDirectory(directory, files, crypto);
+        const reader = await BuildReader.openDirectory(
+            directory,
+            files,
+            crypto,
+            new BuildListCache(),
+        );
         const { manifest } = reader;
         const list = await reader.references();
 
