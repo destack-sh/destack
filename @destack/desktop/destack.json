@@ -4,5 +4,37 @@
     "role": "library",
     "language": "typescript",
     "runtimes": ["bun"],
-    "entrypoints": ["src/main.ts", "src/machine.ts"]
+    "entrypoints": ["src/main.ts", "src/machine.ts"],
+    "exports": {
+        "./main": {
+            "internal": true
+        },
+        "./machine": {
+            "internal": true
+        },
+        ".": {
+            "internal": true
+        },
+        "./link": {
+            "internal": true
+        },
+        "./server": {
+            "internal": true
+        },
+        "./setting": {
+            "internal": true
+        },
+        "./shell": {
+            "internal": true
+        },
+        "./workload": {
+            "internal": true
+        },
+        "./object": {
+            "internal": true
+        },
+        "./scenario": {
+            "internal": true
+        }
+    }
 }
