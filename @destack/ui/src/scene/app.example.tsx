@@ -23,6 +23,9 @@ import {
     Board,
     BoardColumn,
     BoardColumnContent,
+    BoardColumnCount,
+    BoardColumnList,
+    BoardMove,
     BoardColumnHandle,
     BoardColumnHeader,
     BoardItem,
@@ -518,55 +521,66 @@ function TaskBoard(): JSX.Element {
         <Board
             label="Launch"
             onItemMove={(move) =>
-                setTasks((current) => SortableMove.apply(current, move, (task) => task.id))
+                setTasks((current) =>
+                    BoardMove.apply(
+                        current,
+                        move,
+                        (cell) => cell.column,
+                        (task) => task.id,
+                    ),
+                )
             }
             onColumnMove={(move) =>
                 setOrder((current) => SortableMove.place(current, move.id, move, (id) => id))
             }
         >
-            <For each={columns()}>
-                {(column) => (
-                    <BoardColumn id={column.id} label={column.label}>
-                        <BoardColumnHeader>
-                            <BoardColumnHandle />
-                            <span {...style.attrs(styles.columnHeader)}>
-                                {column.label}
-                                <span {...style.attrs(text.xs, styles.code)}>
-                                    {present(tasks()[column.id], `the column ${column.id}`).length}
+            <BoardColumnList>
+                <For each={columns()}>
+                    {(column) => (
+                        <BoardColumn id={column.id} label={column.label}>
+                            <BoardColumnHeader>
+                                <BoardColumnHandle />
+                                <span {...style.attrs(styles.columnHeader)}>
+                                    {column.label}
+                                    <BoardColumnCount xstyle={[text.xs, styles.code]} />
                                 </span>
-                            </span>
-                        </BoardColumnHeader>
-                        <BoardColumnContent>
-                            <For each={tasks()[column.id]}>
-                                {(task) => (
-                                    <BoardItem id={task.id} label={task.title}>
-                                        <Stack space="2" xstyle={styles.card}>
-                                            <span {...style.attrs(text.xs, styles.code)}>
-                                                {task.id}
-                                            </span>
-                                            <span {...style.attrs(styles.cardTitle)}>
-                                                {task.title}
-                                            </span>
-                                            <Cluster
-                                                space="2"
-                                                align="center"
-                                                xstyle={text.xs}
-                                                render={(attributes) => <span {...attributes} />}
-                                            >
-                                                <Badge color={task.tag[1]}>{task.tag[0]}</Badge>
-                                                <span {...style.attrs(styles.muted, styles.grow)}>
-                                                    <Due day={task.due} />
+                            </BoardColumnHeader>
+                            <BoardColumnContent>
+                                <For each={tasks()[column.id]}>
+                                    {(task) => (
+                                        <BoardItem id={task.id} label={task.title}>
+                                            <Stack space="2" xstyle={styles.card}>
+                                                <span {...style.attrs(text.xs, styles.code)}>
+                                                    {task.id}
                                                 </span>
-                                                <Face person={task.owner} />
-                                            </Cluster>
-                                        </Stack>
-                                    </BoardItem>
-                                )}
-                            </For>
-                        </BoardColumnContent>
-                    </BoardColumn>
-                )}
-            </For>
+                                                <span {...style.attrs(styles.cardTitle)}>
+                                                    {task.title}
+                                                </span>
+                                                <Cluster
+                                                    space="2"
+                                                    align="center"
+                                                    xstyle={text.xs}
+                                                    render={(attributes) => (
+                                                        <span {...attributes} />
+                                                    )}
+                                                >
+                                                    <Badge color={task.tag[1]}>{task.tag[0]}</Badge>
+                                                    <span
+                                                        {...style.attrs(styles.muted, styles.grow)}
+                                                    >
+                                                        <Due day={task.due} />
+                                                    </span>
+                                                    <Face person={task.owner} />
+                                                </Cluster>
+                                            </Stack>
+                                        </BoardItem>
+                                    )}
+                                </For>
+                            </BoardColumnContent>
+                        </BoardColumn>
+                    )}
+                </For>
+            </BoardColumnList>
         </Board>
     );
 }

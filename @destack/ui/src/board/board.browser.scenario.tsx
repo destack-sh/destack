@@ -1,6 +1,6 @@
 import { defineScenario } from "@destack/package/declare";
 import { viewInteraction } from "@destack/view/scenario";
-import { boardLaunch } from "./board.example.tsx";
+import { boardLaunch, boardLongBacklog } from "./board.example.tsx";
 import { Board } from "./board.tsx";
 
 /** The card the scenarios drag. */
@@ -121,6 +121,35 @@ export const boardLongPressAndDragAcrossColumns = defineScenario({
                     is: ["Price the plans", "Write the launch post"],
                 },
             ],
+        },
+    ],
+});
+
+/** The cards of the long board's second column, Next. */
+const nextCards = {
+    css: "[data-slot=board-item]",
+    within: { css: "[data-slot=board-column]", nth: 1 },
+};
+
+/** Jump to the end of a long column by keys, past the cards in view, and move its last card. */
+export const boardWalkLongColumn = defineScenario({
+    of: Board,
+    interaction: viewInteraction,
+    name: "walk-long-column",
+    description:
+        "jump to the end of a backlog that mounts only the cards in view, then move its last card across",
+    given: { examples: [boardLongBacklog] },
+    parameters: {},
+    when: [
+        { step: { action: "focus", target: { role: "option", name: "Ticket 1" } } },
+        { step: { action: "press", key: "End" } },
+        {
+            step: { action: "pause", milliseconds: 50 },
+            then: [{ observe: { kind: "focused" }, is: "Ticket 500" }],
+        },
+        {
+            step: { action: "press", key: "Alt+Shift+ArrowRight" },
+            then: [{ observe: { kind: "texts", target: nextCards }, is: ["Ticket 500"] }],
         },
     ],
 });
