@@ -9,7 +9,7 @@ const styles = style.create({
         width: "100%",
         height: "100%",
         borderRadius: radius[4],
-        backgroundImage: `linear-gradient(160deg, ${swatch.indigoTint}, ${swatch.tomatoTint})`,
+        backgroundImage: `linear-gradient(160deg, ${swatch.blueTint}, ${swatch.redTint})`,
     },
 });
 

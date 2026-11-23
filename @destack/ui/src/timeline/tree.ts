@@ -1,4 +1,4 @@
-import type { AccentPreset } from "@destack/color";
+import type { Hue } from "@destack/color";
 import type { Direction } from "@destack/locale";
 import { Duration, nth, type TimeScale } from "@destack/schema";
 import { type Accessor, createMemo, createSignal, untrack } from "@destack/view";
@@ -31,7 +31,7 @@ export interface TimelineItem {
     /** The key of the row it is drawn on, such as a person's, its row when absent. */
     readonly row?: string;
     /** The item's color, blue by default. */
-    readonly color?: AccentPreset;
+    readonly color?: Hue;
     /** How much of it is done, from 0 to 1, drawn as a fill. */
     readonly progress?: number;
     /** The dates it was planned for, drawn beneath it after MS Project's baselines. */

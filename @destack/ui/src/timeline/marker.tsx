@@ -1,4 +1,4 @@
-import type { SwatchName } from "@destack/color";
+import type { Hue } from "@destack/color";
 import * as style from "@destack/style";
 import { color, space, stroke, swatch } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
@@ -166,7 +166,7 @@ export interface TimelineRangeProperties extends Omit<
     /** The end, in epoch milliseconds, after the start. */
     readonly end: number;
     /** The swatch it is tinted in, the muted colors by default. */
-    readonly color?: SwatchName;
+    readonly color?: Hue;
     /** The StyleX styles applied after the range's. */
     readonly xstyle?: style.Styles;
 }

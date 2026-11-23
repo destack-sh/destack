@@ -1,4 +1,4 @@
-import type { SwatchName } from "@destack/color";
+import type { Hue } from "@destack/color";
 import * as style from "@destack/style";
 import { color, size, space, stroke, swatch, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
@@ -116,7 +116,7 @@ export interface AvatarControl {
     /** Replace the status of the image. */
     readonly setStatus: Setter<AvatarImageStatus>;
     /** The swatch the fallback fills with, the muted colors when absent. */
-    readonly color: Accessor<SwatchName | undefined>;
+    readonly color: Accessor<Hue | undefined>;
 }
 
 /** The size of an avatar, from smallest to largest. */
@@ -132,7 +132,7 @@ export interface AvatarProperties extends AvatarElementProperties<
     /** The width and height, default by default. */
     readonly size?: AvatarSize;
     /** The swatch its fallback fills with, such as a person's, the muted colors when absent. */
-    readonly color?: SwatchName;
+    readonly color?: Hue;
 }
 
 /** The properties of an avatar's image, the native image's attributes included. */

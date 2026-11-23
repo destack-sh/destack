@@ -1141,7 +1141,7 @@ test("shade a range down the track, mark a bar late past its deadline, and draw 
     const { container } = render(() => (
         <Timeline items={items} timeZone="UTC">
             <TimelineBody>
-                <TimelineRange start={DAY_MS} end={4 * DAY_MS} color="violet">
+                <TimelineRange start={DAY_MS} end={4 * DAY_MS} color="purple">
                     Cycle 12
                 </TimelineRange>
                 <TimelineRowList>
@@ -1171,7 +1171,7 @@ test("shade a range down the track, mark a bar late past its deadline, and draw 
             each.map((element) => element.textContent),
         ),
     }).toEqual({
-        range: [["Cycle 12", "violet"]],
+        range: [["Cycle 12", "purple"]],
         late: [true, false],
         deadlines: 2,
         milestones: ["Beta"],

@@ -1,4 +1,4 @@
-import type { SwatchName } from "@destack/color";
+import type { Hue } from "@destack/color";
 import type { IconBodies } from "@destack/icon";
 import type { Action } from "../action/index.ts";
 import { schema } from "@destack/schema";
@@ -48,7 +48,7 @@ export interface PaletteAccessory {
     /** The text. */
     readonly text: string;
     /** The swatch a tag tints itself in, plain text when absent. */
-    readonly color?: SwatchName;
+    readonly color?: Hue;
 }
 
 /** An entry of a palette: what it shows, what it does, and the page it opens. */

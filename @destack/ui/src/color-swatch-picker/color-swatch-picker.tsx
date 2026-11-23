@@ -1,5 +1,5 @@
 import * as style from "@destack/style";
-import { ACCENT_PRESETS, type AccentPreset } from "@destack/color";
+import { HUES, type Hue } from "@destack/color";
 import { color, radius, size, space, stroke, swatch } from "@destack/theme/tokens.stylex";
 import { For, type JSX, omit, Show } from "@destack/view";
 import {
@@ -11,21 +11,21 @@ import {
 } from "../list-box/index.ts";
 
 /** The swatches in each row of a swatch picker by default. */
-const COLUMNS = 9;
+const COLUMNS = 5;
 
 /** The properties of a swatch picker, the native element's attributes included. */
 export interface ColorSwatchPickerProperties extends ListBoxElementProperties<
     Omit<JSX.HTMLAttributes<HTMLDivElement>, "onKeyDown" | "onFocusOut">
 > {
     /** The chosen swatch, which makes the choice controlled, undefined for none. */
-    readonly value?: AccentPreset | undefined;
+    readonly value?: Hue | undefined;
     /** The swatch chosen at first while uncontrolled. */
-    readonly defaultValue?: AccentPreset;
+    readonly defaultValue?: Hue;
     /** Handle the person choosing a swatch. */
-    readonly onValueChange?: (value: AccentPreset) => void;
+    readonly onValueChange?: (value: Hue) => void;
     /** The swatches offered when the picker has no items of its own. */
-    readonly presets?: readonly AccentPreset[];
-    /** The swatches in each row, which the up and down arrow keys move across, nine by default. */
+    readonly hues?: readonly Hue[];
+    /** The swatches in each row, which the up and down arrow keys move across, five by default. */
     readonly columns?: number;
     /** The form field name the chosen swatch submits under, which renders a hidden input. */
     readonly name?: string;
@@ -35,8 +35,8 @@ export interface ColorSwatchPickerProperties extends ListBoxElementProperties<
 
 /** The properties of a swatch, the option's included. */
 export interface ColorSwatchPickerItemProperties extends Omit<ListBoxItemProperties, "value"> {
-    /** The preset the swatch shows and stands for. */
-    readonly value: AccentPreset;
+    /** The hue the swatch shows and stands for. */
+    readonly value: Hue;
 }
 
 /** The styles of a swatch picker and its swatches. */
@@ -63,23 +63,23 @@ const fills = style.create({
 
 /** Render the theme's swatches as a list box in a grid layout. */
 export function ColorSwatchPicker(properties: ColorSwatchPickerProperties): JSX.Element {
-    // offer the given presets in the theme's order unless the caller lays out its own swatches
+    // offer the given hues in their order unless the caller lays out its own swatches
     const rest = omit(
         properties,
         "value",
         "defaultValue",
         "onValueChange",
-        "presets",
+        "hues",
         "columns",
         "name",
         "form",
         "children",
         "xstyle",
     );
-    const presets = () => properties.presets ?? ACCENT_PRESETS;
+    const hues = () => properties.hues ?? HUES;
     const onValueChange = (value: string | undefined): void => {
-        // report a chosen preset
-        const chosen = ACCENT_PRESETS.find((preset) => preset === value);
+        // report a chosen hue
+        const chosen = HUES.find((hue) => hue === value);
         if (chosen !== undefined) {
             properties.onValueChange?.(chosen);
         }
@@ -111,7 +111,7 @@ export function ColorSwatchPicker(properties: ColorSwatchPickerProperties): JSX.
             xstyle={[styles.picker, properties.xstyle]}
         >
             {properties.children ?? (
-                <For each={presets()}>{(preset) => <ColorSwatchPickerItem value={preset} />}</For>
+                <For each={hues()}>{(hue) => <ColorSwatchPickerItem value={hue} />}</For>
             )}
             <Show when={properties.name !== undefined || properties.form !== undefined}>
                 <ColorSwatchPickerInput name={properties.name} form={properties.form} />

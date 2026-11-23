@@ -46,7 +46,7 @@ import {
 import { CalendarRepeatChange, CalendarRepeatRemoval } from "./repeat.ts";
 import { CalendarAvailability, type CalendarAvailabilityOptions } from "./availability.ts";
 import type { CalendarResource, CalendarSource } from "./source.ts";
-import type { AccentPreset } from "@destack/color";
+import type { Hue } from "@destack/color";
 import { Focus, type KeyboardDelegate } from "../focus/index.ts";
 
 /** The kind of item a calendar's draggable events are. */
@@ -85,7 +85,7 @@ const VIEW_TITLES: Readonly<Record<Exclude<EventCalendarView, "days">, Message>>
 };
 
 /** The color of an event whose calendar sets none, as Google's default calendar color. */
-export const DEFAULT_COLOR: AccentPreset = "blue";
+export const DEFAULT_COLOR: Hue = "blue";
 
 /** The events a day of a month shows at most by default, as FullCalendar's dayMaxEvents. */
 const DAY_MAX_EVENTS = 3;
@@ -562,7 +562,7 @@ export class EventCalendarControl {
     }
 
     /** Read an event's color: the event's, else its calendar's, else the default. */
-    colorOf(event: CalendarEvent): AccentPreset {
+    colorOf(event: CalendarEvent): Hue {
         return event.color ?? this.sourceOf(event)?.color ?? DEFAULT_COLOR;
     }
 

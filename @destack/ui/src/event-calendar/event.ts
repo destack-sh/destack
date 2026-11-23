@@ -1,4 +1,4 @@
-import type { AccentPreset } from "@destack/color";
+import type { Hue } from "@destack/color";
 import {
     type DateSpan,
     Duration,
@@ -55,7 +55,7 @@ interface CalendarEventFields<Time> {
     /** The end: the last day, or an instant at or after the start. */
     readonly end: Time;
     /** The event's color, blue by default. */
-    readonly color?: AccentPreset;
+    readonly color?: Hue;
     /** How the event shows, as an event by default. */
     readonly display?: CalendarEventDisplay;
     /** The rules it repeats by, from its first day, once when absent. */

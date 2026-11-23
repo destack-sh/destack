@@ -2,7 +2,7 @@ import { state } from "@destack/theme/state";
 import { Icon } from "@destack/ui/icon";
 import caretLeft from "@destack/icon/phosphor/caret-left";
 import caretRight from "@destack/icon/phosphor/caret-right";
-import type { AccentPreset } from "@destack/color";
+import type { Hue } from "@destack/color";
 import { type Direction, t } from "@destack/locale";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
@@ -30,7 +30,7 @@ import { TimelineItem } from "./tree.ts";
 import { rowMarker } from "./marker.stylex.ts";
 
 /** The color a bar takes when neither it nor its item sets one. */
-export const DEFAULT_COLOR: AccentPreset = "blue";
+export const DEFAULT_COLOR: Hue = "blue";
 
 /** The side of a milestone's diamond in pixels, between a dot and a bar's height. */
 export const MILESTONE_PIXELS = 12;
@@ -337,7 +337,7 @@ export interface TimelineBarProperties extends Omit<
     "class"
 > {
     /** The bar's color, its item's by default. */
-    readonly color?: AccentPreset;
+    readonly color?: Hue;
     /** How the bar is filled, with its color's tint by default. */
     readonly variant?: TimelineBarVariant;
     /** What shows beside the bar's start, such as a status. */
@@ -522,7 +522,7 @@ function BarTrack(
         control.drag.manager.isDragging(key) && control.drag.manager.operation()?.kind !== "link";
     const from = () => control.window.share(control.tree.drawn(item()).start);
     const to = () => control.window.share(control.tree.drawn(item()).end);
-    const preset = (): AccentPreset => properties.color ?? item().color ?? DEFAULT_COLOR;
+    const hue = (): Hue => properties.color ?? item().color ?? DEFAULT_COLOR;
     const isMovable = untrack(() => control.options.onItemsChange !== undefined);
     const isLinkable = untrack(() => control.options.onLinkCreate !== undefined);
 
@@ -669,13 +669,10 @@ function BarTrack(
                                     ? [styles.milestone, places.at(from())]
                                     : places.span(from(), to() - from()),
                                 properties.variant === "solid" || isMilestone()
-                                    ? places.fill(
-                                          swatch[`${preset()}Solid`],
-                                          swatch[`${preset()}Label`],
-                                      )
+                                    ? places.fill(swatch[`${hue()}Solid`], swatch[`${hue()}Label`])
                                     : places.fill(
-                                          swatch[`${preset()}Tint`],
-                                          swatch[`${preset()}TintText`],
+                                          swatch[`${hue()}Tint`],
+                                          swatch[`${hue()}TintText`],
                                       ),
                                 isSummary() && styles.summary,
                                 isMovable && styles.movable,
@@ -702,7 +699,7 @@ function BarTrack(
                                     aria-hidden="true"
                                     {...style.attrs(
                                         styles.progress,
-                                        places.progress(done(), swatch[`${preset()}Mark`]),
+                                        places.progress(done(), swatch[`${hue()}Mark`]),
                                     )}
                                 />
                             )}
@@ -770,7 +767,7 @@ function BarTrack(
                         title={milestone.label}
                         {...style.attrs(
                             styles.inlineMilestone,
-                            places.fill(swatch[`${preset()}Solid`], swatch[`${preset()}Label`]),
+                            places.fill(swatch[`${hue()}Solid`], swatch[`${hue()}Label`]),
                             places.at(share(milestone.at)),
                         )}
                     />

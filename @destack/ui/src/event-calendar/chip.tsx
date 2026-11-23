@@ -1,5 +1,5 @@
 import { state } from "@destack/theme/state";
-import type { AccentPreset } from "@destack/color";
+import type { Hue } from "@destack/color";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
 import { color, radius, space, stroke, swatch, weight } from "@destack/theme/tokens.stylex";
@@ -182,7 +182,7 @@ export function EventCalendarEvent(properties: EventCalendarEventProperties): JS
     // read the event's color, its time if any, and whether it is lifted
     const control = useEventCalendar();
     const locale = useLocale();
-    const preset = (): AccentPreset => control.colorOf(properties.event);
+    const hue = (): Hue => control.colorOf(properties.event);
     const isBusy = (): boolean => control.isBusy(properties.event);
     const timed = (): TimedCalendarEvent | undefined =>
         CalendarEvent.isTimed(properties.event) ? properties.event : undefined;
@@ -255,7 +255,7 @@ export function EventCalendarEvent(properties: EventCalendarEventProperties): JS
             )}
             type="button"
             data-slot="event-calendar-event"
-            data-color={preset()}
+            data-color={hue()}
             data-busy={isBusy() ? "" : undefined}
             data-selected={control.selection.isSelected(properties.event.key) ? "" : undefined}
             aria-pressed={control.selection.isSelected(properties.event.key) ? "true" : "false"}
@@ -268,10 +268,10 @@ export function EventCalendarEvent(properties: EventCalendarEventProperties): JS
                     layouts[properties.layout],
                     isTinted() &&
                         !isBusy() &&
-                        fills.tint(swatch[`${preset()}Tint`], swatch[`${preset()}TintText`]),
+                        fills.tint(swatch[`${hue()}Tint`], swatch[`${hue()}TintText`]),
                     properties.layout === "block" &&
                         !isBusy() &&
-                        fills.edge(swatch[`${preset()}Mark`]),
+                        fills.edge(swatch[`${hue()}Mark`]),
                     isBusy() && styles.busy,
                     control.selection.isSelected(properties.event.key) && styles.selected,
                     !properties.isEnd && styles.continues,
@@ -296,7 +296,7 @@ export function EventCalendarEvent(properties: EventCalendarEventProperties): JS
                         )}
                     </Show>
                 </span>
-                <span {...style.attrs(styles.dot, fills.dot(swatch[`${preset()}Mark`]))} />
+                <span {...style.attrs(styles.dot, fills.dot(swatch[`${hue()}Mark`]))} />
             </Show>
 
             {/* A timed event on a row: its color's dot and its start */}
@@ -304,9 +304,7 @@ export function EventCalendarEvent(properties: EventCalendarEventProperties): JS
                 {(current) => (
                     <>
                         <Show when={!isDayLong()}>
-                            <span
-                                {...style.attrs(styles.dot, fills.dot(swatch[`${preset()}Mark`]))}
-                            />
+                            <span {...style.attrs(styles.dot, fills.dot(swatch[`${hue()}Mark`]))} />
                         </Show>
                         <span {...style.attrs(styles.time, styles.whole)}>
                             {time(current().start)}
@@ -457,19 +455,19 @@ export function EventCalendarBackground(
 ): JSX.Element {
     // take the event's color, else its calendar's
     const control = useEventCalendar();
-    const preset = (): AccentPreset => control.colorOf(properties.event);
+    const hue = (): Hue => control.colorOf(properties.event);
     const rest = omit(properties, "event", "xstyle", "style", "children");
 
     return (
         <div
             {...rest}
             data-slot="event-calendar-background"
-            data-color={preset()}
+            data-color={hue()}
             {...style.attributes(
                 [
                     text.xs,
                     styles.background,
-                    fills.shade(swatch[`${preset()}Tint`], swatch[`${preset()}TintText`]),
+                    fills.shade(swatch[`${hue()}Tint`], swatch[`${hue()}TintText`]),
                     properties.xstyle,
                 ],
                 properties.style,

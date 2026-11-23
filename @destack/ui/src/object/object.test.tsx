@@ -4,7 +4,7 @@ import { ObjectChip } from "./object.tsx";
 
 test("draw an object's chip as a link with its icon, title and accent, and as text without an address", () => {
     const linked = render(() => (
-        <ObjectChip title="Write docs" glyph={{ emoji: "📝" }} color="teal" href="/task/task-1" />
+        <ObjectChip title="Write docs" glyph={{ emoji: "📝" }} color="cyan" href="/task/task-1" />
     ));
     const plain = render(() => <ObjectChip title="Launch" />);
     const link = linked.container.querySelector("[data-slot=object-chip]");

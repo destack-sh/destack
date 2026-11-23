@@ -58,17 +58,17 @@ export const avatarTeamColors = defineExample({
     name: "team-colors",
     description: "a team's people by their initials, each in their own color",
     properties: {
-        color: "teal",
+        color: "cyan",
     },
     render: (properties) => (
         <AvatarGroup aria-label="Team">
             <Avatar {...properties}>
                 <AvatarFallback>F</AvatarFallback>
             </Avatar>
-            <Avatar color="crimson">
+            <Avatar color="pink">
                 <AvatarFallback>I</AvatarFallback>
             </Avatar>
-            <Avatar color="indigo">
+            <Avatar color="blue">
                 <AvatarFallback>R</AvatarFallback>
             </Avatar>
             <Avatar>

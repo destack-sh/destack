@@ -1,10 +1,10 @@
 import { expect, test } from "@destack/test";
 import { render } from "@destack/view/test";
 import { flush } from "@destack/view";
-import type { AccentPreset } from "@destack/color";
+import type { Hue } from "@destack/color";
 import { ColorSwatchPicker } from "./index.ts";
 
-/** List the preset of each chosen swatch of a container. */
+/** List the hue of each chosen swatch of a container. */
 function checked(container: Element): string[] {
     return [...container.querySelectorAll("[role=option][aria-selected=true]")].map(
         (swatch) => swatch.getAttribute("data-swatch") ?? "",
@@ -12,10 +12,10 @@ function checked(container: Element): string[] {
 }
 
 test("offer the given swatches as options, following a controlled choice and reporting a person's", () => {
-    const chosen: AccentPreset[] = [];
+    const chosen: Hue[] = [];
     const { container } = render(() => (
         <ColorSwatchPicker
-            presets={["teal", "orange", "plum"]}
+            hues={["cyan", "orange", "purple"]}
             value="orange"
             onValueChange={(value) => chosen.push(value)}
         />
@@ -28,13 +28,13 @@ test("offer the given swatches as options, following a controlled choice and rep
         offered: swatches.map((swatch) => swatch.getAttribute("aria-label")),
         checked: checked(container),
         chosen,
-    }).toEqual({ offered: ["teal", "orange", "plum"], checked: ["orange"], chosen: ["plum"] });
+    }).toEqual({ offered: ["cyan", "orange", "purple"], checked: ["orange"], chosen: ["purple"] });
 });
 
 test("submit the chosen swatch through a hidden input of its name, none while none is chosen", () => {
     const { container } = render(() => (
         <form>
-            <ColorSwatchPicker name="color" presets={["teal", "plum"]} aria-label="Color" />
+            <ColorSwatchPicker name="color" hues={["cyan", "purple"]} aria-label="Color" />
         </form>
     ));
     const submitted = () =>
@@ -46,5 +46,5 @@ test("submit the chosen swatch through a hidden input of its name, none while no
     expect({
         before,
         after: submitted(),
-    }).toEqual({ before: undefined, after: "plum" });
+    }).toEqual({ before: undefined, after: "purple" });
 });

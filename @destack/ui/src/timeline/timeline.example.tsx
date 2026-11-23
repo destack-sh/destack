@@ -61,7 +61,7 @@ const TRACE: readonly TimelineItem[] = [
         start: TRACE_START + 12,
         end: TRACE_START + 64,
         parent: "request",
-        color: "teal",
+        color: "cyan",
     },
     {
         key: "signups",
@@ -69,7 +69,7 @@ const TRACE: readonly TimelineItem[] = [
         start: TRACE_START + 70,
         end: TRACE_START + 410,
         parent: "request",
-        color: "violet",
+        color: "purple",
     },
     {
         key: "plans",
@@ -77,7 +77,7 @@ const TRACE: readonly TimelineItem[] = [
         start: TRACE_START + 72,
         end: TRACE_START + 190,
         parent: "request",
-        color: "violet",
+        color: "purple",
     },
     {
         key: "render",
@@ -165,7 +165,7 @@ const PLAN: readonly TimelineItem[] = [
         key: "press",
         label: "Brief the press",
         start: day("2026-11-12"),
-        color: "violet",
+        color: "purple",
     },
     {
         key: "changelog",
@@ -176,7 +176,7 @@ const PLAN: readonly TimelineItem[] = [
         label: "Launch",
         start: day("2026-11-16"),
         end: day("2026-11-16"),
-        color: "tomato",
+        color: "red",
     },
 ];
 
@@ -308,7 +308,7 @@ export const timelinePlan = defineExample({
                         <TimelineRange
                             start={day("2026-11-16")}
                             end={day("2026-11-21")}
-                            color="tomato"
+                            color="red"
                         >
                             Launch week
                         </TimelineRange>
@@ -439,7 +439,7 @@ const TEAM: readonly TimelineItem[] = [
         row: "linus",
         start: day("2026-11-05"),
         end: day("2026-11-07"),
-        color: "violet",
+        color: "purple",
     },
 ];
 

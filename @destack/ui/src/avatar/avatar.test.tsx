@@ -51,7 +51,7 @@ test("drop an image that fails to load and show the fallback", () => {
 test("fill a colored avatar's fallback with its swatch, and a plain one with the muted colors", () => {
     const { container } = render(() => (
         <>
-            <Avatar color="teal">
+            <Avatar color="cyan">
                 <AvatarFallback>F</AvatarFallback>
             </Avatar>
             <Avatar>
@@ -66,9 +66,9 @@ test("fill a colored avatar's fallback with its swatch, and a plain one with the
         container.querySelector("[data-slot=avatar]")?.getAttribute("data-color"),
         fallbacks.map((each) => each.getAttribute("style")),
     ]).toEqual([
-        "teal",
+        "cyan",
         [
-            "--x-backgroundColor: var(--destack-swatch-teal-solid); --x-color: var(--destack-swatch-teal-label);",
+            "--x-backgroundColor: var(--destack-swatch-cyan-solid); --x-color: var(--destack-swatch-cyan-label);",
             null,
         ],
     ]);

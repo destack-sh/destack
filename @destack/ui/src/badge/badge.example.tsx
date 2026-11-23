@@ -29,7 +29,7 @@ export const badgeTaskTags = defineExample({
         <Cluster>
             <Badge {...properties}>Site</Badge>
             <Badge color="blue">Story</Badge>
-            <Badge color="violet">Plan</Badge>
+            <Badge color="purple">Plan</Badge>
             <Badge color="red">At risk</Badge>
         </Cluster>
     ),

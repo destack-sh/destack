@@ -1,4 +1,4 @@
-import type { SwatchName } from "@destack/color";
+import type { Hue } from "@destack/color";
 import * as style from "@destack/style";
 import { color, radius, space, swatch } from "@destack/theme/tokens.stylex";
 import { type JSX, omit, Show } from "@destack/view";
@@ -37,8 +37,8 @@ export interface ObjectChipProperties extends Omit<
     readonly title: string;
     /** The object's icon. */
     readonly glyph?: GlyphValue;
-    /** The object's accent. */
-    readonly color?: SwatchName;
+    /** The object's color. */
+    readonly color?: Hue;
     /** The address of the object's page. */
     readonly href?: string;
     /** The StyleX styles applied after the chip's styles. */

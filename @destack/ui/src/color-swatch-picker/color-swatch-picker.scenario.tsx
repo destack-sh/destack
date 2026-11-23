@@ -14,12 +14,12 @@ export const colorSwatchPickerChooseWithArrowKeys = defineScenario({
     parameters: {},
     when: [
         {
-            step: { action: "focus", target: { role: "option", name: "plum" } },
+            step: { action: "focus", target: { role: "option", name: "purple" } },
             then: [
-                { observe: { kind: "focused" }, is: "plum" },
+                { observe: { kind: "focused" }, is: "purple" },
                 {
                     observe: { kind: "name", target: { role: "option", selected: true } },
-                    is: "plum",
+                    is: "purple",
                 },
             ],
         },
@@ -36,20 +36,20 @@ export const colorSwatchPickerChooseWithArrowKeys = defineScenario({
         {
             step: { action: "press", key: "Home" },
             then: [
-                { observe: { kind: "focused" }, is: "teal" },
+                { observe: { kind: "focused" }, is: "cyan" },
                 {
                     observe: { kind: "name", target: { role: "option", selected: true } },
-                    is: "teal",
+                    is: "cyan",
                 },
             ],
         },
         {
             step: { action: "press", key: "ArrowLeft" },
             then: [
-                { observe: { kind: "focused" }, is: "teal" },
+                { observe: { kind: "focused" }, is: "cyan" },
                 {
                     observe: { kind: "name", target: { role: "option", selected: true } },
-                    is: "teal",
+                    is: "cyan",
                 },
             ],
         },

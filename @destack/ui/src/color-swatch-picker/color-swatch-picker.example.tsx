@@ -1,13 +1,13 @@
 import { defineExample } from "@destack/package/declare";
 import { ColorSwatchPicker, ColorSwatchPickerItem } from "./color-swatch-picker.tsx";
 
-/** A project's color chosen from every swatch, teal checked. */
+/** A project's color chosen from every swatch, cyan checked. */
 export const colorSwatchPickerProjectColor = defineExample({
     of: ColorSwatchPicker,
     name: "project-color",
-    description: "a project's color chosen from every swatch, teal checked",
+    description: "a project's color chosen from every swatch, cyan checked",
     properties: {
-        defaultValue: "teal",
+        defaultValue: "cyan",
         "aria-label": "Project color",
     },
     render: (properties) => <ColorSwatchPicker {...properties} />,
@@ -20,14 +20,14 @@ export const colorSwatchPickerLabelColor = defineExample({
     description: "a label's color chosen from three swatches the caller lays out",
     properties: {
         name: "color",
-        defaultValue: "plum",
+        defaultValue: "purple",
         "aria-label": "Label color",
     },
     render: (properties) => (
         <ColorSwatchPicker {...properties}>
-            <ColorSwatchPickerItem value="teal" />
+            <ColorSwatchPickerItem value="cyan" />
             <ColorSwatchPickerItem value="orange" />
-            <ColorSwatchPickerItem value="plum" />
+            <ColorSwatchPickerItem value="purple" />
         </ColorSwatchPicker>
     ),
 });

@@ -1,4 +1,4 @@
-import type { SwatchName } from "@destack/color";
+import type { Hue } from "@destack/color";
 import { defineExample } from "@destack/package/declare";
 import { PlainDate, present, TimeZone } from "@destack/schema";
 import * as style from "@destack/style";
@@ -133,7 +133,7 @@ interface Task {
     /** What to do. */
     readonly title: string;
     /** The kind of work, and the swatch its tag takes. */
-    readonly tag: readonly [string, SwatchName];
+    readonly tag: readonly [string, Hue];
     /** The person it is assigned to. */
     readonly owner: Person;
     /** The day work on it starts. */
@@ -153,8 +153,8 @@ const PEOPLE = {
 const TAGS = {
     site: ["Site", "green"],
     story: ["Story", "blue"],
-    plan: ["Plan", "violet"],
-} as const satisfies Record<string, readonly [string, SwatchName]>;
+    plan: ["Plan", "purple"],
+} as const satisfies Record<string, readonly [string, Hue]>;
 
 /** The launch's tasks by the column they start in. */
 const COLUMNS: readonly {
@@ -662,7 +662,7 @@ const LAUNCH_WEEK: readonly CalendarEvent[] = [
         title: "Offsite in Lisbon",
         start: "2026-11-23",
         end: "2026-11-25",
-        color: "violet",
+        color: "purple",
     },
     { key: "launch-day", title: "Launch day", start: LAUNCH_DAY, end: LAUNCH_DAY, color: "orange" },
     {
@@ -691,7 +691,7 @@ const LAUNCH_WEEK: readonly CalendarEvent[] = [
         title: "Hiring sync",
         start: wallTime("2026-11-24", "15:00"),
         end: wallTime("2026-11-24", "16:00"),
-        color: "violet",
+        color: "purple",
     },
     {
         key: "standup",

@@ -12,7 +12,7 @@ export const objectChipTask = defineExample({
             <ObjectChip
                 title="Write the release notes"
                 glyph={{ emoji: "📝" }}
-                color="teal"
+                color="cyan"
                 href="/task/task-1"
             />{" "}
             until Friday.
@@ -20,13 +20,13 @@ export const objectChipTask = defineExample({
     ),
 });
 
-/** A task's chip in the violet swatch. */
-export const objectChipTaskViolet = defineExample({
+/** A task's chip in the purple swatch. */
+export const objectChipTaskPurple = defineExample({
     of: ObjectChip,
-    name: "task-violet",
-    description: "a task's chip in the violet swatch",
+    name: "task-purple",
+    description: "a task's chip in the purple swatch",
     properties: {
-        color: "violet",
+        color: "purple",
     },
     render: (properties) => (
         <p>

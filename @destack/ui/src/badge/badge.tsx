@@ -1,4 +1,4 @@
-import type { SwatchName } from "@destack/color";
+import type { Hue } from "@destack/color";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
 import { color, radius, space, stroke, swatch, weight } from "@destack/theme/tokens.stylex";
@@ -68,7 +68,7 @@ export interface BadgeVariantProperties {
     /** The look, default by default. */
     readonly variant?: BadgeVariant;
     /** The swatch a badge tints itself in, such as a tag's, the variant's colors when absent. */
-    readonly color?: SwatchName;
+    readonly color?: Hue;
 }
 
 /** Return the StyleX styles of a badge in a variant. */

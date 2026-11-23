@@ -33,7 +33,7 @@ const EVENTS: readonly CalendarEvent[] = [
         title: "Web Summit",
         start: "2026-11-18",
         end: "2026-11-20",
-        color: "violet",
+        color: "purple",
     },
     {
         key: "launch",
@@ -57,7 +57,7 @@ const EVENTS: readonly CalendarEvent[] = [
         end: TimeZone.instant("America/New_York", "2026-11-03", "10:30"),
         timeZone: "America/New_York",
         recurrenceRules: [{ frequency: "weekly" }],
-        color: "amber",
+        color: "yellow",
     },
     {
         key: "pricing",
@@ -77,14 +77,14 @@ const EVENTS: readonly CalendarEvent[] = [
         title: "Record the demo",
         start: at("2026-11-18", "10:00"),
         end: at("2026-11-18", "11:30"),
-        color: "tomato",
+        color: "red",
     },
     {
         key: "retro",
         title: "Launch retro",
         start: at("2026-11-21", "16:00"),
         end: at("2026-11-21", "17:00"),
-        color: "teal",
+        color: "cyan",
     },
 ];
 
@@ -196,7 +196,7 @@ const SLOTS: readonly CalendarEvent[] = [
         title: "Open for booking",
         start: at(date, "14:00"),
         end: at(date, "16:00"),
-        color: "grass",
+        color: "green",
         display: "background",
     })),
 ];

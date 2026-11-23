@@ -74,7 +74,7 @@ function rootOf(report: (summary: string) => void): PalettePage {
         subtitle: task.key,
         icon: checkSquare,
         accessories: [
-            { text: task.status, color: task.status === "Doing" ? "amber" : "blue" },
+            { text: task.status, color: task.status === "Doing" ? "yellow" : "blue" },
             { text: task.assignee },
         ],
         keywords: [task.key, task.assignee],

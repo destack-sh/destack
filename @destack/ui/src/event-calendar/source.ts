@@ -1,4 +1,4 @@
-import type { AccentPreset } from "@destack/color";
+import type { Hue } from "@destack/color";
 
 /** How a calendar's events show: in full, or as busy time without their details. */
 export type CalendarSourceDisplay = "events" | "busy";
@@ -10,7 +10,7 @@ export interface CalendarSource {
     /** The calendar's label in the list. */
     readonly label: string;
     /** The color its events take, unless they have their own. */
-    readonly color?: AccentPreset;
+    readonly color?: Hue;
     /** How its events show, in full by default, as busy time after Notion Calendar's overlay. */
     readonly display?: CalendarSourceDisplay;
 }
