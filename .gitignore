@@ -120,3 +120,6 @@ destack-infra/.*
 .DS_Store
 
 *.destack
+
+# local checkouts of the platform's inputs, as Nix's --override-input
+/inputs.json
