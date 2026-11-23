@@ -10,7 +10,7 @@ import {
 import type { Declaration, ResourceRequirement } from "@destack/package/declare";
 import { mapValues, Version } from "@destack/schema";
 import type { Message } from "@destack/locale";
-import { SwatchName } from "@destack/color";
+import { Hue } from "@destack/color";
 import { MountPath, Capability, IconName } from "./description.ts";
 import type { Action } from "./action.ts";
 import type { ProcedureRouter } from "../procedure/index.ts";
@@ -52,7 +52,7 @@ export interface PackageIdentity {
     /** The Phosphor icon its app's tile draws, such as `calendar-blank`. */
     readonly icon: string;
     /** The swatch the stack draws it in, such as on its tile, in traces and in diagrams. */
-    readonly color: SwatchName;
+    readonly color: Hue;
 }
 
 /** What a package declares: its objects, views and mounts, and what its installations bind. */
@@ -170,7 +170,7 @@ export function definePackage<const Options extends PackageOptions>(
         title: options.title,
         description: options.description,
         icon: IconName.parse(options.icon),
-        color: SwatchName.parse(options.color),
+        color: Hue.parse(options.color),
     });
 }
 

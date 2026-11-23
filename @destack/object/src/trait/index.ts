@@ -19,7 +19,6 @@ export {
     presentable,
     Presentable,
     type PresentableDefinition,
-    ACCENTS,
     Cover,
     Icon,
     Presentation,

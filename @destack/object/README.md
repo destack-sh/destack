@@ -184,7 +184,7 @@ A trait adds fields, methods and rules to a type, each declared with its options
 | `nested`      | nests objects under a parent, or in a tree of their type  | `{ in, add, delete, optional, move }`                | `nested({ in: notebook, delete: "cascade", add: "write" })` |
 | `searchable`  | finds objects by text, and indexes filter and sort fields | `{ text, filter, sort }`, each a list of fields      | `searchable({ text: ["title"], sort: ["title"] })`          |
 | `orderable`   | orders objects among their siblings                       | none, or `{ within }`                                | `orderable()`                                               |
-| `presentable` | shows objects with an icon, a cover, an accent and views  | none, or `{ title, subtitle, icon, color, cover }`   | `presentable({ subtitle: "summary" })`                      |
+| `presentable` | shows objects with an icon, a cover, a color and views    | none, or `{ title, subtitle, icon, color, cover }`   | `presentable({ subtitle: "summary" })`                      |
 | `numbered`    | numbers objects, each number issued once by the store     | none, or `{ within, start, at, identifier, prefix }` | `numbered({ within: "teamId", identifier: "live" })`        |
 | `recoverable` | deletes objects to a restorable trash                     | `{ within, by, purge, retain }`                      | `recoverable({ within: { days: 30 }, by: "delete" })`       |
 | `archivable`  | archives objects out of lists, read-only until unarchived | `{ by }`                                             | `archivable({ by: "manage" })`                              |
@@ -398,7 +398,7 @@ const todos = definePackage({
     title: t`Todos`,
     description: t`Track todos in projects.`,
     icon: "check-square",
-    color: "grass",
+    color: "green",
     objects: [project, todo],
 });
 
@@ -570,7 +570,7 @@ const boards = definePackage({
     title: t`Boards`,
     description: t`Plan work on boards.`,
     icon: "kanban",
-    color: "iris",
+    color: "purple",
     objects: [project, board],
 });
 
@@ -668,7 +668,7 @@ const tracker = definePackage({
     title: t`Tracker`,
     description: t`Track issues and bill for them.`,
     icon: "kanban",
-    color: "tomato",
+    color: "red",
     objects: [team, issue, invoice],
 });
 
@@ -713,7 +713,7 @@ const blog = definePackage({
     title: t`Blog`,
     description: t`Publish articles.`,
     icon: "article",
-    color: "tomato",
+    color: "red",
     objects: [article],
 });
 

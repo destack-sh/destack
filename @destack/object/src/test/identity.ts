@@ -5,5 +5,5 @@ export const testIdentity = {
     title: t`Test`,
     description: t`Declare what a test needs.`,
     icon: "cube",
-    color: "indigo",
+    color: "blue",
 } as const;

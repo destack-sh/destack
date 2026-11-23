@@ -65,7 +65,7 @@ const TASK = {
     projectId: "project-1",
     dueAt: 1000,
     notes: "a long note",
-    color: "teal",
+    color: "cyan",
     icon: null,
 };
 
@@ -112,7 +112,7 @@ test("read an object's appearance, its key fields by the declared card or the fi
             .sections,
         related: full.related,
     }).toEqual({
-        appearance: { title: "Write docs", icon: undefined, color: "teal" },
+        appearance: { title: "Write docs", icon: undefined, color: "cyan" },
         projectAppearance: { title: "Launch", icon: { icon: "folder" }, color: undefined },
         reference: task.reference("space-1", "task-1"),
         key: [
@@ -150,8 +150,8 @@ test("read an object's appearance, its key fields by the declared card or the fi
     });
 });
 
-test("color an object by the first condition it meets: overdue red, blocked amber, else none", () => {
-    // define chores colored by conditions rather than a stored accent
+test("color an object by the first condition it meets: overdue red, blocked yellow, else none", () => {
+    // define chores colored by conditions rather than a stored color
     const chore = defineObject({
         name: "chore",
         plural: "chores",
@@ -171,7 +171,7 @@ test("color an object by the first condition it meets: overdue red, blocked ambe
                     where: { dueAt: { lt: now.start("day") }, state: { ne: "done" } },
                     swatch: "red",
                 },
-                { where: { state: "blocked" }, swatch: "amber" },
+                { where: { state: "blocked" }, swatch: "yellow" },
             ],
         },
     });
@@ -185,7 +185,7 @@ test("color an object by the first condition it meets: overdue red, blocked ambe
     expect({
         colors: rows.map((row) => ObjectAppearance.of(chore, row, MOMENT, SOURCE, undefined).color),
         stored: Object.hasOwn(chore.fields, "color"),
-    }).toEqual({ colors: ["red", "amber", undefined], stored: false });
+    }).toEqual({ colors: ["red", "yellow", undefined], stored: false });
 });
 
 test("title every type by its title or name field, a message as rendered, else its number or identifier", () => {

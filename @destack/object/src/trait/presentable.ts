@@ -1,8 +1,8 @@
 import { callableTrait } from "./trait.ts";
 import { IconName } from "@destack/icon";
 import { DeclarationReference } from "@destack/package/declare";
-import { ACCENT_PRESETS, type AccentPreset, SwatchName } from "@destack/color";
-import { type JsonValue, present, schema } from "@destack/schema";
+import { Hue, HUES } from "@destack/color";
+import { type JsonValue, schema } from "@destack/schema";
 import { type Localization, Message } from "@destack/locale";
 import { field, type Field } from "../field/field.ts";
 import type { ObjectDefinition } from "../object/object.ts";
@@ -28,15 +28,6 @@ const TITLE_FIELDS = ["title", "name"] as const;
 
 /** The longest emoji in UTF-16 code units: 15, the longest RGI sequence. */
 const EMOJI_LENGTH = 15;
-
-/** The accents an object's color takes: the theme's colorful presets, each with its swatch. */
-const [FIRST_ACCENT, ...OTHER_ACCENTS] = ACCENT_PRESETS;
-
-/** The accents an object's color takes. */
-export const ACCENTS: readonly [AccentPreset, ...AccentPreset[]] = [
-    present(FIRST_ACCENT, "the theme's first accent"),
-    ...OTHER_ACCENTS,
-];
 
 /** An object's icon chosen from an emoji or an icon set. */
 const ChosenIcon = [
@@ -79,10 +70,8 @@ export interface PresentableOptions {
     readonly subtitle?: string;
     /** Each object's icon: chosen images in a bucket, one fixed icon set name, or none. */
     readonly icon?: boolean | string | FileBucket;
-    /** Each object's accent: stored, none, or by conditions, the first met winning. */
-    readonly color?:
-        | boolean
-        | readonly { readonly where: OpenCondition; readonly swatch: SwatchName }[];
+    /** Each object's color: stored, none, or by conditions, the first met winning. */
+    readonly color?: boolean | readonly { readonly where: OpenCondition; readonly swatch: Hue }[];
     /** The bucket storing each object's cover image, none when absent. */
     readonly cover?: FileBucket;
     /** The views its fields and traits cannot derive, such as a waterfall of spans. */
@@ -104,7 +93,7 @@ export interface PresentationPage {
 /** The presentation an object type declares: every decoration at its default, or each piece set. */
 export type PresentableDefinition = true | PresentableOptions;
 
-/** The fields presentation adds: the chosen icon, the accent and the cover. */
+/** The fields presentation adds: the chosen icon, the color and the cover. */
 export type PresentationFieldsOf<Presenting> = Presenting extends PresentableDefinition
     ? (Presenting extends { readonly icon: false | string }
           ? {}
@@ -115,7 +104,7 @@ export type PresentationFieldsOf<Presenting> = Presenting extends PresentableDef
           (Presenting extends { readonly color: false | readonly unknown[] }
               ? {}
               : {
-                    /** The object's accent. */
+                    /** The object's color. */
                     readonly color: ReturnType<typeof Presentable.colorField>;
                 }) &
           (Presenting extends { readonly cover: FileBucket }
@@ -142,14 +131,12 @@ const PresentationSchema = schema.object({
             schema.object({ fixed: IconName }),
         ])
         .exactOptional(),
-    /** Each object's accent: its field, or conditions, the first met winning. */
+    /** Each object's color: its field, or conditions, the first met winning. */
     color: schema
         .union([
             schema.object({ field: schema.string().min(1) }),
             schema.object({
-                conditions: schema.array(
-                    schema.object({ where: Condition.schema, swatch: SwatchName }),
-                ),
+                conditions: schema.array(schema.object({ where: Condition.schema, swatch: Hue })),
             }),
         ])
         .exactOptional(),
@@ -200,9 +187,9 @@ export const Presentation = Object.assign(PresentationSchema, {
     },
 });
 
-/** Objects shown by title, subtitle, icon, accent and cover in pickers, mentions and titles. */
+/** Objects shown by title, subtitle, icon, color and cover in pickers, mentions and titles. */
 export const Presentable = {
-    /** Add a presented definition's icon, accent and cover fields, refusing a declared namesake. */
+    /** Add a presented definition's icon, color and cover fields, refusing a declared namesake. */
     expand<Definition extends ObjectDefinition>(
         definition: Definition,
     ): Erasure<Definition, "fields"> {
@@ -314,7 +301,7 @@ export const Presentable = {
             );
         }
 
-        // choose an icon and an accent unless told otherwise
+        // choose an icon and a color unless told otherwise
         return { icon: true, color: true, ...options };
     },
 
@@ -335,9 +322,9 @@ export const Presentable = {
         return field.json<Icon>(schema.union([...ChosenIcon])).optional();
     },
 
-    /** The field storing an object's accent. */
+    /** The field storing an object's color. */
     colorField() {
-        return field.enum(ACCENTS).optional();
+        return field.enum(HUES).optional();
     },
 
     /** The field storing an object's cover. */
@@ -346,5 +333,5 @@ export const Presentable = {
     },
 };
 
-/** Show objects with an icon, a cover, an accent and their own views. */
+/** Show objects with an icon, a cover, a color and their own views. */
 export const presentable = callableTrait("presentable", {}, true);

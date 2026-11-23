@@ -1,4 +1,4 @@
-import { SwatchName } from "@destack/color";
+import { Hue } from "@destack/color";
 import { Condition, type Moment } from "@destack/db";
 import { type JsonObject, schema } from "@destack/schema";
 import type { Localization } from "@destack/locale";
@@ -6,14 +6,14 @@ import type { ObjectType } from "../object/object.ts";
 import { Numbered } from "../trait/numbered.ts";
 import { Icon, Presentation } from "../trait/presentable.ts";
 
-/** How an object looks wherever it shows: its title, icon and accent. */
+/** How an object looks wherever it shows: its title, icon and color. */
 export interface ObjectAppearance {
     /** The object's title, else its identifier. */
     readonly title: string;
     /** The object's icon, none when its type shows none. */
     readonly icon: Icon | undefined;
-    /** The object's accent, stored or by the first condition it meets, none without one. */
-    readonly color: SwatchName | undefined;
+    /** The object's color, stored or by the first condition it meets, none without one. */
+    readonly color: Hue | undefined;
 }
 
 /** How an object looks, read from its row through its type's presentation. */
@@ -31,14 +31,14 @@ export const ObjectAppearance = {
         const icon = presentation.icon;
         const stored = icon === undefined || "fixed" in icon ? undefined : row[icon.field];
 
-        // read the accent from its field, else from the first condition the row meets
-        const accent = presentation.color;
+        // read the color from its field, else from the first condition the row meets
+        const colored = presentation.color;
         const color =
-            accent === undefined
+            colored === undefined
                 ? undefined
-                : "field" in accent
-                  ? row[accent.field]
-                  : accent.conditions.find((each) =>
+                : "field" in colored
+                  ? row[colored.field]
+                  : colored.conditions.find((each) =>
                         Condition.matches(each.where, type.table, row, moment),
                     )?.swatch;
 
@@ -52,7 +52,7 @@ export const ObjectAppearance = {
                       : stored === null || stored === undefined
                         ? undefined
                         : Icon.parse(stored),
-            color: color === null || color === undefined ? undefined : SwatchName.parse(color),
+            color: color === null || color === undefined ? undefined : Hue.parse(color),
         };
     },
 

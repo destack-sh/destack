@@ -31,7 +31,7 @@ const media: FileBucket = new ResourceDeclaration(
     },
 );
 
-/** Boards presented by name, icon, accent and cover, found by name and ordered by rank. */
+/** Boards presented by name, icon, color and cover, found by name and ordered by rank. */
 const board = defineObject(
     {
         name: "board",
@@ -57,11 +57,11 @@ const board = defineObject(
     }),
 );
 
-test("present an object by its name, subtitle, chosen icon, accent and cover, described for pickers with its query roles and an index per filtered or sorted field", async () => {
+test("present an object by its name, subtitle, chosen icon, color and cover, described for pickers with its query roles and an index per filtered or sorted field", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
 
-    // create a board with an icon, an accent and a cover
+    // create a board with an icon, a color and a cover
     const storage = await TestDatabase.create(
         defineDatabase({
             name: "board",
@@ -93,7 +93,7 @@ test("present an object by its name, subtitle, chosen icon, accent and cover, de
                     spaceId,
                     name: "Roadmap",
                     icon: { emoji: "🗺️" },
-                    color: "teal",
+                    color: "cyan",
                     cover: { file: { key: "covers/roadmap.png" }, focus: 0.4 },
                 }),
             ],
@@ -112,7 +112,7 @@ test("present an object by its name, subtitle, chosen icon, accent and cover, de
         stored: [
             "Roadmap",
             { emoji: "🗺️" },
-            "teal",
+            "cyan",
             { file: { key: "covers/roadmap.png" }, focus: 0.4 },
         ],
         presentation: {

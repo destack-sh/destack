@@ -8,7 +8,7 @@ import {
     type PermissionSet,
 } from "@destack/access";
 import { defineKind, DeclarationName, type graph, PackageId, Sandbox } from "@destack/package";
-import { SwatchName } from "@destack/color";
+import { Hue } from "@destack/color";
 import type { BuildReader } from "@destack/package/manifest";
 import { ObjectTypeReference } from "@destack/sync";
 
@@ -126,7 +126,7 @@ const packageDescription = schema.object({
     /** The Phosphor icon its app's tile draws. */
     icon: IconName,
     /** The swatch the stack draws it in wherever it appears. */
-    color: SwatchName,
+    color: Hue,
     /** The oldest caller release the package serves, every release when absent. */
     since: Version.exactOptional(),
     /** The object types it serves with its code's phases, by route name. */
