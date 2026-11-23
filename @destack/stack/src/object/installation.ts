@@ -140,7 +140,9 @@ export const installation = defineObject(
             /** The principal submitting the targeted revision, absent before the first one. */
             submittedBy: field.subject().optional(),
             /** The digest of the space's stack the installation last followed, absent for none. */
-            spaceStack: field.string(Digest).optional(),
+            appliedStack: field.string(Digest).optional(),
+            /** The image of the host's release it last followed, when it follows the host. */
+            followedImage: field.string(Digest).optional(),
             /** The revision it targets, absent before the first. */
             targetRevision: field.reference(() => installationRevision).optional(),
             /** The revision fully applied, absent before the first application. */
@@ -308,14 +310,16 @@ export const installation = defineObject(
             }),
         }),
 
-        /** Follow the space's stack: record its digest, dropping an owner's earlier apply. */
+        /** Record what it follows now: the space's stack's digest, the host's image, or both. */
         follow: method.mutation({
             title: t`Follow`,
             permission: "update",
             visibility: "package",
             input: schema.object({
-                /** The digest of the space's stack. */
-                spaceStack: Digest,
+                /** The digest of the space's stack, dropping an owner's earlier apply. */
+                appliedStack: Digest.exactOptional(),
+                /** The image of the host's release of its package. */
+                followedImage: Digest.exactOptional(),
             }),
         }),
 
@@ -625,6 +629,39 @@ export const Installation = {
         }
 
         return refusals;
+    },
+
+    /** Follow the host's image of each installation following the host, where it changed. */
+    async follow(
+        store: Pick<ObjectStore, "database" | "mutate" | "as" | "environment">,
+        spaceId: Identifier<"space">,
+        hosted: (packageId: PackageId) => Digest | undefined,
+    ): Promise<void> {
+        // read the installations following the host, which follow no row
+        const rows = await store.database
+            .snapshot()
+            .read(installation.table)
+            .findMany({ where: { scope: spaceId, followsType: { isNull: true } } });
+
+        // record the host's image of each whose image changed
+        const calls = rows.flatMap((row) => {
+            const image = hosted(row.packageId);
+
+            return image === undefined || image === row.followedImage
+                ? []
+                : [
+                      installation.call("follow", {
+                          ...installation.target(row),
+                          followedImage: image,
+                      }),
+                  ];
+        });
+        if (calls.length > 0) {
+            await store.mutate(store.as(installation), {
+                id: RequestId.create(store.environment),
+                calls,
+            });
+        }
     },
 
     /** Describe a space refusing to serve an installation's targeted revision. */
