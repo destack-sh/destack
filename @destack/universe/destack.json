@@ -7,10 +7,21 @@
     "entrypoints": ["src/cloudflare/worker.ts"],
     "exports": {
         "./bun": {
-            "runtimes": ["bun"]
+            "runtimes": ["bun"],
+            "internal": true
         },
         "./cloudflare/worker": {
-            "runtimes": ["workerd"]
+            "runtimes": ["workerd"],
+            "internal": true
+        },
+        ".": {
+            "internal": true
+        },
+        "./error": {
+            "internal": true
+        },
+        "./package": {
+            "internal": true
         }
     }
 }
