@@ -1,4 +1,5 @@
-import { nth } from "@destack/schema";
+import { nth, present } from "@destack/schema";
+import { stroke } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import {
     type Accessor,
@@ -19,11 +20,15 @@ import { createElementSize } from "@destack/view/primitives/resize-observer";
 import { mergeProperties } from "../part/index.ts";
 import type { Axis } from "../position/index.ts";
 import {
+    Length,
     type ScrollBehavior,
     type VirtualItem,
     Virtualizer,
     type VirtualRect,
 } from "../virtualizer/index.ts";
+
+/** The reach of an item's focus ring outside its box: the ring and its offset. */
+const REACH = `calc(${stroke.ring} + ${stroke.border})`;
 
 /** The styles of a virtual list and its items. */
 const styles = style.create({
@@ -37,6 +42,15 @@ const styles = style.create({
         position: "relative",
         flexShrink: 0,
     },
+    roomAcross: {
+        marginInline: REACH,
+    },
+    roomDown: {
+        marginBlock: REACH,
+    },
+    roomAround: {
+        padding: REACH,
+    },
     item: {
         position: "absolute",
     },
@@ -44,19 +58,50 @@ const styles = style.create({
 
 /** The sizes and places of a virtual list's items. */
 const places = style.create({
-    vertical: (size: number) => ({ blockSize: `${String(size)}px`, inlineSize: "100%" }),
-    horizontal: (size: number) => ({ inlineSize: `${String(size)}px`, blockSize: "100%" }),
+    vertical: (size: number) => ({
+        blockSize: `${String(size)}px`,
+        inlineSize: `calc(100% - 2 * ${REACH})`,
+    }),
+    horizontal: (size: number) => ({
+        inlineSize: `${String(size)}px`,
+        blockSize: `calc(100% - 2 * ${REACH})`,
+    }),
     down: (start: number, lane: number, lanes: number) => ({
         insetBlockStart: `${String(start)}px`,
         insetInlineStart: `${String((lane / lanes) * 100)}%`,
         inlineSize: `${String(100 / lanes)}%`,
     }),
+    gapDown: (gap: string) => ({ paddingBlockEnd: gap }),
+    gapAcross: (gap: string) => ({ paddingInlineEnd: gap }),
     across: (start: number, lane: number, lanes: number) => ({
         insetInlineStart: `${String(start)}px`,
         insetBlockStart: `${String((lane / lanes) * 100)}%`,
         blockSize: `${String(100 / lanes)}%`,
     }),
 });
+
+/** The items a virtual list shows, which the list around it reads, such as a sortable container. */
+export interface VirtualWindow {
+    /** Every item's key in order, those out of view included. */
+    readonly keys: Accessor<readonly string[]>;
+    /** Each item's place in that order, by its key. */
+    readonly positions: Accessor<ReadonlyMap<string, number>>;
+    /** Scroll an item into view by its key, which mounts it. */
+    readonly reveal: (key: string) => void;
+    /** The element that scrolls the items. */
+    readonly scroller: Accessor<HTMLElement | undefined>;
+}
+
+/** A list around a virtual list, which takes its window and asks for items mounted out of view. */
+export interface VirtualHost {
+    /** Take the window of the virtual list inside until the virtual list unmounts. */
+    readonly add: (window: VirtualWindow) => void;
+    /** The keys of items the virtual list mounts out of view, such as a dragged or focused one. */
+    readonly persisted: Accessor<readonly string[]>;
+}
+
+/** The list around the nearest virtual list, null where none reads its window. */
+export const VirtualHostContext = createContext<VirtualHost | null>(null);
 
 /** The virtualizer of the nearest virtual list, null outside one. */
 const VirtualizerContext = createContext<Virtualizer | null>(null);
@@ -82,6 +127,8 @@ export interface VirtualItemsProperties<Item> extends Omit<
     readonly each: readonly Item[];
     /** The pixels from the scrolling element's start to the first item, 0 by default. */
     readonly scrollMargin?: number;
+    /** The room after each item but the last, in pixels or as a CSS length, measured with it. */
+    readonly gap?: number | string;
     /** Read the attributes of an item's element, such as its role. */
     readonly itemProperties?:
         | ((item: Item, index: number) => JSX.HTMLAttributes<HTMLDivElement>)
@@ -94,14 +141,15 @@ export interface VirtualItemsProperties<Item> extends Omit<
 
 /** Render the items a virtualizer has in view, each at its place in the room all of them take. */
 export function VirtualItems<Item>(properties: VirtualItemsProperties<Item>): JSX.Element {
-    // size the room by every item along the virtualizer's axis
-    const virtualizer = properties.virtualizer;
+    // size the room by every item along the virtualizer's axis, the virtualizer fixed at mount
+    const virtualizer = untrack(() => properties.virtualizer);
     const isVertical = virtualizer.orientation === "vertical";
     const rest = omit(
         properties,
         "virtualizer",
         "each",
         "scrollMargin",
+        "gap",
         "itemProperties",
         "children",
         "xstyle",
@@ -115,6 +163,7 @@ export function VirtualItems<Item>(properties: VirtualItemsProperties<Item>): JS
             {...style.attributes(
                 [
                     styles.items,
+                    isVertical ? styles.roomAcross : styles.roomDown,
                     isVertical
                         ? places.vertical(virtualizer.totalSize())
                         : places.horizontal(virtualizer.totalSize()),
@@ -130,6 +179,7 @@ export function VirtualItems<Item>(properties: VirtualItemsProperties<Item>): JS
                         virtualizer={virtualizer}
                         each={properties.each}
                         scrollMargin={properties.scrollMargin ?? 0}
+                        gap={properties.gap ?? 0}
                         itemProperties={properties.itemProperties}
                     >
                         {properties.children}
@@ -150,6 +200,8 @@ function VirtualItemView<Item>(properties: {
     readonly each: readonly Item[];
     /** The pixels before the list in its scroller. */
     readonly scrollMargin: number;
+    /** The room after the item unless it is the last. */
+    readonly gap: number | string;
     /** The attributes of the item's element, such as its role. */
     readonly itemProperties: VirtualItemsProperties<Item>["itemProperties"];
     /** Render the item's content. */
@@ -161,6 +213,19 @@ function VirtualItemView<Item>(properties: {
     const start = () => properties.virtual().start - properties.scrollMargin;
     const lane = () => properties.virtual().lane;
     const lanes = () => properties.virtualizer.lanes();
+
+    // leave the gap after every item but the last, measured with the item
+    const gap = (): style.Styles => {
+        // leave no gap after the last item
+        const length = lengthOf(properties.gap);
+        if (index() === properties.each.length - 1) {
+            return null;
+        }
+
+        return properties.virtualizer.orientation === "vertical"
+            ? places.gapDown(length)
+            : places.gapAcross(length);
+    };
 
     return (
         <Show when={item()} keyed>
@@ -174,6 +239,7 @@ function VirtualItemView<Item>(properties: {
                         properties.virtualizer.orientation === "vertical"
                             ? places.down(start(), lane(), lanes())
                             : places.across(start(), lane(), lanes()),
+                        gap(),
                     )}
                 >
                     {properties.children(shown, index)}
@@ -198,8 +264,8 @@ export interface VirtualListProperties<Item> extends Omit<
     readonly orientation?: Axis;
     /** The number of lanes across the scroll, such as the columns of a grid, one by default. */
     readonly lanes?: number;
-    /** The room between items, in pixels. */
-    readonly gap?: number;
+    /** The room between items, in pixels or as a CSS length such as a space token. */
+    readonly gap?: number | string;
     /** The items rendered beyond the visible ones on either side, eight by default. */
     readonly overscan?: number;
     /** The end the view stays at as items come and go, the start by default. */
@@ -240,20 +306,59 @@ export function VirtualList<Item>(properties: VirtualListProperties<Item>): JSX.
         return properties.before === undefined || size === null ? 0 : size;
     };
 
-    // say which items are in view
+    // read the list around, which needs every item's key
+    const host = useContext(VirtualHostContext);
     const itemKey = untrack(() => properties.itemKey);
+    if (host !== null && itemKey === undefined) {
+        throw new TypeError("virtual list inside a list that reads it needs an item key");
+    }
+    const keys = createMemo(() =>
+        host === null || itemKey === undefined
+            ? []
+            : properties.each.map((item, index) => String(itemKey(item, index))),
+    );
+    const positions = createMemo(() => new Map(keys().map((key, index) => [key, index] as const)));
+    const persisted = createMemo(
+        () =>
+            (host?.persisted() ?? []).flatMap((key) => {
+                const index = positions().get(key);
+
+                return index === undefined ? [] : [index];
+            }),
+        { equals: (previous, next) => previous.join() === next.join() },
+    );
+
+    // say which items are in view
     const fixed = untrack(() => ({
         estimateSize: properties.estimateSize,
-        gap: properties.gap,
         overscan: properties.overscan,
         anchorTo: properties.anchorTo,
         followOnAppend: properties.followOnAppend,
         scrollEndThreshold: properties.scrollEndThreshold,
         initialRect: properties.initialRect,
     }));
+    const gapLength = new Length(() => lengthOf(properties.gap ?? 0));
+    const gapPixels = () =>
+        typeof properties.gap === "string" ? gapLength.pixels() : (properties.gap ?? 0);
+
+    // leave the items room for their focus rings, none until it is measured on mount
+    const reachLength = new Length(() => REACH);
+    const reach = () => reachLength.pixels() ?? 0;
+    const estimate = createMemo(() => {
+        // estimate every item but the last with the gap after it, as its measure has it
+        const pixels = gapPixels();
+
+        return (index: number) =>
+            index < properties.each.length - 1
+                ? fixed.estimateSize(index) + present(pixels, "the virtual list's gap")
+                : fixed.estimateSize(index);
+    });
     const virtualizer = new Virtualizer({
         count: () => properties.each.length,
-        estimateSize: fixed.estimateSize,
+        estimateSize: estimate,
+        paddingStart: reach,
+        paddingEnd: reach,
+        isEnabled: () => gapPixels() !== undefined,
         scrollElement: scroller,
         orientation,
         lanes: () => properties.lanes ?? 1,
@@ -268,12 +373,26 @@ export function VirtualList<Item>(properties: VirtualListProperties<Item>): JSX.
 
                       return (index: number) => itemKey(nth(each, index), index);
                   }),
-        gap: fixed.gap,
         overscan: fixed.overscan,
         anchorTo: fixed.anchorTo,
         followOnAppend: fixed.followOnAppend,
         scrollEndThreshold: fixed.scrollEndThreshold,
         initialRect: fixed.initialRect,
+        persisted,
+    });
+
+    // hand the window to the list around
+    host?.add({
+        keys,
+        positions,
+        scroller,
+        reveal: (key) => {
+            const index = positions().get(key);
+            if (index === undefined) {
+                throw new RangeError(`virtual list reveal of a missing key '${key}'`);
+            }
+            virtualizer.scrollToIndex(index);
+        },
     });
 
     // start a list that stays at its end at its end
@@ -330,17 +449,25 @@ export function VirtualList<Item>(properties: VirtualListProperties<Item>): JSX.
             <div
                 data-slot="virtual-list"
                 data-orientation={orientation}
-                tabindex="0"
+                tabindex={host === null ? "0" : undefined}
                 {...mergeProperties({ ref: setScroller }, rest)}
                 {...style.attributes(
                     [styles.list, styles[orientation], properties.xstyle],
                     properties.style,
                 )}
             >
+                {/* Gap length */}
+                <Show when={typeof properties.gap === "string"}>{gapLength.element}</Show>
+                {reachLength.element}
+
                 {/* Before */}
                 <Show when={properties.before}>
                     {(before) => (
-                        <div data-slot="virtual-list-before" ref={setLead}>
+                        <div
+                            data-slot="virtual-list-before"
+                            ref={setLead}
+                            {...style.attrs(styles.roomAround)}
+                        >
                             {before()}
                         </div>
                     )}
@@ -352,13 +479,25 @@ export function VirtualList<Item>(properties: VirtualListProperties<Item>): JSX.
                     each={properties.each}
                     scrollMargin={scrollMargin()}
                     itemProperties={properties.itemProperties}
+                    {...(properties.gap === undefined ? {} : { gap: properties.gap })}
                 >
                     {properties.children}
                 </VirtualItems>
 
                 {/* After */}
-                {properties.after}
+                <Show when={properties.after}>
+                    {(after) => (
+                        <div data-slot="virtual-list-after" {...style.attrs(styles.roomAround)}>
+                            {after()}
+                        </div>
+                    )}
+                </Show>
             </div>
         </VirtualizerContext>
     );
+}
+
+/** Write a gap as a CSS length, a number in pixels. */
+function lengthOf(gap: number | string): string {
+    return typeof gap === "number" ? `${String(gap)}px` : gap;
 }

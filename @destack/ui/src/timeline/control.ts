@@ -10,7 +10,6 @@ import type * as style from "@destack/style";
 import {
     type Accessor,
     createContext,
-    createEffect,
     createMemo,
     createSignal,
     type JSX,
@@ -182,10 +181,15 @@ export class TimelineControl {
             ownedWrite: true,
         });
         this.attachScroller = setScroller;
+        const estimate = createMemo(() => {
+            // size each row by its lanes, a new size laying the rows out again
+            const tops = this.tops();
+
+            return (index: number) => nth(tops, index + 1) - nth(tops, index);
+        });
         this.virtualizer = new Virtualizer({
             count: () => this.tree.rows().length,
-            estimateSize: (index) =>
-                nth(untrack(this.tops), index + 1) - nth(untrack(this.tops), index),
+            estimateSize: estimate,
             scrollElement: scroller,
             itemKey: createMemo(() => {
                 // key each virtual row by its item, from the rows the count reads too
@@ -194,7 +198,6 @@ export class TimelineControl {
                 return (index: number) => nth(rows, index).item.key;
             }),
         });
-        createEffect(this.tops, () => this.virtualizer.remeasure());
 
         // move one focus through the rows, and select several as Finder and Linear do
         this.focus = new Focus({ delegate: new RowsDelegate(this.tree), mode: "roving" });

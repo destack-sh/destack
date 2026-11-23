@@ -1,5 +1,5 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { createRoot, createSignal, flush } from "@destack/view";
+import { createMemo, createRoot, createSignal, flush } from "@destack/view";
 import { Virtualizer, type VirtualizerOptions } from "./virtualizer.ts";
 
 /** The height of the test viewport, in pixels. */
@@ -7,6 +7,11 @@ const VIEWPORT_HEIGHT = 100;
 
 /** The height of each test item, in pixels. */
 const ITEM_HEIGHT = 20;
+
+/** Estimate each test item at its height. */
+function estimateItem(): number {
+    return ITEM_HEIGHT;
+}
 
 /** Make a scrolling element of the test viewport's height, which the test DOM does not lay out. */
 function viewport(): HTMLElement {
@@ -30,7 +35,7 @@ function createList(element: HTMLElement, options: Partial<VirtualizerOptions> =
 
         return new Virtualizer({
             count: () => 100,
-            estimateSize: () => ITEM_HEIGHT,
+            estimateSize: () => estimateItem,
             scrollElement: () => element,
             ...options,
         });
@@ -62,6 +67,67 @@ test("render the visible items with eight to spare on either side as the element
     });
 });
 
+test("lay the items out again at a new estimate, as a theme change resizes them", () => {
+    // estimate twenty-pixel items, then thirty
+    const element = viewport();
+    const [height, setHeight] = createSignal(ITEM_HEIGHT);
+    const list = createRoot((dispose) => {
+        onTestFinished(dispose);
+        const estimate = createMemo(() => {
+            const each = height();
+
+            return () => each;
+        });
+
+        return new Virtualizer({
+            count: () => 100,
+            estimateSize: estimate,
+            scrollElement: () => element,
+        });
+    });
+    flush();
+    const before = list.totalSize();
+    setHeight(30);
+    flush();
+
+    expect([before, list.totalSize()]).toEqual([100 * ITEM_HEIGHT, 100 * 30]);
+});
+
+test("measure the rendered items again after a new estimate, the rest taking the estimate", () => {
+    // measure the first item at fifty pixels, then estimate the others at thirty
+    const element = viewport();
+    const [height, setHeight] = createSignal(ITEM_HEIGHT);
+    const list = createRoot((dispose) => {
+        onTestFinished(dispose);
+        const estimate = createMemo(() => {
+            const each = height();
+
+            return () => each;
+        });
+
+        return new Virtualizer({
+            count: () => 100,
+            estimateSize: estimate,
+            scrollElement: () => element,
+        });
+    });
+    flush();
+    const item = document.createElement("div");
+    Object.defineProperty(item, "offsetHeight", { value: 50 });
+    element.append(item);
+    const first = list.items()[0];
+    if (first === undefined) {
+        throw new TypeError("the list rendered no first item");
+    }
+    list.itemAttributes(first).ref(item);
+    flush();
+    const before = list.totalSize();
+    setHeight(30);
+    flush();
+
+    expect([before, list.totalSize()]).toEqual([50 + 99 * ITEM_HEIGHT, 50 + 99 * 30]);
+});
+
 test("follow the item count and wait for the element before rendering items", () => {
     // start without an element, then attach one and shrink the list
     const element = viewport();
@@ -72,7 +138,7 @@ test("follow the item count and wait for the element before rendering items", ()
 
         return new Virtualizer({
             count,
-            estimateSize: () => ITEM_HEIGHT,
+            estimateSize: () => estimateItem,
             scrollElement: scroller,
         });
     });
@@ -196,5 +262,20 @@ test("reuse a measured item's size, and hand the measurements to a later virtual
         first: 3 * ITEM_HEIGHT,
         height: 102 * ITEM_HEIGHT,
         restored: 3 * ITEM_HEIGHT,
+    });
+});
+
+test("render a persisted item far out of view, leaving the room around the run in view alone", () => {
+    // persist the ninetieth item, then read the rendered indexes and the room around the run
+    const element = viewport();
+    const list = createList(element, { overscan: 0, persisted: () => [90] });
+    flush();
+
+    expect({
+        indexes: list.items().map((item) => item.index),
+        spacers: list.spacers(),
+    }).toEqual({
+        indexes: [0, 1, 2, 3, 4, 90],
+        spacers: { before: 0, after: 94 * ITEM_HEIGHT },
     });
 });

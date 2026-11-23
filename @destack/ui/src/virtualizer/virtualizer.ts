@@ -1,3 +1,4 @@
+import { nth } from "@destack/schema";
 import * as virtual from "@tanstack/virtual-core";
 import {
     type Accessor,
@@ -40,8 +41,8 @@ export interface ScrollOptions {
 export interface VirtualizerOptions {
     /** The number of items. */
     readonly count: Accessor<number>;
-    /** Estimate the size of an item along the scroll before it is measured, in pixels. */
-    readonly estimateSize: (index: number) => number;
+    /** Read how to estimate an item's size before it is measured, a new one measuring all again. */
+    readonly estimateSize: Accessor<(index: number) => number>;
     /** Read the element that scrolls the items, the window when absent. */
     readonly scrollElement?: Accessor<HTMLElement | undefined>;
     /** The axis the items run along, vertical by default. */
@@ -58,10 +59,12 @@ export interface VirtualizerOptions {
     readonly itemKey?: Accessor<(index: number) => string | number> | undefined;
     /** Choose the indexes to render for a visible range, such as sticky headers beside it. */
     readonly rangeExtractor?: (range: VirtualRange) => number[];
+    /** The indexes rendered out of view too, such as a dragged or focused item's. */
+    readonly persisted?: Accessor<readonly number[]>;
     /** The room before the first item, in pixels. */
-    readonly paddingStart?: number;
+    readonly paddingStart?: Accessor<number>;
     /** The room after the last item, in pixels. */
-    readonly paddingEnd?: number;
+    readonly paddingEnd?: Accessor<number>;
     /** The room a scroll to an item leaves before it, in pixels. */
     readonly scrollPaddingStart?: number;
     /** The room a scroll to an item leaves after it, in pixels. */
@@ -140,18 +143,36 @@ export class Virtualizer {
             this.#update = (settings) => core.setOptions({ ...core.options, ...settings });
         }
 
-        // give the engine its settings as they change, before the items render from them
-        this.#settings = createMemo(() => {
+        // give the engine its settings as they change, measuring again under a new estimate
+        this.#settings = createMemo((previous: ReturnType<typeof settingsOf> | undefined) => {
             const settings = settingsOf(options);
-            untrack(() => this.#update(settings));
+            untrack(() => {
+                this.#update(settings);
+                if (previous !== undefined && previous.estimateSize !== settings.estimateSize) {
+                    this.#core.measure();
+                }
+            });
 
             return settings;
-        });
+        }, undefined);
 
         // attach to the scrolling element and place the scroll once the items have rendered
         createEffect(
             () => ({ settings: this.#settings(), element: scrollElement?.() }),
-            () => untrack(() => this.#core._willUpdate()),
+            (next, previous) =>
+                untrack(() => {
+                    // lay the items out under a new estimate, then measure the rendered ones again
+                    this.#core._willUpdate();
+                    const estimate = previous?.settings.estimateSize;
+                    if (estimate !== undefined && estimate !== next.settings.estimateSize) {
+                        this.#core.getVirtualItems();
+                        for (const element of this.#core.elementsCache.values()) {
+                            if (element.isConnected) {
+                                this.#core.measureElement(element);
+                            }
+                        }
+                    }
+                }),
         );
         onCleanup(this.#core._didMount());
     }
@@ -176,20 +197,29 @@ export class Virtualizer {
         return this.#core.getTotalSize();
     }
 
-    /** Read the room the items in view leave before and after them, in pixels. */
+    /** Read the room the run of items in view leaves before and after it, persisted ones aside. */
     spacers(): { readonly before: number; readonly after: number } {
-        // leave every item's room after a view without items
-        const items = this.items();
+        // read the run of items around the range, leaving every item's room after a view without one
+        const range = this.range();
+        const items = range === undefined ? this.items() : runOf(this.items(), range.startIndex);
         const first = items[0];
         const last = items.at(-1);
         if (first === undefined || last === undefined) {
             return { before: 0, after: this.totalSize() };
         }
 
-        // measure from the first item's start, past the room before the list
+        // measure from the run's first item, less the room the persisted items around it take in flow
         const margin = this.#settings().scrollMargin;
+        const rendered = this.items();
+        const outside = {
+            before: sizeOf(rendered.filter((item) => item.index < first.index)),
+            after: sizeOf(rendered.filter((item) => item.index > last.index)),
+        };
 
-        return { before: first.start - margin, after: this.totalSize() - (last.end - margin) };
+        return {
+            before: first.start - margin - outside.before,
+            after: this.totalSize() - (last.end - margin) - outside.after,
+        };
     }
 
     /** Read the first and last index in view, none before the first measurement. */
@@ -266,11 +296,6 @@ export class Virtualizer {
         this.#core.resizeItem(index, size);
     }
 
-    /** Forget every measurement, so each item is measured again. */
-    remeasure(): void {
-        this.#core.measure();
-    }
-
     /** Scroll an item into view. */
     scrollToIndex(index: number, options: ScrollOptions = {}): void {
         this.#core.scrollToIndex(index, { align: "auto", ...options });
@@ -302,20 +327,57 @@ export class Virtualizer {
     }
 }
 
+/** Add up the sizes of some items. */
+function sizeOf(items: readonly VirtualItem[]): number {
+    return items.reduce((total, item) => total + item.size, 0);
+}
+
+/** Read the run of items with consecutive indexes around the first one at or past an index. */
+function runOf(items: readonly VirtualItem[], index: number): readonly VirtualItem[] {
+    // find the item at the index, then the items that follow on from it either way
+    const at = items.findIndex((item) => item.index >= index);
+    if (at === -1) {
+        return [];
+    }
+    let [start, end] = [at, at + 1];
+    while (start > 0 && nth(items, start - 1).index === nth(items, start).index - 1) {
+        start -= 1;
+    }
+    while (end < items.length && nth(items, end).index === nth(items, end - 1).index + 1) {
+        end += 1;
+    }
+
+    return items.slice(start, end);
+}
+
+/** Build the indexes a virtualizer renders: its range's, then the persisted ones out of it. */
+function rangeOf(options: VirtualizerOptions): (range: VirtualRange) => number[] {
+    // read the persisted indexes as they stand
+    const extract = options.rangeExtractor ?? virtual.defaultRangeExtractor;
+    const persisted = options.persisted?.() ?? [];
+    if (persisted.length === 0) {
+        return extract;
+    }
+
+    // add each persisted index the range leaves out, in order
+    return (range) =>
+        [...new Set([...extract(range), ...persisted])].toSorted((left, right) => left - right);
+}
+
 /** Read the engine's settings from a virtualizer's options as they stand. */
 function settingsOf(options: VirtualizerOptions) {
     return {
         count: options.count(),
-        estimateSize: options.estimateSize,
+        estimateSize: options.estimateSize(),
         horizontal: options.orientation === "horizontal",
         lanes: options.lanes?.() ?? 1,
         laneAssignmentMode: options.laneAssignment ?? "estimate",
         gap: options.gap ?? 0,
         overscan: options.overscan ?? OVERSCAN,
         getItemKey: options.itemKey?.() ?? virtual.defaultKeyExtractor,
-        rangeExtractor: options.rangeExtractor ?? virtual.defaultRangeExtractor,
-        paddingStart: options.paddingStart ?? 0,
-        paddingEnd: options.paddingEnd ?? 0,
+        rangeExtractor: rangeOf(options),
+        paddingStart: options.paddingStart?.() ?? 0,
+        paddingEnd: options.paddingEnd?.() ?? 0,
         scrollPaddingStart: options.scrollPaddingStart ?? 0,
         scrollPaddingEnd: options.scrollPaddingEnd ?? 0,
         scrollMargin: options.scrollMargin?.() ?? 0,

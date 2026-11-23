@@ -156,9 +156,10 @@ export class GridListControl<Item> {
                       ));
         this.delegate = new GridDelegate(this.collection, this.columns);
         const rowHeight = options.rowHeight ?? ROW_HEIGHT;
+        const estimate = (): number => rowHeight;
         this.#virtualizer = new Virtualizer({
             count: () => this.delegate.rows().length,
-            estimateSize: () => rowHeight,
+            estimateSize: () => estimate,
             scrollElement: viewport,
             initialRect: { width: 0, height: UNMEASURED_ROWS * rowHeight },
         });
