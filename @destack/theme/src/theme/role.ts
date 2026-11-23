@@ -61,6 +61,9 @@ const CARD_OFFSET: Lightness = { light: 0.02, dark: 0.09 };
 /** The OKLCH lightness of a popover over the background: white by day, above the cards by night. */
 const POPOVER_OFFSET: Lightness = { light: 0.02, dark: 0.115 };
 
+/** How a shifted color's chroma follows its lightness, by eye: 0 not at all, 1 in proportion. */
+const CHROMA_EXPONENT = 0.5;
+
 /** No lightness offset: another role's own color. */
 const SAME: Lightness = { light: 0, dark: 0 };
 
@@ -136,7 +139,7 @@ export interface Reading {
 /** Where a role's color comes from. */
 export type RoleSource =
     | {
-          /** Another role's color at a lightness offset, keeping its chroma and hue. */
+          /** Another role's color at a lightness offset, in the same hue, its chroma scaled. */
           readonly kind: "shift";
           /** The role. */
           readonly from: RoleName;
@@ -361,10 +364,12 @@ export class Resolution {
         const source = role.source;
         switch (source.kind) {
             case "shift": {
-                // move the role's color in lightness alone
+                // move the role's color in lightness, its chroma partly with it
                 const color = Oklch.parse(this.color(source.from));
                 const lightness = color.lightness + source.lightness[this.scheme];
-                const shifted = new Oklch(lightness, color.chroma, color.hue).hex();
+                const ratio = color.lightness === 0 ? 1 : lightness / color.lightness;
+                const chroma = color.chroma * ratio ** CHROMA_EXPONENT;
+                const shifted = new Oklch(lightness, chroma, color.hue).hex();
 
                 return this.#translucent(shifted, source.alpha, role);
             }

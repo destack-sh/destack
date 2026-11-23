@@ -309,7 +309,7 @@ test("check the roles a theme replaces like every other role", async () => {
         style["--destack-color-muted-foreground"],
     ]).toEqual([
         "light-dark(#f8f5ee, #0b2029)",
-        "light-dark(#1f1f22, color-mix(in oklab, #ededf2, #eff0f4 calc(var(--destack-contrast, 0) * 100%)))",
+        "light-dark(#1f1f22, color-mix(in oklab, #ededf2, #f0f0f5 calc(var(--destack-contrast, 0) * 100%)))",
     ]);
 
     // a background too close to its text is refused
@@ -421,8 +421,8 @@ test("emit the default theme's custom properties for the system appearance", () 
     expect(withoutSwatches(standard.variables(DEFAULT_DISPLAY))).toEqual({
         "color-scheme": "light dark",
         "--destack-color-background": "light-dark(#fcfdfe, #131315)",
-        "--destack-color-card": "light-dark(#ffffff, #28282a)",
-        "--destack-color-popover": "light-dark(#ffffff, #2e2e30)",
+        "--destack-color-card": "light-dark(#ffffff, #28282b)",
+        "--destack-color-popover": "light-dark(#ffffff, #2e2e31)",
         "--destack-color-foreground": "light-dark(#1f1f22, #ededf2)",
         "--destack-color-muted-foreground":
             "light-dark(color-mix(in oklab, #62636c, #46474e calc(var(--destack-contrast, 0) * 100%)), color-mix(in oklab, #b7b9c2, #eaebf0 calc(var(--destack-contrast, 0) * 100%)))",
