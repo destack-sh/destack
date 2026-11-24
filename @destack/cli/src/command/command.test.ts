@@ -67,10 +67,10 @@ test("print the version, and refuse invalid usage as text or JSON", async () => 
             ],
         },
         {
-            arguments: ["switch"],
+            arguments: ["accept"],
             code: 2,
             output: [],
-            error: ["error  usage is invalid: use 'destack switch <space>'"],
+            error: ["error  usage is invalid: use 'destack accept <invitation-…>'"],
         },
         {
             arguments: ["completion", "powershell"],

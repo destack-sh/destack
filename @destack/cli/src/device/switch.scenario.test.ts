@@ -55,12 +55,13 @@ test("switch to a space as this computer's space setting, which --space override
         await line(["--space"]),
     );
 
-    // set the space switched to as this computer's setting, resolving names and refusing a space nobody can open
+    // set the space switched to as this computer's setting, resolving names, refusing a space nobody can open, and list the spaces marking it
     const { login } = terminal;
     expect({
         lines,
         listed: [listed.code, listed.error, installations],
         setting: await terminal.native.setting(currentSpace),
+        spaces: await line(["switch"]),
     }).toEqual({
         lines: [
             { code: 0, output: whoami(terminal, null), error: "" },
@@ -95,6 +96,11 @@ test("switch to a space as this computer's space setting, which --space override
         ],
         listed: [0, "", ["inbox", "message", "observability", "social", "stack", "vault"]],
         setting: desk,
+        spaces: {
+            code: 0,
+            output: [`* ${deskAddress}`, `  ${homeAddress}`, "  home--example"].join("\n"),
+            error: "",
+        },
     });
 });
 
