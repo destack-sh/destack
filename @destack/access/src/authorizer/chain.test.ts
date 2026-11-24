@@ -42,7 +42,7 @@ import {
 } from "../test/fixture.ts";
 import { TestAccess } from "../test/access.ts";
 import { homePositions, openDatabase, openFixture, userSubject } from "../test/database.ts";
-import { Identifier, type JsonObject, nth, schema } from "@destack/schema";
+import { Identifier, type JsonObject, nth } from "@destack/schema";
 
 /** The people of the fixed world, each a machine of both regions and a member. */
 const PEOPLE = ["ada", "bea", "cyd", "dov"].map((id) => userSubject(id));
@@ -170,7 +170,6 @@ test("replicate a chain's relationships and grants", () => {
         {
             scopes: ["personal", "account-1", "universe"],
             local: [],
-            replicas: [],
             replicated: [{ scope: Scope.universe.id, types: [] }],
             ...OWN,
         },
@@ -184,7 +183,6 @@ test("replicate a chain's relationships and grants", () => {
         {
             scopes: [],
             local: [],
-            replicas: [],
             replicated: [{ scope: Scope.universe.id, types: [] }],
             via: ["account-1"],
             between: [],
@@ -222,33 +220,23 @@ test("replicate a chain's relationships and grants", () => {
     ]);
 });
 
-test("replicate role permissions on replicas", () => {
-    // build a space's chain replica at the universe, with the given replicas
+test("replicate every role permission of a chain's scopes, whatever types it decides", () => {
+    // build a space's chain replica at the universe, the space homing nodes
     const authorizer = new Authorizer(policies, homeMappings);
-    const permitted = (replicas: readonly ObjectTypeReference[]) => {
-        const chain = authorizer.replicateChain(
-            { name: `${CHAIN_PUBLICATION}:personal`, scope: Scope.universe.id, target: "personal" },
-            {
-                scopes: ["personal", "account-1", "universe"],
-                local: [node.typeReference],
-                replicas,
-                replicated: [{ scope: Scope.universe.id, types: [] }],
-                ...OWN,
-            },
-        );
-        const condition = schema
-            .object({ OR: schema.array(ObjectTypeReference) })
-            .parse(chain.where.get(accessRolePermission));
+    const chain = authorizer.replicateChain(
+        { name: `${CHAIN_PUBLICATION}:personal`, scope: Scope.universe.id, target: "personal" },
+        {
+            scopes: ["personal", "account-1", "universe"],
+            local: [node.typeReference],
+            replicated: [{ scope: Scope.universe.id, types: [] }],
+            ...OWN,
+        },
+    );
 
-        return condition.OR.map((type) => type.type);
-    };
-
-    // read the role permissions on cells once the space replicates cells
-    const decided = ["universe", "machine", "device", "space", "account", "space", "user"];
-    expect([permitted([]), permitted([cell.typeReference])]).toEqual([
-        ["node", ...decided],
-        ["node", "cell", ...decided],
-    ]);
+    // read the role permissions by the replicated scope alone, with no condition on their types
+    expect([chain.where.get(accessRolePermission), chain.scopes.get(accessRolePermission)]).toEqual(
+        [undefined, [Scope.universe.id]],
+    );
 });
 
 test("replicate outside chains and drop one", async () => {
@@ -353,7 +341,6 @@ test("read a shared table once", () => {
         {
             scopes: [],
             local: [],
-            replicas: [],
             replicated: [
                 { scope: Scope.universe.id, types: [node.typeReference, cell.typeReference] },
             ],
@@ -401,7 +388,6 @@ function chainOf(
     const parameters = {
         scopes,
         local: [],
-        replicas: [],
         replicated: replicating.map((each) => ({ scope: each, types })),
         ...outside,
     };
@@ -416,7 +402,6 @@ function chainOf(
             parameters: {
                 scopes: [...scopes],
                 local: [],
-                replicas: [],
                 replicated: parameters.replicated.map((each) => ({
                     scope: each.scope,
                     types: each.types.map((type) => ({ ...type })),
@@ -436,7 +421,6 @@ function accountChainOf(authorizer: Authorizer, type: ObjectTypeReference) {
         {
             scopes: ["personal", "account-1", "universe"],
             local: [],
-            replicas: [],
             replicated: [{ scope: "account-1", types: [type] }],
             ...OWN,
         },

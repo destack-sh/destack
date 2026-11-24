@@ -57,7 +57,7 @@ import { HIGHEST_ASSURANCE, type Elevation, type StepUp } from "../context/eleva
 import { accessRelationship } from "../relationship/table.ts";
 import { Relationship } from "../relationship/relationship.ts";
 import type { Creation } from "./authorization.ts";
-import { accessRole, accessRolePermission, OWNER_ROLE } from "../role/table.ts";
+import { accessRole, OWNER_ROLE } from "../role/table.ts";
 import { accessGrant } from "../grant/table.ts";
 import { earliest, Access, type Related } from "./access.ts";
 import { TupleCondition } from "./condition.ts";
@@ -126,8 +126,6 @@ export const ChainParameters = schema.object({
     scopes: schema.array(schema.string().min(1)).readonly(),
     /** The object types the target homes and decides, left out of its own scope's rows. */
     local: schema.array(ObjectTypeReference).readonly(),
-    /** The object types the target replicates and serves its followers, decided by their roles. */
-    replicas: schema.array(ObjectTypeReference).readonly(),
     /** The scopes the replica reads, each with the object types it propagates. */
     replicated: schema
         .array(
@@ -190,8 +188,6 @@ export class Authorizer {
     readonly setDepth: number;
     /** The relations arrows follow, by permission key of their type and name. */
     readonly #arrows = new Set<string>();
-    /** The types each type's arrows lead to, by the type's key. */
-    readonly #targets = new Map<string, ObjectTypeReference[]>();
     /** The one partition whose scopes' access this database stores, none when absent. */
     readonly partition: string | undefined;
     /** The package serving each type, by type key. */
@@ -1129,29 +1125,30 @@ export class Authorizer {
     ): Replica {
         // read the replicated scope, and the outside scopes and those between for a follower
         const { name, scope, target } = request;
-        const { local, replicas, via, between } = parameters;
+        const { local, via, between } = parameters;
         const scopes = [scope, ...between, ...via];
         const isGranting = scope === Scope.universe.id && via.length === 0;
         const where = new Map<Table, Condition>();
 
         // read the universe's relationships on chain objects alone, and elsewhere the chain's scope objects alone
         const isUniverse = scope === Scope.universe.id;
-        const objects = [...new Set([scope, ...parameters.scopes, ...between, ...via])];
-        const others = isUniverse
+        const chainObjects = [...new Set([scope, ...parameters.scopes, ...between, ...via])];
+        const contentRelationships = isUniverse
             ? { scope: { ne: scope } }
             : { NOT: { OR: this.#scopeTypes().map((type) => Authorizer.#objectType(type)) } };
-        const followed = { OR: [others, { objectId: { in: objects } }] };
+        const relationships = {
+            OR: [contentRelationships, { objectId: { in: chainObjects } }],
+        };
 
         // leave out of the target's own scope the access rows of the objects it homes
-        const homed = { NOT: { OR: local.map((type) => Authorizer.#objectType(type)) } };
+        const foreignRelationships = {
+            NOT: { OR: local.map((type) => Authorizer.#objectType(type)) },
+        };
         const isHomed = !isUniverse && scope === target && local.length > 0;
-        where.set(accessRelationship, isHomed ? { AND: [followed, homed] } : followed);
-
-        // read the role permissions on the types the target decides, closed over their arrows' targets
-        const decided = this.#related([...local, ...replicas, ...types, ...this.#scopeTypes()]);
-        where.set(accessRolePermission, {
-            OR: decided.map(({ packageId, type }) => ({ packageId, type })),
-        });
+        where.set(
+            accessRelationship,
+            isHomed ? { AND: [relationships, foreignRelationships] } : relationships,
+        );
 
         // read the grants to the principals in the target and to delegates acting in it, from every scope
         if (isGranting) {
@@ -1213,25 +1210,6 @@ export class Authorizer {
         return this.policies()
             .filter((policy) => policy.definition.scope === true)
             .map((policy) => policy.typeReference);
-    }
-
-    /** Close types over the types their arrows lead to, transitively, each once. */
-    #related(types: readonly ObjectTypeReference[]): ObjectTypeReference[] {
-        const closed = new Map(types.map((type) => [Authorizer.#typeKey(type), type]));
-        for (const type of closed.values()) {
-            for (const next of this.#targets.get(Authorizer.#typeKey(type)) ?? []) {
-                if (!closed.has(Authorizer.#typeKey(next))) {
-                    closed.set(Authorizer.#typeKey(next), next);
-                }
-            }
-        }
-
-        return [...closed.values()];
-    }
-
-    /** Key an object type by its package and name. */
-    static #typeKey(type: ObjectTypeReference): string {
-        return `${type.packageId}/${type.type}`;
     }
 
     /** Match the relationships on objects of one type. */
@@ -2573,14 +2551,6 @@ export class Authorizer {
             }),
         );
         for (const subject of this.scopeTypes(type, expression.relation, expression.permission)) {
-            // record the type the arrow leads to
-            const key = Authorizer.#typeKey(type.typeReference);
-            const targets = this.#targets.get(key) ?? [];
-            this.#targets.set(key, [
-                ...targets,
-                { packageId: subject.packageId, type: subject.type },
-            ]);
-
             // refuse an arrow to a subject set or a wildcard
             if (subject.relation !== undefined || subject.wildcard) {
                 throw AccessError.of(

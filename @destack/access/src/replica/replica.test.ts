@@ -58,7 +58,6 @@ function chainOf(
     const parameters = {
         scopes: [...scopes],
         local: [...local],
-        replicas: [],
         replicated: [{ scope, types: [] }],
         via: [],
         between: [],
