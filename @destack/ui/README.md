@@ -52,16 +52,16 @@ export const Save = () => {
 
 Each entry is `@destack/ui/<entry>`.
 
-| Group                  | Entries                                                                                                                                                                                                                                                                                                                                            |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Forms                  | `autocomplete`, `button`, `button-group`, `calendar`, `checkbox`, `color-swatch-picker`, `combobox`, `copy-button`, `date-field`, `date-picker`, `dropzone`, `emoji-picker`, `field`, `icon-picker`, `input`, `input-group`, `input-otp`, `label`, `radio-group`, `select`, `slider`, `switch`, `textarea`, `time-field`, `toggle`, `toggle-group` |
-| Overlays               | `alert-dialog`, `context-menu`, `dialog`, `drawer`, `dropdown-menu`, `hover-card`, `menubar`, `popover`, `sheet`, `toast`, `tooltip`                                                                                                                                                                                                               |
-| Navigation             | `breadcrumb`, `command`, `navigation-menu`, `pagination`, `palette`, `sidebar`, `tabs`                                                                                                                                                                                                                                                             |
-| Data                   | `avatar`, `badge`, `card`, `carousel`, `chart`, `code-block`, `data-list`, `data-table`, `diff`, `feed`, `file-item`, `gallery`, `grid-list`, `item`, `kbd`, `list-box`, `load-more`, `object`, `player`, `table`, `tree`, `viewer`, `virtual-list`                                                                                                |
-| Views                  | `board`, `event-calendar`, `timeline`                                                                                                                                                                                                                                                                                                              |
-| Feedback and structure | `accordion`, `alert`, `aspect-ratio`, `collapsible`, `empty`, `progress`, `prose`, `resizable`, `scroll-area`, `separator`, `skeleton`, `spinner`, `visually-hidden`                                                                                                                                                                               |
-| Layout                 | `stack`, `cluster`, `grid`, `center`, `switcher`, `cover`, `content`                                                                                                                                                                                                                                                                               |
-| Building blocks        | `action`, `part`, `collection`, `focus`, `layer`, `position`, `selection`, `interaction`, `drag`, `sortable`, `toggle-state`, `virtualizer`, `glyph`                                                                                                                                                                                               |
+| Group                  | Entries                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Forms                  | `autocomplete`, `button`, `button-group`, `calendar`, `checkbox`, `color-swatch-picker`, `combobox`, `copy-button`, `date-field`, `date-picker`, `date-time-field`, `dropzone`, `emoji-picker`, `field`, `icon-picker`, `input`, `input-group`, `label`, `number-field`, `otp-field`, `password-field`, `radio-group`, `search-field`, `select`, `slider`, `switch`, `textarea`, `time-field`, `toggle`, `toggle-group`, `value-field` |
+| Overlays               | `alert-dialog`, `context-menu`, `dialog`, `drawer`, `dropdown-menu`, `hover-card`, `menubar`, `popover`, `sheet`, `toast`, `tooltip`                                                                                                                                                                                                                                                                                                   |
+| Navigation             | `breadcrumb`, `command`, `navigation-menu`, `pagination`, `palette`, `sidebar`, `tabs`, `toolbar`                                                                                                                                                                                                                                                                                                                                      |
+| Data                   | `avatar`, `badge`, `card`, `carousel`, `chart`, `code-block`, `data-list`, `data-table`, `diff`, `feed`, `file-item`, `gallery`, `grid-list`, `item`, `kbd`, `list-box`, `load-more`, `object`, `player`, `table`, `tree`, `viewer`, `virtual-list`                                                                                                                                                                                    |
+| Views                  | `board`, `event-calendar`, `timeline`                                                                                                                                                                                                                                                                                                                                                                                                  |
+| Feedback and structure | `accordion`, `alert`, `aspect-ratio`, `collapsible`, `empty`, `progress`, `prose`, `resizable`, `scroll-area`, `separator`, `skeleton`, `spinner`, `visually-hidden`                                                                                                                                                                                                                                                                   |
+| Layout                 | `stack`, `cluster`, `grid`, `center`, `switcher`, `cover`, `content`                                                                                                                                                                                                                                                                                                                                                                   |
+| Building blocks        | `action`, `part`, `collection`, `focus`, `layer`, `position`, `selection`, `interaction`, `drag`, `sortable`, `toggle-state`, `virtualizer`, `glyph`                                                                                                                                                                                                                                                                                   |
 
 ### Parts
 
@@ -569,6 +569,75 @@ export function Song(properties: { readonly source: string; readonly onNext: () 
                 <Left />
             </Player>
         </>
+    );
+}
+```
+
+### Take a number and a value
+
+`NumberField` reads and writes a number as people of the language do.
+`ValueField` takes whatever an action asks for, and an app replaces its input of any kind.
+
+```tsx
+import { InputGroup, InputGroupAddon } from "@destack/ui/input-group";
+import {
+    NumberField,
+    NumberFieldDecrement,
+    NumberFieldIncrement,
+    NumberFieldInput,
+} from "@destack/ui/number-field";
+import { ValueField, ValueFieldProvider, type ValueFields } from "@destack/ui/value-field";
+import { createSignal } from "@destack/view";
+
+/** Set a zoom between its buttons. */
+export function Zoom() {
+    const [zoom, setZoom] = createSignal<number | undefined>(1);
+
+    return (
+        <NumberField
+            value={zoom()}
+            onValueChange={setZoom}
+            min={0.1}
+            max={4}
+            step={0.1}
+            format={{ style: "percent" }}
+        >
+            <InputGroup>
+                <InputGroupAddon>
+                    <NumberFieldDecrement>−</NumberFieldDecrement>
+                </InputGroupAddon>
+                <NumberFieldInput aria-label="Zoom" />
+                <InputGroupAddon align="inline-end">
+                    <NumberFieldIncrement>+</NumberFieldIncrement>
+                </InputGroupAddon>
+            </InputGroup>
+        </NumberField>
+    );
+}
+
+/** Take a number as a range. */
+const range: ValueFields["number"] = (properties) => (
+    <input
+        type="range"
+        min={properties.type.minimum}
+        max={properties.type.maximum}
+        onInput={({ currentTarget }) => properties.onValueChange(Number(currentTarget.value))}
+    />
+);
+
+/** Take a rating by an app's own input. */
+export function Rating(properties: {
+    readonly value: number;
+    readonly onGive: (value: unknown) => void;
+}) {
+    return (
+        <ValueFieldProvider inputs={{ number: range }}>
+            <ValueField
+                type={{ kind: "number", minimum: 0, maximum: 5, step: 1 }}
+                value={properties.value}
+                onValueChange={properties.onGive}
+            />
+        </ValueFieldProvider>
     );
 }
 ```
