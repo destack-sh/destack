@@ -347,9 +347,10 @@ export function VirtualList<Item>(properties: VirtualListProperties<Item>): JSX.
     const estimate = createMemo(() => {
         // estimate every item but the last with the gap after it, as its measure has it
         const pixels = gapPixels();
+        const last = properties.each.length - 1;
 
         return (index: number) =>
-            index < properties.each.length - 1
+            index < last
                 ? fixed.estimateSize(index) + present(pixels, "the virtual list's gap")
                 : fixed.estimateSize(index);
     });
