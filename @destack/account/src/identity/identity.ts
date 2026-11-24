@@ -118,7 +118,7 @@ export class Identity implements Credential, Signer {
     }
 
     /** Act for a caller under the grant the subject asks, exchanging tokens (RFC 8693). */
-    acting(caller: Pick<Caller, "subject" | "grants">, requested: GrantRequest): Credential {
+    onBehalfOf(caller: Pick<Caller, "subject" | "grants">, requested: GrantRequest): Credential {
         return {
             authorize: async (request, audience, binding) => {
                 // exchange for the caller's token in the call's space, carrying the grant the subject asks

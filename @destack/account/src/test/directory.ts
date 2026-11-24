@@ -1,4 +1,4 @@
-import { principal, universe } from "@destack/access";
+import { principal, universe, Caller } from "@destack/access";
 import { TestAccess } from "@destack/access/test";
 import { eq } from "@destack/db";
 import type { DatabaseConnection } from "@destack/db/database";
@@ -79,9 +79,11 @@ export const TestDirectory = {
 
         return {
             ...remote,
-            push: (home, push, signal) => remote.push(home, { ...push, signer }, signal),
-            call: (scope, call) => remote.call(scope, call, signer),
-            broadcast: (scope, object, event) => remote.broadcast(scope, object, event, signer),
+            push: (home, push, signal) =>
+                remote.push(home, { ...push, signer: Caller.of(signer) }, signal),
+            call: (scope, call) => remote.call(scope, call, Caller.of(signer)),
+            broadcast: (scope, object, event) =>
+                remote.broadcast(scope, object, event, Caller.of(signer)),
         };
     },
 

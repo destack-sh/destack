@@ -13,8 +13,10 @@ import {
 } from "@destack/object";
 import { nth, present, schema, type Identifier } from "@destack/schema";
 import { type ClientOf, createClient, ObjectConnection } from "@destack/object/client";
+import type { ObjectRemote } from "@destack/object";
+import type { PackageId } from "@destack/package";
 import objectPackage from "@destack/object/package";
-import type { ObjectReference, Publisher } from "@destack/sync";
+import type { ObjectReference } from "@destack/sync";
 import { account } from "../object/account.ts";
 import { space } from "../object/space.ts";
 import { Endpoint, endpoint } from "../object/endpoint.ts";
@@ -205,19 +207,20 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
             : { ...placed, url: published.url };
     }
 
-    /** Stream follows of a space's rows from its object package, where its machine answers. */
+    /** Follow and call a space's rows at a package's mount, its object package's by default. */
     publisher(
         this: Directory,
         scope: string,
         authorize: (request: Request) => Promise<Request>,
         environment: Environment,
-    ): Publisher & Disposable {
+        packageId: PackageId = objectPackage.id,
+    ): ObjectRemote & Disposable {
         // connect to the space's object package where the directory places it, closing the connection to where it was
         const spaceId = schema.identifier("space").parse(scope);
         let current: ObjectConnection | undefined;
         const connect = async (located: PlacementEndpoint) => {
             // reuse the connection to where the space is, else open one
-            const mounted = `${SpaceMount.url(located.url, spaceId)}${PackageMount.path(objectPackage.id)}`;
+            const mounted = `${SpaceMount.url(located.url, spaceId)}${PackageMount.path(packageId)}`;
             const url = ObjectConnection.url(mounted);
             if (current?.url !== url) {
                 current?.close();
@@ -241,6 +244,13 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
                 const objects = await connect(await located());
                 await objects.request(subscription);
             },
+            // push, call and send where the space is placed now, as their signer
+            push: async (home, push, signal) =>
+                (await connect(await located())).push(home, push, signal),
+            call: async (at, call, signer) =>
+                (await connect(await located())).call(at, call, signer),
+            broadcast: async (at, object, event, signer) =>
+                (await connect(await located())).broadcast(at, object, event, signer),
             // close the connection to where the space is
             [Symbol.dispose]: () => current?.close(),
         };
