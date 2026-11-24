@@ -80,16 +80,17 @@ A catalog is a JSON file in a package's `locale` directory, `locale/<tag>.json` 
 It renders in the nearest translated locale, else in the `source` language, English by default.
 `request` loads a missing package's catalogs.
 
-| Verb                             | What it does                                                                                 |
-| -------------------------------- | -------------------------------------------------------------------------------------------- |
-| `render(message, arguments)`     | renders a message with the arguments its reader supplies                                     |
-| `number(value, options)`         | formats a number, as `Intl.NumberFormat`                                                     |
-| `money(amount, currency)`        | formats minor units, such as `1200` `"EUR"` as `€12.00`, and `"x-credits"` as `1200 credits` |
-| `date(time, options)`            | formats an instant in epoch milliseconds, as `Intl.DateTimeFormat`                           |
-| `dateRange(start, end, options)` | formats the span between two instants, sharing their common parts                            |
-| `list(items, options)`           | joins items, such as `Ada, Grace, and Linus`                                                 |
-| `relative(time, now)`            | formats an instant in its largest whole unit, such as `3 days ago`                           |
-| `tag`, `direction`               | the locale, and the direction its text runs in                                               |
+| Verb                             | What it does                                                                                       |
+| -------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `render(message, arguments)`     | renders a message with the arguments its reader supplies                                           |
+| `number(value, options)`         | formats a number, as `Intl.NumberFormat`                                                           |
+| `parseNumber(text, format)`      | reads a number as people write it, such as `1.234,50 €` in German, undefined for text that is none |
+| `money(amount, currency)`        | formats minor units, such as `1200` `"EUR"` as `€12.00`, and `"x-credits"` as `1200 credits`       |
+| `date(time, options)`            | formats an instant in epoch milliseconds, as `Intl.DateTimeFormat`                                 |
+| `dateRange(start, end, options)` | formats the span between two instants, sharing their common parts                                  |
+| `list(items, options)`           | joins items, such as `Ada, Grace, and Linus`                                                       |
+| `relative(time, now)`            | formats an instant in its largest whole unit, such as `3 days ago`                                 |
+| `tag`, `direction`               | the locale, and the direction its text runs in                                                     |
 
 ### Locale
 

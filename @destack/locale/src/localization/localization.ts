@@ -1,3 +1,4 @@
+import { type NumberFormat, NumberParser } from "../number/index.ts";
 import { MessageFormat } from "messageformat";
 import { type Direction, Locale, type LocaleTag } from "../locale/locale.ts";
 import type { Catalog } from "../message/catalog.ts";
@@ -43,6 +44,8 @@ export interface Localization {
 
     /** Write a number. */
     readonly number: (value: number, options?: Intl.NumberFormatOptions) => string;
+    /** Read a number as people of the locale write it, undefined for text that is none. */
+    readonly parseNumber: (text: string, format?: NumberFormat) => number | undefined;
     /** Write an amount in its currency's minor unit, such as 1200 EUR cents as €12.00. */
     readonly money: (amount: number, currency: string) => string;
     /** Write an instant given in UTC epoch milliseconds. */
@@ -106,6 +109,7 @@ export const Localization = {
         const numbers = cached(
             (options?: Intl.NumberFormatOptions) => new Intl.NumberFormat(tag, options),
         );
+        const parsers = cached((options?: NumberFormat) => new NumberParser(tag, options));
         const dates = cached(
             (options?: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat(tag, options),
         );
@@ -145,6 +149,7 @@ export const Localization = {
                 return Locale.direction(written) === runs ? text : isolate(text);
             },
             number: (value, options) => numbers(options).format(value),
+            parseNumber: (text, options) => parsers(options).parse(text),
             money: (amount, currency) => money(amount, currency, numbers),
             date: (time, options) => dates(options).format(time),
             dateRange: (start, end, options) => dates(options).formatRange(start, end),
