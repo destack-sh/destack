@@ -19,7 +19,6 @@ The site builds from:
 
 | Script           | What it does                                                       |
 | ---------------- | ------------------------------------------------------------------ |
-| `dev`            | generates, then serves the site at localhost:3737                  |
 | `build`          | generates, then prerenders the site into `.output`                 |
 | `generate`       | writes the pricing tables and headwords the pages read             |
 | `generate-check` | refuses generated files that differ from what the generators write |

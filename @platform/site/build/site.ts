@@ -1,17 +1,13 @@
 import { CompilerPool, LocalBuildStore, outputsOf, Workspace } from "@destack/build";
 import { Toolchain } from "@destack/check/toolchain";
-import { DevelopmentServer } from "@destack/view/build";
 import { type Environment, FileSystemError } from "@destack/environment";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 
-/** The site's static view. */
-const VIEW = "site";
-
 /** Absolute package directory for development and production builds. */
 const directory = fileURLToPath(new URL("../", import.meta.url));
 
-/** Build the site, or serve it with live updates. */
+/** Build the site into its output directory. */
 export async function run(
     command: string | undefined,
     environment: Environment<"files" | "process" | "host">,
@@ -21,22 +17,8 @@ export async function run(
     await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
     const workspacePackage = await (await Workspace.open(directory, compilers)).package();
 
-    // serve the view, rendering each page on request, until the process receives a shutdown signal
-    if (command === "dev") {
-        await using development = await DevelopmentServer.start({
-            workspace: workspacePackage,
-            view: VIEW,
-            environment,
-            server: { port: 3737, strictPort: true, watch: { ignored: ["**/.output/**"] } },
-        });
-        development.vite.printUrls();
-        await new Promise<void>((resolve) => {
-            environment.process.on("SIGINT", resolve);
-            environment.process.on("SIGTERM", resolve);
-        });
-    }
     // build the site and write its build, which a machine serves, into the output directory
-    else if (command === "build") {
+    if (command === "build") {
         const build = await workspacePackage.build({
             outputs: outputsOf(workspacePackage.root.packageJson),
         });
@@ -44,6 +26,6 @@ export async function run(
         await environment.files.remove(output, { recursive: true }).catch(FileSystemError.absent);
         await build.writeDirectory(output, environment.files);
     } else {
-        throw new Error("expected build or dev");
+        throw new Error("expected build");
     }
 }

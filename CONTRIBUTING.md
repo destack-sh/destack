@@ -34,5 +34,4 @@ just test @destack/ui             # test one package, or its unit tier alone wit
 just check-fast                   # check and test the packages a change affects, as CI does
 just fix                          # format and fix the repository
 just local serve                  # serve the local universe
-cd @platform/site && bun run dev  # serve the site at http://localhost:3737
 ```

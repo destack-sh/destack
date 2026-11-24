@@ -11,7 +11,6 @@
     "scripts": {
         "build": "bun run generate && bun run build/main.ts build",
         "check": "destack-check format-check build scripts content.ts && destack-check check build scripts content.ts && tsc -p build/tsconfig.json --noEmit && bun run test && bun run build",
-        "dev": "bun run generate && bun run build/main.ts dev",
         "format": "destack-check format src build scripts content.ts",
         "format-check": "destack-check format-check src build scripts content.ts",
         "lint": "destack-check check src build scripts content.ts",
