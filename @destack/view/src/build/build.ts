@@ -15,7 +15,7 @@ import {
     Sandbox,
 } from "@destack/package";
 import { BASELINE_MODULE } from "@destack/package/vite";
-import { type OutputContent, ViewDescription, ViewRender } from "@destack/package/manifest";
+import { type PackageOutput, ViewDescription, ViewRender } from "@destack/package/manifest";
 import { ACTION_KIND, ActionDescription } from "@destack/object";
 import { present, Version } from "@destack/schema";
 import { THEME_KIND } from "@destack/theme/declare";
@@ -367,9 +367,9 @@ function staticRender(declaration: DeclarationDescription): StaticRender | undef
 
 /** Find the browser output describing a view, with its description. */
 function describedView(
-    outputs: Readonly<Record<string, OutputContent>>,
+    outputs: Readonly<Record<string, PackageOutput>>,
     name: string,
-): { readonly output: OutputContent; readonly view: OutputContent["views"][string] } {
+): { readonly output: PackageOutput; readonly view: PackageOutput["views"][string] } {
     for (const output of Object.values(outputs)) {
         const view = output.views[name];
         if (view !== undefined) {
