@@ -17,6 +17,8 @@ export const card = defineObject(
             owner: field.subject().caller(),
             /** The title. */
             title: field.string(schema.string().min(1)),
+            /** The cover. */
+            cover: field.file({ accept: ["image/*"] }).optional(),
         },
         access: {
             relations: { viewer: { subjects: [principal.user] } },
@@ -28,8 +30,8 @@ export const card = defineObject(
         traits: [shareable({ by: "manage" })],
     },
     (method) => ({
-        create: method.create("manage", { fields: ["title"] }),
-        update: method.update("manage", { fields: ["title"] }),
+        create: method.create("manage", { fields: ["title", "cover"] }),
+        update: method.update("manage", { fields: ["title", "cover"] }),
         pin: method.mutation({ title: t`Pin`, permission: "read", input: schema.object({}) }),
     }),
 );

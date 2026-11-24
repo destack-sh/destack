@@ -1,9 +1,12 @@
 import { type PackageVersion, PackageId } from "@destack/package";
 import {
+    BODY_BYTES,
     CONNECTION_PATH,
     CONNECTION_SCOPE_PARAMETER,
+    FILE_PATH,
     InstallationMount,
     PackageMount,
+    PART_BYTES,
     SpaceMount,
     RequestBody,
 } from "@destack/object";
@@ -96,23 +99,43 @@ export class ScopePrimary {
                     `scope path not found: a page must call '${this.scope}' packages below '${ScopePath.of(this.scope)}'`,
                 );
             }
+            const { pathname } = new URL(mounted.request.url);
+            const packageId = PackageId.parse(mounted.packageId);
 
-            return this.#forward(request, target, PackageId.parse(mounted.packageId));
+            return this.#forward(request, target, packageId, ScopePrimary.#limit(pathname));
         }
-        // refuse anything else of the universe
-        else {
+
+        // send and read files of the universe's rows, and refuse anything else of it
+        const mounted = PackageMount.parse(path);
+        const isFile = mounted?.path === FILE_PATH || mounted?.path.startsWith(`${FILE_PATH}/`);
+        if (mounted?.packageId !== this.package.id || isFile !== true) {
             throw MachineError.of(
                 "SCOPE_PATH_NOT_FOUND",
                 "scope path not found: a page must connect to the universe's primary at its store",
             );
         }
+        const target = `${this.url}${mounted.path}${url.search}`;
+
+        return this.#forward(request, target, this.package.id, ScopePrimary.#limit(mounted.path));
+    }
+
+    /** Read the most bytes a page sends to a path of a package: a part of a file, else a call. */
+    static #limit(path: string): number {
+        return path.startsWith(`${FILE_PATH}/`) ? PART_BYTES : BODY_BYTES;
     }
 
     /** Forward a request to a package at the primary, without the page's own credentials. */
-    async #forward(request: Request, target: string, audience: PackageId): Promise<Response> {
+    async #forward(
+        request: Request,
+        target: string,
+        audience: PackageId,
+        limit: number = BODY_BYTES,
+    ): Promise<Response> {
         // read a call's body within the store's limit, which the target reads whole too
         const isBodiless = request.method === "GET" || request.method === "HEAD";
-        const body = isBodiless ? undefined : await RequestBody.bytes(request, "a page's call");
+        const body = isBodiless
+            ? undefined
+            : await RequestBody.bytes(request, "a page's call", limit);
 
         return this.#send(
             new Request(target, {

@@ -16,6 +16,8 @@ import {
     field,
     definePackage,
     PackageMount,
+    PART_BYTES,
+    ObjectFilePart,
     EDITION_HEADER,
     VERSION_HEADER,
     Bookmark,
@@ -23,14 +25,14 @@ import {
     presentable,
     shareable,
 } from "@destack/object";
-import { createClient, ObjectConnection } from "@destack/object/client";
+import { createClient, ObjectFileClient, ObjectConnection } from "@destack/object/client";
 import { describeObject, describePackage } from "@destack/object/inspect";
 import { OriginPath, PackageId, PackageVersion, Sandbox } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import objectDefinition from "@destack/object/destack.json" with { type: "json" };
 import { RequestId, ObjectReference, Scope } from "@destack/sync";
-import { Identifier, nth, present, schema } from "@destack/schema";
+import { Digest, Identifier, nth, present, schema } from "@destack/schema";
 import { setting } from "@destack/setting/object";
 import * as stackObject from "@destack/stack/object";
 import objectPackage from "@destack/object/package";
@@ -110,6 +112,8 @@ const task = defineObject(
             owner: field.subject().caller(),
             /** The title. */
             title: field.string(schema.string().min(1)),
+            /** The photo. */
+            photo: field.file({ accept: ["image/*"] }).optional(),
             /** Whether the task is open or done. */
             status: field.state({
                 initial: "open",
@@ -122,7 +126,8 @@ const task = defineObject(
         traits: [presentable({ icon: false, color: false })],
     },
     (method) => ({
-        create: method.create("manage", { fields: ["title"] }),
+        get: method.get("read"),
+        create: method.create("manage", { fields: ["title", "photo"] }),
     }),
     { package: tasks },
 );
@@ -1165,6 +1170,65 @@ test("call a page's package and its space's packages under its grant only", asyn
     });
 });
 
+test("send a file from a page into its space and show it there, to the page alone", async () => {
+    // open the tasks board in the owner's home
+    const home = await openHome();
+    const installation = await installTasks(home);
+    const page = await openPage(home, {
+        space: home.address,
+        installation: "tasks",
+        view: "board",
+        path: "/",
+    });
+
+    // send two parts of a photo from the page, and create a task with it
+    const { environment } = home.computer;
+    const files = new ObjectFileClient({
+        url: `${page.origin}${ScopePath.of(home.spaceId)}${PackageMount.path(installation.packageId)}`,
+        fetch: page.fetch,
+        environment,
+    });
+    const bytes = new Uint8Array(PART_BYTES + 1000).map((_, place) => place % 251);
+    const photo = await files.upload(new Blob([bytes]), { name: "tram.jpg", type: "image/jpeg" })
+        .done;
+    const remote = page.connect(home.spaceId);
+    const created = Identified.parse(await remote.run(task, "create", { title: "Ride", photo }));
+
+    // show a range across its parts as an image of the page does, and refuse another site
+    const reference = task.reference(home.spaceId, created.id);
+    const address = files.address(reference, "photo");
+    const range = { range: `bytes=${PART_BYTES - 4}-${PART_BYTES + 3}` };
+    const shown = await page.fetch(new Request(address, { headers: range }));
+    const foreign = await home.computer.computer.fetch(
+        new Request(address, {
+            headers: { cookie: page.cookie, "sec-fetch-site": "cross-site" },
+        }),
+    );
+
+    expect({
+        photo: [photo.parts.length, photo.size],
+        isSame:
+            (await Digest.of(await files.open(reference, "photo"), environment.crypto)) ===
+            (await Digest.of(bytes, environment.crypto)),
+        shown: [shown.status, shown.headers.get("content-range"), await shown.bytes()],
+        foreign: await summary(foreign),
+    }).toEqual({
+        photo: [2, bytes.byteLength],
+        isSame: true,
+        shown: [
+            206,
+            `bytes ${PART_BYTES - 4}-${PART_BYTES + 3}/${bytes.byteLength}`,
+            bytes.slice(PART_BYTES - 4, PART_BYTES + 4),
+        ],
+        foreign: answered(
+            "FORBIDDEN",
+            "ORIGIN_DENIED",
+            403,
+            "page origin is forbidden: it can only be called from the page itself",
+        ),
+    });
+});
+
 test("end a page's calls once its grant or client is revoked", async () => {
     // open the tasks board and list its tasks
     const home = await openHome();
@@ -1335,12 +1399,23 @@ test("call a scope's home path within the start page's grant only", async () => 
             (error: unknown) => CallError.of(error)?.toJSON(),
         );
 
+    // send a part of a file to the universe, whose write would decide where it may go
+    const bytes = new Uint8Array(PART_BYTES).fill(7);
+    const files = `${ScopePath.of(owner.id)}${PackageMount.path(accountPackage.id)}/store/file`;
+    const digest = await Digest.of(bytes, home.computer.environment.crypto);
+    const sent = await page.fetch(
+        new Request(`${page.origin}${files}/${digest}`, { method: "PUT", body: bytes }),
+    );
+    const part = ObjectFilePart.parse(await sent.json());
+
     // list each applied and each enabled installation, and refuse the push at the universe as outside the grant
     expect({
+        sent: [part.digest === digest, part.size],
         installations: installations.items.map((row) => row.name).toSorted(),
         applied: applied.items.map((row) => row.id).toSorted(),
         pushed,
     }).toEqual({
+        sent: [true, PART_BYTES],
         installations: [
             "connection",
             "inbox",
