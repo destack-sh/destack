@@ -859,11 +859,13 @@ export class ApplicationInstallation {
         call: MethodContextOf<typeof installation, "reconcile">,
         workloads: number,
     ): Promise<void> {
-        // record it synced once it runs what it follows, unless its residency relates it after the call
+        // record it synced once it runs what it follows, unless its residency relates it later or its space refuses it
         const reader: Pick<Snapshot, "read"> = { read: (table) => call.read(table) };
         const homed = await InstallationAccess.home(reader, this.#target);
+        const isRefused = Installation.servingFailure(this.#target) !== undefined;
         const isSynced =
             homed === undefined &&
+            !isRefused &&
             (await InstallationTarget.isFollowed(reader, this.#target, this.#options));
 
         // observe it deployed, bound, and waiting for nothing
