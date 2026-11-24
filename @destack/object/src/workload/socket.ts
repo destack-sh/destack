@@ -32,6 +32,9 @@ export const SOCKET_INSTANCE_HEADER = "Destack-Socket-Instance";
 /** The most bytes in one WebSocket message: 1 MiB. */
 const MESSAGE_BYTES = 1024 * 1024;
 
+/** The message of a refusal an instance answers a socket event with. */
+const RefusalBody = schema.looseObject({ message: schema.string() });
+
 /** The content type of a text message between a host and an instance. */
 const TEXT_TYPE = "text/plain;charset=utf-8";
 
@@ -691,14 +694,18 @@ export class HibernationHost {
             `${SOCKET_PATH}/${encodeURIComponent(acceptance.id)}`,
             { ...request, headers: Object.fromEntries(headers) },
         );
-        await response.arrayBuffer();
+        const isJson =
+            response.headers.get("content-type")?.startsWith("application/json") === true;
+        const answered: unknown = isJson ? await response.json() : await response.arrayBuffer();
 
-        // report a close the instance refuses, which its connection's lapse then sweeps
+        // report a close the instance refuses with its reason, which its connection's lapse then sweeps
         if (!response.ok && request.method === "DELETE") {
+            const { data } = RefusalBody.safeParse(answered);
+            const refused = `could not close socket '${acceptance.id}' on instance '${instance}': status ${response.status}`;
             this.#instruments.captureException(
                 ObjectError.of(
                     "INSTANCE_UNREACHABLE",
-                    `could not close socket '${acceptance.id}' on instance '${instance}': status ${response.status}`,
+                    data === undefined ? refused : `${refused}, refused with '${data.message}'`,
                 ),
             );
         }
