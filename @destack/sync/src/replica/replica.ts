@@ -1,3 +1,4 @@
+import { Failure } from "@destack/error";
 import { TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
 import {
@@ -1060,12 +1061,14 @@ export class Replica {
         let lapses = 0;
         let refusals = 0;
         let losses = 0;
+        let changes = 0;
         try {
             while (!signal.aborted) {
                 let isReceived = false;
                 let isLapsed = false;
                 let isRefused = false;
                 let isLost = false;
+                let lost = "";
                 silent = new AbortController();
                 const streaming = AbortSignal.any([signal, silent.signal]);
 
@@ -1085,13 +1088,21 @@ export class Replica {
                 silence();
                 try {
                     for await (const page of this.apply(database, pages, opened)) {
-                        // report the replica synced at its first complete page
+                        // count the rows the stream brings until the replica synced
                         isReceived = true;
                         silence();
                         await options.received?.(page);
+                        changes += page.changes.length;
+
+                        // report the replica synced at its first complete page, logging the rows it took
                         if (page.complete && !isSynced) {
                             isSynced = true;
                             options.synced();
+                            this.#scope(database).log.info("destack.replica.synced", {
+                                "destack.replica.name": this.name,
+                                "destack.replica.scope": this.scope,
+                                "destack.replica.changes": changes,
+                            });
                         }
                     }
                 } catch (error) {
@@ -1101,8 +1112,11 @@ export class Replica {
                     // wait out a follower its issuer no longer authenticates, as an operator may restore it
                     isRefused = SyncError.is(error, "FOLLOWER_UNAUTHENTICATED");
 
-                    // resume from the replica's position once the connection to the source dropped
-                    isLost = SyncError.is(error, "CONNECTION_UNAVAILABLE");
+                    // resume from the replica's position once the source dropped or answered it is unavailable for now
+                    isLost =
+                        SyncError.is(error, "CONNECTION_UNAVAILABLE") ||
+                        Failure.isTransient(Failure.of(error));
+                    lost = isLost && error instanceof Error ? error.message : "";
 
                     // end quietly on this follow's own abort or a silent stream's, failing on anything else
                     const isAborted = signal.aborted && error === signal.reason;
@@ -1138,9 +1152,16 @@ export class Replica {
                     );
                     await RetryPolicy.pause(REFUSAL_RETRY, refusals, clock, signal, () => drawn);
                 }
-                // back off before resuming a source lost before any page
+                // back off before resuming a source lost before any page, logging the first loss
                 else if (!isReceived && isLost) {
                     losses += 1;
+                    if (losses === 1) {
+                        this.#scope(database).log.warn("destack.replica.lost", {
+                            "destack.replica.name": this.name,
+                            "destack.replica.scope": this.scope,
+                            "error.message": lost,
+                        });
+                    }
                     const { clock } = database.state;
                     const drawn = RetryPolicy.draw(`${this.name} ${this.scope} lost ${losses}`);
                     await RetryPolicy.pause(LOSS_RETRY, losses, clock, signal, () => drawn);
@@ -1172,7 +1193,7 @@ export class Replica {
                 }
                 // resume at once after a stream that delivered pages, logging a follower restored
                 else {
-                    if (refusals > 0) {
+                    if (refusals > 0 || losses > 0) {
                         this.#scope(database).log.info("destack.replica.restored", {
                             "destack.replica.name": this.name,
                             "destack.replica.scope": this.scope,

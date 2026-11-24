@@ -1409,7 +1409,70 @@ test("wait out a follower its issuer refuses, backing off and logging until it f
         ["n1"],
         [
             ["destack.replica.refused", "notes"],
+            ["destack.replica.synced", "notes"],
             ["destack.replica.restored", "notes"],
+        ],
+    ]);
+});
+
+test("retry a lost or unavailable source", async () => {
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: 1000,
+    });
+    const local = await openReplica({ simulation });
+    const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
+    const controller = new AbortController();
+    const position = { log: LOG, epoch: "01996ab0-0000-7000-8000-000000000001", sequence: 1 };
+
+    // lose the source, have it answer that it is still syncing, then answer a snapshot
+    const requests: number[] = [];
+    const following = notes.follow(
+        local,
+        async function* () {
+            requests.push(simulation.clock.now());
+            if (requests.length === 1) {
+                throw SyncError.of(
+                    "CONNECTION_UNAVAILABLE",
+                    "connection is unavailable: the socket closed with '1006'",
+                );
+            } else if (requests.length === 2) {
+                throw SyncError.of(
+                    "REPLICA_UNAVAILABLE",
+                    "replica 'notes' of 'inbox' is unavailable: it is still syncing",
+                );
+            }
+            yield { reset: true, complete: true, changes: [noteInsert("n1")], position };
+            controller.abort();
+        },
+        controller.signal,
+        { synced: () => {} },
+    );
+    await simulation.waitUntil(() => controller.signal.aborted);
+    await simulation.wait(following);
+
+    // log the first loss and the restore
+    const logs = simulation.telemetry.logs.map((record) => [
+        record.eventName,
+        record.attributes["destack.replica.name"],
+        record.attributes["error.message"],
+    ]);
+    expect([
+        requests.length,
+        (await local.select({ id: note.id }).from(note)).map((row) => row.id),
+        logs,
+    ]).toEqual([
+        3,
+        ["n1"],
+        [
+            [
+                "destack.replica.lost",
+                "notes",
+                "connection is unavailable: the socket closed with '1006'",
+            ],
+            ["destack.replica.synced", "notes", undefined],
+            ["destack.replica.restored", "notes", undefined],
         ],
     ]);
 });
@@ -2047,11 +2110,13 @@ test("keep a replica live while its pages arrive within the lag, and end a strea
     await simulation.sleep(30_000);
     controller.abort();
     await simulation.wait(following);
-    const warned = simulation.telemetry.logs.map((record) => [
-        record.eventName,
-        record.attributes["destack.replica.name"],
-        record.attributes["destack.replica.received"],
-    ]);
+    const warned = simulation.telemetry.logs
+        .filter((record) => record.severityText === "WARN")
+        .map((record) => [
+            record.eventName,
+            record.attributes["destack.replica.name"],
+            record.attributes["destack.replica.received"],
+        ]);
     expect({ live, beaten, silent, kept, streams, stopped: isLive(), warned }).toEqual({
         live: true,
         beaten: true,
