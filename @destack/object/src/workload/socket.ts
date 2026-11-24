@@ -44,6 +44,8 @@ export const SocketDescription = schema.object({
     id: schema.string().min(1),
     /** The value the instance stored beside the socket when it accepted it. */
     attachment: schema.json(),
+    /** The partition of the instance that accepted the socket, absent for its root. */
+    partition: schema.string().min(1).exactOptional(),
 });
 /** A hibernated socket as a host describes it. */
 export type SocketDescription = schema.Infer<typeof SocketDescription>;
@@ -56,6 +58,8 @@ export const SocketAcceptance = schema.object({
     attachment: schema.json(),
     /** The subprotocol the upgrade answers with, among those the client offered. */
     protocol: schema.string().min(1).exactOptional(),
+    /** The partition of the instance accepting the socket, absent for its root. */
+    partition: schema.string().min(1).exactOptional(),
     /** A text message and the answer the host sends to it, such as a liveness ping. */
     respond: schema
         .object({
@@ -120,17 +124,28 @@ export class Hibernation {
     readonly #instruments: TelemetryScope;
     /** The last send or close of each socket, which the next one follows. */
     readonly #pending = new Map<string, Promise<void>>();
+    /** The partition of the instance whose sockets these are, absent for its root. */
+    readonly #partition: string | undefined;
 
-    /** Connect to the sockets at a host as an instance proves itself, captures on a telemetry. */
-    constructor(host: SocketHost, proof: HibernationProof, telemetry: Environment["telemetry"]) {
+    /** Connect to a partition's sockets at a host as its instance proves itself. */
+    constructor(
+        host: SocketHost,
+        proof: HibernationProof,
+        telemetry: Environment["telemetry"],
+        partition?: string,
+    ) {
+        // take the host, the proof, the instruments and the partition
         this.#host = host;
         this.#proof = proof;
         this.#instruments = TelemetryScope.of(import.meta.destack.package, telemetry);
+        this.#partition = partition;
     }
 
     /** Answer a WebSocket upgrade by accepting it, naming an in-process instance beside it. */
     accept(acceptance: SocketAcceptance): Response {
-        const accepted = JSON.stringify(SocketAcceptance.parse(acceptance));
+        // stamp the acceptance with the accepting partition
+        const partition = this.#partition === undefined ? {} : { partition: this.#partition };
+        const accepted = JSON.stringify(SocketAcceptance.parse({ ...acceptance, ...partition }));
         const proof = this.#proof;
 
         return new Response(null, {
@@ -154,9 +169,11 @@ export class Hibernation {
             );
         }
 
+        // take the sockets of this instance's partition alone
         return schema
             .array(SocketDescription)
             .parse(await response.json())
+            .filter((description) => description.partition === this.#partition)
             .map((description) => this.socket(description));
     }
 
@@ -376,12 +393,16 @@ export class HibernationHost {
 
         return {
             fetch: async (request) => {
-                // answer the request, keeping an accepted upgrade's socket and opening a refused one to state its refusal
+                // answer the request
                 const answer = await fetch(request);
+                const isUpgrade = WebSocketUpgrade.of(request) !== undefined;
                 const refusal = await SocketRefusal.of(request, answer);
+                // open a refused upgrade's socket to state its refusal
                 if (refusal !== undefined) {
                     return { attachment: refusal };
-                } else if (answer.headers.has(SOCKET_HEADER)) {
+                }
+                // keep the socket of an upgrade, passing an acceptance a plain call answers on to its caller
+                else if (isUpgrade && answer.headers.has(SOCKET_HEADER)) {
                     return this.accept(answer);
                 }
 
@@ -689,7 +710,9 @@ export class HibernationHost {
 
     /** Describe an accepted socket as its instance reads it. */
     static #describe(acceptance: SocketAcceptance): SocketDescription {
-        return { id: acceptance.id, attachment: acceptance.attachment };
+        const { id, attachment, partition } = acceptance;
+
+        return partition === undefined ? { id, attachment } : { id, attachment, partition };
     }
 
     /** Read the hibernated sockets of an instance, none for an instance without any. */
