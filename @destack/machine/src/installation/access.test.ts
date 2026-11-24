@@ -58,7 +58,7 @@ async function installNotes(): ReturnType<typeof openSpaceDatabase> {
             scope: ids.space,
             packageId: ids.package,
             name: "notes",
-            follows: NOTES_RELEASE,
+            version: NOTES_RELEASE,
             installer: INSTALLER,
         },
         opened.now,

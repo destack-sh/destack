@@ -69,7 +69,7 @@ async function serveInstallation() {
         scope: ids.space,
         requestId: RequestId.create(fixture.machine.environment),
         packageId: ids.package,
-        ...ObjectReference.columns("follows", await fixture.followed(ids.package, "2026.9.0")),
+        ...ObjectReference.columns("version", await fixture.releaseRow(ids.package, "2026.9.0")),
         name: "notes",
     });
     const otherSpace = Identifier.create("space", fixture.environment);

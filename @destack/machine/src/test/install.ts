@@ -56,7 +56,7 @@ export async function openSpaceDatabase(): Promise<{
                 name: "notes",
                 stack: {
                     packageId: stackPackage.id,
-                    selection: { kind: "release", version: stackPackage.version },
+                    version: { kind: "release", version: stackPackage.version },
                     export: "default",
                     settings: {},
                     routes: {},
@@ -78,7 +78,7 @@ export async function insertInstallation(
         readonly scope: Identifier<"space">;
         readonly packageId: PackageId;
         readonly name: string;
-        readonly follows: ObjectReference | undefined;
+        readonly version: ObjectReference | undefined;
         readonly directory?: string;
         readonly installer: Subject;
         readonly capabilities?: readonly string[];
@@ -91,7 +91,7 @@ export async function insertInstallation(
         scope,
         packageId,
         name,
-        follows,
+        version,
         directory,
         installer,
         capabilities = [],
@@ -112,7 +112,7 @@ export async function insertInstallation(
                 ...record,
                 packageId,
                 name,
-                ...ObjectReference.columns("follows", follows),
+                ...ObjectReference.columns("version", version),
                 directory: directory ?? null,
                 capabilities: [...capabilities],
             })
@@ -233,12 +233,12 @@ export async function runNotes(
         readonly id: Identifier<"build">;
         readonly recorded: Pick<InstallationRevision, "release" | "declarations">;
     },
-    follows: ObjectReference,
+    version: ObjectReference,
     installer: Subject,
     environment: Environment,
 ): Promise<Identifier<"instance">> {
     // install the release, deploy it and run its instance
-    const revisionId = await installNotes(database, released, follows, installer, environment);
+    const revisionId = await installNotes(database, released, version, installer, environment);
     await deployNotes(database, revisionId, environment);
 
     return NOTES_INSTANCE;
@@ -251,14 +251,14 @@ async function installNotes(
         readonly id: Identifier<"build">;
         readonly recorded: Pick<InstallationRevision, "release" | "declarations">;
     },
-    follows: ObjectReference,
+    version: ObjectReference,
     installer: Subject,
     environment: Environment,
 ): Promise<Identifier<"installation-revision">> {
     // record the notes installation in the space, at the world's time
     const now = environment.clock.now();
     const notes = { id: ids.notes, scope: ids.space, packageId: ids.package, name: "notes" };
-    await insertInstallation(database, { ...notes, follows, installer }, now);
+    await insertInstallation(database, { ...notes, version, installer }, now);
 
     // follow the installation's release
     const revisionId = Identifier.create("installation-revision", environment);

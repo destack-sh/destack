@@ -60,7 +60,7 @@ test("retain each source's latest builds and every build a revision applies", as
             scope: ids.space,
             packageId: ids.package,
             name: "notes",
-            follows: checkout.reference(ids.machine, ids.checkout),
+            version: checkout.reference(ids.machine, ids.checkout),
             directory: ".",
             installer: fixture.owner.subject,
         },

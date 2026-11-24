@@ -174,14 +174,14 @@ import type { GrantRequest } from "@destack/account/authentication";
 import * as accountObject from "@destack/account/object";
 import * as stackObject from "@destack/stack/object";
 
-/** The release a space's declared stack follows, resolved at its forge, with the stack's digest. */
+/** The release a space's declared stack runs, resolved at its forge, with the stack's digest. */
 interface ResolvedStack {
     /** The digest of the declared stack. */
     readonly digest: Digest;
-    /** The release or tag the stack installation follows, absent for the host's. */
-    readonly follows: ObjectReference | undefined;
+    /** The release or tag the stack installation runs, absent for the host's. */
+    readonly version: ObjectReference | undefined;
     /** The image of the host's release it follows, absent unless it follows the host. */
-    readonly followedImage: Digest | null;
+    readonly hostImage: Digest | null;
 }
 
 /** An assignment's placement, whose space its change touches. */
@@ -2266,14 +2266,13 @@ export class Space {
             .findMany({ where: { id: spaceId } });
         const { stack } = present(declared, `the row of ${spaceId}`);
         const digest = await Digest.json(stack, this.machine.environment.crypto);
-        const { selection } = stack;
-        const { follows, followedImage } = await InstallationTarget.resolveDeclared(
+        const { version, hostImage } = await InstallationTarget.resolveDeclared(
             stack.packageId,
-            selection.kind === "release" ? { version: selection.version } : { selection },
+            stack.version,
             this.machine,
         );
 
-        return { digest, follows, followedImage };
+        return { digest, version, hostImage };
     }
 
     /** Follow the space's stack once it changed, leaving a stack its owner applied since. */
@@ -2385,7 +2384,7 @@ export class Space {
 
         // install the stack package once, else follow the changed release and export
         const followed = {
-            ...ObjectReference.columns("follows", resolved.follows),
+            ...ObjectReference.columns("version", resolved.version),
             directory: null,
             export: stack.export,
         };
@@ -2421,9 +2420,7 @@ export class Space {
                     installation.call("follow", {
                         ...installation.target({ scope: spaceId, id }),
                         appliedStack: resolved.digest,
-                        ...(resolved.followedImage === null
-                            ? {}
-                            : { followedImage: resolved.followedImage }),
+                        ...(resolved.hostImage === null ? {} : { hostImage: resolved.hostImage }),
                     }),
                 ],
             },

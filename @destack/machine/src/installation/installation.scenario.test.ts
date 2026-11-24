@@ -145,9 +145,9 @@ async function readRolled(fixture: TestSpace, id: Identifier<"installation">) {
 test("install an application into a space as its owner, and refuse a stranger whether its name is taken or free", async () => {
     const fixture = await TestSpace.open();
     await fixture.serve();
-    const follows = ObjectReference.columns(
-        "follows",
-        await fixture.followed(ids.package, "2026.9.0"),
+    const version = ObjectReference.columns(
+        "version",
+        await fixture.releaseRow(ids.package, "2026.9.0"),
     );
     const create = (user: string | Subject, name = "notes") =>
         fixture
@@ -157,7 +157,7 @@ test("install an application into a space as its owner, and refuse a stranger wh
                 scope: ids.space,
                 requestId: RequestId.create(fixture.machine.environment),
                 packageId: ids.package,
-                ...follows,
+                ...version,
                 name,
             });
 
@@ -206,7 +206,7 @@ test("find and list only the enabled installations not being deleted, as a machi
                 scope: ids.space,
                 packageId: Identifier.create("package", fixture.environment),
                 name,
-                follows: undefined,
+                version: undefined,
                 installer: fixture.owner.subject,
             },
             now,
@@ -283,11 +283,11 @@ test("roll an installation back by following an earlier revision's build, each t
     const installer = fixture.as(fixture.owner.subject).client(stackPackage);
     let installed: InstanceOf<typeof object.installation> | undefined;
     const install = async (version: string) => {
-        // release the version and follow it
+        // publish the release and run it
         await fixture.publish(await fixtureBuild(ids.package, version, fixture.environment.crypto));
-        const follows = ObjectReference.columns(
-            "follows",
-            await fixture.followed(ids.package, version),
+        const row = ObjectReference.columns(
+            "version",
+            await fixture.releaseRow(ids.package, version),
         );
         const requestId = RequestId.create(fixture.machine.environment);
         installed =
@@ -297,7 +297,7 @@ test("roll an installation back by following an earlier revision's build, each t
                       requestId,
                       packageId: ids.package,
                       name: "notes",
-                      ...follows,
+                      ...row,
                   })
                 : await installer.installation.update({
                       scope: ids.space,
@@ -306,7 +306,7 @@ test("roll an installation back by following an earlier revision's build, each t
                       revision: (
                           await installer.installation.get({ scope: ids.space, id: installed.id })
                       ).revision,
-                      ...follows,
+                      ...row,
                   });
         await fixture.simulation.idle();
         const { id } = installed;
@@ -345,7 +345,7 @@ test("roll an installation back by following an earlier revision's build, each t
             id,
             requestId: RequestId.create(fixture.machine.environment),
             revision: current.revision,
-            ...ObjectReference.columns("follows", build.reference(ids.space, built)),
+            ...ObjectReference.columns("version", build.reference(ids.space, built)),
             directory: null,
         });
         await fixture.simulation.idle();
@@ -359,10 +359,10 @@ test("roll an installation back by following an earlier revision's build, each t
     await install("2026.9.2");
     const back = await rollBack(first.id, second.revisionId);
     const [repinned] = await fixture.database
-        .select({ followsType: installation.table.followsType })
+        .select({ versionType: installation.table.versionType })
         .from(installation.table)
         .where(eq(installation.table.id, first.id));
-    const { followsType } = present(repinned, "the installation");
+    const { versionType } = present(repinned, "the installation");
 
     // follow the first release again, then roll back to the second again
     await install("2026.9.0");
@@ -370,9 +370,9 @@ test("roll an installation back by following an earlier revision's build, each t
 
     // target a revision of the second release's build both times, following that build
     const built = await buildOf(second.revisionId);
-    expect({ back, followsType, reused }).toEqual({
+    expect({ back, versionType, reused }).toEqual({
         back: built,
-        followsType: "build",
+        versionType: "build",
         reused: built,
     });
 });
@@ -566,7 +566,7 @@ test("deploy an installation waiting for a granted type once the space serves it
             scope: ids.space,
             requestId: RequestId.create(fixture.machine.environment),
             packageId: BOARD.id,
-            ...ObjectReference.columns("follows", undefined),
+            ...ObjectReference.columns("version", undefined),
             name: "board",
         });
     await fixture.simulation.idle();

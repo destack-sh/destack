@@ -56,30 +56,30 @@ export async function followedVersion(
 
 /** Follow the reference each served installation follows, from its home. */
 export const referenceFollow = referenceShape.per(installation, {
-    where: { deletedAt: { isNull: true }, followsType: reference.name },
+    where: { deletedAt: { isNull: true }, versionType: reference.name },
     key: (row, view) => followedKey(row, view, "reference"),
 });
 
 /** Follow the tag each served installation follows, from its home. */
 export const tagFollow = tagShape.per(installation, {
-    where: { deletedAt: { isNull: true }, followsType: tag.name },
+    where: { deletedAt: { isNull: true }, versionType: tag.name },
     key: (row, view) => followedKey(row, view, "tag"),
 });
 
 /** Key the row an installation follows at its home, none outside a served space. */
 async function followedKey<Type extends "reference" | "tag">(
-    row: Pick<Installation, "scope" | "followsScope" | "followsId">,
+    row: Pick<Installation, "scope" | "versionScope" | "versionId">,
     view: Pick<Snapshot, "read">,
     type: Type,
 ) {
     // follow nothing outside a space served here
     const spaceId = schema.identifier("space").safeParse(row.scope);
     const isServed = spaceId.success && (await Space.isServing(view, spaceId.data));
-    if (!isServed || row.followsScope === null || row.followsId === null) {
+    if (!isServed || row.versionScope === null || row.versionId === null) {
         return undefined;
     }
 
-    return { key: { scope: row.followsScope, id: schema.identifier(type).parse(row.followsId) } };
+    return { key: { scope: row.versionScope, id: schema.identifier(type).parse(row.versionId) } };
 }
 
 /** What building an installation's selected commit builds and evaluates with. */
@@ -176,11 +176,11 @@ export class CommitBuild {
         const isSame = (source: { readonly repository: string; readonly directory: string }) =>
             source.repository === repository && source.directory === directory;
         const following = await snapshot.read(installation.table).findMany({
-            where: { scope, followsType: reference.name, directory, deletedAt: { isNull: true } },
+            where: { scope, versionType: reference.name, directory, deletedAt: { isNull: true } },
         });
         const references = await Promise.all(
             following.map((each) =>
-                followedReference(snapshot, present(each.followsId, "a followed reference")),
+                followedReference(snapshot, present(each.versionId, "a followed reference")),
             ),
         );
         const followed = new Set(

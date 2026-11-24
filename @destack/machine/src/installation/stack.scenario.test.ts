@@ -95,7 +95,7 @@ async function submit(
             installation.call("update", {
                 ...installation.target(stack),
                 ...ObjectReference.columns(
-                    "follows",
+                    "version",
                     object.build.reference(stack.scope, recorded.build),
                 ),
                 directory: null,
@@ -111,10 +111,10 @@ async function submit(
     return readStack(store.database);
 }
 
-/** Describe a submission of a stack definition from the followed checkout. */
+/** Describe a submission of a stack definition from the checkout. */
 function submissionOf(definition: JsonObject) {
     return {
-        follows: checkout.reference(ids.machine, ids.checkout),
+        version: checkout.reference(ids.machine, ids.checkout),
         directory: ".",
         stack: { export: "personal", parameters: {}, definition },
     };
@@ -150,7 +150,7 @@ test("apply a stack submission, reapply it unchanged, and retire removed records
     const definition = evaluatePersonal();
     const stack = await readStack(database);
     const submission = {
-        follows: checkout.reference(ids.machine, ids.checkout),
+        version: checkout.reference(ids.machine, ids.checkout),
         directory: ".",
         stack: { export: "personal", parameters: {}, definition },
     };
@@ -273,7 +273,7 @@ test("apply a waiting stack again once its resources turn ready, without waking 
     // install notes through the stack, then declare a gauge waiting for the archive database
     const notes = {
         packageId: ids.package,
-        selection: { kind: "host" },
+        version: { kind: "host" },
         status: "enabled",
         name: "notes",
         bindings: {},
@@ -327,7 +327,7 @@ test("leave an unchanged declared installation unwritten when its stack applies 
     // apply a stack declaring notes
     const notes = {
         packageId: ids.package,
-        selection: { kind: "release", version: "2026.9.0" },
+        version: { kind: "release", version: "2026.9.0" },
         status: "enabled",
         name: "notes",
         bindings: {},
@@ -340,7 +340,7 @@ test("leave an unchanged declared installation unwritten when its stack applies 
     const store = await serve(fixture);
     const stack = await readStack(database);
     await submit(fixture, store, stack, {
-        follows: checkout.reference(ids.machine, ids.checkout),
+        version: checkout.reference(ids.machine, ids.checkout),
         directory: ".",
         stack: {
             export: "personal",
@@ -382,7 +382,7 @@ test("leave an unchanged declared installation unwritten when its stack applies 
     ]);
 });
 
-test("run a stack's host installation at the release the machine links, as it follows the host's", async () => {
+test("run a stack's host installation at the release the machine links, as it version the host's", async () => {
     // link a newer release of the fixture package, as a machine shipping it does
     const linked = await fixtureBuild(ids.package, "2026.10.0", testHost().crypto);
     const fixture = await TestSpace.open({ linked: [linked] });
@@ -391,7 +391,7 @@ test("run a stack's host installation at the release the machine links, as it fo
     // apply a stack declaring the package on the host, following the host's release
     const notes = {
         packageId: ids.package,
-        selection: { kind: "host" },
+        version: { kind: "host" },
         status: "enabled",
         name: "notes",
         bindings: {},
@@ -403,7 +403,7 @@ test("run a stack's host installation at the release the machine links, as it fo
     };
     const store = await serve(fixture);
     await submit(fixture, store, await readStack(database), {
-        follows: checkout.reference(ids.machine, ids.checkout),
+        version: checkout.reference(ids.machine, ids.checkout),
         directory: ".",
         stack: {
             export: "personal",
@@ -443,7 +443,7 @@ test("run a host installation at a restarted machine's linked release, then revi
     const { database } = fixture;
     const notes = {
         packageId: ids.package,
-        selection: { kind: "host" },
+        version: { kind: "host" },
         status: "enabled",
         name: "notes",
         bindings: {},
@@ -455,7 +455,7 @@ test("run a host installation at a restarted machine's linked release, then revi
     };
     const store = await serve(fixture);
     await submit(fixture, store, await readStack(database), {
-        follows: checkout.reference(ids.machine, ids.checkout),
+        version: checkout.reference(ids.machine, ids.checkout),
         directory: ".",
         stack: {
             export: "personal",
@@ -507,7 +507,7 @@ test("hold a host installation of a package this machine does not provide", asyn
     const { database } = fixture;
     const notes = {
         packageId: ids.package,
-        selection: { kind: "host" },
+        version: { kind: "host" },
         status: "enabled",
         name: "notes",
         bindings: {},
@@ -519,13 +519,13 @@ test("hold a host installation of a package this machine does not provide", asyn
     };
     const pinned = InstallationDefinition.safeParse({
         ...notes,
-        selection: { kind: "release", version: "2026.9.0" },
+        version: { kind: "release", version: "2026.9.0" },
     });
 
     // apply a stack following the host's release of a package this machine provides none of
     const store = await serve(fixture);
     await submit(fixture, store, await readStack(database), {
-        follows: checkout.reference(ids.machine, ids.checkout),
+        version: checkout.reference(ids.machine, ids.checkout),
         directory: ".",
         stack: {
             export: "personal",
@@ -557,7 +557,7 @@ test("hold a host installation of a package this machine does not provide", asyn
         synced: found.conditions["Synced"]?.message,
         deployments,
     }).toEqual({
-        pinned: ["a host installation follows the host's release"],
+        pinned: ["a host installation runs the host's release"],
         sandboxed: true,
         synced: `@destack/stack TARGET_BLOCKED: cannot follow the host's release of '${ids.package}': this machine provides none`,
         deployments: [],
@@ -571,7 +571,7 @@ test("replace an installation's owned bucket binding with its stack's, releasing
     // administer a space with a stack that declares a role and installs notes, whose deploy owns a bucket for its files
     const notes = {
         packageId: ids.package,
-        selection: { kind: "release", version: "2026.9.2" },
+        version: { kind: "release", version: "2026.9.2" },
         status: "enabled",
         name: "notes",
         bindings: {},
@@ -583,7 +583,7 @@ test("replace an installation's owned bucket binding with its stack's, releasing
     };
     const stack = await readStack(database);
     const submission = {
-        follows: checkout.reference(ids.machine, ids.checkout),
+        version: checkout.reference(ids.machine, ids.checkout),
         directory: ".",
         stack: {
             export: "personal",
@@ -652,7 +652,7 @@ test("bind a declaration to another space's installation by name, refusing a pin
         const tasks = { target, ...(version === undefined ? {} : { version }) };
         const notes = {
             packageId: ids.package,
-            selection: { kind: "release", version: "2026.9.3" },
+            version: { kind: "release", version: "2026.9.3" },
             status: "enabled",
             name: "notes",
             bindings: { [ids.package]: { tasks } },
@@ -664,7 +664,7 @@ test("bind a declaration to another space's installation by name, refusing a pin
         };
 
         return await submit(fixture, store, stack, {
-            follows: checkout.reference(ids.machine, ids.checkout),
+            version: checkout.reference(ids.machine, ids.checkout),
             directory: ".",
             stack: {
                 export: "personal",
@@ -748,7 +748,7 @@ test("block a stack relating a role or installation of another space by identifi
     const blocked = (grant: JsonValue) =>
         TestSpace.refusals(
             submit(fixture, store, stack, {
-                follows: checkout.reference(ids.machine, ids.checkout),
+                version: checkout.reference(ids.machine, ids.checkout),
                 directory: ".",
                 stack: {
                     export: "personal",
@@ -811,7 +811,7 @@ test("install a package and declare records of its type in one approved plan, ap
     // submit a stack installing notes and declaring a meter
     const notes = {
         packageId: ids.package,
-        selection: { kind: "release", version: "2027.1.0" },
+        version: { kind: "release", version: "2027.1.0" },
         status: "enabled",
         name: "notes",
         bindings: {},
@@ -831,7 +831,7 @@ test("install a package and declare records of its type in one approved plan, ap
             installation.call("update", {
                 ...installation.target(stack),
                 ...ObjectReference.columns(
-                    "follows",
+                    "version",
                     object.build.reference(stack.scope, recorded.build),
                 ),
                 directory: null,
@@ -957,7 +957,7 @@ test("install the packages a stack declares without its libraries, refusing a mi
     ]);
 });
 
-test("keep a stack's installation pins as declared, and the version it was built with for an unpinned one", async () => {
+test("keep a stack's installation pins as declared, and run an unpinned one at its release in the stack's image", async () => {
     // publish notes depending on an installable vault, and declare notes following its latest tag beside vault
     const world = new Simulation({
         world: testWorldOptions(),
@@ -972,7 +972,7 @@ test("keep a stack's installation pins as declared, and the version it was built
     const latest = { kind: "tag", tag: "latest" } as const;
     const stack = await installingStack([notes, vault], world, { notes: latest });
 
-    // follow the tag for notes
+    // run the tag for notes, and vault at the release the stack's image has
     const { installations } = StackDefinition.collections(
         await StackDefinition.declared(
             stack,
@@ -982,11 +982,10 @@ test("keep a stack's installation pins as declared, and the version it was built
             read,
         ),
     );
-    expect([
-        installations["notes"]?.selection,
-        installations["vault"]?.selection,
-        installations["vault"]?.version,
-    ]).toEqual([latest, undefined, "2026.10.0"]);
+    expect([installations["notes"]?.version, installations["vault"]?.version]).toEqual([
+        latest,
+        { kind: "release", version: "2026.10.0" },
+    ]);
 });
 
 /** A fixture release of a package, with its build. */
@@ -1068,16 +1067,10 @@ function installingStack(
     const installations = Object.fromEntries(
         installed.map((each) => {
             const name = each.package.name.slice(each.package.name.lastIndexOf("/") + 1);
-            const selection = tags[name];
+            const version = tags[name];
+            const options = version === undefined ? {} : { version };
 
-            return [
-                name,
-                install(
-                    { ...each.package, resources: {}, secrets: {} },
-                    {},
-                    selection === undefined ? {} : { selection },
-                ),
-            ];
+            return [name, install({ ...each.package, resources: {}, secrets: {} }, {}, options)];
         }),
     );
 

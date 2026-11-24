@@ -151,7 +151,7 @@ test("serve an installation only once it is bound and main applied its tables", 
     const fixture = await TestSpace.open();
     const { database: connection } = fixture;
     const space = await fixture.space;
-    const follows = await fixture.followed(ids.package, "2026.9.0");
+    const version = await fixture.releaseRow(ids.package, "2026.9.0");
     await fixture.stop();
     const now = fixture.machine.clock.now();
     const record = { scope: ids.space, createdAt: now, updatedAt: now };
@@ -164,7 +164,7 @@ test("serve an installation only once it is bound and main applied its tables", 
             scope: ids.space,
             packageId: ids.package,
             name: "notes",
-            follows,
+            version,
             installer: fixture.owner.subject,
         },
         record.createdAt,

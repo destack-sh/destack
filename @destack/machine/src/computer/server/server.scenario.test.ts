@@ -658,7 +658,7 @@ test("build a checkout as a prerelease until committed", async () => {
             detachedAt: null,
         },
         submission: {
-            follows: checkout.reference(machineId, registered.id),
+            version: checkout.reference(machineId, registered.id),
             directory: "stack",
             stack: { export: "personal", parameters: {} },
         },

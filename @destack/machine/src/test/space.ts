@@ -987,7 +987,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
         // follow the space stack at its release, each build identified by its image alone
         const source = {
             ...STACKS.space,
-            selection: { kind: "release" as const, version: STACK_VERSION },
+            version: { kind: "release" as const, version: STACK_VERSION },
         };
 
         return {
@@ -1709,11 +1709,11 @@ export class TestSpace implements AsyncDisposable, TestScope {
         };
     }
 
-    /** Read the forge's row of a package's release, which installations follow. */
-    async followed(packageId: PackageId, version: string): Promise<ObjectReference> {
+    /** Read the forge's row of a package's release, which an installation's version names. */
+    async releaseRow(packageId: PackageId, version: string): Promise<ObjectReference> {
         await this.#openedHome();
 
-        return await InstallationTarget.resolveFollowed(this.machine, packageId, {
+        return await InstallationTarget.resolveVersion(this.machine, packageId, {
             kind: "release",
             version,
         });
@@ -2006,15 +2006,9 @@ export class TestSpace implements AsyncDisposable, TestScope {
     ): Promise<{ readonly kind: "build"; readonly build: Identifier<"build"> }> {
         // pull each installed release's image
         const { installations } = StackDefinition.collections(definition);
-        const released = Object.values(installations).flatMap(
-            ({ packageId, selection, version }) => {
-                // make an image of a pinned release, else the release it was built with
-                const pinned = selection?.kind === "release" ? selection.version : undefined;
-                const built = selection === undefined ? version : undefined;
-                const chosen = pinned ?? built;
-
-                return chosen === undefined ? [] : [{ packageId, version: chosen }];
-            },
+        const released = Object.values(installations).flatMap(({ packageId, version }) =>
+            // image each installation's declared release, the host's and checkouts running without one
+            version?.kind === "release" ? [{ packageId, version: version.version }] : [],
         );
         const builds = await this.builds();
         const requires: Record<string, string> = {};
@@ -2264,7 +2258,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
             id: stack.id,
             requestId: RequestId.create(this.machine.environment),
             revision: stack.revision,
-            ...ObjectReference.columns("follows", object.build.reference(this.id, recorded.build)),
+            ...ObjectReference.columns("version", object.build.reference(this.id, recorded.build)),
             directory: null,
         });
 
@@ -2321,7 +2315,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
         const name = released.name.slice(released.name.lastIndexOf("/") + 1);
         const declared = {
             packageId: released.id,
-            selection: isHost
+            version: isHost
                 ? { kind: "host" as const }
                 : { kind: "release" as const, version: released.version },
             status: "enabled" as const,

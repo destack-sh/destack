@@ -825,7 +825,7 @@ export class TestComputer implements AsyncDisposable {
             scope: spaceId,
             requestId: RequestId.create(this.environment),
             packageId: released.id,
-            ...(await this.#follows(released.id, released.version)),
+            ...(await this.#version(released.id, released.version)),
             name,
             ...options,
         });
@@ -853,23 +853,23 @@ export class TestComputer implements AsyncDisposable {
             scope: spaceId,
             id: installed.id,
             requestId: RequestId.create(this.environment),
-            ...(await this.#follows(installed.packageId, version)),
+            ...(await this.#version(installed.packageId, version)),
         });
         await this.#waitInstalled(spaceId, installed.id, name);
 
         return await service.installation.get({ scope: spaceId, id: installed.id });
     }
 
-    /** Resolve what an installation of a release follows, the host's for a shipped version. */
-    async #follows(packageId: PackageId, version: string) {
+    /** Resolve the version row of an installation of a release, the host's for a shipped one. */
+    async #version(packageId: PackageId, version: string) {
         const { machine } = this.computer;
-        const { follows } = await InstallationTarget.resolveDeclared(
+        const resolved = await InstallationTarget.resolveDeclared(
             packageId,
-            { version },
+            { kind: "release", version },
             machine,
         );
 
-        return ObjectReference.columns("follows", follows);
+        return ObjectReference.columns("version", resolved.version);
     }
 
     /** Call the object package of a space as a person signed in on this computer's device. */

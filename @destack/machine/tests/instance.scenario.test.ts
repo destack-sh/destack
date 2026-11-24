@@ -190,7 +190,7 @@ async function dependencyBuild(owner: PackageVersion, crypto: Crypto): Promise<B
         mounts: {},
         protocols: [],
         views: [],
-        follows: [],
+        version: [],
         permissions: {},
         capabilities: {},
         errors: [],
@@ -238,7 +238,7 @@ function requesting(permissions: GrantDeclaration): Declaration {
             mounts: {},
             protocols: [],
             views: [],
-            follows: [],
+            version: [],
             permissions,
             capabilities: {},
             errors: [],
@@ -345,7 +345,7 @@ async function installNotes(
             scope: ids.space,
             packageId: ids.package,
             name: "notes",
-            follows: checkout.reference(selection.machine, selection.checkout),
+            version: checkout.reference(selection.machine, selection.checkout),
             directory: selection.directory,
             installer: fixture.owner.subject,
         },
@@ -380,7 +380,7 @@ async function recordBuild(
     build?: BuildReader,
     builds: readonly BuildReader[] = [],
 ) {
-    // record it a millisecond after the last, as the newest build of a checkout is the one it follows
+    // record it a millisecond after the last, as the newest build of a checkout is the one it version
     const reader = build ?? (await notesBuild([main], fixture.environment.crypto));
     await fixture.simulation.sleep(1);
     const built = await fixture.recordBuild(reader, undefined, builds);
@@ -1114,7 +1114,7 @@ test("refuse a build routing hooks nothing serves", async () => {
             mounts: {},
             protocols: [],
             views: [],
-            follows: [],
+            version: [],
             permissions: {},
             capabilities: {},
             errors: [],
@@ -1155,7 +1155,7 @@ test("refuse a build declaring mounts no workload answers", async () => {
             mounts: { inbox: { path: "/inbox" } },
             protocols: [],
             views: [],
-            follows: [],
+            version: [],
             permissions: {},
             capabilities: {},
             errors: [],
@@ -2001,7 +2001,7 @@ test("refuse uninstalling a package an application needs", async () => {
             scope: ids.space,
             packageId: VAULT.id,
             name: "vault",
-            follows: await fixture.followed(VAULT.id, VAULT.version),
+            version: await fixture.releaseRow(VAULT.id, VAULT.version),
             installer: fixture.owner.subject,
         },
         now,

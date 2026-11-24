@@ -151,7 +151,7 @@ export class StackInstallation {
         call: MethodContextOf<typeof installation, "reconcile">,
         requested: Identifier<"build"> | undefined,
     ): Promise<void> {
-        // choose the build the stack runs: the requested one, else what it follows
+        // choose the build the stack runs: the requested one, else its version's
         const target = this.#target;
         const reader: Pick<Snapshot, "read"> = { read: (table) => call.read(table) };
         const chosen = await InstallationTarget.choose(reader, target, requested, this.#options);
@@ -248,11 +248,7 @@ export class StackInstallation {
         // observe an applied revision at the installation's latest generation
         else if (stack.appliedRevisionId === revision.id) {
             if (!Observation.isCurrent(stack, "Ready")) {
-                const isFollowed = await InstallationTarget.isFollowed(
-                    reader,
-                    stack,
-                    this.#options,
-                );
+                const isFollowed = await InstallationTarget.isCurrent(reader, stack, this.#options);
                 await call.observe(installation, stack, readyApplied(isFollowed, {}));
             }
 
@@ -319,7 +315,7 @@ export class StackInstallation {
             await call.observe(
                 installation,
                 stack,
-                readyApplied(await InstallationTarget.isFollowed(reader, stack, this.#options), {
+                readyApplied(await InstallationTarget.isCurrent(reader, stack, this.#options), {
                     plan: null,
                     approvedPlan: null,
                     ...InstallationWait.none,
@@ -517,7 +513,7 @@ function declaredTypes(types: readonly ObjectType[]): readonly ObjectType[] {
     return [...new Map(handled.map((type) => [type.table, type])).values()];
 }
 
-/** Describe an applied stack, synced once it runs what it follows. */
+/** Describe an applied stack, synced once it runs its version. */
 function readyApplied(isFollowed: boolean, fields: Readonly<Record<string, unknown>>) {
     const described = ready("Applied", "every declaration applied", fields);
     const synced = isFollowed ? { [SYNCED]: SYNCED_CONDITION } : {};

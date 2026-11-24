@@ -307,7 +307,7 @@ export class CheckoutServer {
         return {
             packageId,
             submission: {
-                follows: checkout.reference(selection.machine, selection.checkout),
+                version: checkout.reference(selection.machine, selection.checkout),
                 directory: selection.directory,
                 build: built.id,
                 stack: { export: source.export, parameters: { ...source.parameters } },
@@ -414,7 +414,7 @@ export class CheckoutServer {
             limit: 1,
         });
         const [existing] = items;
-        const follows = {
+        const version = {
             ...ObjectReference.columns(
                 "follows",
                 checkout.reference(selection.machine, selection.checkout),
@@ -426,13 +426,13 @@ export class CheckoutServer {
         const requestId = RequestId.create(submitted.environment);
         let installed: typeof existing;
 
-        // install the package following the checkout's package directory
+        // install the package at the checkout's package directory
         if (existing === undefined) {
             installed = await objects.installation.create({
                 scope: spaceId,
                 requestId,
                 packageId: built.id,
-                ...follows,
+                ...version,
                 name: PackageName.split(built.name).local,
             });
         }
@@ -447,7 +447,7 @@ export class CheckoutServer {
                 id: existing.id,
                 requestId,
                 revision: existing.revision,
-                ...follows,
+                ...version,
             });
         }
 
@@ -463,15 +463,15 @@ export class CheckoutServer {
     /** Report whether an installation follows the same checkout's package directory. */
     static #isFollowing(
         installed: {
-            readonly followsType: string | null;
-            readonly followsId: string | null;
+            readonly versionType: string | null;
+            readonly versionId: string | null;
             readonly directory: string | null;
         },
         selection: { readonly checkout: string; readonly directory: string },
     ): boolean {
         return (
-            installed.followsType === checkout.name &&
-            installed.followsId === selection.checkout &&
+            installed.versionType === checkout.name &&
+            installed.versionId === selection.checkout &&
             installed.directory === selection.directory
         );
     }

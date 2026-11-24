@@ -163,7 +163,7 @@ export const InstallationAccess = {
         const at = residency.target({ scope: Scope.universe.id, id: homed.id });
         const { id: installed } = target;
         const { name, packageId } = target;
-        const kind = InstallationTarget.follows(target);
+        const kind = InstallationTarget.kind(target);
         const [related] = await Relationship.read(
             reader,
             residency.reference(Scope.universe.id, homed.id),

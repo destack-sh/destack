@@ -272,7 +272,7 @@ class Space {
                     scope: installed.scope,
                     packageId: installed.packageId,
                     name: `app-${name}`,
-                    ...ObjectReference.columns("follows", MODULE_RELEASE),
+                    ...ObjectReference.columns("version", MODULE_RELEASE),
                     capabilities: [],
                     createdAt: 0,
                     updatedAt: 0,

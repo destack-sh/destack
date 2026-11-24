@@ -45,19 +45,19 @@ const source = {
 
 /** What following the checkout writes on an installation or a submission. */
 const followed = {
-    follows: checkout.reference(source.machine, source.checkout),
+    version: checkout.reference(source.machine, source.checkout),
     directory: source.directory,
 };
 
 /** Follow a release of the fixture package by its version, at the forge of a space's world. */
 async function release(fixture: TestSpace, version: string) {
-    return { follows: await fixture.followed(ids.package, version) };
+    return { version: await fixture.releaseRow(ids.package, version) };
 }
 
-/** Write what an installation follows as its columns. */
-function following(target: { readonly follows: ObjectReference; readonly directory?: string }) {
+/** Write what an installation version as its columns. */
+function following(target: { readonly version: ObjectReference; readonly directory?: string }) {
     return {
-        ...ObjectReference.columns("follows", target.follows),
+        ...ObjectReference.columns("version", target.version),
         directory: target.directory ?? null,
     };
 }
@@ -83,7 +83,7 @@ function deployBuild(
 async function refollow(
     fixture: TestSpace,
     id: Identifier<"installation">,
-    target: { readonly follows: ObjectReference; readonly directory?: string },
+    target: { readonly version: ObjectReference; readonly directory?: string },
     stack: { readonly export?: string; readonly parameters?: JsonObject } = {},
 ) {
     const installer = fixture.as(fixture.owner.subject).client(stackPackage);
@@ -105,9 +105,9 @@ function followStack(
     id: Identifier<"installation">,
     built: { readonly build: Identifier<"build"> },
 ) {
-    const follows = build.reference(ids.space, built.build);
+    const version = build.reference(ids.space, built.build);
 
-    return refollow(fixture, id, { follows }, { export: "personal", parameters: {} });
+    return refollow(fixture, id, { version }, { export: "personal", parameters: {} });
 }
 
 test("apply a submitted stack build and open its installations' views", async () => {
@@ -122,7 +122,7 @@ test("apply a submitted stack build and open its installations' views", async ()
         installations: {
             notes: {
                 packageId: ids.package,
-                selection: { kind: "release", version: "2026.9.0" },
+                version: { kind: "release", version: "2026.9.0" },
                 status: "enabled",
                 name: "notes",
                 bindings: {},
@@ -500,7 +500,7 @@ test("wait for a release no one has published under the selected tag, reporting 
         requestId: RequestId.create(fixture.machine.environment),
         packageId: ids.package,
         ...following({
-            follows: tag.reference(
+            version: tag.reference(
                 await Residency.space(fixture.universe.storage.database.snapshot(), "eu"),
                 Identifier.create("tag", fixture.machine.environment),
             ),
@@ -516,11 +516,11 @@ test("wait for a release no one has published under the selected tag, reporting 
         null,
         "false",
         "ReleaseNotPublished",
-        "notes has no published release for what it follows",
+        "notes has no release under its tag yet",
     ]);
 });
 
-test("open the build each package's installation in a space follows, and none for a package the space does not install", async () => {
+test("open the build each package's installation in a space version, and none for a package the space does not install", async () => {
     // install two packages at different releases, publishing the second's
     const fixture = await TestSpace.open();
     const { database } = fixture;
@@ -539,7 +539,7 @@ test("open the build each package's installation in a space follows, and none fo
                 scope: ids.space,
                 packageId,
                 name: `notes-${suffix}`,
-                follows: await fixture.followed(packageId, version),
+                version: await fixture.releaseRow(packageId, version),
                 installer: fixture.owner.subject,
             },
             now,

@@ -24,7 +24,7 @@ import {
     InstallationKind,
     ObjectType,
     PackageDescription,
-    type InstallationSelection,
+    type InstallationVersion,
 } from "@destack/object";
 import { type DependencyRelease, PackageId, PackageRelease } from "@destack/package";
 import { type BuildReader, BuildImage, PackageManifest } from "@destack/package/manifest";
@@ -83,13 +83,13 @@ export interface SelectedBuild {
     readonly source: BuildSource;
 }
 
-/** The kind of row an installation follows, or the host's release without one. */
-export type FollowKind = "host" | "release" | "tag" | "reference" | "checkout" | "build";
+/** The kind of row an installation's version is, or the host's release without one. */
+export type VersionKind = "host" | "release" | "tag" | "reference" | "checkout" | "build";
 
 /** The revision an installation targets: its build selected, its stack evaluated, recorded. */
 export const InstallationTarget = {
-    /** Report whether an installation targets the build it follows now, by its space's rows. */
-    async isFollowed(
+    /** Report whether an installation targets the build its version names, by its space's rows. */
+    async isCurrent(
         reader: Pick<Snapshot, "read">,
         installed: Installation,
         options: RevisionOptions,
@@ -102,13 +102,13 @@ export const InstallationTarget = {
         if (current === undefined) {
             return false;
         }
-        const kind = InstallationTarget.follows(installed);
+        const kind = InstallationTarget.kind(installed);
         const { isBuilding } = options.space.machine;
         const released = current.source.kind === "release" ? current.source.version : undefined;
 
-        // compare a followed release's or tag's version where the space has its registry's rows
+        // compare its release's or tag's version where the space has its registry's rows
         if (kind === "release" || kind === "tag") {
-            const id = present(installed.followsId, "the followed row");
+            const id = present(installed.versionId, "its version's row");
             const version = !isBuilding
                 ? undefined
                 : kind === "tag"
@@ -129,16 +129,16 @@ export const InstallationTarget = {
         }
     },
 
-    /** Name the kind of row an installation follows, the host's release without one. */
-    follows(installed: Pick<Installation, "followsType">): FollowKind {
-        // follow the host's release without a followed row
-        const type = installed.followsType;
+    /** Read the kind of row an installation's version is, the host's release without one. */
+    kind(installed: Pick<Installation, "versionType">): VersionKind {
+        // run the host's release without a version row
+        const type = installed.versionType;
         if (type === null) {
             return "host";
         }
 
-        // name the followed row's type, refusing one nothing follows
-        const kinds: Readonly<Record<string, FollowKind>> = {
+        // name the version row's type, refusing a type no version is
+        const kinds: Readonly<Record<string, VersionKind>> = {
             [release.name]: "release",
             [tag.name]: "tag",
             [reference.name]: "reference",
@@ -153,67 +153,59 @@ export const InstallationTarget = {
         return kind;
     },
 
-    /** Read the row an installation follows, absent for the host's release. */
-    followed(columns: {
-        readonly followsPackageId?: string | null;
-        readonly followsType?: string | null;
-        readonly followsScope?: string | null;
-        readonly followsId?: string | null;
+    /** Read the row an installation's version is, absent for the host's release. */
+    version(columns: {
+        readonly versionPackageId?: string | null;
+        readonly versionType?: string | null;
+        readonly versionScope?: string | null;
+        readonly versionId?: string | null;
     }): ObjectReference | undefined {
-        return columns.followsId === undefined || columns.followsId === null
+        return columns.versionId === undefined || columns.versionId === null
             ? undefined
-            : ObjectReference.at("follows", columns);
+            : ObjectReference.at("version", columns);
     },
 
-    /** Resolve what a declaration follows: its pin, else the host's image or its built release. */
+    /** Resolve the row a declared version names, or the host's image for a shipped release. */
     async resolveDeclared(
         packageId: PackageId,
-        declared: {
-            readonly selection?: InstallationSelection | undefined;
-            readonly version?: string | undefined;
-        },
+        version: InstallationVersion,
         options: Machine,
     ): Promise<{
-        readonly follows: ObjectReference | undefined;
+        readonly version: ObjectReference | undefined;
         readonly directory: string | null;
-        /** The host's image it follows, absent unless the host provides its package. */
-        readonly followedImage: Digest | null;
+        /** The host's image it runs, absent unless the host provides its package. */
+        readonly hostImage: Digest | null;
     }> {
-        // follow the host's release without a pin when the host ships the version it was built with
-        const { version } = declared;
+        // run a release the host ships as the host's build of it, which needs no registry row
         const shipped = options.shipped.get(packageId)?.package.version;
-        const selection =
-            declared.selection ??
-            (shipped !== undefined && shipped === version
-                ? { kind: "host" as const }
-                : { kind: "release" as const, version: present(version, "the built version") });
-
-        // follow the host's release without a row, and a checkout on its machine
-        if (selection.kind === "host") {
+        if (
+            version.kind === "host" ||
+            (version.kind === "release" && version.version === shipped)
+        ) {
             const provided = InstallationTarget.provided(packageId, options);
 
-            return { follows: undefined, directory: null, followedImage: provided?.image ?? null };
-        } else if (selection.kind === "checkout") {
-            const followed = checkout.reference(selection.machine, selection.checkout);
+            return { version: undefined, directory: null, hostImage: provided?.image ?? null };
+        } else if (version.kind === "checkout") {
+            const row = checkout.reference(version.machine, version.checkout);
 
-            return { follows: followed, directory: selection.directory, followedImage: null };
+            return { version: row, directory: version.directory, hostImage: null };
         }
 
-        // read a release, tag or reference at its registry's home
-        const followed = await InstallationTarget.resolveFollowed(options, packageId, selection);
+        // read a release, tag or reference at its registry's home, and a checkout on its machine
+        const row = await InstallationTarget.resolveVersion(options, packageId, version);
 
         return {
-            follows: followed,
-            directory: selection.kind === "repository" ? selection.directory : null,
-            followedImage: null,
+            version: row,
+            directory: version.kind === "repository" ? version.directory : null,
+            hostImage: null,
         };
     },
 
-    /** Find the release, tag or repository reference a selection names, at its registry's home. */
-    async resolveFollowed(
+    /** Find the release, tag or repository reference a version names, at its registry's home. */
+    async resolveVersion(
         machine: Machine,
         packageId: PackageId,
-        selection: Exclude<InstallationSelection, { readonly kind: "host" | "checkout" }>,
+        selection: Exclude<InstallationVersion, { readonly kind: "host" | "checkout" }>,
     ): Promise<ObjectReference> {
         // take the release a version names at its package's registry
         if (selection.kind === "release") {
@@ -265,8 +257,8 @@ export const InstallationTarget = {
     },
 
     /** Report whether an installation's build resolves without a build here: a release or a pin. */
-    isPinned(installed: Pick<Installation, "followsType">): boolean {
-        const kind = InstallationTarget.follows(installed);
+    isPinned(installed: Pick<Installation, "versionType">): boolean {
+        const kind = InstallationTarget.kind(installed);
 
         return kind === "host" || kind === "release" || kind === "tag" || kind === "build";
     },
@@ -305,13 +297,13 @@ export const InstallationTarget = {
 
     /** Resolve the image an installation runs, undefined for a host release the machine lacks. */
     running(
-        installed: Pick<Installation, "packageId" | "followsType">,
+        installed: Pick<Installation, "packageId" | "versionType">,
         recorded: Digest,
         options: Pick<RevisionOptions, "linked" | "shipped">,
     ): Digest | undefined {
         const { packageId } = installed;
 
-        return InstallationTarget.follows(installed) === "host"
+        return InstallationTarget.kind(installed) === "host"
             ? InstallationTarget.provided(packageId, options)?.image
             : (options.linked.get(packageId)?.image ?? recorded);
     },
@@ -336,7 +328,7 @@ export const InstallationTarget = {
                 : await reader.read(build.table).findFirst({ where: { id: revision.buildId } });
         const current = built === undefined ? undefined : Build.of(built);
 
-        // take the requested build, else the build of what it follows, else its targeted one
+        // take the requested build, else its version's build, else its targeted one
         const { scope } = options.space.machine;
         const attributes = InstallationTarget.attributes(row);
         const selected =
@@ -389,7 +381,7 @@ export const InstallationTarget = {
         // leave an installation following a build of the space
         const installed = row;
         const { packageId } = installed;
-        const kind = InstallationTarget.follows(installed);
+        const kind = InstallationTarget.kind(installed);
         if (kind !== "host" && kind !== "release" && kind !== "tag") {
             return undefined;
         }
@@ -411,7 +403,7 @@ export const InstallationTarget = {
                 : await InstallationRevision.build(reader, row.targetRevisionId);
         const tagged =
             kind === "tag" && isBuilding
-                ? await followedVersion(reader, present(installed.followsId, "the followed tag"))
+                ? await followedVersion(reader, present(installed.versionId, "its version's tag"))
                 : undefined;
         if (
             tagged !== undefined &&
@@ -421,7 +413,7 @@ export const InstallationTarget = {
             return undefined;
         }
 
-        // resolve the host's release, or the followed release or tag at its registry
+        // resolve the host's release, or its release or tag at its registry
         const resolved = hosted ?? (await selectedRelease(reader, installed, options));
         if (resolved === undefined) {
             return undefined;
@@ -461,7 +453,7 @@ export const InstallationTarget = {
         const linked = options.linked.get(packageId);
         const followed = installed.find((row) => row.id === found?.id);
         const following = followed ?? only;
-        const kind = following === undefined ? undefined : InstallationTarget.follows(following);
+        const kind = following === undefined ? undefined : InstallationTarget.kind(following);
         if (rows.length > 1) {
             throw StackError.of(
                 "TARGET_BLOCKED",
@@ -687,10 +679,10 @@ async function selectBuild(
     current: Build | undefined,
     options: RevisionOptions,
 ): Promise<SelectedBuild | undefined> {
-    // read what it follows
+    // read its version
     const installed = row;
     const { packageId } = installed;
-    const kind = InstallationTarget.follows(installed);
+    const kind = InstallationTarget.kind(installed);
 
     // take the release the machine provides for one following the host's, reusing its current build
     if (kind === "host") {
@@ -708,7 +700,7 @@ async function selectBuild(
 
         return { image, source: { kind: "release", package: packageId, version, image } };
     }
-    // leave a followed release or tag to its pull
+    // leave a release or tag version to its pull
     else if (kind === "release" || kind === "tag") {
         return undefined;
     }
@@ -717,19 +709,19 @@ async function selectBuild(
         const pinned = await Build.require(
             snapshot,
             Installation.space(row),
-            schema.identifier("build").parse(installed.followsId),
+            schema.identifier("build").parse(installed.versionId),
         );
 
         return pinned.state === "succeeded"
             ? { image: Build.image(pinned), source: pinned.source, build: pinned.id }
             : undefined;
     }
-    // take the succeeded build of the commit a followed reference points at
+    // take the succeeded build of the commit its reference points at
     else if (kind === "reference") {
         const followed = options.space.machine.isBuilding
             ? await followedReference(
                   snapshot,
-                  present(installed.followsId, "the followed reference"),
+                  present(installed.versionId, "its version's reference"),
               )
             : undefined;
         if (followed?.commit === undefined) {
@@ -739,7 +731,7 @@ async function selectBuild(
             kind: "commit" as const,
             repository: followed.repository,
             commit: followed.commit,
-            directory: present(installed.directory, "the followed directory"),
+            directory: present(installed.directory, "its version's directory"),
         };
         const found = await Build.find(snapshot, Installation.space(row), source);
 
@@ -747,7 +739,7 @@ async function selectBuild(
             ? { image: Build.image(found), source, build: found.id }
             : undefined;
     }
-    // take the followed checkout's newest succeeded build
+    // take its checkout's newest succeeded build
     else {
         const newest = (
             await snapshot.read(build.table).findMany({
@@ -762,7 +754,7 @@ async function selectBuild(
             .filter(
                 (entry) =>
                     entry.source.kind === "checkout" &&
-                    entry.source.checkout === installed.followsId &&
+                    entry.source.checkout === installed.versionId &&
                     entry.source.directory === installed.directory,
             )
             .toSorted((left, right) => right.createdAt - left.createdAt)
@@ -779,7 +771,7 @@ async function selectedRelease(
     snapshot: Pick<Snapshot, "read">,
     installed: Pick<
         Installation,
-        "followsPackageId" | "followsType" | "followsScope" | "followsId" | "packageId"
+        "versionPackageId" | "versionType" | "versionScope" | "versionId" | "packageId"
     >,
     options: {
         readonly space: Pick<Space, "builds" | "machine" | "root" | "pull" | "read">;
@@ -788,8 +780,8 @@ async function selectedRelease(
     // read the version a tag points at in the space's replica of its registry
     const { packageId } = installed;
     const { machine } = options.space;
-    const followed = ObjectReference.at("follows", installed);
-    const kind = InstallationTarget.follows(installed);
+    const followed = ObjectReference.at("version", installed);
+    const kind = InstallationTarget.kind(installed);
     if (kind === "tag" && machine.isBuilding) {
         const version = await followedVersion(snapshot, followed.id);
 

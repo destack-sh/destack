@@ -56,7 +56,7 @@ test("give birth to placed spaces from their replicated rows with main in their 
     );
     const carrying = (name: string) => ({
         packageId: stacked.id,
-        selection: { kind: "release" as const, version: stacked.version },
+        version: { kind: "release" as const, version: stacked.version },
         export: name,
         settings: {},
         routes: {},
@@ -146,7 +146,7 @@ test("retain a person's own apply of a placed space's stack, and submit the spac
     const second = await imageOf(nth(builds, 1), crypto);
     const carried = {
         packageId: stacked.id,
-        selection: { kind: "release" as const, version: stacked.version },
+        version: { kind: "release" as const, version: stacked.version },
         export: "home",
         settings: {},
         routes: {},
@@ -204,7 +204,7 @@ test("retain a person's own apply of a placed space's stack, and submit the spac
             id,
             requestId: RequestId.create(fixture.machine.environment),
             revision: current.revision,
-            ...ObjectReference.columns("follows", await fixture.followed(next.id, next.version)),
+            ...ObjectReference.columns("version", await fixture.releaseRow(next.id, next.version)),
             export: "home",
             parameters: {},
         });

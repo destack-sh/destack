@@ -181,7 +181,7 @@ export class ApplicationInstallation {
 
     /** Target the build the installation runs, establish its types and deploy its revision. */
     async reconcile(call: MethodContextOf<typeof installation, "reconcile">): Promise<void> {
-        // target the revision of the requested build, else of what it follows
+        // target the revision of the requested build, else of its version
         const target = this.#target;
         const isMoved = await this.#span("target", () => this.target(call, call.input.build));
 
@@ -268,7 +268,7 @@ export class ApplicationInstallation {
         call: MethodContextOf<typeof installation, "reconcile">,
         requested: Identifier<"build"> | undefined,
     ): Promise<boolean> {
-        // choose the build a live installation runs: the requested one, else what it follows
+        // choose the build a live installation runs: the requested one, else its version's
         const target = this.#target;
         const reader: Pick<Snapshot, "read"> = { read: (table) => call.read(table) };
         const chosen =
@@ -571,11 +571,14 @@ export class ApplicationInstallation {
                 active.map((entry) => Deployment.drain(entry)),
             );
 
-            // report an unpublished followed release
-            const kind = InstallationTarget.follows(target);
+            // report a tag nothing is published under yet, or a pinned release not published yet
+            const kind = InstallationTarget.kind(target);
             const isEnabled = !isDeleted && target.status === "enabled";
             if (isEnabled && revision === undefined && (kind === "release" || kind === "tag")) {
-                const message = `${target.name} has no published release for what it follows`;
+                const message =
+                    kind === "tag"
+                        ? `${target.name} has no release under its tag yet`
+                        : `${target.name} runs a release that is not published yet`;
                 await call.observe(installation, target, {
                     conditions: {
                         Ready: { status: "false", reason: "ReleaseNotPublished", message },
@@ -859,14 +862,14 @@ export class ApplicationInstallation {
         call: MethodContextOf<typeof installation, "reconcile">,
         workloads: number,
     ): Promise<void> {
-        // record it synced once it runs what it follows, unless its residency relates it later or its space refuses it
+        // record it synced once it runs its version, unless its residency relates it later or its space refuses it
         const reader: Pick<Snapshot, "read"> = { read: (table) => call.read(table) };
         const homed = await InstallationAccess.home(reader, this.#target);
         const isRefused = Installation.servingFailure(this.#target) !== undefined;
         const isSynced =
             homed === undefined &&
             !isRefused &&
-            (await InstallationTarget.isFollowed(reader, this.#target, this.#options));
+            (await InstallationTarget.isCurrent(reader, this.#target, this.#options));
 
         // observe it deployed, bound, and waiting for nothing
         await call.observe(installation, this.#target, {

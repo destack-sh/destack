@@ -85,7 +85,7 @@ async function pushHome() {
     const push = (version: number) =>
         pushSource(`/** The site's version. */\nexport const version = ${version};\n`);
 
-    // install the site in the owner's home following the repository's main branch
+    // install the site in the owner's home at the repository's main branch
     const service = createClient(
         stackPackage,
         person.endpoint(stackPackage.id, await device.locate(world.owner.home)),
@@ -107,7 +107,7 @@ async function pushHome() {
             scope: world.owner.home,
             requestId: RequestId.create(home.environment),
             packageId: SITE,
-            ...ObjectReference.columns("follows", await follow()),
+            ...ObjectReference.columns("version", await follow()),
             directory: ".",
             name: "site",
         });

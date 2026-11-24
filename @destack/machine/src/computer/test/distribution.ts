@@ -448,7 +448,7 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
 
         return {
             packageId: id,
-            selection: { kind: "release", version },
+            version: { kind: "release", version },
             export: exported,
             settings: {},
             routes: {},

@@ -70,18 +70,18 @@ export function implementInstallations(options: InstallationOptions) {
             // read it as a stack declares it
             schema: InstallationDefinition,
             resolve: async (_name, declared, plan) => {
-                // follow the row the declaration pins or was built with, and resolve the bindings' targets
-                const { selection, version, bindings, ...rest } =
-                    InstallationDefinition.parse(declared);
-                const { follows, directory } = await InstallationTarget.resolveDeclared(
+                // run the row the declared version names, and resolve the bindings' targets
+                const { version, bindings, ...rest } = InstallationDefinition.parse(declared);
+                const resolved = await InstallationTarget.resolveDeclared(
                     rest.packageId,
-                    { selection, version },
+                    present(version, `the version of installation '${rest.name}'`),
                     options.space.machine,
                 );
+                const { directory } = resolved;
 
                 return {
                     ...rest,
-                    ...ObjectReference.columns("follows", follows),
+                    ...ObjectReference.columns("version", resolved.version),
                     directory,
                     ...(bindings === undefined
                         ? {}
@@ -93,7 +93,7 @@ export function implementInstallations(options: InstallationOptions) {
             create: async (call, next) => {
                 // refuse another account's repository
                 const { name } = call.input;
-                await options.space.requireFollowable(InstallationTarget.followed(call.input));
+                await options.space.requireFollowable(InstallationTarget.version(call.input));
 
                 // identify it by its scope and name, as readers derive it, then roll it out as its installer
                 const id = await InstallationId.of(
@@ -106,9 +106,9 @@ export function implementInstallations(options: InstallationOptions) {
                 return await deployed(call, created);
             },
             update: async (call, next) => {
-                // refuse another account's repository, then apply what it follows now
+                // refuse another account's repository, then apply its version now
                 await options.space.requireFollowable(
-                    InstallationTarget.followed({ ...call.target, ...call.input }),
+                    InstallationTarget.version({ ...call.target, ...call.input }),
                 );
                 const updated = await next(call);
 
@@ -164,11 +164,11 @@ export function implementInstallations(options: InstallationOptions) {
             },
             follow: {
                 handle: (context) => {
-                    // record what it follows now, a new stack dropping an owner's earlier apply
-                    const { appliedStack, followedImage } = context.input;
+                    // record its version now, a new stack dropping an owner's earlier apply
+                    const { appliedStack, hostImage } = context.input;
 
                     return context.updateStatus({
-                        ...(followedImage === undefined ? {} : { followedImage }),
+                        ...(hostImage === undefined ? {} : { hostImage }),
                         ...(appliedStack === undefined
                             ? {}
                             : {
@@ -265,8 +265,8 @@ function reconcileController(options: InstallationOptions): ObjectController<typ
             // an installation following the host once the host's image of its package changes
             {
                 table: installation.table,
-                where: { followedImage: { isNotNull: true } },
-                fields: ["followedImage"],
+                where: { hostImage: { isNotNull: true } },
+                fields: ["hostImage"],
                 isObserving: true,
                 on: { id: "id" },
             },
@@ -309,7 +309,7 @@ async function resume(
     const { scope: telemetry } = options.space.machine;
     const attributes = InstallationTarget.attributes(target);
 
-    // pull the release it follows onto the machine
+    // pull the release it runs onto the machine
     const pulled = await telemetry.span("destack.installation.pull", attributes, () =>
         InstallationTarget.pull(snapshot, target, options),
     );
@@ -366,13 +366,13 @@ async function resume(
         );
     }
 
-    // then build the commit a followed reference points at
-    const { followsId, directory } = current;
-    const isFollowing = InstallationTarget.follows(current) === "reference";
+    // then build the commit its reference points at
+    const { versionId, directory } = current;
+    const isFollowing = InstallationTarget.kind(current) === "reference";
     if (options.space.machine.isBuilding && isFollowing) {
         const followed = {
-            id: present(followsId, "the followed reference"),
-            directory: present(directory, "the followed directory"),
+            id: present(versionId, "its version's reference"),
+            directory: present(directory, "its version's directory"),
         };
         await telemetry.span("destack.installation.build", attributes, () =>
             new CommitBuild(current, followed, options).reconcile(reconciliation),
@@ -442,11 +442,11 @@ async function requireUnneeded(
     }
 }
 
-/** The installations following a moved tag or reference, by the followed row. */
+/** The installations whose version is a moved tag or reference, by that row. */
 const FOLLOWERS: Relation = {
     table: installation.table,
     cardinality: "many",
-    on: { kind: "key", column: "followsId", parent: "id" },
+    on: { kind: "key", column: "versionId", parent: "id" },
 };
 
 /** The spaces of the account an entitlement limits. */
@@ -549,7 +549,7 @@ function resumeWatches(waited: readonly ObjectType[]): ObjectWatch[] {
                     table: installation.table,
                     cardinality: "many",
                     on: { kind: "key", column: "scope", parent: "scope" },
-                    where: { followsType: checkout.name },
+                    where: { versionType: checkout.name },
                 },
             ],
             on: { id: "id" },

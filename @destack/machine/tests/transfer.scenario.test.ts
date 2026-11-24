@@ -458,7 +458,7 @@ test("stop a moving space's instances once its fence starts", async () => {
     const running = await runNotes(
         space.database,
         release,
-        await space.followed(ids.package, "2026.9.0"),
+        await space.releaseRow(ids.package, "2026.9.0"),
         space.owner.subject,
         space.machine.environment,
     );
@@ -567,7 +567,7 @@ test("move a space afresh after a cancelled takeover", async () => {
             scope: ids.space,
             packageId: ids.package,
             name: "notes",
-            follows: await source.followed(ids.package, "2026.9.0"),
+            version: await source.releaseRow(ids.package, "2026.9.0"),
             installer: source.owner.subject,
         },
         now,

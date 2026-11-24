@@ -170,7 +170,7 @@ export async function deployNotes(
         database,
         {
             ...notes,
-            follows: await space.followed(ids.package, "2026.9.0"),
+            version: await space.releaseRow(ids.package, "2026.9.0"),
             installer: space.owner.subject,
         },
         now,
