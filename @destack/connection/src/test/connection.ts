@@ -965,7 +965,7 @@ export class TestConnection {
                         this.http.fetch(await TestConnection.#bearer(subject)(upgrade)),
                     WebSocketUpgrade.to(url, protocols),
                 ),
-            signing: (signer) => this.connect(signer, scope),
+            signing: (signer) => this.connect(signer.subject, scope),
             environment: this.environment,
         });
     }
