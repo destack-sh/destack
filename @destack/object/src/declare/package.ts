@@ -70,7 +70,7 @@ export interface PackageOptions {
     readonly actions?: readonly Action[];
     /** The mounts serving protocols others define below the package. */
     readonly mounts?: readonly MountDeclaration[];
-    /** The shapes the package's code follows from other scopes, which its spaces replicate. */
+    /** The types the package reads from other scopes, which its spaces replicate on demand. */
     readonly follows?: readonly Shape[];
     /** The resources the package uses and the secrets it reads. */
     readonly resources?: readonly (ResourceRequirement | Declaration)[];
@@ -105,7 +105,7 @@ export interface Package<Options extends PackageOptions = PackageOptions> extend
     readonly actions: ByName<Options["actions"]>;
     /** The mounts serving protocols others define below the package, by name. */
     readonly mounts: ByName<Options["mounts"]>;
-    /** The shapes the package's code follows from other scopes. */
+    /** The types the package reads from other scopes, replicated on demand. */
     readonly follows: readonly Shape[];
     /** The resources the package uses, by name. */
     readonly resources: Keyed<ResourceOf<Listed<Options["resources"]>>>;
