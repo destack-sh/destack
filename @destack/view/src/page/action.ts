@@ -71,8 +71,8 @@ export interface ActionEvent<Inputs extends ActionInputs = ActionInputs> {
 export interface ActionHandler<Inputs extends ActionInputs = ActionInputs> {
     /** Run the action where the person was, with its inputs' values. */
     run(event: ActionEvent<Inputs>): Promise<void> | void;
-    /** List the values a person picks an input from where they are, such as a board's columns. */
-    readonly choices?: (input: string, element: Element | null) => readonly Choice[];
+    /** List the values a person picks an input from where they are, none of an input they type. */
+    readonly choices?: (input: string, element: Element | null) => readonly Choice[] | undefined;
     /** Report whether the handler runs where the person is, read reactively, as menus validate. */
     readonly isEnabled?: (element: Element | null) => boolean;
     /** Report whether what it turns on is on, absent for what turns nothing on. */
@@ -136,7 +136,9 @@ export class ActionRegistry {
     /** What the page calls methods with, absent on a page without clients. */
     #host: ActionHost | undefined;
     /** Where the person last was, null for the page itself. */
-    #last: Element | null = null;
+    readonly #last: Accessor<Element | null>;
+    /** Replace where the person last was. */
+    readonly #setLast: Setter<Element | null>;
     /** The parts of the page asking the person, the latest last. */
     #asks: readonly ActionAsk[] = [];
     /** The parts of the page telling the person of failures, the latest last. */
@@ -155,6 +157,11 @@ export class ActionRegistry {
         const [revision, setRevision] = createSignal(0, { ownedWrite: true });
         this.#revision = revision;
         this.#setRevision = setRevision;
+
+        // follow where the person is
+        const [last, setLast] = createSignal<Element | null>(null, { ownedWrite: true });
+        this.#last = last;
+        this.#setLast = setLast;
     }
 
     /** Handle an action in an element, else the whole page, and return what stops handling it. */
@@ -318,7 +325,7 @@ export class ActionRegistry {
         return (
             kind === "object" ||
             kind === "choice" ||
-            this.#chosen(key, element)?.handler.choices !== undefined
+            this.#chosen(key, element)?.handler.choices?.(input.name, element) !== undefined
         );
     }
 
@@ -368,9 +375,10 @@ export class ActionRegistry {
 
     /** Find where an action runs for an element: there, else where the person last was. */
     placeOf(action: Action, element: Element): Element | null {
-        const last = this.#last?.isConnected === true ? this.#last : null;
+        const last = this.#last();
+        const place = last?.isConnected === true ? last : null;
 
-        return this.has(action.reference, element) ? element : last;
+        return this.has(action.reference, element) ? element : place;
     }
 
     /** Offer an action calling a method wherever it applies, until it stops. */
@@ -495,7 +503,7 @@ export class ActionRegistry {
             "focusin",
             ({ target }) => {
                 if (target instanceof Element && target.closest(RUNNERS) === null) {
-                    this.#last = target;
+                    this.#setLast(target);
                 }
             },
             { signal },
@@ -630,8 +638,14 @@ export class ActionRegistry {
     ): Promise<readonly unknown[]> {
         // tell of a refusal after the prediction, whose own failure the caller takes
         const { predicted, confirmed } = client.perform(action, resolved);
+        const refuse = (error: unknown): void => {
+            // leave a mutation a closing client still queues
+            if (!(error instanceof DOMException && error.name === "AbortError")) {
+                this.#failed(action, error);
+            }
+        };
         void predicted.then(
-            () => confirmed.catch((error: unknown) => this.#failed(action, error)),
+            () => confirmed.catch(refuse),
             () => undefined,
         );
 
