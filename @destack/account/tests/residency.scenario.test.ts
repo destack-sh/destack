@@ -61,6 +61,7 @@ function chain(space: string, accountId: string) {
         parameters: {
             scopes: [],
             local: [],
+            replicas: [],
             replicated: [{ scope: accountId, types: [] }],
             via: [accountId],
             between: [],

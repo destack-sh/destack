@@ -412,6 +412,7 @@ test("follow a space's chain at the universe as the space, through the tokens it
         parameters: {
             scopes: [spaceId, accountId],
             local: [],
+            replicas: [],
             replicated: [{ scope: accountId, types: [] }],
             via: [],
             between: [],
