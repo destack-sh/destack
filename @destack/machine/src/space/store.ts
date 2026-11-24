@@ -114,6 +114,8 @@ export function openStore(
         blobs: space.blobs.storage,
         // know the account's hostnames, which its spaces' routes are declared on, as replicated rows
         policies: [hostname],
+        // know the built-in types the installations refer to, such as the identities a relay follows
+        known: KNOWN_TYPES,
         claims: start.claims,
         callKey: () => space.callKey(),
         environment: space.machine.environment,
