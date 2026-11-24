@@ -47,7 +47,8 @@ export const newCommand: CommandBody = {
             name: PackageName.split(name).local,
             hosting: "platform",
         });
-        const { universe } = (await context.launcher()).session;
+        const launcher = await context.launcher();
+        const { universe } = launcher.session;
         const remote = new URL(`/${name}.git`, universe).href;
         const lease = await forge.client.repository.push({
             spaceId: forge.home,
@@ -70,6 +71,7 @@ export const newCommand: CommandBody = {
                 release: template.release,
                 name,
                 lease,
+                author: await launcher.author(),
             },
         });
         const { terminal } = context;

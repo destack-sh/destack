@@ -5,6 +5,7 @@ import type { PackageJson } from "@destack/package";
 import { PackageName } from "@destack/package";
 import { InstallationTarget } from "../catalog/installation.ts";
 import { reference } from "@destack/registry/object";
+import type { GitAuthor } from "@destack/git";
 import { type Commit, type Identifier, present } from "@destack/schema";
 import { type ObjectReference, RequestId } from "@destack/sync";
 import type { CommandContext } from "../command/context.ts";
@@ -37,12 +38,22 @@ export class LocalCheckout {
     readonly repository: Identifier<"repository">;
     /** The name of the repository, such as `@ada/apps`. */
     readonly name: string;
+    /** The author of the commits the checkout's pushes make. */
+    readonly author: GitAuthor;
 
     /** Take a checkout's directory and repository. */
     private constructor(
         fields: Pick<
             LocalCheckout,
-            "id" | "machine" | "path" | "directory" | "root" | "package" | "repository" | "name"
+            | "id"
+            | "machine"
+            | "path"
+            | "directory"
+            | "root"
+            | "package"
+            | "repository"
+            | "name"
+            | "author"
         >,
     ) {
         // set the checkout, its directory, its package and its repository
@@ -54,6 +65,7 @@ export class LocalCheckout {
         this.package = fields.package;
         this.repository = fields.repository;
         this.name = fields.name;
+        this.author = fields.author;
     }
 
     /** Open the checkout of a package directory, registering its working tree once. */
@@ -94,6 +106,7 @@ export class LocalCheckout {
             package: packageJson.package,
             repository: found.id,
             name,
+            author: await (await context.launcher()).author(),
         });
     }
 
@@ -112,6 +125,7 @@ export class LocalCheckout {
             requestId: RequestId.create(client.environment),
             lease,
             of,
+            author: this.author,
         });
 
         // observe the repository's references again, then read the pushed one
