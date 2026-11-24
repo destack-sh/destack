@@ -69,7 +69,7 @@ export class FederatedVerifier {
     static isFederated(token: string): boolean {
         const { iss } = Jwt.claims(token);
 
-        return iss?.startsWith("https://") === true;
+        return iss !== undefined && URL.canParse(iss);
     }
 
     /** Verify a federated token at a time, answering its client as the caller. */
@@ -94,6 +94,15 @@ export class FederatedVerifier {
             throw OAuthError.of(
                 "GRANT_INVALID",
                 "workflow is invalid: no account trusts this workflow",
+            );
+        }
+
+        // refuse a plain HTTP issuer unless the universe itself answers over plain HTTP, as a local stage does
+        const isPlain = new URL(issuer).protocol !== "https:";
+        if (isPlain && new URL(this.#endpoint).protocol === "https:") {
+            throw OAuthError.of(
+                "GRANT_INVALID",
+                `issuer '${issuer}' is invalid: a universe over HTTPS trusts HTTPS issuers alone`,
             );
         }
 
