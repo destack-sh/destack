@@ -51,7 +51,13 @@ import { Bearer, Exchange, TOKEN_LIFETIME_MILLISECONDS, TokenCache } from "@dest
 import { Bucket } from "@destack/db";
 import { Attribution } from "@destack/package/stack";
 import { Authentication, Caller, CALLER_HEADER, principal } from "@destack/access";
-import { copyRequest, Forwarded, WebSocketUpgrade } from "@destack/environment";
+import {
+    BearerProtocol,
+    copyRequest,
+    Forwarded,
+    HttpMethod,
+    WebSocketUpgrade,
+} from "@destack/environment";
 import type { Space, SpaceStart } from "../space/space.ts";
 import { BucketKind } from "@destack/bucket";
 import { S3_PACKAGE } from "@destack/bucket/s3";
@@ -207,6 +213,7 @@ export type GatewaySpace = Pick<
         | "authenticate"
         | "domain"
         | "directory"
+        | "scope"
         | "traffic"
         | "verifier"
         | "accounts"
@@ -906,9 +913,38 @@ export class Gateway {
             );
         }
 
+        // describe the call by its method, address and upgrade, noting the status answered
+        const described = {
+            "http.request.method": HttpMethod.of(request.method),
+            "destack.egress.address": routed.address,
+            "destack.egress.upgrade": WebSocketUpgrade.of(request) !== undefined,
+        };
+        let status = {};
+
+        return this.#space.machine.scope.span(
+            "destack.egress.send",
+            described,
+            async (span) => {
+                // send it, noting the status answered
+                const response = await this.#sendRouted(caller, routed);
+                status = { "http.response.status_code": response.status };
+                span.setAttributes(status);
+
+                return response;
+            },
+            { kind: "client", duration: { attributes: () => ({ ...described, ...status }) } },
+        );
+    }
+
+    /** Send a routed call below the egress, without the caller's credentials. */
+    async #sendRouted(
+        caller: EgressCaller,
+        routed: NonNullable<ReturnType<typeof Egress.of>>,
+    ): Promise<Response> {
         // drop the caller's secret and identity claims, and the route only a machine marks
         const headers = new Headers(routed.request.headers);
         headers.delete("authorization");
+        BearerProtocol.remove(headers);
         headers.delete(CALLER_HEADER);
         headers.delete("cookie");
         headers.delete(ROUTE_HEADER);
@@ -1066,15 +1102,21 @@ export class Gateway {
                     `package mount '${path}' of installation '${peer.name}' not found`,
                 );
             }
-            // refuse an installation the caller does not bind
-            else if (!EgressCaller.binds(caller, peer, mount.path)) {
+
+            // take the installation, refusing one the caller neither is nor binds
+            const destination = await this.#resolvePeer(peer.name, peer.spaceId, path);
+            const isSelf =
+                destination.kind === "installation" &&
+                destination.installationId === caller.installationId &&
+                destination.scope === caller.scope;
+            if (!isSelf && !EgressCaller.binds(caller, peer, mount.path)) {
                 throw MachineError.of(
                     "INSTALLATION_DENIED",
                     `installation '${peer.name}' is forbidden: this installation does not bind it`,
                 );
             }
 
-            return this.#resolvePeer(peer.name, peer.spaceId, path);
+            return destination;
         }
 
         // apply a bound connection's credential to calls below its resource, bound at its identifier
@@ -1384,8 +1426,12 @@ export class Gateway {
 
     /** Identify the instance whose secret a request presents. */
     #instance(request: Request): InstanceSpec {
-        // find the instance the secret proves in the runtime running it
-        const secret = Bearer.token(request.headers.get("authorization"));
+        // find the instance its secret proves, from the authorization header or a socket's bearer subprotocol
+        const authorization = request.headers.get("authorization");
+        const secret =
+            authorization === null
+                ? BearerProtocol.read(request.headers)
+                : Bearer.token(authorization);
         const runtimes = [...this.#runtimes.values()];
         const spec =
             secret === undefined

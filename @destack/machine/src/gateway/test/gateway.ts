@@ -119,6 +119,7 @@ export function openGateway(
                 serve: refuse("serve the machine's own spaces"),
                 locate: refuse("locate spaces"),
                 environment: space.machine.environment,
+                scope: space.machine.scope,
                 verifier,
                 runtimes: options.runtimes ?? [],
                 hibernation: undefined,
