@@ -122,6 +122,7 @@ export const TOOLCHAIN_PACKAGES: ReadonlySet<string> = new Set([
     "lightningcss",
     "@solidjs/vite-plugin",
     "@solidjs/compiler",
+    "@stylexswc/rs-compiler",
     // the image renderer
     "sharp",
     // the formatter
