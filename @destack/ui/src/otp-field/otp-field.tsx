@@ -91,6 +91,7 @@ const styles = style.create({
         backgroundColor: { default: color.foreground, [media.forcedColors]: "CanvasText" },
         animationName: blink,
         animationDuration: `calc(4 * ${motion.durationLong})`,
+        animationTimingFunction: motion.easingStandard,
         animationIterationCount: "infinite",
     },
     separator: {

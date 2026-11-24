@@ -98,6 +98,7 @@ const styles = style.create({
         placeItems: "center",
         animationName: appear,
         animationDuration: motion.durationShort,
+        animationTimingFunction: motion.easingStandard,
         animationFillMode: "both",
     },
 });
