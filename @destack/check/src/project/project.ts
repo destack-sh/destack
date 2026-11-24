@@ -121,10 +121,12 @@ export class Project {
         // run the package's own check last
         const own = await this.#script("check");
 
-        // record how long a whole check took in the shared bucket, which schedules CI's runners
+        // record a workspace member's whole check duration for CI's schedule
         const store = await TestStore.open(this.environment);
-        if (options.since === undefined && store.bucket !== undefined) {
-            await store.check(await this.member(), this.environment.clock.now() - started);
+        const workspace = await Workspace.read(this.directory, this.environment.files);
+        if (options.since === undefined && workspace !== undefined) {
+            const member = relative(workspace.root, this.directory) || ".";
+            await store.check(member, this.environment.clock.now() - started);
         }
 
         return this.#relative([...formatted, ...typed, ...listed, ...linted, ...own]);
