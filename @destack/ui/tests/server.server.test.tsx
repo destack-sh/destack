@@ -96,13 +96,14 @@ test("render a sidebar and a toaster to a string without a browser, open and wit
 
     // the server renders the defaults with their hydration keys: an expanded sidebar on a wide screen and an empty stack
     expect(html.replaceAll(CLASS_ATTRIBUTE, "").replaceAll(ICON_BODY, "$1$2")).toBe(
-        '<div _hk=0020 data-slot="sidebar-wrapper">' +
-            '<div _hk=00230 id="000" data-slot="sidebar" data-open data-variant="sidebar" data-side="left">' +
-            '<div><div _hk=0023140 data-slot="sidebar-content">Notebooks</div></div></div>' +
-            '<button _hk=00280 data-slot="sidebar-trigger" data-variant="ghost" data-size="icon" aria-label="Toggle sidebar" aria-controls="000" aria-expanded="true">' +
-            '<svg _hk=002840 viewBox="0 0 256 256" fill="currentColor" width="1em" height="1em" aria-hidden="true" data-slot="icon"></svg></button>' +
-            '<section _hk=002f1 aria-label="Notifications" aria-live="polite" aria-relevant="additions text" aria-atomic="false" tabindex="-1" data-slot="toaster" data-position="bottom-right">' +
-            '<ol popover="manual" data-slot="toaster-stack" style="--x-height:0px"></ol></section></div>',
+        '<div _hk=0040 data-slot="sidebar-wrapper">' +
+            '<div _hk=00430 id="000" data-slot="sidebar" data-open data-variant="sidebar" data-side="left"><div>' +
+            '<div _hk=0043140 data-slot="sidebar-content">Notebooks</div></div></div>' +
+            '<button _hk=00480 data-slot="sidebar-trigger" data-variant="ghost" data-size="icon" aria-label="Toggle sidebar" aria-controls="000" aria-expanded="true">' +
+            '<svg _hk=004840 viewBox="0 0 256 256" fill="currentColor" width="1em" height="1em" aria-hidden="true" data-slot="icon"></svg></button>' +
+            '<section _hk=004f1 aria-label="Notifications" aria-live="polite" aria-relevant="additions text" aria-atomic="false" tabindex="-1" data-slot="toaster" data-position="bottom-right">' +
+            '<ol popover="manual" data-slot="toaster-stack" style="--x-height:0px"></ol></section></div>' +
+            '<div _hk=004h104 id="001" popover="hint" role="tooltip" data-slot="tooltip-content" data-closed data-side="right" data-align="center"></div>',
     );
 });
 

@@ -26,6 +26,7 @@ import {
     type JSX,
     merge,
     omit,
+    onCleanup,
     onSettled,
     type Setter,
     Show,
@@ -48,7 +49,8 @@ import { Button, type ButtonProperties } from "../button/index.ts";
 import { Input, type InputProperties } from "../input/index.ts";
 import { Sheet, SheetContent, SheetTitle } from "../sheet/index.ts";
 import { Skeleton } from "../skeleton/index.ts";
-import { Tooltip, TooltipContent, TooltipContext } from "../tooltip/index.ts";
+import { OpenChange, type OpenReason } from "../layer/index.ts";
+import { Tooltip, TooltipContent, TooltipControl } from "../tooltip/index.ts";
 import { visuallyHiddenStyle } from "../visually-hidden/index.ts";
 
 /** The 32-bit FNV-1a offset basis, which starts each skeleton row's hash. */
@@ -297,6 +299,8 @@ export class SidebarControl {
     readonly isMobileOpen: Accessor<boolean>;
     /** The properties of the provider, read for its controlled state and change handler. */
     readonly #properties: SidebarProviderProperties;
+    /** The tooltip of every entry, which tells its text while the sidebar shows icons alone. */
+    readonly tooltip: TooltipControl<JSX.Element>;
     /** Replace the open state on wide screens. */
     readonly #setOpen: (isOpen: boolean) => void;
     /** Replace the open state of the sheet. */
@@ -335,6 +339,7 @@ export class SidebarControl {
 
         // store the state
         this.id = createUniqueId();
+        this.tooltip = new TooltipControl({ delay: 0 });
         this.isOpen = isOpen;
         this.isMobile = isMobile;
         this.isMobileOpen = isMobileOpen;
@@ -548,6 +553,9 @@ export function SidebarProvider(properties: SidebarProviderProperties): JSX.Elem
                 {...rest}
                 {...style.attributes([styles.wrapper, properties.xstyle], properties.style)}
             />
+            <Tooltip control={control.tooltip}>
+                {(hint) => <TooltipContent side="right">{hint()}</TooltipContent>}
+            </Tooltip>
         </SidebarContext>
     );
 }
@@ -815,40 +823,24 @@ export function SidebarMenuItem(
 
 /** Render an entry's button, or its link with `href`. */
 export function SidebarMenuButton(properties: SidebarMenuButtonProperties): JSX.Element {
-    const rest = omit(properties, "tooltip");
-
-    return (
-        <Show when={properties.tooltip} fallback={<SidebarMenuButtonElement {...rest} />}>
-            {(tooltip) => (
-                <Tooltip delay={0}>
-                    <SidebarMenuButtonElement {...rest} />
-                    <TooltipContent side="right">{tooltip()}</TooltipContent>
-                </Tooltip>
-            )}
-        </Show>
-    );
-}
-
-/** Render the button or link of an entry. */
-function SidebarMenuButtonElement(
-    properties: Omit<SidebarMenuButtonProperties, "tooltip">,
-): JSX.Element {
-    // read the sidebar and the tooltip, which only a collapsed sidebar shows
+    // show the entry's text in the sidebar's tooltip, which only a collapsed sidebar does
     const control = useSidebar();
-    const tooltip = useContext(TooltipContext);
-    const isHinting = (): boolean => tooltip !== null && !control.isOpen() && !control.isMobile();
-    const rest = omit(properties, "active", "size", "xstyle", "style", "render");
-    const hint = (element: HTMLElement) => {
-        // anchor the tooltip to the hinted element and show it
-        tooltip?.setTrigger(element);
+    const { tooltip } = control;
+    const isHinting = (): boolean =>
+        properties.tooltip !== undefined && !control.isOpen() && !control.isMobile();
+    const rest = omit(properties, "tooltip", "active", "size", "xstyle", "style", "render");
+    let element: HTMLElement | undefined;
+    const hint = (reason: OpenReason, target: HTMLElement) => {
         if (isHinting()) {
-            tooltip?.open();
+            const trigger = { element: target, payload: properties.tooltip };
+            tooltip.open(new OpenChange(reason, undefined, trigger));
         }
     };
     const hover = new Hover({
-        onHoverStart: (event) => hint(event.target),
-        onHoverEnd: () => tooltip?.close(),
+        onHoverStart: (event) => hint("trigger-hover", event.target),
+        onHoverEnd: () => tooltip.close(new OpenChange("trigger-hover")),
     });
+    onCleanup(() => tooltip.drop(element));
     const part: PartAttributes = merge(
         hover.attributes(),
         {
@@ -860,10 +852,11 @@ function SidebarMenuButtonElement(
                 return properties.active === true ? "page" : undefined;
             },
             get "aria-describedby"() {
-                return isHinting() ? tooltip?.id : undefined;
+                return isHinting() && tooltip.state.isFrom(element) ? tooltip.id : undefined;
             },
-            onFocus: (event: PartEvent<Event>) => hint(event.currentTarget),
-            onBlur: () => tooltip?.close(),
+            ref: (target: HTMLElement) => (element = target),
+            onFocus: (event: PartEvent<Event>) => hint("trigger-focus", event.currentTarget),
+            onBlur: (event: FocusEvent) => tooltip.close(new OpenChange("focus-out", event)),
         },
         () =>
             style.attributes(
