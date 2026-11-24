@@ -1,4 +1,4 @@
-import { Message, Shortcut } from "@destack/locale";
+import { Message } from "@destack/locale";
 import { ReasonDescription } from "@destack/error";
 import { schema, Version } from "@destack/schema";
 import {
@@ -21,6 +21,7 @@ import { ObjectTypeReference } from "@destack/sync";
 import { ActionFocus } from "./action.ts";
 import { ActionCallDescription } from "./call.ts";
 import { ActionInputDescription } from "./input.ts";
+import { ActionKeybinding } from "./keybinding.ts";
 
 /** A JSON Schema. */
 const JsonSchema = schema.jsonObject();
@@ -242,8 +243,8 @@ export const ActionDescription = schema.object({
     category: Message.exactOptional(),
     /** The further words a search finds the action by. */
     keywords: Message.exactOptional(),
-    /** The key combination running it. */
-    keybinding: Shortcut.exactOptional(),
+    /** The key combinations running it until a person chooses others. */
+    keybinding: ActionKeybinding.exactOptional(),
     /** Where focus may be for the keys to run it. */
     focus: ActionFocus,
     /** Whether it removes something, a method's own when absent. */

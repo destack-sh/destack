@@ -392,11 +392,22 @@ store ─► sandbox: authorize, relate, expand, prepare, handle(next ─► sto
 | `name`, `title`       | the name with the type it calls, such as `task.moveTo`, and the title  |
 | `summary`, `keywords` | what it does, and other words people search it by                      |
 | `category`            | the group menus and the palette show it under                          |
-| `keybinding`          | the key combination, such as `"mod+shift+g"`                           |
+| `keybinding`          | the key combinations until a person chooses others, as below           |
 | `focus`               | `"page"` by default, outside form fields, or `"any"`                   |
 | `isDestructive`       | whether it removes, which people confirm where a call removes for good |
 | `input`               | what it takes, each from where the person is or asked                  |
 | `call`                | the method it calls, prepared from its inputs                          |
+
+### Keybindings
+
+`keybinding` is one key combination or several, and may differ on Macs, as VS Code's `key` and `mac` do.
+Menus show the first, and a person's choice replaces them all.
+
+| Form                                              | Runs it by                                      |
+| ------------------------------------------------- | ----------------------------------------------- |
+| `"mod+shift+g"`                                   | Command on Macs, Control elsewhere              |
+| `["plus", "="]`                                   | either                                          |
+| `{ key: "delete", mac: ["backspace", "delete"] }` | Delete, and on Macs either of their delete keys |
 
 ### Action inputs
 

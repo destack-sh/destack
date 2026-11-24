@@ -15,6 +15,7 @@ import { defineObject, device } from "../object/index.ts";
 import type { ShortcutText } from "@destack/locale";
 import { Action, defineAction } from "./action.ts";
 import { ActionCall } from "./call.ts";
+import type { ActionKeybindingDefinition } from "./keybinding.ts";
 import { Place } from "./place.ts";
 import { ActionDescription } from "./description.ts";
 import { type ActionContext, Template } from "./template.ts";
@@ -161,7 +162,12 @@ test("describe actions by their keys, inputs and template, and read them back fr
         owner,
     );
     const pin = defineAction(
-        { name: "pin", title: t`Pin`, keybinding: "mod+p", focus: "any" },
+        {
+            name: "pin",
+            title: t`Pin`,
+            keybinding: { key: ["mod+p", "plus"], mac: "mod+backspace" },
+            focus: "any",
+        },
         owner,
     );
 
@@ -202,7 +208,7 @@ test("describe actions by their keys, inputs and template, and read them back fr
                 package: notes,
                 name: "note.newNote",
                 title: t`New Note`,
-                keybinding: "mod+n",
+                keybinding: { key: ["mod+n"], mac: ["mod+n"] },
                 focus: "page",
                 call: {
                     ...called,
@@ -213,7 +219,13 @@ test("describe actions by their keys, inputs and template, and read them back fr
                     ],
                 },
             },
-            { package: notes, name: "pin", title: t`Pin`, keybinding: "mod+p", focus: "any" },
+            {
+                package: notes,
+                name: "pin",
+                title: t`Pin`,
+                keybinding: { key: ["mod+p", "plus"], mac: ["mod+backspace"] },
+                focus: "any",
+            },
         ],
         read: described,
     });
@@ -234,6 +246,7 @@ test("type an action's calls by the methods and inputs they take, its summary by
     expectTypeOf<ShortcutText<"mod+shift+k">>().toEqualTypeOf<"mod+shift+k">();
     expectTypeOf<ShortcutText<"hyper+x">>().toBeNever();
     expectTypeOf<ShortcutText<"mod+">>().toBeNever();
+    expectTypeOf<"hyper+x">().not.toExtend<ActionKeybindingDefinition<"hyper+x">>();
 });
 
 /** Read what a method's own action acts on, its inputs and whether it removes for good. */
@@ -338,7 +351,11 @@ test("refuse a call reading what is no input, and a key combination editors do n
             ),
         ),
         await refusal(() =>
-            Action.of("open-note", { ...open.describe(), keybinding: "hyper+o" }, () => note),
+            Action.of(
+                "open-note",
+                { ...open.describe(), keybinding: { key: ["o"], mac: ["hyper+o"] } },
+                () => note,
+            ),
         ),
     ];
 
@@ -352,7 +369,7 @@ test("refuse a call reading what is no input, and a key combination editors do n
         [
             "BAD_REQUEST",
             "DEFINITION_INVALID",
-            "key combination 'hyper+o' of action 'open-note' is invalid: editors do not write it",
+            "key combinations 'o', 'hyper+o' of action 'open-note' are invalid: editors do not write them",
         ],
     ]);
 });

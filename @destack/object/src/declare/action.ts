@@ -1,4 +1,4 @@
-import { type Message, Shortcut, type ShortcutText } from "@destack/locale";
+import type { Message, Shortcut } from "@destack/locale";
 import {
     DeclarationName,
     ModuleMetadata,
@@ -14,6 +14,7 @@ import type { ObjectType } from "../object/object.ts";
 import type { ActionCall } from "./call.ts";
 import type { ActionDescription } from "./description.ts";
 import { ActionInput } from "./input.ts";
+import { ActionKeybinding, type ActionKeybindingDefinition } from "./keybinding.ts";
 import {
     type ActionInputDefinition,
     type ActionInputs,
@@ -36,6 +37,7 @@ export type ActionFocus = schema.Infer<typeof ActionFocus>;
 export interface ActionDefinition<
     Inputs extends ActionInputs = ActionInputs,
     Keys extends string = Shortcut,
+    Mac extends string = Keys,
 > {
     /** The name, unique among the package's actions. */
     readonly name: string;
@@ -47,8 +49,8 @@ export interface ActionDefinition<
     readonly category?: Message;
     /** The further words a search finds the action by. */
     readonly keywords?: Message;
-    /** The key combination that runs it, in the keybinding syntax editors write. */
-    readonly keybinding?: string extends Keys ? Shortcut : Keys & ShortcutText<Keys>;
+    /** The key combinations that run it until a person chooses others. */
+    readonly keybinding?: ActionKeybindingDefinition<Keys, Mac>;
     /** Where focus may be for the keys to run it, outside form fields by default. */
     readonly focus?: ActionFocus;
     /** Whether it removes something, which menus mark, a method's own by default. */
@@ -75,8 +77,8 @@ export class Action<Inputs extends ActionInputs = ActionInputs> {
     readonly category: Message | undefined;
     /** The further words a search finds the action by, absent for none. */
     readonly keywords: Message | undefined;
-    /** The key combination running it, absent for none. */
-    readonly keybinding: Shortcut | undefined;
+    /** The key combinations running it until a person chooses others, absent for none. */
+    readonly keybinding: ActionKeybinding | undefined;
     /** Where focus may be for the keys to run it. */
     readonly focus: ActionFocus;
     /** Whether it removes something, which menus mark. */
@@ -100,17 +102,22 @@ export class Action<Inputs extends ActionInputs = ActionInputs> {
         this.summary = definition.summary;
         this.category = definition.category;
         this.keywords = definition.keywords;
-        this.keybinding = definition.keybinding;
+        this.keybinding =
+            definition.keybinding === undefined
+                ? undefined
+                : ActionKeybinding.of(definition.keybinding);
         this.focus = definition.focus ?? "page";
         this.isDestructive = definition.isDestructive ?? call?.isDestructive ?? false;
         this.inputs = inputs;
         this.call = call;
 
-        // refuse a key combination editors do not write
-        if (this.keybinding !== undefined && !Shortcut.safeParse(this.keybinding).success) {
+        // refuse key combinations editors do not write
+        if (this.keybinding !== undefined && !ActionKeybinding.safeParse(this.keybinding).success) {
+            const { key, mac } = this.keybinding;
+            const keys = [...new Set([...key, ...mac])].join("', '");
             throw PackageError.of(
                 "DEFINITION_INVALID",
-                `key combination '${this.keybinding}' of action '${this.name}' is invalid: editors do not write it`,
+                `key combinations '${keys}' of action '${this.name}' are invalid: editors do not write them`,
             );
         }
     }
@@ -182,7 +189,8 @@ export class Action<Inputs extends ActionInputs = ActionInputs> {
 export function defineAction<
     const Inputs extends ActionInputs = {},
     const Keys extends string = never,
->(definition: ActionDefinition<Inputs, Keys>, module?: ModuleMetadata): Action<Inputs> {
+    const Mac extends string = never,
+>(definition: ActionDefinition<Inputs, Keys, Mac>, module?: ModuleMetadata): Action<Inputs> {
     // take the declaring package and the call apart from the rest
     const owner = ModuleMetadata.require(module, "defineAction").package;
     const { call, input, ...declared } = definition;
