@@ -130,6 +130,17 @@ export const Message = Object.assign(messageSchema, {
         context: string,
         module: ModuleMetadata,
     ): schema.Infer<typeof messageSchema> {
+        const { source, values } = Message.template(strings, parts);
+        const id = Message.identify(source, context);
+
+        return { package: module.package.id, id, source, values };
+    },
+
+    /** Write a template's text and interpolations as a message's source and values. */
+    template(
+        strings: readonly string[],
+        parts: readonly unknown[],
+    ): Pick<schema.Infer<typeof messageSchema>, "source" | "values"> {
         // name each interpolation: an argument by its own name, any other value by its position
         const values: Record<string, JsonValue> = {};
         const selectors: { readonly name: string; readonly variant: Variant }[] = [];
@@ -155,7 +166,17 @@ export const Message = Object.assign(messageSchema, {
         // write the MessageFormat 2 source, one variant per combination of selector keys
         const source = selectors.length === 0 ? pattern(pieces, {}) : matcher(pieces, selectors);
 
-        return { package: module.package.id, id: identify(source, context), source, values };
+        return { source, values };
+    },
+
+    /** Identify a message by its source and context: a 64-bit FNV-1a hash in base 36. */
+    identify(source: string, context: string): string {
+        let hash = 0xcbf29ce484222325n;
+        for (const byte of new TextEncoder().encode(`${context}\u0000${source}`)) {
+            hash = BigInt.asUintN(64, (hash ^ BigInt(byte)) * 0x100000001b3n);
+        }
+
+        return hash.toString(36);
     },
 
     /** Build a template tag that writes a module's messages under a context. */
@@ -263,14 +284,4 @@ function combinations(lists: readonly (readonly string[])[]): string[][] {
         (combined, keys) => combined.flatMap((prefix) => keys.map((key) => [...prefix, key])),
         [[]],
     );
-}
-
-/** Identify a message by its source and context: a 64-bit FNV-1a hash in base 36. */
-function identify(source: string, context: string): string {
-    let hash = 0xcbf29ce484222325n;
-    for (const byte of new TextEncoder().encode(`${context}\u0000${source}`)) {
-        hash = BigInt.asUintN(64, (hash ^ BigInt(byte)) * 0x100000001b3n);
-    }
-
-    return hash.toString(36);
 }
