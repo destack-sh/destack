@@ -454,6 +454,7 @@ const styles = style.create({
         color: color.mutedForeground,
     },
     count: {
+        whiteSpace: "nowrap",
         flex: 1,
     },
     size: {

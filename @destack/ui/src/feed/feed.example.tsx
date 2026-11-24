@@ -60,6 +60,7 @@ function entries(from: number, write: (id: number) => string): readonly Entry[] 
 /** A space's activity that loads later entries as its end scrolls near. */
 export const feedActivity = defineExample({
     of: Feed,
+    layout: "padded",
     name: "activity",
     description: "a space's activity that loads later entries as its end scrolls near",
     properties: {
@@ -99,6 +100,7 @@ export const feedActivity = defineExample({
 /** A conversation that starts at its newest message and loads older ones above. */
 export const feedConversation = defineExample({
     of: Feed,
+    layout: "padded",
     name: "conversation",
     description:
         "a conversation that starts at its newest message, loads older ones above and follows new ones",
