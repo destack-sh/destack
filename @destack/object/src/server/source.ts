@@ -685,7 +685,10 @@ export class ObjectSource {
         serving.addEventListener("abort", onServing, { once: true });
 
         // follow the requested queries of rows homed elsewhere upstream for as long as the stream lasts
-        const demand = this.#followQueries(scope);
+        const demand = this.#followQueries(
+            scope,
+            AbortSignal.any([context.request.signal, context.closing]),
+        );
         await demand?.take(subscription.parameters);
         const follow = (feed: syncDataflow.Feed) =>
             this.#replicating(feed, {
@@ -757,8 +760,8 @@ export class ObjectSource {
         };
     }
 
-    /** Follow a stream's queries of rows homed elsewhere while it asks for them. */
-    #followQueries(scope: string): StreamFollow | undefined {
+    /** Follow a stream's queries of rows homed elsewhere while it asks for them, until it ends. */
+    #followQueries(scope: string, signal: AbortSignal): StreamFollow | undefined {
         // follow nothing upstream at a store answering the queries from its own rows
         const follow = this.store.queriesFollow;
         if (follow === undefined) {
@@ -794,7 +797,7 @@ export class ObjectSource {
                 await this.store.follow(stream, follow, keys);
 
                 // answer the added queries only once the store's replica has their rows
-                await Promise.all(keys.map((at) => this.store.waitSynced(follow, at)));
+                await Promise.all(keys.map((at) => this.store.waitSynced(follow, at, signal)));
                 await unfollow(
                     [...followed].filter(([key]) => !next.has(key)).map(([, query]) => query),
                 );
@@ -1248,7 +1251,7 @@ export class ObjectSource {
         const publication = this.publication(subscription);
         const demand =
             publication === this.queriesPublication
-                ? this.#followQueries(subscription.scope)
+                ? this.#followQueries(subscription.scope, signal)
                 : publication === this.accessPublication
                   ? this.#followAccess(subscription.scope)
                   : undefined;
