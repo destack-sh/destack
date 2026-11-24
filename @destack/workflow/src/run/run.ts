@@ -204,8 +204,8 @@ export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = O
         const ended = await next();
         Run.#count(context, target, state);
 
-        // cancel its live children that end with it
-        const closing = await new Run(workflow, target).closeChildren(context);
+        // cancel its live children that end with it, and end the steps placed on runners
+        const closing = await new Run(workflow, target).close(context);
         if (closing.length > 0) {
             await context.mutate(context.self, closing);
         }
@@ -229,18 +229,39 @@ export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = O
             .record(seconds, { "destack.workflow.run.state": state });
     }
 
-    /** Build the calls cancelling the live child runs the run's invoke steps started. */
-    async closeChildren(context: Pick<MethodContext, "read" | "objects">): Promise<Call[]> {
-        // read the children of the run's invoke steps that end with it
+    /** Build the calls cancelling the run's live children and failing its open placed steps. */
+    async close(context: Pick<MethodContext, "read" | "objects" | "now">): Promise<Call[]> {
+        // read the run's steps
+        const { step: stepType } = this.workflow;
         const steps = await context.read(this.workflow.step.table).findMany({
             where: { parentId: this.row.id },
         });
+
+        // cancel each step still open on its runner, which stops the runner's work
+        const placed = steps.flatMap((each) =>
+            each.function !== null && each.completedAt === null
+                ? [
+                      stepType.call("update", {
+                          ...stepType.target({ scope: this.row.scope, id: each.id }),
+                          failure: Failure.of(
+                              WorkflowError.of(
+                                  "RUN_CANCELLED",
+                                  `step '${each.name}' was cancelled`,
+                              ),
+                          ),
+                          completedAt: context.now,
+                      }),
+                  ]
+                : [],
+        );
+
+        // read the children of the run's invoke steps that end with it
         const children = steps.flatMap((step) =>
             step.onParentClose === "cancel" ? [ObjectReference.at("child", step)] : [],
         );
 
         // cancel each child while it is live
-        const calls: Call[] = [];
+        const calls: Call[] = [...placed];
         for (const child of children) {
             const key = ObjectTypeReference.key(child);
             const type = present(
@@ -407,7 +428,14 @@ export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = O
                 await Step.load(store, this),
             );
             const input = this.workflow.input.parse(this.row.input);
-            const output = await code(steps, input, { id: this.row.id, scope: this.row.scope });
+            const context = { id: this.row.id, scope: this.row.scope, actor: this.actor };
+            const output = await code(steps, input, context).catch((error: unknown) => {
+                // wait at the advance's suspension, even where the code caught it and failed otherwise
+                throw steps.suspension ?? error;
+            });
+            if (steps.suspension !== undefined) {
+                throw steps.suspension;
+            }
 
             // complete the run with its output
             const completed = this.workflow.run.call("complete", {

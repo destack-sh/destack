@@ -29,7 +29,7 @@ import { TelemetryScope } from "@destack/telemetry";
 const STEP_ANSWERS = ["replayed", "taken"] as const;
 
 /** The steps a run traces, each a span `destack.workflow.step.<verb>`. */
-type StepVerb = "call" | "query" | "run" | "invoke";
+type StepVerb = "call" | "query" | "run" | "invoke" | "place";
 
 /** A step's row as its workflow's step type stores it. */
 export type StepRecord = Select<StepType["table"]>;
@@ -68,6 +68,8 @@ export interface RunContext {
     readonly id: string;
     /** The scope the run acts in. */
     readonly scope: string;
+    /** Whom the run acts for. */
+    readonly actor: Subject;
 }
 
 /** The objects a waiting run waits for: a type's rows meeting a condition. */
@@ -95,6 +97,8 @@ export class Suspension extends Error {
 
 /** The steps a workflow's function takes, each memoised by its name across its run's advances. */
 export class Step<Waits extends ObjectType = ObjectType> {
+    /** The suspension this advance threw, which the run waits at whatever the code catches. */
+    suspension: Suspension | undefined;
     /** The run, of its workflow and acting for its actor. */
     readonly #run: StepRun;
     /** The store the steps act through. */
@@ -134,20 +138,36 @@ export class Step<Waits extends ObjectType = ObjectType> {
     }
 
     /** Run a step in its span, its duration by whether its record answered it. */
-    #trace<Result>(verb: StepVerb, name: string, run: () => Promise<Result>): Promise<Result> {
+    async #trace<Result>(
+        verb: StepVerb,
+        name: string,
+        run: () => Promise<Result>,
+    ): Promise<Result> {
+        // refuse every step after the advance suspended, as the run waits there whatever the code catches
+        if (this.suspension !== undefined) {
+            throw this.suspension;
+        }
+
         // count the step by how it answers, replaying a recorded one without a span
         const isReplayed = Step.#completed(this.#recorded.get(name)) !== undefined;
         this.#steps.add(1, { "destack.workflow.step.answer": isReplayed ? "replayed" : "taken" });
-        if (isReplayed) {
-            return run();
-        }
+        const taken = isReplayed
+            ? run()
+            : this.#scope.span(
+                  `destack.workflow.step.${verb}`,
+                  { "destack.workflow.step.name": name },
+                  run,
+              );
 
-        // take a step in its span
-        return this.#scope.span(
-            `destack.workflow.step.${verb}`,
-            { "destack.workflow.step.name": name },
-            run,
-        );
+        // keep the suspension a step throws for the rest of the advance
+        try {
+            return await taken;
+        } catch (error) {
+            if (error instanceof Suspension) {
+                this.suspension = error;
+            }
+            throw error;
+        }
     }
 
     /** Read the steps a run recorded. */
@@ -390,6 +410,43 @@ export class Step<Waits extends ObjectType = ObjectType> {
             await this.#complete(name, { output: recorded(done) });
 
             return done;
+        });
+    }
+
+    /** Run a registered function once on a runner machine, waiting for its output. */
+    place<Output>(
+        name: string,
+        output: schema.Schema<Output>,
+        work: { readonly function: string; readonly input: JsonValue },
+        runner: ObjectReference,
+    ): Promise<Output> {
+        return this.#trace("place", name, async () => {
+            // answer a recorded output again by its schema, its failure thrown again
+            const recordedStep = this.#take(name);
+            const completed = Step.#completed(recordedStep);
+            if (completed !== undefined) {
+                return output.parse(Step.#replay(completed));
+            }
+
+            // place it on the runner once, then wait until the runner ends it
+            if (recordedStep === undefined) {
+                await this.#record(
+                    this.#run.workflow.step.call("create", {
+                        ...this.#run.workflow.step.in(this.#run.row.scope),
+                        parentId: this.#run.row.id,
+                        name,
+                        position: this.#position(name),
+                        function: work.function,
+                        input: recorded(work.input),
+                        ...ObjectReference.columns("runner", runner),
+                    }),
+                );
+            }
+            const step = this.#run.workflow.step;
+            throw new Suspension(
+                undefined,
+                this.#waitOn(step, { parentId: this.#run.row.id, name }),
+            );
         });
     }
 

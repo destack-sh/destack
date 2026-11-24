@@ -70,11 +70,13 @@ test("describe a workflow's schemas, retries, timeout, expiry, limits and trigge
                 required: ["sent"],
                 additionalProperties: false,
             },
+            // wait for change requests, and the workflow's own placed steps
             waits: [
                 {
                     packageId: "package-01a0d462-1b26-7401-be27-6258e0a32141",
                     name: "change-request",
                 },
+                { packageId: digest.package.id, name: "digest-step" },
             ],
             retries: {
                 initialInterval: 1000,

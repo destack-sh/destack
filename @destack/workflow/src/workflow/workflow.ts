@@ -1,8 +1,10 @@
-import { none, relation, through } from "@destack/access";
-import { space } from "@destack/account/object";
+import { none, relation, through, union } from "@destack/access";
+import { machine, space } from "@destack/account/object";
 import { Condition, now, TABLE } from "@destack/db";
 import {
+    CallSite,
     defineObject,
+    defineShape,
     field,
     Limits,
     method,
@@ -13,10 +15,10 @@ import { DeclarationName, ModuleMetadata } from "@destack/package";
 import type { Declaration } from "@destack/package/declare";
 import { RetryPolicy } from "@destack/environment";
 import { canonicalize, Duration, type JsonValue, present, schema } from "@destack/schema";
-import { type Call, ObjectReference, ObjectTypeReference, type Subject } from "@destack/sync";
+import { Call, ObjectReference, ObjectTypeReference, RequestId, Subject } from "@destack/sync";
 import { Failure } from "@destack/error";
 import { changeRequest } from "@destack/object";
-import type { RunContext, Step } from "../step/step.ts";
+import type { RunContext, Step, StepRecord } from "../step/step.ts";
 import { ENDED_STATES, LIVE_STATES, Run, RUN_STATES } from "../run/run.ts";
 import type { MountFetch } from "@destack/object/server";
 import type { ServerContext } from "@destack/object/workload";
@@ -42,8 +44,8 @@ export type WorkflowRun<Name extends string = string> = RunType & {
     readonly [WORKFLOW]?: Name;
 };
 
-/** The object types a workflow's runs wait for: its declared ones, and change requests. */
-export type WaitOf<Waits extends ObjectType> = Waits | typeof changeRequest;
+/** The object types a workflow's runs wait for: its own, change requests and its steps. */
+export type WaitOf<Waits extends ObjectType> = Waits | typeof changeRequest | StepType;
 
 /** A durable function of a package, run step by step as objects of the scope it runs in. */
 export interface Workflow<
@@ -78,6 +80,8 @@ export interface Workflow<
     readonly run: WorkflowRun<Name>;
     /** The steps its runs took, nested in them. */
     readonly step: StepType;
+    /** The placed steps one runner machine follows and does. */
+    readonly placed: ReturnType<typeof declarePlaced>;
     /** The triggers starting its runs: each declared one, and each schedule a person created. */
     readonly trigger: TriggerType;
     /** The object types the workflow declares: its runs, their steps and its triggers. */
@@ -188,9 +192,13 @@ export function defineWorkflow<
     const step = declareStep(name, scope, run, module);
     const trigger = declareTrigger(name, scope, module);
 
-    // wait for change requests in every workflow, as any call step may await approval
+    // declare the placed steps each runner follows
+    const placed = declarePlaced(name, step);
+
+    // wait for change requests, as any call step may await approval, and for the run's own steps
     const waits = [
         changeRequest,
+        step,
         ...(definition.waits ?? []).filter((type: ObjectType) => type !== changeRequest),
     ];
 
@@ -212,6 +220,7 @@ export function defineWorkflow<
         triggers: (definition.triggers ?? []).map((declared) => triggerOf(declared)),
         run,
         step,
+        placed,
         trigger,
         objects: [run, step, trigger],
         start: (input: Input, options: RunStart) =>
@@ -307,7 +316,90 @@ export function defineWorkflow<
                         },
                     ],
                 }),
-                step,
+                step.implement({
+                    methods: {
+                        // relate a placed step's runner, which reads and ends it
+                        create: {
+                            relate: (context) => {
+                                const columns = schema.looseObject({}).parse(context.input);
+                                const isPlaced = typeof columns["runnerId"] === "string";
+
+                                return {
+                                    relationships: isPlaced
+                                        ? [
+                                              {
+                                                  relation: "runner",
+                                                  subject: ObjectReference.at("runner", columns),
+                                              },
+                                          ]
+                                        : [],
+                                };
+                            },
+                        },
+                        // forward the runner's call as the run's actor before the transaction
+                        forward: {
+                            prepare: async (context) => {
+                                // read the run of an open placed step
+                                requirePlaced(context.target);
+                                const { store } = context.execution;
+                                const parent = present(
+                                    await context.read(run.table).findFirst({
+                                        where: { id: context.target.parentId },
+                                    }),
+                                    `the run of step '${context.target.name}'`,
+                                );
+
+                                // act as the run's caller, within its actor's grant
+                                const caller = await new Run(workflow, parent).caller(
+                                    store,
+                                    context.now,
+                                );
+
+                                // read a query, else make the mutation
+                                const called = context.input.call;
+                                const declared = present(
+                                    store.typeOf(called),
+                                    `the type of '${called.type.type}.${called.method}'`,
+                                ).method(called.method);
+                                const answered = !declared.mutates
+                                    ? await store.query(caller, called, CallSite.store)
+                                    : (
+                                          await store.mutate(
+                                              caller,
+                                              {
+                                                  id: RequestId.create(store.environment),
+                                                  calls: [called],
+                                              },
+                                              { site: CallSite.store },
+                                          )
+                                      )[0];
+
+                                return recorded(answered);
+                            },
+                            handle: async (context) => context.prepared,
+                        },
+                        // record a placed step's output once, which wakes its run
+                        complete: async (context) => {
+                            requirePlaced(context.target);
+                            await context.update({
+                                output: context.input.output,
+                                completedAt: context.now,
+                            });
+
+                            return {};
+                        },
+                        // record a placed step's failure once, which wakes its run
+                        fail: async (context) => {
+                            requirePlaced(context.target);
+                            await context.update({
+                                failure: context.input.failure,
+                                completedAt: context.now,
+                            });
+
+                            return {};
+                        },
+                    },
+                }),
                 triggers.implement(),
             ];
 
@@ -316,6 +408,16 @@ export function defineWorkflow<
     });
 
     return workflow;
+}
+
+/** Refuse ending a step that is not placed, or that ended already. */
+function requirePlaced(target: StepRecord): void {
+    if (target.function === null || target.completedAt !== null) {
+        throw WorkflowError.of(
+            "STEP_INVALID",
+            `step '${target.name}' is invalid: only an open placed step ends by its runner`,
+        );
+    }
 }
 
 /** Read a value as the JSON a run or step records. */
@@ -513,10 +615,44 @@ function declareStep(
                 child: field.object().optional(),
                 /** Whether an invoke step's run is cancelled with this run or runs on. */
                 onParentClose: field.enum(["cancel", "abandon"]).optional(),
+
+                // a placed step, which its runner does
+                /** The registered function a placed step runs, by name. */
+                function: field.string().optional(),
+                /** The input of a placed step's function. */
+                input: field.json(schema.json()).optional(),
+                /** The machine a placed step runs on. */
+                runner: field.subject(machine).optional(),
             },
-            constraints: { name: { kind: "unique", on: ["parentId", "name"] } },
+            constraints: {
+                name: { kind: "unique", on: ["parentId", "name"] },
+                placed: {
+                    kind: "check",
+                    condition: {
+                        OR: [
+                            {
+                                function: { isNull: true },
+                                input: { isNull: true },
+                                runnerId: { isNull: true },
+                            },
+                            {
+                                function: { isNotNull: true },
+                                input: { isNotNull: true },
+                                runnerId: { isNotNull: true },
+                            },
+                        ],
+                    },
+                },
+            },
             access: {
-                permissions: { read: through("parent", "read"), advance: none() },
+                relations: { runner: { subjects: [machine] } },
+                // let the run's readers and a placed step's runner read it, and the runner end it
+                permissions: {
+                    read: union(through("parent", "read"), relation("runner")),
+                    advance: none(),
+                    end: relation("runner"),
+                },
+                reserved: ["end"],
             },
             traits: [nested({ in: run, add: "advance", delete: "cascade" })],
         },
@@ -527,9 +663,49 @@ function declareStep(
                 visibility: "package",
             }),
             delete: method.delete("advance", { visibility: "package" }),
+            /** Forward a call as the run's actor for the step's runner, answering it unrecorded. */
+            forward: method.mutation({
+                title: t`Forward`,
+                permission: "end",
+                input: schema.object({ call: Call }),
+                output: schema.json(),
+                prepared: schema.json(),
+            }),
+            /** Record a placed step's output, as its runner's function returned it. */
+            complete: method.mutation({
+                title: t`Complete`,
+                permission: "end",
+                input: schema.object({ output: schema.json() }),
+                output: schema.object({}),
+            }),
+            /** Record a placed step's failure, as its runner's function threw it. */
+            fail: method.mutation({
+                title: t`Fail`,
+                permission: "end",
+                input: schema.object({ failure: Failure }),
+                output: schema.object({}),
+            }),
         }),
         module,
     );
+}
+
+/** Declare the placed steps of a workflow's runs that one runner machine follows and does. */
+function declarePlaced(name: string, step: StepType) {
+    return defineShape({
+        name: `${name}-placed`,
+        parameters: schema.object({
+            /** The runner's subject key. */
+            runner: schema.string().min(1),
+        }),
+        objects: [step],
+        queries: ({ runner }) => [
+            step.query({
+                scopes: "every",
+                where: ObjectReference.columns("runner", Subject.read(runner)),
+            }),
+        ],
+    });
 }
 
 /** Declare a workflow's triggers: declared ones, and schedules a space's managers create. */
