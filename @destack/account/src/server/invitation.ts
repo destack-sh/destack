@@ -54,7 +54,7 @@ export async function invited(
     const { target } = context;
     const person = principal.user.reference(Scope.universe.id, target.id);
     const contacts =
-        target.email === null || target.emailVerified !== true
+        target.email === null || !target.emailVerified
             ? []
             : [Contact.subject(Contact.email(target.email))];
 

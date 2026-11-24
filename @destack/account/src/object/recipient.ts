@@ -56,9 +56,7 @@ export const Recipient = Object.assign(RecipientSchema, {
                     ? [{ id: client.id, ...client.push }]
                     : [],
             ),
-            ...(person.emailVerified === true && person.email !== null
-                ? { email: person.email }
-                : {}),
+            ...(person.emailVerified && person.email !== null ? { email: person.email } : {}),
             timeZone: present(person.timeZone, "the person's time zone"),
             locale: person.locale,
         };

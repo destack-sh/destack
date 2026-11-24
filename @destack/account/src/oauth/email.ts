@@ -111,7 +111,7 @@ export function emailGrant(options: EmailOptions): GrantType {
         const now = environment.clock.now();
         const userId = person.id;
         const { internalAdapter } = context;
-        if (person.emailVerified !== true) {
+        if (!person.emailVerified) {
             await internalAdapter.updateUser(userId, { emailVerified: true });
         }
 
