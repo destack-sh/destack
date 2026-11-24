@@ -4,6 +4,7 @@ import { join, relative, resolve, sep } from "node:path";
 import type { Diagnostic } from "../diagnostic/index.ts";
 import { CONTEXT_END } from "../lint/no-missing-translations.ts";
 import { type LintSettings, packageOf } from "../lint/package.ts";
+import { isTestFile } from "../lint/word.ts";
 
 /** The directory of a package's catalogs. */
 const CATALOG_DIRECTORY = "locale";
@@ -75,9 +76,10 @@ export async function applyTranslations(
         });
     const owners = Map.groupBy(messages, ({ owner }) => owner);
 
-    // compare the messages of each package with its catalogs
+    // compare the messages of each package with its catalogs, leaving a test's own packages alone
     const findings: Diagnostic[] = [];
-    for (const { directory: owner } of settings.packages) {
+    const directories = settings.packages.map((each) => each.directory);
+    for (const owner of directories.filter((path) => !isTestFile(`/${path}/`))) {
         const own = owners.get(owner) ?? [];
         const isWhole = isSelected(join(root, owner, SOURCE_DIRECTORY), options);
         if (own.length > 0 || isWhole) {

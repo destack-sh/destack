@@ -303,18 +303,25 @@ test("accept the findings a package expects and refuse an expectation nothing ma
 });
 
 test("refuse a message a language lacks or varies, and a translation of no message once all is checked", async () => {
-    // write two packages, one with catalogs of a language, its region and another language
+    // write a package with catalogs of a language, its region and another, and a test's own package
     await using simulation = world();
     const { files } = simulation.environment("test");
     const root = await files.makeTemporaryDirectory("translation-");
-    const write = async (tag: string, messages: Readonly<Record<string, string>>) => {
-        await files.mkdir(join(root, "notes/locale"), { recursive: true });
+    const write = async (
+        tag: string,
+        messages: Readonly<Record<string, string>>,
+        directory = "notes",
+    ) => {
+        await files.mkdir(join(root, directory, "locale"), { recursive: true });
         const catalog = {
             package: "package-01996ab0-0000-7000-8000-0000000000e1",
             locale: tag,
             messages,
         };
-        await files.writeTextFile(join(root, `notes/locale/${tag}.json`), JSON.stringify(catalog));
+        await files.writeTextFile(
+            join(root, directory, `locale/${tag}.json`),
+            JSON.stringify(catalog),
+        );
     };
     const saved = Message.identify("Saved", "");
     const menu = Message.identify("Saved", "menu");
@@ -322,11 +329,13 @@ test("refuse a message a language lacks or varies, and a translation of no messa
     const count = Message.identify("{$p0} notes", "");
     await write("de", { [saved]: "Gespeichert", gone: "Weg", [count]: "{$p0} Notizen" });
     await write("de-CH", { [saved]: "Gspeicheret" });
+    await write("de", { gone: "Weg" }, "notes/tests/fixture/list");
     await write("fr", { [count]: "{$p1} notes" });
     const settings = {
         packages: [
             { directory: "notes", name: "@example/notes" },
             { directory: "tasks", name: "@example/tasks" },
+            { directory: "notes/tests/fixture/list", name: "@example/list" },
         ],
         roles: {},
         entrypoints: [],
@@ -363,7 +372,7 @@ test("refuse a message a language lacks or varies, and a translation of no messa
 
     expect({
         file: await apply(["notes/src/note.ts"]),
-        all: await apply(["notes/src", "tasks"]),
+        all: await apply(["notes/src", "notes/tests", "tasks"]),
     }).toEqual({
         file: missing,
         all: [
