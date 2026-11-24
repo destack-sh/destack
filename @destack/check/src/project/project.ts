@@ -3,7 +3,6 @@ import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import type { Environment } from "@destack/environment";
 import { checkPackage, fixPackage } from "../check/check.ts";
 import { configurePackage } from "../check/configuration.ts";
-import { TransformCache } from "@destack/package/build";
 import { formatPackage } from "../check/format.ts";
 import { type Manifest, readManifest } from "../check/manifest.ts";
 import { runBun, runTool, type ToolResult } from "../check/tool.ts";
@@ -12,10 +11,21 @@ import { CheckError } from "../error/index.ts";
 import { Readme } from "../markdown/index.ts";
 import { Toolchain } from "../toolchain/index.ts";
 import { Checkout, listChangedModules, Workspace } from "../workspace/index.ts";
-import { Digest } from "@destack/schema";
+import { Digest, schema } from "@destack/schema";
+import type { TestPlan } from "@destack/test/plan";
+import { TestStore } from "./store.ts";
 
-/** The directory of a package's passed test runs, by digest. */
-const TEST_CACHE = "node_modules/.cache/destack/test";
+/** Vitest's JSON report: each test file's outcome and span per project, in epoch milliseconds. */
+const VitestReport = schema.looseObject({
+    testResults: schema.array(
+        schema.looseObject({
+            name: schema.string(),
+            status: schema.string(),
+            startTime: schema.number(),
+            endTime: schema.number(),
+        }),
+    ),
+});
 
 /** The test tiers a run selects, every tier but bench by default. */
 export type TestTier = "unit" | "scenario" | "bench";
@@ -92,6 +102,7 @@ export class Project {
     /** Check formatting, types, README listings and lints, then run the package's own check. */
     async check(options: { readonly since?: string } = {}): Promise<CheckResult> {
         // check formatting, types and the README
+        const started = this.environment.clock.now();
         const formatted = Project.#formatDiagnostics(await formatPackage(this.#options(), false));
         const typed = Project.#typescriptDiagnostics(await this.#typecheck(), this.directory);
         const listed = Project.#typescriptDiagnostics(
@@ -109,6 +120,12 @@ export class Project {
 
         // run the package's own check last
         const own = await this.#script("check");
+
+        // record how long a whole check took in the shared bucket, which schedules CI's runners
+        const store = await TestStore.open(this.environment);
+        if (options.since === undefined && store.bucket !== undefined) {
+            await store.check(await this.member(), this.environment.clock.now() - started);
+        }
 
         return this.#relative([...formatted, ...typed, ...listed, ...linted, ...own]);
     }
@@ -130,69 +147,84 @@ export class Project {
         ]);
     }
 
-    /** Run the package's tests through its plan, returning the exit code. */
+    /** Run the package's tests, skipping files that passed over the same inputs. */
     async test(options: TestOptions = {}): Promise<number> {
-        // reuse a pass over the same inputs, never for listings, updates or benches
-        const cache = TransformCache.directory(join(this.directory, TEST_CACHE), this.environment);
-        const isKept =
+        // plan the tests with the test kit and Vitest
+        const { TestPlan } = await import("@destack/test/plan");
+        const planned = await TestPlan.of(this.directory, this.environment.files);
+        const hasNode = planned.targets.some((target) => target.kind === "node");
+
+        // run listings, updates, benches and filtered runs as asked, recording nothing
+        const isRecorded =
             options.isListing !== true &&
             options.isUpdating !== true &&
+            options.grep === undefined &&
             options.tiers?.includes("bench") !== true;
-        const key = isKept ? await this.#testKey(options) : undefined;
-        if (key !== undefined && (await cache.read(key)) !== undefined) {
+        if (!isRecorded) {
+            return await this.#run(options, hasNode, undefined);
+        }
+
+        // select the files that have not passed over the package's closure
+        const store = await TestStore.open(this.environment);
+        const member = await this.member();
+        const closure = await this.closure(options);
+        const passed = await store.passed(this.directory, member, closure);
+        const named = options.files ?? [];
+        const selected =
+            named.length === 0
+                ? this.files(planned, options)
+                : named.map((file) => this.#file(file));
+        const missing = selected.filter((file) => !passed.has(file));
+        if (missing.length === 0) {
             this.environment.process.stderr.writeSync(
                 new TextEncoder().encode(
-                    `tests passed before over the same inputs (${key.slice(0, 12)})\n`,
+                    `tests passed before over the same inputs (${closure.slice(0, 12)})\n`,
                 ),
             );
 
             return 0;
         }
 
-        // plan the tests with the test kit and Vitest
-        const { TestPlan } = await import("@destack/test/plan");
-        const require = createRequire(import.meta.url);
-        const vitest = join(dirname(require.resolve("vitest/package.json")), "vitest.mjs");
-        const configuration = require.resolve("@destack/test/plan/vitest");
-        const planned = await TestPlan.of(this.directory, this.environment.files);
-        const hasNode = planned.targets.some((target) => target.kind === "node");
+        // run the missing files, then record the ones that passed
+        const directory = await this.environment.files.makeTemporaryDirectory("destack-test-");
+        try {
+            const code = await this.#run({ ...options, files: missing }, hasNode, directory);
+            const durations = await this.#passes(directory);
+            await store.pass(this.directory, member, closure, durations);
 
-        // run the Bun targets, then the Node targets
-        const bun = await this.#vitest(
-            this.environment.process.executable,
-            ["--bun"],
-            vitest,
-            configuration,
-            options,
-            "bun",
-        );
-        const node = hasNode
-            ? await this.#vitest("node", [], vitest, configuration, options, "node")
-            : 0;
-
-        // keep a pass
-        const code = bun !== 0 ? bun : node;
-        if (code === 0 && key !== undefined) {
-            await cache.write(key, new Uint8Array());
+            return code;
+        } finally {
+            await this.environment.files.remove(directory, { recursive: true, force: true });
         }
-
-        return code;
     }
 
-    /** Digest what a test run reads: its packages' checked-out files, the lockfile, the options. */
-    async #testKey(options: TestOptions): Promise<Digest> {
+    /** List the planned test files in the selected tiers and database. */
+    files(planned: TestPlan, options: TestOptions): string[] {
+        // keep the targets in the selected tiers and database
+        const tiers = options.tiers ?? DEFAULT_TIERS;
+        const targets = planned.targets.filter(
+            (target) =>
+                tiers.includes(target.tier) &&
+                (options.database === undefined || target.database === options.database),
+        );
+
+        return [...new Set(targets.flatMap((target) => target.files))].toSorted();
+    }
+
+    /** Read the package's directory relative to its workspace root, its name in the test store. */
+    async member(): Promise<string> {
+        const workspace = await this.#workspace();
+
+        return relative(workspace.root, this.directory) || ".";
+    }
+
+    /** Digest what a test run reads besides its files: packages, lockfile, runtime, options. */
+    async closure(options: TestOptions): Promise<Digest> {
         // list the package and its dependencies
         const { files, process, crypto } = this.environment;
-        const workspace = await Workspace.read(this.directory, files);
-        if (workspace === undefined) {
-            throw CheckError.of(
-                "CONFIGURATION_INVALID",
-                `package '${this.directory}' is invalid: it is in no workspace`,
-            );
-        }
-        const member = relative(workspace.root, this.directory) || ".";
+        const workspace = await this.#workspace();
         const directories = workspace
-            .dependencies(member)
+            .dependencies(await this.member())
             .map((each) => join(workspace.root, each));
 
         // key each package by its checkout's blobs, and the lockfile by its bytes
@@ -210,14 +242,100 @@ export class Project {
             crypto,
         );
         const digests = [...packages, ["bun.lock", lockfile]];
+
+        // key the run by its tiers, database and test variables, never by its files
+        const selection = { tiers: options.tiers ?? DEFAULT_TIERS, database: options.database };
         const variables = Object.entries(process.variables)
             .filter(([name]) => name.startsWith("DESTACK_TEST_"))
             .toSorted(([left], [right]) => left.localeCompare(right));
 
         return await Digest.json(
-            { digests, runtime: process.runtime.revision, options, variables },
+            { digests, runtime: process.runtime.revision, selection, variables },
             crypto,
         );
+    }
+
+    /** Run the Bun targets, then the Node targets, writing results into a directory if given. */
+    async #run(
+        options: TestOptions,
+        hasNode: boolean,
+        results: string | undefined,
+    ): Promise<number> {
+        // find Vitest and the plan's configuration
+        const require = createRequire(import.meta.url);
+        const vitest = join(dirname(require.resolve("vitest/package.json")), "vitest.mjs");
+        const configuration = require.resolve("@destack/test/plan/vitest");
+
+        // run Bun's targets, then Node's
+        const bun = await this.#vitest(
+            this.environment.process.executable,
+            ["--bun"],
+            vitest,
+            configuration,
+            options,
+            "bun",
+            results === undefined ? undefined : join(results, "bun.json"),
+        );
+        const node = hasNode
+            ? await this.#vitest(
+                  "node",
+                  [],
+                  vitest,
+                  configuration,
+                  options,
+                  "node",
+                  results === undefined ? undefined : join(results, "node.json"),
+              )
+            : 0;
+
+        return bun !== 0 ? bun : node;
+    }
+
+    /** Read the files that passed in every project and runtime, with their summed durations. */
+    async #passes(directory: string): Promise<Map<string, number>> {
+        // sum each file's durations and note any failure, over both runtimes' results
+        const { files } = this.environment;
+        const durations = new Map<string, number>();
+        const failed = new Set<string>();
+        for (const name of ["bun.json", "node.json"]) {
+            const path = join(directory, name);
+            if (await files.exists(path)) {
+                const report = VitestReport.parse(JSON.parse(await files.readTextFile(path)));
+                for (const result of report.testResults) {
+                    const file = relative(this.directory, result.name);
+                    const milliseconds = result.endTime - result.startTime;
+                    durations.set(file, (durations.get(file) ?? 0) + milliseconds);
+                    if (result.status !== "passed") {
+                        failed.add(file);
+                    }
+                }
+            }
+        }
+
+        // keep the files without a failure
+        for (const file of failed) {
+            durations.delete(file);
+        }
+
+        return durations;
+    }
+
+    /** Read a file argument relative to the package, as the plan lists its files. */
+    #file(file: string): string {
+        return isAbsolute(file) ? relative(this.directory, file) : file;
+    }
+
+    /** Read the workspace the package belongs to, refusing a package in none. */
+    async #workspace(): Promise<Workspace> {
+        const workspace = await Workspace.read(this.directory, this.environment.files);
+        if (workspace === undefined) {
+            throw CheckError.of(
+                "CONFIGURATION_INVALID",
+                `package '${this.directory}' is invalid: it is in no workspace`,
+            );
+        }
+
+        return workspace;
     }
 
     /** Run Vitest over a runtime's selected targets. */
@@ -228,9 +346,11 @@ export class Project {
         configuration: string,
         options: TestOptions,
         runtime: "bun" | "node",
+        results: string | undefined,
     ): Promise<number> {
-        // run the selected targets on up to four workers
+        // run the selected targets on up to four workers, naming the results file the configuration writes
         const { process } = this.environment;
+        const { RESULTS_VARIABLE } = await import("@destack/test/plan");
         const halved = Math.floor(navigator.hardwareConcurrency / 2);
         const workers = Math.max(1, Math.min(MOST_WORKERS, halved));
         const tiers = options.tiers ?? DEFAULT_TIERS;
@@ -260,6 +380,7 @@ export class Project {
                     ...process.variables,
                     DESTACK_TEST_TIERS: tiers.join(","),
                     DESTACK_TEST_RUNTIME: runtime,
+                    ...(results === undefined ? {} : { [RESULTS_VARIABLE]: results }),
                 },
                 stdout: "inherit",
                 stderr: "inherit",

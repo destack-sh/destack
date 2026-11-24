@@ -199,6 +199,7 @@
         "destack-check": "./src/main.ts",
       },
       "dependencies": {
+        "@destack/bucket": "workspace:*",
         "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
         "@destack/package": "workspace:*",

@@ -3,7 +3,8 @@ import { checkPackage, fixPackage } from "./check.ts";
 import { formatPackage } from "./format.ts";
 import { configurePackage } from "./configuration.ts";
 import { CheckError } from "../error/index.ts";
-import { listAffected, listChangedModules } from "../workspace/index.ts";
+import { listAffected, listChangedModules, Workspace } from "../workspace/index.ts";
+import { Schedule, TestStore } from "../project/index.ts";
 import { Toolchain } from "../toolchain/index.ts";
 import { Readme } from "../markdown/index.ts";
 
@@ -67,6 +68,22 @@ export async function main(environment: Environment<"files" | "process" | "host"
         return;
     }
 
+    // print the CI runners for packages: their checks and the test files that have not passed
+    if (command === "schedule") {
+        const workspace = await Workspace.read(options.directory, environment.files);
+        if (workspace === undefined) {
+            throw CheckError.of(
+                "CONFIGURATION_INVALID",
+                `command 'schedule' is invalid: '${options.directory}' is in no workspace`,
+            );
+        }
+        const store = await TestStore.open(environment);
+        const schedule = await Schedule.of(workspace.root, files, store, environment);
+        await process.stdout.write(`${JSON.stringify(schedule.runners)}\n`);
+
+        return;
+    }
+
     // select the operation without exposing rule overrides
     let result;
     if (command === "check") {
@@ -80,7 +97,7 @@ export async function main(environment: Environment<"files" | "process" | "host"
     } else {
         throw CheckError.of(
             "CONFIGURATION_INVALID",
-            `command '${command}' is invalid: it must be check, fix, format, format-check, configure, readme or affected`,
+            `command '${command}' is invalid: it must be check, fix, format, format-check, configure, readme, affected or schedule`,
         );
     }
 

@@ -10,6 +10,8 @@ Projects run its commands through `destack check`, `destack fix` and `destack te
 
 - `Project`: a package the toolchain checks, fixes, configures and tests, its own `check`, `fix` scripts run after.
 - `destack-check`: the same commands from the package it runs in, for the workspace's recipes.
+- `TestStore`: the test files that passed over each package closure, here and in a shared bucket, with their durations.
+- `Schedule`: the CI runners for packages, their checks and unpassed test files packed by duration.
 - `checkPackage` and `fixPackage`: the lint checks as functions.
 - `AGENTS.md`: the rule book `configure` writes into each workspace root, above the workspace's own `## Custom` section.
 
@@ -44,8 +46,20 @@ const result = await checkPackage({
 | --------------- | ----------------------------------------------------------------------------------------- |
 | `check(since?)` | formats, typechecks sources and tests, typechecks README listings and lints, as one list  |
 | `fix()`         | writes the generated settings, formats and applies the lints' fixes                       |
-| `test(options)` | runs the package's `TestPlan`, Bun targets then Node targets, by tier, database and files |
+| `test(options)` | runs the package's `TestPlan` files not yet passed over its closure, Bun then Node targets |
+| `closure(options)` | digests what a test run reads besides its files: packages, lockfile, runtime, options |
 | `configure()`   | writes `tsconfig.json`, `.oxlintrc.json`, `.oxfmtrc.json` and a workspace's `AGENTS.md`   |
+
+### TestStore
+
+`TestStore.open(environment)` keeps records in each package's `node_modules/.cache/destack/test`, and in the S3 bucket `DESTACK_CI_STORE` names when `DESTACK_CI_STORE_KEY_ID` and `DESTACK_CI_STORE_TOKEN` are set, as R2's token identifier and token.
+
+| Method                                    | What it does                                                    |
+| ----------------------------------------- | --------------------------------------------------------------- |
+| `passed(directory, name, closure)`        | lists the package's test files that passed over the closure     |
+| `pass(directory, name, closure, durations)` | records a run's passed files and how long each took           |
+| `durations(name)`                         | reads each file's duration from the package's newest records    |
+| `check(name, milliseconds)`, `checked(name)` | records and reads how long the package's check took          |
 
 ### destack-check
 
@@ -59,6 +73,7 @@ const result = await checkPackage({
 | `configure` | writes the tools' settings for the workspace               |
 | `readme`    | typechecks the README's `ts` listings in their own program |
 | `affected`  | lists the packages the changes since a base commit affect  |
+| `schedule`  | packs packages' checks and unpassed test files onto CI runners |
 
 `check.expect` in `destack.json` accepts named rules in named files with a reason, and an entry that matches nothing fails.
 
