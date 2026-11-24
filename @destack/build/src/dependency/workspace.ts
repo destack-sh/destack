@@ -140,6 +140,8 @@ export class Workspace {
     readonly #builds = new Map<WorkspaceUnit, Map<string, Promise<DependencyBuild>>>();
     /** Each unit's image, by the options that shape its build. */
     readonly #images = new Map<WorkspaceUnit, Map<string, Promise<Digest>>>();
+    /** Each unit's attached graph, by the options that shape its build. */
+    readonly #graphs = new Map<WorkspaceUnit, Map<string, Promise<void>>>();
     /** Each manifest read, by its digest, which names its content. */
     readonly #manifests = new Map<Digest, Promise<PackageManifest>>();
 
@@ -342,6 +344,15 @@ export class Workspace {
         start: () => Promise<DependencyBuild>,
     ): Promise<DependencyBuild> {
         return Workspace.#once(this.#builds, unit, shared, start);
+    }
+
+    /** Attach a unit's graph once per workspace and options, starting it when first asked. */
+    unitGraph(
+        unit: WorkspaceUnit,
+        shared: WorkspaceUnitOptions,
+        start: () => Promise<void>,
+    ): Promise<void> {
+        return Workspace.#once(this.#graphs, unit, shared, start);
     }
 
     /** Take a unit's image once per workspace and options, starting it when first asked. */
@@ -625,29 +636,49 @@ export class WorkspacePackage {
         return await this.#image(this.root, root, units);
     }
 
-    /** Build and make an image of every unit, by name. */
+    /** Build and make an image of every unit, by name, each as soon as what it reads is built. */
     async imageUnits(
         shared: WorkspaceUnitOptions,
     ): Promise<ReadonlyMap<string, { readonly build: DependencyBuild; readonly image: Digest }>> {
-        // build every unit once, then attach their graphs at once as the pool allows
-        const units = await this.#storeEach(shared, this.units);
-        await Promise.all(
-            this.units.map((unit) => this.#attachUnitGraph(unit, found(units, unit.name), units)),
-        );
+        // start every unit's build, and store the npm units the workspace installs, which need only the lockfile
+        const started = this.#startEach(shared, this.units);
+        const installed = this.#storeInstalled();
 
-        // make an image of each unit at once, each once per workspace
-        const images = await settleAll(
-            this.units.map(async (unit) => {
-                const build = found(units, unit.name);
-                const image = await this.workspace.unitImage(unit, shared, () =>
-                    this.#image(unit, build.manifest, units),
-                );
+        // attach each unit's graph and make its image once it and its closure are built, each once per workspace
+        const imaged = this.units.map(async (unit) => {
+            // wait for the unit's build and its closure's
+            const built = new Map<string, DependencyBuild>();
+            for (const each of [unit, ...this.#closureOf(unit)]) {
+                built.set(each.name, await found(started, each.name));
+            }
 
-                return [unit.name, { build, image }] as const;
-            }),
-        );
+            // attach its graph, then make its image
+            const build = found(built, unit.name);
+            await this.workspace.unitGraph(unit, shared, () =>
+                this.#attachUnitGraph(unit, build, built),
+            );
+            const image = await this.workspace.unitImage(unit, shared, () =>
+                this.#image(unit, build.manifest, built),
+            );
+
+            return [unit.name, { build, image }] as const;
+        });
+
+        // let every build, npm unit and image settle before refusing a failure
+        const [images] = await Promise.all([settleAll(imaged), installed]);
 
         return new Map(images);
+    }
+
+    /** Store every npm unit the workspace's units install, each once, letting every one settle. */
+    async #storeInstalled(): Promise<void> {
+        // open each unit's npm dependencies, then store their closures at once
+        const directories = new Set(this.units.flatMap((unit) => [...unit.npm.values()]));
+        const opened = await Promise.all(
+            [...directories].map((directory) => this.workspace.npm.open(directory)),
+        );
+        const closure = new Set(opened.flatMap((unit) => unit.closure()));
+        await settleAll([...closure].map((unit) => this.workspace.npm.store(unit)));
     }
 
     /** Attach a workspace unit's graph to its build, unless the build carries one. */
@@ -914,7 +945,21 @@ export class WorkspacePackage {
         shared: WorkspaceUnitOptions,
         units: readonly WorkspaceUnit[],
     ): Promise<ReadonlyMap<string, DependencyBuild>> {
-        // start every unit at once after the units it requires, each once per workspace, as the pool leases compilers in turn
+        // let every started unit settle before refusing a failure
+        const started = this.#startEach(shared, units);
+        const built = await settleAll(
+            [...started].map(async ([name, unit]) => [name, await unit] as const),
+        );
+
+        return new Map(built);
+    }
+
+    /** Start every unit's build at once, each after the units it requires, once per workspace. */
+    #startEach(
+        shared: WorkspaceUnitOptions,
+        units: readonly WorkspaceUnit[],
+    ): ReadonlyMap<string, Promise<DependencyBuild>> {
+        // start each, as the pool leases compilers in turn
         const started = new Map<string, Promise<DependencyBuild>>();
         for (const unit of units) {
             const build = this.workspace.unitBuild(unit, shared, () =>
@@ -922,12 +967,8 @@ export class WorkspacePackage {
             );
             started.set(unit.name, build);
         }
-        // let every started unit settle before refusing a failure
-        const built = await settleAll(
-            [...started].map(async ([name, unit]) => [name, await unit] as const),
-        );
 
-        return new Map(built);
+        return started;
     }
 
     /** Take a unit's stored build of every output it ships, building it first when missing. */
