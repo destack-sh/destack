@@ -104,7 +104,7 @@ jobs:
               with:
                   packages: zsh age
             - name: Install the browser scenarios' system libraries
-              if: contains(toJSON(matrix.work), '.browser.scenario.')
+              if: matrix.isBrowsing
               uses: ./.github/actions/setup-apt
               with:
                   # Playwright's Ubuntu 24.04 libraries for Chromium and its fonts, without Xvfb, as the headless shell needs no display
@@ -115,18 +115,18 @@ jobs:
                       xfonts-cyrillic xfonts-scalable fonts-liberation fonts-ipafont-gothic fonts-wqy-zenhei fonts-tlwg-loma-otf
                       fonts-freefont-ttf
             - name: Restore the browser scenarios' Chromium
-              if: contains(toJSON(matrix.work), '.browser.scenario.')
+              if: matrix.isBrowsing
               id: chromium
               uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
               with:
                   path: ~/.cache/ms-playwright
                   key: chromium-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('@destack/view/package.json') }}
             - name: Install the browser scenarios' Chromium
-              if: contains(toJSON(matrix.work), '.browser.scenario.') && steps.chromium.outputs.cache-hit != 'true'
+              if: matrix.isBrowsing && steps.chromium.outputs.cache-hit != 'true'
               working-directory: "@destack/view"
               run: bunx playwright install chromium-headless-shell
             - name: Save the browser scenarios' Chromium
-              if: contains(toJSON(matrix.work), '.browser.scenario.') && steps.chromium.outputs.cache-hit != 'true'
+              if: matrix.isBrowsing && steps.chromium.outputs.cache-hit != 'true'
               uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
               with:
                   path: ~/.cache/ms-playwright
