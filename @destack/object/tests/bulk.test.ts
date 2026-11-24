@@ -9,7 +9,7 @@ import {
 import { PackageVersion } from "@destack/package";
 import { type CallableName, defineObject, field, tablesOf, recoverable } from "../src/index.ts";
 import { expect, onTestFinished, refusal, Recording, test } from "@destack/test";
-import { principal, relation } from "@destack/access";
+import { principal, relation, Caller } from "@destack/access";
 
 import { asc, defineDatabase } from "@destack/db";
 import type { DatabaseConnection } from "@destack/db/database";
@@ -350,8 +350,8 @@ test("run a sent createMany once though it arrives twice, replaying its request"
         ],
     };
     const user = principal.user.reference("universe", users.frank);
-    await ObjectRemote.mutate(store.remote, spaceId, sent, user);
-    await ObjectRemote.mutate(store.remote, spaceId, sent, user);
+    await ObjectRemote.mutate(store.remote, spaceId, sent, Caller.of(user));
+    await ObjectRemote.mutate(store.remote, spaceId, sent, Caller.of(user));
 
     expect(await read()).toEqual(["frank blue blue live", "frank red red live"]);
 });

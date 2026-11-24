@@ -146,7 +146,7 @@ import {
     type ResourceControllerOptions,
 } from "./provisioned.ts";
 import type { Resource, ResourceType } from "../trait/provisioned.ts";
-import { ObjectRemote } from "../replica/remote.ts";
+import { ObjectRemote, type Signer } from "../replica/remote.ts";
 import { Outbox, type OutboxOptions } from "./outbox.ts";
 import { TrackedHistory } from "./tracked.ts";
 import { Settlement } from "./settlement.ts";
@@ -916,6 +916,21 @@ export class ObjectStore {
         return [...this.#catalog.replicated, ...this.#catalog.replicas];
     }
 
+    /** Find a call's type among the types the store serves, replicates or follows. */
+    typeOf(call: Pick<sync.Call, "type">): ObjectType | undefined {
+        return ObjectType.find([...this.objects, ...this.#replicating, ...this.#followed], call);
+    }
+
+    /** The types the store answers queries of: served, replicated and followed ones. */
+    get #queryable(): readonly ObjectType[] {
+        return [...this.objects, ...this.replicas, ...this.#followed];
+    }
+
+    /** The types of the shapes the served code follows, whose rows live at their homes. */
+    get #followed(): readonly ObjectType[] {
+        return this.#catalog.follows.flatMap((follow) => follow.shape.objects);
+    }
+
     /** The scope's branch types, absent for a store without branches. */
     get branch(): BranchType | undefined {
         return this.#catalog.branch;
@@ -1194,11 +1209,14 @@ export class ObjectStore {
 
     /** Serve in-process followers: stream its replicas, and run their calls as the signer. */
     #remote(): ObjectRemote {
-        const callerOf = (signer: Subject | undefined) =>
-            AccessContext.of(
-                Caller.of(present(signer, "the signer of an in-process follower's call")),
+        const callerOf = (signer: Signer | undefined) => {
+            const signed = present(signer, "the signer of an in-process follower's call");
+
+            return AccessContext.of(
+                { ...Caller.of(signed.subject), actors: signed.actors, grants: signed.grants },
                 this.clock.now(),
             );
+        };
 
         // trace each verb as a server call of the process, as a channel traces its own
         const traced = traceCalls("server", PROCESS_SYSTEM, this.environment);
@@ -1945,6 +1963,15 @@ export class ObjectStore {
         site: CallSite,
         options: QueryOptions,
     ): Promise<unknown> {
+        // ask a query of a type whose rows live outside the chain at their home, which authorizes it
+        const found = this.typeOf(call);
+        const at = found?.readScope(call.method, call.input);
+        const isServed = found !== undefined && this.objects.some((served) => served.same(found));
+        const home = isServed || at === undefined ? undefined : await this.#home(at);
+        if (home !== undefined && at !== undefined) {
+            return home.call(at, call, caller);
+        }
+
         // resolve the call, reading only a method the caller's grant allows
         const { object, name, input } = this.#resolve(call, false, site);
         const method = object.method(name);
@@ -2085,7 +2112,7 @@ export class ObjectStore {
             const sent = sync.Mutation.parse(mutation);
 
             if (this.outbox === undefined) {
-                return ObjectRemote.mutate(home.remote, home.home, sent, caller.subject);
+                return ObjectRemote.mutate(home.remote, home.home, sent, caller);
             }
             const origin = Outbox.origin(caller.subject);
             await this.outbox.queue(sent, origin);
@@ -2630,9 +2657,7 @@ export class ObjectStore {
 
     /** Find the served replica of an object type with the store's handlers. */
     served<Type extends ObjectType>(object: Type): Type {
-        const found = [...this.objects, ...this.replicas].find((served): served is Type =>
-            served.isCopyOf(object),
-        );
+        const found = this.#queryable.find((served): served is Type => served.isCopyOf(object));
         if (found === undefined) {
             throw new TypeError(`object store does not serve ${object.name}`);
         }
@@ -2684,10 +2709,7 @@ export class ObjectStore {
         if (caller.grants.length === 0) {
             return;
         }
-        const object = present(
-            ObjectType.find(this.#replicating, call),
-            `the type of ${call.method}`,
-        );
+        const object = present(this.typeOf(call), `the type of ${call.method}`);
         const scope = object.readScope(call.method, call.input);
         const authorization = await this.authorize(
             Transaction.reading(this.database),
@@ -2709,7 +2731,7 @@ export class ObjectStore {
         return (
             method.handler === undefined &&
             !method.mutates &&
-            this.replicas.some((replica) => replica.same(object)) &&
+            this.#queryable.some((replica) => replica.same(object)) &&
             !this.objects.some((served) => served.same(object))
         );
     }
@@ -2738,12 +2760,12 @@ export class ObjectStore {
             );
         }
 
-        return home.call(scope, call, caller.subject);
+        return home.call(scope, call, caller);
     }
 
     /** Report whether a call's type's rows replicate from their home instead of living here. */
     #isUplinked(call: sync.Call): boolean {
-        const object = ObjectType.find(this.#replicating, call);
+        const object = this.typeOf(call);
 
         return object !== undefined && !this.objects.some((served) => served.same(object));
     }
@@ -2751,7 +2773,7 @@ export class ObjectStore {
     /** Find the remote taking a change of replicated rows, else the store's remote. */
     async remoteOf(call: sync.Call): Promise<ObjectRemote | undefined> {
         // find the replica of the call's table in its scope
-        const object = ObjectType.find(this.#replicating, call);
+        const object = this.typeOf(call);
         const scope = object?.readScope(call.method, call.input);
         const entries = await this.sink.followed();
         const home = entries.find(({ subscription, publisher }) => {
@@ -2765,12 +2787,26 @@ export class ObjectStore {
             );
         });
 
-        // fall back to the store's remote
+        // take the replica's own remote
         const publisher = home?.publisher;
+        if (publisher !== undefined && ObjectRemote.is(publisher)) {
+            return publisher;
+        }
 
-        return publisher !== undefined && ObjectRemote.is(publisher)
-            ? publisher
-            : this.subscriber?.remote;
+        // call a scope outside the chain at its home's remote, else the store's remote
+        const homed = scope === undefined ? undefined : await this.#home(scope);
+
+        return homed ?? this.subscriber?.remote;
+    }
+
+    /** Find the remote of a scope's home outside the store's chain, absent for one inside it. */
+    async #home(scope: string): Promise<ObjectRemote | undefined> {
+        // leave the store's own scope and its chain to the store's remote
+        const chain = await Scope.chain(this.database.snapshot(), this.scope);
+        const isInside = scope === this.scope || chain.some((link) => link.object.id === scope);
+        const publisher = isInside ? undefined : this.subscriber?.publisher(scope);
+
+        return publisher !== undefined && ObjectRemote.is(publisher) ? publisher : undefined;
     }
 
     /** Find a mutation's one home and the remote reaching it, absent for rows stored here. */
@@ -2781,15 +2817,19 @@ export class ObjectStore {
         const view = this.database.snapshot();
         const routed = await Promise.all(
             mutation.calls.map(async (call) => {
-                // read the call's replicated type and scope, a home only for rows replicated here
-                const object = ObjectType.find(this.#replicating, call);
+                // read the call's scope when its rows replicate here or live outside the chain
+                const object = this.typeOf(call);
                 const scope = object?.readScope(call.method, call.input);
                 const isReplica =
                     object !== undefined &&
                     scope !== undefined &&
                     (await this.isReplica(object, view, scope));
+                const isOutside =
+                    object !== undefined &&
+                    scope !== undefined &&
+                    (await this.#home(scope)) !== undefined;
 
-                return isReplica ? scope : undefined;
+                return isReplica || isOutside ? scope : undefined;
             }),
         );
         const homes = new Set(routed);
@@ -3500,7 +3540,7 @@ export class ObjectStore {
             );
         }
 
-        return mutates ? this.objects : [...this.objects, ...this.replicas];
+        return mutates ? this.objects : this.#queryable;
     }
 
     /** Read a procedure call's scope: a method's, else the decided target's or context's. */
@@ -3857,7 +3897,11 @@ export class ObjectStore {
         request?: RequestIdentity,
     ): Promise<Prepared[]> {
         // skip when nothing prepares or the request executed
-        const methods = calls.map((call) => ObjectStore.#preparing(call.object, call.name));
+        const methods = calls.map((call) =>
+            this.#isAskedAtHome(call.object, call.object.method(call.name))
+                ? call.object.method(call.name)
+                : ObjectStore.#preparing(call.object, call.name),
+        );
         if (
             methods.every((method) => method.prepare === undefined) ||
             (request !== undefined && (await this.journal.outcome(request)) !== undefined)
@@ -4183,10 +4227,10 @@ export class ObjectStore {
         };
 
         return async (entry, caller, mutates, code) => {
-            // run the nested call under the recorded options
+            // run the nested call in the method's scope under the recorded options
             const result = await this.#runInside(
                 transaction,
-                entry,
+                this.#place(entry, parent.scope),
                 caller,
                 mutates,
                 code,

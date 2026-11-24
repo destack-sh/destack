@@ -192,6 +192,7 @@ import type { ObjectStore } from "../server/store.ts";
 
 import type { DeclarationHandler } from "../server/stack.ts";
 import { Casing } from "./name.ts";
+import type { PermissionScope } from "@destack/access";
 import { ObjectPolicy } from "./access.ts";
 import type { KnownDeclaration } from "./description.ts";
 import { type ConstraintColumn, ObjectTable, type TraitOf, type TraitTable } from "./table.ts";
@@ -1017,6 +1018,24 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     /** The scope types the objects live in, none for any scope. */
     get scope(): ObjectScope | readonly ObjectScope[] {
         return this.declared.scope;
+    }
+
+    /** The scope a grant on the objects applies in: the universe, an account, else a space. */
+    get within(): PermissionScope {
+        const [scope] = [this.scope].flat();
+
+        // grant on the universe's objects in the universe
+        if (scope === "universe") {
+            return "universe";
+        }
+        // grant on an account's objects in the account
+        else if (scope?.name === "account") {
+            return "account";
+        }
+        // grant on every other object in its space
+        else {
+            return "space";
+        }
     }
 
     /** Whether the objects live in any scope, their definition declaring none. */

@@ -35,7 +35,7 @@ import type { Client } from "../procedure/index.ts";
 import { traceCalls } from "../procedure/telemetry.ts";
 import { procedureHeaders } from "../client/package.ts";
 import { BOOKMARK_HEADER, Bookmark } from "../procedure/bookmark.ts";
-import { ObjectRemote, type Push } from "./remote.ts";
+import { ObjectRemote, type Push, type Signer } from "./remote.ts";
 import {
     type ObjectQuery,
     type PushResult,
@@ -115,7 +115,7 @@ export interface ConnectionSettings {
     /** Open the connection of an enclosing scope's home whose rows the follower changes. */
     readonly homes?: (scope: string) => ObjectConnection;
     /** Open a connection as a signing principal, absent for a follower that signs as none. */
-    readonly signing?: (signer: Subject) => ObjectConnection;
+    readonly signing?: (signer: Signer) => ObjectConnection;
     /** The environment: the network opens the sockets, the clock and randomness name calls. */
     readonly environment: Environment;
 }
@@ -278,7 +278,7 @@ export class ObjectConnection implements ObjectRemote {
     }
 
     /** Answer a reading call at the scope's store, as a signer or the caller. */
-    async call(scope: string, call: sync.Call, signer?: Subject): Promise<JsonValue> {
+    async call(scope: string, call: sync.Call, signer?: Signer): Promise<JsonValue> {
         return signer === undefined
             ? this.#call((store) => store.call({ scope, call }))
             : this.#signed(signer).store.call({ scope, call });
@@ -289,7 +289,7 @@ export class ObjectConnection implements ObjectRemote {
         scope: string,
         object: Omit<sync.ObjectReference, "scope">,
         event: JsonValue,
-        signer?: Subject,
+        signer?: Signer,
     ): Promise<void> {
         // send as the signer on its own connection
         if (signer !== undefined) {
@@ -413,10 +413,14 @@ export class ObjectConnection implements ObjectRemote {
     }
 
     /** Connect as a signing principal once, refusing a follower that signs as none. */
-    #signed(signer: Subject): ObjectConnection {
-        // reuse the signer's connection, else open one
+    #signed(signer: Signer): ObjectConnection {
+        // reuse the signer's connection, else open one, by its subject, actors and grants
         const signing = present(this.#options.signing, "the connection's signing connections");
-        const key = Subject.key(signer);
+        const key = JSON.stringify([
+            Subject.key(signer.subject),
+            signer.actors.map((actor) => Subject.key(actor)),
+            signer.grants.map((grant) => grant.id),
+        ]);
         const connected = this.#signers.get(key) ?? signing(signer);
         this.#signers.set(key, connected);
 

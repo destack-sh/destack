@@ -1,3 +1,4 @@
+import { Caller } from "@destack/access";
 import { type Channel, typedChannel } from "@destack/db";
 import { type Environment, untilAborted } from "@destack/environment";
 import { Failure } from "@destack/error";
@@ -370,15 +371,17 @@ export class ChannelRemote implements ObjectRemote {
         else if (send.verb === "push") {
             const { home, verb: _verb, ...push } = send;
 
-            return schema.json().parse(await remote.push(home, { ...push, signer }));
+            return schema
+                .json()
+                .parse(await remote.push(home, { ...push, signer: Caller.of(signer) }));
         }
         // answer a reading call as the principal
         else if (send.verb === "call") {
-            return remote.call(send.scope, send.call, signer);
+            return remote.call(send.scope, send.call, Caller.of(signer));
         }
         // send an event as the principal
         else {
-            await remote.broadcast(send.scope, send.object, send.event, signer);
+            await remote.broadcast(send.scope, send.object, send.event, Caller.of(signer));
 
             return null;
         }

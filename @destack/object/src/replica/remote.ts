@@ -1,5 +1,5 @@
 import type * as sync from "@destack/sync";
-import type { Subject } from "@destack/sync";
+import type { Caller } from "@destack/access";
 import {
     type JsonObject,
     type JsonValue,
@@ -16,6 +16,9 @@ import type { PushResult } from "./replica.ts";
 /** The results of a mutation's calls, in call order. */
 const CALL_RESULTS = schema.array(schema.json());
 
+/** Whom a forwarding node signs as: a principal it holds keys for, or one acting under grants. */
+export type Signer = Pick<Caller, "subject" | "actors" | "grants">;
+
 /** One home's mutations a follower pushes through its remote. */
 export interface Push {
     /** The mutations, in the order the follower committed them. */
@@ -25,7 +28,7 @@ export interface Push {
     /** The scopes the follower's replica reads, nearest first. */
     readonly chain: readonly string[];
     /** The principal a forwarding node signs the mutations as, absent for the caller's own. */
-    readonly signer?: Subject;
+    readonly signer?: Signer;
     /** The pushing node's log, under which a queueing receiver publishes the outcomes. */
     readonly origin?: string;
 }
@@ -35,13 +38,13 @@ export interface ObjectRemote extends sync.Publisher {
     /** Push one home's mutations, answering their outcomes and watermark. */
     readonly push: (home: string, push: Push, signal?: AbortSignal) => Promise<PushResult>;
     /** Answer a reading call in the scope it reads, as a signing principal or the caller. */
-    readonly call: (scope: string, call: sync.Call, signer?: Subject) => Promise<JsonValue>;
+    readonly call: (scope: string, call: sync.Call, signer?: Signer) => Promise<JsonValue>;
     /** Send an unstored event to an object's readers, as a signing principal or the caller. */
     readonly broadcast: (
         scope: string,
         object: Omit<sync.ObjectReference, "scope">,
         event: JsonValue,
-        signer?: Subject,
+        signer?: Signer,
     ) => Promise<void>;
 }
 
@@ -113,7 +116,7 @@ export const ObjectRemote = {
         remote: ObjectRemote,
         home: string,
         mutation: sync.Mutation,
-        signer?: Subject,
+        signer?: Signer,
     ): Promise<readonly JsonValue[]> {
         // push the mutation alone, signed as given
         const pushed = await remote.push(home, {
