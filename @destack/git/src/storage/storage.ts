@@ -5,20 +5,15 @@ import { Instant, schema } from "@destack/schema";
 /** A Git object name: 40 hexadecimal digits for SHA-1, 64 for SHA-256. */
 const ObjectName = schema.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u);
 
-/** The namespace of branches. */
-const BRANCH_NAMESPACE = "refs/heads/";
-
-/** The namespace of tags. */
-const TAG_NAMESPACE = "refs/tags/";
-
-/** The namespace of the references checkouts push their working trees to. */
-const CHECKOUT_NAMESPACE = "refs/checkouts/";
-
-/** The namespaces of the references a repository lists. */
-const NAMESPACES = [BRANCH_NAMESPACE, TAG_NAMESPACE, CHECKOUT_NAMESPACE] as const;
+/** The namespaces of the references a repository lists: branches, tags and checkouts. */
+const NAMESPACES = {
+    branch: "refs/heads/",
+    tag: "refs/tags/",
+    checkout: "refs/checkouts/",
+} as const;
 
 /** The names a repository lists: a name inside one of its namespaces. */
-const LISTED = new RegExp(`^(?:${NAMESPACES.join("|")}).`, "u");
+const LISTED = new RegExp(`^(?:${Object.values(NAMESPACES).join("|")}).`, "u");
 
 /** A branch, tag or checkout's working tree as its origin lists it. */
 const reference = schema.object({
@@ -41,14 +36,24 @@ export const GitReference = Object.assign(reference, {
 
     /** Read a reference's name below its namespace, such as `main` for `refs/heads/main`. */
     short(name: string): string {
-        const namespace = NAMESPACES.find((each) => name.startsWith(each));
+        const namespace = Object.values(NAMESPACES).find((each) => name.startsWith(each));
 
         return namespace === undefined ? name : name.slice(namespace.length);
     },
 
+    /** Write the name of a branch's reference, such as `refs/heads/main` for `main`. */
+    branch(branch: string): string {
+        return `${NAMESPACES.branch}${branch}`;
+    },
+
+    /** Report whether a reference is a branch's. */
+    isBranch(name: string): boolean {
+        return name.startsWith(NAMESPACES.branch);
+    },
+
     /** Write the name of the reference a checkout pushes its working tree to. */
     checkout(checkout: string): string {
-        return `${CHECKOUT_NAMESPACE}${checkout}`;
+        return `${NAMESPACES.checkout}${checkout}`;
     },
 });
 /** A branch, tag or checkout's working tree as its origin lists it. */

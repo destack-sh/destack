@@ -150,7 +150,7 @@ export class LocalGitStorage implements GitStorage {
                     [
                         "for-each-ref",
                         "--format=%(refname) %(objectname) %(objecttype) %(*objectname) %(*objecttype)",
-                        ...GitReference.namespaces,
+                        ...Object.values(GitReference.namespaces),
                     ],
                     this.environment,
                 ),
