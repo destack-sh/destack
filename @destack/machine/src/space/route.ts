@@ -7,7 +7,7 @@ import {
 import { Directory } from "@destack/account/client";
 import * as accountObject from "@destack/account/object";
 import { type Identifier, present, schema } from "@destack/schema";
-import { InstallationMount, RequestBody, SpaceMount } from "@destack/object";
+import { Egress, InstallationMount, RequestBody, SpaceMount } from "@destack/object";
 import { type Clock, copyRequest, Forwarded } from "@destack/environment";
 import { MachineError } from "../error/index.ts";
 import { SPACE_RETRY_MILLISECONDS } from "./space.ts";
@@ -179,14 +179,20 @@ export const SpaceRequest = {
 
     /** Copy a request a client sent without the headers only a machine and a host write. */
     received(request: Request): Request {
+        // keep the client's head on an instance's call out, which its gateway verifies and sends on as its installation
+        const isEgress = new URL(request.url).pathname.includes(`${Egress.path}/`);
+        const dropped = isEgress
+            ? MACHINE_HEADERS.filter((name) => name !== CLIENT_HEAD_HEADER)
+            : MACHINE_HEADERS;
+
         // pass a request without them on as it is
-        if (!MACHINE_HEADERS.some((name) => request.headers.has(name))) {
+        if (!dropped.some((name) => request.headers.has(name))) {
             return request;
         }
 
         // drop each
         const headers = new Headers(request.headers);
-        for (const name of MACHINE_HEADERS) {
+        for (const name of dropped) {
             headers.delete(name);
         }
 
@@ -259,10 +265,11 @@ export const SpaceRequest = {
         names: SpaceLookup & {
             /** The domain the installation origins and S3 origins sit below. */
             readonly domain: string;
-            /** Find the route a host's path takes, absent for none. */
+            /** Find the route a host's path takes among the spaces served here, absent for none. */
             readonly route: (
                 host: string,
                 path: string,
+                serves: (scope: string) => Promise<boolean>,
             ) => Promise<{ readonly scope: string; readonly id: Identifier<"route"> } | undefined>;
         },
     ): Promise<SpaceRequest | undefined> {
@@ -277,29 +284,36 @@ export const SpaceRequest = {
             return addressed(request, s3);
         }
 
-        // take the space below an explicit prefix
+        // read the space below an explicit prefix, and the route of a space served here the host and path take
         const url = new URL(request.url);
         const explicit = SpaceMount.parse(url.pathname);
-        if (explicit !== undefined && isSpace(explicit.spaceId)) {
-            const space = explicit.spaceId;
-            // serve a space placed here below its prefix
-            if (await names.serves(space)) {
-                url.pathname = explicit.path;
+        const space =
+            explicit !== undefined && isSpace(explicit.spaceId) ? explicit.spaceId : undefined;
+        const serves = (scope: string) =>
+            isSpace(scope) ? names.serves(scope) : Promise.resolve(false);
+        const isServed = space !== undefined && (await names.serves(space));
+        const route = isServed ? undefined : await names.route(url.hostname, url.pathname, serves);
 
-                return addressed(copyRequest(request, {}, url.href), space);
-            }
-            // move a request for a space placed elsewhere to its machine
-            else {
-                const at = new URL(`${url.pathname}${url.search}`, await names.locate(space));
+        // serve a space placed here below its prefix
+        if (explicit !== undefined && space !== undefined && isServed) {
+            url.pathname = explicit.path;
 
-                return { space, request, moved: { kind: "placed", url: at.href } };
-            }
+            return addressed(copyRequest(request, {}, url.href), space);
         }
+        // take the route, such as a relay's for names served elsewhere
+        else if (route !== undefined) {
+            return routed(request, route);
+        }
+        // move a request for a space placed elsewhere to its machine
+        else if (space !== undefined) {
+            const at = new URL(`${url.pathname}${url.search}`, await names.locate(space));
 
-        // take the route the host and path take
-        const route = await names.route(url.hostname, url.pathname);
-
-        return route === undefined ? undefined : routed(request, route);
+            return { space, request, moved: { kind: "placed", url: at.href } };
+        }
+        // take no space otherwise
+        else {
+            return undefined;
+        }
     },
 };
 

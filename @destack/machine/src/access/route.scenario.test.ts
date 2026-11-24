@@ -237,27 +237,29 @@ test("locate the route serving a host's path, the most specific first", async ()
         },
     });
 
-    // read the route each host and path locate, none outside the hostnames
-    const located = async (host: string, path: string) => {
-        const served = await Route.locate(fixture.lookup, host, path);
-        if (served === undefined) {
+    // read the route each host and path locate among the served spaces, none outside the hostnames
+    const locate = async (host: string, path: string, served: readonly string[] = [first]) => {
+        const serves = async (scope: string) => served.includes(scope);
+        const located = await Route.locate(fixture.lookup, host, path, serves);
+        if (located === undefined) {
             return null;
         }
         const row = present(
-            await Route.find(fixture.database(first), first, served.id),
+            await Route.find(fixture.database(first), first, located.id),
             "the route",
         );
 
-        return [served.scope, row.managerName];
+        return [located.scope, row.managerName];
     };
     expect([
-        await located(notes, "/roadmap"),
-        await located(notes, "/docs/guide"),
-        await located(notes, "/blog"),
-        await located(notes, "/blog/2026"),
-        await located(notes, "/api/v1/notes"),
-        await located("blog.example.com", "/anything"),
-        await located("example.org", "/"),
+        await locate(notes, "/roadmap"),
+        await locate(notes, "/docs/guide"),
+        await locate(notes, "/blog"),
+        await locate(notes, "/blog/2026"),
+        await locate(notes, "/api/v1/notes"),
+        await locate("blog.example.com", "/anything"),
+        await locate("example.org", "/"),
+        await locate(notes, "/roadmap", []),
     ]).toEqual([
         [first, "roadmap"],
         [first, "docs"],
@@ -265,6 +267,7 @@ test("locate the route serving a host's path, the most specific first", async ()
         [first, "home"],
         [first, "api"],
         [first, "names"],
+        null,
         null,
     ]);
 });

@@ -6,7 +6,7 @@ import type * as packageRuntime from "@destack/package/runtime";
 import { Traffic } from "../gateway/traffic.ts";
 import { Authentication, Caller, principal } from "@destack/access";
 import type { ChainOptions } from "@destack/access/authorizer";
-import { UniverseOrigin } from "@destack/account/address";
+import { InstallationOrigin, UniverseOrigin } from "@destack/account/address";
 import {
     Directory,
     type Enrollment,
@@ -1092,11 +1092,19 @@ export class Machine {
 
     /** Serve a request at the machine's own hosts, in the space it names. */
     async serve(request: Request, voucher?: Voucher): Promise<Response> {
-        return (
-            this.#refusal(request) ??
-            (await this.npm(request)) ??
-            this.#serve(await this.#route(request), voucher)
-        );
+        // refuse while not serving, and send an npm client on
+        const refused = this.#refusal(request) ?? (await this.npm(request));
+        if (refused !== undefined) {
+            return refused;
+        }
+
+        // serve a space placed here, taking an origin of one placed elsewhere as a name
+        const routed = await this.#route(request);
+        const isOrigin = InstallationOrigin.of(request, this.domain) !== undefined;
+
+        return routed === undefined && isOrigin
+            ? this.serveName(request)
+            : this.#serve(routed, voucher);
     }
 
     /** Send an npm client to the forge of the handle it asks for, answering no other request. */
@@ -1144,7 +1152,7 @@ export class Machine {
         const routed = await SpaceRequest.host(request, {
             domain: domains.space,
             ...SpaceRequest.served(this.directory, this.id, this.clock),
-            route: (host, path) => stackObject.Route.locate(claims, host, path),
+            route: (host, path, serves) => stackObject.Route.locate(claims, host, path, serves),
         }).catch((error: unknown) => refusal(error, this.environment.telemetry));
         if (routed instanceof Response) {
             return routed;
@@ -1272,11 +1280,11 @@ export class Machine {
         }
     }
 
-    /** Find the space a request names at the machine's own hosts. */
+    /** Find the space placed here a request names at the machine's own hosts. */
     async #route(request: Request): Promise<SpaceRequest | undefined> {
         return SpaceRequest.of(request, {
             domain: this.domain,
-            find: (address) => SpaceRequest.resolve(this.directory, address),
+            find: SpaceRequest.served(this.directory, this.id, this.clock).find,
         });
     }
 

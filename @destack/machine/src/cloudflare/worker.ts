@@ -571,12 +571,12 @@ export class MachineWorker {
             ? await SpaceRequest.of(request, origins)
             : await SpaceRequest.host(request, {
                   ...origins,
-                  route: async (host, path) => {
+                  route: async (host, path, serves) => {
                       // match the route's hostname claims in the directory replica
                       const { replica } = await this.#machine(bindings);
                       const claims = ClaimLookup.of(replica.snapshot().read(claimTable));
 
-                      return Route.locate(claims, host, path);
+                      return Route.locate(claims, host, path, serves);
                   },
               }).catch((error: unknown) => refusal(error, WorkerdEnvironment.system.telemetry));
         if (routed instanceof Response) {
