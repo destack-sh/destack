@@ -1,6 +1,8 @@
+import de from "../../locale/de.json" with { type: "json" };
+import { Catalog, Localization } from "@destack/locale";
 import { present } from "@destack/schema";
 import { expect, test } from "@destack/test";
-import { flush } from "@destack/view";
+import { flush, LocaleContext } from "@destack/view";
 import { render } from "@destack/view/test";
 import {
     Dropzone,
@@ -157,4 +159,34 @@ test("take a caller's words, element and refusals in each part", () => {
         labels: ["Add photos"],
         refused: [["a.txt type"]],
     });
+});
+
+test("ask for files and refuse one in the person's language", () => {
+    const german = Localization.of("de", [Catalog.parse(de)]);
+    const { container } = render(() => (
+        <LocaleContext value={german}>
+            <Dropzone
+                limits={{ accept: ["application/pdf", "image/*"], size: 5_000_000 }}
+                onFiles={() => {}}
+            />
+        </LocaleContext>
+    ));
+    flush();
+    const zone = present(container.querySelector("[data-slot=dropzone]"), "the zone");
+    const event = new Event("drop", { bubbles: true, cancelable: true });
+    Object.defineProperty(event, "dataTransfer", {
+        value: { files: [file("a.txt", "text/plain")], types: ["Files"] },
+    });
+    zone.dispatchEvent(event);
+    flush();
+
+    expect(
+        ["title", "hint", "refusal"].map((part) =>
+            zone.querySelector(`[data-slot=dropzone-${part}]`)?.textContent.replace(ISOLATES, ""),
+        ),
+    ).toEqual([
+        "Datei hierher ziehen oder auswählen",
+        "PDF oder Bilder, bis zu 5 MB",
+        "a.txt hat einen anderen Dateityp",
+    ]);
 });
