@@ -182,17 +182,22 @@ export type Route = Select<typeof route.table>;
 
 /** The routes of the universe's hostnames, as a front door finds them. */
 export const Route = {
-    /** Find the route serving a hostname's path through the owners of the universe's names. */
+    /** Find the most specific route of a hostname's path among the spaces a machine serves. */
     async locate(
         claims: ClaimLookup,
         host: string,
         path: string,
+        serves: (scope: string) => Promise<boolean>,
     ): Promise<(ObjectReference & { readonly id: Identifier<"route"> }) | undefined> {
-        // find the most specific route of the host's hostnames and the path's prefixes in one lookup
+        // list the routes of the host's hostnames and the path's prefixes in one lookup, most specific first
         const candidates = Route.hostnames(host).flatMap((name) =>
             Route.paths(path).map(([candidate, match]) => [name, candidate, match]),
         );
-        const found = await Claim.first(route, claims, "path", candidates);
+        const holders = await Claim.holders(route, claims, "path", candidates);
+
+        // take the first a served space owns
+        const served = await Promise.all(holders.map((holder) => serves(holder.scope)));
+        const found = holders.find((_, index) => served[index] === true);
 
         return found === undefined
             ? undefined
