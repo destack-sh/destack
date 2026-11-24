@@ -63,3 +63,38 @@ test("label a shortcut's keys as each platform prints them, Command platforms by
         false,
     ]);
 });
+
+test("match a press by one shortcut alone", () => {
+    const presses = {
+        backspace: press("Backspace", {}, "Backspace"),
+        delete: press("Delete", {}, "Delete"),
+        equals: press("=", {}, "Equal"),
+        plus: press("+", {}, "BracketRight"),
+        shiftedPlus: press("+", { shiftKey: true }, "Equal"),
+    };
+    const shortcuts = ["backspace", "delete", "=", "shift+=", "plus"];
+    const matched = Object.entries(presses).map(([name, event]) => [
+        name,
+        shortcuts.filter((each) => Shortcut.matches(each, event, true)),
+    ]);
+
+    expect(Object.fromEntries(matched)).toEqual({
+        backspace: ["backspace"],
+        delete: ["delete"],
+        equals: ["="],
+        plus: ["plus"],
+        shiftedPlus: ["plus"],
+    });
+});
+
+test("write plus as a key, refusing a shift beside it", () => {
+    expect([
+        Shortcut.format("mod+plus", true),
+        Shortcut.format("mod+plus", false),
+        Shortcut.aria("mod+plus", false),
+        Shortcut.aria("space", false),
+        Shortcut.safeParse("mod+plus").success,
+        Shortcut.safeParse("mod+shift+plus").success,
+        Shortcut.safeParse("shift+mod+plus").success,
+    ]).toEqual(["⌘+", "Ctrl++", "Control+Plus", "Space", true, false, false]);
+});

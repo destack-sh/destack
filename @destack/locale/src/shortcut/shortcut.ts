@@ -38,6 +38,7 @@ const KEY_LABELS: Readonly<Record<string, string>> = {
     tab: "Tab",
     backspace: "Backspace",
     delete: "Delete",
+    plus: "+",
     up: "↑",
     down: "↓",
     left: "←",
@@ -57,6 +58,7 @@ const COMMAND_KEYS: Readonly<Record<string, string>> = {
     tab: "Tab",
     backspace: "Backspace",
     delete: "Delete",
+    plus: "+",
     up: "ArrowUp",
     down: "ArrowDown",
     left: "ArrowLeft",
@@ -66,9 +68,13 @@ const COMMAND_KEYS: Readonly<Record<string, string>> = {
 /** The keys keyboard events name for the shortcut words elsewhere. */
 const KEYS: Readonly<Record<string, string>> = { ...COMMAND_KEYS, mod: "Control" };
 
+/** The keys screen readers are told by another word than their event's. */
+const ARIA_KEYS: Readonly<Record<string, string>> = { " ": "Space", "+": "Plus" };
+
 /** The shortcut words of the keys whose event names differ from them. */
 const EVENT_KEY_NAMES: Readonly<Record<string, string>> = {
     " ": "space",
+    "+": "plus",
     ArrowUp: "up",
     ArrowDown: "down",
     ArrowLeft: "left",
@@ -120,6 +126,7 @@ type ShortcutKey =
     | "tab"
     | "backspace"
     | "delete"
+    | "plus"
     | "up"
     | "down"
     | "left"
@@ -152,7 +159,7 @@ export const Shortcut = Object.assign(
     schema
         .string()
         .regex(
-            /^(?:(?:mod|ctrl|alt|shift|meta)\+)*(?:[a-z0-9]|space|enter|escape|tab|backspace|delete|up|down|left|right|f[0-9]{1,2}|[,./;'[\]\\`=-])$/u,
+            /^(?:(?:(?:mod|ctrl|alt|shift|meta)\+)*(?:[a-z0-9]|space|enter|escape|tab|backspace|delete|up|down|left|right|f[0-9]{1,2}|[,./;'[\]\\`=-])|(?:(?:mod|ctrl|alt|meta)\+)*plus)$/u,
         ),
     {
         /** Report whether a user agent runs on a platform whose `mod` key is Command. */
@@ -192,6 +199,13 @@ export const Shortcut = Object.assign(
                 .map((part) => (isCommand ? COMMAND_KEYS[part] : KEYS[part]) ?? part.toUpperCase());
         },
 
+        /** Write a shortcut's keys for screen readers, as `aria-keyshortcuts` does. */
+        aria(shortcut: string, isCommand: boolean): string {
+            return Shortcut.keys(shortcut, isCommand)
+                .map((key) => ARIA_KEYS[key] ?? key)
+                .join("+");
+        },
+
         /** Report whether a key press presses a shortcut. */
         matches(shortcut: string, event: KeyPress, isCommand: boolean): boolean {
             // read the modifiers and the shortcut's key
@@ -199,11 +213,13 @@ export const Shortcut = Object.assign(
             const modifiers = new Set(parts.slice(0, -1));
             const hasMod = modifiers.has("mod");
 
-            // require exactly the named modifiers and the key
+            // require exactly the named modifiers and the key, leaving out the shift that types plus
+            const key = parts.at(-1);
+
             return (
-                parts.at(-1) === keyName(event) &&
+                key === keyName(event) &&
                 event.altKey === modifiers.has("alt") &&
-                event.shiftKey === modifiers.has("shift") &&
+                (key === "plus" || event.shiftKey === modifiers.has("shift")) &&
                 event.ctrlKey === (modifiers.has("ctrl") || (hasMod && !isCommand)) &&
                 event.metaKey === (modifiers.has("meta") || (hasMod && isCommand))
             );

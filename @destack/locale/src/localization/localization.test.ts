@@ -186,3 +186,9 @@ test("render a message with the arguments its reader supplies, refusing one left
         new TypeError("could not format message: 'Variable not available: $count'"),
     );
 });
+
+test("isolate text that runs against the page", () => {
+    const rendered = ["en", "de", "ar"].map((tag) => Localization.of(tag, []).render(t`Close`));
+
+    expect(rendered).toEqual(["Close", "Close", `${OPEN}Close${CLOSE}`]);
+});

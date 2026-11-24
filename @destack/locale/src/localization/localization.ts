@@ -80,6 +80,12 @@ export interface LocalizationOptions {
 /** The language messages are written in when a localization names none. */
 export const SOURCE_LOCALE: LocaleTag = "en";
 
+/** Unicode's mark that opens text of its own direction, after its first letter. */
+const FIRST_STRONG_ISOLATE = "\u2068";
+
+/** Unicode's mark that closes text of its own direction. */
+const POP_ISOLATE = "\u2069";
+
 /** The localizations people read in. */
 export const Localization = {
     /** Bind a locale to the catalogs of the packages whose messages it renders. */
@@ -94,6 +100,7 @@ export const Localization = {
         );
         const packages = new Set(catalogs.map((catalog) => catalog.package));
         const chain = Locale.fallback(tag, source);
+        const runs = direction ?? Locale.direction(tag);
 
         // build each formatter once per options and reuse it
         const numbers = cached(
@@ -118,7 +125,7 @@ export const Localization = {
 
         return {
             tag,
-            direction: direction ?? Locale.direction(tag),
+            direction: runs,
             week: Locale.week(tag),
             render: (message, ...[supplied]) => {
                 // ask for the catalogs of a package rendering without any
@@ -126,13 +133,16 @@ export const Localization = {
                     request?.(message.package);
                 }
 
-                return render(
+                const [text, written] = render(
                     { ...message, values: { ...message.values, ...supplied } },
                     chain,
                     source,
                     translations,
                     compile,
                 );
+
+                // keep text of a language that runs the other way in its own order
+                return Locale.direction(written) === runs ? text : isolate(text);
             },
             number: (value, options) => numbers(options).format(value),
             money: (amount, currency) => money(amount, currency, numbers),
@@ -153,24 +163,29 @@ export const Localization = {
     },
 };
 
-/** Render a message in the nearest translation of its package along a fallback chain. */
+/** Render a message in the nearest translation of its package, with the locale that has it. */
 function render(
     message: Message,
     chain: readonly LocaleTag[],
     source: LocaleTag,
     translations: ReadonlyMap<string, Catalog>,
     compile: (locale: LocaleTag, text: string) => MessageFormat,
-): string {
+): readonly [text: string, locale: LocaleTag] {
     // take the nearest translation its own package's catalogs hold
     for (const tag of chain) {
         const translated = translations.get(`${message.package}\u0000${tag}`)?.messages[message.id];
         if (translated !== undefined) {
-            return format(compile(tag, translated), message.values);
+            return [format(compile(tag, translated), message.values), tag];
         }
     }
 
     // read the source text in the source language
-    return format(compile(source, message.source), message.values);
+    return [format(compile(source, message.source), message.values), source];
+}
+
+/** Isolate text from the direction of the text around it, its first letter setting its own. */
+function isolate(text: string): string {
+    return `${FIRST_STRONG_ISOLATE}${text}${POP_ISOLATE}`;
 }
 
 /** Format a compiled message, refusing one that fails, such as one missing an argument. */
