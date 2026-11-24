@@ -182,6 +182,6 @@ export const User = {
             throw AccountError.of("USER_NOT_FOUND", `user '${userId}' not found`);
         }
 
-        return row.emailVerified === true && row.email !== null ? [Contact.email(row.email)] : [];
+        return row.emailVerified && row.email !== null ? [Contact.email(row.email)] : [];
     },
 };
