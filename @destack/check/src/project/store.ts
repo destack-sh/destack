@@ -3,7 +3,7 @@ import type { Bucket, BucketEntry } from "@destack/bucket";
 import type { Environment } from "@destack/environment";
 import { schema, Uuid } from "@destack/schema";
 
-/** The directory below a package keeping the test files that passed, one record per closure. */
+/** The directory below a package keeping its passed test files, one record per inputs digest. */
 const LOCAL_DIRECTORY = "node_modules/.cache/destack/test";
 
 /** The variable naming the shared bucket's S3 URL: R2's endpoint, then the bucket's path. */
@@ -24,28 +24,28 @@ const CONCURRENCY = 32;
 /** The most records durations are read from: about four runs of a package split 16 ways. */
 const MOST_RECORDS = 64;
 
-/** One run's test files that passed over a closure, with how long each took in milliseconds. */
+/** One run's test files that passed over its inputs, with how long each took in milliseconds. */
 const TestRecord = schema.object({
     files: schema.record(schema.string(), schema.number().nonnegative()),
 });
 
-/** One run's test files that passed over a closure, with how long each took in milliseconds. */
+/** One run's test files that passed over its inputs, with how long each took in milliseconds. */
 type TestRecord = schema.Infer<typeof TestRecord>;
 
 /** One run of a package's check, with how long it took in milliseconds. */
 const CheckRecord = schema.object({ milliseconds: schema.number().nonnegative() });
 
-/** The test files of one package closure that passed, as this computer keeps them. */
+/** The test files of one package's inputs that passed, as this computer keeps them. */
 const LocalRecord = schema.object({ files: schema.array(schema.string()) });
 
 /** The effects the store reads and writes with. */
 export type TestStoreEnvironment = Environment<"files" | "process">;
 
 /**
- * The test files that passed over each package closure, and how long each took.
+ * The test files that passed over each package's inputs, and how long each took.
  *
  * Records live in the package's directory, and in the shared bucket when the process names one.
- * A closure digests everything a test run reads, so its records hold for any checkout.
+ * An inputs digest covers everything a test run reads, so its records hold for any checkout.
  */
 export class TestStore {
     /** The shared bucket, absent when the process names none. */
@@ -104,15 +104,15 @@ export class TestStore {
         }
     }
 
-    /** List a package's test files that passed over a closure, here or in the bucket. */
-    async passed(directory: string, name: string, closure: string): Promise<Set<string>> {
+    /** List a package's test files that passed over the same inputs, here or in the bucket. */
+    async passed(directory: string, name: string, inputs: string): Promise<Set<string>> {
         // read this computer's record
-        const passed = new Set(await this.#local(directory, closure));
+        const passed = new Set(await this.#local(directory, inputs));
 
-        // add the files of the bucket's records below the closure
+        // add the files of the bucket's records below the inputs digest
         const bucket = this.bucket;
         if (bucket !== undefined) {
-            const entries = await TestStore.#entries(bucket, `tests/${name}/${closure}/`);
+            const entries = await TestStore.#entries(bucket, `tests/${name}/${inputs}/`);
             for (const record of await TestStore.#records(bucket, entries)) {
                 for (const file of Object.keys(record.files)) {
                     passed.add(file);
@@ -123,30 +123,30 @@ export class TestStore {
         return passed;
     }
 
-    /** Record test files that passed over a closure and their durations, here and in the bucket. */
+    /** Record test files that passed over inputs and their durations, here and in the bucket. */
     async pass(
         directory: string,
         name: string,
-        closure: string,
+        inputs: string,
         durations: ReadonlyMap<string, number>,
     ): Promise<void> {
         // merge the passes into this computer's record
         const { files } = this.environment;
-        const kept = await this.#local(directory, closure);
+        const kept = await this.#local(directory, inputs);
         const passed = [...new Set([...kept, ...durations.keys()])].toSorted();
         await files.mkdir(join(directory, LOCAL_DIRECTORY), { recursive: true });
         await files.writeTextFile(
-            join(directory, LOCAL_DIRECTORY, `${closure}.json`),
+            join(directory, LOCAL_DIRECTORY, `${inputs}.json`),
             JSON.stringify({ files: passed }),
         );
 
-        // write the run's passes as one record below the closure
+        // write the run's passes as one record below the inputs digest
         if (this.bucket !== undefined && durations.size > 0) {
             const rounded = new Map(
                 [...durations].map(([file, value]) => [file, Math.round(value)]),
             );
             const record = JSON.stringify({ files: Object.fromEntries(rounded) });
-            await this.bucket.put(`tests/${name}/${closure}/${this.#id()}.json`, record);
+            await this.bucket.put(`tests/${name}/${inputs}/${this.#id()}.json`, record);
         }
     }
 
@@ -156,7 +156,7 @@ export class TestStore {
         await this.bucket?.put(`checks/${name}/${this.#id()}.json`, record);
     }
 
-    /** Read how long a package's test files last took, from its newest records over any closure. */
+    /** Read how long a package's test files last took, from its newest records over any inputs. */
     async durations(name: string): Promise<Map<string, number>> {
         // read nothing without a bucket
         const durations = new Map<string, number>();
@@ -204,10 +204,10 @@ export class TestStore {
         return Uuid.v7(this.environment);
     }
 
-    /** Read this computer's record of a closure's passed files. */
-    async #local(directory: string, closure: string): Promise<readonly string[]> {
+    /** Read this computer's record of an inputs digest's passed files. */
+    async #local(directory: string, inputs: string): Promise<readonly string[]> {
         const { files } = this.environment;
-        const path = join(directory, LOCAL_DIRECTORY, `${closure}.json`);
+        const path = join(directory, LOCAL_DIRECTORY, `${inputs}.json`);
 
         return (await files.exists(path))
             ? LocalRecord.parse(JSON.parse(await files.readTextFile(path))).files

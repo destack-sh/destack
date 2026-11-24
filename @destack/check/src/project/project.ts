@@ -166,11 +166,11 @@ export class Project {
             return await this.#run(options, hasNode, undefined);
         }
 
-        // select the files that have not passed over the package's closure
+        // select the files that have not passed over the package's inputs
         const store = await TestStore.open(this.environment);
         const member = await this.member();
-        const closure = await this.closure(options);
-        const passed = await store.passed(this.directory, member, closure);
+        const inputs = await this.inputs(options);
+        const passed = await store.passed(this.directory, member, inputs);
         const named = options.files ?? [];
         const selected =
             named.length === 0
@@ -180,7 +180,7 @@ export class Project {
         if (missing.length === 0) {
             this.environment.process.stderr.writeSync(
                 new TextEncoder().encode(
-                    `tests passed before over the same inputs (${closure.slice(0, 12)})\n`,
+                    `tests passed before over the same inputs (${inputs.slice(0, 12)})\n`,
                 ),
             );
 
@@ -192,7 +192,7 @@ export class Project {
         try {
             const code = await this.#run({ ...options, files: missing }, hasNode, directory);
             if (code === 0) {
-                await store.pass(this.directory, member, closure, await this.#passes(directory));
+                await store.pass(this.directory, member, inputs, await this.#passes(directory));
             }
 
             return code;
@@ -222,7 +222,7 @@ export class Project {
     }
 
     /** Digest what a test run reads besides its files: packages, lockfile, runtime, options. */
-    async closure(options: TestOptions): Promise<Digest> {
+    async inputs(options: TestOptions): Promise<Digest> {
         // list the package and its dependencies
         const { files, process, crypto } = this.environment;
         const workspace = await this.#workspace();

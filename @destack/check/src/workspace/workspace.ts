@@ -66,12 +66,12 @@ export class Workspace {
 
     /** List a member and every member it depends on, directly or through others. */
     dependencies(directory: string): string[] {
-        return this.#closure(directory, (member) => member.dependencies);
+        return this.#walk(directory, (member) => member.dependencies);
     }
 
     /** List a member and every member depending on it, directly or through others. */
     dependents(directory: string): string[] {
-        return this.#closure(directory, (member) =>
+        return this.#walk(directory, (member) =>
             this.members
                 .filter((other) => other.dependencies.includes(member.directory))
                 .map((other) => other.directory),
@@ -130,7 +130,7 @@ export class Workspace {
     }
 
     /** Walk the members one leads to along an edge, the member included. */
-    #closure(directory: string, next: (member: WorkspaceMember) => readonly string[]): string[] {
+    #walk(directory: string, next: (member: WorkspaceMember) => readonly string[]): string[] {
         // walk depth first from the member and visit each member once
         const members = new Map(this.members.map((member) => [member.directory, member]));
         const visited = new Set<string>();

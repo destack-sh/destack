@@ -12,7 +12,7 @@ const MOST_RUNNERS = 40;
 /** The infix of test files that run in a browser, as the test plan names them. */
 const BROWSER_SUFFIX = ".browser.scenario.";
 
-/** The packages read at once, each listing its closure and spawning a git listing. */
+/** The packages read at once, each digesting its inputs and spawning a git listing. */
 const PACKAGE_CONCURRENCY = 8;
 
 /** One package's share of a runner: its check and its test files. */
@@ -61,7 +61,7 @@ export class Schedule {
         this.runners = runners;
     }
 
-    /** Schedule the checks of packages and the test files not yet passed over their closures. */
+    /** Schedule the checks of packages and the test files not yet passed over their inputs. */
     static async of(
         root: string,
         packages: readonly string[],
@@ -71,11 +71,11 @@ export class Schedule {
         // read each package's missing files and last durations, a few packages at once
         const { TestPlan } = await import("@destack/test/plan");
         const read = await eachLimited(packages, PACKAGE_CONCURRENCY, async (name) => {
-            // list the files not yet passed over the package's closure
+            // list the files not yet passed over the package's inputs
             const project = await Project.open(join(root, name), environment);
             const planned = await TestPlan.of(project.directory, environment.files);
-            const closure = await project.closure({});
-            const passed = await store.passed(project.directory, name, closure);
+            const inputs = await project.inputs({});
+            const passed = await store.passed(project.directory, name, inputs);
             const missing = project.files(planned, {}).filter((file) => !passed.has(file));
 
             // read the package's last durations

@@ -21,7 +21,7 @@ function emptyStore(): TestStore {
 }
 
 test("schedule a package whose files all passed as its check alone, on one runner", async () => {
-    // pass every file of this package over its closure in the bucket alone, and record its check
+    // pass every file of this package over its inputs in the bucket alone, and record its check
     const store = emptyStore();
     const project = await Project.open(
         fileURLToPath(new URL("../../", import.meta.url)),
@@ -32,7 +32,7 @@ test("schedule a package whose files all passed as its check alone, on one runne
     const durations = new Map(project.files(planned, {}).map((file) => [file, 100]));
     const scratch = await testHost().files.makeTemporaryDirectory("schedule-");
     onTestFinished(() => testHost().files.remove(scratch, { recursive: true }));
-    await store.pass(scratch, "@destack/check", await project.closure({}), durations);
+    await store.pass(scratch, "@destack/check", await project.inputs({}), durations);
     await store.check("@destack/check", 9_000);
 
     // schedule the package: one runner checks it and finds no file to run

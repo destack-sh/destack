@@ -28,47 +28,47 @@ async function computers() {
     return { clock, bucket, store: new TestStore(bucket, environment), directories };
 }
 
-test("read the files a run passed over a closure on another computer, and none over another closure", async () => {
+test("read the files a run passed over the same inputs on another computer, and none over other inputs", async () => {
     // pass two files on the first computer
     const { store, directories } = await computers();
     const [first = "", second = ""] = directories;
     await store.pass(
         first,
         "@example/notes",
-        "closure-a",
+        "inputs-a",
         new Map([
             ["a.test.ts", 10],
             ["b.test.ts", 20],
         ]),
     );
 
-    // read them on both computers over the same closure, and nothing over another
-    expect([...(await store.passed(first, "@example/notes", "closure-a"))].toSorted()).toEqual([
+    // read them on both computers over the same inputs, and nothing over another
+    expect([...(await store.passed(first, "@example/notes", "inputs-a"))].toSorted()).toEqual([
         "a.test.ts",
         "b.test.ts",
     ]);
-    expect([...(await store.passed(second, "@example/notes", "closure-a"))].toSorted()).toEqual([
+    expect([...(await store.passed(second, "@example/notes", "inputs-a"))].toSorted()).toEqual([
         "a.test.ts",
         "b.test.ts",
     ]);
-    expect([...(await store.passed(second, "@example/notes", "closure-b"))]).toEqual([]);
+    expect([...(await store.passed(second, "@example/notes", "inputs-b"))]).toEqual([]);
 });
 
-test("read each file's duration from the newest record that has it, over any closure", async () => {
-    // pass two files, then one of them again later over another closure
+test("read each file's duration from the newest record that has it, over any inputs", async () => {
+    // pass two files, then one of them again later over other inputs
     const { clock, store, directories } = await computers();
     const [first = ""] = directories;
     await store.pass(
         first,
         "@example/notes",
-        "closure-a",
+        "inputs-a",
         new Map([
             ["a.test.ts", 10.4],
             ["b.test.ts", 20],
         ]),
     );
     clock.advance(1_000);
-    await store.pass(first, "@example/notes", "closure-b", new Map([["a.test.ts", 30]]));
+    await store.pass(first, "@example/notes", "inputs-b", new Map([["a.test.ts", 30]]));
 
     // take the newer duration of the file run twice, rounded, and the older one of the other
     expect(Object.fromEntries(await store.durations("@example/notes"))).toEqual({

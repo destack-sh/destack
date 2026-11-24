@@ -10,7 +10,7 @@ Projects run its commands through `destack check`, `destack fix` and `destack te
 
 - `Project`: a package the toolchain checks, fixes, configures and tests, its own `check`, `fix` scripts run after.
 - `destack-check`: the same commands from the package it runs in, for the workspace's recipes.
-- `TestStore`: the test files that passed over each package closure, here and in a shared bucket, with their durations.
+- `TestStore`: the test files that passed over each package's inputs, here and in a shared bucket, with their durations.
 - `Schedule`: the CI runners for packages, their checks and unpassed test files packed by duration.
 - `checkPackage` and `fixPackage`: the lint checks as functions.
 - `AGENTS.md`: the rule book `configure` writes into each workspace root, above the workspace's own `## Custom` section.
@@ -46,8 +46,8 @@ const result = await checkPackage({
 | --------------- | ----------------------------------------------------------------------------------------- |
 | `check(since?)` | formats, typechecks sources and tests, typechecks README listings and lints, as one list  |
 | `fix()`         | writes the generated settings, formats and applies the lints' fixes                       |
-| `test(options)` | runs the package's `TestPlan` files not yet passed over its closure, Bun then Node targets |
-| `closure(options)` | digests what a test run reads besides its files: packages, lockfile, runtime, options |
+| `test(options)` | runs the package's `TestPlan` files not yet passed over its inputs, Bun then Node targets |
+| `inputs(options)` | digests what a test run reads besides its files: packages, lockfile, runtime, options |
 | `configure()`   | writes `tsconfig.json`, `.oxlintrc.json`, `.oxfmtrc.json` and a workspace's `AGENTS.md`   |
 
 ### TestStore
@@ -56,8 +56,8 @@ const result = await checkPackage({
 
 | Method                                    | What it does                                                    |
 | ----------------------------------------- | --------------------------------------------------------------- |
-| `passed(directory, name, closure)`        | lists the package's test files that passed over the closure     |
-| `pass(directory, name, closure, durations)` | records a run's passed files and how long each took           |
+| `passed(directory, name, inputs)`        | lists the package's test files that passed over the inputs     |
+| `pass(directory, name, inputs, durations)` | records a run's passed files and how long each took           |
 | `durations(name)`                         | reads each file's duration from the package's newest records    |
 | `check(name, milliseconds)`, `checked(name)` | records and reads how long the package's check took          |
 
