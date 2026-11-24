@@ -792,9 +792,9 @@ test("show packages to readers by their visibility", async () => {
         "2026.9.0",
         answer.image,
         ["NOT_FOUND", "RELEASE_NOT_FOUND", `release 'next' of '${answer.packageId}' not found`],
-        ["NOT_FOUND", "PACKAGE_NOT_FOUND", "package not found"],
+        ["NOT_FOUND", "PACKAGE_NOT_FOUND", "package '@other/answer' not found"],
         "greeting",
-        ["NOT_FOUND", "PACKAGE_NOT_FOUND", "package not found"],
+        ["NOT_FOUND", "PACKAGE_NOT_FOUND", "package '@example/greeting' not found"],
     ]);
 });
 
