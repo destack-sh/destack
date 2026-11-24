@@ -863,6 +863,13 @@ export class Device<
         await this.database[Symbol.asyncDispose]();
     }
 
+    /** Report whether a person is signed in on this computer. */
+    async isSignedIn(userId: Identifier<"user">): Promise<boolean> {
+        return (
+            (await this.local.query.login.findFirst({ where: { subjectId: userId } })) !== undefined
+        );
+    }
+
     /** Read a signed-in person's login, refusing one signed out. */
     async #login(loginId: Identifier<"login">): Promise<Login["row"]> {
         const signedIn = await this.local.query.login.findFirst({ where: { id: loginId } });

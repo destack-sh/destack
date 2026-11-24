@@ -26,14 +26,13 @@ import type { Device } from "../device/device.ts";
 import type { NativeClient } from "@destack/account/native";
 import { PEOPLE_PATH } from "../device/credential.ts";
 import { type Identifier, present, schema } from "@destack/schema";
-import { buildShape } from "@destack/stack/object";
-import { RequestId, Scope, Subject } from "@destack/sync";
+import { RequestId, Scope } from "@destack/sync";
 import { Machine } from "../../machine/index.ts";
 import { MachineError } from "../../error/index.ts";
 import { computer, type MachineEnrollment } from "../device/object/index.ts";
 import { SignInRunner } from "./sign-in.ts";
 import { ScopeReceiver } from "./scope.ts";
-import type { BuildRunner } from "../build.ts";
+import { Runner } from "../runner.ts";
 import machinePackage from "../../package.ts";
 import { CheckoutServer, PreviewSource } from "../checkout/server/index.ts";
 import type {} from "@destack/package/import-meta";
@@ -60,8 +59,8 @@ export class ComputerServer {
     readonly shutdown: () => void;
     /** The computer the machine runs on: its system, architecture, release and name. */
     readonly platform: Environment<"host">["host"];
-    /** The runner of the builds assigned to this machine. */
-    readonly runner: BuildRunner;
+    /** The runner of the steps placed on this machine. */
+    readonly runner: Runner;
     /** What the development workflow builds with. */
     readonly build: Pick<CheckoutServer, "connect" | "compilers" | "host">;
     /** This computer's device, whose partition stores the computer's record and distribution. */
@@ -180,7 +179,11 @@ export class ComputerServer {
         const machine = this.machine.id;
 
         // serve each package as the machine's own, acting as the machine
-        const checkouts = new CheckoutServer({ ...this.build, machine: this.machine });
+        const checkouts = new CheckoutServer({
+            ...this.build,
+            machine: this.machine,
+            device: this.device,
+        });
         const servers = [this.#implementMachine(checkouts), objectServer];
 
         // open the store, home of the machine's partition
@@ -202,12 +205,12 @@ export class ComputerServer {
         });
         this.receive.machine(store);
 
-        // receive the machine's scope, run the builds assigned here and the checkouts' previews and sources
+        // receive the machine's scope, run the steps placed here and the checkouts' previews and sources
         const control = () => [
             {
                 controllers: [
                     ScopeReceiver.controller(store, machine),
-                    this.runner.controller(),
+                    ...this.runner.controllers(),
                     new PreviewSource(store, checkouts).controller(),
                 ],
                 projections: [],
@@ -242,26 +245,8 @@ export class ComputerServer {
         const follows: readonly Follow[] = [
             // follow the directory, the identities and this machine's placements
             ...Machine.follows(id),
-            // follow the builds this machine runs in each space it serves, and in each other space it has work in
-            buildShape.per(placement, {
-                where: { machineId: id },
-                key: async (row) => ({
-                    key: { scope: row.spaceId, runner: ComputerServer.#runner(id) },
-                }),
-            }),
-            buildShape.per(assignment, {
-                where: { machineId: id },
-                key: async (row, view) => {
-                    // follow the space of the placement the work is in
-                    const placed = await view
-                        .read(placement.table)
-                        .findFirst({ where: { id: row.placementId } });
-
-                    return placed === undefined
-                        ? undefined
-                        : { key: { scope: placed.spaceId, runner: ComputerServer.#runner(id) } };
-                },
-            }),
+            // follow the steps placed on this machine where it serves or has work
+            ...Runner.follows(id, this.runner.shapes),
         ];
 
         return implementPackage(machinePackage, {
@@ -480,10 +465,5 @@ export class ComputerServer {
             .replace(/[^a-z0-9]+/gu, "-")
             .slice(0, NAME_LENGTH)
             .replace(/^-+|-+$/gu, "");
-    }
-
-    /** Key a machine as the runner of the builds it follows. */
-    static #runner(machineId: Identifier<"machine">): string {
-        return Subject.key(principal.machine.reference(Scope.universe.id, machineId));
     }
 }

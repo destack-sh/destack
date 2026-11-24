@@ -9,7 +9,7 @@ import { StackError } from "@destack/stack/error";
 /** List the object types an installation may wait for, which its controller watches. */
 export function waitedTypes(options: Pick<ApplicationOptions, "binder" | "space">): ObjectType[] {
     // take settings, installations and bound types, and tags where the machine builds
-    const followed = options.space.machine.isBuilding ? [tag] : [];
+    const followed = options.space.machine.isRunner ? [tag] : [];
     const waited = [setting, installation, ...options.binder.targets(), ...followed];
 
     return waited.filter(

@@ -177,7 +177,7 @@ async function report(
         remote,
         row.scope,
         { id: RequestId.create(environment), calls: [call] },
-        principal.space.reference(Scope.universe.id, row.id),
+        Caller.of(principal.space.reference(Scope.universe.id, row.id)),
     );
 }
 

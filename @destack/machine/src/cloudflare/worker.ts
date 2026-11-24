@@ -450,7 +450,7 @@ export class PartitionObject {
             volumes: host,
             builds: await host.builds(await cloud.releases()),
             targets: CLOUD_RUNTIMES,
-            isBuilding: false,
+            isRunner: false,
             isEnforcingEntitlements: true,
             // TODO #Incomplete: serve accounts' own hostnames once Cloudflare for SaaS provisions their certificates, after launch
             isServingHostnames: false,

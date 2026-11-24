@@ -1,43 +1,40 @@
 import { eq } from "@destack/db";
+import stackPackage from "@destack/stack/package";
+import { RequestId } from "@destack/sync";
 import { assignment, placement } from "@destack/account/object";
 import { Identifier, nth } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
-import { build } from "@destack/stack/object";
 import { ids, TestSpace } from "../test/index.ts";
 
 /** The origin the owner's laptop answers at. */
 const LAPTOP_ORIGIN = "https://laptop.test";
 
 test("assign the machine of an unfinished checkout build in the space, and withdraw it once the build ends", async () => {
-    // place the space on its machine with a pending build of the owner's laptop's checkout and one of its own
+    // place the space on its machine with a compiling build of the owner's laptop's checkout and one of its own
     const fixture = await TestSpace.open();
     const { database } = fixture;
+    await fixture.serve();
     const { id: laptopId } = await fixture.universe.enroll(
         fixture.owner,
         ids.account,
         LAPTOP_ORIGIN,
     );
-    const now = fixture.machine.clock.now();
+    const owner = fixture.as(fixture.owner.subject).client(stackPackage);
     const record = async (checkoutMachine: Identifier<"machine">) => {
-        const id = Identifier.create("build", fixture.environment);
-        await database.transaction(
-            async (transaction) =>
-                await transaction.insert(build.table).values({
-                    id,
-                    scope: ids.space,
-                    source: {
-                        kind: "checkout",
-                        machine: checkoutMachine,
-                        checkout: ids.checkout,
-                        directory: ".",
-                    },
-                    outputs: ["bun"],
-                    createdAt: now,
-                    updatedAt: now,
-                }),
-        );
+        const created = await owner.build.create({
+            spaceId: ids.space,
+            requestId: RequestId.create(fixture.machine.environment),
+            source: {
+                kind: "checkout",
+                machine: checkoutMachine,
+                checkout: ids.checkout,
+                directory: ".",
+            },
+            outputs: ["bun"],
+        });
+        await fixture.compileStep(created.id);
 
-        return id;
+        return created.id;
     };
     const laptop = await record(laptopId);
     await record(fixture.machine.id);
@@ -73,14 +70,13 @@ test("assign the machine of an unfinished checkout build in the space, and withd
         .where(eq(placement.table.spaceId, ids.space));
     expect(await assignments()).toEqual([[nth(placed, 0).id, laptopId]]);
 
-    // withdraw the laptop once its build is cancelled
-    await database.transaction(
-        async (transaction) =>
-            await transaction
-                .update(build.table)
-                .set({ state: "cancelled", finishedAt: now })
-                .where(eq(build.table.id, laptop)),
-    );
+    // withdraw the laptop once its build is cancelled, which ends its compile
+    await owner.build.cancel({
+        spaceId: ids.space,
+        id: laptop,
+        requestId: RequestId.create(fixture.machine.environment),
+    });
+    await fixture.finished(laptop);
     await projection.project(ids.space, reconciliation);
     expect(await assignments()).toEqual([]);
 });

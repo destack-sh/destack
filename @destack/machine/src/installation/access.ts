@@ -60,7 +60,7 @@ export const InstallationAccess = {
         now: number,
     ): Promise<AccessChange[]> {
         // act for the consenter, so access refuses grants beyond their permissions
-        const consenter = Caller.acting(Installation.consenter(target), subject);
+        const consenter = Caller.onBehalfOf(Installation.consenter(target), subject);
 
         // ask consent for its requests on other packages' types, its own types going by their policies
         const set = Installation.permissions(target, description, "space");
@@ -119,7 +119,7 @@ export const InstallationAccess = {
 
         // grant as the space, whose authority the grant lends
         const delegator = principal.space.reference(Scope.universe.id, target.scope);
-        const lending = Caller.acting(delegator, subject);
+        const lending = Caller.onBehalfOf(delegator, subject);
 
         return [
             { caller: AccessContext.of(consenter, now), calls: [binding] },

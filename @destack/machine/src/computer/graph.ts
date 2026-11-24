@@ -89,7 +89,7 @@ export class BunGraphStorage implements ExternalStorage, AsyncDisposable {
         // take the index the store caches for the manifest, which every build of it shares
         const { environment } = this.#database.state;
         const key = await this.cacheKey(manifest);
-        const cached = await store.cached(key);
+        const cached = await store.cache.get(key);
         if (cached !== undefined && cached.kind !== "file") {
             throw new TypeError(`the cache entry of '${manifest}'s index is no file`);
         }
@@ -141,7 +141,7 @@ export class BunGraphStorage implements ExternalStorage, AsyncDisposable {
                 size: bytes.byteLength,
                 mediaType: SQLITE_MEDIA_TYPE,
             };
-            await store.cache(key, { kind: "file", file: indexed });
+            await store.cache.set(key, { kind: "file", file: indexed });
 
             return indexed;
         } finally {

@@ -100,7 +100,7 @@ test("bind an installation's requests on other packages' types on its consenter'
             user.permission("recipient"),
         ],
     });
-    const consenter = AccessContext.of(Caller.acting(installer, subject), now);
+    const consenter = AccessContext.of(Caller.onBehalfOf(installer, subject), now);
     expect({ installed, removed }).toEqual({
         installed: [
             { caller: consenter, calls: [binding([space.permission("read")])] },

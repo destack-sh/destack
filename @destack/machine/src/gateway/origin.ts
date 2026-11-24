@@ -36,7 +36,6 @@ import {
 import { IdentityError, Jwt, type JwtClaims, Proof, PROOF_HEADER } from "@destack/identity";
 import { copyRequest, Forwarded, HostAddress, WebSocketUpgrade } from "@destack/environment";
 import stackPackage from "@destack/stack/package";
-import type { ImportClosure } from "@destack/build/store";
 import { ObjectReference, Scope, Subject, RequestId } from "@destack/sync";
 import accountPackage from "@destack/account/package";
 import {
@@ -130,9 +129,11 @@ export class InstallationOriginServer {
     readonly #sites = new Map<string, Promise<StaticHost | undefined>>();
     /** The build of each revision served so far, which a revision never changes, by revision. */
     readonly #builds = new Map<string, Promise<Pick<Page, "image" | "reader">>>();
-    /** The browser import map closure of each build served so far, by build and base. */
-    readonly #closures = new Map<string, Promise<ImportClosure>>();
-    /** The assets of each image's closure by mount base, indexed once. */
+    /** The browser import map of each image served so far, by image and base. */
+    readonly #maps = new Map<string, Promise<ImportMap>>();
+    /** The builds each image's page loads, its own and its map's, by image and base. */
+    readonly #loaded = new Map<string, Promise<ReadonlySet<Digest>>>();
+    /** The assets of the builds each image's map points into, by mount base, indexed once. */
     readonly #assets = new Map<string, Promise<AssetIndex>>();
     /** The catalog paths each build's pages load, by build and base. */
     readonly #catalogs = new Map<string, Promise<string[]>>();
@@ -870,7 +871,7 @@ export class InstallationOriginServer {
             const token =
                 visitor.kind === "person"
                     ? () =>
-                          this.#gateway.exchange(this.#acting(page), visitor, {
+                          this.#gateway.exchange(this.#actor(page), visitor, {
                               audience,
                               ...(spaceId.success ? { scope: spaceId.data } : {}),
                           })
@@ -1129,15 +1130,19 @@ export class InstallationOriginServer {
         const { reader, installation: found } = page;
         const policy = await this.#policy(page);
         const { base } = page.mount;
-        const closure = await InstallationOriginServer.#memo(
-            this.#closures,
+        const prefix = `${base}${OriginPath.build}/`;
+        const map = await InstallationOriginServer.#memo(this.#maps, `${page.image} ${base}`, () =>
+            this.#space.imports(page.image, "browser", prefix),
+        );
+        const builds = await InstallationOriginServer.#memo(
+            this.#loaded,
             `${page.image} ${base}`,
-            () => this.#space.imports(page.image, "browser", `${base}${OriginPath.build}/`),
+            async () => new Set([await reader.digest(), ...ImportMap.builds(map, prefix)]),
         );
         if (pathname.startsWith(`${OriginPath.build}/`)) {
             const [digest = "", ...path] = pathname.slice(`${OriginPath.build}/`.length).split("/");
             const reached = Digest.safeParse(digest);
-            if (!reached.success || !closure.builds.has(reached.data)) {
+            if (!reached.success || !builds.has(reached.data)) {
                 throw MachineError.of("VIEW_NOT_FOUND", `build '${digest}' of the views not found`);
             }
             const dependency = await this.#reader(reached.data);
@@ -1153,7 +1158,7 @@ export class InstallationOriginServer {
         const assets = await InstallationOriginServer.#memo(
             this.#assets,
             `${page.image} ${base}`,
-            () => AssetIndex.of(closure.builds, (digest) => this.#reader(digest)),
+            () => AssetIndex.of(builds, (digest) => this.#reader(digest)),
         );
         const published = assets.find(pathname);
         if (published !== undefined) {
@@ -1221,7 +1226,7 @@ export class InstallationOriginServer {
 
             return asset.path.endsWith(".html")
                 ? InstallationOriginServer.#file(request, asset, load, siteHeaders, {
-                      map: closure.map,
+                      map,
                       build: page.image,
                   })
                 : InstallationOriginServer.#file(request, asset, load, siteHeaders);
@@ -1236,7 +1241,7 @@ export class InstallationOriginServer {
         // serve a release dependency's catalog from its runtime build the views import
         const catalog = Catalog.at(pathname.slice(1));
         if (catalog?.dependency !== undefined) {
-            const dependency = await this.#build(closure, catalog.dependency);
+            const dependency = await this.#build(builds, catalog.dependency);
             const path = Catalog.path(
                 { package: catalog.dependency, locale: catalog.locale },
                 catalog.dependency,
@@ -1274,7 +1279,7 @@ export class InstallationOriginServer {
             const load = () => reader.load(missing.path);
 
             return InstallationOriginServer.#file(request, missing, load, siteHeaders, {
-                map: closure.map,
+                map,
                 build: page.image,
                 status: 404,
             });
@@ -1320,7 +1325,7 @@ export class InstallationOriginServer {
                 catalogs: await InstallationOriginServer.#memo(
                     this.#catalogs,
                     `${page.image} ${base}`,
-                    () => this.#catalogPaths(reader, closure),
+                    () => this.#catalogPaths(reader, builds),
                 ),
                 ...(visitor.kind === "person"
                     ? {
@@ -1336,7 +1341,7 @@ export class InstallationOriginServer {
             },
             view.entrypoint,
             view.stylesheets,
-            closure.map,
+            map,
         );
         document.headers.set("permissions-policy", policy);
 
@@ -1344,10 +1349,10 @@ export class InstallationOriginServer {
     }
 
     /** List the catalogs a page loads: its build's, and each reached build's own. */
-    async #catalogPaths(reader: BuildReader, closure: ImportClosure): Promise<string[]> {
+    async #catalogPaths(reader: BuildReader, builds: ReadonlySet<Digest>): Promise<string[]> {
         const owner = PackageManifest.package(reader.manifest).id;
         const listed = await Promise.all(
-            [...closure.builds].map(async (digest) => {
+            [...builds].map(async (digest) => {
                 // read a Destack build's catalog files, an npm unit's build having none
                 const reached = await this.#reader(digest);
                 if (!PackageManifest.isPackage(reached.manifest)) {
@@ -1374,8 +1379,8 @@ export class InstallationOriginServer {
     }
 
     /** Find a package's runtime build among the builds a page's views import, refusing others. */
-    async #build(closure: ImportClosure, packageId: PackageId): Promise<BuildReader> {
-        for (const digest of closure.builds) {
+    async #build(builds: ReadonlySet<Digest>, packageId: PackageId): Promise<BuildReader> {
+        for (const digest of builds) {
             const reader = await this.#reader(digest);
             if (
                 PackageManifest.isPackage(reader.manifest) &&
@@ -1414,7 +1419,7 @@ export class InstallationOriginServer {
                 url: PackageMount.url(universe.origin, accountPackage.id),
                 fetch: async (request) => {
                     // exchange the person's token for the account package
-                    const token = await this.#gateway.exchange(this.#acting(page), person, target);
+                    const token = await this.#gateway.exchange(this.#actor(page), person, target);
                     const headers = new Headers(request.headers);
                     headers.set("authorization", `Bearer ${token}`);
 
@@ -1426,7 +1431,7 @@ export class InstallationOriginServer {
     }
 
     /** The installation a page acts as for its person. */
-    #acting(page: Page): Subject {
+    #actor(page: Page): Subject {
         return principal.installation.reference(this.#space.id, page.installation.id);
     }
 
@@ -1439,7 +1444,7 @@ export class InstallationOriginServer {
         // act as a person through the installation, as the universe vouches
         const { visitor } = page;
         if (visitor.kind === "person") {
-            return await this.#gateway.act(this.#acting(page), visitor, {
+            return await this.#gateway.act(this.#actor(page), visitor, {
                 audience,
                 scope: this.#space.id,
             });

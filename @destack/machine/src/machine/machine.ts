@@ -119,7 +119,7 @@ export type MachineOptions = Pick<
     | "volumes"
     | "builds"
     | "targets"
-    | "isBuilding"
+    | "isRunner"
     | "isEnforcingEntitlements"
     | "isServingHostnames"
     | "domain"
@@ -205,7 +205,7 @@ export class Machine {
     /** The pulls in flight, by root and runtimes, which a pull of the same joins. */
     readonly #pulling = new Map<string, Promise<void>>();
     /** Whether the machine builds the commits its spaces' installations select. */
-    readonly isBuilding: boolean;
+    readonly isRunner: boolean;
     /** Whether the machine checks its spaces' use against their accounts' entitlements. */
     readonly isEnforcingEntitlements: boolean;
     /** Whether the machine serves requests for its spaces' accounts' own hostnames. */
@@ -288,7 +288,7 @@ export class Machine {
         this.volumes = options.volumes;
         this.builds = options.builds;
         this.targets = options.targets;
-        this.isBuilding = options.isBuilding;
+        this.isRunner = options.isRunner;
         this.isEnforcingEntitlements = options.isEnforcingEntitlements;
         this.isServingHostnames = options.isServingHostnames;
 
@@ -1107,12 +1107,13 @@ export class Machine {
             : this.#serve(routed, voucher);
     }
 
-    /** Send an npm client to the forge of the handle it asks for, answering no other request. */
+    /** Send an npm client at the universe's origin to the forge of the handle it asks for. */
     async npm(request: Request): Promise<Response | undefined> {
-        // take a request below the npm path
+        // take a request below the npm path at the universe's origin, leaving every other origin's paths to it
         const url = new URL(request.url);
         const [, path, handle] = NPM_PATH.exec(url.pathname) ?? [];
-        if (path === undefined || handle === undefined) {
+        const isUniverse = url.origin === (await this.universe()).origin;
+        if (path === undefined || handle === undefined || !isUniverse) {
             return undefined;
         }
 

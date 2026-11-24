@@ -1,4 +1,3 @@
-import * as accountObject from "@destack/account/object";
 import {
     PROCESS_RUNTIME,
     installation,
@@ -12,7 +11,6 @@ import { principal } from "@destack/access";
 import {
     hostname,
     machine,
-    Account,
     placement,
     profileShape,
     residency,
@@ -23,7 +21,7 @@ import {
     Entitlement,
 } from "@destack/account/object";
 import { type Identifier, schema } from "@destack/schema";
-import { RequestId, type Subject, Scope, type Publisher } from "@destack/sync";
+import { RequestId, type Subject, Scope } from "@destack/sync";
 import {
     type Follow,
     grantShape,
@@ -48,6 +46,8 @@ import { implementSpace } from "./placement.ts";
 import { implementTransfer, type TransferOptions, SpaceTransfer } from "../transfer/transfer.ts";
 import { handoffMount } from "../transfer/handoff.ts";
 import { implementBuild, pushMount } from "../installation/build.ts";
+import { implementEdit } from "../installation/edit.ts";
+import { implementCompile } from "../installation/compile.ts";
 import type { Space, SpaceStart } from "./space.ts";
 import { hookMount } from "../installation/hook.ts";
 import type { SocketRegistry } from "./socket.ts";
@@ -139,7 +139,7 @@ export function openStore(
             ]),
             destack: JSON.stringify(space.machine.destack),
             isEnforcingEntitlements: space.machine.isEnforcingEntitlements,
-            isBuilding: space.machine.isBuilding,
+            isRunner: space.machine.isRunner,
         },
         // open the release the space runs, or the version a value names
         release: (view, scope, packageId, version) =>
@@ -160,12 +160,12 @@ export function openStore(
 
             return undefined;
         },
-        // send through the remote and the homes' publishers, apart from a leaving space
+        // send through the remote and the scopes' homes, apart from a leaving space
         ...(start.role === "leaving"
             ? {}
             : {
                   remote: start.remote,
-                  publisher: (scope: string) => homePublisher(space, start, scope),
+                  publisher: (scope: string) => space.remoteOf(start, scope),
               }),
         machine: space.machine.id,
         isolates,
@@ -277,11 +277,9 @@ function ownObjects(
             trusted: space.machine.trusted,
         }),
         implementInstance(),
-        implementBuild({
-            buildRunner: space.machine.isBuilding ? space.machine.id : null,
-            space,
-            publish: space.publish.bind(space),
-        }),
+        implementBuild({ space, publish: space.publish.bind(space) }),
+        ...implementCompile(space).objects,
+        ...implementEdit(space).objects,
         implementTransfer(transfers),
         implementRoute(space.machine.isServingHostnames, space.universe),
     ];
@@ -420,31 +418,6 @@ function spaceFollows(space: Space, start: SpaceStart): readonly Follow[] {
                     : undefined,
         }),
     ];
-}
-
-/** Open a scope's publisher: the remote for the universe, space and machine, else its home. */
-function homePublisher(space: Space, start: SpaceStart, scope: string): Publisher {
-    // follow the universe, and the chains of the served space and its machine, through the remote
-    if ([Scope.universe.id, space.principal.id, space.machine.id].includes(scope)) {
-        return start.remote;
-    }
-
-    // follow a space at itself, and another scope in its account's partition at the account's home
-    const homed = async () => {
-        if (accountObject.space.identifies(scope)) {
-            return space.publisherAt(start, scope, scope);
-        }
-        const { id } = await Account.of(space.database.snapshot(), scope);
-
-        return space.publisherAt(start, Account.home(id), id);
-    };
-
-    return {
-        async *stream(subscription, signal) {
-            yield* (await homed()).stream(subscription, signal);
-        },
-        request: async (subscription) => (await homed()).request(subscription),
-    };
 }
 
 /** Open a principal's socket to a space, recording a machine's leave at its last close. */

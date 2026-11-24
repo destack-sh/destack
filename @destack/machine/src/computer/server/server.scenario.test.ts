@@ -1,3 +1,5 @@
+import { MachineError } from "../../error/index.ts";
+import { Failure } from "@destack/error";
 import { TEST_UNIVERSE } from "@destack/universe/test";
 import { testHost } from "@destack/test/host";
 import { log, LogData } from "@destack/observability/object";
@@ -634,7 +636,7 @@ test("build a checkout as a prerelease until committed", async () => {
         checkout: registered,
         submission: evaluated,
         build,
-        built: [built.source, built.outputs, built.state, built.phase, built.failure],
+        built: [built.source, built.outputs, built.state, built.failure],
         stored: [
             PackageManifest.package(reader.manifest).id,
             Object.keys(reader.manifest.outputs),
@@ -663,7 +665,7 @@ test("build a checkout as a prerelease until committed", async () => {
             stack: { export: "personal", parameters: {} },
         },
         build: built.id,
-        built: [followed, ["bun", "workerd"], "succeeded", null, null],
+        built: [followed, ["bun", "workerd"], "succeeded", null],
         stored: [STACK_CHECKOUT_PACKAGE, ["bun", "workerd"], Version.development],
     });
 
@@ -868,4 +870,63 @@ test("start a preview's next generation once sources settle", async () => {
         packages: ["packages/app", "packages/library"],
         generation: started + 1,
     });
+});
+
+test("refuse building a checkout for a person not signed in on its computer", async () => {
+    // enroll two computers of the owner: one with the working tree, one serving the space
+    const world = await TestComputer.world({ bundled: [await TestDistribution.fixture("board")] });
+    const relay = await TestComputer.relay(world);
+    const [opened, serving] = [
+        await TestComputer.open({ world }),
+        await TestComputer.open({ world, relay: relay.url }),
+    ];
+    const { owner } = world;
+    const signedIn = await opened.signIn(OWNER_EMAIL);
+    await opened.enroll(signedIn, owner.account);
+    const host = await serving.signIn(OWNER_EMAIL);
+    await serving.enroll(host, owner.account);
+    const space = await serving.space(host.id, owner.account, "work");
+
+    // register a working tree on the owner's computer
+    const { files } = opened.environment;
+    const root = await files.realPath(await files.makeTemporaryDirectory("destack-checkout-"));
+    onTestFinished(() => files.remove(root, { recursive: true }));
+    expect(await testHost().process.spawn(["git", "init", "--quiet", root]).exited).toBe(0);
+    const registered = await opened.connect(machinePackage).checkout.create({
+        machineId: opened.machine.id,
+        requestId: RequestId.create(opened.environment),
+        directory: root,
+        source: { kind: "existing" },
+    });
+
+    // sign the owner out of that computer, then build its checkout as the owner from the other
+    await opened.device.forget(signedIn);
+    const service = await stackOf(serving, host.id, space);
+    const created = await service.build.create({
+        spaceId: space,
+        requestId: RequestId.create(serving.environment),
+        source: {
+            kind: "checkout",
+            machine: opened.machine.id,
+            checkout: registered.id,
+            directory: ".",
+        },
+    });
+
+    // wait until the owner's computer, its runner, ends it
+    const database = (await serving.machine.space(space)).database;
+    const read = async () => service.build.get({ spaceId: space, id: created.id });
+    await serving.waitUntil(database, async () => (await read()).state === "failed");
+
+    // fail it on the owner's computer without reading the working tree
+    const ended = await read();
+    expect([ended.state, ended.failure]).toEqual([
+        "failed",
+        Failure.of(
+            MachineError.of(
+                "BUILD_DENIED",
+                `build '${created.id}' of a checkout is forbidden: its creator is not signed in on this computer`,
+            ),
+        ),
+    ]);
 });

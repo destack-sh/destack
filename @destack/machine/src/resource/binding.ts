@@ -881,7 +881,7 @@ export class Binder {
         const declarer =
             object.package.id === target.packageId ? owner : Installation.consenter(target);
 
-        return Caller.acting(declarer, context.self.subject);
+        return Caller.onBehalfOf(declarer, context.self.subject);
     }
 
     /** Declare a projection per bindable kind writing each resource's states from its consumers. */

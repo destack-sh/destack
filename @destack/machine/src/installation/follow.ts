@@ -1,7 +1,6 @@
 import {
     installation,
     Installation,
-    ACTIVE_BUILD_STATES,
     build,
     Build,
     installationRevision,
@@ -10,7 +9,7 @@ import type { RevisionOptions } from "./target.ts";
 import { Manager } from "@destack/access";
 import { Space } from "@destack/account/object";
 import { reference, referenceShape, tag, tagShape } from "@destack/registry/object";
-import { and, eq, inArray, DatabaseError } from "@destack/db";
+import { and, eq, DatabaseError } from "@destack/db";
 import type { DatabaseConnection, Snapshot } from "@destack/db/database";
 import type { ObjectReconciliation } from "@destack/object";
 import { Commit, type Identifier, present, schema } from "@destack/schema";
@@ -196,7 +195,7 @@ export class CommitBuild {
             .where(
                 and(
                     build.inScope(scope),
-                    inArray(build.table.state, [...ACTIVE_BUILD_STATES]),
+                    eq(build.table.state, "running"),
                     eq(build.table.createdById, reconciliation.caller.subject.id),
                 ),
             );

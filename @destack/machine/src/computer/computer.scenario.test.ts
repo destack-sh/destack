@@ -120,7 +120,7 @@ test("list a relayed computer's checkouts as its account's owner on another comp
     expect(items.map((item) => item.id)).toEqual([registered.id]);
 });
 
-test("send an npm client to the forge of the handle it asks for, and answer 404 for a handle no account holds", async () => {
+test("send an npm client at the universe's origin to the forge of the handle it asks for, answering 404 for a handle no account holds", async () => {
     // enroll a computer of the owner, whose handle the universe's directory lists
     const world = await TestComputer.world();
     const computer = await TestComputer.open({ world });
@@ -133,9 +133,9 @@ test("send an npm client to the forge of the handle it asks for, and answer 404 
         .findFirst({ where: { id: world.owner.account } });
     const handle = present(owner, "the owner's account").handle;
 
-    // ask for a package below the owner's handle, its tarball, and one below a handle nobody holds
-    const ask = async (path: string) => {
-        const answered = await computer.machine.serve(new Request(`http://127.0.0.1/npm/${path}`));
+    // ask for a package below the owner's handle, its tarball, and one below a handle nobody holds, at the universe's origin
+    const ask = async (path: string, origin = world.universe.origin) => {
+        const answered = await computer.machine.serve(new Request(`${origin}/npm/${path}`));
 
         return [answered.status, answered.headers.get("location")];
     };
@@ -158,10 +158,13 @@ test("send an npm client to the forge of the handle it asks for, and answer 404 
         await ask(`@${handle}/notes/-/notes-2026.10.0.tgz`),
         await ask("@nobody%2fnotes"),
         await named(`@${handle}%2fnotes`),
+        await ask(`@${handle}%2fnotes`, "http://127.0.0.1"),
     ]).toEqual([
         [307, `${forge}/@${handle}%2fnotes?write=true`],
         [307, `${forge}/@${handle}/notes/-/notes-2026.10.0.tgz`],
         [404, null],
         [307, `${forge}/@${handle}%2fnotes`],
+        // leave the path to the machine at any other origin, as an app's own paths are its own
+        [404, null],
     ]);
 });

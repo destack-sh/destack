@@ -5,7 +5,7 @@ import type { PackageFile } from "@destack/package/file";
 import {
     type BuildReader,
     ImportMap,
-    type BuildImage,
+    BuildImage,
     type PackageManifest,
     ViewDescription,
 } from "@destack/package/manifest";
@@ -29,7 +29,7 @@ export class StaticExport {
     /** The directory the files are written below. */
     readonly directory: string;
     /** The store with the view's build and every build its pages import. */
-    readonly #builds: Pick<LocalBuildStore, "contents" | "imports" | "image">;
+    readonly #builds: Pick<LocalBuildStore, "contents" | "get" | "image">;
     /** The environment whose file system the export writes to. */
     readonly #environment: Environment<"files">;
     /** The media type of each written file's extension, which the host's headers declare. */
@@ -42,7 +42,7 @@ export class StaticExport {
     /** Export into a directory from a store of builds. */
     constructor(
         directory: string,
-        builds: Pick<LocalBuildStore, "contents" | "imports" | "image">,
+        builds: Pick<LocalBuildStore, "contents" | "get" | "image">,
         environment: Environment<"files">,
     ) {
         this.directory = directory;
@@ -68,31 +68,27 @@ export class StaticExport {
         }
 
         // map the modules the pages import below the build path, as the origin does
-        const closure = await this.#builds.imports(
-            opened,
-            "browser",
-            `${OriginPath.build}/`,
-            linked,
+        const prefix = `${OriginPath.build}/`;
+        const map = await BuildImage.imports(opened, "browser", prefix, linked, (digest) =>
+            this.#builds.get(digest),
         );
+        const builds = new Set([opened.root, ...ImportMap.builds(map, prefix)]);
 
         // write the build's public files at their paths, then the site's files at the paths it answers, pages with the map
         for (const file of files.values()) {
             await this.#copy(reader, file, `/${file.path}`);
         }
         for (const { path, file } of [...site.paths(), ...site.configuration()]) {
-            const map = file.path.endsWith(".html") ? closure.map : undefined;
-            await this.#copy(reader, file, path, map);
+            await this.#copy(reader, file, path, file.path.endsWith(".html") ? map : undefined);
         }
 
         // write each build the pages import below its digest, the view's own among them
-        for (const digest of closure.builds) {
+        for (const digest of builds) {
             await this.#copyBuild(digest);
         }
 
         // write each asset the builds emit below the asset path, by its name
-        const assets = await AssetIndex.of(closure.builds, (digest) =>
-            this.#builds.contents(digest),
-        );
+        const assets = await AssetIndex.of(builds, (digest) => this.#builds.contents(digest));
         for (const [name, asset] of assets.files) {
             await this.#copy(asset.reader, asset.file, `${OriginPath.asset}/${name}`);
         }

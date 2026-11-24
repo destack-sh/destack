@@ -49,7 +49,9 @@
         "@destack/tunnel": "workspace:*",
         "@destack/update": "workspace:*",
         "@destack/view": "workspace:*",
-        "@destack/workflow": "workspace:*"
+        "@destack/workflow": "workspace:*",
+        "magic-string": "1.4.1",
+        "oxfmt": "0.68.0"
     },
     "devDependencies": {
         "@cloudflare/workers-types": "5.20260917.1",

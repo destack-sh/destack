@@ -20,7 +20,6 @@ import {
 import { WORKERD_COMPATIBILITY_DATE } from "@destack/package/runtime";
 import { type BuildReader, ImportMap } from "@destack/package/manifest";
 import type { Space } from "../../space/space.ts";
-import { ImportClosure } from "@destack/build/store";
 import type {} from "@destack/package/import-meta";
 import { MachineError } from "../../error/index.ts";
 
@@ -196,17 +195,17 @@ export class WorkerdRuntime implements Runtime {
         called: readonly string[] = [],
     ): Promise<Record<string, string>> {
         // read what the root's workloads, mounted views and called modules reach
-        const closure = await this.#served().imports(image, WORKERD_RUNTIME, MODULE_BASE);
+        const map = await this.#served().imports(image, WORKERD_RUNTIME, MODULE_BASE);
         const own = await build.digest();
         const entries = [
-            ...(await ImportClosure.entries(own, build, WORKERD_RUNTIME)),
+            ...(await build.entries(WORKERD_RUNTIME)),
             ...called.map((path) => `${own}/${path}`),
         ];
-        const reached = await ImportClosure.modules(
-            entries,
-            WORKERD_RUNTIME,
-            closure,
+        const reached = await ImportMap.modules(
+            map,
             MODULE_BASE,
+            WORKERD_RUNTIME,
+            entries,
             (digest) =>
                 digest === own ? Promise.resolve(build) : this.#served().builds.contents(digest),
         );
@@ -215,7 +214,7 @@ export class WorkerdRuntime implements Runtime {
         const resolved = await Promise.all(
             [...reached].map(async ([name, code]): Promise<[string, string]> => [
                 name,
-                await ImportMap.apply(closure.map, code, `${MODULE_BASE}${name}`),
+                await ImportMap.apply(map, code, `${MODULE_BASE}${name}`),
             ]),
         );
 

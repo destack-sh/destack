@@ -48,7 +48,7 @@ import { TestBearer, TestCaller, type TestSigner, type TestScope } from "@destac
 import { TestTemplate, TestDatabase, TestRun, type TemplateStorage } from "@destack/db/test";
 import { onTestFinished, single, expect } from "@destack/test";
 import { Failure } from "@destack/error";
-import { type Authentication, principal } from "@destack/access";
+import { AccessContext, type Authentication, Caller, principal } from "@destack/access";
 import { Account, Residency, type ResidencyCode, type StackRelease } from "@destack/account/object";
 import { OPERATOR_EMAIL, RESIDENCY_STACK, STACKS, type TestPerson } from "@destack/account/test";
 import accountPackage from "@destack/account/package";
@@ -78,6 +78,7 @@ import {
     canonicalize,
     nth,
     present,
+    type Commit,
     schema,
 } from "@destack/schema";
 import objectDefinition from "@destack/object/destack.json" with { type: "json" };
@@ -339,7 +340,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
         (
             changes: Pick<
                 TestSpaceOptions,
-                "isBuilding" | "isEnforcingEntitlements" | "runtimes" | "destack"
+                "isRunner" | "isEnforcingEntitlements" | "runtimes" | "destack"
             >,
         ) => Promise<Machine>
     >;
@@ -382,7 +383,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
             (
                 changes: Pick<
                     TestSpaceOptions,
-                    "isBuilding" | "isEnforcingEntitlements" | "runtimes" | "destack"
+                    "isRunner" | "isEnforcingEntitlements" | "runtimes" | "destack"
                 >,
             ) => Promise<Machine>
         >;
@@ -1219,7 +1220,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
         const start = async (
             changes: Pick<
                 TestSpaceOptions,
-                "isBuilding" | "isEnforcingEntitlements" | "runtimes" | "destack"
+                "isRunner" | "isEnforcingEntitlements" | "runtimes" | "destack"
             >,
         ): Promise<Machine> => {
             // build the machine over the options as changed, its first runtime keeping its instances' sockets
@@ -1265,7 +1266,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
                 volumes,
                 builds,
                 targets: ["bun", "browser"],
-                isBuilding: changed.isBuilding ?? true,
+                isRunner: changed.isRunner ?? true,
                 isEnforcingEntitlements: changed.isEnforcingEntitlements ?? false,
                 isServingHostnames: options.isServingHostnames ?? true,
                 domain: "localhost",
@@ -1758,7 +1759,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
     async restart(
         changes: Pick<
             TestSpaceOptions,
-            "isBuilding" | "isEnforcingEntitlements" | "runtimes" | "destack"
+            "isRunner" | "isEnforcingEntitlements" | "runtimes" | "destack"
         >,
     ): Promise<TestSpace> {
         await this.stop();
@@ -1882,52 +1883,121 @@ export class TestSpace implements AsyncDisposable, TestScope {
         return this.#index;
     }
 
-    /** Push a running build's files and graph as its runner, answering the files uploaded. */
+    /** Push a compiling build's files and graph as its compile's runner, then complete it. */
     async storeBuild(
         runner: TestCaller,
         target: { readonly spaceId: Identifier<"space">; readonly id: Identifier<"build"> },
         reader: BuildReader,
+        output: { readonly commit?: Commit } = {},
     ): Promise<readonly Digest[]> {
-        // report storing, then push the build to the space's builds mount, recording each file uploaded
-        const client = runner.client(stackPackage);
-        await client.build.progress({
-            ...target,
-            requestId: RequestId.create(this.machine.environment),
-            progress: { phase: "storing" },
-        });
+        // push the build to the space's builds mount, recording each file uploaded
         const { fetch } = runner.endpoint(stackPackage);
         const uploaded: Digest[] = [];
-        const pushing = new RemoteBuildStore(
-            `${SPACE_URL}${PUSH_PATH}/${target.spaceId}/${target.id}/`,
-            async (request) => {
-                // record the objects the space lacks, which the push writes next
-                const asked = request.clone();
-                const answer = await fetch(request);
-                if (new URL(request.url).pathname.endsWith("/has")) {
-                    const digests = schema.array(Digest).parse(await asked.json());
-                    const stored = schema
-                        .array(schema.boolean())
-                        .parse(await answer.clone().json());
-                    uploaded.push(...digests.filter((_digest, index) => stored[index] !== true));
-                }
+        const pushing = new RemoteBuildStore(`${SPACE_URL}${PUSH_PATH}/`, async (request) => {
+            // record the objects the space lacks, which the push writes next
+            const asked = request.clone();
+            const answer = await fetch(request);
+            if (new URL(request.url).pathname.endsWith("/has")) {
+                const digests = schema.array(Digest).parse(await asked.json());
+                const stored = schema.array(schema.boolean()).parse(await answer.clone().json());
+                uploaded.push(...digests.filter((_digest, index) => stored[index] !== true));
+            }
 
-                return answer;
-            },
-        );
+            return answer;
+        });
         await using store = await TestBuildStore.create(this.machine.environment);
         const root = await store.put(reader);
         const image = await store.putImage(BuildImage.of(root));
 
-        // attach its graph as its builder does, push it, then finish it
+        // attach its graph as its builder does and push it
         await store.attachGraph(root, await fixtureGraph(reader));
         await pushing.push(store, [image]);
-        await client.build.finish({
-            ...target,
-            requestId: RequestId.create(this.machine.environment),
-            outcome: { kind: "stored", image },
+
+        // complete the build's compile with the image and the outputs it asked for, as its runner
+        const built = await this.database
+            .snapshot()
+            .read(object.build.table)
+            .findFirst({ where: { id: target.id } });
+        const outputs = present(built, `build '${target.id}'`).outputs;
+        await this.endCompile(runner, target.id, {
+            method: "complete",
+            output: { image, outputs: present(outputs, "the outputs compiled"), ...output },
         });
 
         return uploaded;
+    }
+
+    /** Wait for a build's open compile step, which its runner completes or fails. */
+    async compileStep(buildId: Identifier<"build">) {
+        // read the build's compile run by its key, then the step it placed and left open
+        const open = async () => {
+            const view = this.database.snapshot();
+            const run = await view
+                .read(object.compile.run.table)
+                .findFirst({ where: { key: buildId } });
+
+            return run === undefined
+                ? undefined
+                : await view.read(object.compile.step.table).findFirst({
+                      where: {
+                          parentId: run.id,
+                          function: { isNotNull: true },
+                          completedAt: { isNull: true },
+                      },
+                  });
+        };
+
+        // wait until the build's run placed it
+        await this.simulation.idle();
+        await this.database.log.waitUntil(
+            async () => (await open()) !== undefined,
+            new AbortController().signal,
+        );
+
+        return present(await open(), `the open compile step of build '${buildId}'`);
+    }
+
+    /** End a build's open compile step as its runner, answering the build once finished. */
+    async endCompile(
+        runner: TestCaller,
+        buildId: Identifier<"build">,
+        end:
+            | { readonly method: "complete"; readonly output: JsonObject }
+            | { readonly method: "fail"; readonly failure: Failure },
+    ) {
+        // end the step as the runner
+        const { step } = object.compile;
+        const placed = await this.compileStep(buildId);
+        const objects = present(this.#store, `the store of space '${this.id}'`);
+        const caller = AccessContext.of(Caller.of(runner.subject), objects.clock.now());
+        const { method, ...input } = end;
+        await objects.mutate(caller, {
+            id: RequestId.create(this.machine.environment),
+            calls: [
+                step.call(method, { ...step.target({ scope: this.id, id: placed.id }), ...input }),
+            ],
+        });
+
+        return this.finished(buildId);
+    }
+
+    /** Wait until a build finished, answering it. */
+    async finished(buildId: Identifier<"build">) {
+        // read the build
+        const read = () =>
+            this.database
+                .snapshot()
+                .read(object.build.table)
+                .findFirst({ where: { id: buildId } });
+
+        // wait until its run recorded its outcome
+        await this.simulation.idle();
+        await this.database.log.waitUntil(
+            async () => ((await read())?.finishedAt ?? null) !== null,
+            new AbortController().signal,
+        );
+
+        return present(await read(), `build '${buildId}'`);
     }
 
     /** Describe the revision a submission of a build records for an installation. */
@@ -2396,7 +2466,7 @@ export type TestSpaceWorld = Pick<
 /** How a test opens a space and the machine hosting it. */
 export interface TestSpaceOptions {
     /** Whether the hosting machine runs the space's commit builds, true by default. */
-    readonly isBuilding?: boolean;
+    readonly isRunner?: boolean;
     /** Whether the hosting machine checks use against entitlements, false by default. */
     readonly isEnforcingEntitlements?: boolean;
     /** Whether the account's hostname requests reach the hosting machine, true by default. */

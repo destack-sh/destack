@@ -54,7 +54,7 @@ test("expire a build past retention and collect it with its graph after its leas
         .where(eq(build.table.id, dropped.id));
     const isStoredWithinLease = await (await fixture.builds()).contains(dropped.manifest);
     const key = await (await fixture.index()).cacheKey(dropped.manifest);
-    const cached = await (await fixture.builds()).cached(key);
+    const cached = await (await fixture.builds()).cache.get(key);
     const attached = present(
         cached?.kind === "file" ? cached.file : undefined,
         "the dropped build's graph database",

@@ -10,6 +10,7 @@ const machineError = defineErrorFamily({
         ACCOUNT_NOT_FOUND: {},
         CALLS_NOT_FOUND: {},
         CHECKOUT_NOT_FOUND: {},
+        FUNCTION_NOT_FOUND: {},
         CLIENT_PATH_NOT_FOUND: {},
         DIRECTORY_NOT_FOUND: {},
         EGRESS_ADDRESS_NOT_FOUND: {},
@@ -61,6 +62,7 @@ const machineError = defineErrorFamily({
         // denied
         ADDRESS_DENIED: {},
         BUCKET_DENIED: {},
+        BUILD_DENIED: {},
         GRANT_DENIED: { data: GrantRequest },
         INSTALLATION_DENIED: {},
         INSTALLATION_ORIGIN_DENIED: {},
@@ -68,12 +70,13 @@ const machineError = defineErrorFamily({
         OWNER_DENIED: {},
         PARTITION_TOKEN_DENIED: {},
         PERSON_DENIED: {},
-        PUBLISHER_DENIED: {},
         SIGN_IN_DENIED: {},
+        SUBJECT_DENIED: {},
         VIEW_GRANT_DENIED: {},
 
         // blocked
         BUILD_BLOCKED: {},
+        EDIT_BLOCKED: {},
         ENROLLMENT_BLOCKED: {},
         LOGIN_BLOCKED: {},
         MACHINE_BLOCKED: {},
@@ -121,6 +124,9 @@ const machineError = defineErrorFamily({
         SERVER_BROKEN: {},
         START_BROKEN: {},
         STOP_BROKEN: {},
+
+        // cancelled
+        STEP_CANCELLED: {},
     },
 });
 

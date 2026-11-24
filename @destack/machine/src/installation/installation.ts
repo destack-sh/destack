@@ -5,6 +5,7 @@ import {
     deployment,
     installationRevision,
     Build,
+    edit,
 } from "@destack/stack/object";
 import { InstallationDefinition } from "@destack/stack/declare";
 import type accountPackage from "@destack/account/package";
@@ -41,11 +42,14 @@ import { Approval } from "./approval.ts";
 import { waitedTypes } from "./wait.ts";
 import { checkout } from "../computer/checkout/object/index.ts";
 import { CommitBuild } from "./follow.ts";
-import { reference, tag } from "@destack/registry/object";
+import { reference, repository, tag } from "@destack/registry/object";
 import { StackInstallation } from "./stack.ts";
 import type { TokenIssuer } from "@destack/access/token";
 import { StackError } from "@destack/stack/error";
 import { InstallationTarget, type RevisionOptions } from "./target.ts";
+
+/** The prefix of a branch's full reference name. */
+const BRANCH_PREFIX = "refs/heads/";
 
 /** The options a machine serves installations with. */
 export interface InstallationOptions extends RevisionOptions, ApplicationOptions {
@@ -131,6 +135,47 @@ export function implementInstallations(options: InstallationOptions) {
                 call.update({
                     allowed: call.target.allowed.filter((name) => name !== call.input.capability),
                 }),
+            edit: {
+                prepare: async (call) => {
+                    // read the followed branch's package directory
+                    const branch = await followedBranch(call, call.target);
+                    const source = {
+                        repository: { scope: branch.scope, id: branch.parentId },
+                        branch: branch.name.slice(BRANCH_PREFIX.length),
+                        directory: present(
+                            call.target.directory,
+                            `the directory of '${call.target.name}'`,
+                        ),
+                    };
+
+                    // ask the caller's consent to the space's push to it, while they are here
+                    const push = repository.call(
+                        "push",
+                        repository.target({ scope: branch.scope, id: branch.parentId }),
+                    );
+                    await options.space.exchange(
+                        call.caller,
+                        await options.space.requested([push]),
+                    );
+
+                    return source;
+                },
+                handle: async (call) => {
+                    // start the edit of the prepared source for the caller, as the package's code
+                    const started = edit.start(
+                        {
+                            source: call.prepared,
+                            operations: call.input.operations,
+                            message: call.input.message,
+                            author: await options.space.author(call.caller.subject),
+                        },
+                        { actor: call.caller.subject },
+                    );
+                    const [run] = await call.mutate(call.self, [started]);
+
+                    return { run: present(run, "the started run").id };
+                },
+            },
             open: async (call) => open(call, call.target, options),
             request: async (call) => request(call, call.target, options),
             plan: async (call) => {
@@ -272,7 +317,7 @@ function reconcileController(options: InstallationOptions): ObjectController<typ
                 on: { id: "id" },
             },
             ...resumeWatches(waitedTypes(options)),
-            ...(options.space.machine.isBuilding ? followedWatches() : []),
+            ...(options.space.machine.isRunner ? followedWatches() : []),
         ],
         reports: REPORTS,
         reconcile: async (reconciliation) => {
@@ -370,7 +415,7 @@ async function resume(
     // then build the commit its reference points at
     const { versionId, directory } = current;
     const isFollowing = InstallationTarget.kind(current) === "reference";
-    if (options.space.machine.isBuilding && isFollowing) {
+    if (options.space.machine.isRunner && isFollowing) {
         const followed = {
             id: present(versionId, "its version's reference"),
             directory: present(directory, "its version's directory"),
@@ -679,4 +724,27 @@ async function open(
         home,
         permissions,
     };
+}
+
+/** Read the branch an installation follows, refusing one following no branch. */
+async function followedBranch(
+    context: Pick<MethodContextOf<typeof installation, "edit">, "read">,
+    target: Installation,
+) {
+    // read the reference the installation's version names, refusing a release or a checkout
+    const version = target.versionId === null ? undefined : ObjectReference.at("version", target);
+    const followed =
+        version === undefined || version.type !== reference.name
+            ? undefined
+            : await context
+                  .read(reference.table)
+                  .findFirst({ where: { id: schema.identifier("reference").parse(version.id) } });
+    if (followed === undefined || !followed.name.startsWith(BRANCH_PREFIX)) {
+        throw StackError.of(
+            "EDIT_BLOCKED",
+            `cannot edit installation '${target.name}': it follows no branch`,
+        );
+    }
+
+    return followed;
 }

@@ -1,4 +1,7 @@
-import { installation, build, installationRevision } from "@destack/stack/object";
+import { installation, build, edit, installationRevision } from "@destack/stack/object";
+import { ENDED_STATES } from "@destack/workflow";
+import { Failure } from "@destack/error";
+import { BuildError } from "@destack/build/error";
 import { testHost } from "@destack/test/host";
 import registryPackage from "@destack/registry/package";
 import { PackageManifest } from "@destack/package/manifest";
@@ -16,7 +19,8 @@ import { RequestId, ObjectReference } from "@destack/sync";
 import * as stackObject from "@destack/stack/object";
 import stackPackage from "@destack/stack/package";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { TestComputer } from "./test/index.ts";
+import { FIXTURE_RELEASE, TestComputer } from "./test/index.ts";
+import { BunLockfile } from "@destack/check/bun";
 
 /** The package of every pushed commit: a library compiling one Bun module. */
 const SITE = PackageId.parse("package-01996ab0-0000-7000-8000-0000000000f1");
@@ -38,10 +42,10 @@ const GIT_ENVIRONMENT = {
     GIT_COMMITTER_EMAIL: "ada@example.test",
 };
 
-/** Serve the owner's home beside the residency's home running the forge, on its cloud machine. */
-async function pushHome() {
-    // serve the owner's home on the cloud computer, with a fresh working directory
-    const { home, login } = await TestComputer.home();
+/** Serve the owner's home and the residency's forge, with some fixtures published. */
+async function pushHome(published: readonly string[] = []) {
+    // serve the owner's home on the cloud computer with some fixtures published, and a fresh working directory
+    const { home, login } = await TestComputer.home({ published });
     const { device, world } = home;
     const { files } = home.environment;
     const directory = await files.makeTemporaryDirectory("destack-push-");
@@ -59,8 +63,9 @@ async function pushHome() {
         hosting: "platform",
     });
 
-    // lay out the site package in a working tree
-    const worktree = await writeSite(directory, files);
+    // lay out the site package in a working tree, installing its scope from the universe's registry
+    const { universe } = await home.machine.enrolled("laying out the site");
+    const worktree = await writeSite(directory, files, universe.origin);
 
     // list the repository's references again
     const list = () =>
@@ -116,6 +121,8 @@ async function pushHome() {
         home,
         residency,
         space: world.owner.home,
+        person,
+        worktree,
         repository: created,
         list,
         push,
@@ -193,7 +200,7 @@ async function servedForge(home: TestComputer, residency: Identifier<"space">, p
 }
 
 /** Lay out the site package in a new git working tree, returning its path. */
-async function writeSite(directory: string, files: FileSystem): Promise<string> {
+async function writeSite(directory: string, files: FileSystem, universe: string): Promise<string> {
     // write the package manifest
     const worktree = join(directory, "worktree");
     await files.mkdir(join(worktree, "src"), { recursive: true });
@@ -219,15 +226,15 @@ async function writeSite(directory: string, files: FileSystem): Promise<string> 
         }),
     );
 
-    // make an image of its dependencies, none, as `bun install` does
+    // install its scopes from the universe's registry, as a new checkout does
     await files.writeTextFile(
-        join(worktree, "bun.lock"),
-        JSON.stringify({
-            lockfileVersion: 2,
-            configVersion: 1,
-            workspaces: { "": { name: "@example/site" } },
-            packages: {},
-        }),
+        join(worktree, "bunfig.toml"),
+        [
+            "[install.scopes]",
+            `"@destack" = { url = "${universe}/npm/" }`,
+            `"@example" = { url = "${universe}/npm/" }`,
+            "",
+        ].join("\n"),
     );
 
     // write its module and start the repository
@@ -416,5 +423,154 @@ test("replicate the branch an installation follows into its space", async () => 
     const rows = await served.select().from(reference.table);
     expect(rows.map((row) => [row.parentId, row.name, row.commit])).toEqual([
         [site.repository.id, MAIN, first],
+    ]);
+});
+
+/** Install the site following main, then edit main to depend on a package as its owner. */
+async function dependOn(site: Awaited<ReturnType<typeof pushHome>>, name: string) {
+    // install the site following main, and wait until the space replicates main
+    const installed = await site.install();
+    const served = (await site.home.machine.space(site.space)).database;
+    const main = await site.followed();
+    const key = { scope: site.residency, id: schema.identifier("reference").parse(main.id) };
+    await site.home.world.simulation.wait(
+        served.log.waitUntil(
+            () => referenceShape.isSynced(served, key),
+            site.home.clock.timeout(DEPLOY_MILLISECONDS),
+        ),
+    );
+
+    // edit it as the owner, approving the space's push to the repository
+    const approving = createClient(
+        stackPackage,
+        site.person.endpoint(stackPackage.id, await site.home.device.locate(site.space), {
+            decide: async () => "approve",
+        }),
+        site.home.device.environment,
+    );
+    const { run } = await approving.installation.edit({
+        scope: site.space,
+        requestId: RequestId.create(site.home.environment),
+        id: installed.id,
+        operations: [{ kind: "dependency.add", package: name, range: "latest" }],
+        message: `depend on ${name}`,
+    });
+
+    // wait until its run ends
+    const read = async () =>
+        present(
+            (await served.select().from(edit.run.table).where(eq(edit.run.table.id, run)))[0],
+            "the edit's run",
+        );
+    const isEnded = await site.home.world.simulation.wait(
+        served.log.waitUntil(async () => {
+            const { state } = await read();
+
+            return ENDED_STATES.some((ended) => ended === state);
+        }, site.home.clock.timeout(DEPLOY_MILLISECONDS)),
+    );
+
+    // read the run and main's head as the forge has it
+    const remote = present(site.repository.remote, "the remote");
+    await git(site.worktree, "fetch", "--quiet", remote, "main");
+    const head = await git(site.worktree, "rev-parse", "FETCH_HEAD");
+
+    return { isEnded, ended: await read(), head };
+}
+
+test("fail an edit whose dependency does not resolve, leaving its branch at the base", async () => {
+    // push the site's first version, then depend on a library nothing publishes
+    const site = await pushHome();
+    const base = await site.push(1);
+    const { isEnded, ended, head } = await dependOn(site, "@example/other");
+
+    // fail it with the install's refusal and push nothing, so main stays at the base
+    expect({
+        isEnded,
+        state: ended.state,
+        failure: ended.failure,
+        output: ended.output,
+        head,
+    }).toEqual({
+        isEnded: true,
+        state: "failed",
+        failure: Failure.of(
+            BuildError.of(
+                "DEPENDENCY_INVALID",
+                [
+                    "dependencies of '@example/site' are invalid: bun install exited with status 1: Resolving dependencies",
+                    "Resolved, downloaded and extracted [1]",
+                    "error: GET https://eu.machine.test/spaces/space-***/package-***/npm/@example%2fother - 404",
+                    "error: @example/other@latest failed to resolve",
+                ].join("\n"),
+            ),
+        ),
+        output: null,
+        head: base,
+    });
+});
+
+test("depend on a published app in one checked commit on main, its lock pinning the release", async () => {
+    // push the site's first version, then depend on the published journal
+    const site = await pushHome(["journal"]);
+    const base = await site.push(1);
+    const { isEnded, ended, head } = await dependOn(site, "@example/journal");
+
+    // read what the pushed commit changed, its message and its parent, and check its manifest and lock out
+    const changed = await git(site.worktree, "diff", "--name-only", base, "FETCH_HEAD");
+    const message = await git(site.worktree, "log", "-1", "--format=%s%n%P", "FETCH_HEAD");
+    await git(site.worktree, "checkout", "FETCH_HEAD", "--", "package.json", "bun.lock");
+    const { files } = site.home.environment;
+    const manifest = schema
+        .looseObject({ dependencies: schema.record(schema.string(), schema.string()).default({}) })
+        .parse(JSON.parse(await files.readTextFile(join(site.worktree, "package.json"))));
+    const lockfile = await BunLockfile.read(site.worktree, files);
+
+    // push one commit on the base changing the manifest and lock alone, the lock pinning the release
+    expect({
+        isEnded,
+        state: ended.state,
+        failure: ended.failure,
+        output: ended.output,
+        changed: changed.split("\n"),
+        message: message.split("\n"),
+        dependencies: manifest.dependencies,
+        locked: lockfile?.packages["@example/journal"]?.[0],
+    }).toEqual({
+        isEnded: true,
+        state: "completed",
+        failure: null,
+        output: { base, commit: head },
+        changed: ["bun.lock", "package.json"],
+        message: ["depend on @example/journal", base],
+        dependencies: { "@example/journal": "latest" },
+        locked: `@example/journal@${FIXTURE_RELEASE}`,
+    });
+});
+
+test("send npm clients to the forge at the universe's origin alone, leaving a machine's own paths to it", async () => {
+    // ask for a published package at the universe's origin and at the cloud machine's own host
+    const { home, login, organizations } = await TestComputer.home({ published: ["journal"] });
+    const { universe } = await home.machine.enrolled("asking for a package");
+    const path = "/npm/@example%2fjournal";
+    const atUniverse = await home.browse(
+        new Request(`${universe.origin}${path}`, { redirect: "manual" }),
+    );
+    const atMachine = await home.browse(
+        new Request(`https://eu.machine.test${path}`, { redirect: "manual" }),
+    );
+
+    // find the publisher's residency home, whose forge serves its packages
+    const publisher = present(organizations.get("example"), "the publisher");
+    const residency = await (await home.device.launcher(login)).residency(publisher);
+    const location = atUniverse.headers.get("location");
+
+    // redirect the one at the universe to the publisher's forge, and answer the other as the machine's
+    expect([
+        [atUniverse.status, location === null ? null : new URL(location).pathname],
+        [atMachine.status, atMachine.headers.get("location")],
+    ]).toEqual([
+        [307, `/spaces/${residency}/${registryPackage.id}${path}`],
+        [404, null],
     ]);
 });

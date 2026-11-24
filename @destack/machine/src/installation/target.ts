@@ -63,7 +63,17 @@ export interface RevisionOptions {
     /** The space whose builds are read, through to its machine's builds and registries. */
     readonly space: Pick<
         Space,
-        "builds" | "machine" | "root" | "pull" | "read" | "requireFollowable" | "requireRepository"
+        | "builds"
+        | "machine"
+        | "root"
+        | "pull"
+        | "read"
+        | "requireFollowable"
+        | "requireRepository"
+        | "exchange"
+        | "author"
+        | "runner"
+        | "requested"
     >;
     /** The space's blobs, storing the states its revisions require. */
     readonly blobs: BlobStore;
@@ -110,13 +120,13 @@ export const InstallationTarget = {
             return false;
         }
         const kind = InstallationTarget.kind(installed);
-        const { isBuilding } = options.space.machine;
+        const { isRunner } = options.space.machine;
         const released = current.source.kind === "release" ? current.source.version : undefined;
 
         // compare its release's or tag's version where the space has its registry's rows
         if (kind === "release" || kind === "tag") {
             const id = present(installed.versionId, "its version's row");
-            const version = !isBuilding
+            const version = !isRunner
                 ? undefined
                 : kind === "tag"
                   ? await followedVersion(reader, id)
@@ -435,7 +445,7 @@ export const InstallationTarget = {
         }
 
         // leave a host's release already on the machine
-        const { isBuilding } = options.space.machine;
+        const { isRunner } = options.space.machine;
         const hosted = kind === "host" ? InstallationTarget.host(packageId, options) : undefined;
         if (
             hosted !== undefined &&
@@ -450,7 +460,7 @@ export const InstallationTarget = {
                 ? undefined
                 : await InstallationRevision.build(reader, row.targetRevisionId);
         const tagged =
-            kind === "tag" && isBuilding
+            kind === "tag" && isRunner
                 ? await followedVersion(reader, present(installed.versionId, "its version's tag"))
                 : undefined;
         if (
@@ -765,7 +775,7 @@ async function selectBuild(
     }
     // take the succeeded build of the commit its reference points at
     else if (kind === "reference") {
-        const followed = options.space.machine.isBuilding
+        const followed = options.space.machine.isRunner
             ? await followedReference(
                   snapshot,
                   present(installed.versionId, "its version's reference"),
@@ -829,7 +839,7 @@ async function selectedRelease(
     const { machine } = options.space;
     const followed = ObjectReference.at("version", installed);
     const kind = InstallationTarget.kind(installed);
-    if (kind === "tag" && machine.isBuilding) {
+    if (kind === "tag" && machine.isRunner) {
         const version = await followedVersion(snapshot, followed.id);
 
         return version === undefined

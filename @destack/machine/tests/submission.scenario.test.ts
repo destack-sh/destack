@@ -298,7 +298,7 @@ test("install an application from a checkout by submitting its build, following 
 });
 
 test("refuse submitting a build that has not succeeded or that the space does not have", async () => {
-    // record a pending build of the checkout
+    // record a running build of the checkout
     const fixture = await TestSpace.open();
     const { database } = fixture;
     await fixture.serve();
@@ -312,22 +312,24 @@ test("refuse submitting a build that has not succeeded or that the space does no
         name: "notes",
     });
     const now = fixture.machine.clock.now();
-    const pending = schema.identifier("build").parse("build-01996ab0-0000-7000-8000-0000000000b1");
+    const running = schema.identifier("build").parse("build-01996ab0-0000-7000-8000-0000000000b1");
     const missing = schema.identifier("build").parse("build-01996ab0-0000-7000-8000-0000000000b2");
     await database.transaction(
         async (transaction) =>
             await transaction.insert(build.table).values({
-                id: pending,
+                id: running,
                 scope: ids.space,
                 source: { ...source },
                 outputs: ["bun"],
+                state: "running",
+                startedAt: now,
                 createdAt: now,
                 updatedAt: now,
             }),
     );
 
-    // refuse the pending build and a build of no row
-    const submit = (id: typeof pending) =>
+    // refuse the running build and a build of no row
+    const submit = (id: typeof running) =>
         owner.installation
             .reconcile({
                 scope: ids.space,
@@ -336,12 +338,12 @@ test("refuse submitting a build that has not succeeded or that the space does no
                 build: id,
             })
             .catch((error: unknown) => error);
-    expect([await submit(pending), await submit(missing)]).toEqual([
+    expect([await submit(running), await submit(missing)]).toEqual([
         new CallError("SERVICE_UNAVAILABLE", {
             reason: "BUILD_UNAVAILABLE",
             domain: "@destack/stack",
             defined: true,
-            message: `build '${pending}' is unavailable: it is 'pending'`,
+            message: `build '${running}' is unavailable: it is 'running'`,
         }),
         new CallError("NOT_FOUND", {
             reason: "BUILD_NOT_FOUND",

@@ -1,3 +1,5 @@
+import { testHost } from "@destack/test/host";
+import { NpmMirror } from "./npm.ts";
 import { installation, Installation } from "@destack/stack/object";
 import {
     type InstanceOf,
@@ -268,9 +270,9 @@ export class TestComputer implements AsyncDisposable {
         } = {},
         defer: Defer = onTestFinished,
     ): Promise<TestWorld> {
-        // fork the template's world with its universe and owner
+        // fork the template's world with its universe and owner, bridging host processes into it
         const image = await TestRun.image(TestComputer.#universe());
-        const { simulation, databases, value } = await image.fork("copy");
+        const { simulation, databases, value } = await image.fork("copy", { isBridged: true });
         defer(() => databases.universe.close());
         const distribution = await TestDistribution.build(
             simulation.environment(FILES_NODE),
@@ -299,6 +301,13 @@ export class TestComputer implements AsyncDisposable {
         defer(() => distribution[Symbol.asyncDispose]());
         const telemetry = TestTelemetry.of(simulation.telemetry);
         defer(() => telemetry[Symbol.dispose]());
+
+        // answer as the public npm registry from the host's Bun cache, which host processes install from
+        const host = testHost();
+        const mirror = new NpmMirror(NpmMirror.cache(host.process.variables), host).serve(
+            simulation,
+        );
+        defer(() => mirror[Symbol.dispose]());
 
         // start the universe on the simulation, answering at its origin on the network
         const universe = await TestUniverse.open({
@@ -477,6 +486,20 @@ export class TestComputer implements AsyncDisposable {
                 websocket: serving.websocket,
             });
             stack.defer(() => published.stop(true));
+
+            // stand in front of the universe's origin as the platform's machine does, refusing upgrades
+            stack.use(
+                universe.serve(async (request) => {
+                    const answer = await route(request);
+                    if (!(answer instanceof Response)) {
+                        throw new TypeError(
+                            `the universe's origin cannot upgrade '${request.url}'`,
+                        );
+                    }
+
+                    return answer;
+                }),
+            );
         }
 
         // start the computer, which captures the failures no caller sees in the world's telemetry
@@ -559,11 +582,11 @@ export class TestComputer implements AsyncDisposable {
         readonly login: Identifier<"login">;
         readonly organizations: ReadonlyMap<string, Identifier<"account">>;
     }> {
-        // fork the template of the owner's organizations with its universe
+        // fork the template of the owner's organizations with its universe, bridging host processes into it
         const { organizations = [], installs = [], published = [], ...started } = options;
         const template = TestComputer.homeTemplate(organizations, installs, published);
         const image = await TestRun.image(template);
-        const { simulation, databases, value } = await image.fork("copy");
+        const { simulation, databases, value } = await image.fork("copy", { isBridged: true });
         defer(() => databases.universe.close());
         const distribution = await TestDistribution.build(simulation.environment(FILES_NODE));
         const world = await TestComputer.#start(

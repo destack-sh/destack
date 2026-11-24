@@ -19,8 +19,9 @@ import { Git } from "./git.ts";
 import { type CompilerPool } from "@destack/build";
 import { Template } from "@destack/build/template";
 import { ObjectReference, RequestId } from "@destack/sync";
-import { build, Build } from "@destack/stack/object";
-import type { CheckoutSource } from "../../../installation/build.ts";
+import { build, Build, type CheckoutSource } from "@destack/stack/object";
+import type { NativeClient } from "@destack/account/native";
+import type { Device } from "../../device/device.ts";
 import type { StackClient } from "@destack/stack/client";
 import stackPackage from "@destack/stack/package";
 import type { ClientOf } from "@destack/object/client";
@@ -52,11 +53,16 @@ export class CheckoutServer {
     readonly compilers: CompilerPool;
     /** The host the working trees live on: its files, Git and platform. */
     readonly host: CommandHost;
+    /** The machine's device, opening a space's objects live as a person signed in on it. */
+    readonly device: Pick<Device<NativeClient>, "open" | "launcher">;
 
     /** Serve the development workflow of a machine. */
-    constructor(fields: Pick<CheckoutServer, "machine" | "connect" | "compilers" | "host">) {
-        // set the machine, its stack connection, its compilers and its host
+    constructor(
+        fields: Pick<CheckoutServer, "machine" | "connect" | "compilers" | "host" | "device">,
+    ) {
+        // set the machine, its stack connection, its compilers, its host and its device
         this.machine = fields.machine;
+        this.device = fields.device;
         this.connect = fields.connect;
         this.compilers = fields.compilers;
         this.host = fields.host;
@@ -201,44 +207,36 @@ export class CheckoutServer {
     /** Build a checkout's package directory in a space as a person, and wait until it succeeds. */
     async build(
         client: StackClient,
+        login: Identifier<"login">,
         spaceId: Identifier<"space">,
         source: CheckoutSource,
     ): Promise<{ readonly id: Identifier<"build">; readonly image: Digest }> {
-        // note the machine's log position before the build, whose replica it follows as its runner
-        const { database } = this.machine;
-        const { sequence } = await database.log.position();
-
-        // create the build for the machine to run
+        // create the build, whose compile the space places on this machine
         const created = await client.build.create({
             spaceId,
             requestId: RequestId.create(this.machine.environment),
             source,
         });
 
-        // read the build again at each of its changes until it finished
-        let current = created;
-        const changes = database.log.follow(
-            { tables: [build.table], after: sequence },
-            this.machine.clock.timeout(BUILD_WAIT_MILLISECONDS),
+        // watch it live as the person until it finished
+        await using opened = new AsyncDisposableStack();
+        const launcher = await this.device.launcher(login);
+        const builds = await this.device.open(launcher, { space: spaceId }, { build }, opened);
+        const rows = builds.query.build
+            .findFirst({ where: { id: created.id } })
+            .watch(this.machine.clock.timeout(BUILD_WAIT_MILLISECONDS));
+        for await (const row of rows) {
+            const current = row === undefined ? undefined : Build.of(row);
+            if (current !== undefined && Build.isFinished(current)) {
+                return { id: created.id, image: Build.image(current) };
+            }
+        }
+
+        // refuse a build still running after the wait
+        throw MachineError.of(
+            "BUILD_UNREACHABLE",
+            `could not finish build '${created.id}' within ${BUILD_WAIT_MILLISECONDS} ms`,
         );
-        for await (const page of changes) {
-            if (page.changes.some((change) => change.key.id === created.id)) {
-                current = await client.build.get({ spaceId, id: created.id });
-            }
-            if (Build.isFinished(current)) {
-                break;
-            }
-        }
-
-        // refuse a build still running after the wait or one that did not succeed
-        if (!Build.isFinished(current)) {
-            throw MachineError.of(
-                "BUILD_UNREACHABLE",
-                `could not finish build '${created.id}' within ${BUILD_WAIT_MILLISECONDS} ms`,
-            );
-        }
-
-        return { id: created.id, image: Build.image(current) };
     }
 
     /** Write a package made from a template's published release into a new directory. */
@@ -365,7 +363,7 @@ export class CheckoutServer {
 
         // build every output the package implies, then read the build
         const client = await this.connect(stackPackage, login, spaceId);
-        const built = await this.build(client, spaceId, selection);
+        const built = await this.build(client, login, spaceId, selection);
         const { builds } = this.machine;
         const reader = await builds.root(built.image);
 

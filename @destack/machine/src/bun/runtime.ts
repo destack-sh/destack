@@ -226,18 +226,18 @@ export class BunRuntime implements Runtime {
         });
     }
 
-    /** List the modules an image's closure may load: its imports and each build's Bun exports. */
+    /** List the modules the builds Bun loads of an image may load: imports and Bun exports. */
     async #imports(image: BuildImage): Promise<string[]> {
-        // read each build of the closure once, as placing it did
-        const closure = await this.#packages.closure(
+        // read each build Bun loads once, as placing it did
+        const loaded = await BuildImage.loads(
             image,
             BUN_RUNTIME,
             (needed) => this.#packages.get(needed),
             "export",
         );
         const manifests = await Promise.all(
-            [...closure].map(async (each) =>
-                present(await this.#packages.get(each), `build ${each} of the closure`),
+            [...loaded].map(async (each) =>
+                present(await this.#packages.get(each), `build ${each} Bun loads`),
             ),
         );
 

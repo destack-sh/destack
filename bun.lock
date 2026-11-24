@@ -673,6 +673,8 @@
         "@destack/update": "workspace:*",
         "@destack/view": "workspace:*",
         "@destack/workflow": "workspace:*",
+        "magic-string": "1.4.1",
+        "oxfmt": "0.68.0",
       },
       "devDependencies": {
         "@cloudflare/workers-types": "5.20260917.1",
@@ -1191,6 +1193,7 @@
         "@destack/setting": "workspace:*",
         "@destack/sync": "workspace:*",
         "@destack/view": "workspace:*",
+        "@destack/workflow": "workspace:*",
       },
       "devDependencies": {
         "@destack/check": "workspace:*",
@@ -1200,8 +1203,11 @@
         "@destack/sandbox": "workspace:*",
         "@destack/test": "workspace:*",
         "@destack/universe": "workspace:*",
+        "@oxc-project/types": "0.156.0",
         "@types/bun": "1.4.4",
+        "magic-string": "1.4.1",
         "miniflare": "4.20260730.0",
+        "oxfmt": "0.68.0",
         "rolldown": "1.2.19",
       },
       "peerDependencies": {
@@ -1211,6 +1217,9 @@
         "@destack/sandbox": "workspace:*",
         "@destack/test": "workspace:*",
         "@destack/universe": "workspace:*",
+        "magic-string": "1.4.1",
+        "oxfmt": "0.68.0",
+        "rolldown": "1.2.19",
       },
       "optionalPeers": [
         "@destack/environment",
@@ -1219,6 +1228,9 @@
         "@destack/sandbox",
         "@destack/test",
         "@destack/universe",
+        "magic-string",
+        "oxfmt",
+        "rolldown",
       ],
     },
     "@destack/style": {

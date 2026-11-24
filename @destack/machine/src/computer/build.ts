@@ -1,38 +1,41 @@
 import { type LocalGitEnvironment, GitLease } from "@destack/git/local";
 import { join } from "node:path";
-import type { ClientOf } from "@destack/object/client";
 import { type CompilerPool, outputsOf, Workspace, type WorkspacePackage } from "@destack/build";
 import type { PackageVersion } from "@destack/package";
 import type { BuildReader, BuildImage } from "@destack/package/manifest";
-import { eq, type Select } from "@destack/db";
-import { type Controller, Reconciliation } from "@destack/db/database";
-import { Digest, type Identifier, schema, Uuid, type Version } from "@destack/schema";
-import { CallError } from "@destack/object";
-import { RequestId } from "@destack/sync";
+import { Commit, Digest, type Identifier, schema, Uuid, type Version } from "@destack/schema";
 import stackPackage, { PUSH_PATH } from "@destack/stack/package";
 import { RemoteBuildStore } from "@destack/build/store";
-import { ACTIVE_BUILD_STATES, build } from "@destack/stack/object";
-import type { CheckoutSource, CommitSource } from "../installation/build.ts";
-import { Failure } from "@destack/error";
+import { build, type CheckoutSource, type CompileOutput } from "@destack/stack/object";
+import { MethodContext } from "@destack/object";
+import { ObjectReference } from "@destack/sync";
+import type { Select } from "@destack/db";
+import type { CommitSource } from "../installation/build.ts";
+import type { RunnerContext } from "./runner.ts";
+import { principal } from "@destack/access";
 import { WorkingTree } from "./checkout/index.ts";
 import { CheckoutServer, Git } from "./checkout/server/index.ts";
 import type { Machine } from "../machine/index.ts";
+import type { Device } from "./device/device.ts";
+import type { NativeClient } from "@destack/account/native";
 import type {} from "@destack/package/import-meta";
 import { MachineError } from "../error/index.ts";
 
-/** The builds this machine runs at once, two beside a laptop's other work. */
-const RUN_CONCURRENCY = 2;
+/** A build's row as the run's actor reads it. */
+type BuildRow = Select<typeof build.table>;
 
 /** A build's package directory on this machine with the commit its files match. */
 type SourceDirectory = {
     readonly directory: string;
-    readonly commit?: string;
+    readonly commit?: Commit;
 } & AsyncDisposable;
 
-/** Compile the builds assigned to this machine and push each to its space. */
-export class BuildRunner {
-    /** The machine whose replicas list the builds, and whose compilers build them. */
+/** The machine's builder: it compiles builds placed on it and pushes each to its space. */
+export class Builder {
+    /** The machine whose compilers build, and whose store keeps the builds. */
     readonly #machine: Machine;
+    /** The computer's device, whose signed-in people alone build its checkouts. */
+    readonly #device: Pick<Device<NativeClient>, "isSignedIn">;
     /** The warm compilers compiling the builds into the machine's local store. */
     readonly #compilers: CompilerPool;
     /** The linked builtins' images, pulled once with all their files. */
@@ -42,146 +45,79 @@ export class BuildRunner {
     /** The host the working trees are checked out on, by git. */
     readonly #environment: LocalGitEnvironment;
 
-    /** Run the builds a machine replicates on a host, compiling them with warm compilers. */
+    /** Build on a machine and its device's people, compiling with warm compilers on a host. */
     constructor(
         machine: Machine,
+        device: Pick<Device<NativeClient>, "isSignedIn">,
         compilers: CompilerPool,
         commits: string,
         environment: LocalGitEnvironment,
     ) {
-        // set the machine, its compilers, the commits' directory and the host
+        // set the machine, its device, its compilers, the commits' directory and the host
         this.#machine = machine;
+        this.#device = device;
         this.#compilers = compilers;
         this.#commits = commits;
         this.#environment = environment;
     }
 
-    /** Build the controller running the unfinished replicated builds, two at once. */
-    controller(): Controller<typeof build.table> {
-        return {
-            name: "destack.build.run",
-            table: build.table,
-            when: { state: { in: [...ACTIVE_BUILD_STATES] } },
-            concurrency: RUN_CONCURRENCY,
-            reconcile: (rows, reconciliation) => this.reconcile(rows, reconciliation),
-        };
-    }
+    /** Compile a build placed on this machine and push it to its space, answering its image. */
+    async build(
+        id: Identifier<"build">,
+        context: Pick<RunnerContext, "scope" | "call" | "signal">,
+    ): Promise<CompileOutput> {
+        // read the build as the run's actor
+        const { scope, signal } = context;
+        const read = build.call("get", build.target({ scope, id }));
+        const [input] = MethodContext.results([build], [read], [await context.call(read)]);
 
-    /** Run an unfinished build once, aborting once its replica shows it ended elsewhere. */
-    async reconcile(
-        rows: readonly Select<typeof build.table>[],
-        reconciliation: Reconciliation,
-    ): Promise<void> {
-        // leave a finished build
-        const [row] = rows;
-        const replicated = row === undefined ? undefined : await this.#replicated(row.id);
-        if (
-            replicated === undefined ||
-            !ACTIVE_BUILD_STATES.some((state) => state === replicated.state)
-        ) {
-            return;
-        }
-        const spaceId = schema.identifier("space").parse(replicated.scope);
-        const space = await this.#machine.connect(stackPackage, spaceId);
-        const target = { spaceId, id: replicated.id };
-
-        // start a pending build at its space
-        if (replicated.state === "pending") {
-            await space.build.start({
-                ...target,
-                requestId: RequestId.create(this.#machine.environment),
-            });
-        }
-
-        // run it until its replica shows it ended elsewhere
-        await Reconciliation.runUntil(
-            reconciliation,
-            async () => {
-                const current = await this.#replicated(replicated.id);
-
-                return current === undefined || current.state === "running"
-                    ? undefined
-                    : MachineError.of(
-                          "BUILD_BLOCKED",
-                          `cannot end build '${replicated.id}': it already ended`,
-                      );
-            },
-            async (signal) => {
-                try {
-                    await this.#run(space, target, replicated, signal);
-                } catch (error) {
-                    // leave a build its space refuses for now to the loop's retry
-                    if (CallError.of(error)?.status === 503) {
-                        throw error;
-                    }
-                    // finish a build still running here with its failure
-                    else if (!signal.aborted) {
-                        await space.build.finish({
-                            ...target,
-                            requestId: RequestId.create(this.#machine.environment),
-                            outcome: { kind: "failed", failure: Failure.of(error) },
-                        });
-                    }
-                }
-            },
-        );
-    }
-
-    /** Open a build's source, compile it, push it to its space and finish it with its manifest. */
-    async #run(
-        space: ClientOf<typeof stackPackage>,
-        target: { readonly spaceId: Identifier<"space">; readonly id: Identifier<"build"> },
-        replicated: Select<typeof build.table>,
-        signal: AbortSignal,
-    ): Promise<void> {
         // open the source and its workspace, compiling only its publisher's members as a published build does
-        await using opened = await this.#open(target.spaceId, replicated, signal);
-        const workspacePackage = await (
-            await Workspace.open(opened.directory, this.#compilers, {
-                resolver: (dependency) => this.#release(dependency),
-                selection: "account",
-                host: await this.#builtins(),
-            })
-        ).package();
+        await using opened = await this.#open(input, signal);
+        const workspacePackage = await this.#package(opened.directory);
         const implied = outputsOf(workspacePackage.root.packageJson);
-        const outputs = replicated.outputs ?? Object.keys(implied);
-        await space.build.progress({
-            ...target,
-            requestId: RequestId.create(this.#machine.environment),
-            progress: {
-                phase: "building",
-                outputs: [...outputs],
-                ...(opened.commit === undefined ? {} : { commit: opened.commit }),
-            },
-        });
+        const outputs = input.outputs ?? Object.keys(implied);
 
         // compile the outputs with a warm compiler
         const compiled = await this.#compile(
             workspacePackage,
             opened,
-            { outputs, version: replicated.version },
+            { outputs, version: input.version },
             signal,
         );
         const root = await compiled.digest();
 
-        // report storing, then push the build and the graphs the image attaches
-        await space.build.progress({
-            ...target,
-            requestId: RequestId.create(this.#machine.environment),
-            progress: { phase: "storing" },
-        });
-        const endpoint = await this.#machine.options(stackPackage, target.spaceId);
-        const pushing = new RemoteBuildStore(
-            `${endpoint.url}${PUSH_PATH}/${target.spaceId}/${target.id}/`,
-            endpoint.fetch,
-        );
+        // push the build and the graphs the image attaches to the space
+        const endpoint = await this.#machine.options(stackPackage, input.scope);
+        const pushing = new RemoteBuildStore(`${endpoint.url}${PUSH_PATH}/`, endpoint.fetch);
         const image = await workspacePackage.image(root);
         await pushing.push(this.#compilers.store, [image], signal);
-        await space.build.finish({
-            ...target,
-            requestId: RequestId.create(this.#machine.environment),
-            outcome: { kind: "stored", image },
+
+        return {
+            image,
+            outputs: [...outputs],
+            ...(opened.commit === undefined ? {} : { commit: opened.commit }),
+        };
+    }
+
+    /** Compile every output of a package directory as unreleased code, as an edit checks it. */
+    async compile(directory: string, signal: AbortSignal): Promise<void> {
+        const workspacePackage = await this.#package(directory);
+        await workspacePackage.build({
+            outputs: outputsOf(workspacePackage.root.packageJson),
+            isUnreleased: true,
+            signal,
         });
+    }
+
+    /** Open a package directory's workspace, compiling only its publisher's members. */
+    async #package(directory: string): Promise<WorkspacePackage> {
+        const workspace = await Workspace.open(directory, this.#compilers, {
+            resolver: (dependency) => this.#release(dependency),
+            selection: "account",
+            host: await this.#builtins(),
+        });
+
+        return workspace.package();
     }
 
     /** Pull the linked builtins' images once with all their files, which a compile reads. */
@@ -217,27 +153,40 @@ export class BuildRunner {
         return digest;
     }
 
-    /** Open a build's source on this machine. */
-    async #open(
-        spaceId: Identifier<"space">,
-        replicated: Select<typeof build.table>,
-        signal: AbortSignal,
-    ): Promise<SourceDirectory> {
-        const { source } = replicated;
+    /** Open a build's source here: a checkout for its creator alone, else a fetched commit. */
+    async #open(input: BuildRow, signal: AbortSignal): Promise<SourceDirectory> {
+        const { source } = input;
 
-        // read a checkout in place
+        // read a checkout in place, for this computer's own person alone
         if (source.kind === "checkout") {
+            await this.#requireSignedIn(input);
+
             return this.#checkout(source);
         }
         // fetch a commit from its repository
         else if (source.kind === "commit") {
-            return this.#fetch(source, spaceId, signal);
+            return this.#fetch(source, input.scope, signal);
         }
         // refuse a release, which is born built and leases no runner
         else {
             throw MachineError.of(
                 "RELEASE_INVALID",
-                `build '${replicated.id}' is invalid: it is a release and compiles nothing`,
+                `build '${input.id}' is invalid: it is a release and compiles nothing`,
+            );
+        }
+    }
+
+    /** Refuse a build of a checkout whose creator is not signed in on this computer. */
+    async #requireSignedIn(input: BuildRow): Promise<void> {
+        // take a build its creator made while signed in on this computer
+        const creator = ObjectReference.at("createdBy", input);
+        const isSignedIn =
+            principal.user.is(creator) &&
+            (await this.#device.isSignedIn(schema.identifier("user").parse(creator.id)));
+        if (!isSignedIn) {
+            throw MachineError.of(
+                "BUILD_DENIED",
+                `build '${input.id}' of a checkout is forbidden: its creator is not signed in on this computer`,
             );
         }
     }
@@ -249,12 +198,12 @@ export class BuildRunner {
 
         return {
             directory: located.path,
-            ...(commit === undefined ? {} : { commit }),
+            ...(commit === undefined ? {} : { commit: Commit.parse(commit) }),
             [Symbol.asyncDispose]: async () => {},
         };
     }
 
-    /** Fetch a repository commit into a new working tree, through the space's read lease. */
+    /** Fetch a repository commit into a new working tree with its locked dependencies installed. */
     async #fetch(
         source: CommitSource,
         spaceId: Identifier<"space">,
@@ -271,6 +220,7 @@ export class BuildRunner {
         };
         try {
             await GitLease.checkout(lease, source.commit, root, environment, signal);
+            await Workspace.install(root, environment, { isFrozen: true, signal });
         } catch (error) {
             await remove();
             throw error;
@@ -300,15 +250,5 @@ export class BuildRunner {
         };
 
         return workspacePackage.build(request);
-    }
-
-    /** Read a build's replica. */
-    async #replicated(id: Identifier<"build">): Promise<Select<typeof build.table> | undefined> {
-        const [row] = await this.#machine.database
-            .select()
-            .from(build.table)
-            .where(eq(build.table.id, id));
-
-        return row;
     }
 }

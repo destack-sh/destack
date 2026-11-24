@@ -5,10 +5,11 @@ import { principal } from "@destack/access";
 import { ObjectReference, Scope, RequestId } from "@destack/sync";
 import { BuildReader, BuildImage, PackageManifest } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
-import { Digest, present } from "@destack/schema";
+import { Commit, Digest, present } from "@destack/schema";
 import { expect, refusal, test } from "@destack/test";
 import { BuildSource } from "@destack/stack/object";
 import stackPackage from "@destack/stack/package";
+import { StackError } from "@destack/stack/error";
 import { ids, TestSpace } from "../src/test/index.ts";
 import { graph } from "@destack/package";
 
@@ -16,7 +17,7 @@ import { graph } from "@destack/package";
 const OUTPUTS = ["bun"];
 
 /** The commit a clean checkout is at. */
-const COMMIT = "c".repeat(40);
+const COMMIT = Commit.parse("c".repeat(40));
 
 /** The package the builds compile. */
 const PACKAGE = { id: ids.package, name: "@example/library", version: "2026.9.0" };
@@ -62,24 +63,14 @@ async function implementBuild() {
     };
 }
 
-test("run a checkout's build as its machine and read its image back from the build store", async () => {
-    // create the build, naming the checkout's machine its runner
-    const { fixture, runner, machine, create } = await implementBuild();
+test("compile a checkout's build on its machine and read its image back from the build store", async () => {
+    // create the build, placing its compile on the checkout's machine
+    const { fixture, machine, create } = await implementBuild();
     const created = await create();
     const target = { spaceId: ids.space, id: created.id };
+    const step = await fixture.compileStep(created.id);
 
-    // advance it as the runner through compiling
-    await runner.build.start({
-        ...target,
-        requestId: RequestId.create(fixture.machine.environment),
-    });
-    await runner.build.progress({
-        ...target,
-        requestId: RequestId.create(fixture.machine.environment),
-        progress: { phase: "building", outputs: OUTPUTS, commit: COMMIT },
-    });
-
-    // push every file, the manifest, the image and the graph into the space's empty builds, then finish
+    // push every file, the manifest, the image and the graph into the space's empty builds, then complete
     const reader = await writeBuild();
     const root = await Digest.of(PackageManifest.serialize(reader.manifest), testHost().crypto);
     const expected = BuildImage.of(root);
@@ -92,8 +83,8 @@ test("run a checkout's build as its machine and read its image back from the bui
     const lacking = [
         ...new Set([...(await digests(reader)), root, imageDigest, ...graphs]),
     ].toSorted();
-    const uploaded = await fixture.storeBuild(machine, target, reader);
-    const finished = await runner.build.get(target);
+    const uploaded = await fixture.storeBuild(machine, target, reader, { commit: COMMIT });
+    const finished = await fixture.finished(created.id);
     const image = present(finished.image, "the stored image");
 
     // read the image and its root back from the build store
@@ -102,15 +93,17 @@ test("run a checkout's build as its machine and read its image back from the bui
     const readBack = await space.contents(stored.root);
 
     expect({
-        runner: ObjectReference.at("runner", created),
+        created: created.state,
+        runner: ObjectReference.at("runner", step),
         uploaded: [...uploaded].toSorted(),
-        finished: [finished.state, finished.commit, image],
+        finished: [finished.state, finished.outputs, finished.commit, image],
         stored,
         read: [readBack.manifest, await readBack.files()],
     }).toEqual({
+        created: "running",
         runner: principal.machine.reference(Scope.universe.id, fixture.machine.id),
         uploaded: lacking,
-        finished: ["succeeded", COMMIT, imageDigest],
+        finished: ["succeeded", OUTPUTS, COMMIT, imageDigest],
         stored: expected,
         read: [reader.manifest, await reader.files()],
     });
@@ -129,18 +122,9 @@ test("push a succeeded build to the registry as its space's owner, refusing its 
         }),
     );
 
-    // run it to its stored image
-    await runner.build.start({
-        ...target,
-        requestId: RequestId.create(fixture.machine.environment),
-    });
-    await runner.build.progress({
-        ...target,
-        requestId: RequestId.create(fixture.machine.environment),
-        progress: { phase: "building", outputs: OUTPUTS, commit: COMMIT },
-    });
+    // compile it to its stored image
     await fixture.storeBuild(machine, target, await writeBuild());
-    const image = present((await runner.build.get(target)).image, "the stored image");
+    const image = present((await fixture.finished(created.id)).image, "the stored image");
 
     // push it as the runner and as the owner
     const asRunner = await refusal(
@@ -165,7 +149,7 @@ test("push a succeeded build to the registry as its space's owner, refusing its 
         unfinished: [
             "SERVICE_UNAVAILABLE",
             "BUILD_UNAVAILABLE",
-            `build '${created.id}' is unavailable: it is 'pending'`,
+            `build '${created.id}' is unavailable: it is 'running'`,
         ],
         asRunner: [
             "FORBIDDEN",
@@ -177,55 +161,46 @@ test("push a succeeded build to the registry as its space's owner, refusing its 
     });
 });
 
-test("refuse advancing a build to anyone but its runner, and a build not running", async () => {
-    // create a build and try advancing it as its creator and before it starts
-    const { fixture, owner, runner, create } = await implementBuild();
+test("refuse ending a build's compile to anyone but its runner, and a compile without its pushed image", async () => {
+    // end the compile as the build's owner, then complete it as the runner with an image never pushed
+    const { fixture, machine, create } = await implementBuild();
     const created = await create();
-    const target = {
-        spaceId: ids.space,
-        id: created.id,
-        requestId: RequestId.create(fixture.machine.environment),
-    };
-    const asOwner = await refusal(owner.build.start(target));
-    const unstarted = await refusal(
-        runner.build.finish({
-            ...target,
-            outcome: { kind: "failed", failure: Failure.http("INTERNAL_SERVER_ERROR", "x") },
-        }),
+    const failure = Failure.http("INTERNAL_SERVER_ERROR", "x");
+    const asOwner = await refusal(
+        fixture.endCompile(fixture.as(fixture.owner.id), created.id, { method: "fail", failure }),
     );
+    const unpushed = await fixture.endCompile(machine, created.id, {
+        method: "complete",
+        output: { image: "a".repeat(64), outputs: OUTPUTS },
+    });
 
-    expect({ asOwner, unstarted }).toEqual({
+    expect({ asOwner, unpushed: [unpushed.state, unpushed.failure] }).toEqual({
         asOwner: [
             "FORBIDDEN",
             "PERMISSION_DENIED",
-            "permission 'run' is forbidden: it is not granted",
+            "permission 'end' is forbidden: it is not granted",
         ],
-        unstarted: [
-            "PRECONDITION_FAILED",
-            "BUILD_BLOCKED",
-            `cannot update build '${created.id}': it is 'pending', not running`,
+        unpushed: [
+            "failed",
+            Failure.of(
+                StackError.of(
+                    "BUILD_NOT_FOUND",
+                    `image '${"a".repeat(64)}' not found: it was not pushed to the space`,
+                ),
+            ),
         ],
     });
 });
 
-test("fail a running build with the failure its runner reports, and refuse cancelling it once finished", async () => {
-    // start and fail the build as its runner
-    const { fixture, owner, runner, create } = await implementBuild();
+test("fail a build with the failure its runner reports, and refuse cancelling it once finished", async () => {
+    // fail the build's compile as its runner
+    const { fixture, owner, machine, create } = await implementBuild();
     const created = await create();
     const target = { spaceId: ids.space, id: created.id };
-    await runner.build.start({
-        ...target,
-        requestId: RequestId.create(fixture.machine.environment),
-    });
     const failure = Failure.http("UNPROCESSABLE_CONTENT", "the inspection failed");
-    await runner.build.finish({
-        ...target,
-        requestId: RequestId.create(fixture.machine.environment),
-        outcome: { kind: "failed", failure },
-    });
+    const failed = await fixture.endCompile(machine, created.id, { method: "fail", failure });
 
-    // read the failure and refuse cancelling the finished build
-    const failed = await owner.build.get(target);
+    // refuse cancelling the finished build
     expect([
         [failed.state, failed.failure],
         await refusal(
@@ -244,7 +219,7 @@ test("fail a running build with the failure its runner reports, and refuse cance
     ]);
 });
 
-test("run a commit's build on the space's build runner, and refuse one on a space no build runner serves", async () => {
+test("compile a commit's build on the space's runner, and refuse one on a space no runner serves", async () => {
     // serve the space on a machine running its commit builds, and on one running none
     const fixture = await TestSpace.open();
     const source = BuildSource.parse({
@@ -253,27 +228,23 @@ test("run a commit's build on the space's build runner, and refuse one on a spac
         commit: COMMIT,
         directory: ".",
     });
-    const create = async (buildRunner: typeof fixture.machine.id | null) => {
-        await fixture.restart({ isBuilding: buildRunner !== null });
+    const create = async (isRunner: boolean, commit: Commit) => {
+        await fixture.restart({ isRunner });
         const owner = fixture.as(fixture.owner.subject).client(stackPackage);
 
         return owner.build.create({
             spaceId: ids.space,
             requestId: RequestId.create(fixture.machine.environment),
-            source,
+            source: BuildSource.parse({ ...source, commit }),
             outputs: OUTPUTS,
         });
     };
 
-    // name the build runner, and refuse a commit's build without one
-    const created = await create(fixture.machine.id);
-    const runner = principal.machine.reference(Scope.universe.id, fixture.machine.id);
-    expect([ObjectReference.at("runner", created), await refusal(create(null))]).toEqual([
-        runner,
-        [
-            "PRECONDITION_FAILED",
-            "BUILD_RUNNER_BLOCKED",
-            "cannot build the commit: this space has no build runner",
-        ],
+    // place the compile on the serving machine, and refuse a commit's build without one
+    const placed = await fixture.compileStep((await create(true, COMMIT)).id);
+    const unplaced = await refusal(create(false, Commit.parse("d".repeat(40))));
+    expect([ObjectReference.at("runner", placed), unplaced]).toEqual([
+        principal.machine.reference(Scope.universe.id, fixture.machine.id),
+        ["PRECONDITION_FAILED", "RUNNER_BLOCKED", "cannot run the work: this space has no runner"],
     ]);
 });

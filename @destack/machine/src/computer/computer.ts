@@ -16,7 +16,6 @@ import objectPackage from "@destack/object/package";
 import { checkout, preview } from "./checkout/index.ts";
 import { defineDatabase, TABLE } from "@destack/db";
 import { BUILD_STORE_TABLES } from "@destack/build/store";
-import { build } from "@destack/stack/object";
 import { join } from "node:path";
 import { Distribution, DISTRIBUTION_DIRECTORY } from "@destack/update";
 import { Toolchain } from "@destack/check/toolchain";
@@ -77,11 +76,15 @@ import { ComputerServer } from "./server/index.ts";
 import { LocalSpaceStorage } from "./storage.ts";
 import { computer, type MachineEnrollment, signIn, visit } from "./device/object/index.ts";
 import { MachineProcess, LOCK_FILE, UniverseHome } from "./process/index.ts";
-import { BuildRunner } from "./build.ts";
+import { Builder } from "./build.ts";
+import { Edit } from "./edit.ts";
+import { Runner } from "./runner.ts";
+import { EDIT_PUSH } from "../installation/edit.ts";
+import { BUILD_COMPILE } from "../installation/compile.ts";
 import { computerServer, machineWorkload, deviceWorkload } from "./server/workload.ts";
 import { Environment, HostAddress } from "@destack/environment";
 import { LineExporter } from "@destack/environment/line";
-import { DEPLOYING_WAIT_MILLISECONDS, PartitionRequest } from "../space/index.ts";
+import { DEPLOYING_WAIT_MILLISECONDS, PartitionRequest, Space } from "../space/index.ts";
 
 /** The origin the machine's own exports are addressed below until its owner's home is located. */
 const OWN_TELEMETRY_ORIGIN = "http://machine.local";
@@ -188,8 +191,13 @@ export class Computer implements AsyncDisposable {
             // index the machine's build store beside its objects
             tables: BUILD_STORE_TABLES,
         }),
-        // replicate the universe's directory and this machine's own work
-        replicated: [build.table, ...Machine.replicated],
+        // replicate the universe's directory and the steps placed on this machine
+        replicated: [
+            ...Space.functions.flatMap(({ workflow }) =>
+                workflow.placed.objects.map((object) => object.table),
+            ),
+            ...Machine.replicated,
+        ],
     });
 
     /** The machine serving its spaces while enrolled. */
@@ -383,7 +391,7 @@ export class Computer implements AsyncDisposable {
                     volumes: spaces,
                     builds,
                     targets: COMPUTER_RUNTIMES,
-                    isBuilding: true,
+                    isRunner: true,
                     isEnforcingEntitlements: false,
                     // serve accounts' hostnames on a cloud machine, which their DNS points at
                     isServingHostnames: options.enrollment?.kind === "cloud",
@@ -446,17 +454,46 @@ export class Computer implements AsyncDisposable {
                     authorizeSpace: (served) => authenticator.authorizeSpace(served),
                 });
 
-                // serve this machine's objects and origins through the gateway
-                const runner = new BuildRunner(
+                // build on this machine for its device's people
+                const builder = new Builder(
                     machine,
+                    state.device,
                     compilers,
                     join(options.directory, "commits"),
                     options.environment,
                 );
-                await options.environment.files.remove(join(options.directory, "commits"), {
-                    recursive: true,
-                    force: true,
-                });
+
+                // run the steps placed on this machine by their functions
+                const runner = new Runner(
+                    machine,
+                    {
+                        [EDIT_PUSH.name]: {
+                            workflow: EDIT_PUSH.workflow,
+                            run: (input, context) =>
+                                new Edit(EDIT_PUSH.workflow.input.parse(input), context).push(),
+                        },
+                        [BUILD_COMPILE.name]: {
+                            workflow: BUILD_COMPILE.workflow,
+                            run: (input, context) =>
+                                builder.build(
+                                    BUILD_COMPILE.workflow.input.parse(input).build,
+                                    context,
+                                ),
+                        },
+                    },
+                    { builder, environment: options.environment },
+                    join(options.directory, "runs"),
+                );
+
+                // clear the working directories an earlier process left
+                for (const directory of ["commits", "runs"]) {
+                    await options.environment.files.remove(join(options.directory, directory), {
+                        recursive: true,
+                        force: true,
+                    });
+                }
+
+                // serve this machine's objects and origins through the gateway
                 const routed = await Computer.#startServers(stack, options, partitions, {
                     ...state,
                     machine,
@@ -785,7 +822,7 @@ export class Computer implements AsyncDisposable {
         options: ComputerOptions,
         partitions: Map<string, ComputerPartition>,
         opened: Pick<Computer, "machine" | "device" | "authenticator" | "events" | "compilers"> & {
-            readonly runner: BuildRunner;
+            readonly runner: Runner;
             readonly packages: LocalBuildStore;
         },
     ): Promise<
@@ -886,7 +923,7 @@ export class Computer implements AsyncDisposable {
     static #server(
         options: ComputerOptions,
         opened: Pick<Computer, "machine" | "device" | "events" | "compilers"> & {
-            readonly runner: BuildRunner;
+            readonly runner: Runner;
         },
         deviceEvents: EventStore,
         receive: ComputerServer["receive"],

@@ -1,16 +1,17 @@
 import type { RevisionOptions } from "./target.ts";
-import { type Caller, principal } from "@destack/access";
+import { Caller, principal } from "@destack/access";
 import { LATEST_TAG } from "@destack/registry/object";
-import { and, eq } from "@destack/db";
 import { setting, SettingValue } from "@destack/setting/object";
 import { buildRetention } from "@destack/stack/setting";
 import { BuildStore } from "@destack/build/store";
 import {
     type MethodContextOf,
     type NextOf,
+    Limits,
     ObjectDescription,
     type ResultOf,
 } from "@destack/object";
+import { ObjectError } from "@destack/object/error";
 import { account, Space } from "@destack/account/object";
 import { SpaceAddress } from "@destack/account/address";
 import type { GrantRequest } from "@destack/account/authentication";
@@ -19,28 +20,24 @@ import type { MountFetch, ObjectStore } from "@destack/object/server";
 import { PackageManifest } from "@destack/package/manifest";
 import type { PackageRelease } from "@destack/package";
 import { Digest, type Identifier, present, schema } from "@destack/schema";
-import { RequestId, ObjectReference, Scope } from "@destack/sync";
-import {
-    build,
-    Build,
-    BuildOutcome,
-    BuildSource,
-    installationRevision,
-} from "@destack/stack/object";
+import { RequestId, Scope, Subject } from "@destack/sync";
+import { build, Build, BuildSource, compile, installationRevision } from "@destack/stack/object";
 import { StackError } from "@destack/stack/error";
+import { LIVE_STATES } from "@destack/workflow";
 
-/** A checkout source of a build. */
-export type CheckoutSource = Extract<BuildSource, { readonly kind: "checkout" }>;
+/** The name of the limit on the pushes a machine sends into a space's builds. */
+const PUSH_LIMIT = "build:push";
+
+/** How many pushes a machine sends: 1024 writes of 64 MiB are 64 GiB an hour, as file parts are. */
+const PUSH_RATE: NonNullable<Limits["rate"]> = { count: 1024, every: { hours: 1 } };
 
 /** A repository commit source of a build. */
 export type CommitSource = Extract<BuildSource, { readonly kind: "commit" }>;
 
 /** The options of the build server. */
 export interface BuildOptions {
-    /** The machine running the spaces' commit builds. */
-    readonly buildRunner: Identifier<"machine"> | null;
     /** The space whose builds the server records, reading through to its machine's builds. */
-    readonly space: Pick<RevisionOptions["space"], "builds" | "machine">;
+    readonly space: Pick<RevisionOptions["space"], "builds" | "machine" | "runner">;
     /** Publish each of an account's packages in a stored image for a caller. */
     readonly publish: (
         store: BuildStore,
@@ -53,66 +50,31 @@ export interface BuildOptions {
     ) => Promise<readonly PackageRelease[]>;
 }
 
-/** Take a build runner's pushes of its files, builds and image into the space's builds. */
+/** Take a machine's pushes of builds into the space's builds, for a build's image to reference. */
 export function pushMount(builds: BuildStore): MountFetch {
     return async (request, admitted, _context, store) => {
-        // read the build below the mount, refusing a caller acting for none of its runners
-        const url = new URL(request.url);
-        const [, space = "", built = ""] = url.pathname.split("/");
-        const spaceId = schema.identifier("space").parse(space);
-        const buildId = schema.identifier("build").parse(built);
-        const [row] = await store.database
-            .select({
-                id: build.table.id,
-                state: build.table.state,
-                runnerId: build.table.runnerId,
-            })
-            .from(build.table)
-            .where(and(eq(build.table.scope, spaceId), eq(build.table.id, buildId)));
-        const acting = [admitted.subject, ...admitted.actors].map((subject) => subject.id);
-        if (
-            row?.runnerId === undefined ||
-            row.runnerId === null ||
-            !acting.includes(row.runnerId)
-        ) {
-            throw StackError.of(
-                "BUILD_NOT_FOUND",
-                `build '${buildId}' running for the caller not found`,
+        // refuse a machine past its rate, saying when the next write is due
+        const now = store.clock.now();
+        const caller = Subject.key(admitted.subject);
+        const retryAfter = await Limits.take(store.database, PUSH_LIMIT, caller, PUSH_RATE, now);
+        if (retryAfter !== undefined) {
+            throw ObjectError.of(
+                "RATE_EXHAUSTED",
+                `caller '${caller}' exceeds its limit of ${PUSH_RATE.count} pushes per hour`,
+                { data: { retryAfter } },
             );
         }
-        requireRunning(row);
 
-        // take pushes of its files, builds and image into the space's builds, serving no pulls
-        const mount = new URL(`${url.origin}/${spaceId}/${buildId}/`);
+        // take its files, builds and images, leased until a build references them, serving no pulls
+        const mount = new URL(`${new URL(request.url).origin}/`);
 
         return await builds.fetch(request, mount, {
             pull: async () => {
-                throw StackError.of("BUILD_NOT_FOUND", "build for a runner to pull not found");
+                throw StackError.of("BUILD_NOT_FOUND", "build for a machine to pull not found");
             },
             push: async () => {},
         });
     };
-}
-
-/** Take a finished build's outcome, requiring the image its runner pushed. */
-async function adopt(
-    builds: BuildStore,
-    outcome: schema.Infer<typeof BuildOutcome>,
-): Promise<schema.Infer<typeof BuildOutcome>> {
-    // take a failed build as it is
-    if (outcome.kind === "failed") {
-        return outcome;
-    }
-
-    // require the image
-    if (!(await builds.contains(outcome.image))) {
-        throw StackError.of(
-            "BUILD_NOT_FOUND",
-            `image '${outcome.image}' not found: it was not pushed to the space`,
-        );
-    }
-
-    return outcome;
 }
 
 /** Expire the space's builds its retention drops, leaving their blobs to the collection. */
@@ -166,18 +128,6 @@ export function implementBuild(options: BuildOptions) {
         ],
         methods: {
             create: {
-                // relate a compiled build's runner, which its modules and symbols use
-                relate: (context) => ({
-                    relationships:
-                        context.input.source.kind === "release"
-                            ? []
-                            : [
-                                  {
-                                      relation: "runner",
-                                      subject: runnerOf(context, options.buildRunner),
-                                  },
-                              ],
-                }),
                 handle: async (context, next) => {
                     // record a release its caller pulled, refusing another package or version, with nothing to run
                     const spaceId = schema.identifier("space").parse(context.scope);
@@ -226,24 +176,54 @@ export function implementBuild(options: BuildOptions) {
                         );
                     }
 
-                    // compile it on the runner its source selects, keyed by its checkout
-                    const runner = runnerOf(context, options.buildRunner);
+                    // refuse a commit's build in a space no machine runs work for
+                    if (source.kind === "commit") {
+                        options.space.runner();
+                    }
 
-                    return next(
+                    // record it running, keyed by its checkout
+                    const created = await next(
                         context.with({
                             input: {
                                 ...context.input,
-                                ...ObjectReference.columns("runner", runner),
+                                state: "running",
+                                startedAt: context.now,
                                 ...(source.kind === "commit"
                                     ? { checkout: Build.checkout(source), commit: source.commit }
                                     : {}),
                             },
                         }),
                     );
+
+                    // start its compile as the package's code
+                    const started = compile.start(
+                        { build: created.id },
+                        { actor: context.self.subject, key: created.id },
+                    );
+                    await context.mutate(context.self, [started]);
+
+                    return created;
                 },
             },
             cancel,
-            start,
+            update: {
+                handle: async (context, next) => {
+                    // refuse an image the space's builds lack, so no build references missing bytes
+                    const { image } = context.input;
+                    const isStored =
+                        image === undefined ||
+                        image === null ||
+                        (await options.space.builds.contains(image));
+                    if (!isStored) {
+                        throw StackError.of(
+                            "BUILD_NOT_FOUND",
+                            `image '${image}' not found: it was not pushed to the space`,
+                        );
+                    }
+
+                    return next(context);
+                },
+            },
             publish: {
                 // publish a succeeded build of a commit and its account's unpublished dependencies before the transaction
                 prepare: async (context) => {
@@ -283,49 +263,11 @@ export function implementBuild(options: BuildOptions) {
                 },
                 handle: async (context) => context.prepared,
             },
-            progress: async (context) => {
-                // record the phase the runner reports
-                const { target } = context;
-                requireRunning(target);
-                await context.update(reported(target, context.input.progress));
-
-                return {};
-            },
-            finish: {
-                // take a succeeded build's pushed manifest before the transaction
-                prepare: (context) => adopt(options.space.builds, context.input.outcome),
-                handle: async (context) => {
-                    // finish a running build with its stored manifest or its failure
-                    requireRunning(context.target);
-                    await context.update(ended(context.prepared, context.now));
-
-                    return {};
-                },
-            },
         },
     });
 }
 
-/** Start a pending build. */
-async function start(
-    context: MethodContextOf<typeof build, "start">,
-): Promise<ResultOf<typeof build, "start">> {
-    // refuse a build that is not pending
-    const { target } = context;
-    if (target.state !== "pending") {
-        throw StackError.of(
-            "BUILD_BLOCKED",
-            `cannot start build '${target.id}': it is '${target.state}'`,
-        );
-    }
-
-    // record it running
-    await context.update({ state: "running", phase: "preparing", startedAt: context.now });
-
-    return {};
-}
-
-/** Cancel a pending or running build for its runner to abort. */
+/** Cancel a running build and its compile, whose runner then stops. */
 async function cancel(
     context: MethodContextOf<typeof build, "cancel">,
     next: NextOf<typeof build, "cancel">,
@@ -339,82 +281,23 @@ async function cancel(
         );
     }
 
-    return next(
-        context.with({
-            input: { ...context.input, state: "cancelled", phase: null, finishedAt: context.now },
-        }),
+    // record it cancelled
+    const cancelled = await next(
+        context.with({ input: { ...context.input, state: "cancelled", finishedAt: context.now } }),
     );
-}
 
-/** Read the fields a runner's reported phase records. */
-function reported(
-    target: Pick<Build, "source">,
-    progress: MethodContextOf<typeof build, "progress">["input"]["progress"],
-) {
-    // record the phase alone while storing
-    if (progress.phase !== "building") {
-        return { phase: "storing" as const };
-    }
+    // cancel its live compile run as the package's code
+    const live = await context
+        .read(compile.run.table)
+        .findMany({ where: { key: target.id, state: { in: [...LIVE_STATES] } } });
+    await context.mutate(
+        context.self,
+        live.map((run) =>
+            compile.run.call("cancel", compile.run.target({ scope: target.scope, id: run.id })),
+        ),
+    );
 
-    // record the outputs and a checkout's commit while building
-    const isCommitted = target.source.kind === "checkout" && progress.commit !== undefined;
-
-    return {
-        phase: "building" as const,
-        outputs: [...progress.outputs],
-        ...(isCommitted ? { commit: progress.commit } : {}),
-    };
-}
-
-/** Read the fields a finished build records: its failure, or the digest of its stored image. */
-function ended(adopted: schema.Infer<typeof BuildOutcome>, now: number) {
-    // record a failed build's failure
-    if (adopted.kind === "failed") {
-        return { state: "failed" as const, phase: null, failure: adopted.failure, finishedAt: now };
-    }
-    // record a stored build's image
-    else {
-        return {
-            state: "succeeded" as const,
-            phase: null,
-            image: adopted.image,
-            finishedAt: now,
-        };
-    }
-}
-
-/** Read the machine running a new build. */
-function runnerOf(
-    context: Pick<MethodContextOf<typeof build, "create">, "input">,
-    buildRunner: Identifier<"machine"> | null,
-): ObjectReference {
-    const { source } = context.input;
-
-    // run a checkout's build on its machine
-    if (source.kind === "checkout") {
-        return principal.machine.reference(Scope.universe.id, source.machine);
-    }
-    // run a commit's build on the space's build runner
-    else if (buildRunner !== null) {
-        return principal.machine.reference(Scope.universe.id, buildRunner);
-    }
-    // refuse a commit's build no runner serves
-    else {
-        throw StackError.of(
-            "BUILD_RUNNER_BLOCKED",
-            "cannot build the commit: this space has no build runner",
-        );
-    }
-}
-
-/** Refuse a build that is not running. */
-function requireRunning(target: Pick<Build, "id" | "state">): void {
-    if (target.state !== "running") {
-        throw StackError.of(
-            "BUILD_BLOCKED",
-            `cannot update build '${target.id}': it is '${target.state}', not running`,
-        );
-    }
+    return cancelled;
 }
 
 /** Describe the grant the space's stack asks its caller's person for to publish. */

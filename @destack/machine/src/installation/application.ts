@@ -426,7 +426,7 @@ export class ApplicationInstallation {
         );
         if (calls.length > 0) {
             const delegator = principal.space.reference(Scope.universe.id, target.scope);
-            const lending = Caller.acting(delegator, reconciliation.caller.subject);
+            const lending = Caller.onBehalfOf(delegator, reconciliation.caller.subject);
             await reconciliation.store.mutate(AccessContext.of(lending, reconciliation.now), {
                 id: RequestId.create(reconciliation.store.environment),
                 calls,

@@ -1,6 +1,5 @@
 import {
     installation,
-    ACTIVE_BUILD_STATES,
     Binding,
     bucket,
     build,
@@ -30,7 +29,6 @@ import {
     and,
     Condition,
     eq,
-    inArray,
     isNotNull,
     isNull,
     type Relation,
@@ -53,7 +51,7 @@ import {
 } from "@destack/object/server";
 import {
     type Follow,
-    type ObjectType,
+    ObjectType,
     CallKey,
     type CursorPage,
     Egress,
@@ -78,9 +76,9 @@ import {
     principal,
     Authorization,
 } from "@destack/access";
-import { Exchange, PartitionId } from "@destack/access/token";
+import { Exchange } from "@destack/access/token";
 import { type Identity, IdentityKeystore, type IdentityRegistry } from "@destack/account/identity";
-import type { UniverseOrigin } from "@destack/account/address";
+import { SpaceAddress, type UniverseOrigin } from "@destack/account/address";
 import accountPackage from "@destack/account/package";
 import {
     BlobStore,
@@ -111,7 +109,7 @@ import {
     type WorkloadContext,
     WorkloadInstance,
 } from "@destack/object/workload";
-import { BuildReader, type BuildImage } from "@destack/package/manifest";
+import { BuildReader, BuildImage, type ImportMap } from "@destack/package/manifest";
 import {
     type Connector,
     EGRESS_PROVIDER,
@@ -133,7 +131,6 @@ import {
     ObjectConnection,
 } from "@destack/object/client";
 import { type Credential, Session } from "@destack/account/client";
-import objectPackage from "@destack/object/package";
 import { type graph, PackageId, PackageRelease, Sandbox } from "@destack/package";
 import { Commit, Digest, type Identifier, present, schema } from "@destack/schema";
 import {
@@ -142,10 +139,11 @@ import {
     RequestId,
     Scope,
     Subject,
-    type Publisher,
     type Subscription,
 } from "@destack/sync";
+import type * as sync from "@destack/sync";
 import { StackError } from "@destack/stack/error";
+import type { GitAuthor } from "@destack/git";
 import type {
     EgressCaller,
     InstanceSpec,
@@ -157,7 +155,10 @@ import registryPackage from "@destack/registry/package";
 import { S3Credentials, type S3Server } from "@destack/bucket/s3";
 import connectionPackage from "@destack/connection/client";
 import type { ConnectionLease } from "@destack/connection/object";
-import { BuildStore, type ImportClosure } from "@destack/build/store";
+import { BUILD_COMPILE } from "../installation/compile.ts";
+import { EDIT_PUSH } from "../installation/edit.ts";
+import { PartitionRemote } from "./remote.ts";
+import { BuildStore } from "@destack/build/store";
 import type { Volume } from "./storage.ts";
 import { PackageError } from "@destack/package/error";
 import { serveS3 } from "../resource/s3.ts";
@@ -173,6 +174,9 @@ import { MachineError } from "../error/index.ts";
 import type { GrantRequest } from "@destack/account/authentication";
 import * as accountObject from "@destack/account/object";
 import * as stackObject from "@destack/stack/object";
+
+/** The domain of the addresses commits name their authors by, which receives no mail. */
+const AUTHOR_DOMAIN = "users.noreply.destack.app";
 
 /** The release a space's declared stack runs, resolved at its forge, with the stack's digest. */
 interface ResolvedStack {
@@ -307,8 +311,8 @@ export interface SpaceStart {
     readonly gateway: PromiseWithResolvers<Gateway>;
     /** The connections the start opened, closed as it retires. */
     readonly connections: DisposableStack;
-    /** The start's publishers of other homes' partitions, by home and partition. */
-    readonly publishers: Map<string, Publisher>;
+    /** The start's remotes of scopes at other homes, by scope. */
+    readonly remotes: Map<string, PartitionRemote>;
 }
 
 /** An installed server as a start reads it once: its types, its providers and its server. */
@@ -326,6 +330,9 @@ interface ServerRead {
 
 /** A space a machine hosts: its identity, storage, placement, installations and workload. */
 export class Space {
+    /** The functions the space's workflows place on runners, each with its workflow. */
+    static readonly functions = [BUILD_COMPILE, EDIT_PUSH] as const;
+
     /** The space. */
     readonly id: Identifier<"space">;
     /** The machine hosting the space. */
@@ -341,7 +348,7 @@ export class Space {
     /** The space's own builds, over the machine's shipped layer and builds. */
     readonly builds: BuildStore;
     /** The import maps of the space's images, by image, runtime and base, each mapped once. */
-    readonly #closures = new Map<string, Promise<ImportClosure>>();
+    readonly #maps = new Map<string, Promise<ImportMap>>();
     /** The images pulled into the machine's builds or pulling, by image. */
     readonly #pulled = new Map<Digest, Promise<BuildImage>>();
     /** The root build of each image opened, by image, read once with the lists it parsed. */
@@ -515,10 +522,10 @@ export class Space {
                         home: RemoteStore.of(remote, Scope.universe.id),
                     },
                     external: volume.graphs(this.builds),
-                    follows: machine.isBuilding ? [referenceFollow, tagFollow] : [],
+                    follows: machine.isRunner ? [referenceFollow, tagFollow] : [],
                     controllers: [
                         () => this.controller(),
-                        () => this.builds.controller(),
+                        () => this.builds.cache.controller(),
                         ...(isMetered
                             ? [
                                   (store: ObjectStore) =>
@@ -546,7 +553,7 @@ export class Space {
                     store: Promise.withResolvers(),
                     gateway: Promise.withResolvers(),
                     connections,
-                    publishers: new Map(),
+                    remotes: new Map(),
                 };
                 this.#start = start;
                 this.#reads = new Map();
@@ -752,7 +759,7 @@ export class Space {
         return CallKey.of(await this.identity(), this.machine.environment.crypto);
     }
 
-    /** Pull an image with its closures into the machine's builds once. */
+    /** Pull an image with the builds it loads into the machine's builds once. */
     pull(packageId: PackageId, image: Digest): Promise<BuildImage> {
         // take an image pulled or pulling already
         const known = this.#pulled.get(image);
@@ -786,7 +793,7 @@ export class Space {
         return await builds.image(image);
     }
 
-    /** Open an image's root build, pulling a published one with its closures first. */
+    /** Open an image's root build, pulling a published one with the builds it loads first. */
     root(packageId: PackageId, image: Digest): Promise<BuildReader> {
         // take a root opened or opening already
         const known = this.#roots.get(image);
@@ -825,10 +832,10 @@ export class Space {
     }
 
     /** Map an image's imports for a runtime once, with the builtins the machine links. */
-    imports(image: Digest, runtime: packageRuntime.Runtime, base: string): Promise<ImportClosure> {
+    imports(image: Digest, runtime: packageRuntime.Runtime, base: string): Promise<ImportMap> {
         // map each image once per runtime and base, forgetting a failed map
         const key = `${image} ${runtime} ${base}`;
-        const known = this.#closures.get(key);
+        const known = this.#maps.get(key);
         if (known !== undefined) {
             return known;
         }
@@ -836,12 +843,12 @@ export class Space {
             const read = await this.builds.image(image);
             const linked = await this.machine.linkedImages();
 
-            return await this.machine.builds.imports(read, runtime, base, linked, (digest) =>
+            return await BuildImage.imports(read, runtime, base, linked, (digest) =>
                 this.builds.get(digest),
             );
         })();
-        this.#closures.set(key, mapping);
-        mapping.catch(() => this.#closures.delete(key));
+        this.#maps.set(key, mapping);
+        mapping.catch(() => this.#maps.delete(key));
 
         return mapping;
     }
@@ -1057,7 +1064,7 @@ export class Space {
             push: (home, push, signal) => {
                 // send the machine's universe writes as the machine, and the space's changes as their signer
                 const { mutations, writerId, signer } = push;
-                const sender = signer === undefined ? machine : signed(signer);
+                const sender = signer === undefined ? machine : signed(signer.subject);
 
                 return sender.push(
                     home,
@@ -1067,10 +1074,14 @@ export class Space {
             },
             call: (scope, call, signer) =>
                 // ask the universe as the machine, and for the space as the query's signer
-                (signer === undefined ? machine : signed(signer)).call(scope, call),
+                (signer === undefined ? machine : signed(signer.subject)).call(scope, call),
             broadcast: (scope, object, event, signer) =>
                 // send as the machine, or as the event's signer
-                (signer === undefined ? machine : signed(signer)).broadcast(scope, object, event),
+                (signer === undefined ? machine : signed(signer.subject)).broadcast(
+                    scope,
+                    object,
+                    event,
+                ),
         };
     }
     /** Connect to the universe's account store as a principal, else as the machine. */
@@ -1091,51 +1102,63 @@ export class Space {
         return connection;
     }
 
-    /** Follow a partition at its home, where the directory locates it, as each follow's subject. */
-    publisherAt(start: SpaceStart, home: string, partition: string): Publisher {
-        // reuse the start's publisher of the partition
-        const key = `${home} ${partition}`;
-        const known = start.publishers.get(key);
+    /** Open a scope's remote: the start's for the universe, space and machine, else its home's. */
+    remoteOf(start: SpaceStart, scope: string): ObjectRemote {
+        // follow the universe, and the chains of the space and its machine, through the start's remote
+        if ([Scope.universe.id, this.principal.id, this.machine.id].includes(scope)) {
+            return start.remote;
+        }
+
+        // open another scope's remote at its home, once per start
+        const known = start.remotes.get(scope);
         if (known !== undefined) {
             return known;
         }
+        const remote = new PartitionRemote(this, start, scope);
+        start.remotes.set(scope, remote);
 
-        // sign as the installation a follow is decided for, else as the space with a universe grant
-        const bound = PartitionId.parse(partition);
-        const publishers = new Map<string, Publisher>();
-        const at = (subscription: Subscription) => {
-            // follow over one connection per signer: an installation's own, else the space's
-            const { subject } = subscription;
-            const signer =
-                subject !== undefined && principal.installation.is(subject) ? subject : undefined;
-            const signed = signer === undefined ? "" : Subject.key(signer);
-            const credential =
-                signer === undefined
-                    ? this.identityOf(this.principal).granted
-                    : this.identityOf(signer);
-            const publisher =
-                publishers.get(signed) ??
-                start.connections.use(
-                    this.machine.directory.publisher(
-                        home,
-                        (request) =>
-                            credential.authorize(request, objectPackage.id, {
-                                partition: bound,
-                            }),
-                        this.machine.environment,
-                    ),
-                );
-            publishers.set(signed, publisher);
+        return remote;
+    }
 
-            return publisher;
+    /** Act for a caller's person or delegate under a grant they consented to, refusing others. */
+    onBehalfOf(caller: Caller, requested: GrantRequest): Credential {
+        const subject = this.#subject(caller);
+        const space = principal.space.reference(Scope.universe.id, this.id);
+
+        return this.identityOf(space).onBehalfOf(subject, requested);
+    }
+
+    /** Describe the grant some calls need from a person: each method's permission on its target. */
+    async requested(calls: readonly sync.Call[]): Promise<GrantRequest> {
+        // find each call's type among the store's
+        const store = await this.#current().store.promise;
+        const permissions = calls.map((call) => {
+            // read the method's permission on the call's target, where it applies, and how it reads
+            const type = present(
+                store.typeOf(call),
+                `the type of '${call.type.type}.${call.method}'`,
+            );
+            const name = type.method(call.method).permission;
+            const target = call.input["id"];
+
+            return {
+                ...type.permission(name),
+                ...(typeof target === "string" ? { objectId: target } : {}),
+                within: type.within,
+                description: ObjectDescription.describe(ObjectDescription.of(type), name),
+            } as const;
+        });
+
+        // ask as the space for itself, from the person's view of where it lives
+        const placed = await accountObject.Space.read(this.database.snapshot(), this.id);
+        const owner = await accountObject.Account.of(this.database.snapshot(), placed.scope);
+
+        return {
+            delegate: principal.space.reference(Scope.universe.id, this.id),
+            package: stackPackage.name,
+            space: SpaceAddress.of({ space: placed.name, handle: owner.handle }),
+            permissions,
         };
-        const publisher: Publisher = {
-            stream: (subscription, signal) => at(subscription).stream(subscription, signal),
-            request: (subscription) => at(subscription).request(subscription),
-        };
-        start.publishers.set(key, publisher);
-
-        return publisher;
     }
 
     /** Serve each installation main applied: a trusted one in the store, another in its isolate. */
@@ -2184,8 +2207,12 @@ export class Space {
                     path: [ASSIGNMENT_PLACEMENT],
                     on: { id: "spaceId" },
                 },
-                // take the space of a build or a deployment
-                { table: build.table, fields: ["state"], on: { id: "scope" } },
+                // take the space of a placed step or a deployment
+                ...Space.functions.map(({ workflow }) => ({
+                    table: workflow.step.table,
+                    fields: ["runnerId", "completedAt"],
+                    on: { id: "scope" },
+                })),
                 { table: deployment.table, fields: ["status", "machineId"], on: { id: "scope" } },
             ],
             project: async (key) => this.#assign(key, remote),
@@ -2446,7 +2473,7 @@ export class Space {
         }
 
         // assign the other machines with active builds of their checkouts or live deployments
-        const working = new Set(await this.#workers(spaceId));
+        const working = new Set(await this.#working(spaceId));
         working.delete(placed.machineId);
         const assigned = new Set(await this.#assigned(spaceId));
         const work = (name: "assign" | "unassign", machine: Identifier<"machine">) =>
@@ -2487,18 +2514,24 @@ export class Space {
         return rows.map((row) => row.machineId);
     }
 
-    /** List the machines a space's active builds and live deployments are addressed to. */
-    async #workers(scope: Identifier<"space">): Promise<Identifier<"machine">[]> {
-        const [builds, deployments] = await Promise.all([
-            this.database
-                .select({ source: build.table.source })
-                .from(build.table)
-                .where(
-                    and(
-                        eq(build.table.scope, scope),
-                        inArray(build.table.state, [...ACTIVE_BUILD_STATES]),
-                    ),
+    /** List the machines working in a space: its steps' runners and deployments' machines. */
+    async #working(scope: Identifier<"space">): Promise<Identifier<"machine">[]> {
+        // read the runners of the steps open on them, and the machines of the live deployments
+        const [runners, deployments] = await Promise.all([
+            Promise.all(
+                Space.functions.map(({ workflow }) =>
+                    this.database
+                        .select({ runnerId: workflow.step.table.runnerId })
+                        .from(workflow.step.table)
+                        .where(
+                            and(
+                                eq(workflow.step.table.scope, scope),
+                                isNotNull(workflow.step.table.function),
+                                isNull(workflow.step.table.completedAt),
+                            ),
+                        ),
                 ),
+            ),
             this.database
                 .select({ machineId: deployment.table.machineId })
                 .from(deployment.table)
@@ -2512,9 +2545,13 @@ export class Space {
         ]);
 
         return [
-            ...builds.flatMap((row) =>
-                row.source.kind === "checkout" ? [row.source.machine] : [],
-            ),
+            ...runners
+                .flat()
+                .map((row) =>
+                    schema
+                        .identifier("machine")
+                        .parse(present(row.runnerId, "a placed step's runner")),
+                ),
             ...deployments.flatMap((row) => (row.machineId === null ? [] : [row.machineId])),
         ];
     }
@@ -2969,22 +3006,10 @@ export class Space {
         caller: Caller,
         requested: GrantRequest,
     ): Promise<readonly PackageRelease[]> {
-        // act as the space for the caller, refusing a caller it cannot act for
-        const space = principal.space.reference(Scope.universe.id, this.id);
-        const { environment } = this.machine;
-        const acting = Exchange.of(caller);
-        if (acting === undefined) {
-            throw MachineError.of(
-                "PUBLISHER_DENIED",
-                "publish is forbidden: a publish acts for a person or a delegate",
-            );
-        }
-
         // push the image and publish the account's packages in it, for the caller under the grant the space asks
+        const { environment } = this.machine;
         const home = await locateHome(this.machine, account);
-        const fetch = this.session(this.identityOf(space).acting(acting, requested)).fetch(
-            registryPackage.id,
-        );
+        const fetch = this.session(this.onBehalfOf(caller, requested)).fetch(registryPackage.id);
         await this.machine.push(store, image, account, fetch);
         const published = await callRegistry(this.machine, home, fetch).package.publish({
             spaceId: home,
@@ -2998,21 +3023,79 @@ export class Space {
         return published.releases;
     }
 
-    /** Lease a repository of the space's account to read, at its residency home's registry. */
+    /** Lease a repository of the space's account to read as the space. */
     async lease(repositoryId: Identifier<"repository">): Promise<Lease> {
         const home = await locateHome(this.machine, await this.account());
 
-        return this.#registry(home).repository.open({
-            spaceId: home,
-            id: repositoryId,
-            mode: "read",
+        return this.#registry(home).repository.pull({ spaceId: home, id: repositoryId });
+    }
+
+    /** Exchange the space's token for a caller's under a grant, refused without consent. */
+    async exchange(caller: Caller, requested: GrantRequest): Promise<string> {
+        // exchange at the account's residency home, as the actor for the caller's subject (RFC 8693)
+        const home = await locateHome(this.machine, await this.account());
+        const subject = this.#subject(caller);
+        const space = principal.space.reference(Scope.universe.id, this.id);
+
+        return this.identityOf(space).exchange(registryPackage.id, {
+            subject: subject.subject,
+            partition: home,
+            ...(subject.grants.length === 0
+                ? {}
+                : { grants: subject.grants.map((grant) => grant.id) }),
+            requested,
         });
+    }
+
+    /** Read the subject the space acts for: a person or a delegate, refusing any other caller. */
+    #subject(caller: Caller): Pick<Caller, "subject" | "grants"> {
+        const subject = Exchange.of(caller);
+        if (subject === undefined) {
+            throw MachineError.of(
+                "SUBJECT_DENIED",
+                "acting on behalf is forbidden: the space acts for a person or a delegate alone",
+            );
+        }
+
+        return subject;
+    }
+
+    /** Read the author a person's commit through the space names: their name and handle. */
+    async author(subject: Subject): Promise<GitAuthor> {
+        // refuse a subject who is no person
+        if (!principal.user.is(subject)) {
+            throw StackError.of(
+                "PERMISSION_DENIED",
+                "commit is forbidden: a commit names a person",
+            );
+        }
+
+        // read the person's own account, which has their handle and name
+        const personal = present(
+            await this.database
+                .snapshot()
+                .read(accountObject.account.table)
+                .findFirst({ where: { id: accountObject.Account.personal(subject.id) } }),
+            `the personal account of '${subject.id}'`,
+        );
+
+        return { name: personal.name, email: `${personal.handle}@${AUTHOR_DOMAIN}` };
+    }
+
+    /** Read the machine running the space's work: its serving machine, when it runs work. */
+    runner(): Subject {
+        // refuse work no machine of the space runs
+        if (!this.machine.isRunner) {
+            throw StackError.of("RUNNER_BLOCKED", "cannot run the work: this space has no runner");
+        }
+
+        return principal.machine.reference(Scope.universe.id, this.machine.id);
     }
 
     /** Refuse a repository outside the space's account. */
     async requireRepository(repositoryId: Identifier<"repository">): Promise<void> {
         // refuse any on a machine following no repositories
-        if (!this.machine.isBuilding) {
+        if (!this.machine.isRunner) {
             throw StackError.of(
                 "REPOSITORIES_BLOCKED",
                 "cannot follow a repository: this machine does not follow any repositories",
