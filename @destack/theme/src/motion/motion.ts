@@ -64,6 +64,9 @@ const DRAWER_EASING = "cubic-bezier(0.32, 0.72, 0, 1)";
 /** A drawer's fade: its slide, and at least the reduced fade. */
 const DRAWER_FADE = `max(${motion.durationLong}, ${REDUCED_FADE})`;
 
+/** An overlay the keyboard opened or closed, which people do too often to wait for. */
+const INSTANT = ":is([data-instant])";
+
 /** The fade and scale of overlays entering and leaving the top layer, after Emil Kowalski. */
 export const transition = style.create({
     /** A popover over the page, growing from the side it is anchored to. */
@@ -74,7 +77,11 @@ export const transition = style.create({
             ":popover-open": { default: "none", "@starting-style": HIDDEN_SCALE },
         },
         transitionProperty: PROPERTIES,
-        transitionDuration: { default: SHORT_EXIT, ":popover-open": SHORT },
+        transitionDuration: {
+            default: SHORT_EXIT,
+            [INSTANT]: "0s",
+            ":popover-open": { default: SHORT, [INSTANT]: "0s" },
+        },
         transitionTimingFunction: motion.easingEmphasised,
         transitionBehavior: "allow-discrete",
     },
@@ -86,7 +93,11 @@ export const transition = style.create({
             ":modal": { default: "none", "@starting-style": HIDDEN_SCALE },
         },
         transitionProperty: PROPERTIES,
-        transitionDuration: { default: SHORT_EXIT, ":modal": SHORT },
+        transitionDuration: {
+            default: SHORT_EXIT,
+            [INSTANT]: "0s",
+            ":modal": { default: SHORT, [INSTANT]: "0s" },
+        },
         transitionTimingFunction: motion.easingEmphasised,
         transitionBehavior: "allow-discrete",
     },
@@ -98,7 +109,11 @@ export const transition = style.create({
             ":modal": { default: "none", "@starting-style": HIDDEN_SCALE },
         },
         transitionProperty: PROPERTIES,
-        transitionDuration: { default: DIALOG_EXIT, ":modal": DIALOG },
+        transitionDuration: {
+            default: DIALOG_EXIT,
+            [INSTANT]: "0s",
+            ":modal": { default: DIALOG, [INSTANT]: "0s" },
+        },
         transitionTimingFunction: motion.easingEmphasised,
         transitionBehavior: "allow-discrete",
     },
@@ -106,7 +121,11 @@ export const transition = style.create({
     sheet: {
         opacity: { default: 0, ":modal": { default: 1, "@starting-style": 0 } },
         transitionProperty: PROPERTIES,
-        transitionDuration: { default: MEDIUM_EXIT, ":modal": MEDIUM },
+        transitionDuration: {
+            default: MEDIUM_EXIT,
+            [INSTANT]: "0s",
+            ":modal": { default: MEDIUM, [INSTANT]: "0s" },
+        },
         transitionTimingFunction: motion.easingEmphasised,
         transitionBehavior: "allow-discrete",
     },
@@ -115,6 +134,11 @@ export const transition = style.create({
         transitionProperty: "opacity, transform, translate, display, overlay",
         transitionDuration: `${DRAWER_FADE}, ${motion.durationLong}, ${motion.durationLong}, ${DRAWER_FADE}, ${DRAWER_FADE}`,
         transitionTimingFunction: DRAWER_EASING,
+    },
+    /** An overlay that never moves, such as a command palette. */
+    instant: {
+        transitionDuration: "0s",
+        "::backdrop": { transitionDuration: "0s" },
     },
     /** A notice such as a toast, fading as it slides in from the edge it sits at, after Sonner. */
     notice: {
