@@ -304,7 +304,7 @@ postgres action:
     options="-p 55432 -k /tmp -c fsync=off -c synchronous_commit=off -c full_page_writes=off -c max_connections=300"
     "$bin/pg_ctl" --pgdata "$data" --log "$data/server.log" --options "$options" --wait "{{action}}"
 
-# run the local universe: serve, reset, desktop or cli
+# run the local universe: serve, reset, publish, desktop or cli
 [no-exit-message]
 [positional-arguments]
 local *arguments:
