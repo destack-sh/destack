@@ -15,7 +15,7 @@ Components read and change objects live:
 
 - `useQuery`: a relational query of an object type, followed live.
 - `useMutation`: a mutating method of an object type, predicted at once.
-- `useForm` and `useText`: a method's input as a form, and a collaborative text field.
+- `useForm` and `useText`: values as a form edits them, and a collaborative text field.
 - `useSetting`: a person's setting, followed live.
 - `handleAction`: run an action while the component is mounted.
 
@@ -193,38 +193,29 @@ export function Editor(properties: {
 }
 ```
 
-### Edit an object with a form
+### Edit values with a form
 
-`useForm` edits one method call's input, checked by the method's input schema.
+`useForm` edits some values, checks them by a schema and gives them to `submit`, which calls a method or does anything else.
 `useBlocker` holds navigation while the form has unsaved edits.
 
 ```tsx
-import { argument, plural, t } from "@destack/locale";
-import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
-import { Show, useForm, useMutation } from "@destack/view";
+import { Show, useForm } from "@destack/view";
 import { useBlocker } from "@destack/view/router";
 
-// declare notes with a short title
-const note = defineObject(
-    {
-        name: "note",
-        plural: "notes",
-        title: t`${plural(argument("count"), { one: "Note", other: "Notes" })}`,
-        container: "scope",
-        fields: { title: field.string(schema.string().min(1).max(20)) },
-        access: { permissions: ["write"] },
-    },
-    (method) => ({ update: method.update("write") }),
-);
+/** A note's title. */
+const Title = schema.object({ title: schema.string().min(1).max(20) });
 
 /** Rename a note, asking before leaving with unsaved edits. */
-export function RenameNote(properties: { readonly id: string; readonly title: string }) {
-    // edit the update's input, submitted on save
-    const update = useMutation(note, "update");
-    const form = useForm(note, "update", {
-        values: () => ({ id: properties.id, title: properties.title }),
-        submit: (input) => update(input),
+export function RenameNote(properties: {
+    readonly title: string;
+    readonly rename: (title: string) => Promise<void>;
+}) {
+    // edit the title, submitted on save
+    const form = useForm({
+        values: () => ({ title: properties.title }),
+        schema: Title,
+        submit: ({ title }) => properties.rename(title),
     });
     const title = form.field("title");
 
@@ -236,16 +227,22 @@ export function RenameNote(properties: { readonly id: string; readonly title: st
             <input
                 value={title.value()}
                 onInput={(event) => title.set(event.currentTarget.value)}
+                onBlur={() => title.settle()}
             />
             <p>{title.problem()}</p>
             <button>Save</button>
+
+            {/* what someone else named it meanwhile */}
+            <Show when={title.conflict()}>
+                {(theirs) => (
+                    <button type="button" onClick={() => title.take()}>
+                        Use “{theirs().value}”
+                    </button>
+                )}
+            </Show>
             <Show when={blocker.state() === "blocked"}>
-                <p>Leave without saving?</p>
                 <button type="button" onClick={blocker.proceed}>
-                    Leave
-                </button>
-                <button type="button" onClick={blocker.reset}>
-                    Stay
+                    Leave without saving
                 </button>
             </Show>
         </form>
