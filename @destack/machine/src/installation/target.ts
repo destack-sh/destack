@@ -603,7 +603,7 @@ export const InstallationTarget = {
         const dependencies = await scope.span(
             "destack.installation.describe.dependencies",
             {},
-            () => installableBuilds(entries, image.root, read),
+            () => installableBuilds(entries, PackageManifest.package(reader.manifest).id, read),
         );
 
         // describe the state each declaration requires: main's tables, an installation's release, a resource's own

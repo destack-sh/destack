@@ -904,7 +904,7 @@ test("install a package and declare records of its type in one approved plan, ap
     ]);
 });
 
-test("install the packages a stack declares without its libraries, refusing a missing installable dependency and a package outside the stack's image", async () => {
+test("derive an installation of each installable dependency a stack does not declare, leaving libraries out and refusing a package outside the image or a taken name", async () => {
     // publish an installable dependency and a library
     const world = new Simulation({
         world: testWorldOptions(),
@@ -923,14 +923,15 @@ test("install the packages a stack declares without its libraries, refusing a mi
         world,
     );
     const pages = await fixtureRelease("@example/pages", "2026.10.0", true, [vault], world);
+    const other = await fixtureRelease("@other/vault", "2026.10.0", true, [], world);
     const builds = new Map(
-        [vault, library, notes, pages].map((each) => [each.manifest, each.build]),
+        [vault, library, notes, pages, other].map((each) => [each.manifest, each.build]),
     );
     const read = async (_packageId: PackageId, manifest: string) =>
         present(builds.get(Digest.parse(manifest)), `the build ${manifest}`);
 
-    // install notes with the vault it requires
-    const fixtures = [vault, library, notes];
+    // declare notes alone, deriving the vault it requires, or both
+    const fixtures = [vault, library, notes, other];
     const declare = async (installed: readonly FixtureRelease[]) =>
         StackDefinition.declared(
             await installingStack(installed, world),
@@ -939,20 +940,40 @@ test("install the packages a stack declares without its libraries, refusing a mi
             { settings: {}, routes: {} },
             read,
         );
-    const definition = StackDefinition.collections(await declare([notes, vault]));
-    const alone = await refusal(declare([notes]));
+    const both = StackDefinition.collections(await declare([notes, vault]));
+    const alone = StackDefinition.collections(await declare([notes]));
     const outside = await refusal(declare([notes, vault, pages]));
-    expect([Object.keys(definition.installations).toSorted(), alone, outside]).toEqual([
+    const named = await refusal(declare([notes, other]));
+    expect([
+        Object.keys(both.installations).toSorted(),
+        Object.keys(alone.installations).toSorted(),
+        alone.installations["vault"],
+        outside,
+        named,
+    ]).toEqual([
         ["notes", "vault"],
-        [
-            "BAD_REQUEST",
-            "DEFINITION_INVALID",
-            "installation 'notes' of 'space' is invalid: it needs '@example/vault', so declare an installation of it",
-        ],
+        ["notes", "vault"],
+        {
+            packageId: vault.package.id,
+            version: { kind: "release", version: "2026.10.0" },
+            status: "enabled",
+            name: "vault",
+            bindings: {},
+            compute: {},
+            capabilities: [],
+            directories: [],
+            isolation: "sandbox",
+            tags: {},
+        },
         [
             "BAD_REQUEST",
             "DEFINITION_INVALID",
             "installation 'pages' of 'space' is invalid: it installs a package without a build in the stack's image, so add the package to the stack's dependencies",
+        ],
+        [
+            "BAD_REQUEST",
+            "DEFINITION_INVALID",
+            "stack 'space' is invalid: it needs '@example/vault' as installation 'vault', which another package's installation is named, so declare it under another name",
         ],
     ]);
 });
