@@ -10,7 +10,7 @@ import {
     type SelectionProperties,
     valuesOf,
 } from "../selection/index.ts";
-import { useFieldControl } from "../field/control.ts";
+import { readChoices, useFieldControl, useFieldValue } from "../field/control.ts";
 import { inputStyle } from "../input/index.ts";
 import { useJoin } from "../join/index.ts";
 import { type ElementPartProperties, mergeProperties, renderPart } from "../part/index.ts";
@@ -86,7 +86,15 @@ export type SelectProperties = Omit<
 export type SelectElementProperties<Attributes> = Omit<Attributes, "class"> & ElementPartProperties;
 
 /** Render a native select whose button and picker take the theme where the browser allows. */
-export function Select(properties: SelectProperties): JSX.Element {
+export function Select(given: SelectProperties): JSX.Element {
+    // edit the value of the field's form
+    const properties = useFieldValue(given, {
+        value: "value",
+        change: "onValueChange",
+        read: readChoices,
+        settles: true,
+    });
+
     // take the id and state of the nearest field
     const field = useFieldControl();
     const join = useJoin();

@@ -12,7 +12,7 @@ import {
     Show,
     useContext,
 } from "@destack/view";
-import { useFieldControl } from "../field/control.ts";
+import { useFieldControl, useFieldValue } from "../field/control.ts";
 import { type PartAttributes, type Render, useRender } from "../part/index.ts";
 import {
     ToggleInput,
@@ -101,7 +101,15 @@ export type CheckboxIndicatorProperties = Omit<JSX.HTMLAttributes<HTMLSpanElemen
 };
 
 /** Render a button exposed as a checkbox around its indicator. */
-export function Checkbox(properties: CheckboxProperties): JSX.Element {
+export function Checkbox(given: CheckboxProperties): JSX.Element {
+    // edit the value of the field's form
+    const properties = useFieldValue(given, {
+        value: "checked",
+        change: "onCheckedChange",
+        read: (value) => value === true,
+        settles: true,
+    });
+
     // take the id and state of the nearest field
     const field = useFieldControl();
     const toggle = new ToggleState(properties);
@@ -137,6 +145,7 @@ export function Checkbox(properties: CheckboxProperties): JSX.Element {
             style.attributes(
                 [
                     state.focus,
+                    state.touch,
                     state.disabled,
                     styles.checkbox,
                     value() !== "unchecked" && styles.checked,

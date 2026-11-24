@@ -12,7 +12,7 @@ import {
 } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import { type JSX, merge } from "@destack/view";
-import { useFieldControl } from "../field/control.ts";
+import { readText, takeText, useFieldControl, useFieldValue } from "../field/control.ts";
 import { useJoin } from "../join/index.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
 
@@ -56,6 +56,7 @@ export interface InputStyleOptions {
 export function inputStyle(options: InputStyleOptions = {}): style.Styles {
     return [
         text.sm,
+        state.typed,
         state.focus,
         state.disabled,
         styles.box,
@@ -68,7 +69,15 @@ export type InputProperties = Omit<JSX.InputHTMLAttributes<HTMLInputElement>, "c
     ElementPartProperties;
 
 /** Render a native input, tied to the label, descriptions and state of its field. */
-export function Input(properties: InputProperties): JSX.Element {
+export function Input(given: InputProperties): JSX.Element {
+    // edit the value of the field's form
+    const properties = useFieldValue(given, {
+        value: "value",
+        change: "onInput",
+        read: readText,
+        take: takeText,
+    });
+
     // take the id, descriptions and state of the nearest field
     const field = useFieldControl();
     const join = useJoin();

@@ -17,7 +17,7 @@ import {
     Show,
     useContext,
 } from "@destack/view";
-import { useFieldControl } from "../field/control.ts";
+import { readText, useFieldControl, useFieldValue } from "../field/control.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
 
 /** The characters a code takes when its owner allows no others. */
@@ -49,6 +49,7 @@ const styles = style.create({
         height: "100%",
         color: "transparent",
         caretColor: "transparent",
+        fontSize: { default: "inherit", [media.pointerCoarse]: "max(1em, 16px)" },
         letterSpacing: "-0.5em",
         outlineStyle: "none",
         cursor: { default: "text", ":disabled": "not-allowed" },
@@ -224,7 +225,14 @@ export interface OtpFieldSlotProperties extends OtpFieldElementProperties {
 }
 
 /** Render a one-time code input as one character per slot. */
-export function OtpField(properties: OtpFieldProperties): JSX.Element {
+export function OtpField(given: OtpFieldProperties): JSX.Element {
+    // edit the value of the field's form
+    const properties = useFieldValue(given, {
+        value: "value",
+        change: "onValueChange",
+        read: readText,
+    });
+
     // take the id, state and descriptions of the nearest field
     const field = useFieldControl();
     const code = merge(DEFAULTS, properties);

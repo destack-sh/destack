@@ -17,7 +17,7 @@ import {
     useEnvironment,
     useLocale,
 } from "@destack/view";
-import { type FieldControl, useFieldControl } from "../field/control.ts";
+import { type FieldControl, useFieldControl, useFieldValue } from "../field/control.ts";
 import { ListState } from "../focus/index.ts";
 import { mergeProperties } from "../part/index.ts";
 import { FormInput, type FormInputProperties, isFormControl } from "../form-input/index.ts";
@@ -118,6 +118,7 @@ export interface DateSegmentBoxOptions {
 export function dateSegmentBoxStyle(options: DateSegmentBoxOptions = {}): style.Styles {
     return [
         text.sm,
+        state.typed,
         styles.box,
         options.invalid === true && state.invalid,
         options.disabled === true && state.inert,
@@ -384,11 +385,18 @@ export class DateSegmentControl {
 
 /** Render the segments of a value, which follow the controlled value or the field's own. */
 export function DateSegmentField<Value>(
-    properties: DateSegmentFieldProperties<Value> & {
+    given: DateSegmentFieldProperties<Value> & {
         /** How it reads and lays out its segments. */
         readonly format: DateSegmentFormat<Value>;
     },
 ): JSX.Element {
+    // edit the value of the field's form
+    const properties = useFieldValue(given, {
+        value: "value",
+        change: "onValueChange",
+        read: (value) => value ?? undefined,
+    });
+
     // follow the value, and the segments typed so far
     const format = untrack(() => properties.format);
     const locale = useLocale();

@@ -16,7 +16,7 @@ import {
     useLocale,
 } from "@destack/view";
 import { type ButtonProperties } from "../button/index.ts";
-import { useFieldControl } from "../field/control.ts";
+import { useFieldControl, useFieldValue } from "../field/control.ts";
 import { FormInput, isFormControl } from "../form-input/index.ts";
 import { Icon } from "../icon/index.ts";
 import {
@@ -118,7 +118,14 @@ export type NumberFieldProperties = NumberFieldOptions &
     ElementPartProperties;
 
 /** Render a field of a number, written and read as people of the language write it. */
-export function NumberField(properties: NumberFieldProperties): JSX.Element {
+export function NumberField(given: NumberFieldProperties): JSX.Element {
+    // edit the value of the field's form
+    const properties = useFieldValue(given, {
+        value: "value",
+        change: "onValueChange",
+        read: (value) => (typeof value === "number" ? value : undefined),
+    });
+
     // share the number with the parts
     const control = new NumberFieldControl(properties, useFieldControl(), useLocale());
     let element: HTMLElement | undefined;
@@ -135,7 +142,7 @@ export function NumberField(properties: NumberFieldProperties): JSX.Element {
                     return (
                         <>
                             {properties.children ?? <NumberFieldParts />}
-                            <Show when={isFormControl(properties)}>
+                            <Show when={isFormControl(properties) || control.refusal() !== ""}>
                                 <FormInput
                                     name={properties.name}
                                     form={properties.form}
@@ -204,16 +211,6 @@ export function NumberFieldInput(
             control.toLimit("max");
         }
     };
-    const check = (event: InputEvent & { readonly currentTarget: HTMLInputElement }): void => {
-        // refuse letters and signs no number has, as they are typed or pasted
-        const { currentTarget, data, isComposing } = event;
-        const { value, selectionStart, selectionEnd } = currentTarget;
-        const start = value.slice(0, selectionStart ?? value.length);
-        const end = value.slice(selectionEnd ?? value.length);
-        if (data !== null && !isComposing && !control.takes(`${start}${data}${end}`)) {
-            event.preventDefault();
-        }
-    };
     const wheel = (event: WheelEvent): void => {
         // leave the wheel to the page unless the field takes it
         const isFocused = event.currentTarget === document.activeElement;
@@ -238,7 +235,6 @@ export function NumberFieldInput(
                     "aria-roledescription": locale.render(t`Number field`),
                     onKeyDown: keys,
                     onWheel: wheel,
-                    onBeforeInput: check,
                     onInput: (event: InputEvent & { readonly currentTarget: HTMLInputElement }) =>
                         control.type(event.currentTarget.value),
                     onBlur: () => control.commit(),

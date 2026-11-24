@@ -2,6 +2,8 @@ import { Icon } from "@destack/ui/icon";
 import caretDown from "@destack/icon/phosphor/caret-down";
 import { type Direction, t } from "@destack/locale";
 import * as style from "@destack/style";
+import { media } from "@destack/style/media.stylex";
+import { state } from "@destack/theme/state";
 import { color, radius, shadow, size, space, stroke } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import {
@@ -40,6 +42,7 @@ import {
 } from "../list-box/index.ts";
 import { Position } from "../position/index.ts";
 import { Selection, type SelectionProperties } from "../selection/index.ts";
+import { useFieldValue, readChoices } from "../field/control.ts";
 
 /** The combobox of the nearest combobox root, null outside one. */
 const ComboboxContext = createContext<ComboboxControl | null>(null);
@@ -57,6 +60,9 @@ const styles = style.create({
     },
     remove: {
         display: "inline-flex",
+        padding: { default: 0, [media.pointerCoarse]: space[2] },
+        margin: { default: 0, [media.pointerCoarse]: `calc(-1 * ${space[2]})` },
+        marginInlineStart: { default: 0, [media.pointerCoarse]: `calc(-1 * ${space[1]})` },
         cursor: "pointer",
     },
     trigger: {
@@ -312,7 +318,15 @@ export type ComboboxElementProperties<Attributes> = Omit<Attributes, "class"> & 
 };
 
 /** Hold the chosen value of an input whose list of options filters as the person types. */
-export function Combobox(properties: ComboboxProperties): JSX.Element {
+export function Combobox(given: ComboboxProperties): JSX.Element {
+    // edit the value of the field's form
+    const properties = useFieldValue(given, {
+        value: "value",
+        change: "onValueChange",
+        read: readChoices,
+        settles: true,
+    });
+
     const control = new ComboboxControl(properties);
 
     return (
@@ -394,7 +408,7 @@ function ComboboxTrigger(properties: { readonly disabled: boolean }): JSX.Elemen
                 event.preventDefault();
                 control.toggle(event);
             }}
-            {...style.attrs(styles.trigger)}
+            {...style.attrs(state.touch, styles.trigger)}
         >
             <Icon icon={caretDown} />
         </button>
@@ -627,7 +641,7 @@ export function ComboboxChipRemove(
             data-slot="combobox-chip-remove"
             {...rest}
             onClick={() => control.selection.toggle(value)}
-            {...style.attributes([styles.remove, properties.xstyle], properties.style)}
+            {...style.attributes([state.touch, styles.remove, properties.xstyle], properties.style)}
         >
             {properties.children ?? <Icon name="x" size="0.75em" />}
         </button>

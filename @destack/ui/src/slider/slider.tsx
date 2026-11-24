@@ -25,7 +25,7 @@ import {
     useContext,
     useLocale,
 } from "@destack/view";
-import { type FieldControl, useFieldControl } from "../field/control.ts";
+import { type FieldControl, useFieldControl, useFieldValue } from "../field/control.ts";
 import { type ElementPartProperties, mergeProperties, renderPart } from "../part/index.ts";
 import { CollectionBuilder } from "../collection/index.ts";
 
@@ -291,7 +291,19 @@ export interface SliderThumbProperties extends SliderElementProperties<
 }
 
 /** Render a slider around its track and thumbs, with a native range input per thumb. */
-export function Slider(properties: SliderProperties): JSX.Element {
+export function Slider(given: SliderProperties): JSX.Element {
+    // edit the value of the field's form
+    const properties = useFieldValue(given, {
+        value: "value",
+        change: "onValueChange",
+        read: (value) => (typeof value === "number" ? [value] : value),
+        take: (change, current) => {
+            const first: unknown = Array.isArray(change) ? change[0] : change;
+
+            return typeof current === "number" ? first : change;
+        },
+    });
+
     // share the values with the parts
     const control = new SliderControl(properties, useFieldControl());
     const rest = omit(

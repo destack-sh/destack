@@ -1,12 +1,28 @@
 import { state } from "@destack/theme/state";
 import * as style from "@destack/style";
-import { color, space, weight, swatch } from "@destack/theme/tokens.stylex";
+import { media } from "@destack/style/media.stylex";
+import { color, motion, size, space, weight, swatch } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import { children, createUniqueId, For, type JSX, merge, omit, Show } from "@destack/view";
+import {
+    children,
+    createUniqueId,
+    For,
+    type FormField,
+    type JSX,
+    merge,
+    omit,
+    onCleanup,
+    Show,
+    untrack,
+    useEnvironment,
+    useLocale,
+} from "@destack/view";
+import { t } from "@destack/locale";
+import { Button } from "../button/index.ts";
 import { Label, type LabelProperties } from "../label/index.ts";
 import { FieldContext, FieldControl, useFieldControl } from "./control.ts";
 import { Separator } from "../separator/index.ts";
-import { renderPart } from "../part/index.ts";
+import { mergeProperties, renderPart } from "../part/index.ts";
 
 /** The width of a field group above which responsive fields lay out in a row. */
 const RESPONSIVE_QUERY = "@container field-group (min-width: 28rem)";
@@ -17,15 +33,17 @@ const DEFAULTS: Required<Pick<FieldProperties, "orientation">> = { orientation: 
 /** The variant of a legend that sets none. */
 const LEGEND_DEFAULTS: Required<Pick<FieldLegendProperties, "variant">> = { variant: "legend" };
 
+/** An error as it appears. */
+const appear = style.keyframes({
+    from: { opacity: 0, transform: "translateY(-0.25rem)" },
+});
+
 /** The styles of a field and its elements. */
 const styles = style.create({
     field: {
         display: "flex",
         width: "100%",
         gap: space[3],
-    },
-    invalid: {
-        color: swatch.destructiveText,
     },
     set: {
         display: "flex",
@@ -63,6 +81,29 @@ const styles = style.create({
     },
     error: {
         color: swatch.destructiveText,
+        animationName: { default: appear, [media.motionReduce]: "none" },
+        animationDuration: motion.durationShort,
+        animationTimingFunction: motion.easingStandard,
+    },
+    below: {
+        flexBasis: "100%",
+    },
+    label: {
+        position: "relative",
+        maxWidth: `calc(100% - ${size[3]})`,
+        "::after": {
+            content: "''",
+            position: "absolute",
+            insetBlock: `calc(-1 * ${space[1]})`,
+            insetInline: `calc(-1 * ${space[3]})`,
+        },
+    },
+    conflict: {
+        display: "flex",
+        flexWrap: "wrap",
+        alignItems: "center",
+        gap: space[2],
+        color: color.mutedForeground,
     },
     errors: {
         display: "flex",
@@ -96,6 +137,7 @@ const orientations = style.create({
     },
     horizontal: {
         flexDirection: "row",
+        flexWrap: { default: "nowrap", ":has(> [data-slot=field-error])": "wrap" },
         alignItems: {
             default: "center",
             ":has(> [data-slot=field-content])": "flex-start",
@@ -133,6 +175,8 @@ export interface FieldProperties extends FieldElementProperties<HTMLDivElement> 
     readonly invalid?: boolean;
     /** Whether the field is disabled, which disables the control. */
     readonly disabled?: boolean;
+    /** The value of a form its control edits, which tells what is wrong with it. */
+    readonly field?: FormField<unknown> | undefined;
 }
 
 /** The properties of a legend. */
@@ -143,7 +187,7 @@ export interface FieldLegendProperties extends FieldElementProperties<HTMLLegend
 
 /** The properties of a field's error message. */
 export interface FieldErrorProperties extends FieldElementProperties<HTMLDivElement> {
-    /** The errors to list when there are no children, each shown once by message. */
+    /** The errors to list without children, each shown once, the field's own by default. */
     readonly errors?: readonly ({ readonly message?: string | undefined } | undefined)[];
 }
 
@@ -151,11 +195,87 @@ export interface FieldErrorProperties extends FieldElementProperties<HTMLDivElem
 export function Field(properties: FieldProperties): JSX.Element {
     // share one control with the field's elements
     const field = merge(DEFAULTS, properties);
-    const rest = omit(field, "orientation", "invalid", "disabled", "xstyle", "style", "children");
+    const rest = omit(
+        field,
+        "orientation",
+        "invalid",
+        "disabled",
+        "field",
+        "xstyle",
+        "style",
+        "children",
+    );
     const control = new FieldControl(
         () => field.invalid === true,
         () => field.disabled === true,
+        untrack(() => field.field),
+        untrack(() => field.orientation) === "horizontal",
     );
+
+    // show what the browser says is wrong, and settle on the value as the focus leaves
+    const recheck = (event: Event): void => {
+        if (isCheckable(event.target)) {
+            control.recheck(event.target);
+        }
+    };
+    const refuse = (event: Event): void => {
+        // take the browser's place, and its focus on the form's first refused control
+        const { target } = event;
+        if (isCheckable(target) && control.refuse(target)) {
+            event.preventDefault();
+            const first = [...(target.form?.elements ?? [])].find(
+                (each) => isCheckable(each) && !each.validity.valid,
+            );
+            if (first === target) {
+                target.focus();
+            }
+        }
+    };
+
+    // settle on the value as the focus leaves
+    const { clock } = useEnvironment();
+    let press: AbortController | undefined;
+    let isPressed = false;
+    onCleanup(() => press?.abort());
+    const enter = (event: FocusEvent & { readonly currentTarget: HTMLElement }): void => {
+        // tell whether a press outside takes the focus
+        if (press === undefined) {
+            // follow presses until the value is settled on
+            press = new AbortController();
+            const { signal } = press;
+            const { ownerDocument } = event.currentTarget;
+            const options = { signal, capture: true };
+            ownerDocument.addEventListener("pointerdown", () => (isPressed = true), options);
+            ownerDocument.addEventListener("pointerup", () => (isPressed = false), options);
+            ownerDocument.addEventListener("pointercancel", () => (isPressed = false), options);
+        }
+    };
+    const leave = (event: FocusEvent & { readonly currentTarget: HTMLElement }): void => {
+        // stay while the focus does, or leaves with the window
+        const { currentTarget, relatedTarget } = event;
+        const { ownerDocument } = currentTarget;
+        const isInside = relatedTarget instanceof Node && currentTarget.contains(relatedTarget);
+        if (isInside || !ownerDocument.hasFocus()) {
+            return;
+        }
+        const settle = (): void => {
+            // stop following presses
+            press?.abort();
+            press = undefined;
+            isPressed = false;
+            control.value?.settle();
+        };
+
+        // settle once a press is over, so an error never moves what is pressed
+        if (isPressed && press !== undefined) {
+            const options = { signal: press.signal, capture: true, once: true };
+            const wait = (): void => void clock.setTimeout(settle, 0);
+            ownerDocument.addEventListener("pointerup", wait, options);
+            ownerDocument.addEventListener("pointercancel", wait, options);
+        } else {
+            settle();
+        }
+    };
 
     return (
         <FieldContext value={control}>
@@ -165,14 +285,19 @@ export function Field(properties: FieldProperties): JSX.Element {
                 data-orientation={field.orientation}
                 data-invalid={control.isInvalid() ? "" : undefined}
                 data-disabled={control.isDisabled() ? "" : undefined}
-                {...rest}
+                {...mergeProperties(
+                    {
+                        onFocusIn: enter,
+                        onFocusOut: leave,
+                        onInput: recheck,
+                        onChange: recheck,
+                        ref: (element: HTMLElement) =>
+                            element.addEventListener("invalid", refuse, { capture: true }),
+                    },
+                    rest,
+                )}
                 {...style.attributes(
-                    [
-                        styles.field,
-                        orientations[field.orientation],
-                        control.isInvalid() && styles.invalid,
-                        field.xstyle,
-                    ],
+                    [styles.field, orientations[field.orientation], field.xstyle],
                     field.style,
                 )}
             >
@@ -189,11 +314,15 @@ export function FieldLabel(properties: LabelProperties): JSX.Element {
 
     return (
         <Label
-            id={control?.isGrouped() === true ? control.labelId : undefined}
+            id={control?.labelId}
             data-slot="field-label"
             for={control?.isGrouped() === true ? undefined : control?.id}
             {...rest}
-            xstyle={[control?.isDisabled() === true && state.inert, properties.xstyle]}
+            xstyle={[
+                control?.isAcross === true && styles.label,
+                control?.isDisabled() === true && state.inert,
+                properties.xstyle,
+            ]}
         />
     );
 }
@@ -216,14 +345,16 @@ export function FieldError(properties: FieldErrorProperties): JSX.Element {
     // list the children, else each distinct error message
     const rest = omit(properties, "errors", "xstyle", "style", "children");
     const content = children(() => properties.children);
-    const messages = (): string[] => [
-        ...new Set(properties.errors?.flatMap((error) => error?.message ?? []) ?? []),
-    ];
+    const control = useFieldControl();
+    const given = (): readonly ({ readonly message?: string | undefined } | undefined)[] =>
+        properties.errors ?? [{ message: control?.problem() }];
+    const messages = (): string[] => [...new Set(given().flatMap((error) => error?.message ?? []))];
 
     // describe the field's control while there is something to show
     const id = createUniqueId();
     const isShown = (): boolean => content.toArray().length > 0 || messages().length > 0;
-    useFieldControl()?.describe(id, isShown);
+    control?.describe(id, isShown);
+    control?.showError(id);
 
     return (
         <Show when={isShown()}>
@@ -232,7 +363,15 @@ export function FieldError(properties: FieldErrorProperties): JSX.Element {
                 role="alert"
                 data-slot="field-error"
                 {...rest}
-                {...style.attributes([text.xs, styles.error, properties.xstyle], properties.style)}
+                {...style.attributes(
+                    [
+                        text.xs,
+                        styles.error,
+                        control?.isAcross === true && styles.below,
+                        properties.xstyle,
+                    ],
+                    properties.style,
+                )}
             >
                 <Show when={content.toArray().length === 0} fallback={content()}>
                     <Show when={messages().length > 1} fallback={messages()[0]}>
@@ -243,6 +382,70 @@ export function FieldError(properties: FieldErrorProperties): JSX.Element {
                 </Show>
             </div>
         </Show>
+    );
+}
+
+/** The properties of what a field shows of a value someone else set. */
+export type FieldConflictProperties = Omit<FieldElementProperties<HTMLDivElement>, "children"> & {
+    /** Write their value, by default as it is where it is text or a number. */
+    readonly children?: (value: unknown) => JSX.Element;
+};
+
+/** Render what someone else set the field's value to meanwhile, to take or to leave. */
+export function FieldConflict(properties: FieldConflictProperties): JSX.Element {
+    // write their value
+    const locale = useLocale();
+    const control = useFieldControl();
+    const value = control?.value;
+    const rest = omit(properties, "xstyle", "style", "children");
+    const write = (theirs: unknown): JSX.Element =>
+        properties.children?.(theirs) ??
+        (typeof theirs === "number"
+            ? locale.number(theirs)
+            : typeof theirs === "string"
+              ? theirs
+              : "");
+
+    // describe the field's control while there is something to show
+    const id = createUniqueId();
+    control?.describe(id, () => value?.conflict() !== undefined);
+
+    return (
+        <Show when={value?.conflict()}>
+            {(conflict) => (
+                <div
+                    id={id}
+                    role="status"
+                    data-slot="field-conflict"
+                    {...rest}
+                    {...style.attributes(
+                        [text.xs, styles.conflict, properties.xstyle],
+                        properties.style,
+                    )}
+                >
+                    <span>
+                        {locale.render(t`Changed meanwhile:`)} <b>{write(conflict().value)}</b>
+                    </span>
+                    <Button size="sm" variant="outline" onClick={() => value?.take()}>
+                        {locale.render(t`Use this`)}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => value?.keep()}>
+                        {locale.render(t`Keep mine`)}
+                    </Button>
+                </div>
+            )}
+        </Show>
+    );
+}
+
+/** Report whether an element is a control the browser checks. */
+function isCheckable(
+    element: unknown,
+): element is HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement {
+    return (
+        element instanceof HTMLInputElement ||
+        element instanceof HTMLSelectElement ||
+        element instanceof HTMLTextAreaElement
     );
 }
 

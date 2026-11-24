@@ -104,11 +104,30 @@ test("take what is typed as it is typed, and settle within the limits", () => {
     expect({ changed, committed }).toEqual({ changed: [7, 72, 50], committed: [50] });
 });
 
-test("keep the number before text that is none, and none for empty text", () => {
-    const { type, blur, committed } = draw({ defaultValue: 3 });
+test("leave text that is no number, and ask for one", () => {
+    const { container, input, type, blur, committed } = draw({ defaultValue: 3 });
+    const read = () => [
+        input.value,
+        input.getAttribute("aria-invalid"),
+        container.querySelector<HTMLInputElement>("input[name=count]")?.validationMessage,
+    ];
+    type("abc");
+    const typing = read();
+    blur();
+    const left = read();
+    type("4");
+    blur();
+    const fixed = read();
+    type("");
+    blur();
 
-    expect([type("abc"), blur(), type(""), blur()]).toEqual(["abc", "3", "", ""]);
-    expect(committed).toEqual([3, undefined]);
+    expect([typing, left, fixed, read(), committed]).toEqual([
+        ["abc", null, ""],
+        ["abc", "true", "Enter a number"],
+        ["4", null, ""],
+        ["", null, ""],
+        [undefined, 4, undefined],
+    ]);
 });
 
 test("read and write as the language does", () => {
@@ -147,19 +166,6 @@ test("keep the digits it is written with, those of its steps included", () => {
         ["2.50075", [2.50075]],
         ["3", [3]],
     ]);
-});
-
-test("refuse letters no number has", () => {
-    const { input, container } = draw({ format: { style: "unit", unit: "kilometer" } });
-    const isTaken = (data: string) =>
-        input.dispatchEvent(
-            new InputEvent("beforeinput", { data, bubbles: true, cancelable: true }),
-        );
-
-    expect([
-        container.isConnected,
-        ...["4", "-", "k", "x", "12 km", "about 4"].map(isTaken),
-    ]).toEqual([true, true, true, true, false, true, false]);
 });
 
 test("stop stepping at the limit while the button is pressed", async () => {

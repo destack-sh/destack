@@ -6,6 +6,7 @@ import { SELECTION_OPTIONS, Selection, type SelectionProperties } from "../selec
 import { ListState } from "../focus/index.ts";
 import type { Axis } from "../position/index.ts";
 import { toggleVariants, type ToggleSize, type ToggleVariant } from "../toggle/index.ts";
+import { useFieldValue, readChoices } from "../field/control.ts";
 
 /** The orientation of a toggle group that sets none. */
 const DEFAULTS: Required<Pick<ToggleGroupProperties, "orientation">> = {
@@ -88,7 +89,15 @@ export function useToggleGroup(): ToggleGroupControl {
 }
 
 /** Render a group of toggles that arrow keys move between, of which a single group has one on. */
-export function ToggleGroup(properties: ToggleGroupProperties): JSX.Element {
+export function ToggleGroup(given: ToggleGroupProperties): JSX.Element {
+    // edit the value of the field's form
+    const properties = useFieldValue(given, {
+        value: "value",
+        change: "onValueChange",
+        read: readChoices,
+        settles: true,
+    });
+
     // share one group with the items and read the text direction for the arrow keys
     const control = new ToggleGroupControl(properties);
     const locale = useLocale();

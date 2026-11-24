@@ -19,6 +19,7 @@ import { ToggleInput, isSubmitted } from "../toggle-state/index.ts";
 import { ListState } from "../focus/index.ts";
 import { Selection, type SingleSelection, valuesOf } from "../selection/index.ts";
 import { type PartAttributes, type Render, useRender } from "../part/index.ts";
+import { useFieldValue, readChoice } from "../field/control.ts";
 
 /** The checked value of the nearest radio group, null outside a group. */
 const RadioGroupContext = createContext<RadioGroupControl | null>(null);
@@ -195,7 +196,15 @@ function defaultOf(value: string | undefined): Pick<SingleSelection, "defaultVal
 }
 
 /** Render a group of radios, which arrow keys move between and check. */
-export function RadioGroup(properties: RadioGroupProperties): JSX.Element {
+export function RadioGroup(given: RadioGroupProperties): JSX.Element {
+    // edit the value of the field's form
+    const properties = useFieldValue(given, {
+        value: "value",
+        change: "onValueChange",
+        read: readChoice,
+        settles: true,
+    });
+
     // share the group with its radios and read the text direction for the arrow keys
     const control = new RadioGroupControl(properties);
     const locale = useLocale();
@@ -267,6 +276,7 @@ export function RadioGroupItem(properties: RadioGroupItemProperties): JSX.Elemen
             style.attributes(
                 [
                     state.focus,
+                    state.touch,
                     state.disabled,
                     styles.item,
                     isChecked() && styles.checked,

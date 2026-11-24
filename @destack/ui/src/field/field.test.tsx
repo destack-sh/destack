@@ -34,10 +34,7 @@ test("connect the label and description to the control by id", () => {
 
     // the label points at the control, and the control names its description
     expect(markup(container)).toBe(
-        '<div role="group" data-slot="field" data-orientation="vertical">' +
-            '<label data-slot="field-label" for="id-1">Email</label>' +
-            '<input data-slot="input" id="id-1" type="email" aria-describedby="id-2">' +
-            '<p data-slot="field-description" id="id-2">Used to sign in.</p></div>',
+        '<div role="group" data-slot="field" data-orientation="vertical"><label id="id-1" data-slot="field-label" for="id-2">Email</label><input data-slot="input" id="id-2" type="email" aria-describedby="id-3"><p data-slot="field-description" id="id-3">Used to sign in.</p></div>',
     );
 });
 
@@ -57,19 +54,17 @@ test("mark an invalid field's control and describe it by its error", () => {
 
     // without errors the error renders nothing and the control names no description
     expect(valid).toBe(
-        '<div role="group" data-slot="field" data-orientation="vertical">' +
-            '<label data-slot="field-label" for="id-1">Title</label>' +
-            '<textarea data-slot="textarea" id="id-1"></textarea></div>',
+        '<div role="group" data-slot="field" data-orientation="vertical"><label id="id-1" data-slot="field-label" for="id-2">Title</label><textarea data-slot="textarea" id="id-2"></textarea></div>',
     );
 
     // with an error the field, control and alert change together
     expect(markup(container)).toBe(
         '<div role="group" data-slot="field" data-orientation="vertical" data-invalid="">' +
-            '<label data-slot="field-label" for="id-1">Title</label>' +
-            '<textarea data-slot="textarea" id="id-1" aria-describedby="id-2" aria-invalid="true"></textarea>' +
-            '<div id="id-2" role="alert" data-slot="field-error">enter a title</div></div>',
+            '<label id="id-1" data-slot="field-label" for="id-2">Title</label>' +
+            '<textarea data-slot="textarea" id="id-2" aria-describedby="id-3" aria-invalid="true"></textarea>' +
+            '<div id="id-3" role="alert" data-slot="field-error">enter a title</div></div>',
     );
-    expect(classes(container)).not.toEqual(validClasses);
+    expect(classes(container)).toEqual(validClasses);
 });
 
 test("drop a cleared error from the control's descriptions", () => {
@@ -120,9 +115,7 @@ test("disable a disabled field's control", () => {
         </Field>
     ));
     expect(markup(container)).toBe(
-        '<div role="group" data-slot="field" data-orientation="vertical" data-disabled="">' +
-            '<label data-slot="field-label" for="id-1">Name</label>' +
-            '<input data-slot="input" id="id-1" disabled=""></div>',
+        '<div role="group" data-slot="field" data-orientation="vertical" data-disabled=""><label id="id-1" data-slot="field-label" for="id-2">Name</label><input data-slot="input" id="id-2" disabled=""></div>',
     );
 });
 

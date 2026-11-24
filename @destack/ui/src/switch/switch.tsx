@@ -28,7 +28,7 @@ import {
     isSubmitted,
     ToggleState,
 } from "../toggle-state/index.ts";
-import { useFieldControl } from "../field/control.ts";
+import { useFieldControl, useFieldValue } from "../field/control.ts";
 import {
     type ElementPartProperties,
     type PartAttributes,
@@ -117,7 +117,15 @@ export type SwitchThumbProperties = Omit<JSX.HTMLAttributes<HTMLSpanElement>, "c
     ElementPartProperties;
 
 /** Render a button exposed as an on and off switch around its thumb. */
-export function Switch(properties: SwitchProperties): JSX.Element {
+export function Switch(given: SwitchProperties): JSX.Element {
+    // edit the value of the field's form
+    const properties = useFieldValue(given, {
+        value: "checked",
+        change: "onCheckedChange",
+        read: (value) => value === true,
+        settles: true,
+    });
+
     // take the id and state of the nearest field
     const field = useFieldControl();
     const toggle = new ToggleState(properties);
@@ -144,6 +152,7 @@ export function Switch(properties: SwitchProperties): JSX.Element {
             style.attributes(
                 [
                     state.focus,
+                    state.touch,
                     state.disabled,
                     styles.switch,
                     toggle.isChecked() && styles.checked,

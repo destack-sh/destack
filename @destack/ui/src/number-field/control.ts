@@ -85,6 +85,10 @@ export class NumberFieldControl {
     readonly #text: Accessor<string | undefined>;
     /** Replace the text a person types. */
     readonly #setText: Setter<string | undefined>;
+    /** Whether the text a person settled on is no number. */
+    readonly #isUnreadable: Accessor<boolean>;
+    /** Set whether it is. */
+    readonly #setUnreadable: Setter<boolean>;
     /** The language the number is written in. */
     readonly #locale: Localization;
 
@@ -104,6 +108,9 @@ export class NumberFieldControl {
         this.#setValue = setValue;
         const [text, setText] = createSignal<string | undefined>(undefined, { ownedWrite: true });
         this.#text = text;
+        const [isUnreadable, setUnreadable] = createSignal(false, { ownedWrite: true });
+        this.#isUnreadable = isUnreadable;
+        this.#setUnreadable = setUnreadable;
         this.#setText = setText;
     }
 
@@ -171,6 +178,7 @@ export class NumberFieldControl {
     type(text: string): void {
         // leave text that is no number yet, such as a lone minus, to what comes after
         this.#setText(text);
+        this.#setUnreadable(false);
         const isEmpty = text.trim() === "";
         const value = this.read(text);
         if (isEmpty || value !== undefined) {
@@ -191,15 +199,26 @@ export class NumberFieldControl {
             return;
         }
 
-        // settle on the number typed, on the one before for text that is none
-        const typed = text.trim() === "" ? undefined : (this.read(text) ?? this.value());
-        const isFree = typed === undefined || this.options.allowOutOfRange === true;
-        this.settle(isFree ? typed : this.#clamp(typed));
+        // leave text that is no number, which the field refuses, to the person
+        const typed = this.read(text);
+        this.#setUnreadable(typed === undefined && text.trim() !== "");
+        if (typed === undefined && text.trim() !== "") {
+            this.#change(undefined);
+            this.options.onValueCommitted?.(undefined);
+        } else {
+            const isFree = typed === undefined || this.options.allowOutOfRange === true;
+            this.settle(isFree ? typed : this.#clamp(typed));
+        }
     }
 
     /** Read why the number is refused, empty while it is not. */
     refusal(): string {
-        // compare it with the limits, once a person is done typing
+        // ask for a number in place of other text, once a person is done typing
+        if (this.#isUnreadable()) {
+            return this.#locale.render(t`Enter a number`);
+        }
+
+        // compare it with the limits
         const value = this.#text() === undefined ? this.value() : undefined;
         const { min, max } = this.options;
         if (value !== undefined && min !== undefined && value < min) {
@@ -213,13 +232,9 @@ export class NumberFieldControl {
 
     /** Return to the number the field started from, as a form reset does. */
     reset(): void {
+        this.#setUnreadable(false);
         this.#setText(undefined);
         this.#change(this.options.defaultValue);
-    }
-
-    /** Report whether a person may type text where there is some, as part of a number. */
-    takes(text: string): boolean {
-        return this.#locale.isPartialNumber(text, this.options.format);
     }
 
     /** Read the keyboard a phone shows, an iPhone's numeric ones having no minus. */
@@ -273,6 +288,9 @@ export class NumberFieldControl {
 
     /** Set the number, with the digits it is written with. */
     #take(value: number | undefined): number | undefined {
+        // leave other text behind
+        this.#setUnreadable(false);
+
         // keep the digits it is written with
         const isShare = this.options.format?.style === "percent";
         const digits = Math.min(this.digits() + (isShare ? 2 : 0), MOST_DIGITS);

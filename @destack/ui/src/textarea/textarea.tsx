@@ -1,7 +1,8 @@
+import { Shortcut } from "@destack/locale";
 import * as style from "@destack/style";
 import { space } from "@destack/theme/tokens.stylex";
 import { type JSX, merge } from "@destack/view";
-import { useFieldControl } from "../field/control.ts";
+import { readText, takeText, useFieldControl, useFieldValue } from "../field/control.ts";
 import { inputStyle } from "../input/index.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
 
@@ -22,7 +23,15 @@ export type TextareaProperties = Omit<JSX.TextareaHTMLAttributes<HTMLTextAreaEle
     ElementPartProperties;
 
 /** Render a native textarea that grows with its content, tied to its field. */
-export function Textarea(properties: TextareaProperties): JSX.Element {
+export function Textarea(given: TextareaProperties): JSX.Element {
+    // edit the value of the field's form
+    const properties = useFieldValue(given, {
+        value: "value",
+        change: "onInput",
+        read: readText,
+        take: takeText,
+    });
+
     // take the id, descriptions and state of the nearest field
     const field = useFieldControl();
     const isInvalid = (): boolean =>
@@ -33,6 +42,17 @@ export function Textarea(properties: TextareaProperties): JSX.Element {
         "textarea",
         properties,
         () => [inputStyle({ invalid: isInvalid() }), styles.textarea],
-        merge(() => field?.attributes() ?? {}),
+        merge(() => field?.attributes() ?? {}, { onKeyDown: submit }),
     );
+}
+
+/** Submit a text area's form by the command key and Enter, which alone starts a line. */
+function submit(event: KeyboardEvent & { readonly currentTarget: HTMLTextAreaElement }): void {
+    // leave Enter while a character is composed
+    const isCommand = Shortcut.isCommand(navigator.userAgent);
+    const isTaken = event.isComposing || event.defaultPrevented;
+    if (Shortcut.matches("mod+enter", event, isCommand) && !isTaken) {
+        event.preventDefault();
+        event.currentTarget.form?.requestSubmit();
+    }
 }

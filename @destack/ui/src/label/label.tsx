@@ -15,7 +15,7 @@ const styles = style.create({
             // read as text beside the control it wraps
             ":has(input, button)": weight.regular,
         },
-        lineHeight: 1,
+        lineHeight: 1.25,
         color: {
             default: null,
             ":has(:disabled, [aria-disabled=true])": color.mutedForeground,

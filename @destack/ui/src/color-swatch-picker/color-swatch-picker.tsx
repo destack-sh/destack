@@ -10,6 +10,7 @@ import {
     type ListBoxItemProperties,
     useListBox,
 } from "../list-box/index.ts";
+import { useFieldValue, readChoice } from "../field/control.ts";
 
 /** The swatches in each row of a swatch picker by default. */
 const COLUMNS = 5;
@@ -50,8 +51,8 @@ const styles = style.create({
         borderWidth: { default: null, [media.forcedColors]: "1px" },
         borderStyle: { default: null, [media.forcedColors]: "solid" },
         borderColor: { default: null, [media.forcedColors]: "CanvasText" },
-        width: `calc(${size[1]} * 0.75)`,
-        height: `calc(${size[1]} * 0.75)`,
+        width: { default: `calc(${size[1]} * 0.75)`, [media.pointerCoarse]: size[2] },
+        height: { default: `calc(${size[1]} * 0.75)`, [media.pointerCoarse]: size[2] },
         minHeight: 0,
         paddingBlock: 0,
         paddingInline: 0,
@@ -73,7 +74,15 @@ const fills = style.create({
 });
 
 /** Render the theme's swatches as a list box in a grid layout. */
-export function ColorSwatchPicker(properties: ColorSwatchPickerProperties): JSX.Element {
+export function ColorSwatchPicker(given: ColorSwatchPickerProperties): JSX.Element {
+    // edit the value of the field's form
+    const properties = useFieldValue(given, {
+        value: "value",
+        change: "onValueChange",
+        read: readChoice,
+        settles: true,
+    });
+
     // offer the given hues in their order unless the caller lays out its own swatches
     const rest = omit(
         properties,

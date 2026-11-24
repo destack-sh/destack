@@ -3,7 +3,7 @@ import xIcon from "@destack/icon/phosphor/x";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
 import { createControllableSignal, type JSX, omit, Show, untrack, useLocale } from "@destack/view";
-import { useFieldControl } from "../field/control.ts";
+import { readText, useFieldControl, useFieldValue } from "../field/control.ts";
 import { handleFormReset } from "../form-input/index.ts";
 import { Icon } from "../icon/index.ts";
 import {
@@ -37,7 +37,14 @@ export type SearchFieldProperties = Omit<InputProperties, "type" | "value" | "on
 };
 
 /** Render a field to search by, cleared by its button or Escape. */
-export function SearchField(properties: SearchFieldProperties): JSX.Element {
+export function SearchField(given: SearchFieldProperties): JSX.Element {
+    // edit the value of the field's form
+    const properties = useFieldValue(given, {
+        value: "value",
+        change: "onValueChange",
+        read: readText,
+    });
+
     // follow the controlled text or the field's own
     const locale = useLocale();
     const field = useFieldControl();

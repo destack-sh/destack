@@ -1,5 +1,6 @@
 import * as style from "@destack/style";
-import { createEffect, type JSX, onSettled } from "@destack/view";
+import { createEffect, type JSX, onSettled, onCleanup } from "@destack/view";
+import { useFieldControl } from "../field/control.ts";
 import { visuallyHiddenStyle } from "../visually-hidden/index.ts";
 
 /** The styles of the input of a control's value. */
@@ -61,15 +62,27 @@ export function FormInput(
     },
 ): JSX.Element {
     // reset with the form, and refuse what the control refuses
+    const field = useFieldControl();
     let element: HTMLInputElement | undefined;
+    let said = "";
     handleFormReset(
         () => element?.form,
         () => properties.onReset(),
     );
     createEffect(
         () => properties.error,
-        (error) => element?.setCustomValidity(error),
+        (error) => {
+            element?.setCustomValidity(error);
+            said = error;
+            field?.say(error);
+        },
     );
+    onCleanup(() => {
+        // take back what is still said
+        if (said !== "") {
+            field?.say("");
+        }
+    });
 
     return (
         <input
