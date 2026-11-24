@@ -50,6 +50,10 @@ export interface ValueFieldProperties<Type extends ActionValue = ActionValue> {
     readonly onValueChange: (value: JsonValue | undefined) => void;
     /** The choices a person picks from, none for what they type. */
     readonly choices?: readonly Choice[] | undefined;
+    /** Find the choices of what a person types, which are then not narrowed here. */
+    readonly onSearch?: ((text: string) => void) | undefined;
+    /** What it is called, where no label beside it says so. */
+    readonly "aria-label"?: string | undefined;
     /** Whether a form needs a value. */
     readonly required?: boolean | undefined;
     /** Whether it takes no input. */
@@ -121,6 +125,7 @@ export function ValueField(properties: ValueFieldProperties): JSX.Element {
 function TextInput(properties: ValueFieldProperties): JSX.Element {
     return (
         <Input
+            aria-label={properties["aria-label"]}
             required={properties.required}
             disabled={properties.disabled}
             value={typeof properties.value === "string" ? properties.value : ""}
@@ -139,6 +144,7 @@ function NumberInput(
 ): JSX.Element {
     return (
         <NumberField
+            aria-label={properties["aria-label"]}
             value={typeof properties.value === "number" ? properties.value : undefined}
             min={properties.type.minimum}
             max={properties.type.maximum}
@@ -156,6 +162,7 @@ function NumberInput(
 function BooleanInput(properties: ValueFieldProperties): JSX.Element {
     return (
         <Switch
+            aria-label={properties["aria-label"]}
             checked={properties.value === true}
             disabled={properties.disabled}
             onCheckedChange={(isOn) => properties.onValueChange(isOn)}
@@ -167,6 +174,7 @@ function BooleanInput(properties: ValueFieldProperties): JSX.Element {
 function TimeInput(properties: ValueFieldProperties): JSX.Element {
     return (
         <DateTimeField
+            aria-label={properties["aria-label"]}
             value={typeof properties.value === "number" ? properties.value : undefined}
             required={properties.required}
             disabled={properties.disabled}
@@ -188,7 +196,7 @@ function ChoiceInput(properties: ValueFieldProperties): JSX.Element {
             value={keyOf(properties.value)}
             onValueChange={(key) => properties.onValueChange(valueOf(properties, key))}
         >
-            <SelectTrigger>
+            <SelectTrigger aria-label={properties["aria-label"]}>
                 <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -213,8 +221,11 @@ function FoundInput(properties: ValueFieldProperties): JSX.Element {
             onValueChange={(key: string | undefined) =>
                 properties.onValueChange(valueOf(properties, key))
             }
+            {...(properties.onSearch === undefined ? {} : { filter: null })}
+            onInputValueChange={(text) => properties.onSearch?.(text)}
         >
             <ComboboxInput
+                aria-label={properties["aria-label"]}
                 required={properties.required}
                 disabled={properties.disabled}
                 placeholder={locale.render(t`Choose…`)}
@@ -259,6 +270,7 @@ function JsonInput(properties: ValueFieldProperties): JSX.Element {
 
     return (
         <Textarea
+            aria-label={properties["aria-label"]}
             required={properties.required}
             disabled={properties.disabled}
             spellcheck="false"
