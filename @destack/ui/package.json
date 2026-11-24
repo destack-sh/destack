@@ -24,12 +24,13 @@
         "./chart/*": "./src/chart/module/*.ts",
         "./checkbox": "./src/checkbox/index.ts",
         "./code-block": "./src/code-block/index.ts",
-        "./code-block.css": "./src/code-block/code-block.css",
         "./collapsible": "./src/collapsible/index.ts",
         "./collection": "./src/collection/index.ts",
         "./combobox": "./src/combobox/index.ts",
         "./color-swatch-picker": "./src/color-swatch-picker/index.ts",
         "./command": "./src/command/index.ts",
+        "./copy-button": "./src/copy-button/index.ts",
+        "./diff": "./src/diff/index.ts",
         "./palette": "./src/palette/index.ts",
         "./action": "./src/action/index.ts",
         "./context-menu": "./src/context-menu/index.ts",
@@ -116,6 +117,7 @@
         "generate": "bun run src/chart/generate.ts"
     },
     "dependencies": {
+        "@destack/code": "workspace:*",
         "@destack/color": "workspace:*",
         "@destack/environment": "workspace:*",
         "@destack/icon": "workspace:*",

@@ -52,23 +52,23 @@ export const Save = () => {
 
 Each entry is `@destack/ui/<entry>`.
 
-| Group                  | Entries                                                                                                                                                                                                                                                                                                                 |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Forms                  | `autocomplete`, `button`, `button-group`, `calendar`, `checkbox`, `color-swatch-picker`, `combobox`, `date-field`, `date-picker`, `emoji-picker`, `field`, `icon-picker`, `input`, `input-group`, `input-otp`, `label`, `radio-group`, `select`, `slider`, `switch`, `textarea`, `time-field`, `toggle`, `toggle-group` |
-| Overlays               | `alert-dialog`, `context-menu`, `dialog`, `drawer`, `dropdown-menu`, `hover-card`, `menubar`, `popover`, `sheet`, `toast`, `tooltip`                                                                                                                                                                                    |
-| Navigation             | `breadcrumb`, `command`, `navigation-menu`, `pagination`, `palette`, `sidebar`, `tabs`                                                                                                                                                                                                                                  |
-| Data                   | `avatar`, `badge`, `card`, `carousel`, `chart`, `code-block`, `data-list`, `data-table`, `feed`, `grid-list`, `item`, `kbd`, `list-box`, `load-more`, `object`, `table`, `tree`, `virtual-list`                                                                                                                         |
-| Views                  | `board`, `event-calendar`, `timeline`                                                                                                                                                                                                                                                                                   |
-| Feedback and structure | `accordion`, `alert`, `aspect-ratio`, `collapsible`, `empty`, `progress`, `prose`, `resizable`, `scroll-area`, `separator`, `skeleton`, `spinner`, `visually-hidden`                                                                                                                                                    |
-| Layout                 | `stack`, `cluster`, `grid`, `center`, `switcher`, `cover`, `content`                                                                                                                                                                                                                                                    |
-| Building blocks        | `action`, `part`, `collection`, `focus`, `layer`, `position`, `selection`, `interaction`, `drag`, `sortable`, `toggle-state`, `virtualizer`, `glyph`                                                                                                                                                                    |
+| Group                  | Entries                                                                                                                                                                                                                                                                                                                                |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Forms                  | `autocomplete`, `button`, `button-group`, `calendar`, `checkbox`, `color-swatch-picker`, `combobox`, `copy-button`, `date-field`, `date-picker`, `emoji-picker`, `field`, `icon-picker`, `input`, `input-group`, `input-otp`, `label`, `radio-group`, `select`, `slider`, `switch`, `textarea`, `time-field`, `toggle`, `toggle-group` |
+| Overlays               | `alert-dialog`, `context-menu`, `dialog`, `drawer`, `dropdown-menu`, `hover-card`, `menubar`, `popover`, `sheet`, `toast`, `tooltip`                                                                                                                                                                                                   |
+| Navigation             | `breadcrumb`, `command`, `navigation-menu`, `pagination`, `palette`, `sidebar`, `tabs`                                                                                                                                                                                                                                                 |
+| Data                   | `avatar`, `badge`, `card`, `carousel`, `chart`, `code-block`, `data-list`, `data-table`, `diff`, `feed`, `grid-list`, `item`, `kbd`, `list-box`, `load-more`, `object`, `table`, `tree`, `virtual-list`                                                                                                                                |
+| Views                  | `board`, `event-calendar`, `timeline`                                                                                                                                                                                                                                                                                                  |
+| Feedback and structure | `accordion`, `alert`, `aspect-ratio`, `collapsible`, `empty`, `progress`, `prose`, `resizable`, `scroll-area`, `separator`, `skeleton`, `spinner`, `visually-hidden`                                                                                                                                                                   |
+| Layout                 | `stack`, `cluster`, `grid`, `center`, `switcher`, `cover`, `content`                                                                                                                                                                                                                                                                   |
+| Building blocks        | `action`, `part`, `collection`, `focus`, `layer`, `position`, `selection`, `interaction`, `drag`, `sortable`, `toggle-state`, `virtualizer`, `glyph`                                                                                                                                                                                   |
 
 ### Parts
 
 A part renders one element with `data-slot` and its state as `data-*` attributes.
 `xstyle` adds styles after its own, and `render` swaps its element, as in Base UI.
 
-`Prose`, `CodeBlock`, `Stack` and `Switcher` style their descendants, through `@destack/ui/prose.css`, `code-block.css`, `stack.css` and `switcher.css`.
+`Prose`, `Stack` and `Switcher` style their descendants, through `@destack/ui/prose.css`, `stack.css` and `switcher.css`.
 
 ### Conventions
 
@@ -504,7 +504,6 @@ A page imports each descendant stylesheet once.
 
 ```css
 @import "@destack/ui/prose.css";
-@import "@destack/ui/code-block.css";
 ```
 
 ## Comparison
