@@ -186,7 +186,7 @@ export const Claim = Object.assign(claim, {
         const named = Claim.index(type, name);
         const owners = await claims.resolve({ index: named, keys: keyed.map((each) => each.key) });
 
-        // keep the candidates an object claims
+        // list the candidates an object claims
         return keyed.flatMap((each) => {
             const owner = owners.get(each.key);
 

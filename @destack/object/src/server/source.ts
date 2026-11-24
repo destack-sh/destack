@@ -674,14 +674,17 @@ export class ObjectSource {
             return this.store.followed.queries(served, audience.chain);
         };
 
-        // end a stream that left queries out once the store serves other types, for its follower to resume
+        // end a stream that left queries out once the store serves other types, at whichever change that is
         const recompile = new AbortController();
+        let serving = this.store.serving;
         const onServing = () => {
             if (isPartial) {
                 recompile.abort();
+            } else {
+                serving = this.store.serving;
+                serving.addEventListener("abort", onServing, { once: true });
             }
         };
-        const serving = this.store.serving;
         serving.addEventListener("abort", onServing, { once: true });
 
         // follow the requested queries of rows homed elsewhere upstream for as long as the stream lasts

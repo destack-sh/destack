@@ -119,7 +119,9 @@ export class Server implements AsyncDisposable {
         // end the connections of a handler that serves no store any more
         if (this.#handler.connections === undefined) {
             for (const id of this.#connections.keys()) {
-                void this.#end(id);
+                this.#end(id).catch((error: unknown) =>
+                    reportError(error, this.#options.environment.telemetry),
+                );
             }
         }
     }
