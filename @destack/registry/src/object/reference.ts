@@ -2,6 +2,7 @@ import { through } from "@destack/access";
 import { space } from "@destack/account/object";
 import { defineObject, defineShape, field } from "@destack/object";
 import { Commit, schema } from "@destack/schema";
+import { GitReference } from "@destack/git";
 import { repository } from "./repository.ts";
 import { nested } from "@destack/object";
 import { argument, plural, t } from "@destack/locale";
@@ -14,7 +15,7 @@ export const reference = defineObject(
         title: t`${plural(argument("count"), { one: "Reference", other: "References" })}`,
         scope: space,
         fields: {
-            /** The complete name, such as refs/heads/main or refs/tags/v1. */
+            /** The complete name, such as refs/heads/main or refs/checkouts/<checkout>. */
             name: field.string(schema.string().min(1)),
             /** The object the reference points at directly. */
             object: field.string(),
@@ -30,7 +31,9 @@ export const reference = defineObject(
             name: {
                 kind: "check",
                 condition: {
-                    name: { OR: [{ startsWith: "refs/heads/" }, { startsWith: "refs/tags/" }] },
+                    name: {
+                        OR: GitReference.namespaces.map((namespace) => ({ startsWith: namespace })),
+                    },
                 },
             },
             object: {
