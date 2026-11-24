@@ -1,4 +1,6 @@
+import check from "@destack/icon/phosphor/check";
 import { state } from "@destack/theme/state";
+import { Icon } from "@destack/ui/icon";
 import type { Direction } from "@destack/locale";
 import * as style from "@destack/style";
 import { color, radius, space, stroke, weight, size } from "@destack/theme/tokens.stylex";
@@ -55,6 +57,10 @@ const styles = style.create({
         borderRadius: radius[2],
         cursor: "default",
         userSelect: "none",
+    },
+    check: {
+        marginInlineStart: "auto",
+        color: color.mutedForeground,
     },
     note: {
         paddingBlock: space[5],
@@ -141,6 +147,8 @@ export class ListBoxControl {
     readonly focus: Focus<string>;
     /** The selected values, undefined for a list box that only runs actions. */
     readonly selection: Selection | undefined;
+    /** Whether the options lie in a grid. */
+    readonly isGrid: boolean;
     /** The layout the keys move through. */
     readonly delegate: ListDelegate<ListBoxOption> | GridDelegate<ListBoxOption>;
     /** The options the list box was created with. */
@@ -156,6 +164,7 @@ export class ListBoxControl {
         this.options = new CollectionBuilder((option) => option.element());
         this.#options = options;
         this.selection = options.selection;
+        this.isGrid = options.layout === "grid";
         this.collection = new Collection({
             sections: () => sectioned(this.options.items(), autocomplete),
             key: (option) => option.key,
@@ -470,6 +479,7 @@ export function ListBoxItem(properties: ListBoxItemProperties): JSX.Element {
         "onSelect",
         "xstyle",
         "style",
+        "children",
     );
     let element: HTMLDivElement | undefined;
     const [content, setContent] = createSignal("", { ownedWrite: true });
@@ -491,6 +501,11 @@ export function ListBoxItem(properties: ListBoxItemProperties): JSX.Element {
     control.focus.bind(() => option.key, option.element);
     const isActive = (): boolean => control.focus.isActive(option.key);
     const isVirtual = control.focus.mode === "virtual";
+
+    // mark a chosen option of a list box that selects: a check in a list, filled in a grid
+    const isChosen = (): boolean =>
+        control.selection !== undefined && !isVirtual && control.isSelected(option);
+    const isGrid = control.isGrid;
 
     return (
         <div
@@ -525,12 +540,18 @@ export function ListBoxItem(properties: ListBoxItemProperties): JSX.Element {
                     state.focus,
                     styles.option,
                     isVirtual && isActive() && state.selected,
+                    isChosen() && isGrid && state.selected,
                     properties.disabled === true && state.inert,
                     properties.xstyle,
                 ],
                 properties.style,
             )}
-        />
+        >
+            {properties.children}
+            <Show when={isChosen() && !isGrid}>
+                <Icon icon={check} xstyle={styles.check} />
+            </Show>
+        </div>
     );
 }
 

@@ -1,4 +1,5 @@
 import { defineExample } from "@destack/package/declare";
+import * as style from "@destack/style";
 import { createSignal } from "@destack/view";
 import {
     ListBox,
@@ -8,10 +9,19 @@ import {
     ListBoxSeparator,
 } from "./list-box.tsx";
 
+/** The width of a list of choices. */
+const styles = style.create({
+    list: {
+        width: "14rem",
+        marginInline: "auto",
+    },
+});
+
 /** The notebook a note files into, one chosen at a time, with an archived one unavailable. */
 export const listBoxNotebook = defineExample({
     of: ListBox,
     name: "notebook",
+    layout: "padded",
     description:
         "the notebook a note files into, one chosen at a time, with an archived one unavailable",
     render: () => {
@@ -20,6 +30,7 @@ export const listBoxNotebook = defineExample({
         return (
             <>
                 <ListBox
+                    xstyle={styles.list}
                     aria-label="Notebook"
                     selection={{ defaultValue: "work", onValueChange: setNotebook }}
                 >
@@ -45,9 +56,14 @@ export const listBoxNotebook = defineExample({
 export const listBoxTags = defineExample({
     of: ListBox,
     name: "tags",
+    layout: "padded",
     description: "a note's tags, several chosen at a time",
     render: () => (
-        <ListBox aria-label="Tags" selection={{ multiple: true, defaultValue: ["travel", "food"] }}>
+        <ListBox
+            xstyle={styles.list}
+            aria-label="Tags"
+            selection={{ multiple: true, defaultValue: ["travel", "food"] }}
+        >
             <ListBoxItem value="travel">travel</ListBoxItem>
             <ListBoxItem value="food">food</ListBoxItem>
             <ListBoxItem value="family">family</ListBoxItem>
