@@ -610,7 +610,16 @@ export const Installation = {
             };
             const isRecorded =
                 row.servedRevisionId === served && Observation.isRecorded(row, report);
-            if (!isRecorded && refusal !== undefined) {
+
+            // answer a refusal once its Serving, which only this records, changes to it
+            const before = row.conditions["Serving"];
+            const after =
+                outcome === undefined
+                    ? undefined
+                    : Installation.serving(outcome).conditions["Serving"];
+            const isReported =
+                before?.reason === after?.reason && before?.message === after?.message;
+            if (refusal !== undefined && !isReported) {
                 refusals.set(row.id, refusal);
             }
 
