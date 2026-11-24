@@ -118,11 +118,11 @@ export const installation = defineObject(
             /** The package directory within a followed repository or checkout. */
             directory: field.string(PackageDirectory).optional(),
             /** The targets it selects for its package's declarations. */
-            bindings: field.json(InstallationBindings).default({}),
+            bindings: field.json(InstallationBindings).default({}).guard({ read: "update" }),
             /** The stack its package exports for its space, absent for an application. */
             export: field.string().optional(),
             /** The arguments of the exported stack, absent for an application. */
-            parameters: field.json(schema.jsonObject()).optional(),
+            parameters: field.json(schema.jsonObject()).optional().guard({ read: "update" }),
             /** The space-local address. */
             name: field.string(InstallationName),
             /** Whether the installation should serve requests. */
@@ -134,7 +134,10 @@ export const installation = defineObject(
             /** The optional capabilities allowed at the installation's request, once approved. */
             allowed: field.json(schema.array(DeclarationName)).default([]),
             /** The directories granted to the package's `files` ability, each with its access. */
-            directories: field.json(schema.array(DirectoryGrant)).default([]),
+            directories: field
+                .json(schema.array(DirectoryGrant))
+                .default([])
+                .guard({ read: "update" }),
             /** How its server is isolated: a sandbox, or the machine's own process once trusted. */
             isolation: field.enum(["sandbox", "host"]).default("sandbox"),
 
@@ -209,7 +212,7 @@ export const installation = defineObject(
             // let permissions read the scope an installation lives in
             attributes: { scope: "string" },
             permissions: {
-                // let the space's readers see its installed apps
+                // let the space's readers see its apps, its managers their bindings, parameters and directories
                 read: through("scope", "read"),
                 list: through("scope", "read"),
                 install: none(),
