@@ -145,6 +145,15 @@ export class Move {
 
     /** Hold a primary pointer where the element allows. */
     #pointerDown(event: PointerEvent): void {
+        // leave two fingers to another gesture, such as a pinch, unless one moves already
+        const pressed = this.#run;
+        const isSecond = pressed !== undefined && pressed.pointerId !== event.pointerId;
+        if (isSecond && event.pointerType === "touch" && !pressed.isMoving) {
+            this.#release(pressed);
+
+            return;
+        }
+
         // leave other buttons, a second pointer and refused starts alone
         const element = event.currentTarget;
         if (

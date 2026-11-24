@@ -1066,3 +1066,19 @@ test("hold back what a pointer crosses on its way to an overlay until it turns a
         leaves: [0],
     });
 });
+
+test("leave two fingers to a pinch", () => {
+    // land a second finger before the first moves, then a second after it
+    const { element, move, steps } = drawMove({});
+    const finger = { pointerType: "touch" };
+    pointer(element, "pointerdown", 10, 10, { ...finger, pointerId: 1 });
+    pointer(element, "pointerdown", 60, 10, { ...finger, pointerId: 2 });
+    pointer(element, "pointermove", 40, 10, { ...finger, pointerId: 1 });
+    const pinched = [move.isMoving(), steps.length];
+    pointer(element, "pointerup", 40, 10, { ...finger, pointerId: 1 });
+    pointer(element, "pointerdown", 10, 10, { ...finger, pointerId: 3 });
+    pointer(element, "pointermove", 40, 10, { ...finger, pointerId: 3 });
+    pointer(element, "pointerdown", 60, 10, { ...finger, pointerId: 4 });
+
+    expect([pinched, move.isMoving()]).toEqual([[false, 0], true]);
+});
