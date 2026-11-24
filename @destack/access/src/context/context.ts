@@ -263,7 +263,7 @@ export const Caller = {
     },
 
     /** The caller of a principal that trusted code acts for, the code its actor unless itself. */
-    acting(subject: Subject, actor: Subject): Caller {
+    onBehalfOf(subject: Subject, actor: Subject): Caller {
         return Subject.same(subject, actor)
             ? Caller.of(subject)
             : { ...Caller.of(subject), actors: [actor] };

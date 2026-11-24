@@ -59,7 +59,7 @@ test("assure a principal's own code by its key, a person by their sign-in, and c
     expect({
         own: AccessContext.assurance(AccessContext.of(Caller.of(notes), now)),
         acting: AccessContext.assurance(
-            AccessContext.of({ ...Caller.acting(ada, notes), grants: [grant] }, now),
+            AccessContext.of({ ...Caller.onBehalfOf(ada, notes), grants: [grant] }, now),
         ),
         signedIn: AccessContext.assurance(
             AccessContext.of(Caller.of(ada), now, { credential: session }),
