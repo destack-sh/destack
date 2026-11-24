@@ -258,8 +258,8 @@ function ActionForm(properties: {
     const { action, asked } = question;
     const [values, setValues] = createSignal<ActionValues>(
         Object.fromEntries(
-            asked.flatMap(({ name, need, value }) =>
-                need === "required" && value.kind === "boolean" ? [[name, false]] : [],
+            asked.flatMap(({ name, presence, value }) =>
+                presence === "required" && value.kind === "boolean" ? [[name, false]] : [],
             ),
         ),
     );
@@ -270,7 +270,9 @@ function ActionForm(properties: {
             return value === undefined ? rest : { ...rest, [name]: value };
         });
     const isComplete = () =>
-        asked.every(({ name, need }) => need !== "required" || values()[name] !== undefined);
+        asked.every(
+            ({ name, presence }) => presence !== "required" || values()[name] !== undefined,
+        );
 
     return (
         <Dialog
@@ -331,7 +333,7 @@ function ActionField(properties: {
     // label it by its own label, else by its type's title or its name
     const locale = useLocale();
     const { input, choices, onGive } = properties;
-    const { value, need } = input;
+    const { value, presence } = input;
     const label =
         input.label !== undefined
             ? locale.render(input.label)
@@ -344,7 +346,7 @@ function ActionField(properties: {
             <FieldLabel>{label}</FieldLabel>
             <ActionControl
                 value={value}
-                isRequired={need === "required"}
+                isRequired={presence === "required"}
                 choices={choices}
                 onGive={onGive}
             />
