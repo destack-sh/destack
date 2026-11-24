@@ -390,7 +390,7 @@ async function branchTarget(
     }
 
     // read the package at the branch through a read lease
-    const lease = await client.repository.open({ spaceId: home, id: found.id, mode: "read" });
+    const lease = await client.repository.pull({ spaceId: home, id: found.id });
     const read = (path: string) =>
         readAtBranch(lease, branch, join(directory, path), context.environment);
     const definition = PackageDefinition.read(await read("destack.json"));

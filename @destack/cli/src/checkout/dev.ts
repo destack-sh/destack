@@ -13,14 +13,6 @@ import type {} from "@destack/package/import-meta";
 import { CliError } from "../error/index.ts";
 import { Interrupt } from "../command/failure.ts";
 
-/** What a build shows while it waits or runs, by state and phase. */
-const PROGRESS = {
-    pending: "Waiting for the checkout's host",
-    preparing: "Preparing",
-    building: "Building",
-    storing: "Storing",
-} satisfies Readonly<Record<"pending" | (typeof stackObject.BUILD_PHASES)[number], string>>;
-
 /** The option selecting the outputs a build builds. */
 const OUTPUTS_OPTION = {
     outputs: {
@@ -236,13 +228,9 @@ async function follow(
 
 /** Render a build's progress, or how it finished. */
 function render(current: stackObject.Build): string {
-    // show the phase of a running build
+    // show a running build
     if (current.state === "running") {
-        return PROGRESS[present(current.phase, "a running build's phase")];
-    }
-    // show a pending build
-    else if (current.state === "pending") {
-        return PROGRESS.pending;
+        return "Building";
     }
     // show how a finished build ended
     else {
