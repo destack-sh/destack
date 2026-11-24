@@ -8,8 +8,8 @@ import { PackageVersion, PackageId } from "@destack/package";
 import {
     type BuildReader,
     BuildImage,
-    OutputContent,
-    type OutputExport,
+    PackageOutput,
+    type PackageChunk,
 } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import { BuildStore } from "@destack/build/store";
@@ -76,18 +76,18 @@ const DECLARED: Readonly<
 /** Complete fixture build outputs with their directory, exporting each workload's entrypoint. */
 export function fixtureOutputs(
     outputs: Readonly<Record<string, Readonly<Record<string, unknown>>>>,
-): Readonly<Record<string, OutputContent>> {
+): Readonly<Record<string, PackageOutput>> {
     return Object.fromEntries(
         Object.entries(outputs).map(([name, output]) => {
             // export each workload's entrypoint as a module importing no dependency, as a build does
-            const parsed = OutputContent.parse({
+            const parsed = PackageOutput.parse({
                 directory: name,
                 exports: {},
                 peers: {},
                 ...output,
             });
             const exported = Object.values(parsed.workloads).map(
-                (declared): [string, OutputExport] => [
+                (declared): [string, PackageChunk] => [
                     declared.entrypoint,
                     { path: `${name}/index.js`, imports: [] },
                 ],
@@ -95,7 +95,7 @@ export function fixtureOutputs(
 
             return [
                 name,
-                OutputContent.parse({
+                PackageOutput.parse({
                     ...parsed,
                     exports: { ...Object.fromEntries(exported), ...parsed.exports },
                 }),

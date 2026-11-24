@@ -1,40 +1,23 @@
-import { PackageId } from "@destack/package";
 import { contained, principal, through, union } from "@destack/access";
 import * as accountObject from "@destack/account/object";
 import type { Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
-import { schema } from "@destack/schema";
-import { StackEvaluation, Submission } from "@destack/stack/object";
+import { Commit, schema } from "@destack/schema";
+import { Lease } from "@destack/resource";
 import { WorkingTree, WorkingTreeSource } from "./tree.ts";
 import { argument, plural, t } from "@destack/locale";
 
-/** A stack package directory of a checkout, the space that builds it, and its arguments. */
-export const CheckoutStack = schema.object({
-    /** The space whose stack follows the checkout, building there. */
-    space: schema.identifier("space"),
-    /** The person building and submitting the stack. */
-    login: schema.identifier("login"),
-    /** The stack package directory, relative to the working tree's root. */
-    directory: schema.string().min(1),
-    /** The exported stack. */
-    export: schema.string().min(1),
-    /** Arguments for a parameterised definition. */
-    parameters: schema.jsonObject(),
+/** A checkout's working tree pushed to its reference: the commit and the reference's name. */
+export const CheckoutPush = schema.object({
+    /** The commit of the working tree as it was: HEAD itself while clean. */
+    commit: Commit,
+    /** The reference pointed at the commit, refs/checkouts/<checkout>. */
+    reference: schema.string().min(1),
 });
-/** A stack package directory of a checkout to build and submit. */
-export type CheckoutStack = schema.Infer<typeof CheckoutStack>;
+/** A checkout's working tree pushed to its reference. */
+export type CheckoutPush = schema.Infer<typeof CheckoutPush>;
 
-/** A stack a checkout built, and the submission it hands its space's stack installation. */
-const CheckoutSubmission = schema.object({
-    /** The stack package the checkout built. */
-    packageId: PackageId,
-    /** The build with the export and arguments its space evaluates. */
-    submission: Submission.extend({
-        stack: StackEvaluation.pick({ export: true, parameters: true }),
-    }),
-});
-
-/** A Git working directory registered on a machine. */
+/** A Git working tree registered on a machine. */
 export const checkout = defineObject(
     {
         name: "checkout",
@@ -42,10 +25,10 @@ export const checkout = defineObject(
         title: t`${plural(argument("count"), { one: "Checkout", other: "Checkouts" })}`,
         scope: accountObject.machine,
         fields: {
-            /** The registered directory's absolute canonical path. */
+            /** The working tree's root, absolute and canonical. */
             directory: field.string(schema.string().min(1)),
-            /** The root of the directory's Git working tree. */
-            root: field.string(schema.string().min(1)),
+            /** The URL of the working tree's origin as registered, absent without one. */
+            remote: field.string().optional(),
         },
         constraints: {
             directory: { kind: "unique", on: ["scope", "directory"] },
@@ -57,7 +40,7 @@ export const checkout = defineObject(
                 create: union(contained(principal.machine), through("scope", "operate")),
                 relocate: union(contained(principal.machine), through("scope", "operate")),
                 delete: union(contained(principal.machine), through("scope", "operate")),
-                submit: union(contained(principal.machine), through("scope", "operate")),
+                push: union(contained(principal.machine), through("scope", "operate")),
             },
         },
     },
@@ -70,7 +53,7 @@ export const checkout = defineObject(
             }),
             prepared: WorkingTree,
             isPredicted: false,
-            onConflict: "directory",
+            onConflict: { key: "directory", update: ["remote"] },
         }),
         relocate: method.update("relocate", {
             fields: ["directory"],
@@ -85,13 +68,18 @@ export const checkout = defineObject(
             output: schema.array(schema.string().min(1)),
             prepared: schema.array(schema.string().min(1)),
         }),
-        /** Build a stack package directory of the checkout in a space, answering its submission. */
-        submit: method.mutation({
-            title: t`Submit`,
-            permission: "submit",
-            input: CheckoutStack,
-            output: CheckoutSubmission,
-            prepared: CheckoutSubmission,
+        /** Commit the working tree as it is and point the checkout's reference at the commit. */
+        push: method.mutation({
+            title: t`Push`,
+            permission: "push",
+            input: schema.object({
+                /** The lease to write the repository, which the person takes from its forge. */
+                lease: Lease,
+                /** What to push: the working tree as it is, or HEAD with no uncommitted change. */
+                of: schema.enum(["tree", "head"]),
+            }),
+            output: CheckoutPush,
+            prepared: CheckoutPush,
         }),
     }),
 );

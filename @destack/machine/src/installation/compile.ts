@@ -1,8 +1,7 @@
-import { principal } from "@destack/access";
 import { present, schema } from "@destack/schema";
 import { build, compile, CompileOutput } from "@destack/stack/object";
 import { StackError } from "@destack/stack/error";
-import { Scope, Subject } from "@destack/sync";
+import { Subject } from "@destack/sync";
 import { recorded } from "@destack/workflow";
 import { Failure } from "@destack/error";
 import type { Space } from "../space/index.ts";
@@ -28,10 +27,8 @@ export function implementCompile(space: Space) {
                     );
                     const { source } = row;
 
-                    // place a checkout's compile on its machine, a commit's on the space's runner
-                    if (source.kind === "checkout") {
-                        return principal.machine.reference(Scope.universe.id, source.machine);
-                    } else if (source.kind === "commit") {
+                    // place a commit's compile on the space's runner, refusing a release
+                    if (source.kind === "commit") {
                         return space.runner();
                     } else {
                         throw StackError.of(
@@ -57,7 +54,6 @@ export function implementCompile(space: Space) {
                         finishedAt: finished,
                         image: compiled.image,
                         outputs: compiled.outputs,
-                        ...(compiled.commit === undefined ? {} : { commit: compiled.commit }),
                     }),
                 );
 

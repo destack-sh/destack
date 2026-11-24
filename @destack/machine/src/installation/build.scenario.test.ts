@@ -1,10 +1,15 @@
-import { checkout } from "../computer/checkout/object/index.ts";
 import { Failure } from "@destack/error";
-import { Identifier, schema, Digest, Version } from "@destack/schema";
+import { Commit, Identifier, schema, Digest, Version } from "@destack/schema";
 import { expect, Recording, test } from "@destack/test";
 import { TestDatabase } from "@destack/db/test";
 import { Build, build, installationRevision } from "@destack/stack/object";
-import { ids, insertInstallation, TestSpace } from "../test/index.ts";
+import {
+    FIXTURE_BRANCH,
+    fixtureSource,
+    ids,
+    insertInstallation,
+    TestSpace,
+} from "../test/index.ts";
 
 /** The builds the stress test records in one space, enough that a read per build shows. */
 const STRESS_BUILDS = 2000;
@@ -19,18 +24,18 @@ test("retain each source's latest builds and every build a revision applies", as
 
     // record four builds of the root, one of another directory and a failed one, as retention reads them
     const record = async (directory: string, image: Digest | null, finishedAt: number) => {
+        // build a commit per finish time
         const id = Identifier.create("build", fixture.environment);
+        const commit = Commit.parse(String(finishedAt).padStart(40, "0"));
+        const source = { ...fixtureSource(directory), commit };
         await database.transaction(
             async (transaction) =>
                 await transaction.insert(build.table).values({
                     id,
                     scope: ids.space,
-                    source: {
-                        kind: "checkout",
-                        machine: ids.machine,
-                        checkout: ids.checkout,
-                        directory,
-                    },
+                    source,
+                    key: Build.key({ source, outputs: null, version: null }),
+                    commit,
                     outputs: ["bun"],
                     state: image === null ? "failed" : "succeeded",
                     image,
@@ -60,7 +65,7 @@ test("retain each source's latest builds and every build a revision applies", as
             scope: ids.space,
             packageId: ids.package,
             name: "notes",
-            version: checkout.reference(ids.machine, ids.checkout),
+            version: FIXTURE_BRANCH,
             directory: ".",
             installer: fixture.owner.subject,
         },
@@ -112,24 +117,28 @@ test("decide the retention of many builds in at most two statements and one rete
     await database.transaction(
         async (transaction) =>
             await transaction.insert(build.table).values(
-                Array.from({ length: STRESS_BUILDS }, (_, index) => ({
-                    id: Identifier.create("build", fixture.environment),
-                    scope: ids.space,
-                    source: {
-                        kind: "checkout" as const,
-                        machine: ids.machine,
-                        checkout: ids.checkout,
-                        directory: `directory-${String(index % STRESS_SOURCES)}`,
-                    },
-                    outputs: ["bun" as const],
-                    state: "succeeded" as const,
-                    image: Digest.parse(index.toString(16).padStart(64, "0")),
-                    failure: null,
-                    startedAt: now - index,
-                    finishedAt: now - index,
-                    createdAt: now - index,
-                    updatedAt: now - index,
-                })),
+                Array.from({ length: STRESS_BUILDS }, (_, index) => {
+                    // build a commit per build, of one of a few directories
+                    const commit = Commit.parse(index.toString(16).padStart(40, "0"));
+                    const directory = `directory-${String(index % STRESS_SOURCES)}`;
+                    const source = { ...fixtureSource(directory), commit };
+
+                    return {
+                        id: Identifier.create("build", fixture.environment),
+                        scope: ids.space,
+                        source,
+                        key: Build.key({ source, outputs: null, version: null }),
+                        commit,
+                        outputs: ["bun" as const],
+                        state: "succeeded" as const,
+                        image: Digest.parse(index.toString(16).padStart(64, "0")),
+                        failure: null,
+                        startedAt: now - index,
+                        finishedAt: now - index,
+                        createdAt: now - index,
+                        updatedAt: now - index,
+                    };
+                }),
             ),
     );
 

@@ -1,6 +1,7 @@
 import {
     installation,
     build,
+    Build,
     deployment,
     installationRevision,
     instance,
@@ -167,16 +168,28 @@ export async function insertRelease(
     outputs: readonly string[],
     environment: Environment,
 ): Promise<{ readonly id: Identifier<"build">; readonly image: Digest }> {
-    // record the build succeeded at the release's image
+    // answer the space's live build of the release, as creating one does
+    const { image } = released;
+    const source = { kind: "release" as const, ...released };
+    const live = await Build.find(database.snapshot(), scope, {
+        source,
+        outputs: null,
+        version: null,
+    });
+    if (live !== undefined) {
+        return { id: live.id, image };
+    }
+
+    // else record the build succeeded at the release's image
     const now = environment.clock.now();
     const id = Identifier.create("build", environment);
-    const { image } = released;
     await database.transaction(
         async (transaction) =>
             await transaction.insert(build.table).values({
                 id,
                 scope,
-                source: { kind: "release", ...released },
+                source,
+                key: Build.key({ source, outputs: null, version: null }),
                 outputs: [...outputs],
                 state: "succeeded",
                 image,

@@ -55,6 +55,7 @@ import {
     TARGET_PARAMETER,
     TOKEN_PARAMETER,
     ViewAddress,
+    FRAME_VIEW,
     ViewContext,
     ViewPath,
     ViewState,
@@ -1267,6 +1268,20 @@ export class InstallationOriginServer {
             );
         }
 
+        // answer a development build's frame at its reserved path, as a view serving people
+        const opened = { request, url, page, policy, map, builds };
+        if (pathname === OriginPath.frame) {
+            const frame = reader.manifest.outputs["browser"]?.frame;
+            if (frame === undefined) {
+                throw MachineError.of(
+                    "VIEW_NOT_FOUND",
+                    `frame of '${found.name}' not found: it runs no development build`,
+                );
+            }
+
+            return this.#document(opened, { name: FRAME_VIEW, audience: "person", ...frame });
+        }
+
         // find the view a route fixes, else the one the path's first segment names, the main view at the root
         const [, segment = ""] = pathname.split("/");
         const views = ViewDescription.list(reader.manifest);
@@ -1291,6 +1306,33 @@ export class InstallationOriginServer {
                 `view '${name ?? "at its root"}' of '${found.name}' not found`,
             );
         }
+
+        return this.#document(opened, { name, ...view });
+    }
+
+    /** Answer a view's or a frame's document in its context, signing a visitor in first. */
+    async #document(
+        opened: {
+            readonly request: Request;
+            readonly url: URL;
+            readonly page: Page;
+            readonly policy: string;
+            readonly map: ImportMap;
+            readonly builds: ReadonlySet<Digest>;
+        },
+        shown: {
+            readonly name: string;
+            readonly audience: ViewDescription["audience"];
+            readonly entrypoint: string;
+            readonly stylesheets: readonly string[];
+        },
+    ): Promise<Response> {
+        // read the page and what it shows
+        const { request, url, page, policy, map, builds } = opened;
+        const { reader, installation: found } = page;
+        const { base } = page.mount;
+        const { name } = shown;
+        const view = shown;
         // sign an anonymous visitor in first on a page load of a view serving people
         if (
             view.audience === "person" &&

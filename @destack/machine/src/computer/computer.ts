@@ -13,7 +13,7 @@ import {
     type ObjectType,
 } from "@destack/object";
 import objectPackage from "@destack/object/package";
-import { checkout, preview } from "./checkout/index.ts";
+import { checkout } from "./checkout/index.ts";
 import { defineDatabase, TABLE } from "@destack/db";
 import { BUILD_STORE_TABLES } from "@destack/build/store";
 import { join } from "node:path";
@@ -51,7 +51,6 @@ import { deviceSetting, SettingValue } from "@destack/setting/object";
 import { type BunIsolation, BunRuntime } from "../bun/index.ts";
 import { ProcessRuntime } from "../runtime/process.ts";
 import type { Runtime } from "../runtime/runtime.ts";
-import { createClient, type ClientOf } from "@destack/object/client";
 import { SeverityNumber, TelemetryScope } from "@destack/telemetry";
 import { startTelemetry } from "@destack/telemetry/bun";
 import { OtlpExporter } from "@destack/telemetry/otlp";
@@ -186,7 +185,7 @@ export class Computer implements AsyncDisposable {
     static readonly database = defineDatabase({
         name: "machine",
         ...tablesOf({
-            packages: [objectPackage, { objects: { checkout, preview }, tables: [] }],
+            packages: [objectPackage, { objects: { checkout }, tables: [] }],
             follows: [],
             // index the machine's build store beside its objects
             tables: BUILD_STORE_TABLES,
@@ -454,10 +453,9 @@ export class Computer implements AsyncDisposable {
                     authorizeSpace: (served) => authenticator.authorizeSpace(served),
                 });
 
-                // build on this machine for its device's people
+                // build on this machine
                 const builder = new Builder(
                     machine,
-                    state.device,
                     compilers,
                     join(options.directory, "commits"),
                     options.environment,
@@ -910,7 +908,7 @@ export class Computer implements AsyncDisposable {
             }
             // refuse the machine's partition before it enrolls
             else if (partitionId === machine.id) {
-                throw MachineError.unenrolled("storing checkouts and previews");
+                throw MachineError.unenrolled("storing checkouts");
             }
 
             return undefined;
@@ -940,8 +938,6 @@ export class Computer implements AsyncDisposable {
             build: {
                 compilers: opened.compilers,
                 host: options.environment,
-                connect: (handle, loginId, spaceId) =>
-                    Computer.#connect(handle, options, opened, loginId, spaceId),
             },
             events: opened.events,
             deviceEvents,
@@ -990,54 +986,6 @@ export class Computer implements AsyncDisposable {
         });
 
         return { instance, hibernation };
-    }
-
-    /** Connect to a package serving a space as a person signed in on this computer. */
-    static async #connect<Handle extends Package>(
-        handle: Handle,
-        options: Pick<ComputerOptions, "environment">,
-        opened: Pick<Computer, "machine" | "device">,
-        loginId: Identifier<"login">,
-        spaceId: Identifier<"space">,
-    ): Promise<ClientOf<Handle>> {
-        // call the package below the space's path at the machine serving it, as the person
-        const signedIn = await opened.device.signedIn(loginId);
-        const located = await opened.machine.locate(spaceId);
-        if (located.placement.machine !== opened.machine.id) {
-            const mount = `${SpaceMount.url(located.url, spaceId)}${PackageMount.path(handle.id)}`;
-            const { session } = signedIn;
-
-            return createClient<Handle["router"]>(
-                handle,
-                {
-                    url: mount,
-                    fetch: session.fetch(handle.id, { partition: spaceId }),
-                    bookmark: session.bookmark,
-                },
-                options.environment,
-            );
-        }
-
-        // call the package mounted here below the space's path, as the person's own client
-        const server = opened.machine.package(handle, spaceId);
-        if (server === undefined) {
-            throw MachineError.unenrolled("serving spaces");
-        }
-
-        return createClient<Handle["router"]>(
-            handle,
-            {
-                url: "http://127.0.0.1/",
-                fetch: async (request: Request) => {
-                    // prove the person's client afresh on each call
-                    const headers = new Headers(request.headers);
-                    headers.set("authorization", `Bearer ${await signedIn.prove()}`);
-
-                    return server.fetch(new Request(request, { headers }));
-                },
-            },
-            options.environment,
-        );
     }
 
     /** Find the services of the partition a request addresses, each partition's in its store. */

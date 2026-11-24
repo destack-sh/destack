@@ -129,9 +129,12 @@ export function implementBuild(options: BuildOptions) {
         methods: {
             create: {
                 handle: async (context, next) => {
-                    // record a release its caller pulled, refusing another package or version, with nothing to run
-                    const spaceId = schema.identifier("space").parse(context.scope);
+                    // key the build by its source, outputs and version, whose live build the creation answers
                     const source = BuildSource.parse(context.input.source);
+                    const { outputs = null, version = null } = context.input;
+                    const key = Build.key({ source, outputs, version });
+
+                    // record a release its caller pulled, refusing another package or version, with nothing to run
                     if (source.kind === "release") {
                         const { image } = source;
                         const store = options.space.machine.builds;
@@ -154,6 +157,7 @@ export function implementBuild(options: BuildOptions) {
                             context.with({
                                 input: {
                                     ...context.input,
+                                    key,
                                     state: "succeeded",
                                     image,
                                     outputs: Object.keys(root.outputs),
@@ -164,33 +168,20 @@ export function implementBuild(options: BuildOptions) {
                         );
                     }
 
-                    // refuse a second live build of a commit's package directory
-                    const existing =
-                        source.kind === "commit"
-                            ? await Build.find(context, spaceId, source)
-                            : undefined;
-                    if (existing !== undefined) {
-                        throw StackError.of(
-                            "BUILD_EXISTS",
-                            `build '${existing.id}' of the same commit already exists`,
-                        );
-                    }
-
                     // refuse a commit's build in a space no machine runs work for
                     if (source.kind === "commit") {
                         options.space.runner();
                     }
 
-                    // record it running, keyed by its checkout
+                    // record it running under its source's key
                     const created = await next(
                         context.with({
                             input: {
                                 ...context.input,
+                                key,
+                                commit: source.commit,
                                 state: "running",
                                 startedAt: context.now,
-                                ...(source.kind === "commit"
-                                    ? { checkout: Build.checkout(source), commit: source.commit }
-                                    : {}),
                             },
                         }),
                     );
@@ -227,12 +218,12 @@ export function implementBuild(options: BuildOptions) {
             publish: {
                 // publish a succeeded build of a commit and its account's unpublished dependencies before the transaction
                 prepare: async (context) => {
-                    // refuse a build of uncommitted changes, as every release is built from a commit
-                    const commit = Build.commit(context.target);
-                    if (commit === undefined) {
+                    // refuse a release's build, as every release is built from a commit
+                    const { source } = context.target;
+                    if (source.kind !== "commit") {
                         throw StackError.of(
                             "RELEASE_BLOCKED",
-                            `cannot publish build '${context.target.id}': it has uncommitted changes, commit them first`,
+                            `cannot publish build '${context.target.id}': it is a release`,
                         );
                     }
 
@@ -243,7 +234,7 @@ export function implementBuild(options: BuildOptions) {
                                 Build.image(context.target),
                                 context.input.account,
                                 context.input.tag ?? LATEST_TAG,
-                                commit,
+                                source.commit,
                                 context.caller,
                                 await publishRequest(context),
                             )),

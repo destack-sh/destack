@@ -15,7 +15,6 @@ import {
     Observation,
     shareable,
 } from "@destack/object";
-import { checkout } from "../src/computer/checkout/object/index.ts";
 import type { ObjectStore } from "@destack/object/server";
 import { BucketKind } from "@destack/bucket/declare";
 import {
@@ -70,7 +69,7 @@ import {
 } from "@destack/access";
 import { space } from "@destack/account/object";
 import type { ServerRuntime } from "@destack/package/runtime";
-import { BuildReader, BuildListCache } from "@destack/package/manifest";
+import { BuildReader, BuildListCache, PackageManifest } from "@destack/package/manifest";
 import * as object from "@destack/stack/object";
 import { KNOWN_TYPES } from "@destack/stack/stack";
 import * as accountObject from "@destack/account/object";
@@ -322,37 +321,28 @@ class FailingRuntime extends TestRuntime {
     }
 }
 
-/** The checkout the notes installations follow. */
-const selection = {
-    kind: "checkout" as const,
-    machine: ids.machine,
-    checkout: schema.identifier("checkout").parse("checkout-01996ab0-0000-7000-8000-000000000008"),
-    directory: "." as const,
-};
-
-/** Install notes from a checkout at one revision of its build and return the installation. */
+/** Install notes at a recorded build and return the installation. */
 async function installNotes(
     fixture: TestSpace,
     id: Identifier<"installation"> = ids.notes,
     build?: BuildReader,
     builds: readonly BuildReader[] = [],
 ) {
-    const { database } = fixture;
-    const now = fixture.machine.clock.now();
+    const built = await recordBuild(fixture, build, builds);
     const notes = await insertInstallation(
-        database,
+        fixture.database,
         {
             id,
             scope: ids.space,
             packageId: ids.package,
             name: "notes",
-            version: checkout.reference(selection.machine, selection.checkout),
-            directory: selection.directory,
+            version: object.build.reference(ids.space, built.build),
+            directory: ".",
             installer: fixture.owner.subject,
         },
-        now,
+        fixture.machine.clock.now(),
     );
-    await recordBuild(fixture, build, builds);
+    await fixture.simulation.idle();
 
     return notes;
 }
@@ -375,29 +365,43 @@ async function changeInstallation(
     });
 }
 
-/** Record a build of the followed checkout, as its machine does, and let the space deploy it. */
+/** Record a build that each installation of its package moves to, and let the space deploy it. */
 async function recordBuild(
     fixture: TestSpace,
     build?: BuildReader,
     builds: readonly BuildReader[] = [],
 ) {
-    // record it a millisecond after the last, as the newest build of a checkout is the one its version names
+    // record it a millisecond after the last
     const reader = build ?? (await notesBuild([main], fixture.environment.crypto));
     await fixture.simulation.sleep(1);
     const built = await fixture.recordBuild(reader, undefined, builds);
+
+    // move each installation of its package to it at its next generation, as a pushed commit moves its followers
+    const { id } = PackageManifest.package(reader.manifest);
+    const version = ObjectReference.columns(
+        "version",
+        object.build.reference(ids.space, built.build),
+    );
+    const moved = await fixture.database
+        .select({ id: installation.table.id })
+        .from(installation.table)
+        .where(and(eq(installation.table.scope, ids.space), eq(installation.table.packageId, id)));
+    for (const row of moved) {
+        await changeInstallation(fixture.database, row.id, version);
+    }
     await fixture.simulation.idle();
 
     return built;
 }
 
-/** Record a build of the followed checkout and read the revision the space targets for it. */
+/** Record a build its installations move to and read the revision the space targets for it. */
 async function submitRevision(
     fixture: TestSpace,
     installationId: Identifier<"installation">,
     build?: BuildReader,
     builds: readonly BuildReader[] = [],
 ) {
-    // record the checkout's build, which the space deploys
+    // record the build, which the space deploys
     const built = await recordBuild(fixture, build, builds);
 
     // read the revision of the build it targets

@@ -51,7 +51,6 @@ import { SettingValue } from "@destack/setting/object";
 import { followedReference, followedVersion } from "./follow.ts";
 import { packageObject, release, reference, repository, tag } from "@destack/registry/object";
 import { RegistryError } from "@destack/registry/error";
-import { checkout } from "../computer/checkout/object/index.ts";
 import type { Binder } from "../resource/binding.ts";
 import { space } from "@destack/account/object";
 import { StackError } from "@destack/stack/error";
@@ -101,7 +100,7 @@ export interface SelectedBuild {
 }
 
 /** The kind of row an installation's version is, or the host's release without one. */
-export type VersionKind = "host" | "release" | "tag" | "reference" | "checkout" | "build";
+export type VersionKind = "host" | "release" | "tag" | "reference" | "build";
 
 /** The revision an installation targets: its build selected, its stack evaluated, recorded. */
 export const InstallationTarget = {
@@ -159,7 +158,6 @@ export const InstallationTarget = {
             [release.name]: "release",
             [tag.name]: "tag",
             [reference.name]: "reference",
-            [checkout.name]: "checkout",
             [build.name]: "build",
         };
         const kind = kinds[type];
@@ -243,13 +241,9 @@ export const InstallationTarget = {
             const provided = InstallationTarget.provided(packageId, options);
 
             return { version: undefined, directory: null, hostImage: provided?.image ?? null };
-        } else if (version.kind === "checkout") {
-            const row = checkout.reference(version.machine, version.checkout);
-
-            return { version: row, directory: version.directory, hostImage: null };
         }
 
-        // read a release, tag or reference at its registry's home, and a checkout on its machine
+        // read a release, tag or reference at its registry's home
         const row = await InstallationTarget.resolveVersion(options, packageId, version);
 
         return {
@@ -263,7 +257,7 @@ export const InstallationTarget = {
     async resolveVersion(
         machine: Machine,
         packageId: PackageId,
-        selection: Exclude<InstallationVersion, { readonly kind: "host" | "checkout" }>,
+        selection: Exclude<InstallationVersion, { readonly kind: "host" }>,
     ): Promise<ObjectReference> {
         // take the release a version names at its package's registry
         if (selection.kind === "release") {
@@ -761,9 +755,9 @@ async function selectBuild(
     else if (kind === "release" || kind === "tag") {
         return undefined;
     }
-    // take the build pinned by a rollback
+    // take the build pinned by a rollback once it succeeded
     else if (kind === "build") {
-        const pinned = await Build.require(
+        const pinned = await Build.get(
             snapshot,
             Installation.space(row),
             schema.identifier("build").parse(installed.versionId),
@@ -774,7 +768,7 @@ async function selectBuild(
             : undefined;
     }
     // take the succeeded build of the commit its reference points at
-    else if (kind === "reference") {
+    else {
         const followed = options.space.machine.isRunner
             ? await followedReference(
                   snapshot,
@@ -790,36 +784,15 @@ async function selectBuild(
             commit: followed.commit,
             directory: present(installed.directory, "its version's directory"),
         };
-        const found = await Build.find(snapshot, Installation.space(row), source);
+        const found = await Build.find(snapshot, Installation.space(row), {
+            source,
+            outputs: null,
+            version: null,
+        });
 
         return found?.state === "succeeded"
             ? { image: Build.image(found), source, build: found.id }
             : undefined;
-    }
-    // take its checkout's newest succeeded build
-    else {
-        const newest = (
-            await snapshot.read(build.table).findMany({
-                where: {
-                    scope: Installation.space(row),
-                    state: "succeeded",
-                    expiredAt: { isNull: true },
-                },
-            })
-        )
-            .map((entry) => Build.of(entry))
-            .filter(
-                (entry) =>
-                    entry.source.kind === "checkout" &&
-                    entry.source.checkout === installed.versionId &&
-                    entry.source.directory === installed.directory,
-            )
-            .toSorted((left, right) => right.createdAt - left.createdAt)
-            .at(0);
-
-        return newest === undefined
-            ? undefined
-            : { image: Build.image(newest), source: newest.source, build: newest.id };
     }
 }
 

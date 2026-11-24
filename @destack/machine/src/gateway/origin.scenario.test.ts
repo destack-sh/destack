@@ -41,6 +41,7 @@ import { expect, refusal, test } from "@destack/test";
 import {
     type Address,
     BUILD_PARAMETER,
+    FRAME_VIEW,
     RELOAD_EVENT,
     ScopePath,
     ViewAddress,
@@ -1687,6 +1688,67 @@ test("serve a library's catalogs and assets at its dependent's origin", async ()
         ],
         missing: [404, 404],
         font: [200, "public, max-age=31536000, immutable", "type"],
+    });
+});
+
+test("serve a development build's frame, and refuse one of a build without a frame", async () => {
+    // install a development build with a frame and a build without one
+    const { crypto } = testHost();
+    const greeting = await TestViewBuild.of(
+        GREETING,
+        {
+            greeting: {
+                entrypoint: "browser/greeting.js",
+                stylesheets: [],
+                sandbox: {},
+                presents: [],
+                categories: [],
+                audience: "person" as const,
+                packages: [],
+                render: { mode: "client" },
+            },
+        },
+        { frame: { entrypoint: "browser/frame.js", stylesheets: ["browser/frame.css"] } },
+        crypto,
+    );
+    const opened = await openHome();
+    await install(opened, greeting, "greeting");
+    await install(opened, await notesBuild(crypto), "notes");
+
+    // open the frame of an example at each installation's origin
+    const query = new URLSearchParams({ module: "src/greeting.example.tsx", name: "hello" });
+    const frameOf = async (installation: string, view: string) => {
+        const page = await openPage(opened, {
+            space: opened.address,
+            installation,
+            view,
+            path: "/",
+        });
+
+        return await page.fetch(
+            new Request(`${page.origin}${OriginPath.frame}?${query.toString()}`),
+        );
+    };
+    const framed = await frameOf("greeting", "greeting");
+    const text = await framed.clone().text();
+    const context = schema.looseObject({ view: schema.string() }).parse(await contextOf(framed));
+    const loaded = [...text.matchAll(/(?:src|href)="([^"]+)"/gu)].map((match) => match[1]);
+    const unframed = await frameOf("notes", "home");
+
+    // load the frame's module and styles in the frame's context, and refuse a build without a frame
+    expect({
+        framed: [framed.status, context.view],
+        loaded,
+        unframed: await summary(unframed),
+    }).toEqual({
+        framed: [200, FRAME_VIEW],
+        loaded: ["/browser/frame.css", "/browser/frame.js"],
+        unframed: answered(
+            "NOT_FOUND",
+            "VIEW_NOT_FOUND",
+            404,
+            "frame of 'notes' not found: it runs no development build",
+        ),
     });
 });
 

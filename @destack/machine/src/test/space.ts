@@ -78,7 +78,7 @@ import {
     canonicalize,
     nth,
     present,
-    type Commit,
+    Commit,
     schema,
 } from "@destack/schema";
 import objectDefinition from "@destack/object/destack.json" with { type: "json" };
@@ -111,7 +111,7 @@ import {
 } from "./build.ts";
 import { FORGE_HOME_OPTIONS, FORGE_HOME_STACK, FORGE_HOME_TYPES } from "./home.ts";
 import { callRegistry } from "../machine/registry.ts";
-import { LATEST_TAG } from "@destack/registry/object";
+import { LATEST_TAG, reference } from "@destack/registry/object";
 import registryPackage from "@destack/registry/package";
 import { TestSpaceStorage } from "./storage.ts";
 import { TestGateway } from "./gateway.ts";
@@ -301,13 +301,32 @@ export const ids = {
     machine: schema.identifier("machine").parse("machine-01996ab0-0000-7000-8000-000000000007"),
     checkout: schema.identifier("checkout").parse("checkout-01996ab0-0000-7000-8000-000000000008"),
     residencyHome: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000009"),
+    repository: schema
+        .identifier("repository")
+        .parse("repository-01996ab0-0000-7000-8000-00000000000b"),
+    reference: schema
+        .identifier("reference")
+        .parse("reference-01996ab0-0000-7000-8000-00000000000c"),
 };
+
+/** The fixture repository's main branch at the residency's forge, which installations follow. */
+export const FIXTURE_BRANCH = reference.reference(ids.residencyHome, ids.reference);
 
 /** The fixture's account, which its spaces belong to. */
 const FIXTURE_ACCOUNT = { id: ids.account, handle: "example" } as const;
 
 /** The commit every fixture release names, as no checkout built it. */
 const FIXTURE_COMMIT = "0".repeat(40);
+
+/** The fixture repository's commit at a package directory, the source of the fixture's builds. */
+export function fixtureSource(directory = ".") {
+    return {
+        kind: "commit" as const,
+        repository: ids.repository,
+        commit: Commit.parse(FIXTURE_COMMIT),
+        directory,
+    };
+}
 
 /** The fixture's space, which a world hosts alone unless it lists others. */
 const FIXTURE_SPACE: WorldSpace = { id: ids.space, account: ids.account, name: "space" };
@@ -1888,7 +1907,6 @@ export class TestSpace implements AsyncDisposable, TestScope {
         runner: TestCaller,
         target: { readonly spaceId: Identifier<"space">; readonly id: Identifier<"build"> },
         reader: BuildReader,
-        output: { readonly commit?: Commit } = {},
     ): Promise<readonly Digest[]> {
         // push the build to the space's builds mount, recording each file uploaded
         const { fetch } = runner.endpoint(stackPackage);
@@ -1921,7 +1939,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
         const outputs = present(built, `build '${target.id}'`).outputs;
         await this.endCompile(runner, target.id, {
             method: "complete",
-            output: { image, outputs: present(outputs, "the outputs compiled"), ...output },
+            output: { image, outputs: present(outputs, "the outputs compiled") },
         });
 
         return uploaded;
@@ -2038,20 +2056,19 @@ export class TestSpace implements AsyncDisposable, TestScope {
         const { image, root } = await this.#image(reader, builds);
         await packages.attachGraph(root, modules ?? (await fixtureGraph(reader)));
 
-        // record the build succeeded now
+        // record it succeeded now, as the build of a commit its identifier writes
         const id = Identifier.create("build", this.machine.environment);
         const now = this.machine.clock.now();
+        const digits = id.slice(id.indexOf("-") + 1).replaceAll("-", "");
+        const source = { ...fixtureSource(), commit: Commit.parse(digits.padStart(40, "0")) };
         await database.transaction(
             async (transaction) =>
                 await transaction.insert(object.build.table).values({
                     id,
                     scope: this.id,
-                    source: {
-                        kind: "checkout",
-                        machine: ids.machine,
-                        checkout: ids.checkout,
-                        directory: ".",
-                    },
+                    source,
+                    key: object.Build.key({ source, outputs: null, version: null }),
+                    commit: source.commit,
                     outputs: ["bun"],
                     state: "succeeded",
                     image,
@@ -2154,7 +2171,7 @@ export class TestSpace implements AsyncDisposable, TestScope {
             environment: this.environment,
             simulation: this.simulation,
             server: (handle) => this.server(handle),
-            type: (reference) => this.type(reference),
+            type: (typeReference) => this.type(typeReference),
             named: (name) => this.named(name),
             sign: async (request, signer) => {
                 // exchange the person's token for the package, and send it as the bearer
@@ -2188,9 +2205,9 @@ export class TestSpace implements AsyncDisposable, TestScope {
 
     /** Read a type the space's served store serves, with its package. */
     type(
-        reference: ObjectTypeReference,
+        typeReference: ObjectTypeReference,
     ): { readonly type: ObjectType; readonly handle: Package } | undefined {
-        const key = ObjectTypeReference.key(reference);
+        const key = ObjectTypeReference.key(typeReference);
 
         return this.#types().find(
             (each) => ObjectTypeReference.key(each.type.typeReference) === key,

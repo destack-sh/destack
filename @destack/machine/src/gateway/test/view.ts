@@ -12,6 +12,7 @@ import { describePackage } from "@destack/object/inspect";
 import { graph, type PackageVersion } from "@destack/package";
 import {
     type BuildReader,
+    type FrameDescription,
     PackageManifest,
     type ViewDescription,
     type ViewRender,
@@ -48,6 +49,8 @@ export const TestViewBuild = {
             readonly dependencies?: readonly BuildReader[];
             /** The other declarations it makes, such as commands, each at an export. */
             readonly declarations?: readonly Omit<graph.Declaration, "moniker" | "symbol">[];
+            /** The frame of a development build, which its origin serves. */
+            readonly frame?: FrameDescription;
         },
         crypto: Crypto,
     ): Promise<BuildReader> {
@@ -57,6 +60,9 @@ export const TestViewBuild = {
         files.set(BROWSER_MAIN, module);
         for (const view of Object.values(views)) {
             files.set(view.entrypoint, module);
+        }
+        if (options.frame !== undefined) {
+            files.set(options.frame.entrypoint, module);
         }
 
         // declare the package, its object types, its resources and its views, as its build would
@@ -118,6 +124,9 @@ export const TestViewBuild = {
         for (const [name, view] of Object.entries(views)) {
             exports[`./${name}`] = { path: view.entrypoint, imports };
         }
+        if (options.frame !== undefined) {
+            exports["./frame"] = { path: options.frame.entrypoint, imports };
+        }
 
         return MemoryBuild.of(built, declared, crypto, {
             files,
@@ -129,6 +138,7 @@ export const TestViewBuild = {
                     emit: true,
                     workloads: {},
                     views,
+                    ...(options.frame === undefined ? {} : { frame: options.frame }),
                     directory: "browser",
                     exports,
                     peers: {},

@@ -9,8 +9,8 @@ const machineError = defineErrorFamily({
         // not found
         ACCOUNT_NOT_FOUND: {},
         CALLS_NOT_FOUND: {},
-        CHECKOUT_NOT_FOUND: {},
         FUNCTION_NOT_FOUND: {},
+        HEAD_NOT_FOUND: {},
         CLIENT_PATH_NOT_FOUND: {},
         DIRECTORY_NOT_FOUND: {},
         EGRESS_ADDRESS_NOT_FOUND: {},
@@ -19,7 +19,6 @@ const machineError = defineErrorFamily({
         PACKAGE_MOUNT_NOT_FOUND: {},
         PACKAGE_NOT_FOUND: {},
         PRESENTER_NOT_FOUND: {},
-        PREVIEW_NOT_FOUND: {},
         ROUTE_NOT_FOUND: {},
         SIGNAL_NOT_FOUND: {},
         SOCKET_HANDLER_NOT_FOUND: {},
@@ -62,7 +61,6 @@ const machineError = defineErrorFamily({
         // denied
         ADDRESS_DENIED: {},
         BUCKET_DENIED: {},
-        BUILD_DENIED: {},
         GRANT_DENIED: { data: GrantRequest },
         INSTALLATION_DENIED: {},
         INSTALLATION_ORIGIN_DENIED: {},
@@ -76,6 +74,7 @@ const machineError = defineErrorFamily({
 
         // blocked
         BUILD_BLOCKED: {},
+        CHANGES_BLOCKED: {},
         EDIT_BLOCKED: {},
         ENROLLMENT_BLOCKED: {},
         LOGIN_BLOCKED: {},
@@ -107,7 +106,6 @@ const machineError = defineErrorFamily({
         WORKLOAD_UNAVAILABLE: {},
 
         // unreachable
-        BUILD_UNREACHABLE: {},
         MODULE_UNREACHABLE: {},
         OBJECT_UNREACHABLE: {},
         RUNTIME_ACTION_UNREACHABLE: {},

@@ -1,6 +1,7 @@
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { PackageId, PackageName } from "@destack/package";
 import { schema } from "@destack/schema";
+import { Lease } from "@destack/resource";
 import type {} from "@destack/package/import-meta";
 import { MachineError } from "../../../error/index.ts";
 
@@ -33,17 +34,21 @@ export const WorkingTreeSource = schema.discriminatedUnion("kind", [
         release: schema.string().min(1),
         /** The name of the package made. */
         name: PackageName,
+        /** The lease to write the repository, which its first commit is pushed with. */
+        lease: Lease,
     }),
 ]);
 /** Where a checkout's working tree comes from. */
 export type WorkingTreeSource = schema.Infer<typeof WorkingTreeSource>;
 
-/** The shape of a working tree: its canonical directory and Git root. */
+/** The shape of a working tree: its canonical directory, Git root and origin. */
 const shape = schema.object({
     /** The registered directory's absolute canonical path. */
     directory: schema.string(),
     /** The root of the directory's Git working tree. */
     root: schema.string(),
+    /** The URL of the working tree's origin, null without one. */
+    remote: schema.string().nullable(),
 });
 /** A Git working tree a directory belongs to: its canonical path and the tree's root. */
 export type WorkingTree = schema.Infer<typeof shape>;

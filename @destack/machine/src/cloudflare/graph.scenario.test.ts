@@ -14,7 +14,7 @@ import { testSimulation } from "@destack/object/test";
 import { MemoryBuild } from "@destack/package/test";
 import { Digest, type Identifier, present, schema } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
-import { build, declaration } from "@destack/stack/object";
+import { build, Build, declaration } from "@destack/stack/object";
 import { spaceTables } from "@destack/stack/stack";
 import { ids } from "../test/index.ts";
 import { DurableObjectGraphStorage } from "./graph.ts";
@@ -46,17 +46,16 @@ test("share one graph view per manifest and delete it a lease after its last vie
     });
     onTestFinished(() => storage.close());
     for (const [index, id] of builds.entries()) {
+        // record a release per build
+        const version = `2026.9.${String(index)}`;
+        const source = { kind: "release" as const, package: ids.package, version, image };
         await storage.database.transaction(
             async (transaction) =>
                 await transaction.insert(build.table).values({
                     id,
                     scope: ids.space,
-                    source: {
-                        kind: "release",
-                        package: ids.package,
-                        version: "2026.9.0",
-                        image,
-                    },
+                    source,
+                    key: Build.key({ source, outputs: null, version: null }),
                     outputs: [],
                     state: "succeeded",
                     image,

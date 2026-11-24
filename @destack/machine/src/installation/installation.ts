@@ -1,3 +1,4 @@
+import { GitReference } from "@destack/git";
 import {
     Installation,
     installation,
@@ -47,9 +48,6 @@ import { StackInstallation } from "./stack.ts";
 import type { TokenIssuer } from "@destack/access/token";
 import { StackError } from "@destack/stack/error";
 import { InstallationTarget, type RevisionOptions } from "./target.ts";
-
-/** The prefix of a branch's full reference name. */
-const BRANCH_PREFIX = "refs/heads/";
 
 /** The options a machine serves installations with. */
 export interface InstallationOptions extends RevisionOptions, ApplicationOptions {
@@ -141,7 +139,7 @@ export function implementInstallations(options: InstallationOptions) {
                     const branch = await followedBranch(call, call.target);
                     const source = {
                         repository: { scope: branch.scope, id: branch.parentId },
-                        branch: branch.name.slice(BRANCH_PREFIX.length),
+                        branch: GitReference.short(branch.name),
                         directory: present(
                             call.target.directory,
                             `the directory of '${call.target.name}'`,
@@ -739,7 +737,7 @@ async function followedBranch(
             : await context
                   .read(reference.table)
                   .findFirst({ where: { id: schema.identifier("reference").parse(version.id) } });
-    if (followed === undefined || !followed.name.startsWith(BRANCH_PREFIX)) {
+    if (followed === undefined || !GitReference.isBranch(followed.name)) {
         throw StackError.of(
             "EDIT_BLOCKED",
             `cannot edit installation '${target.name}': it follows no branch`,

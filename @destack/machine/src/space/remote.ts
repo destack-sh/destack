@@ -62,7 +62,7 @@ export class PartitionRemote implements ObjectRemote {
         await (await this.#signer([], signer)).broadcast(scope, object, event);
     }
 
-    /** Locate the scope: a space at itself, another scope at its account's home partition. */
+    /** Locate the scope: a space at itself, an account's scope at its account's home partition. */
     #locate(): Promise<{ readonly home: string; readonly partition: string }> {
         this.#located ??= (async () => {
             // locate a space at itself

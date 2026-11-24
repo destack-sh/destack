@@ -1,16 +1,18 @@
 import { eq } from "@destack/db";
 import stackPackage from "@destack/stack/package";
-import { RequestId } from "@destack/sync";
+import { ObjectReference, RequestId, Scope } from "@destack/sync";
+import { principal } from "@destack/access";
+import { compile } from "@destack/stack/object";
 import { assignment, placement } from "@destack/account/object";
 import { Identifier, nth } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
-import { ids, TestSpace } from "../test/index.ts";
+import { fixtureSource, ids, TestSpace } from "../test/index.ts";
 
 /** The origin the owner's laptop answers at. */
 const LAPTOP_ORIGIN = "https://laptop.test";
 
-test("assign the machine of an unfinished checkout build in the space, and withdraw it once the build ends", async () => {
-    // place the space on its machine with a compiling build of the owner's laptop's checkout and one of its own
+test("assign the machine of an unfinished compile placed on it, and withdraw it once the build ends", async () => {
+    // place the space on its machine with one compile on the owner's laptop and one on the space's runner
     const fixture = await TestSpace.open();
     const { database } = fixture;
     await fixture.serve();
@@ -20,24 +22,28 @@ test("assign the machine of an unfinished checkout build in the space, and withd
         LAPTOP_ORIGIN,
     );
     const owner = fixture.as(fixture.owner.subject).client(stackPackage);
-    const record = async (checkoutMachine: Identifier<"machine">) => {
+    const record = async (runner: Identifier<"machine">, directory: string) => {
+        // compile a directory of the fixture's commit, its step placed on the runner
         const created = await owner.build.create({
             spaceId: ids.space,
             requestId: RequestId.create(fixture.machine.environment),
-            source: {
-                kind: "checkout",
-                machine: checkoutMachine,
-                checkout: ids.checkout,
-                directory: ".",
-            },
+            source: fixtureSource(directory),
             outputs: ["bun"],
         });
-        await fixture.compileStep(created.id);
+        const placed = await fixture.compileStep(created.id);
+        const subject = principal.machine.reference(Scope.universe.id, runner);
+        await database.transaction(
+            async (transaction) =>
+                await transaction
+                    .update(compile.step.table)
+                    .set(ObjectReference.columns("runner", subject))
+                    .where(eq(compile.step.table.id, placed.id)),
+        );
 
         return created.id;
     };
-    const laptop = await record(laptopId);
-    await record(fixture.machine.id);
+    const laptop = await record(laptopId, "laptop");
+    await record(fixture.machine.id, ".");
 
     // assign only the laptop through the machine's uplink, reading the assignments from the universe's rows
     const connections = new DisposableStack();

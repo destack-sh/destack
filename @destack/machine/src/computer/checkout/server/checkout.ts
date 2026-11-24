@@ -1,34 +1,25 @@
-import type { Environment, FileSystem } from "@destack/environment";
-import type { MethodOutput, Package } from "@destack/object";
-import { PackageName, type PackageVersion } from "@destack/package";
-import { preview, type Preview } from "../object/index.ts";
+import type { FileSystem } from "@destack/environment";
+import { PackageName } from "@destack/package";
 import type { CommandHost } from "../../process/command.ts";
 import { join } from "node:path";
+import { GitReference } from "@destack/git";
+import { GitLease } from "@destack/git/local";
 import * as check from "@destack/check/workspace";
-import { and, eq } from "@destack/db";
-import { nth, schema } from "@destack/schema";
-import type { Select } from "@destack/db";
-import { type Digest, Identifier } from "@destack/schema";
-import {
-    checkout,
-    type CheckoutStack,
-    WorkingTree,
-    type WorkingTreeSource,
-} from "../object/index.ts";
+import { Commit, Identifier } from "@destack/schema";
+import { checkout, WorkingTree, type WorkingTreeSource } from "../object/index.ts";
 import { Git } from "./git.ts";
-import { type CompilerPool } from "@destack/build";
+import { type CompilerPool, Workspace } from "@destack/build";
 import { Template } from "@destack/build/template";
-import { ObjectReference, RequestId } from "@destack/sync";
-import { build, Build, type CheckoutSource } from "@destack/stack/object";
-import type { NativeClient } from "@destack/account/native";
-import type { Device } from "../../device/device.ts";
-import type { StackClient } from "@destack/stack/client";
-import stackPackage from "@destack/stack/package";
-import type { ClientOf } from "@destack/object/client";
 import type { Machine } from "../../../machine/index.ts";
-import { BuildImage, PackageManifest, ViewDescription } from "@destack/package/manifest";
+import { BuildImage, PackageManifest } from "@destack/package/manifest";
 import type {} from "@destack/package/import-meta";
 import { MachineError } from "../../../error/index.ts";
+
+/** How long a new package's install may take: 5 minutes, a cold cache of a few hundred packages. */
+const INSTALL_MILLISECONDS = 5 * 60_000;
+
+/** How long a push of a working tree may take: 1 minute, a 100 MB pack at 2 MB/s. */
+const PUSH_MILLISECONDS = 60_000;
 
 /** The file Bun reads a package's registries from. */
 const BUNFIG_FILE = "bunfig.toml";
@@ -36,60 +27,24 @@ const BUNFIG_FILE = "bunfig.toml";
 /** The bunfig table giving each scope its registry. */
 const SCOPES_TABLE = "[install.scopes]";
 
-/** How long a checkout's build caller waits. */
-const BUILD_WAIT_MILLISECONDS = 5 * 60_000;
-
-/** The machine's development workflow: its checkouts' working trees, builds and previews. */
+/** The machine's checkouts: their working trees' registration and members. */
 export class CheckoutServer {
-    /** The machine registering the checkouts, building them and storing their builds. */
+    /** The machine registering the checkouts. */
     readonly machine: Machine;
-    /** Connect to a package of the machine serving a space as a person signed in on the machine. */
-    readonly connect: <Handle extends Package>(
-        handle: Handle,
-        login: Identifier<"login">,
-        spaceId: Identifier<"space">,
-    ) => Promise<ClientOf<Handle>>;
-    /** The machine's warm compilers, building into its local store of every build. */
+    /** The machine's warm compilers, released with a checkout's working tree. */
     readonly compilers: CompilerPool;
     /** The host the working trees live on: its files, Git and platform. */
     readonly host: CommandHost;
-    /** The machine's device, opening a space's objects live as a person signed in on it. */
-    readonly device: Pick<Device<NativeClient>, "open" | "launcher">;
 
-    /** Serve the development workflow of a machine. */
-    constructor(
-        fields: Pick<CheckoutServer, "machine" | "connect" | "compilers" | "host" | "device">,
-    ) {
-        // set the machine, its stack connection, its compilers, its host and its device
+    /** Serve the checkouts of a machine. */
+    constructor(fields: Pick<CheckoutServer, "machine" | "compilers" | "host">) {
+        // set the machine, its compilers and its host
         this.machine = fields.machine;
-        this.device = fields.device;
-        this.connect = fields.connect;
         this.compilers = fields.compilers;
         this.host = fields.host;
     }
 
-    /** Resolve a package directory in a checkout a machine registers. */
-    static async locate(
-        machine: Pick<Machine, "database" | "id">,
-        source: { readonly checkout: string; readonly directory: string },
-    ): Promise<{ readonly root: string; readonly path: string; readonly directory: string }> {
-        const [registered] = await machine.database
-            .select({ root: checkout.table.root })
-            .from(checkout.table)
-            .where(
-                and(
-                    eq(checkout.table.scope, machine.id),
-                    eq(checkout.table.id, schema.identifier("checkout").parse(source.checkout)),
-                ),
-            );
-        if (registered === undefined) {
-            throw MachineError.of("CHECKOUT_NOT_FOUND", `checkout '${source.checkout}' not found`);
-        }
-
-        return { root: registered.root, ...WorkingTree.package(registered.root, source.directory) };
-    }
-
-    /** Implement checkouts: their Git working tree registration and the stacks they submit. */
+    /** Implement checkouts: their Git working tree registration and their members. */
     checkout() {
         const { compilers, host } = this;
 
@@ -102,6 +57,7 @@ export class CheckoutServer {
                         const tree = await new Git(host).open(directory, source);
                         if (source.kind === "template") {
                             await this.#instantiate(directory, source);
+                            await this.#introduce(tree.root, source);
                         }
 
                         return tree;
@@ -111,8 +67,8 @@ export class CheckoutServer {
                             context.with({
                                 input: {
                                     ...context.input,
-                                    directory: context.prepared.directory,
-                                    root: context.prepared.root,
+                                    directory: context.prepared.root,
+                                    remote: context.prepared.remote,
                                 },
                             }),
                         ),
@@ -130,113 +86,73 @@ export class CheckoutServer {
 
                         return new Git(host).relocated(context.target.directory, directory);
                     },
-                    handle: (context) => context.update({ ...context.prepared }),
+                    handle: (context) =>
+                        context.update({
+                            directory: context.prepared.root,
+                            remote: context.prepared.remote,
+                        }),
                 },
                 delete: {
-                    prepare: async (context) => context.target.root,
-                    // close the warm compilers of the unregistered working tree
+                    prepare: async (context) => context.target.directory,
+                    // close the warm compilers of the unregistered working tree and of its mirror, then remove the mirror
                     confirm: async (_call, prepared) => {
                         await compilers.release(prepared);
+                        const mirror = await new Git(host).removeMirror(prepared);
+                        if (mirror !== undefined) {
+                            await compilers.release(mirror);
+                        }
                     },
+                },
+                push: {
+                    prepare: async (context) => {
+                        // commit the working tree as it is, refusing uncommitted changes when asked for HEAD
+                        const { directory: root, id } = context.target;
+                        const { commit, head } = await new Git(host).snapshot(
+                            root,
+                            `Snapshot ${id}`,
+                        );
+                        if (context.input.of === "head" && commit !== head) {
+                            throw MachineError.of(
+                                "CHANGES_BLOCKED",
+                                `cannot push the HEAD of '${root}': it has uncommitted changes, so commit them first`,
+                            );
+                        }
+                        const reference = GitReference.checkout(id);
+
+                        // push the commit with the person's lease
+                        const { lease } = context.input;
+                        const signal = host.clock.timeout(PUSH_MILLISECONDS);
+                        await GitLease.set(lease, root, reference, commit, host, signal);
+
+                        return { commit: Commit.parse(commit), reference };
+                    },
+                    handle: (context) => Promise.resolve(context.prepared),
                 },
                 members: {
                     prepare: (context) =>
-                        CheckoutServer.#members(
-                            context.target.root,
-                            context.target.directory,
-                            host.files,
-                        ),
-                    handle: (context) => Promise.resolve(context.prepared),
-                },
-                submit: {
-                    prepare: (context) => this.#submission(context.target, context.input),
+                        CheckoutServer.#members(context.target.directory, host.files),
                     handle: (context) => Promise.resolve(context.prepared),
                 },
             },
         });
     }
 
-    /** Implement previews: build each checkout package and submit the build to its installation. */
-    preview() {
-        return preview.implement({
-            controllers: [
-                {
-                    name: "build",
-                    // run each preview at a generation not synced yet, and each deleted one
-                    when: {
-                        OR: [
-                            { generation: { gt: { field: "syncedGeneration" } } },
-                            { deletedAt: { isNotNull: true } },
-                        ],
-                    },
-                    reconcile: async (reconciliation) => {
-                        // finalize a deleted preview
-                        const row = nth(reconciliation.rows, 0);
-                        if (row.deletedAt !== null) {
-                            await reconciliation.mutate([
-                                preview.call("finalize", preview.target(row)),
-                            ]);
-
-                            return;
-                        }
-
-                        // run the generation, recording it ready with its views, else its failure
-                        try {
-                            const views = await this.#runPreview(row);
-                            await reconciliation.observe(preview, row, {
-                                conditions: {
-                                    Ready: { status: "true", reason: "Running", message: "" },
-                                },
-                                fields: { views },
-                            });
-                        } catch (error) {
-                            const message = error instanceof Error ? error.message : String(error);
-                            await reconciliation.observe(preview, row, {
-                                conditions: {
-                                    Ready: { status: "false", reason: "Failed", message },
-                                },
-                                fields: {},
-                            });
-                        }
-                    },
-                },
-            ],
-        });
-    }
-
-    /** Build a checkout's package directory in a space as a person, and wait until it succeeds. */
-    async build(
-        client: StackClient,
-        login: Identifier<"login">,
-        spaceId: Identifier<"space">,
-        source: CheckoutSource,
-    ): Promise<{ readonly id: Identifier<"build">; readonly image: Digest }> {
-        // create the build, whose compile the space places on this machine
-        const created = await client.build.create({
-            spaceId,
-            requestId: RequestId.create(this.machine.environment),
-            source,
+    /** Install a new package's dependencies, then commit and push it with the person's lease. */
+    async #introduce(
+        root: string,
+        source: Extract<WorkingTreeSource, { readonly kind: "template" }>,
+    ): Promise<void> {
+        // install the dependencies, which writes the lockfile a frozen install reads
+        const { host } = this;
+        await Workspace.install(root, host, {
+            isFrozen: false,
+            signal: host.clock.timeout(INSTALL_MILLISECONDS),
         });
 
-        // watch it live as the person until it finished
-        await using opened = new AsyncDisposableStack();
-        const launcher = await this.device.launcher(login);
-        const builds = await this.device.open(launcher, { space: spaceId }, { build }, opened);
-        const rows = builds.query.build
-            .findFirst({ where: { id: created.id } })
-            .watch(this.machine.clock.timeout(BUILD_WAIT_MILLISECONDS));
-        for await (const row of rows) {
-            const current = row === undefined ? undefined : Build.of(row);
-            if (current !== undefined && Build.isFinished(current)) {
-                return { id: created.id, image: Build.image(current) };
-            }
-        }
-
-        // refuse a build still running after the wait
-        throw MachineError.of(
-            "BUILD_UNREACHABLE",
-            `could not finish build '${created.id}' within ${BUILD_WAIT_MILLISECONDS} ms`,
-        );
+        // commit everything as the person, and push the commit to its branch
+        const { commit, branch } = await new Git(host).introduce(root, `Introduce ${source.name}`);
+        const signal = host.clock.timeout(PUSH_MILLISECONDS);
+        await GitLease.set(source.lease, root, GitReference.branch(branch), commit, host, signal);
     }
 
     /** Write a package made from a template's published release into a new directory. */
@@ -289,189 +205,28 @@ export class CheckoutServer {
         await host.files.writeFile(path, new TextEncoder().encode(registries));
     }
 
-    /** Build a checkout's stack package in its space. */
-    async #submission(
-        registered: Select<typeof checkout.table>,
-        source: CheckoutStack,
-    ): Promise<MethodOutput<typeof checkout, "submit">> {
-        // build every output the package implies in the space as the person
-        const { selection, built, reader } = await this.#open(
-            { checkout: registered.id, root: registered.root, directory: source.directory },
-            source.login,
-            source.space,
-        );
-        const packageId = PackageManifest.package(reader.manifest).id;
-
-        return {
-            packageId,
-            submission: {
-                version: checkout.reference(selection.machine, selection.checkout),
-                directory: selection.directory,
-                build: built.id,
-                stack: { export: source.export, parameters: { ...source.parameters } },
-            },
-        };
-    }
-
-    /** Build a preview's package as its person, submit the build, and list its views. */
-    async #runPreview(row: Preview): Promise<Record<string, ViewDescription>> {
-        // build every output the package implies in the space as the preview's person
-        const located = await CheckoutServer.locate(this.machine, {
-            checkout: row.checkoutId,
-            directory: row.package,
-        });
-        const spaceId = schema.identifier("space").parse(row.space);
-        const { selection, built, client, reader } = await this.#open(
-            { checkout: row.checkoutId, root: located.root, directory: row.package },
-            row.login,
-            spaceId,
-        );
-        const objects = await this.connect(stackPackage, row.login, spaceId);
-        await CheckoutServer.#submitPreview(
-            client,
-            objects,
-            spaceId,
-            selection,
-            PackageManifest.package(reader.manifest),
-            {
-                build: built.id,
-                environment: this.machine.environment,
-            },
-        );
-
-        return ViewDescription.list(reader.manifest);
-    }
-
-    /** Build a package directory of a checkout in a space as a person, and read the build. */
-    async #open(
-        source: {
-            readonly checkout: Identifier<"checkout">;
-            readonly root: string;
-            readonly directory: string;
-        },
-        login: Identifier<"login">,
-        spaceId: Identifier<"space">,
-    ) {
-        // require a package directory inside the working tree, followed from this machine
-        const located = WorkingTree.package(source.root, source.directory);
-        const selection: CheckoutSource = {
-            kind: "checkout",
-            machine: this.machine.id,
-            checkout: source.checkout,
-            directory: located.directory,
-        };
-
-        // build every output the package implies, then read the build
-        const client = await this.connect(stackPackage, login, spaceId);
-        const built = await this.build(client, login, spaceId, selection);
-        const { builds } = this.machine;
-        const reader = await builds.root(built.image);
-
-        return { selection, built, client, builds, reader };
-    }
-
-    /** List the Destack packages of a directory's workspace at or below the directory. */
-    static async #members(root: string, directory: string, files: FileSystem): Promise<string[]> {
+    /** List the Destack packages of a working tree's workspace, by path below its root. */
+    static async #members(root: string, files: FileSystem): Promise<string[]> {
         // read the enclosing workspace
-        const workspace = await check.Workspace.read(directory, files);
+        const workspace = await check.Workspace.read(root, files);
         if (workspace === undefined) {
             return [];
         }
 
-        // take the members at or below the directory that declare a Destack package
+        // take the members below the working tree's root that declare a Destack package
         const members = await Promise.all(
             workspace.members.map(async (member) => {
-                // take a member below the working tree's root and the directory with a destack.json
+                // take a member with a destack.json, by its path below the root
                 const path = join(workspace.root, member.directory);
                 const below = WorkingTree.below(root, path);
                 const isMember =
-                    below !== undefined &&
-                    WorkingTree.below(directory, path) !== undefined &&
-                    (await files.exists(join(path, "destack.json")));
+                    below !== undefined && (await files.exists(join(path, "destack.json")));
 
                 return isMember ? [below] : [];
             }),
         );
 
         return members.flat().toSorted();
-    }
-
-    /** Submit a preview's build to its installation as the preview's person, installing it once. */
-    static async #submitPreview(
-        spaces: StackClient,
-        objects: ClientOf<typeof stackPackage>,
-        spaceId: Identifier<"space">,
-        selection: CheckoutSource,
-        built: PackageVersion,
-        submitted: { readonly build: Identifier<"build">; readonly environment: Environment },
-    ): Promise<void> {
-        // read the package's installation, of which the space has one
-        const { items } = await objects.installation.list({
-            scope: spaceId,
-            where: { packageId: built.id },
-            limit: 1,
-        });
-        const [existing] = items;
-        const version = {
-            ...ObjectReference.columns(
-                "version",
-                checkout.reference(selection.machine, selection.checkout),
-            ),
-            directory: selection.directory,
-        };
-
-        // take a request for the write
-        const requestId = RequestId.create(submitted.environment);
-        let installed: typeof existing;
-
-        // install the package at the checkout's package directory
-        if (existing === undefined) {
-            installed = await objects.installation.create({
-                scope: spaceId,
-                requestId,
-                packageId: built.id,
-                ...version,
-                name: PackageName.split(built.name).local,
-            });
-        }
-        // keep an installation following it already
-        else if (CheckoutServer.#isFollowing(existing, selection)) {
-            installed = existing;
-        }
-        // have the package's installation follow it
-        else {
-            installed = await objects.installation.update({
-                scope: spaceId,
-                id: existing.id,
-                requestId,
-                revision: existing.revision,
-                ...version,
-            });
-        }
-
-        // apply the installation at the build
-        await spaces.installation.reconcile({
-            scope: spaceId,
-            id: installed.id,
-            requestId: RequestId.create(submitted.environment),
-            build: submitted.build,
-        });
-    }
-
-    /** Report whether an installation follows the same checkout's package directory. */
-    static #isFollowing(
-        installed: {
-            readonly versionType: string | null;
-            readonly versionId: string | null;
-            readonly directory: string | null;
-        },
-        selection: { readonly checkout: string; readonly directory: string },
-    ): boolean {
-        return (
-            installed.versionType === checkout.name &&
-            installed.versionId === selection.checkout &&
-            installed.directory === selection.directory
-        );
     }
 }
 

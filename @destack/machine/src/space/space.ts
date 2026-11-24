@@ -1102,10 +1102,15 @@ export class Space {
         return connection;
     }
 
-    /** Open a scope's remote: the start's for the universe, space and machine, else its home's. */
+    /** Open a scope's remote: the start's for the universe and the space's chain, else a home's. */
     remoteOf(start: SpaceStart, scope: string): ObjectRemote {
-        // follow the universe, and the chains of the space and its machine, through the start's remote
-        if ([Scope.universe.id, this.principal.id, this.machine.id].includes(scope)) {
+        // follow the universe, its people and organizations, and the chains of the space and its machine through the start's remote
+        const isDirectory =
+            accountObject.organization.identifies(scope) || accountObject.user.identifies(scope);
+        if (
+            isDirectory ||
+            [Scope.universe.id, this.principal.id, this.machine.id].includes(scope)
+        ) {
             return start.remote;
         }
 

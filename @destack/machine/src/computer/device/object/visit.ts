@@ -37,7 +37,7 @@ export const visit = defineObject(
         },
     },
     (method) => ({
-        create: method.create("record", { onConflict: "id" }),
+        create: method.create("record", { onConflict: { key: "id" } }),
         update: method.update("record", { fields: ["openedAt"] }),
         delete: method.delete("delete"),
     }),

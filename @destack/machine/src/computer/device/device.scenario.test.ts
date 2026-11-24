@@ -96,13 +96,11 @@ test("describe the types a space's store serves over a connection to the stack p
         "installation",
         "installation-revision",
         "build",
-        "machine",
-        "residency",
-        "key",
+        "space",
         "account",
+        "residency",
         "organization",
         "user",
-        "space",
     ]);
 });
 

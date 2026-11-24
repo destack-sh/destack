@@ -34,7 +34,7 @@ import { SignInRunner } from "./sign-in.ts";
 import { ScopeReceiver } from "./scope.ts";
 import { Runner } from "../runner.ts";
 import machinePackage from "../../package.ts";
-import { CheckoutServer, PreviewSource } from "../checkout/server/index.ts";
+import { CheckoutServer } from "../checkout/server/index.ts";
 import type {} from "@destack/package/import-meta";
 
 /** The longest machine name taken from a computer's name: a DNS label (RFC 1035 2.3.4). */
@@ -62,7 +62,7 @@ export class ComputerServer {
     /** The runner of the steps placed on this machine. */
     readonly runner: Runner;
     /** What the development workflow builds with. */
-    readonly build: Pick<CheckoutServer, "connect" | "compilers" | "host">;
+    readonly build: Pick<CheckoutServer, "compilers" | "host">;
     /** This computer's device, whose partition stores the computer's record and distribution. */
     readonly device: Device<NativeClient>;
     /** The key sensitive call inputs are fingerprinted under in the journal. */
@@ -173,16 +173,15 @@ export class ComputerServer {
         return { packages: store.packages, store, control };
     }
 
-    /** Serve the machine's own partition once it enrolls: checkouts, previews and replicas. */
+    /** Serve the machine's own partition once it enrolls: checkouts and replicas. */
     async serveMachine(context: WorkloadContext): Promise<WorkloadImplementation> {
-        // serve the machine's checkouts, previews and replicas over its store, home of its partition
+        // serve the machine's checkouts and replicas over its store, home of its partition
         const machine = this.machine.id;
 
         // serve each package as the machine's own, acting as the machine
         const checkouts = new CheckoutServer({
             ...this.build,
             machine: this.machine,
-            device: this.device,
         });
         const servers = [this.#implementMachine(checkouts), objectServer];
 
@@ -205,13 +204,12 @@ export class ComputerServer {
         });
         this.receive.machine(store);
 
-        // receive the machine's scope, run the steps placed here and the checkouts' previews and sources
+        // receive the machine's scope and run the steps placed here
         const control = () => [
             {
                 controllers: [
                     ScopeReceiver.controller(store, machine),
                     ...this.runner.controllers(),
-                    new PreviewSource(store, checkouts).controller(),
                 ],
                 projections: [],
                 cursors: [],
@@ -238,9 +236,9 @@ export class ComputerServer {
         });
     }
 
-    /** Serve the machine's partition once enrolled: checkouts, previews, replicas and builds. */
+    /** Serve the machine's partition once enrolled: checkouts, replicas and builds. */
     #implementMachine(checkouts: CheckoutServer): PackageImplementation {
-        // follow the machine's replicas and its builds, and serve its checkouts and previews
+        // follow the machine's replicas and its builds, and serve its checkouts
         const { id } = this.machine;
         const follows: readonly Follow[] = [
             // follow the directory, the identities and this machine's placements
@@ -250,7 +248,7 @@ export class ComputerServer {
         ];
 
         return implementPackage(machinePackage, {
-            objects: [checkouts.checkout(), checkouts.preview()],
+            objects: [checkouts.checkout()],
             follows,
         });
     }

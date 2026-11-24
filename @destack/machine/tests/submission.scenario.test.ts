@@ -1,11 +1,16 @@
-import { installation, build, installationRevision, Installation } from "@destack/stack/object";
+import {
+    installation,
+    build,
+    Build,
+    installationRevision,
+    Installation,
+} from "@destack/stack/object";
 import { fixtureGraph } from "@destack/build/test";
 import { ObjectReference, RequestId } from "@destack/sync";
-import { checkout } from "../src/computer/checkout/object/index.ts";
 import { BuildImage } from "@destack/package/manifest";
 import { Plan } from "@destack/resource";
 import { expect, refusal, test } from "@destack/test";
-import { schema, present, Digest, Identifier, type JsonObject } from "@destack/schema";
+import { Commit, schema, present, Digest, Identifier, type JsonObject } from "@destack/schema";
 import { tag } from "@destack/registry/object";
 import { CallError } from "@destack/object";
 import { and, eq } from "@destack/db";
@@ -20,6 +25,7 @@ import {
     readStack,
     ARCHIVE,
     fixtureBuild,
+    fixtureSource,
     ids,
     insertInstallation,
     TestSpace,
@@ -35,19 +41,34 @@ const UNAPPLIED_SPACE = "space-01996ab0-0000-7000-8000-0000000000f4";
 /** A second package built from the notes checkout, implementing notes' package beside it. */
 const OTHER_PACKAGE = PackageId.parse("package-01996ab0-0000-7000-8000-0000000000f5");
 
-/** The checkout the stack's builds come from. */
-const source = {
-    kind: "checkout" as const,
-    machine: ids.machine,
-    checkout: schema.identifier("checkout").parse("checkout-01996ab0-0000-7000-8000-000000000008"),
-    directory: "." as const,
-};
+/** The commit the stack's builds come from. */
+const source = fixtureSource();
 
-/** What following the checkout writes on an installation or a submission. */
-const followed = {
-    version: checkout.reference(source.machine, source.checkout),
-    directory: source.directory,
-};
+/** Pin an installation to a running build of its own, which deploys nothing until submitted. */
+async function unbuilt(fixture: TestSpace) {
+    // record a running build of a new commit, with no compile
+    const id = Identifier.create("build", fixture.environment);
+    const digits = id.slice(id.indexOf("-") + 1).replaceAll("-", "");
+    const pending = { ...source, commit: Commit.parse(digits.padStart(40, "0")) };
+    const now = fixture.machine.clock.now();
+    await fixture.database.transaction(
+        async (transaction) =>
+            await transaction.insert(build.table).values({
+                id,
+                scope: ids.space,
+                source: pending,
+                key: Build.key({ source: pending, outputs: null, version: null }),
+                commit: pending.commit,
+                outputs: ["bun"],
+                state: "running",
+                startedAt: now,
+                createdAt: now,
+                updatedAt: now,
+            }),
+    );
+
+    return { version: build.reference(ids.space, id) };
+}
 
 /** Follow a release of the fixture package by its version, at the forge of a space's world. */
 async function release(fixture: TestSpace, version: string) {
@@ -247,7 +268,7 @@ test("install an application from a checkout by submitting its build, following 
         scope: ids.space,
         requestId: RequestId.create(fixture.machine.environment),
         packageId: ids.package,
-        ...following(followed),
+        ...following(await unbuilt(fixture)),
         name: "notes",
     });
 
@@ -308,7 +329,7 @@ test("refuse submitting a build that has not succeeded or that the space does no
         scope: ids.space,
         requestId: RequestId.create(fixture.machine.environment),
         packageId: ids.package,
-        ...following(followed),
+        ...following(await unbuilt(fixture)),
         name: "notes",
     });
     const now = fixture.machine.clock.now();
@@ -320,6 +341,8 @@ test("refuse submitting a build that has not succeeded or that the space does no
                 id: running,
                 scope: ids.space,
                 source: { ...source },
+                key: Build.key({ source, outputs: null, version: null }),
+                commit: source.commit,
                 outputs: ["bun"],
                 state: "running",
                 startedAt: now,
@@ -608,7 +631,7 @@ test("find a served installation by identifier or name, else ask to wait or refu
         scope: ids.space,
         requestId: RequestId.create(fixture.machine.environment),
         packageId: ids.package,
-        ...following(followed),
+        ...following(await unbuilt(fixture)),
         name: "notes",
     });
     const recorded = await fixture.recordBuild(
@@ -704,7 +727,7 @@ test("hold a request for an installation until it serves, and refuse one the spa
         scope: ids.space,
         requestId: RequestId.create(fixture.machine.environment),
         packageId: ids.package,
-        ...following(followed),
+        ...following(await unbuilt(fixture)),
         name: "notes",
     });
     const read = () =>
@@ -761,7 +784,7 @@ test("find the one installation serving a package, else ask to wait or refuse", 
             scope: ids.space,
             requestId: RequestId.create(fixture.machine.environment),
             packageId,
-            ...following(followed),
+            ...following(await unbuilt(fixture)),
             name,
         });
         await fixture
@@ -857,7 +880,7 @@ test("refuse deploying a build needing a setting the space leaves unset", async 
         scope: ids.space,
         requestId: RequestId.create(fixture.machine.environment),
         packageId: ids.package,
-        ...following(followed),
+        ...following(await unbuilt(fixture)),
         name: "notes",
     });
 

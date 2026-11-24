@@ -10,7 +10,7 @@ import { expect, refusal, test } from "@destack/test";
 import { BuildSource } from "@destack/stack/object";
 import stackPackage from "@destack/stack/package";
 import { StackError } from "@destack/stack/error";
-import { ids, TestSpace } from "../src/test/index.ts";
+import { fixtureSource, ids, TestSpace } from "../src/test/index.ts";
 import { graph } from "@destack/package";
 
 /** The output the builds compile. */
@@ -45,12 +45,7 @@ async function implementBuild() {
         client(fixture.owner.id).build.create({
             spaceId: ids.space,
             requestId: RequestId.create(fixture.machine.environment),
-            source: {
-                kind: "checkout",
-                machine: fixture.machine.id,
-                checkout: ids.checkout,
-                directory: ".",
-            },
+            source: fixtureSource(),
             outputs: OUTPUTS,
         });
 
@@ -63,8 +58,24 @@ async function implementBuild() {
     };
 }
 
-test("compile a checkout's build on its machine and read its image back from the build store", async () => {
-    // create the build, placing its compile on the checkout's machine
+test("answer the live build of a source, outputs and version again, and create one for other outputs", async () => {
+    // create the fixture commit's build twice, then once more for its Workers output alone
+    const { fixture, owner, create } = await implementBuild();
+    const first = await create();
+    const again = await create();
+    const other = await owner.build.create({
+        spaceId: ids.space,
+        requestId: RequestId.create(fixture.machine.environment),
+        source: fixtureSource(),
+        outputs: ["workerd"],
+    });
+
+    // answer the first build to the second creation, and a new build to the third
+    expect([again.id === first.id, other.id === first.id]).toEqual([true, false]);
+});
+
+test("compile a commit's build on the space's runner and read its image back from the build store", async () => {
+    // create the build, placing its compile on the space's runner
     const { fixture, machine, create } = await implementBuild();
     const created = await create();
     const target = { spaceId: ids.space, id: created.id };
@@ -83,7 +94,7 @@ test("compile a checkout's build on its machine and read its image back from the
     const lacking = [
         ...new Set([...(await digests(reader)), root, imageDigest, ...graphs]),
     ].toSorted();
-    const uploaded = await fixture.storeBuild(machine, target, reader, { commit: COMMIT });
+    const uploaded = await fixture.storeBuild(machine, target, reader);
     const finished = await fixture.finished(created.id);
     const image = present(finished.image, "the stored image");
 
@@ -103,7 +114,7 @@ test("compile a checkout's build on its machine and read its image back from the
         created: "running",
         runner: principal.machine.reference(Scope.universe.id, fixture.machine.id),
         uploaded: lacking,
-        finished: ["succeeded", OUTPUTS, COMMIT, imageDigest],
+        finished: ["succeeded", OUTPUTS, fixtureSource().commit, imageDigest],
         stored: expected,
         read: [reader.manifest, await reader.files()],
     });

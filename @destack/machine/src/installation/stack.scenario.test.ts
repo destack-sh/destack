@@ -5,7 +5,6 @@ import {
     type StackEvaluation,
     type Submission,
 } from "@destack/stack/object";
-import { checkout } from "../computer/checkout/object/index.ts";
 import { describedTables, testIdentity } from "@destack/object/test";
 import { KNOWN_TYPES } from "@destack/stack/stack";
 import type { Environment } from "@destack/environment";
@@ -56,6 +55,7 @@ import {
     imageOf,
     readStack,
     TestSpace,
+    FIXTURE_BRANCH,
     ids,
 } from "../test/index.ts";
 import { gauge, meter } from "../test/schema.ts";
@@ -114,7 +114,7 @@ async function submit(
 /** Describe a submission of a stack definition from the checkout. */
 function submissionOf(definition: JsonObject) {
     return {
-        version: checkout.reference(ids.machine, ids.checkout),
+        version: FIXTURE_BRANCH,
         directory: ".",
         stack: { export: "personal", parameters: {}, definition },
     };
@@ -150,7 +150,7 @@ test("apply a stack submission, reapply it unchanged, and retire removed records
     const definition = evaluatePersonal();
     const stack = await readStack(database);
     const submission = {
-        version: checkout.reference(ids.machine, ids.checkout),
+        version: FIXTURE_BRANCH,
         directory: ".",
         stack: { export: "personal", parameters: {}, definition },
     };
@@ -340,7 +340,7 @@ test("leave an unchanged declared installation unwritten when its stack applies 
     const store = await serve(fixture);
     const stack = await readStack(database);
     await submit(fixture, store, stack, {
-        version: checkout.reference(ids.machine, ids.checkout),
+        version: FIXTURE_BRANCH,
         directory: ".",
         stack: {
             export: "personal",
@@ -403,7 +403,7 @@ test("run a stack's host installation at the release the machine links, as it ve
     };
     const store = await serve(fixture);
     await submit(fixture, store, await readStack(database), {
-        version: checkout.reference(ids.machine, ids.checkout),
+        version: FIXTURE_BRANCH,
         directory: ".",
         stack: {
             export: "personal",
@@ -455,7 +455,7 @@ test("run a host installation at a restarted machine's linked release, then revi
     };
     const store = await serve(fixture);
     await submit(fixture, store, await readStack(database), {
-        version: checkout.reference(ids.machine, ids.checkout),
+        version: FIXTURE_BRANCH,
         directory: ".",
         stack: {
             export: "personal",
@@ -525,7 +525,7 @@ test("hold a host installation of a package this machine does not provide", asyn
     // apply a stack following the host's release of a package this machine provides none of
     const store = await serve(fixture);
     await submit(fixture, store, await readStack(database), {
-        version: checkout.reference(ids.machine, ids.checkout),
+        version: FIXTURE_BRANCH,
         directory: ".",
         stack: {
             export: "personal",
@@ -583,7 +583,7 @@ test("replace an installation's owned bucket binding with its stack's, releasing
     };
     const stack = await readStack(database);
     const submission = {
-        version: checkout.reference(ids.machine, ids.checkout),
+        version: FIXTURE_BRANCH,
         directory: ".",
         stack: {
             export: "personal",
@@ -664,7 +664,7 @@ test("bind a declaration to another space's installation by name, refusing a pin
         };
 
         return await submit(fixture, store, stack, {
-            version: checkout.reference(ids.machine, ids.checkout),
+            version: FIXTURE_BRANCH,
             directory: ".",
             stack: {
                 export: "personal",
@@ -748,7 +748,7 @@ test("block a stack relating a role or installation of another space by identifi
     const blocked = (grant: JsonValue) =>
         TestSpace.refusals(
             submit(fixture, store, stack, {
-                version: checkout.reference(ids.machine, ids.checkout),
+                version: FIXTURE_BRANCH,
                 directory: ".",
                 stack: {
                     export: "personal",

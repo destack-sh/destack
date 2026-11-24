@@ -9,7 +9,7 @@ import type { RevisionOptions } from "./target.ts";
 import { Manager } from "@destack/access";
 import { Space } from "@destack/account/object";
 import { reference, referenceShape, tag, tagShape } from "@destack/registry/object";
-import { and, eq, DatabaseError } from "@destack/db";
+import { and, eq } from "@destack/db";
 import type { DatabaseConnection, Snapshot } from "@destack/db/database";
 import type { ObjectReconciliation } from "@destack/object";
 import { Commit, type Identifier, present, schema } from "@destack/schema";
@@ -219,32 +219,14 @@ export class CommitBuild {
         }
     }
 
-    /** Read the live build of a commit source in the space, creating it when there is none. */
+    /** Create the build of a commit source, answered by its live build when one exists. */
     async #create(reconciliation: ObjectReconciliation, source: CommitSource): Promise<Build> {
-        // reuse the live build of the source
         const scope = Installation.space(this.#target);
-        const live = await Build.find(reconciliation.database.snapshot(), scope, source);
-        if (live !== undefined) {
-            return live;
-        }
+        const [created] = await reconciliation.mutate([
+            build.call("create", { ...build.in(scope), source }),
+        ]);
 
-        // create one for the space's build runner to run
-        try {
-            const [created] = await reconciliation.mutate([
-                build.call("create", { ...build.in(scope), source }),
-            ]);
-
-            return Build.of(present(created, "the created build"));
-        } catch (error) {
-            // adopt the live build of the same checkout, which the creation refuses to repeat
-            if (!StackError.is(error, "BUILD_EXISTS") && !DatabaseError.is(error, "ROW_EXISTS")) {
-                throw error;
-            }
-            return present(
-                await Build.find(reconciliation.database.snapshot(), scope, source),
-                "the live build of the source",
-            );
-        }
+        return Build.of(present(created, "the created build"));
     }
 
     /** Report whether the installation targets a revision of a build. */

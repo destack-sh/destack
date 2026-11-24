@@ -1,10 +1,6 @@
-import { MachineError } from "../../error/index.ts";
-import { Failure } from "@destack/error";
 import { TEST_UNIVERSE } from "@destack/universe/test";
-import { testHost } from "@destack/test/host";
 import { log, LogData } from "@destack/observability/object";
 import { ObjectReference, Scope, RequestId } from "@destack/sync";
-import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
     AccessContext,
@@ -18,69 +14,22 @@ import {
 import * as accountObject from "@destack/account/object";
 import { eq, or } from "@destack/db";
 import type { DatabaseConnection } from "@destack/db/database";
-import { PackageManifest } from "@destack/package/manifest";
-import { nth, Identifier, present, schema, Version } from "@destack/schema";
+import { Identifier, present, schema } from "@destack/schema";
 import { CallError } from "@destack/object";
 import observabilityPackage from "@destack/observability/package";
 import { createClient } from "@destack/object/client";
-import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { checkout, preview } from "../checkout/index.ts";
+import { expect, refusal, test } from "@destack/test";
+import { checkout } from "../checkout/index.ts";
 import { Authenticator } from "../device/authentication/index.ts";
 import { SESSIONS } from "@destack/account/native";
 import stackPackage from "@destack/stack/package";
 import machinePackage from "../../package.ts";
 import { ComputerServer } from "./computer.ts";
 import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
-import { OWNER_EMAIL, TestComputer, TestDistribution } from "../test/index.ts";
+import { OWNER_EMAIL, TestComputer } from "../test/index.ts";
 
 /** The fixture stack package, used as a registered checkout. */
 const stackFixture = fileURLToPath(new URL("../../../tests/fixture/stack/", import.meta.url));
-
-/** The stack package of the registered checkout's working tree. */
-const STACK_CHECKOUT_PACKAGE = "package-01996ab0-0000-7000-8000-0000000000d1";
-
-/** The installed stack package a checkout's stack builds against as its release. */
-const INSTALLED_STACK = dirname(dirname(fileURLToPath(import.meta.resolve("@destack/stack"))));
-
-/** A working tree of one stack package, which builds against the stack package's release. */
-const STACK_CHECKOUT: Readonly<Record<string, string>> = {
-    "bun.lock": JSON.stringify({
-        lockfileVersion: 2,
-        workspaces: { "": { name: "@example/workspace" }, stack: { name: "@example/stack" } },
-        packages: {},
-    }),
-    ".gitignore": "node_modules/\n",
-    "stack/package.json": JSON.stringify({
-        name: "@example/stack",
-        version: "2026.9.0",
-        type: "module",
-        exports: { ".": "./src/index.ts" },
-        dependencies: { "@destack/stack": "2026.9.0" },
-    }),
-    "stack/destack.json": JSON.stringify({
-        $schema: "https://destack.app/schemas/2026.9.0/destack.json",
-        id: STACK_CHECKOUT_PACKAGE,
-        role: "library",
-        language: "typescript",
-        runtimes: ["bun", "workerd"],
-    }),
-    "stack/src/index.ts":
-        'import { defineStack } from "@destack/stack";\n\n/** A space\'s stack, installing nothing. */\nexport const personal = defineStack({ types: [] });\n',
-};
-
-/** The author a test's commits carry, as the host's Git configuration may name none. */
-const GIT_IDENTITY = ["-c", "user.name=Test", "-c", "user.email=test@example.test"] as const;
-
-/** The space a watched preview names, which the test never builds in. */
-const PREVIEWED_SPACE = schema
-    .identifier("space")
-    .parse("space-01996ab0-0000-7000-8000-0000000000f1");
-
-/** How long a preview's watch takes to act on settled changes. */
-const SETTLED_MILLISECONDS = 600;
-
-/** Poll a watched preview once per settling period. */
-const WATCH_POLL = { interval: SETTLED_MILLISECONDS };
 
 /** Poll a machine following its status every few milliseconds, for as long as a replica takes. */
 const PAUSE_POLL = { interval: 20 };
@@ -528,7 +477,7 @@ test("decide checkout permissions for the owner, the machine and a stranger", as
         Identifier.create("user", opened.environment),
     );
     const target = checkout.reference(machine.id, registered.id);
-    const decide = async (subject: typeof owner, name: "read" | "relocate" | "submit") => {
+    const decide = async (subject: typeof owner, name: "read" | "relocate" | "push") => {
         const snapshot = partition.database.snapshot();
         const access = await partition.authorizer.resolve(
             snapshot,
@@ -552,7 +501,7 @@ test("decide checkout permissions for the owner, the machine and a stranger", as
     const permissions = async (subject: typeof owner) => [
         await decide(subject, "read"),
         await decide(subject, "relocate"),
-        await decide(subject, "submit"),
+        await decide(subject, "push"),
     ];
     const decided = {
         owner: await permissions(owner),
@@ -568,365 +517,5 @@ test("decide checkout permissions for the owner, the machine and a stranger", as
         },
         { owner: [true, true, true], local: [true, true, true], stranger: [false, false, false] },
         [],
-    ]);
-});
-
-test("build a checkout as a prerelease until committed", async () => {
-    // release the stack package with the board's closure, which the working tree installs
-    const world = await TestComputer.world({ bundled: [await TestDistribution.fixture("board")] });
-    const opened = await TestComputer.open({ world });
-    const { machine } = opened;
-    const { owner } = opened.world;
-    const signedIn = await opened.signIn(OWNER_EMAIL);
-    await opened.enroll(signedIn, owner.account);
-    const space = await opened.space(signedIn.id, owner.account, "work");
-    const service = await stackOf(opened, signedIn.id, space);
-    const client = opened.connect(machinePackage);
-    const machineId = machine.id;
-    const self = principal.machine.reference(Scope.universe.id, machineId);
-
-    // lay out a working tree of one stack package, its stack package installed as a release
-    const { files } = opened.environment;
-    const root = await files.realPath(await files.makeTemporaryDirectory("destack-checkout-"));
-    onTestFinished(() => files.remove(root, { recursive: true }));
-    for (const [path, text] of Object.entries(STACK_CHECKOUT)) {
-        await files.mkdir(dirname(join(root, path)), { recursive: true });
-        await files.writeTextFile(join(root, path), text);
-    }
-    await files.mkdir(join(root, "stack", "node_modules", "@destack"), { recursive: true });
-    await files.symlink(INSTALLED_STACK, join(root, "stack", "node_modules", "@destack", "stack"));
-    expect(await testHost().process.spawn(["git", "init", "--quiet", root]).exited).toBe(0);
-
-    // register its stack package's directory
-    const stackDirectory = join(root, "stack");
-    const registered = await client.checkout.create({
-        machineId,
-        requestId: RequestId.create(opened.environment),
-        directory: stackDirectory,
-        source: { kind: "existing" },
-    });
-
-    // build and evaluate its personal export in the space
-    const followed = {
-        kind: "checkout",
-        machine: machineId,
-        checkout: registered.id,
-        directory: "stack",
-    };
-    const submit = (directory: string) =>
-        client.checkout.submit({
-            machineId,
-            id: registered.id,
-            requestId: RequestId.create(opened.environment),
-            space,
-            login: signedIn.id,
-            directory,
-            export: "personal",
-            parameters: {},
-        });
-    const { submission } = await submit("./stack/");
-    const { build, ...evaluated } = submission;
-    const built = await service.build.get({ spaceId: space, id: build });
-    if (built.image === null) {
-        throw new TypeError("the build has no image");
-    }
-    const reader = await (await machine.space(space)).builds.root(built.image);
-    const { version } = PackageManifest.package(reader.manifest);
-    expect({
-        checkout: registered,
-        submission: evaluated,
-        build,
-        built: [built.source, built.outputs, built.state, built.failure],
-        stored: [
-            PackageManifest.package(reader.manifest).id,
-            Object.keys(reader.manifest.outputs),
-            version,
-        ],
-    }).toEqual({
-        checkout: {
-            id: registered.id,
-            scope: machineId,
-            directory: stackDirectory,
-            root,
-            tags: {},
-            createdAt: registered.createdAt,
-            ...ObjectReference.columns("createdBy", self),
-            updatedAt: registered.createdAt,
-            ...ObjectReference.columns("updatedBy", self),
-            revision: 1,
-            managerInstallationId: null,
-            managerPackageId: null,
-            managerName: null,
-            detachedAt: null,
-        },
-        submission: {
-            version: checkout.reference(machineId, registered.id),
-            directory: "stack",
-            stack: { export: "personal", parameters: {} },
-        },
-        build: built.id,
-        built: [followed, ["bun", "workerd"], "succeeded", null],
-        stored: [STACK_CHECKOUT_PACKAGE, ["bun", "workerd"], Version.development],
-    });
-
-    // commit the working tree and build it again at dev
-    const git = (...command: readonly string[]) =>
-        testHost().process.spawn(["git", "-C", root, ...GIT_IDENTITY, ...command]).exited;
-    expect([await git("add", "--all"), await git("commit", "--quiet", "-m", "stack")]).toEqual([
-        0, 0,
-    ]);
-    const committed = (await submit("./stack/")).submission.build;
-    const rebuilt = await service.build.get({ spaceId: space, id: committed });
-    const released = await (
-        await machine.space(space)
-    ).builds.root(present(rebuilt.image, "the image"));
-    expect(PackageManifest.package(released.manifest).version).toBe(Version.development);
-
-    // refuse a stack directory outside the working tree
-    await expect(submit("..")).rejects.toEqual(
-        new CallError("BAD_REQUEST", {
-            reason: "OUTSIDE_CHECKOUT_INVALID",
-            domain: "@destack/machine",
-            message: "package directory is invalid: it is outside the checkout",
-        }),
-    );
-});
-
-test("build a checkout in a space another computer serves, following the build as its runner", async () => {
-    // enroll two computers of the owner: one with the working tree, one serving the space
-    const world = await TestComputer.world({ bundled: [await TestDistribution.fixture("board")] });
-    const relay = await TestComputer.relay(world);
-    const [opened, serving] = [
-        await TestComputer.open({ world }),
-        await TestComputer.open({ world, relay: relay.url }),
-    ];
-    const { owner } = world;
-    const signedIn = await opened.signIn(OWNER_EMAIL);
-    await opened.enroll(signedIn, owner.account);
-    const host = await serving.signIn(OWNER_EMAIL);
-    await serving.enroll(host, owner.account);
-    const space = await serving.space(host.id, owner.account, "work");
-
-    // wait until the relay publishes the serving computer's tunnel, which the other calls it at
-    const universe = world.universe.storage.database;
-    await serving.waitUntil(universe, async () => {
-        const published = await universe
-            .snapshot()
-            .read(accountObject.endpoint.table)
-            .findFirst({ where: { parentId: serving.machine.id } });
-
-        return published?.relay !== undefined;
-    });
-    const service = await stackOf(opened, signedIn.id, space);
-    const client = opened.connect(machinePackage);
-    const machineId = opened.machine.id;
-
-    // lay out a working tree of one stack package, its stack package installed as a release
-    const { files } = opened.environment;
-    const root = await files.realPath(await files.makeTemporaryDirectory("destack-checkout-"));
-    onTestFinished(() => files.remove(root, { recursive: true }));
-    for (const [path, text] of Object.entries(STACK_CHECKOUT)) {
-        await files.mkdir(dirname(join(root, path)), { recursive: true });
-        await files.writeTextFile(join(root, path), text);
-    }
-    await files.mkdir(join(root, "stack", "node_modules", "@destack"), { recursive: true });
-    await files.symlink(INSTALLED_STACK, join(root, "stack", "node_modules", "@destack", "stack"));
-    expect(await testHost().process.spawn(["git", "init", "--quiet", root]).exited).toBe(0);
-    const registered = await client.checkout.create({
-        machineId,
-        requestId: RequestId.create(opened.environment),
-        directory: join(root, "stack"),
-        source: { kind: "existing" },
-    });
-
-    // build and evaluate its personal export in the space the other computer serves
-    const { submission } = await client.checkout.submit({
-        machineId,
-        id: registered.id,
-        requestId: RequestId.create(opened.environment),
-        space,
-        login: signedIn.id,
-        directory: "./stack/",
-        export: "personal",
-        parameters: {},
-    });
-    const built = await service.build.get({ spaceId: space, id: submission.build });
-    const reader = await opened.machine.builds.root(present(built.image, "the image"));
-    expect({
-        served: [
-            (await opened.machine.volumes.list()).includes(space),
-            (await serving.machine.volumes.list()).includes(space),
-        ],
-        built: [built.state, built.failure],
-        stored: PackageManifest.package(reader.manifest).id,
-    }).toEqual({
-        served: [false, true],
-        built: ["succeeded", null],
-        stored: STACK_CHECKOUT_PACKAGE,
-    });
-});
-
-test("start a preview's next generation once sources settle", async () => {
-    // enroll the owner's computer, which stores checkouts and previews once enrolled
-    const computer = await TestComputer.open();
-    const { machine } = computer;
-    const client = computer.connect(machinePackage);
-    const machineId = machine.id;
-    const settle = () => computer.world.simulation.sleep(SETTLED_MILLISECONDS);
-    const previewer = await computer.signIn(OWNER_EMAIL);
-    await computer.enroll(previewer, computer.world.owner.account);
-
-    // lay out a working tree whose app depends on its library
-    const { files } = computer.environment;
-    const root = await files.realPath(await files.makeTemporaryDirectory("destack-workspace-"));
-    onTestFinished(() => files.remove(root, { recursive: true }));
-    expect(await testHost().process.spawn(["git", "init", "--quiet", root]).exited).toBe(0);
-    await files.writeTextFile(
-        join(root, "bun.lock"),
-        JSON.stringify({
-            lockfileVersion: 1,
-            workspaces: {
-                "": { name: "@example/workspace" },
-                "packages/library": { name: "@example/library" },
-                "packages/app": {
-                    name: "@example/app",
-                    dependencies: { "@example/library": "workspace:*" },
-                },
-                "tools/check": { name: "@example/check" },
-            },
-            packages: {},
-        }),
-    );
-    for (const member of ["packages/library", "packages/app", "tools/check"]) {
-        await files.mkdir(join(root, member, "src"), { recursive: true });
-        await files.mkdir(join(root, member, "node_modules"));
-        await files.writeTextFile(join(root, member, "src/index.ts"), "export {};\n");
-    }
-    for (const member of ["packages/library", "packages/app"]) {
-        await files.writeTextFile(join(root, member, "destack.json"), "{}\n");
-    }
-
-    // register the working tree and preview its app as a signed-in person
-    const registered = await client.checkout.create({
-        machineId,
-        requestId: RequestId.create(computer.environment),
-        directory: root,
-        source: { kind: "existing" },
-    });
-    const previewed = await client.preview.create({
-        machineId,
-        requestId: RequestId.create(computer.environment),
-        checkoutId: registered.id,
-        package: "packages/app",
-        space: PREVIEWED_SPACE,
-        login: previewer.id,
-    });
-    const generation = async () =>
-        nth(
-            await machine.database
-                .select({ generation: preview.table.generation })
-                .from(preview.table)
-                .where(eq(preview.table.id, previewed.id)),
-            0,
-        ).generation;
-
-    // edit the library until the machine's source controller starts the preview's next generation
-    const library = join(root, "packages/library/src/index.ts");
-    await expect
-        .poll(async () => {
-            await files.writeTextFile(library, `export const edited = ${computer.clock.now()};\n`);
-            await settle();
-
-            return generation();
-        }, WATCH_POLL)
-        .toBeGreaterThan(1);
-
-    // wait until the library's last edits settle into one generation, unchanged over a settle
-    const unchanged = async () => {
-        const before = await generation();
-        await settle();
-
-        return (await generation()) === before;
-    };
-    await expect.poll(unchanged, WATCH_POLL).toBe(true);
-    const started = await generation();
-
-    // edit the app once and change only an unrelated tool and installed dependencies after
-    await files.writeTextFile(join(root, "packages/app/src/index.ts"), "export const app = 1;\n");
-    const settled = async () => {
-        await settle();
-
-        return generation();
-    };
-    await expect.poll(settled, WATCH_POLL).toBe(started + 1);
-    await files.writeTextFile(join(root, "packages/app/node_modules/marker"), "installed\n");
-    await files.writeTextFile(join(root, "tools/check/src/index.ts"), "export const check = 1;\n");
-    await settle();
-
-    expect({
-        packages: await client.checkout.members({ machineId, id: registered.id }),
-        generation: await generation(),
-    }).toEqual({
-        packages: ["packages/app", "packages/library"],
-        generation: started + 1,
-    });
-});
-
-test("refuse building a checkout for a person not signed in on its computer", async () => {
-    // enroll two computers of the owner: one with the working tree, one serving the space
-    const world = await TestComputer.world({ bundled: [await TestDistribution.fixture("board")] });
-    const relay = await TestComputer.relay(world);
-    const [opened, serving] = [
-        await TestComputer.open({ world }),
-        await TestComputer.open({ world, relay: relay.url }),
-    ];
-    const { owner } = world;
-    const signedIn = await opened.signIn(OWNER_EMAIL);
-    await opened.enroll(signedIn, owner.account);
-    const host = await serving.signIn(OWNER_EMAIL);
-    await serving.enroll(host, owner.account);
-    const space = await serving.space(host.id, owner.account, "work");
-
-    // register a working tree on the owner's computer
-    const { files } = opened.environment;
-    const root = await files.realPath(await files.makeTemporaryDirectory("destack-checkout-"));
-    onTestFinished(() => files.remove(root, { recursive: true }));
-    expect(await testHost().process.spawn(["git", "init", "--quiet", root]).exited).toBe(0);
-    const registered = await opened.connect(machinePackage).checkout.create({
-        machineId: opened.machine.id,
-        requestId: RequestId.create(opened.environment),
-        directory: root,
-        source: { kind: "existing" },
-    });
-
-    // sign the owner out of that computer, then build its checkout as the owner from the other
-    await opened.device.forget(signedIn);
-    const service = await stackOf(serving, host.id, space);
-    const created = await service.build.create({
-        spaceId: space,
-        requestId: RequestId.create(serving.environment),
-        source: {
-            kind: "checkout",
-            machine: opened.machine.id,
-            checkout: registered.id,
-            directory: ".",
-        },
-    });
-
-    // wait until the owner's computer, its runner, ends it
-    const database = (await serving.machine.space(space)).database;
-    const read = async () => service.build.get({ spaceId: space, id: created.id });
-    await serving.waitUntil(database, async () => (await read()).state === "failed");
-
-    // fail it on the owner's computer without reading the working tree
-    const ended = await read();
-    expect([ended.state, ended.failure]).toEqual([
-        "failed",
-        Failure.of(
-            MachineError.of(
-                "BUILD_DENIED",
-                `build '${created.id}' of a checkout is forbidden: its creator is not signed in on this computer`,
-            ),
-        ),
     ]);
 });

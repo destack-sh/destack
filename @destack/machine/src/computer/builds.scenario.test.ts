@@ -13,13 +13,14 @@ import type { Launcher } from "../launcher/index.ts";
 import { PackageId } from "@destack/package";
 import { reference, referenceShape } from "@destack/registry/object";
 import forgePackage from "@destack/forge/package";
-import { type Identifier, present, schema } from "@destack/schema";
+import { Commit, type Identifier, present, schema } from "@destack/schema";
 import { createClient } from "@destack/object/client";
 import { RequestId, ObjectReference } from "@destack/sync";
 import * as stackObject from "@destack/stack/object";
 import stackPackage from "@destack/stack/package";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { FIXTURE_RELEASE, TestComputer } from "./test/index.ts";
+import machinePackage from "../package.ts";
+import { FIXTURE_RELEASE, OWNER_EMAIL, TestComputer } from "./test/index.ts";
 import { BunLockfile } from "@destack/check/bun";
 
 /** The package of every pushed commit: a library compiling one Bun module. */
@@ -120,6 +121,8 @@ async function pushHome(published: readonly string[] = []) {
     return {
         home,
         residency,
+        owner,
+        service,
         space: world.owner.home,
         person,
         worktree,
@@ -243,12 +246,14 @@ async function writeSite(directory: string, files: FileSystem, universe: string)
         'export { version } from "./version.ts";\n',
     );
     await git(worktree, "init", "--quiet", "--initial-branch=main");
+    await git(worktree, "config", "user.name", "Ada");
+    await git(worktree, "config", "user.email", "ada@example.test");
 
     return worktree;
 }
 
 /** Read the build an installation follows once the space serves it, absent before. */
-async function followed(database: DatabaseConnection, id: Identifier<"installation">) {
+async function followedBuild(database: DatabaseConnection, id: Identifier<"installation">) {
     const [row] = await database
         .select({ buildId: installationRevision.table.buildId })
         .from(stackObject.installation.table)
@@ -296,7 +301,7 @@ test("build and deploy each commit a push moves main to", async () => {
     const wait = async (commit: string) => {
         const isDeployed = await site.home.world.simulation.wait(
             served.log.waitUntil(async () => {
-                const current = await followed(served, installed.id);
+                const current = await followedBuild(served, installed.id);
                 if (current === undefined) {
                     return false;
                 }
@@ -340,21 +345,140 @@ test("build and deploy each commit a push moves main to", async () => {
     const root = present((await machine.builds.roots()).get(`space:${space}`), "the space's root");
     const rooted = builds.map((row) => root.has(present(row.image, "the image")));
     expect([
-        builds.map((row) => [row.source, row.outputs, row.state, row.commit]),
+        builds.map((row) => [row.source, row.outputs, row.state, row.key]),
         packages,
-        await followed(served, installed.id),
+        await followedBuild(served, installed.id),
         rooted,
     ]).toEqual([
-        [first, second].map((commit) => [
-            { kind: "commit", repository: site.repository.id, commit, directory: "." },
-            ["bun"],
-            "succeeded",
-            commit,
-        ]),
+        [first, second].map((commit) => {
+            const source = {
+                kind: "commit" as const,
+                repository: site.repository.id,
+                commit: Commit.parse(commit),
+                directory: ".",
+            };
+
+            return [
+                source,
+                ["bun"],
+                "succeeded",
+                stackObject.Build.key({ source, outputs: null, version: null }),
+            ];
+        }),
         [SITE, SITE],
         builds[1]?.id,
         [false, true],
     ]);
+});
+
+test("deploy each push of a checkout's working tree to the installation following it", async () => {
+    // commit the site's first version, and register its working tree on the owner's desktop
+    const site = await pushHome();
+    const { machine } = site.home;
+    const desktop = await TestComputer.open({ world: site.home.world });
+    await desktop.enroll(await desktop.signIn(OWNER_EMAIL), site.home.world.owner.account);
+    const { environment } = desktop;
+    const { files } = environment;
+    const head = await site.push(1);
+    const client = desktop.connect(machinePackage);
+    const machineId = desktop.machine.id;
+    const opened = await client.checkout.create({
+        machineId,
+        requestId: RequestId.create(environment),
+        directory: site.worktree,
+        source: { kind: "existing" },
+    });
+
+    // push the working tree as it is with the owner's lease, then observe the repository's references
+    const push = async (version: number) => {
+        await files.writeTextFile(
+            join(site.worktree, "src/version.ts"),
+            `/** The site's version. */\nexport const version = ${version};\n`,
+        );
+        const lease = await site.owner.repository.push({
+            spaceId: site.residency,
+            id: site.repository.id,
+        });
+        const pushed = await client.checkout.push({
+            machineId,
+            id: opened.id,
+            requestId: RequestId.create(environment),
+            lease,
+            of: "tree",
+        });
+        await site.list();
+
+        return pushed;
+    };
+
+    // install the site following the checkout's reference
+    const first = await push(2);
+    const { items } = await site.owner.reference.list({
+        spaceId: site.residency,
+        where: { parentId: site.repository.id, name: first.reference },
+        limit: 1,
+    });
+    const followed = present(items[0], "the checkout's reference");
+    const installed = await site.service.installation.create({
+        scope: site.space,
+        requestId: RequestId.create(environment),
+        packageId: SITE,
+        ...ObjectReference.columns("version", reference.reference(site.residency, followed.id)),
+        directory: ".",
+        name: "site",
+    });
+    const served = (await machine.space(site.space)).database;
+
+    // wait until the installation serves a commit's build
+    const wait = async (commit: string) => {
+        const isDeployed = await site.home.world.simulation.wait(
+            served.log.waitUntil(async () => {
+                const current = await followedBuild(served, installed.id);
+                const [built] =
+                    current === undefined
+                        ? []
+                        : await served
+                              .select({ source: build.table.source })
+                              .from(build.table)
+                              .where(eq(build.table.id, current));
+
+                return built?.source.kind === "commit" && built.source.commit === commit;
+            }, site.home.clock.timeout(DEPLOY_MILLISECONDS)),
+        );
+        if (!isDeployed) {
+            const builds = await served.select().from(build.table);
+            throw new Error(`commit '${commit}' was not deployed: ${JSON.stringify(builds)}`);
+        }
+    };
+    await wait(first.commit);
+
+    // push the working tree again, and wait until its follower serves it
+    const second = await push(3);
+    await wait(second.commit);
+
+    // push snapshots on HEAD that leave HEAD and the working tree's status as they are
+    const parents = [
+        await git(site.worktree, "rev-parse", `${first.commit}^`),
+        await git(site.worktree, "rev-parse", `${second.commit}^`),
+    ];
+    expect({
+        reference: first.reference,
+        same: second.reference === first.reference,
+        parents,
+        head: await git(site.worktree, "rev-parse", "HEAD"),
+        status: await git(site.worktree, "status", "--porcelain"),
+        version: await git(site.worktree, "show", `${second.commit}:src/version.ts`),
+        // fetch each commit on the space's runner, which has no checkout of it
+        fetched: await files.exists(join(site.home.directory, "commits")),
+    }).toEqual({
+        reference: `refs/checkouts/${opened.id}`,
+        same: true,
+        parents: [head, head],
+        head,
+        status: "M src/version.ts",
+        version: "/** The site's version. */\nexport const version = 3;",
+        fetched: true,
+    });
 });
 
 test("fail the installation of a branch whose commit does not build, with the build's failure", async () => {

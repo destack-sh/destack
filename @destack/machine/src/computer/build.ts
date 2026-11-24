@@ -1,41 +1,34 @@
+import { checkout } from "./checkout/index.ts";
+import { Git } from "./checkout/server/index.ts";
+import { eq } from "@destack/db";
 import { type LocalGitEnvironment, GitLease } from "@destack/git/local";
 import { join } from "node:path";
 import { type CompilerPool, outputsOf, Workspace, type WorkspacePackage } from "@destack/build";
 import type { PackageVersion } from "@destack/package";
 import type { BuildReader, BuildImage } from "@destack/package/manifest";
-import { Commit, Digest, type Identifier, schema, Uuid, type Version } from "@destack/schema";
+import { Digest, type Identifier, Uuid, type Version } from "@destack/schema";
 import stackPackage, { PUSH_PATH } from "@destack/stack/package";
 import { RemoteBuildStore } from "@destack/build/store";
-import { build, type CheckoutSource, type CompileOutput } from "@destack/stack/object";
+import { build, type CompileOutput } from "@destack/stack/object";
 import { MethodContext } from "@destack/object";
-import { ObjectReference } from "@destack/sync";
 import type { Select } from "@destack/db";
 import type { CommitSource } from "../installation/build.ts";
 import type { RunnerContext } from "./runner.ts";
-import { principal } from "@destack/access";
 import { WorkingTree } from "./checkout/index.ts";
-import { CheckoutServer, Git } from "./checkout/server/index.ts";
 import type { Machine } from "../machine/index.ts";
-import type { Device } from "./device/device.ts";
-import type { NativeClient } from "@destack/account/native";
 import type {} from "@destack/package/import-meta";
 import { MachineError } from "../error/index.ts";
 
 /** A build's row as the run's actor reads it. */
 type BuildRow = Select<typeof build.table>;
 
-/** A build's package directory on this machine with the commit its files match. */
-type SourceDirectory = {
-    readonly directory: string;
-    readonly commit?: Commit;
-} & AsyncDisposable;
+/** A build's package directory on this machine, removed once disposed. */
+type SourceDirectory = { readonly directory: string } & AsyncDisposable;
 
 /** The machine's builder: it compiles builds placed on it and pushes each to its space. */
 export class Builder {
     /** The machine whose compilers build, and whose store keeps the builds. */
     readonly #machine: Machine;
-    /** The computer's device, whose signed-in people alone build its checkouts. */
-    readonly #device: Pick<Device<NativeClient>, "isSignedIn">;
     /** The warm compilers compiling the builds into the machine's local store. */
     readonly #compilers: CompilerPool;
     /** The linked builtins' images, pulled once with all their files. */
@@ -44,18 +37,18 @@ export class Builder {
     readonly #commits: string;
     /** The host the working trees are checked out on, by git. */
     readonly #environment: LocalGitEnvironment;
+    /** The end of the build last opened in each checkout's mirror, which builds one at a time. */
+    readonly #mirrors = new Map<string, Promise<void>>();
 
-    /** Build on a machine and its device's people, compiling with warm compilers on a host. */
+    /** Build on a machine, compiling with warm compilers on a host. */
     constructor(
         machine: Machine,
-        device: Pick<Device<NativeClient>, "isSignedIn">,
         compilers: CompilerPool,
         commits: string,
         environment: LocalGitEnvironment,
     ) {
-        // set the machine, its device, its compilers, the commits' directory and the host
+        // set the machine, its compilers, the commits' directory and the host
         this.#machine = machine;
-        this.#device = device;
         this.#compilers = compilers;
         this.#commits = commits;
         this.#environment = environment;
@@ -92,11 +85,7 @@ export class Builder {
         const image = await workspacePackage.image(root);
         await pushing.push(this.#compilers.store, [image], signal);
 
-        return {
-            image,
-            outputs: [...outputs],
-            ...(opened.commit === undefined ? {} : { commit: opened.commit }),
-        };
+        return { image, outputs: [...outputs] };
     }
 
     /** Compile every output of a package directory as unreleased code, as an edit checks it. */
@@ -153,19 +142,15 @@ export class Builder {
         return digest;
     }
 
-    /** Open a build's source here: a checkout for its creator alone, else a fetched commit. */
+    /** Open a build's source here: a checkout's mirror at the commit, else a fetched commit. */
     async #open(input: BuildRow, signal: AbortSignal): Promise<SourceDirectory> {
         const { source } = input;
 
-        // read a checkout in place, for this computer's own person alone
-        if (source.kind === "checkout") {
-            await this.#requireSignedIn(input);
+        // build a commit in the mirror of a checkout of this machine that has it, else fetch it
+        if (source.kind === "commit") {
+            const local = await this.#local(source, signal);
 
-            return this.#checkout(source);
-        }
-        // fetch a commit from its repository
-        else if (source.kind === "commit") {
-            return this.#fetch(source, input.scope, signal);
+            return local ?? (await this.#fetch(source, input.scope, signal));
         }
         // refuse a release, which is born built and leases no runner
         else {
@@ -176,31 +161,48 @@ export class Builder {
         }
     }
 
-    /** Refuse a build of a checkout whose creator is not signed in on this computer. */
-    async #requireSignedIn(input: BuildRow): Promise<void> {
-        // take a build its creator made while signed in on this computer
-        const creator = ObjectReference.at("createdBy", input);
-        const isSignedIn =
-            principal.user.is(creator) &&
-            (await this.#device.isSignedIn(schema.identifier("user").parse(creator.id)));
-        if (!isSignedIn) {
-            throw MachineError.of(
-                "BUILD_DENIED",
-                `build '${input.id}' of a checkout is forbidden: its creator is not signed in on this computer`,
-            );
+    /** Move the mirror of a checkout of this machine that has a commit to it, absent for none. */
+    async #local(source: CommitSource, signal: AbortSignal): Promise<SourceDirectory | undefined> {
+        // find the first checkout whose repository has the commit
+        const git = new Git(this.#environment);
+        const checkouts = await this.#machine.database
+            .select({ root: checkout.table.directory })
+            .from(checkout.table)
+            .where(eq(checkout.table.scope, this.#machine.id));
+        let found: string | undefined;
+        for (const { root } of checkouts) {
+            if (found === undefined && (await git.has(root, source.commit))) {
+                found = root;
+            }
         }
-    }
+        if (found === undefined) {
+            return undefined;
+        }
 
-    /** Resolve a checkout's package directory to its path and clean commit. */
-    async #checkout(source: CheckoutSource): Promise<SourceDirectory> {
-        const located = await CheckoutServer.locate(this.#machine, source);
-        const commit = await new Git(this.#environment).commit(located.root);
+        // wait for the build open in the checkout's mirror, then take the mirror
+        const previous = this.#mirrors.get(found) ?? Promise.resolve();
+        const ended = Promise.withResolvers<void>();
+        this.#mirrors.set(
+            found,
+            previous.then(() => ended.promise),
+        );
+        await previous;
 
-        return {
-            directory: located.path,
-            ...(commit === undefined ? {} : { commit: Commit.parse(commit) }),
-            [Symbol.asyncDispose]: async () => {},
-        };
+        // move the mirror to the commit, installing its dependencies again when its lockfiles changed
+        try {
+            const { path, isLockfileChanged } = await git.mirror(found, source.commit);
+            if (isLockfileChanged) {
+                await Workspace.install(path, this.#environment, { isFrozen: true, signal });
+            }
+
+            return {
+                directory: WorkingTree.package(path, source.directory).path,
+                [Symbol.asyncDispose]: async () => ended.resolve(),
+            };
+        } catch (error) {
+            ended.resolve();
+            throw error;
+        }
     }
 
     /** Fetch a repository commit into a new working tree with its locked dependencies installed. */
@@ -228,7 +230,6 @@ export class Builder {
 
         return {
             directory: WorkingTree.package(root, source.directory).path,
-            commit: source.commit,
             [Symbol.asyncDispose]: remove,
         };
     }
@@ -240,12 +241,12 @@ export class Builder {
         built: { readonly outputs: readonly string[]; readonly version: Version | null },
         signal: AbortSignal,
     ): Promise<BuildReader> {
-        // release the package at the build's version, marking uncommitted source a dev build of it
+        // release the package at the build's version, else stamp it a development build
         const { name, packageJson } = workspacePackage.root;
         const request = {
             outputs: outputsOf(packageJson, built.outputs),
             ...(built.version === null ? {} : { versions: { [name]: built.version } }),
-            isUnreleased: opened.commit === undefined,
+            isUnreleased: built.version === null,
             signal,
         };
 
