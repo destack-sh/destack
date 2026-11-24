@@ -49,18 +49,22 @@ export class NpmInstallation {
     readonly #opened = new Map<string, NpmUnit>();
     /** The last open, after which the next one runs, so concurrent units open each copy once. */
     #opening: Promise<unknown> = Promise.resolve();
+    /** Schedule a conversion on the machine's cores. */
+    readonly #schedule: <Result>(work: () => Promise<Result>) => Promise<Result>;
 
     /** Store the locked releases, and the store and conversion the units build with. */
     constructor(
         locked: Readonly<Record<string, NpmRelease>>,
         store: BuildStore,
         conversion: Digest,
+        schedule: <Result>(work: () => Promise<Result>) => Promise<Result>,
         environment: Environment<"files">,
     ) {
-        // store the locked releases and what the units build with
+        // store the locked releases, what the units build with, and how their conversions are scheduled
         this.locked = locked;
         this.#store = store;
         this.conversion = conversion;
+        this.#schedule = schedule;
         this.#environment = environment;
     }
 
@@ -201,7 +205,10 @@ export class NpmInstallation {
                 "destack.npm.build",
                 { "destack.npm.package": released.name },
                 async () => {
-                    const built = await unit.build((each) => this.store(each));
+                    const built = await unit.build(
+                        (each) => this.store(each),
+                        (work) => this.#schedule(work),
+                    );
 
                     return await this.#store.put(built);
                 },
@@ -307,7 +314,10 @@ export class NpmUnit {
     }
 
     /** Build the unit in memory, converted to ES modules, with an output per runtime it runs on. */
-    async build(store: (dependency: NpmUnit) => Promise<NpmDependency>): Promise<BuildReader> {
+    async build(
+        store: (dependency: NpmUnit) => Promise<NpmDependency>,
+        schedule: <Result>(work: () => Promise<Result>) => Promise<Result>,
+    ): Promise<BuildReader> {
         // read the files, and the runtimes the unit runs on
         const files = await NpmUnit.files(this.directory, this.#environment.files);
         const runtimes = await this.runtimes();
@@ -321,7 +331,9 @@ export class NpmUnit {
         const outputs: Record<string, PackageOutput> = {};
         const required = new Map<string, NpmUnit>();
         for (const runtime of runtimes) {
-            const { output, imported } = await this.#convert(files, runtime, writer);
+            const { output, imported } = await schedule(() =>
+                this.#convert(files, runtime, writer),
+            );
             outputs[runtime] = output;
             for (const [each, unit] of imported) {
                 required.set(each, unit);

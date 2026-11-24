@@ -629,24 +629,25 @@ export class WorkspacePackage {
     async imageUnits(
         shared: WorkspaceUnitOptions,
     ): Promise<ReadonlyMap<string, { readonly build: DependencyBuild; readonly image: Digest }>> {
-        // build every unit once, attach their graphs at once as the pool allows, then make an image of each once per workspace
+        // build every unit once, then attach their graphs at once as the pool allows
         const units = await this.#storeEach(shared, this.units);
-        const images = new Map<
-            string,
-            { readonly build: DependencyBuild; readonly image: Digest }
-        >();
         await Promise.all(
             this.units.map((unit) => this.#attachUnitGraph(unit, found(units, unit.name), units)),
         );
-        for (const unit of this.units) {
-            const build = found(units, unit.name);
-            const image = await this.workspace.unitImage(unit, shared, () =>
-                this.#image(unit, build.manifest, units),
-            );
-            images.set(unit.name, { build, image });
-        }
 
-        return images;
+        // make an image of each unit at once, each once per workspace
+        const images = await settleAll(
+            this.units.map(async (unit) => {
+                const build = found(units, unit.name);
+                const image = await this.workspace.unitImage(unit, shared, () =>
+                    this.#image(unit, build.manifest, units),
+                );
+
+                return [unit.name, { build, image }] as const;
+            }),
+        );
+
+        return new Map(images);
     }
 
     /** Attach a workspace unit's graph to its build, unless the build carries one. */
@@ -921,18 +922,12 @@ export class WorkspacePackage {
             );
             started.set(unit.name, build);
         }
-        // let every started unit settle, as Cargo drains running jobs, then refuse the first failure
-        const settled = await Promise.allSettled(
+        // let every started unit settle before refusing a failure
+        const built = await settleAll(
             [...started].map(async ([name, unit]) => [name, await unit] as const),
         );
-        const failed = settled.find((result) => result.status === "rejected");
-        if (failed !== undefined) {
-            throw failed.reason;
-        }
 
-        return new Map(
-            settled.flatMap((result) => (result.status === "fulfilled" ? [result.value] : [])),
-        );
+        return new Map(built);
     }
 
     /** Take a unit's stored build of every output it ships, building it first when missing. */
@@ -1204,4 +1199,16 @@ export class WorkspacePackage {
             throw error;
         }
     }
+}
+
+/** Let every started job settle, as Cargo drains running jobs, then refuse the first failure. */
+async function settleAll<Value>(started: readonly Promise<Value>[]): Promise<Value[]> {
+    // wait for every job, then take the first failure
+    const settled = await Promise.allSettled(started);
+    const failed = settled.find((result) => result.status === "rejected");
+    if (failed !== undefined) {
+        throw failed.reason;
+    }
+
+    return settled.flatMap((result) => (result.status === "fulfilled" ? [result.value] : []));
 }

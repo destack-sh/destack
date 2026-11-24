@@ -64,7 +64,7 @@ test("place npm units of an image beside their peers, refusing a missing require
         files,
     );
     await using store = await LocalBuildStore.temporary(environment);
-    const installation = new NpmInstallation(locked, store, CONTEXT, environment);
+    const installation = new NpmInstallation(locked, store, CONTEXT, (run) => run(), environment);
     const build = async (name: string) =>
         await installation.store(await installation.open(copy(root, name)));
     const [renderer, core, lists, styler] = [
@@ -142,7 +142,7 @@ test("place a running tree's npm units as their Bun outputs under runtime roots,
         files,
     );
     await using store = await LocalBuildStore.temporary(environment);
-    const installation = new NpmInstallation(locked, store, CONTEXT, environment);
+    const installation = new NpmInstallation(locked, store, CONTEXT, (run) => run(), environment);
     const opened = await installation.open(copy(root, "store"));
     const unit = await installation.store(opened);
     const lists = await installation.store(present(opened.dependencies.get("lists"), "lists"));

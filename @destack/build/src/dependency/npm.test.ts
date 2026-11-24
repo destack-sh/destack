@@ -86,13 +86,13 @@ test("build an npm unit with an output per runtime", async () => {
         files,
     );
     await using store = await LocalBuildStore.temporary(environment);
-    const installation = new NpmInstallation(locked, store, CONTEXT, environment);
+    const installation = new NpmInstallation(locked, store, CONTEXT, (run) => run(), environment);
     const unit = await installation.open(copy(root, "greeting"));
     const stored = await installation.store(unit);
     const word = await installation.store(
         present(unit.dependencies.get("word"), "the unit of word"),
     );
-    const reopened = new NpmInstallation(locked, store, CONTEXT, environment);
+    const reopened = new NpmInstallation(locked, store, CONTEXT, (run) => run(), environment);
     const again = await reopened.store(await reopened.open(copy(root, "greeting")));
 
     // place and run each runtime's output
@@ -160,7 +160,7 @@ test("convert a package for workerd by its conditions and browser field, failing
         files,
     );
     await using store = await LocalBuildStore.temporary(environment);
-    const installation = new NpmInstallation(locked, store, CONTEXT, environment);
+    const installation = new NpmInstallation(locked, store, CONTEXT, (run) => run(), environment);
     const build = async (name: string) =>
         await installation.store(await installation.open(copy(root, name)));
 
@@ -216,7 +216,7 @@ test("convert a CommonJS module with a binding named like its rolldown wrapper",
         files,
     );
     await using store = await LocalBuildStore.temporary(environment);
-    const installation = new NpmInstallation(locked, store, CONTEXT, environment);
+    const installation = new NpmInstallation(locked, store, CONTEXT, (run) => run(), environment);
     const unit = await installation.open(copy(root, "colliding"));
     const built = await installation.store(unit);
 
@@ -247,7 +247,7 @@ test("convert a package publishing a tsconfig that extends an absent package", a
         files,
     );
     await using store = await LocalBuildStore.temporary(environment);
-    const installation = new NpmInstallation(locked, store, CONTEXT, environment);
+    const installation = new NpmInstallation(locked, store, CONTEXT, (run) => run(), environment);
     const built = await installation.store(await installation.open(copy(root, "colors")));
 
     // run workerd's converted modules through the re-export
@@ -290,7 +290,13 @@ test("fail an absent optional dependency and an absent optional peer when they l
     await using store = await LocalBuildStore.temporary(environment);
     const placed = join(root, "placed");
     for (const name of ["fallback", "loader"]) {
-        const installation = new NpmInstallation(locked, store, CONTEXT, environment);
+        const installation = new NpmInstallation(
+            locked,
+            store,
+            CONTEXT,
+            (run) => run(),
+            environment,
+        );
         const stored = await installation.store(await installation.open(copy(root, name)));
         await place(store, stored.manifest, name, "workerd", placed);
     }
@@ -342,7 +348,7 @@ test("require a linked required peer, leaving an optional one to dependents", as
         environment.files,
     );
     await using store = await LocalBuildStore.temporary(environment);
-    const installation = new NpmInstallation(locked, store, CONTEXT, environment);
+    const installation = new NpmInstallation(locked, store, CONTEXT, (run) => run(), environment);
     const stored = await installation.store(await installation.open(copy(root, "loader")));
 
     // require the required peer
@@ -383,7 +389,7 @@ test("build a native addon and its importer for Bun alone, and refuse a missing 
         files,
     );
     await using store = await LocalBuildStore.temporary(environment);
-    const installation = new NpmInstallation(locked, store, CONTEXT, environment);
+    const installation = new NpmInstallation(locked, store, CONTEXT, (run) => run(), environment);
     const build = async (name: string) =>
         await installation.store(await installation.open(copy(root, name)));
 

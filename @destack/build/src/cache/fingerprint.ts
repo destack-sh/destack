@@ -4,6 +4,7 @@ import { dirname, extname, join, sep } from "node:path";
 import { type Environment, type FileSystem, FileSystemError } from "@destack/environment";
 import { Digest, schema } from "@destack/schema";
 import { Distribution } from "@destack/update";
+import { MANIFEST_FORMAT } from "@destack/package/manifest";
 import { BuildError } from "../error/index.ts";
 
 /** The entry a compiler process starts from, whose npm releases identify the compiler. */
@@ -11,6 +12,9 @@ const COMPILER_ENTRY = new URL("../main.ts", import.meta.url);
 
 /** The version of the compiler's output and keys, bumped whenever either changes. */
 export const COMPILER_VERSION = 7;
+
+/** The version of the npm conversion's output, bumped whenever the conversion changes. */
+export const CONVERSION_VERSION = 1;
 
 /** The npm releases converting npm packages: the bundler and the CommonJS lexer. */
 const CONVERSION_RELEASES: ReadonlySet<string> = new Set(["rolldown", "cjs-module-lexer"]);
@@ -111,7 +115,8 @@ export class CompilerFingerprint {
 
         return await Digest.json(
             {
-                version: COMPILER_VERSION,
+                version: CONVERSION_VERSION,
+                manifest: MANIFEST_FORMAT,
                 bun: this.environment.process.runtime.revision,
                 releases: await Digest.json(conversion, this.environment.crypto),
             },

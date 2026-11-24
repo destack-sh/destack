@@ -66,6 +66,10 @@ export class CompilerPool implements AsyncDisposable {
     #uses = 0;
     /** The leases waiting for a compiler, first come first served. */
     readonly #waiting: Waiter[] = [];
+    /** The scheduled work running now, such as npm conversions. */
+    #scheduled = 0;
+    /** The scheduled work waiting for a free core, first come first served. */
+    readonly #queued: (() => void)[] = [];
     /** The failures of compilers closing with no lease to answer, thrown on disposal. */
     readonly #failures: unknown[] = [];
     /** The durations of the waits for a compiler. */
@@ -118,11 +122,48 @@ export class CompilerPool implements AsyncDisposable {
             locked,
             this.store,
             conversion,
+            (work) => this.schedule(work),
             this.store.environment,
         );
         this.#installations.set(key, installation);
 
         return installation;
+    }
+
+    /** Run work once a core is free of compiles and scheduled work, one at least. */
+    async schedule<Result>(work: () => Promise<Result>): Promise<Result> {
+        // take a core now, else wait for the admission that takes one
+        if (this.#queued.length === 0 && this.#isCoreFree()) {
+            this.#scheduled += 1;
+        } else {
+            await new Promise<void>((wake) => {
+                this.#queued.push(wake);
+            });
+        }
+
+        // run it, then admit the work the freed core lets run
+        try {
+            return await work();
+        } finally {
+            this.#scheduled -= 1;
+            this.#admit();
+        }
+    }
+
+    /** Admit queued work while a core is free, counting each as it is admitted. */
+    #admit(): void {
+        while (this.#queued.length > 0 && this.#isCoreFree()) {
+            this.#scheduled += 1;
+            this.#queued.shift()?.();
+        }
+    }
+
+    /** Report whether work may run: none runs, or the compiles and the work leave a core. */
+    #isCoreFree(): boolean {
+        return (
+            this.#scheduled === 0 ||
+            this.#scheduled + this.#leased.size < navigator.hardwareConcurrency
+        );
     }
 
     /** Read the toolchain the compilers run, once it is first needed. */
@@ -167,6 +208,7 @@ export class CompilerPool implements AsyncDisposable {
             this.#leased.delete(leased.promise);
             leased.resolve();
             this.#serve();
+            this.#admit();
         }
     }
 
