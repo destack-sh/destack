@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { createSignal, flush } from "@destack/view";
-import { render } from "@destack/view/test";
+import { render, stubPopovers } from "@destack/view/test";
 import {
     Combobox,
     ComboboxChip,
@@ -148,4 +148,23 @@ test("show the chosen value's text, filter by what is typed, and show it again w
         ["", "Trips", "Work"],
         [undefined],
     ]);
+});
+
+test("open by a click on the input, its text ready to be typed over", () => {
+    stubPopovers();
+    const { container } = render(() => (
+        <Combobox defaultValue="Work">
+            <ComboboxInput aria-label="Notebook" />
+            <ComboboxItem value="Work">Work</ComboboxItem>
+        </Combobox>
+    ));
+    const input = container.querySelector("input");
+    input?.click();
+    flush();
+
+    expect([
+        input?.getAttribute("aria-expanded"),
+        input?.selectionStart,
+        input?.selectionEnd,
+    ]).toEqual(["true", 0, 4]);
 });

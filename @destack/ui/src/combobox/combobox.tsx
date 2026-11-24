@@ -347,7 +347,7 @@ export function ComboboxInput(
     properties: ComboboxElementProperties<
         Omit<
             JSX.InputHTMLAttributes<HTMLInputElement>,
-            "value" | "onInput" | "onKeyDown" | "onBlur" | "ref"
+            "value" | "onInput" | "onKeyDown" | "onClick" | "onBlur" | "ref"
         >
     >,
 ): JSX.Element {
@@ -381,6 +381,14 @@ export function ComboboxInput(
                     control.open(true, new OpenChange("input", event));
                 }}
                 onKeyDown={(event) => steer(event, control, locale.direction)}
+                onClick={(event) => {
+                    // show every option, the text of the chosen one ready to be typed over
+                    const { currentTarget } = event;
+                    if (!control.isOpen() && !currentTarget.readOnly) {
+                        control.open(true, new OpenChange("trigger-press", event));
+                        currentTarget.select();
+                    }
+                }}
                 onBlur={(event) => {
                     control.open(false, new OpenChange("focus-out", event));
                     control.leave();
