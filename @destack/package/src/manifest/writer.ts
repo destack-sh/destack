@@ -8,7 +8,7 @@ import { PackageFile } from "../file/file.ts";
 import { MediaType } from "../file/media.ts";
 import type { SourceMapReference } from "../source/map.ts";
 import { CATALOG_DIRECTORY, MANIFEST_FORMAT, PackageManifest } from "./manifest.ts";
-import { type OutputContent, PackageOutput } from "./output.ts";
+import { PackageOutput } from "./output.ts";
 import { MANIFEST_PATH } from "./reader.ts";
 
 /** The path of each list a build's manifest references, inside the build. */
@@ -47,7 +47,7 @@ export interface BuildContent {
     /** The Destack version whose toolchain builds it, and whose builtins it links. */
     readonly destack: Version;
     /** The named outputs, none when absent. */
-    readonly outputs?: Readonly<Record<string, OutputContent>>;
+    readonly outputs?: Readonly<Record<string, PackageOutput>>;
     /** The packages it requires, by name, at their declared ranges, none when absent. */
     readonly requires?: Readonly<Record<string, string>>;
     /** The source maps of generated files, none when absent. */
@@ -146,14 +146,15 @@ export class BuildWriter {
             tables: await this.#writeJson(MANIFEST_LISTS.tables, contents.tables ?? {}),
         };
 
-        // list the files each output's runtime loads
+        // check each output, and list the files its runtime loads
         const outputs: PackageManifest["outputs"] = {};
+        const loads: PackageManifest["lists"]["outputs"] = {};
         for (const [name, output] of Object.entries(contents.outputs ?? {})) {
             const loaded = files.filter((file) =>
                 BuildWriter.#isLoaded(file.path, output.directory),
             );
-            const list = await this.#writeJson(`${OUTPUT_LISTS}/${name}.json`, loaded);
-            outputs[name] = PackageOutput.parse({ ...output, files: list });
+            loads[name] = await this.#writeJson(`${OUTPUT_LISTS}/${name}.json`, loaded);
+            outputs[name] = PackageOutput.parse(output);
         }
 
         // digest what dependents' compilations read of the build
@@ -185,7 +186,7 @@ export class BuildWriter {
             destack: contents.destack,
             language: "typescript",
             requires: contents.requires ?? {},
-            lists,
+            lists: { ...lists, outputs: loads },
             interface: interfaceDigest,
             outputs,
         };

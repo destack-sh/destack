@@ -66,6 +66,14 @@ export const RepositoryName = schema.string().regex(/^[a-z0-9](?:[a-z0-9-]{0,61}
 /** An account's Git repository name. */
 export type RepositoryName = schema.Infer<typeof RepositoryName>;
 
+/** A peer dependency a package declares, which its dependents provide. */
+export const PeerDependency = schema.object({
+    /** Whether a dependent may leave it out, as npm's peerDependenciesMeta marks it. */
+    isOptional: schema.boolean(),
+});
+/** A peer dependency a package declares. */
+export type PeerDependency = schema.Infer<typeof PeerDependency>;
+
 /** A scoped or unscoped dependency name. */
 export const DependencyName = Object.assign(
     schema

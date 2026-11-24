@@ -238,9 +238,9 @@ export class BuildReader {
 
     /** Read the files an output's runtime loads, by the output's name. */
     loaded(name: string): Promise<readonly PackageFile[]> {
-        const output = present(this.manifest.outputs[name], `the output ${name}`);
+        const list = present(this.manifest.lists.outputs[name], `the output ${name}`);
 
-        return this.read<PackageFile[]>(output.files);
+        return this.read<PackageFile[]>(list);
     }
 
     /** Read the source maps of an output's files, which symbolicate what its runtime loads. */
@@ -275,10 +275,10 @@ export class BuildReader {
 
     /** List the manifest's own list files: its lists and each output's. */
     lists(): PackageFile[] {
-        const { files, sourceMaps, declarations, relationships, tables } = this.manifest.lists;
-        const outputs = Object.values(this.manifest.outputs).map((output) => output.files);
+        const { files, sourceMaps, declarations, relationships, tables, outputs } =
+            this.manifest.lists;
 
-        return [files, sourceMaps, declarations, relationships, tables, ...outputs];
+        return [files, sourceMaps, declarations, relationships, tables, ...Object.values(outputs)];
     }
 
     /** List every file the build references: its lists and the files they list. */
@@ -316,16 +316,15 @@ export class BuildReader {
     /** Refuse lists without their formats, as a store checks a build it takes in from outside. */
     async check(): Promise<void> {
         // parse each list against its format
-        const { files, sourceMaps, declarations, relationships, tables } = this.manifest.lists;
+        const { files, sourceMaps, declarations, relationships, tables, outputs } =
+            this.manifest.lists;
         const checked = [
             [files, schema.array(PackageFile)],
             [sourceMaps, schema.array(SourceMapReference)],
             [declarations, schema.array(Declaration)],
             [relationships, schema.array(Edge)],
             [tables, schema.record(schema.string(), schema.unknown())],
-            ...Object.values(this.manifest.outputs).map(
-                (output) => [output.files, schema.array(PackageFile)] as const,
-            ),
+            ...Object.values(outputs).map((list) => [list, schema.array(PackageFile)] as const),
         ] as const;
         for (const [list, format] of checked) {
             const parsed = format.safeParse(await this.read(list));

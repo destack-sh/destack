@@ -13,7 +13,7 @@ import { PackageOutput } from "./output.ts";
 import type { Runtime } from "../runtime/index.ts";
 
 /** The manifest format a build writes. */
-export const MANIFEST_FORMAT = 5;
+export const MANIFEST_FORMAT = 6;
 
 /** The directory of a build's catalogs, which every runtime loads. */
 export const CATALOG_DIRECTORY = "locale";
@@ -44,6 +44,8 @@ const manifest = schema.object({
         relationships: PackageFile,
         /** The tables the package's object types keep in a database, by dialect. */
         tables: PackageFile,
+        /** The files each output's runtime loads: its own, the package.json and the catalogs. */
+        outputs: schema.record(DeclarationName, PackageFile),
     }),
     /** The digest of what dependents' compilations read of the build, which their keys include. */
     interface: Digest,

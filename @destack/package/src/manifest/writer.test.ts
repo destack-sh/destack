@@ -142,6 +142,7 @@ function output(runtime: "bun" | "browser") {
         views: {},
         directory: runtime,
         exports: {},
+        peers: {},
     };
 }
 

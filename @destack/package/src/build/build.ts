@@ -5,7 +5,7 @@ import { type Digest, Uuid } from "@destack/schema";
 import type { Sandbox } from "../definition/sandbox.ts";
 import type { PackageVersion } from "../definition/package.ts";
 import type { DeclarationDescription } from "../definition/declaration.ts";
-import type { OutputContent, PackageOutput } from "../manifest/index.ts";
+import type { PackageOutput } from "../manifest/index.ts";
 import type { Runtime } from "../runtime/index.ts";
 
 export type { Plugin, PluginOption };
@@ -43,7 +43,7 @@ export interface PrerenderContext {
     /** The package's own declarations. */
     readonly declarations: readonly DeclarationDescription[];
     /** The compiled module outputs, by name. */
-    readonly outputs: Readonly<Record<string, OutputContent>>;
+    readonly outputs: Readonly<Record<string, PackageOutput>>;
     /** The clock, files and processes the pages render with. */
     readonly environment: Environment<"files" | "process">;
 }

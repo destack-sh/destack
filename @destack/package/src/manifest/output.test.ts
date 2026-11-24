@@ -86,6 +86,7 @@ test("reach the modules an entry imports across builds, a whole build for a comp
         workloads: {},
         views: {},
         exports: {},
+        peers: {},
     } as const;
     const app = await MemoryBuild.write(
         new Map([

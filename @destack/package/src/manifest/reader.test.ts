@@ -282,7 +282,7 @@ function moduleBytes(code: string): Uint8Array<ArrayBuffer> {
 test("keep a reached module that shares bytes with an unreached one", async () => {
     // write a library whose browser and workerd outputs have the same module, and one module only workerd has
     const { crypto } = testSimulation().environment("test");
-    const output = { emit: true, workloads: {}, views: {}, exports: {} } as const;
+    const output = { emit: true, workloads: {}, views: {}, exports: {}, peers: {} } as const;
     const shared = moduleBytes("export const web = 1;");
     const kit = await MemoryBuild.write(
         new Map([

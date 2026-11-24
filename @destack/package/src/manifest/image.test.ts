@@ -6,7 +6,7 @@ import { PackageId } from "../definition/index.ts";
 import { MemoryBuild } from "../test/memory.ts";
 import { BuildImage, IMAGE_FORMAT } from "./image.ts";
 import { type PackageManifest } from "./manifest.ts";
-import { ImportMap, type OutputContent } from "./output.ts";
+import { ImportMap, type PackageOutput } from "./output.ts";
 import type { BuildReader } from "./reader.ts";
 
 /** The build of an app. */
@@ -94,7 +94,7 @@ const SOURCES = {
 function written(
     sources: Readonly<Record<string, string>>,
     crypto: Crypto,
-    outputs: Readonly<Record<string, OutputContent>> = {},
+    outputs: Readonly<Record<string, PackageOutput>> = {},
     built: PackageManifest["package"] = ANSWER,
 ): Promise<BuildReader> {
     const files = Object.entries(sources).map(
@@ -128,7 +128,7 @@ function browserPath(subpath: string): string {
 function browserOutputs(
     imports: Readonly<Record<string, readonly string[]>>,
     view?: string,
-): Readonly<Record<string, OutputContent>> {
+): Readonly<Record<string, PackageOutput>> {
     // export each subpath at a file of its own, mounting a view at one
     const exports = Object.fromEntries(
         Object.entries(imports).map(([subpath, specifiers]) => [

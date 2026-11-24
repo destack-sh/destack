@@ -2,31 +2,22 @@ import * as lexer from "es-module-lexer/js";
 import MagicString from "magic-string";
 import { Digest, present, schema } from "@destack/schema";
 import type { BuildReader } from "./reader.ts";
-import { DependencyName } from "../definition/index.ts";
-import { PackageFile, PackagePath } from "../file/index.ts";
+import { DependencyName, PeerDependency } from "../definition/index.ts";
+import { PackagePath } from "../file/index.ts";
 import { Runtime } from "../runtime/index.ts";
 import { WorkloadDescription } from "./workload.ts";
 import { FrameDescription, ViewDescription } from "./view.ts";
 import { DeclarationName } from "../definition/package.ts";
 
-/** An output's export: its emitted file and the dependency specifiers its chunks import. */
-export const OutputExport = schema.object({
+/** A compiled entry: its emitted file and the dependency specifiers its chunks import. */
+export const PackageChunk = schema.object({
     /** The emitted file of the export. */
     path: PackagePath,
     /** The dependency specifiers the export's chunks import, such as `@destack/object/client`. */
     imports: schema.array(schema.string().min(1)),
 });
-/** An output's export: its emitted file and the dependency specifiers its chunks import. */
-export type OutputExport = schema.Infer<typeof OutputExport>;
-
-/** A peer an output's package declares, which its dependents provide. */
-export const OutputPeer = schema.object({
-    /** Whether a dependent may leave it out, as npm's peerDependenciesMeta marks it. */
-    isOptional: schema.boolean(),
-});
-
-/** A peer an output's package declares, which its dependents provide. */
-export type OutputPeer = schema.Infer<typeof OutputPeer>;
+/** A compiled entry: its emitted file and the dependency specifiers its chunks import. */
+export type PackageChunk = schema.Infer<typeof PackageChunk>;
 
 /** Compiled files and dependencies for one runtime. */
 export const PackageOutput = schema.object({
@@ -43,22 +34,15 @@ export const PackageOutput = schema.object({
     /** The output directory within the build. */
     directory: PackagePath,
     /** Generated entrypoints keyed by their exported names. */
-    exports: schema.record(schema.string().min(1), OutputExport),
-    /** The peers its package declares, which each package depending on it provides beside it. */
-    peers: schema.record(DependencyName, OutputPeer).default({}),
+    exports: schema.record(schema.string().min(1), PackageChunk),
+    /** The peers its modules import, which each package depending on it provides beside it. */
+    peers: schema.record(DependencyName, PeerDependency),
     /** The commands its package installs, each its emitted module by name, absent for none. */
-    bins: schema.record(schema.string().min(1), OutputExport).exactOptional(),
-    /** The list of the files its runtime loads: its own, the package.json and the catalogs. */
-    files: PackageFile,
+    bins: schema.record(schema.string().min(1), PackageChunk).exactOptional(),
 });
 
 /** Compiled files for one execution target. */
 export type PackageOutput = schema.Infer<typeof PackageOutput>;
-
-/** An output as a build writes it, before the writer lists the files its runtime loads. */
-export const OutputContent = PackageOutput.omit({ files: true });
-/** An output as a build writes it, before the writer lists the files its runtime loads. */
-export type OutputContent = schema.Input<typeof OutputContent>;
 
 /** A specifier a module resolves against its own path: one starting at a directory or the root. */
 const RELATIVE_SPECIFIER = /^(?:\.{1,2})?\//u;
