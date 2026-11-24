@@ -11,6 +11,7 @@ import { Sandbox, type SandboxOptions } from "@destack/sandbox";
 import { type Digest, type Identifier, JsonValue, present } from "@destack/schema";
 import type { Deriver } from "@destack/identity";
 import {
+    PARTITION_HEADER,
     WORKLOAD_EXPORT,
     WorkloadReady,
     type WorkloadStart,
@@ -302,14 +303,25 @@ export class BunRuntime implements Runtime {
         path: string,
         request: Request,
         authentication: Authentication | undefined,
+        partition?: string,
     ): Promise<Response> {
         // forward the request at its path below the installation with the verified caller
         const child = this.#registry.require(instanceId);
         const { secret } = child;
-
-        return child.send(
-            WorkloadRequest.forward(RUNNER_ORIGIN, path, request, secret, authentication),
+        const forwarded = WorkloadRequest.forward(
+            RUNNER_ORIGIN,
+            path,
+            request,
+            secret,
+            authentication,
         );
+
+        // name the partition the call goes to, which the runner serves in its process
+        if (partition !== undefined) {
+            forwarded.headers.set(PARTITION_HEADER, partition);
+        }
+
+        return child.send(forwarded);
     }
 
     /** Hand an instance a request the machine makes at a path below its origin. */

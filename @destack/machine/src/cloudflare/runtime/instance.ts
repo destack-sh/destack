@@ -311,10 +311,9 @@ export class InstallationFacet {
     #accept(acceptance: SocketAcceptance): Response {
         // accept the server's end with its description
         const pair = new WebSocketPair();
-        const description: SocketDescription = {
-            id: acceptance.id,
-            attachment: acceptance.attachment,
-        };
+        const { id, attachment, partition } = acceptance;
+        const description: SocketDescription =
+            partition === undefined ? { id, attachment } : { id, attachment, partition };
         this.#state.acceptWebSocket(pair[1], [
             this.installation,
             `${this.installation}/${description.id}`,
