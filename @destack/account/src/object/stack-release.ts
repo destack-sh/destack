@@ -1,4 +1,4 @@
-import { ReleaseSelection } from "@destack/object";
+import { ReleaseVersion } from "@destack/object";
 import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 
@@ -6,8 +6,8 @@ import { schema } from "@destack/schema";
 export const StackRelease = schema.object({
     /** The stack package. */
     packageId: PackageId,
-    /** The release the space follows: a version, a tag such as latest, or its host's. */
-    selection: ReleaseSelection,
+    /** The release the space runs: a version, a tag such as latest, or its host's. */
+    version: ReleaseVersion,
     /** The export declaring the space. */
     export: schema.string().min(1),
     /** The setting values the stack places in the space, by `<package>/<name>`. */

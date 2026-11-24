@@ -256,11 +256,11 @@ test("move each residency home to its own newly declared stack once, giving each
     await new Platform(fixture.store, PLATFORM).apply(fixture.store.clock.now());
     const europe = {
         ...RESIDENCY_STACK,
-        selection: { ...RESIDENCY_STACK.selection, version: "2026.9.1" },
+        version: { ...RESIDENCY_STACK.version, version: "2026.9.1" },
     };
     const america = {
         ...RESIDENCY_STACK,
-        selection: { ...RESIDENCY_STACK.selection, version: "2026.9.2" },
+        version: { ...RESIDENCY_STACK.version, version: "2026.9.2" },
     };
     const declared: PlatformDefinition = {
         ...PLATFORM,

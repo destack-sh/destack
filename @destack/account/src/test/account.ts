@@ -163,7 +163,7 @@ export type HomeServer = "fixture" | "machine";
 /** The stand-in stack each residency's home runs. */
 export const RESIDENCY_STACK: StackRelease = {
     packageId: PackageId.parse("package-01996ab0-0000-7000-8000-0000000000b1"),
-    selection: { kind: "release", version: "2026.9.0" },
+    version: { kind: "release", version: "2026.9.0" },
     export: "RESIDENCY",
     settings: {},
     routes: {},
@@ -173,14 +173,14 @@ export const RESIDENCY_STACK: StackRelease = {
 export const STACKS: PlatformDefinition["stacks"] = {
     home: {
         packageId: PackageId.parse("package-01996ab0-0000-7000-8000-0000000000b2"),
-        selection: { kind: "release", version: "2026.9.0" },
+        version: { kind: "release", version: "2026.9.0" },
         export: "HOME",
         settings: {},
         routes: {},
     },
     space: {
         packageId: PackageId.parse("package-01996ab0-0000-7000-8000-0000000000b3"),
-        selection: { kind: "release", version: "2026.9.0" },
+        version: { kind: "release", version: "2026.9.0" },
         export: "SPACE",
         settings: {},
         routes: {},
