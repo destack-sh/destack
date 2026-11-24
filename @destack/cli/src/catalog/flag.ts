@@ -775,8 +775,16 @@ export class FlagSet {
 
 /** Write the JSON Schema a flag reads an action's input by, an object's its identifier's. */
 function jsonOf({ value }: ActionInput): JsonObject {
-    // read a number, a yes or no, a choice, or text
-    if (value.kind === "number" || value.kind === "time") {
+    // read a number within its limits, a yes or no, a choice, or text
+    if (value.kind === "number") {
+        const { minimum, maximum } = value;
+
+        return {
+            type: "number",
+            ...(minimum === undefined ? {} : { minimum }),
+            ...(maximum === undefined ? {} : { maximum }),
+        };
+    } else if (value.kind === "time") {
         return { type: "number" };
     } else if (value.kind === "boolean") {
         return { type: "boolean" };

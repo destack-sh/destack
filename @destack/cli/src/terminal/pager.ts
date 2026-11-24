@@ -450,7 +450,7 @@ function answerOf(question: Question, text: string): Typed {
     // read a number or a time, a boolean, a choice or text by the input's kind
     const number = Number(text);
     if (question.value.kind === "number" || question.value.kind === "time") {
-        return Number.isFinite(number) ? { value: number } : "invalid";
+        return Number.isFinite(number) && question.takes(number) ? { value: number } : "invalid";
     } else if (question.value.kind === "boolean") {
         return text === "yes" ? { value: true } : text === "no" ? { value: false } : "invalid";
     } else if (question.value.kind === "choice") {

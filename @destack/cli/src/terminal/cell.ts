@@ -64,7 +64,9 @@ export const Cell = {
         // write a number in the locale, at the end
         else if (value.kind === "number") {
             return {
-                ...Cell.plain(new Intl.NumberFormat(surface.locale).format(value.value)),
+                ...Cell.plain(
+                    new Intl.NumberFormat(surface.locale, value.format).format(value.value),
+                ),
                 align: "end",
             };
         }
