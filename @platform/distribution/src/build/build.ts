@@ -144,11 +144,12 @@ export class PlatformBuild implements AsyncDisposable {
         // build and make an image of each unit, a unit both packages share once, the image attaching its graph
         const releases = new Map<string, BuildReader>();
         const images = new Map<string, Digest>();
-        for (const unitPackage of packages) {
-            for (const [name, { build, image }] of await unitPackage.imageUnits(options)) {
-                releases.set(name, await store.contents(build.manifest));
-                images.set(name, image);
-            }
+        const imaged = await Promise.all(
+            packages.map((unitPackage) => unitPackage.imageUnits(options)),
+        );
+        for (const [name, { build, image }] of imaged.flatMap((units) => [...units])) {
+            releases.set(name, await store.contents(build.manifest));
+            images.set(name, image);
         }
 
         // link each input to this build's packages: its builtins as the host's, the rest resolved by name

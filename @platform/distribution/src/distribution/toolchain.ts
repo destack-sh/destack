@@ -16,6 +16,7 @@ const RUNTIME_FILES: ReadonlyMap<string, PackagePlace> = new Map([
     ["rolldown", "resources"],
     ["vite", "toolchain"],
     ["lightningcss", "toolchain"],
+    ["@stylexswc/rs-compiler", "toolchain"],
 ]);
 
 /** The expression reading the toolchain directory, refusing a missing one. */
@@ -188,6 +189,7 @@ function toolchainPackages(target: Target): readonly ToolchainPackage[] {
     const build = "@destack/build";
     const check = "@destack/check";
     const view = "@destack/view";
+    const style = "@destack/style";
 
     return [
         // the TypeScript compiler
@@ -208,6 +210,14 @@ function toolchainPackages(target: Target): readonly ToolchainPackage[] {
         // the CSS transformer
         {
             chain: [build, "vite", "lightningcss", `lightningcss-${native}`],
+            contents: "dependencies",
+            place: "toolchain",
+        },
+
+        // the style compiler
+        { chain: [style, "@stylexswc/rs-compiler"], contents: "dependencies", place: "toolchain" },
+        {
+            chain: [style, "@stylexswc/rs-compiler", `@stylexswc/rs-compiler-${native}`],
             contents: "dependencies",
             place: "toolchain",
         },
