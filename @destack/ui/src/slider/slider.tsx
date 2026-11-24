@@ -21,6 +21,7 @@ import {
     omit,
     Repeat,
     Show,
+    untrack,
     useContext,
     useLocale,
 } from "@destack/view";
@@ -121,6 +122,10 @@ const styles = style.create({
             boxShadow: { default: shadow.raised, ":focus-visible": FOCUS_RING },
         },
     },
+    // take presses on the track, where no other thumb is under it
+    lone: {
+        pointerEvents: "auto",
+    },
     verticalThumb: {
         width: space[4],
         height: "100%",
@@ -164,7 +169,9 @@ export class SliderControl {
     /** Create the state of a slider from its root's properties. */
     constructor(properties: SliderProperties, field: FieldControl | null) {
         // follow the controlled values or the slider's own, the middle of the range by default
-        const middle = ((properties.min ?? RANGE.min) + (properties.max ?? RANGE.max)) / 2;
+        const middle = untrack(
+            () => ((properties.min ?? RANGE.min) + (properties.max ?? RANGE.max)) / 2,
+        );
         const [values, setValues] = createControllableSignal<readonly number[]>({
             isControlled: () => properties.value !== undefined,
             value: () => properties.value ?? [],
@@ -452,7 +459,12 @@ export function SliderThumb(properties: SliderThumbProperties): JSX.Element {
             onInput={(event) => control.move(index(), event.currentTarget)}
             onChange={() => control.properties.onValueCommitted?.(control.values())}
             {...style.attributes(
-                [styles.thumb, control.isVertical() && styles.verticalThumb, properties.xstyle],
+                [
+                    styles.thumb,
+                    control.isVertical() && styles.verticalThumb,
+                    control.values().length === 1 && styles.lone,
+                    properties.xstyle,
+                ],
                 properties.style,
             )}
         />
