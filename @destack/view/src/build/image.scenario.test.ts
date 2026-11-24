@@ -84,7 +84,7 @@ test("build an imported image into metadata whose source set the build emits", a
     await build({
         root: directory,
         logLevel: "silent",
-        plugins: [imagePlugin(environment)],
+        plugins: [imagePlugin("release", environment)],
         build: {
             outDir: "dist",
             lib: { entry: join(directory, "index.js"), formats: ["es"], fileName: "index" },

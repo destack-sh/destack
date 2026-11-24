@@ -111,35 +111,31 @@ export async function transformImage(
     };
 }
 
-/** Turn raster image imports into image metadata, keeping renditions in a build's cache. */
-export function imagePlugin(environment: Environment<"files">, cache?: TransformCache): Plugin {
-    // remember whether the plugin builds or serves
-    let isBuild = true;
+/** Turn raster image imports into image metadata, keeping a release's renditions cached. */
+export function imagePlugin(
+    mode: "release" | "development",
+    environment: Environment<"files">,
+    cache?: TransformCache,
+): Plugin {
+    // render every width and format for a release, the original alone for development, as Astro renders for production
+    const options = mode === "release" ? {} : { widths: [], formats: [] };
 
     return {
         name: "destack-image",
         enforce: "pre",
-        configResolved(configuration) {
-            isBuild = configuration.command === "build";
-        },
         async load(id) {
             // leave other modules, and images imported with a query such as ?url
             if (!RASTER.test(id)) {
                 return null;
             }
 
-            // describe the image, its source set emitted as hashed assets when building
+            // describe the image, its source set emitted as hashed assets
             const bytes = await environment.files.readFile(id);
-            const image = await transformImage(
-                bytes,
-                isBuild ? {} : { widths: [], formats: [] },
-                environment.crypto,
-                cache,
-            );
+            const image = await transformImage(bytes, options, environment.crypto, cache);
             const stem = basename(id, extname(id));
             const reference = (name: string, source: Uint8Array) =>
                 `import.meta.ROLLUP_FILE_URL_${this.emitFile({ type: "asset", name, source })}`;
-            const original = isBuild ? reference(basename(id), bytes) : JSON.stringify(`/@fs${id}`);
+            const original = reference(basename(id), bytes);
             const entries = image.files.map((file) => {
                 // serve the original for its own format at its own width
                 const address =

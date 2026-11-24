@@ -78,7 +78,7 @@ export const viewExtension: BuildExtension = {
             ...(context.runtime === "browser" ? [pagesPlugin()] : []),
             islandPlugin(context.directory),
             ...viewPlugins(context.server),
-            imagePlugin(context.environment, context.cache),
+            imagePlugin(context.mode, context.environment, context.cache),
             fontPlugin(context.environment.files),
         ];
     },
