@@ -104,6 +104,11 @@ export class GridDelegate<Item> implements KeyboardDelegate<string> {
         return this.collection.at(0);
     }
 
+    /** Read the keys in order. */
+    keys(): readonly string[] {
+        return this.collection.keys();
+    }
+
     /** Report whether a key is one of the grid's. */
     has(key: string): boolean {
         return this.collection.has(key);

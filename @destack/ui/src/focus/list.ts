@@ -82,6 +82,11 @@ export class ListDelegate<Item> implements KeyboardDelegate<string> {
         return found ?? (this.#options.isLooping ? this.last() : undefined);
     }
 
+    /** Read the keys in order. */
+    keys(): readonly string[] {
+        return this.collection.keys();
+    }
+
     /** Report whether a key is an available one. */
     has(key: string): boolean {
         return !this.collection.isDisabled(key);

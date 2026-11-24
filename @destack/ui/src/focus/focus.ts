@@ -30,6 +30,8 @@ export interface KeyboardDelegate<Key> {
     readonly first: () => Key | undefined;
     /** Report whether a key takes the focus. */
     has(key: Key): boolean;
+    /** Read the keys in order, whose focus moves on to the next one as one is removed. */
+    readonly keys?: () => readonly Key[];
 }
 
 /** Whether the focused key has the DOM focus as a roving tab stop. */
@@ -58,6 +60,14 @@ type FocusedKey<Key> =
     | { readonly kind: "initial" }
     | { readonly kind: "focused"; readonly key: Key };
 
+/** The keys of a collection in order, and the one of them with the focus. */
+interface FocusPlace<Key> {
+    /** The keys in order, none where the layout has no order. */
+    readonly keys: readonly Key[];
+    /** The focused key, absent in an empty collection. */
+    readonly active: Key | undefined;
+}
+
 /** The one focused key of a collection, moved by a keyboard delegate. */
 export class Focus<Key> {
     /** The prefix of each item's id in virtual focus. */
@@ -68,6 +78,8 @@ export class Focus<Key> {
     readonly active: Accessor<Key | undefined>;
     /** Whether the DOM focus rests inside the collection. */
     readonly isFocused: Accessor<boolean>;
+    /** The keys and the focused one, which a removed key moves on from. */
+    readonly #place: Accessor<FocusPlace<Key>>;
     /** The options the focus follows. */
     readonly #options: FocusOptions<Key>;
     /** The focused key of each item, by its key's text. */
@@ -93,7 +105,11 @@ export class Focus<Key> {
         this.#focused = focused;
 
         // resolve the controlled, focused or initial key to one the layout takes, else its first
-        this.active = createMemo(() => this.#resolve(focused()));
+        this.#place = createMemo<FocusPlace<Key>>((before) => ({
+            keys: options.delegate.keys?.() ?? [],
+            active: this.#resolve(focused(), before),
+        }));
+        this.active = createMemo(() => this.#place().active);
 
         // mark the focused key alone, so a move reruns only the items it leaves and lands on
         this.#actives = createProjection<Record<string, boolean>>((draft) => {
@@ -109,7 +125,7 @@ export class Focus<Key> {
 
     /** Read the focused key as last written. */
     current(): Key | undefined {
-        return this.#resolve(latest(this.#focused));
+        return this.#resolve(latest(this.#focused), untrack(this.#place));
     }
 
     /** Report whether a key is the focused one. */
@@ -221,13 +237,26 @@ export class Focus<Key> {
     }
 
     /** Resolve the controlled, focused or initial key to one the layout takes, else its first. */
-    #resolve(own: FocusedKey<Key>): Key | undefined {
+    #resolve(own: FocusedKey<Key>, before: FocusPlace<Key> | undefined): Key | undefined {
         // take the owner's key, else the focused or initial one, while the layout takes it
         const delegate = this.#options.delegate;
         const controlled = this.#options.controlled?.();
         const key = controlled ?? (own.kind === "focused" ? own.key : this.#options.initial?.());
 
-        return key !== undefined && delegate.has(key) ? key : delegate.first();
+        // use it while the layout takes it
+        if (key !== undefined && delegate.has(key)) {
+            return key;
+        }
+
+        // move on from a removed key the person had focused to the one after it, else before it
+        const isOwn = controlled === undefined && own.kind === "focused";
+        const isRemoved = isOwn && delegate.keys?.().includes(own.key) === false;
+        const keys = before?.keys ?? [];
+        const at = before?.active === undefined ? -1 : keys.indexOf(before.active);
+        const near =
+            isRemoved && at >= 0 ? [...keys.slice(at), ...keys.slice(0, at).toReversed()] : [];
+
+        return near.find((each) => delegate.has(each)) ?? delegate.first();
     }
 }
 

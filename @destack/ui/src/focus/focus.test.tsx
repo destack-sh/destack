@@ -245,6 +245,39 @@ test("start on the initial key, follow a controlled key, and return to the initi
     });
 });
 
+test("move the focus on from a removed key to the one after it, else the one before", () => {
+    // focus the middle tool, then remove it, the one after it and the rest
+    const [names, setNames] = createSignal(["Bold", "Italic", "Link", "Quote"], {
+        ownedWrite: true,
+    });
+    const focus = rooted(() => {
+        const tools = new Collection<string>({
+            sections: () => [{ key: "tools", items: names() }],
+            key: (name) => name,
+            text: (name) => name,
+        });
+
+        return new Focus({
+            delegate: new ListDelegate(tools, {
+                orientation: "vertical",
+                isLooping: false,
+                isTypeahead: false,
+            }),
+            mode: "roving",
+        });
+    });
+    focus.focus("Link");
+    flush();
+    const places = ["Link", "Quote", "Italic", "Bold"].map((removed) => {
+        setNames((current) => current.filter((name) => name !== removed));
+        flush();
+
+        return focus.active();
+    });
+
+    expect(places).toEqual(["Quote", "Italic", "Bold", undefined]);
+});
+
 test("rerun only the readers of the keys a move leaves and lands on", () => {
     // follow how often each tool's reader runs while the focus moves twice
     const focus = createToolbar("vertical");
