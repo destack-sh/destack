@@ -9,10 +9,10 @@ export interface RoleGrant {
     readonly permissions: readonly RolePermission[];
 }
 
-/** Role grants, closed over the roles each role includes. */
+/** Role grants: each role's permissions with those of the roles it includes. */
 export const RoleGrant = {
-    /** Close each role over its included roles, following only roles of the same chain. */
-    close(
+    /** Grant each role its permissions and its included roles', within its chain. */
+    of(
         roles: readonly Pick<Role, "id" | "permissions">[],
         includes: readonly { readonly role: string; readonly included: string }[],
     ): Map<string, RoleGrant> {
@@ -26,7 +26,7 @@ export const RoleGrant = {
         }
 
         // gather each role's permissions through its inclusions, each role once
-        const closure = new Map<string, RoleGrant>();
+        const grants = new Map<string, RoleGrant>();
         for (const role of roles) {
             const permissions = new Map<string, RolePermission>();
             const visited = new Set<string>();
@@ -54,9 +54,9 @@ export const RoleGrant = {
                 }
                 pending.push(...(included.get(next.id) ?? []));
             }
-            closure.set(role.id, { isOwner, permissions: [...permissions.values()] });
+            grants.set(role.id, { isOwner, permissions: [...permissions.values()] });
         }
 
-        return closure;
+        return grants;
     },
 };

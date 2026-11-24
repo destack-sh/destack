@@ -1148,7 +1148,7 @@ export class Authorizer {
         where.set(accessRelationship, isHomed ? { AND: [followed, homed] } : followed);
 
         // read the role permissions on the types the target decides, closed over their arrows' targets
-        const decided = this.#closure([...local, ...replicas, ...types, ...this.#scopeTypes()]);
+        const decided = this.#related([...local, ...replicas, ...types, ...this.#scopeTypes()]);
         where.set(accessRolePermission, {
             OR: decided.map(({ packageId, type }) => ({ packageId, type })),
         });
@@ -1216,7 +1216,7 @@ export class Authorizer {
     }
 
     /** Close types over the types their arrows lead to, transitively, each once. */
-    #closure(types: readonly ObjectTypeReference[]): ObjectTypeReference[] {
+    #related(types: readonly ObjectTypeReference[]): ObjectTypeReference[] {
         const closed = new Map(types.map((type) => [Authorizer.#typeKey(type), type]));
         for (const type of closed.values()) {
             for (const next of this.#targets.get(Authorizer.#typeKey(type)) ?? []) {

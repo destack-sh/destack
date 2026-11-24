@@ -16,7 +16,7 @@ import { Relationship } from "../relationship/relationship.ts";
 import type { RoleBinding, accessRelationship } from "../relationship/table.ts";
 import { accessRole, accessRolePermission } from "../role/table.ts";
 import { Role } from "../role/role.ts";
-import { RoleGrant } from "../role/closure.ts";
+import { RoleGrant } from "../role/grant.ts";
 import { CHAIN_PUBLICATION } from "../replica/replica.ts";
 import { Authority } from "./authority.ts";
 import { TupleCondition, type ConditionContext } from "./condition.ts";
@@ -888,7 +888,7 @@ export class Access {
 
         return {
             confined,
-            grants: RoleGrant.close(
+            grants: RoleGrant.of(
                 roles,
                 includes.map((include) => ({
                     role: include.objectId,
