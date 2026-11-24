@@ -23,13 +23,14 @@ import {
     untrack,
 } from "solid-js";
 import type { ExampleLocation } from "../build/examples.ts";
+import type { Catalog } from "@destack/locale";
 import { Globals } from "../scenario/interaction.ts";
 import { GlobalsDisplay, renderExample } from "./frame.ts";
 import { faceRules } from "../document/font.tsx";
 import { destackFonts } from "../document/typeface.ts";
 
-/** The locales an example is checked in: the source language, one more, and one right to left. */
-const LOCALES = ["en-US", "de-AT", "ar-EG"] as const;
+/** The locales an example is checked in: the source, the translated ones, and one right to left. */
+const LOCALES = ["en-US", "de-AT", "de-CH", "fr-CH", "it-CH", "ar-EG"] as const;
 
 /** The widths an example is checked at in CSS pixels: a phone's and a tablet's. */
 const WIDTHS = ["390", "768"] as const;
@@ -214,6 +215,7 @@ export function hostExamples(
     element: HTMLElement,
     locations: readonly ExampleLocation[],
     environment: BrowserEnvironment,
+    catalogs: readonly Catalog[] = [],
 ): () => void {
     // declare Destack's fonts, the faces a person may choose among them, as documents do
     const faces = element.ownerDocument.createElement("style");
@@ -234,7 +236,7 @@ export function hostExamples(
 
                   return <ExampleList locations={locations} settings={settings} />;
               }, element)
-            : hostExample(element, chosen, url, environment);
+            : hostExample(element, chosen, url, environment, catalogs);
 
     return () => {
         dispose();
@@ -248,6 +250,7 @@ function hostExample(
     location: ExampleLocation,
     url: URL,
     environment: BrowserEnvironment,
+    catalogs: readonly Catalog[],
 ): () => void {
     // put the settings above the stage the example renders on
     element.className = style.attrs(text.sm, styles.page, styles.framed).class ?? "";
@@ -285,7 +288,12 @@ function hostExample(
             return runWithOwner(owner, () =>
                 renderExample(
                     stage,
-                    { example: loaded, globals: query.globals, theme: themeOf(query) },
+                    {
+                        example: loaded,
+                        globals: query.globals,
+                        theme: themeOf(query),
+                        catalogs,
+                    },
                     environment,
                 ),
             );

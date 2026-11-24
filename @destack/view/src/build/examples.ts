@@ -7,6 +7,9 @@ import { ORIGIN } from "./origin.ts";
 /** The module the examples page reads its examples from. */
 const EXAMPLES_MODULE = "virtual:destack/examples";
 
+/** The package's catalogs, its own and those of its dependencies, which the page translates by. */
+const CATALOGS = `Object.values(import.meta.glob("/locale/**/*.json", { eager: true, import: "default" }))`;
+
 /** The modules that declare examples. */
 const EXAMPLE_MODULE = /\.example\.tsx?$/u;
 
@@ -45,12 +48,12 @@ const EXAMPLES_PAGE = `<!doctype html>
 <script type="module">
 import { BrowserEnvironment } from "@destack/environment/browser";
 import { hostExamples, hostScenario } from "@destack/view/example";
-import examples from "${EXAMPLES_MODULE}";
+import examples, { catalogs } from "${EXAMPLES_MODULE}";
 const query = new URLSearchParams(location.search);
 const scenario = query.get("scenario");
 const name = query.get("name");
 if (scenario === null) {
-    hostExamples(document.body, examples, BrowserEnvironment.system);
+    hostExamples(document.body, examples, BrowserEnvironment.system, catalogs);
 } else if (name === null) {
     await import(/* @vite-ignore */ scenario);
 } else {
@@ -72,7 +75,7 @@ export function examplesPlugin(read: () => Promise<readonly ExampleLocation[]>):
             return id === EXAMPLES_MODULE ? resolved : null;
         },
         async load(id) {
-            // write the module of the examples as they stand
+            // write the module of the examples as they stand, and of the catalogs
             if (id !== resolved) {
                 return null;
             }
@@ -80,7 +83,7 @@ export function examplesPlugin(read: () => Promise<readonly ExampleLocation[]>):
 
             // list again on the next request once reading the examples failed
             try {
-                return `export default ${JSON.stringify(await listed)};`;
+                return `export default ${JSON.stringify(await listed)};\nexport const catalogs = ${CATALOGS};`;
             } catch (error) {
                 listed = undefined;
                 throw error;
