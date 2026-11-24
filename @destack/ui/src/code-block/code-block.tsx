@@ -103,7 +103,8 @@ const styles = style.create({
             [media.forcedColors]: "Highlight",
         },
         boxShadow: `inset 3px 0 0 ${swatch.accentMark}`,
-        color: swatch.accentTintText,
+        color: { default: swatch.accentTintText, [media.forcedColors]: "HighlightText" },
+        forcedColorAdjust: { default: null, [media.forcedColors]: "none" },
     },
 });
 

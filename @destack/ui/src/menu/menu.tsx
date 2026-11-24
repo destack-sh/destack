@@ -131,12 +131,26 @@ const styles = style.create({
             default: "transparent",
             ":focus": { default: color.selected, [media.forcedColors]: "Highlight" },
         },
-        color: { default: "inherit", ":focus": color.foreground },
+        color: {
+            default: "inherit",
+            ":focus": { default: color.foreground, [media.forcedColors]: "HighlightText" },
+        },
+        forcedColorAdjust: {
+            default: null,
+            ":focus": { default: null, [media.forcedColors]: "none" },
+        },
+        [color.mutedForeground]: {
+            default: null,
+            ":focus": { default: null, [media.forcedColors]: "HighlightText" },
+        },
         cursor: "default",
         userSelect: "none",
     },
     open: {
         backgroundColor: { default: color.selected, [media.forcedColors]: "Highlight" },
+        color: { default: color.foreground, [media.forcedColors]: "HighlightText" },
+        forcedColorAdjust: { default: null, [media.forcedColors]: "none" },
+        [color.mutedForeground]: { default: null, [media.forcedColors]: "HighlightText" },
     },
     destructive: {
         color: { default: swatch.destructiveText, ":focus": swatch.destructiveText },

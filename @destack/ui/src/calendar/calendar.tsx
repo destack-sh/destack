@@ -4,7 +4,6 @@ import caretLeft from "@destack/icon/phosphor/caret-left";
 import caretRight from "@destack/icon/phosphor/caret-right";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
-import { media } from "@destack/style/media.stylex";
 import { color, size, space, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import {
@@ -116,8 +115,6 @@ const styles = style.create({
     },
     middle: {
         borderRadius: 0,
-        backgroundColor: { default: color.selected, [media.forcedColors]: "Highlight" },
-        color: color.foreground,
     },
 });
 
@@ -762,11 +759,12 @@ function CalendarCell(properties: {
                 onClick={() => properties.onSelect(properties.day)}
                 {...style.attrs(
                     buttonVariants({ variant: "ghost", size: "icon" }),
+                    state.unframed,
                     styles.day,
                     isOutside() && styles.outside,
                     properties.isToday && styles.today,
                     isSolid() && state.checked,
-                    isMiddle() && styles.middle,
+                    isMiddle() && [state.selected, styles.middle],
                 )}
             >
                 {locale.plainDate(properties.day, { day: "numeric" })}

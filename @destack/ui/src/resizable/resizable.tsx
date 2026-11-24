@@ -4,6 +4,7 @@ import { schema } from "@destack/schema";
 import { TelemetryScope } from "@destack/telemetry";
 import { StoredItem } from "@destack/view/primitives/storage";
 import * as style from "@destack/style";
+import { media } from "@destack/style/media.stylex";
 import { color, radius, size, space, stroke } from "@destack/theme/tokens.stylex";
 import {
     type Accessor,
@@ -64,7 +65,7 @@ const styles = style.create({
         alignItems: "center",
         justifyContent: "center",
         flexShrink: 0,
-        backgroundColor: color.border,
+        backgroundColor: { default: color.border, [media.forcedColors]: "CanvasText" },
     },
     grip: {
         zIndex: 1,

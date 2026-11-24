@@ -74,7 +74,9 @@ const styles = style.create({
 
 /** The colors of each variant. */
 const variants = style.create({
-    default: {},
+    default: {
+        borderColor: { default: "transparent", [media.forcedColors]: "Canvas" },
+    },
     outline: {
         borderColor: color.border,
     },

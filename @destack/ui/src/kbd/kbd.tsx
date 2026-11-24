@@ -1,3 +1,4 @@
+import { state } from "@destack/theme/state";
 import * as style from "@destack/style";
 import { color, radius, space, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
@@ -35,7 +36,7 @@ export type KbdProperties = Omit<JSX.HTMLAttributes<HTMLElement>, "class"> & Ele
 
 /** Render a key of a keyboard shortcut. */
 export function Kbd(properties: KbdProperties): JSX.Element {
-    return renderPart("kbd", "kbd", properties, [text.xs, styles.kbd]);
+    return renderPart("kbd", "kbd", properties, [text.xs, state.framed, styles.kbd]);
 }
 
 /** Render the keys of one shortcut side by side. */

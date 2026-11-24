@@ -271,7 +271,7 @@ function DatePickerFields(properties: {
             {/* Calendar button */}
             <PopoverTrigger
                 render={(attributes) => (
-                    <Button {...attributes} variant="ghost" size="icon" xstyle={styles.button} />
+                    <Button {...attributes} variant="ghost" size="icon-sm" xstyle={styles.button} />
                 )}
                 aria-label={locale.render(t`Pick a date`)}
                 data-slot="date-picker-trigger"

@@ -19,6 +19,7 @@ const styles = style.create({
         height: space[2],
         borderRadius: radius.full,
         backgroundColor: fill,
+        forcedColorAdjust: "none",
     }),
 });
 

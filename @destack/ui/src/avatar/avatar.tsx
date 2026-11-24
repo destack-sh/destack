@@ -1,4 +1,5 @@
 import type { Hue } from "@destack/color";
+import { state } from "@destack/theme/state";
 import * as style from "@destack/style";
 import { color, size, space, stroke, swatch, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
@@ -171,17 +172,17 @@ export function Avatar(properties: AvatarProperties): JSX.Element {
 /** Render an avatar's image, hidden until it loads. */
 export function AvatarImage(properties: AvatarImageProperties): JSX.Element {
     // read the avatar the image reports to
-    const state = useAvatar();
+    const avatar = useAvatar();
     const rest = omit(properties, "xstyle", "style", "onStatusChange");
 
     // report the image's status to the avatar and its owner
     const report = (status: AvatarImageStatus): void => {
-        state.setStatus(status);
+        avatar.setStatus(status);
         properties.onStatusChange?.(status);
     };
 
     return (
-        <Show when={state.status() !== "error"}>
+        <Show when={avatar.status() !== "error"}>
             <img
                 data-slot="avatar-image"
                 {...rest}
@@ -190,7 +191,7 @@ export function AvatarImage(properties: AvatarImageProperties): JSX.Element {
                 {...style.attributes(
                     [
                         styles.image,
-                        state.status() === "loading" && styles.loading,
+                        avatar.status() === "loading" && styles.loading,
                         properties.xstyle,
                     ],
                     properties.style,
@@ -204,16 +205,17 @@ export function AvatarImage(properties: AvatarImageProperties): JSX.Element {
 export function AvatarFallback(
     properties: AvatarElementProperties<JSX.HTMLAttributes<HTMLSpanElement>>,
 ): JSX.Element {
-    const state = useAvatar();
+    const avatar = useAvatar();
 
     return (
-        <Show when={state.status() !== "loaded"}>
+        <Show when={avatar.status() !== "loaded"}>
             {renderPart("span", "avatar-fallback", properties, () => {
                 // tint the fallback in its color, as a badge tints itself
-                const tint = state.color();
+                const tint = avatar.color();
 
                 return [
                     text.xs,
+                    state.framed,
                     styles.fallback,
                     tint !== undefined &&
                         styles.tinted(swatch[`${tint}Solid`], swatch[`${tint}Label`]),
@@ -264,7 +266,7 @@ export function AvatarGroupCount(
         "div",
         "avatar-group-count",
         properties,
-        () => [text.xs, styles.count, sizes[group.size]],
+        () => [text.xs, state.framed, styles.count, sizes[group.size]],
         {
             get "data-size"() {
                 return group.size;
@@ -285,10 +287,10 @@ export function useAvatarGroup(): AvatarGroupControl {
 
 /** Read the nearest avatar, refusing a part outside one. */
 export function useAvatar(): AvatarControl {
-    const state = useContext(AvatarContext);
-    if (state === null) {
+    const avatar = useContext(AvatarContext);
+    if (avatar === null) {
         throw new TypeError("avatar elements need an avatar around them");
     }
 
-    return state;
+    return avatar;
 }
