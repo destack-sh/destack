@@ -1,6 +1,7 @@
 import { testSimulation } from "@destack/test/world";
 import type { FileSystem } from "@destack/environment";
 import { Simulation } from "@destack/environment/simulation";
+import { Message } from "@destack/locale";
 import { expect, refusal, test } from "@destack/test";
 import { join } from "node:path";
 import { testHost } from "@destack/test/host";
@@ -14,6 +15,7 @@ import {
     lintSettings,
 } from "../src/check/configuration.ts";
 import { readExpectations, applyExpectations } from "../src/check/expectation.ts";
+import { applyTranslations } from "../src/check/translation.ts";
 import { OUTPUT_DIRECTORIES } from "../src/check/sources.ts";
 import { Toolchain } from "../src/toolchain/index.ts";
 
@@ -298,6 +300,77 @@ test("accept the findings a package expects and refuse an expectation nothing ma
 
     // leave expectations over unchecked files alone
     expect(applyExpectations([], expectations, directory, ["tests"])).toEqual([]);
+});
+
+test("refuse a message a language lacks or varies, and a translation of no message once all is checked", async () => {
+    // write two packages, one with catalogs of a language, its region and another language
+    await using simulation = world();
+    const { files } = simulation.environment("test");
+    const root = await files.makeTemporaryDirectory("translation-");
+    const write = async (tag: string, messages: Readonly<Record<string, string>>) => {
+        await files.mkdir(join(root, "notes/locale"), { recursive: true });
+        const catalog = {
+            package: "package-01996ab0-0000-7000-8000-0000000000e1",
+            locale: tag,
+            messages,
+        };
+        await files.writeTextFile(join(root, `notes/locale/${tag}.json`), JSON.stringify(catalog));
+    };
+    const saved = Message.identify("Saved", "");
+    const menu = Message.identify("Saved", "menu");
+    const lost = Message.identify("one {{Lost}}\n* {{Lost}}", "");
+    const count = Message.identify("{$p0} notes", "");
+    await write("de", { [saved]: "Gespeichert", gone: "Weg", [count]: "{$p0} Notizen" });
+    await write("de-CH", { [saved]: "Gspeicheret" });
+    await write("fr", { [count]: "{$p1} notes" });
+    const settings = {
+        packages: [
+            { directory: "notes", name: "@example/notes" },
+            { directory: "tasks", name: "@example/tasks" },
+        ],
+        roles: {},
+        entrypoints: [],
+    };
+    const found = (filename: string, source: string, context = "") => ({
+        ...finding(filename, "destack(no-missing-translations)"),
+        message: `${context}\u0000${source}`,
+    });
+    const diagnostics = [
+        found("notes/src/note.ts", "Saved"),
+        found("notes/src/note.ts", "Saved", "menu"),
+        found("notes/src/note.ts", "one {{Lost}}\n* {{Lost}}"),
+        found("notes/src/note.ts", "{$p0} notes"),
+        found("tasks/src/task.ts", "Done"),
+        finding("notes/src/note.ts", "eslint(curly)"),
+    ];
+    const apply = async (selection: readonly string[]) =>
+        (
+            await applyTranslations(diagnostics, {
+                directory: root,
+                root,
+                settings,
+                selection,
+                files,
+            })
+        ).map(({ code, filename, message }) => `${filename} ${code} ${message}`);
+    const missing = [
+        "notes/src/note.ts eslint(curly) finding",
+        `notes/src/note.ts destack(no-missing-translations) translate 'Saved' ('${saved}') into fr`,
+        `notes/src/note.ts destack(no-missing-translations) translate 'Saved' in 'menu' ('${menu}') into de, fr`,
+        `notes/src/note.ts destack(no-missing-translations) translate 'one {{Lost}} * {{Lost}}' ('${lost}') into de, fr`,
+        `notes/src/note.ts destack(no-missing-translations) translate '{$p0} notes' ('${count}') with '$p0' in fr`,
+    ];
+
+    expect({
+        file: await apply(["notes/src/note.ts"]),
+        all: await apply(["notes/src", "tasks"]),
+    }).toEqual({
+        file: missing,
+        all: [
+            ...missing,
+            "notes/locale/de.json destack(no-unused-translations) 'gone' ('Weg') translates no message: remove it",
+        ],
+    });
 });
 
 /** A standard's AGENTS.md, shortened to one rule. */

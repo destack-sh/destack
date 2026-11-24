@@ -949,6 +949,68 @@ tester.run("no-test-timeout", rules["no-test-timeout"], {
     ],
 });
 
+tester.run("no-missing-translations", rules["no-missing-translations"], {
+    valid: [
+        { code: "const text = tag`Saved`;", filename: SOURCE, settings: SETTINGS },
+        { code: "const text = verbatim`Saved`;", filename: SOURCE, settings: SETTINGS },
+        { code: "const text = t`Saved`;", filename: TEST, settings: SETTINGS },
+        { code: "const text = t`Saved`;", filename: TEST_KIT, settings: SETTINGS },
+        {
+            code: "const text = t`Saved`;",
+            filename: SOURCE.replace("note.ts", "note.example.ts"),
+            settings: SETTINGS,
+        },
+    ],
+    invalid: [
+        {
+            code: "const text = t`Saved`;",
+            filename: SOURCE,
+            settings: SETTINGS,
+            errors: [{ message: "\u0000Saved" }],
+        },
+        {
+            code: 'const text = t`${name} in ${argument("list")}`;',
+            filename: SOURCE,
+            settings: SETTINGS,
+            errors: [{ message: "\u0000{$p0} in {$list}" }],
+        },
+        {
+            code: 'const text = t`${plural(count, { one: "# row", other: "# rows" })} selected`;',
+            filename: SOURCE,
+            settings: SETTINGS,
+            errors: [
+                {
+                    message:
+                        "\u0000.input {$p0 :number}\n.match $p0\none {{{$p0} row selected}}\n* {{{$p0} rows selected}}",
+                },
+            ],
+        },
+        {
+            code: 'const text = t`${select(argument("kind"), { note: "a note", other: "it" })}`;',
+            filename: SOURCE,
+            settings: SETTINGS,
+            errors: [
+                {
+                    message:
+                        "\u0000.input {$kind :string}\n.match $kind\nnote {{a note}}\n* {{it}}",
+                },
+            ],
+        },
+        {
+            code: 'const text = Message.context("button")`Save`;',
+            filename: SOURCE,
+            settings: SETTINGS,
+            errors: [{ message: "button\u0000Save" }],
+        },
+        {
+            code: 'const text = () => menu`Save`;\nconst menu = Message.context("menu");',
+            filename: SOURCE,
+            settings: SETTINGS,
+            errors: [{ message: "menu\u0000Save" }],
+        },
+    ],
+});
+
 tester.run("valid-package-handle", rules["valid-package-handle"], {
     valid: [
         { code: "export default definePackage({});", filename: PACKAGE_HANDLE, settings: SETTINGS },

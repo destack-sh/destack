@@ -3,6 +3,7 @@ import type { Environment, FileSystem } from "@destack/environment";
 import { writeIgnore } from "./format.ts";
 import { selectFiles } from "./selection.ts";
 import { readExpectations, applyExpectations } from "./expectation.ts";
+import { applyTranslations } from "./translation.ts";
 import {
     checkConfiguration,
     lintConfiguration,
@@ -15,6 +16,7 @@ import { CheckResult, type Diagnostic } from "../diagnostic/diagnostic.ts";
 import { checkMarkdown, fixMarkdown } from "../markdown/index.ts";
 import { Architecture } from "../architecture/index.ts";
 import { CheckError } from "../error/index.ts";
+import type { LintSettings } from "../lint/package.ts";
 import type { Plugin } from "../lint/plugin.ts";
 import { schema } from "@destack/schema";
 
@@ -85,15 +87,21 @@ async function lintPackage(options: CheckOptions, fix: boolean): Promise<CheckRe
     if (!sources.length) {
         return CheckResult.parse({ diagnostics: markdown });
     }
-    const result = await lintSources({ ...options, directory, files: sources }, fix);
+    const root = await settingsRoot(directory, files);
+    const settings = await lintSettings(root, files);
+    const result = await lintSources({ ...options, directory, files: sources }, settings, fix);
+
+    // require the found messages in their packages' catalogs
+    const translation = { directory, root, settings, selection: sources, files };
+    const translated = await applyTranslations(result.diagnostics, translation);
 
     // accept the findings the workspace's packages expect, and refuse expectations nothing met
-    const expectations = await readExpectations(await settingsRoot(directory, files), files);
+    const expectations = await readExpectations(root, files);
 
     return CheckResult.parse({
         diagnostics: [
             ...markdown,
-            ...applyExpectations(result.diagnostics, expectations, directory, sources),
+            ...applyExpectations(translated, expectations, directory, sources),
         ],
     });
 }
@@ -198,7 +206,11 @@ async function listFiles(directory: string, files: FileSystem): Promise<string[]
 }
 
 /** Lint TypeScript and JavaScript sources with Bun and the Destack rules. */
-async function lintSources(options: CheckOptions, fix: boolean): Promise<CheckResult> {
+async function lintSources(
+    options: CheckOptions,
+    settings: LintSettings,
+    fix: boolean,
+): Promise<CheckResult> {
     // lint with the running Bun's linter
     const { toolchain } = options;
     const { files } = options.environment;
@@ -208,8 +220,8 @@ async function lintSources(options: CheckOptions, fix: boolean): Promise<CheckRe
     try {
         // write the fixed rules with absolute plugin paths, and the settings root's packages
         const configuration = join(temporary, "lint.json");
-        const settings = await lintSettings(await settingsRoot(options.directory, files), files);
         const lint = lintConfiguration(settings, {
+            mode: "check",
             ...(options.plugins === undefined ? {} : { plugins: options.plugins }),
             builtin: toolchain.lint(),
         });

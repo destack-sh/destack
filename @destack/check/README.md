@@ -42,37 +42,37 @@ const result = await checkPackage({
 
 `Project.open(directory, environment)` opens a package with the toolchain that the CLI resolved from it.
 
-| Method          | What it does                                                                              |
-| --------------- | ----------------------------------------------------------------------------------------- |
-| `check(since?)` | formats, typechecks sources and tests, typechecks README listings and lints, as one list  |
-| `fix()`         | writes the generated settings, formats and applies the lints' fixes                       |
-| `test(options)` | runs the package's `TestPlan` files not yet passed over its inputs, Bun then Node targets |
-| `inputs(options)` | digests what a test run reads besides its files: packages, lockfile, runtime, options |
-| `configure()`   | writes `tsconfig.json`, `.oxlintrc.json`, `.oxfmtrc.json` and a workspace's `AGENTS.md`   |
+| Method            | What it does                                                                              |
+| ----------------- | ----------------------------------------------------------------------------------------- |
+| `check(since?)`   | formats, typechecks sources and tests, typechecks README listings and lints, as one list  |
+| `fix()`           | writes the generated settings, formats and applies the lints' fixes                       |
+| `test(options)`   | runs the package's `TestPlan` files not yet passed over its inputs, Bun then Node targets |
+| `inputs(options)` | digests what a test run reads besides its files: packages, lockfile, runtime, options     |
+| `configure()`     | writes `tsconfig.json`, `.oxlintrc.json`, `.oxfmtrc.json` and a workspace's `AGENTS.md`   |
 
 ### TestStore
 
 `TestStore.open(environment)` keeps records in each package's `node_modules/.cache/destack/test`, and in the S3 bucket `DESTACK_CI_STORE` names when `DESTACK_CI_STORE_KEY_ID` and `DESTACK_CI_STORE_TOKEN` are set, as R2's token identifier and token.
 
-| Method                                    | What it does                                                    |
-| ----------------------------------------- | --------------------------------------------------------------- |
-| `passed(directory, name, inputs)`        | lists the package's test files that passed over the inputs     |
-| `pass(directory, name, inputs, durations)` | records a run's passed files and how long each took           |
-| `durations(name)`                         | reads each file's duration from the package's newest records    |
+| Method                                       | What it does                                                 |
+| -------------------------------------------- | ------------------------------------------------------------ |
+| `passed(directory, name, inputs)`            | lists the package's test files that passed over the inputs   |
+| `pass(directory, name, inputs, durations)`   | records a run's passed files and how long each took          |
+| `durations(name)`                            | reads each file's duration from the package's newest records |
 | `check(name, milliseconds)`, `checked(name)` | records and reads how long the package's check took          |
 
 ### destack-check
 
 `destack-check <command> [files]` runs in a package directory, on its files or the ones given.
 
-| Command     | What it does                                               |
-| ----------- | ---------------------------------------------------------- |
-| `check`     | lints sources and checks Markdown                          |
-| `fix`       | applies the safe fixes, then checks                        |
-| `format`    | formats the files, `format-check` only reports             |
-| `configure` | writes the tools' settings for the workspace               |
-| `readme`    | typechecks the README's `ts` listings in their own program |
-| `affected`  | lists the packages the changes since a base commit affect  |
+| Command     | What it does                                                   |
+| ----------- | -------------------------------------------------------------- |
+| `check`     | lints sources and checks Markdown                              |
+| `fix`       | applies the safe fixes, then checks                            |
+| `format`    | formats the files, `format-check` only reports                 |
+| `configure` | writes the tools' settings for the workspace                   |
+| `readme`    | typechecks the README's `ts` listings in their own program     |
+| `affected`  | lists the packages the changes since a base commit affect      |
 | `schedule`  | packs packages' checks and unpassed test files onto CI runners |
 
 `check.expect` in `destack.json` accepts named rules in named files with a reason, and an entry that matches nothing fails.
@@ -81,38 +81,40 @@ const result = await checkPackage({
 
 Every rule is an error, beside Oxlint's own rules.
 
-| Rule                      | What it requires                                                       |
-| ------------------------- | ---------------------------------------------------------------------- |
-| `boolean-prefix`          | question-shaped names for booleans, such as `isOpen`                   |
-| `branch-comment-position` | each if and else case's comment before the case                        |
-| `comment-style`           | short lowercase line comments                                          |
-| `deterministic-handler`   | no clock, randomness or network in handlers and workflows              |
-| `error-message-style`     | lowercase error messages without a final period                        |
-| `exact-optional`          | schema properties that may be absent to refuse an explicit `undefined` |
-| `jsdoc-sentence`          | documentation comments as sentences, right above their subject         |
-| `method-signature-style`  | function members of interfaces as properties                           |
-| `no-class-name`           | StyleX instead of class names                                          |
-| `no-import-alias`         | no renamed imports                                                     |
-| `no-index-logic`          | index modules with re-exports only                                     |
-| `no-inline-config`        | no comments changing rules, except reasoned next-line suppressions     |
-| `no-ambient-effect`       | host effects only in the environment's host modules                    |
-| `no-manifest-import`      | no package manifests read from source                                  |
-| `no-overload-cast`        | an implementation returning what its overloads return                  |
-| `no-partial-assertions`   | tests asserting complete values                                        |
-| `no-test-timeout`         | tests taking timeouts from their tier alone                            |
-| `no-system-environment`   | system effects only in entrypoints and the environment package         |
-| `padding-before-return`   | a blank line before a final return                                     |
-| `package-layout`          | only imports the package layout allows                                 |
-| `prevent-abbreviations`   | whole words in declared names                                          |
-| `require-block-comment`   | a comment at the start of each block of a longer function              |
-| `require-jsdoc`           | documentation on declarations, members and fields                      |
-| `style-attribute`         | StyleX styles passed as `xstyle`, inline styles as `style`             |
-| `style-focus`             | focus rings drawn with the theme's shared focus style                  |
-| `style-hover`             | hover styles only where the pointer hovers                             |
-| `style-shorthand`         | one value per longhand property                                        |
-| `style-tokens`            | styles from the theme's tokens                                         |
-| `style-xstyle-last`       | a caller's `xstyle` merged after a component's styles                  |
-| `valid-package-handle`    | one package handle, default-exported from `src/package.ts`             |
+| Rule                      | What it requires                                                                |
+| ------------------------- | ------------------------------------------------------------------------------- |
+| `boolean-prefix`          | question-shaped names for booleans, such as `isOpen`                            |
+| `branch-comment-position` | each if and else case's comment before the case                                 |
+| `comment-style`           | short lowercase line comments                                                   |
+| `deterministic-handler`   | no clock, randomness or network in handlers and workflows                       |
+| `error-message-style`     | lowercase error messages without a final period                                 |
+| `exact-optional`          | schema properties that may be absent to refuse an explicit `undefined`          |
+| `jsdoc-sentence`          | documentation comments as sentences, right above their subject                  |
+| `method-signature-style`  | function members of interfaces as properties                                    |
+| `no-class-name`           | StyleX instead of class names                                                   |
+| `no-import-alias`         | no renamed imports                                                              |
+| `no-index-logic`          | index modules with re-exports only                                              |
+| `no-inline-config`        | no comments changing rules, except reasoned next-line suppressions              |
+| `no-ambient-effect`       | host effects only in the environment's host modules                             |
+| `no-manifest-import`      | no package manifests read from source                                           |
+| `no-missing-translations` | each message in every language the package has a catalog of, with its variables |
+| `no-overload-cast`        | an implementation returning what its overloads return                           |
+| `no-partial-assertions`   | tests asserting complete values                                                 |
+| `no-test-timeout`         | tests taking timeouts from their tier alone                                     |
+| `no-unused-translations`  | no translation of a message the package no longer has                           |
+| `no-system-environment`   | system effects only in entrypoints and the environment package                  |
+| `padding-before-return`   | a blank line before a final return                                              |
+| `package-layout`          | only imports the package layout allows                                          |
+| `prevent-abbreviations`   | whole words in declared names                                                   |
+| `require-block-comment`   | a comment at the start of each block of a longer function                       |
+| `require-jsdoc`           | documentation on declarations, members and fields                               |
+| `style-attribute`         | StyleX styles passed as `xstyle`, inline styles as `style`                      |
+| `style-focus`             | focus rings drawn with the theme's shared focus style                           |
+| `style-hover`             | hover styles only where the pointer hovers                                      |
+| `style-shorthand`         | one value per longhand property                                                 |
+| `style-tokens`            | styles from the theme's tokens                                                  |
+| `style-xstyle-last`       | a caller's `xstyle` merged after a component's styles                           |
+| `valid-package-handle`    | one package handle, default-exported from `src/package.ts`                      |
 
 | Markdown rule           | What it requires                                         |
 | ----------------------- | -------------------------------------------------------- |

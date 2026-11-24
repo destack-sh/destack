@@ -12,6 +12,7 @@ import { noClassName } from "./no-class-name.ts";
 import { noImportAlias } from "./no-import-alias.ts";
 import { noIndexLogic } from "./no-index-logic.ts";
 import { noInlineConfiguration } from "./no-inline-config.ts";
+import { noMissingTranslations } from "./no-missing-translations.ts";
 import { noManifestImport } from "./no-manifest-import.ts";
 import { noOverloadCast } from "./no-overload-cast.ts";
 import { noPartialAssertions } from "./no-partial-assertions.ts";
@@ -56,6 +57,7 @@ export const rules = {
     "no-inline-config": noInlineConfiguration,
     "no-ambient-effect": noAmbientEffect,
     "no-manifest-import": noManifestImport,
+    "no-missing-translations": noMissingTranslations,
     "no-overload-cast": noOverloadCast,
     "no-partial-assertions": noPartialAssertions,
     "no-system-environment": noSystemEnvironment,
@@ -73,6 +75,9 @@ export const rules = {
     "style-xstyle-last": styleXstyleLast,
     "valid-package-handle": validPackageHandle,
 } satisfies Record<string, Rule>;
+
+/** The rules that find what a check compares with other files, off where a file is linted alone. */
+export const COMPARED_RULES: ReadonlySet<string> = new Set(["no-missing-translations"]);
 
 /** Mandatory Destack source rules. */
 const plugin = {

@@ -63,16 +63,18 @@ export const formatConfiguration = {
 export function lintConfiguration(
     settings: LintSettings,
     options: {
+        /** Whether a check or an editor lints, which sees one file alone. */
+        readonly mode: "check" | "editor";
         /** The trusted plugins beside the built-in one. */
         readonly plugins?: readonly Plugin[];
         /** The module of the built-in rules, its export for editors by default. */
         readonly builtin?: string;
         /** The rules expectations turn off, by file. */
         readonly overrides?: readonly { files: string[]; rules: Record<string, "off"> }[];
-    } = {},
+    },
 ) {
     // load the built-in rules by export for editors, or the module a managed check names
-    const { plugins = [], builtin = "@destack/check/lint", overrides = [] } = options;
+    const { mode, plugins = [], builtin = "@destack/check/lint", overrides = [] } = options;
 
     // reserve each namespace before enabling the provider's complete rule set
     const names = new Set(["destack", "typescript", "oxc", "unicorn", "eslint"]);
@@ -165,7 +167,10 @@ export function lintConfiguration(
             "eslint/no-underscore-dangle": "off",
 
             ...Object.fromEntries(
-                Object.keys(lint.rules).map((name) => [`destack/${name}`, "error"]),
+                Object.keys(lint.rules).map((name) => [
+                    `destack/${name}`,
+                    mode === "check" || !lint.COMPARED_RULES.has(name) ? "error" : "off",
+                ]),
             ),
             ...rules,
         },
@@ -515,7 +520,9 @@ async function editorLintConfiguration(
 ) {
     const overrides = expectationOverrides(await readExpectations(directory, files), directory);
 
-    return lintConfiguration(await lintSettings(directory, files), { plugins, overrides });
+    const settings = await lintSettings(directory, files);
+
+    return lintConfiguration(settings, { mode: "editor", plugins, overrides });
 }
 
 /** Write a configuration as formatted JSON, as the formatter writes package files. */
