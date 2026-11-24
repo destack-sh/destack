@@ -29,7 +29,7 @@ import {
     checkboxAcceptTermsInvalid,
 } from "../checkbox/checkbox.example.tsx";
 import { clusterTags } from "../cluster/cluster.example.tsx";
-import { codeBlockExportScript } from "../code-block/code-block.example.tsx";
+import { codeBlockView } from "../code-block/code-block.example.tsx";
 import { collapsibleNoteTags } from "../collapsible/collapsible.example.tsx";
 import { colorSwatchPickerProjectColor } from "../color-swatch-picker/color-swatch-picker.example.tsx";
 import { comboboxMoveNote } from "../combobox/combobox.example.tsx";
@@ -234,7 +234,7 @@ const COMPONENTS: readonly (readonly [string, readonly Shown[]])[] = [
     ["Center", [centerForm]],
     ["Checkbox", [checkboxAcceptTermsChecked]],
     ["Cluster", [clusterTags]],
-    ["Code block", [codeBlockExportScript]],
+    ["Code block", [codeBlockView]],
     ["Collapsible", [collapsibleNoteTags]],
     ["Color swatch picker", [colorSwatchPickerProjectColor]],
     ["Combobox", [comboboxMoveNote]],
