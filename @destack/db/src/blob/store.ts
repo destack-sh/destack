@@ -5,7 +5,7 @@ import { Column } from "../table/column.ts";
 import { DatabaseError } from "../error/error.ts";
 import { TABLE, type Table } from "../table/table.ts";
 import { Condition } from "../query/condition.ts";
-import { textValues } from "../query/statement.ts";
+import { columnDigests } from "../query/statement.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
 import type { BlobEntry, BlobPlacement, BlobStorage, ContentStore } from "@destack/resource";
 import { canonicalize, Digest, type JsonValue, nth, present, schema } from "@destack/schema";
@@ -730,15 +730,11 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
                     sql` `,
                 );
 
-            // reference a scalar column's digest, or each digest of a list or map column
-            if (column.definition.kind !== "json") {
-                return sql`SELECT ${column} AS digest FROM ${table}
-                        WHERE ${column} IS NOT NULL ${holds} ${others(column)} ${within(column)}`;
-            }
-            const element = sql.raw("element.value");
+            // reference each digest the column has
+            const { digest, from } = columnDigests(column);
 
-            return sql`SELECT ${element} AS digest FROM ${table}, ${textValues(column, "element")}
-                    WHERE ${column} IS NOT NULL ${holds} ${others(element)} ${within(element)}`;
+            return sql`SELECT ${digest} AS digest FROM ${table}${from}
+                    WHERE ${column} IS NOT NULL AND ${digest} IS NOT NULL ${holds} ${others(digest)} ${within(digest)}`;
         });
         const leased = sql`SELECT ${blobTable.digest} AS digest FROM ${blobTable}
             WHERE ${blobTable.leasedUntil} > ${now} ${within(blobTable.digest)}`;

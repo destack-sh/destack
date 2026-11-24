@@ -16,7 +16,8 @@ import { Column, type ColumnValue } from "../table/column.ts";
 import { type Insert, TABLE, type Table } from "../table/table.ts";
 import { Projection, type SelectionResult } from "./selection.ts";
 import { DatabaseError } from "../error/error.ts";
-import { textValues } from "./statement.ts";
+import { LOG_WINDOW_MILLISECONDS } from "../log/schema.ts";
+import { columnDigests } from "./statement.ts";
 import { PreparedQuery } from "./prepared.ts";
 import { present } from "@destack/schema";
 
@@ -441,23 +442,37 @@ export class MutationQuery<
             );
         }
 
-        // select a scalar column's digest, or each digest of a list or map column, of the matched rows
+        // select the digests each column references in the matched rows
         const filter = where === undefined ? sql.empty() : sql`AND (${where})`;
         const selects = retired.map((column) => {
-            if (column.definition.kind !== "json") {
-                return sql`SELECT ${column} AS digest FROM ${table} WHERE ${column} IS NOT NULL ${filter}`;
-            }
-            const element = sql.raw("element.value");
+            const { digest, from } = columnDigests(column);
 
-            return sql`SELECT ${element} AS digest FROM ${table}, ${textValues(column, "element")}
-                WHERE ${column} IS NOT NULL ${filter}`;
+            return sql`SELECT ${digest} AS digest FROM ${table}${from}
+                WHERE ${column} IS NOT NULL AND ${digest} IS NOT NULL ${filter}`;
         });
 
-        // retire them, a membership test per column, as Durable Object SQLite joins five compound terms at most
+        // lease those undo can restore for as long as the table's log keeps the row as it was
         const digest = sql.identifier("digest");
         const retiring = selects.map((select) => sql`${digest} IN (${select})`);
+        const restored = retiring.filter((_, index) => {
+            const options = retired[index]?.definition.blob;
 
-        return sql`UPDATE ${blobTable} SET ${sql.identifier("is_retired")} = ${true}
+            return options?.onDelete !== "cascade" && options?.path !== undefined;
+        });
+        const { retention } = table[TABLE];
+        const until =
+            retention === "history"
+                ? Number.MAX_SAFE_INTEGER
+                : driver.state.clock.now() + LOG_WINDOW_MILLISECONDS;
+        const leased = sql.identifier("leased_until");
+        const leasing =
+            restored.length === 0 || retention === "none"
+                ? sql.empty()
+                : sql`, ${leased} = CASE WHEN ${leased} < ${until} AND (${sql.join(restored, sql` OR `)})
+                    THEN ${until} ELSE ${leased} END`;
+
+        // retire them, a membership test per column, as Durable Object SQLite joins five compound terms at most
+        return sql`UPDATE ${blobTable} SET ${sql.identifier("is_retired")} = ${true}${leasing}
             WHERE ${sql.join(retiring, sql` OR `)}`;
     }
 

@@ -31,6 +31,9 @@ const PLAIN_KINDS: ReadonlySet<ColumnKind> = new Set<ColumnKind>(["text", "integ
 /** Driver text, such as SQLite's JSON. */
 const TEXT = schema.string();
 
+/** The fields of a JSON object. */
+const STRUCTURE = schema.looseObject({});
+
 /** The JavaScript type each scalar column kind stores. */
 const SCALAR_TYPES = {
     text: "string",
@@ -112,6 +115,16 @@ export class Column<
         // reference no blob from another column or an absent value
         if (this.definition.blob === undefined || value === null || value === undefined) {
             return [];
+        }
+        // reference the digest at a path of an object, or each of a list there
+        const options = this.definition.blob;
+        const path = options.onDelete === "cascade" ? undefined : options.path;
+        if (path !== undefined) {
+            const found = path
+                .split(".")
+                .reduce<unknown>((each, name) => STRUCTURE.safeParse(each).data?.[name], value);
+
+            return [found ?? []].flat().map((digest) => Digest.parse(digest));
         }
         // reference each digest of a list
         else if (Array.isArray(value)) {
@@ -367,6 +380,8 @@ export type BlobOptions =
           readonly onDelete?: "restrict";
           /** The condition on the row's fields, such as being unexpired, absent for always. */
           readonly while?: Condition;
+          /** The dotted path to the digests in a JSON object, whose blobs undo can restore. */
+          readonly path?: string;
       }
     | {
           /** Delete the row with its blob, never keeping the blob alive. */
@@ -493,14 +508,22 @@ export function boolean(name: string): ColumnBuilder<ColumnDefinitionOf<boolean,
     });
 }
 
+/** What a JSON column keeps alive. */
+export interface JsonOptions {
+    /** The dotted path to the digests of blobs in an object, which undo can restore. */
+    readonly blobs?: string;
+}
+
 /** Define JSON validated on write and read back as stored, migrated as its schema changes. */
 export function json<Value extends JsonValue>(
     name: string,
     validator: schema.Schema<Value>,
+    options: JsonOptions = {},
 ): ColumnBuilder<ColumnDefinitionOf<Value, "json", Value>> {
     return new ColumnBuilder<ColumnDefinitionOf<Value, "json", Value>>({
         name,
         kind: "json",
+        ...(options.blobs === undefined ? {} : { blob: { path: options.blobs } }),
         types: { sqlite: "text", postgresql: "jsonb" },
         schema: validator,
         json: validator,

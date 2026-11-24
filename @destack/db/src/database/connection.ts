@@ -54,7 +54,7 @@ import { Snapshot } from "../log/snapshot.ts";
 import { type Announcer, CommitWatch } from "../log/watch.ts";
 import { LogTail } from "../log/tail.ts";
 import type { SequencedEntry } from "../log/entry.ts";
-import { LOG_TABLES, LOG_TOPIC } from "../log/schema.ts";
+import { LOG_TABLES, LOG_TOPIC, LOG_WINDOW_MILLISECONDS } from "../log/schema.ts";
 import { ReadCache } from "../log/cache.ts";
 import { Commit, typedChannel, type Channel } from "../channel/channel.ts";
 import { Tracker, TRACKER_CHANNEL } from "../tracker/tracker.ts";
@@ -69,9 +69,6 @@ import type { Row } from "../table/row.ts";
 
 /** How a migration ended: applied, or skipped as the database applied the same declaration last. */
 type MigrationOutcome = "applied" | "stamped";
-/** How long a database's log keeps windowed changes: a week. */
-const LOG_WINDOW_MILLISECONDS = 7 * 24 * 60 * 60_000;
-
 /** The weight each read cache of a database stores, in rows: 2 MB of 0.5 KB rows, 4 MB for both. */
 const CACHED_ROWS = 4096;
 

@@ -1,10 +1,10 @@
 import { Simulation } from "@destack/environment/simulation";
-import { blob, blobMap, blobs, text } from "../table/column.ts";
+import { blob, blobMap, blobs, json, text } from "../table/column.ts";
 import { defineTable } from "../table/table.ts";
 import { eq } from "../sql/operator.ts";
 import { TestDatabase } from "../test/index.ts";
 import { MemoryBlobStorage } from "@destack/resource";
-import { Digest } from "@destack/schema";
+import { Digest, schema } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { BlobStore, gathered } from "./store.ts";
 import { BLOB_TABLES } from "./table.ts";
@@ -19,8 +19,19 @@ const LEASE_MILLISECONDS = 30 * 60_000;
 /** How long an unreferenced blob stays before deletion: BlobStore's hour of grace. */
 const GRACE_MILLISECONDS = 60 * 60_000;
 
+/** How long the log keeps a changed row: a week. */
+const WEEK_MILLISECONDS = 7 * 24 * 60 * 60_000;
+
 /** The cascade levels a test collects through, each waiting a grace. */
 const CASCADE_LEVELS = 4;
+
+/** A blob with its name. */
+const Named = schema.object({
+    /** The name, which may look like anything. */
+    name: schema.string(),
+    /** The blob, or those of its parts. */
+    blob: schema.union([Digest, schema.array(Digest)]),
+});
 
 /** Attachments whose file and renditions are blobs of the partition. */
 const attachment = defineTable("attachment", {
@@ -32,6 +43,16 @@ const attachment = defineTable("attachment", {
     renditions: blobs("renditions").notNull().default([]),
     /** The captions' blobs by language. */
     captions: blobMap("captions").notNull().default({}),
+    /** The cover: a blob with its name. */
+    cover: json("cover", Named, { blobs: "blob" }),
+    /** The pages in order, several blobs with one name. */
+    pages: json("pages", Named, { blobs: "blob" }),
+    /** The icon: an emoji, or a blob with its name inside. */
+    icon: json(
+        "icon",
+        schema.union([schema.object({ emoji: schema.string() }), schema.object({ file: Named })]),
+        { blobs: "file.blob" },
+    ),
 });
 
 /** Bundles of blobs, each record describing its bundle's own blob and going with it. */
@@ -48,11 +69,25 @@ const member = defineTable("member", {
     digest: blob("digest").primaryKey(),
 });
 
+/** Notes whose cover undo can restore for a week. */
+const note = defineTable(
+    "note",
+    {
+        /** The note. */
+        id: text("id").primaryKey(),
+        /** The folder the note lives in. */
+        scope: text("scope").notNull(),
+        /** The cover: a blob with its name. */
+        cover: json("cover", Named, { blobs: "blob" }),
+    },
+    { log: {} },
+);
+
 /** Open a blob store over memory storage and a test database with attachments and bundles. */
 async function openBlobs() {
     const simulation = new Simulation({ world: testWorldOptions(), seed: 1, start: START });
     const environment = simulation.environment("bucket");
-    const opened = await TestDatabase.create([attachment, bundle, member, ...BLOB_TABLES], {
+    const opened = await TestDatabase.create([attachment, note, bundle, member, ...BLOB_TABLES], {
         environment,
         isMigrated: true,
     });
@@ -253,6 +288,85 @@ test("keep the blobs a JSON array column lists, and delete one once no row lists
     expect({ kept, missing: [...(await store.missing([file, small, large]))] }).toEqual({
         kept: [],
         missing: [large],
+    });
+});
+
+test("keep the blobs JSON objects have, one or several, and delete those no row has", async () => {
+    // put a cover and two pages on a row, named like other blobs, past their writes' leases
+    const { simulation, environment, store, database } = await openBlobs();
+    const [file, cover, first, second, icon] = await Promise.all(
+        ["file", "cover", "first", "second", "icon"].map((each) =>
+            put(store, each, environment.crypto),
+        ),
+    );
+    if (
+        file === undefined ||
+        cover === undefined ||
+        first === undefined ||
+        second === undefined ||
+        icon === undefined
+    ) {
+        throw new TypeError("a blob was not stored");
+    }
+    await database.transaction(async (transaction) => {
+        await transaction.insert(attachment).values({
+            id: "c",
+            file,
+            cover: { name: "cover.png", blob: cover },
+            icon: { file: { name: "icon.png", blob: icon } },
+            pages: { name: "pages", blob: [first, second, file] },
+        });
+    });
+    await simulation.jump(simulation.clock.now() + LEASE_MILLISECONDS);
+    await settle(simulation, store);
+    const all = [file, cover, first, second, icon];
+    const kept = [...(await store.missing(all))];
+    const listed = (await store.list()).toSorted();
+
+    // drop the cover and the first page, whose digest stays as the pages' name
+    await database.transaction(async (transaction) => {
+        await transaction
+            .update(attachment)
+            .set({ cover: null, icon: { emoji: "🐢" }, pages: { name: first, blob: [second] } })
+            .where(eq(attachment.id, "c"));
+    });
+    await settle(simulation, store);
+
+    expect({ kept, listed, missing: [...(await store.missing(all))] }).toEqual({
+        kept: [],
+        listed: all.toSorted(),
+        missing: [cover, first, icon],
+    });
+});
+
+test("keep a blob a logged row let go for the log's week, rescued by the undo that restores it", async () => {
+    // put a cover on a note, and take it off again past its write's lease
+    const { simulation, environment, store, database } = await openBlobs();
+    const [kept, lost] = [
+        await put(store, "kept", environment.crypto),
+        await put(store, "lost", environment.crypto),
+    ];
+    const covered = { id: "a", scope: "inbox", cover: { name: "a.png", blob: kept } };
+    const bare = { ...covered, cover: null };
+    const other = { id: "b", scope: "inbox", cover: { name: "b.png", blob: lost } };
+    const write = (before: typeof covered | typeof bare | null, after: typeof before) =>
+        database.commit((transaction) => transaction.write({ table: note, before, after }));
+    await write(null, covered);
+    await write(null, other);
+    await simulation.jump(simulation.clock.now() + LEASE_MILLISECONDS);
+    await write(covered, bare);
+    await write(other, null);
+
+    // collect for hours, restore one within the week, and collect past it
+    await settle(simulation, store);
+    const within = [...(await store.missing([kept, lost]))];
+    await write(bare, covered);
+    await simulation.jump(simulation.clock.now() + WEEK_MILLISECONDS);
+    await settle(simulation, store);
+
+    expect({ within, after: [...(await store.missing([kept, lost]))] }).toEqual({
+        within: [],
+        after: [lost],
     });
 });
 

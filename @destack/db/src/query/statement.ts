@@ -113,6 +113,39 @@ export function textElements(array: SQLWrapper, name: string): SQL {
     });
 }
 
+/** Read the digests a blob column references: its own, or each of those selected beside it. */
+export function columnDigests(column: Column): { readonly digest: SQL; readonly from: SQL } {
+    // read the digest of a scalar column
+    const options = column.definition.blob;
+    const path = options?.onDelete === "cascade" ? undefined : options?.path;
+    if (column.definition.kind !== "json") {
+        return { digest: sql`${column}`, from: sql.empty() };
+    }
+    // read each digest of a list or a map
+    else if (path === undefined) {
+        return {
+            digest: sql.raw("element.value"),
+            from: sql`, ${textValues(column, "element")}`,
+        };
+    }
+
+    // read the digest at the path, or each of a list there
+    const steps = path.split(".").map((name) => `."${name}"`);
+    const key = sql.raw(`'$${steps.join("")}'`);
+    const query = sql.raw(`'lax $${steps.join("")}[*]'`);
+
+    return {
+        digest: sql.raw("element.value"),
+        from: dialectSQL({
+            sqlite: sql`, json_each(CASE json_type(${column}, ${key})
+                WHEN 'array' THEN json_extract(${column}, ${key})
+                ELSE json_array(json_extract(${column}, ${key})) END) AS element`,
+            postgresql: sql`, LATERAL (SELECT found #>> '{}' AS value
+                FROM jsonb_path_query(${column}::jsonb, ${query}) AS found) AS element`,
+        }),
+    };
+}
+
 /** Select the strings of a flat JSON array or object as rows of a `value` column. */
 export function textValues(json: SQLWrapper, name: string): SQL {
     return dialectSQL({

@@ -5,6 +5,9 @@ import { DatabaseError } from "../error/error.ts";
 import { literal, quote } from "../dialect/quote.ts";
 import { relation } from "../table/namespace.ts";
 
+/** How long a database's log keeps windowed changes: a week. */
+export const LOG_WINDOW_MILLISECONDS = 7 * 24 * 60 * 60_000;
+
 // NOTE #Performance: PgQ positions over a ticker's snapshots would remove the log's commit lock
 /** The advisory lock class serialising a PostgreSQL log's commits, keyed by the log's schema. */
 export const COMMIT_LOCK = 471_026_381;
