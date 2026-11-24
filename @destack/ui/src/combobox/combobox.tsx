@@ -7,6 +7,7 @@ import { text } from "@destack/theme/text";
 import {
     type Accessor,
     createContext,
+    createUniqueId,
     createEffect,
     For,
     type JSX,
@@ -104,7 +105,7 @@ export class ComboboxControl {
     /** Create a combobox whose list chooses its values, open when its properties ask for it. */
     constructor(properties: ComboboxProperties) {
         // follow the chosen values, the open state and the typed text
-        this.#state = new OpenState(properties);
+        this.#state = new OpenState(properties, createUniqueId());
         this.autocomplete = new AutocompleteControl({
             get filter() {
                 return properties.filter;

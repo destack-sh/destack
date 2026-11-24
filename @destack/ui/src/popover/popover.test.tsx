@@ -1,16 +1,19 @@
 import { LayerStack } from "../layer/index.ts";
 import type { OpenChange } from "../layer/index.ts";
-import { expect, onTestFinished, test } from "@destack/test";
+import { type Anchor, Position } from "../position/index.ts";
+import { expect, onTestFinished, test, vi } from "@destack/test";
 import {
     Popover,
     PopoverAnchor,
     PopoverClose,
     PopoverContent,
+    PopoverControl,
     PopoverDescription,
     PopoverTitle,
     PopoverTrigger,
 } from "./index.ts";
-import { flush } from "@destack/view";
+import { present } from "@destack/schema";
+import { createSignal, flush, Show } from "@destack/view";
 import { markup, render } from "@destack/view/test";
 
 test("toggle a popover from its trigger through the platform's popover target, anchored to the trigger by name", () => {
@@ -193,7 +196,14 @@ function showPopovers(): string[] {
             shown.push(this.id);
         },
     });
-    onTestFinished(() => void Reflect.deleteProperty(HTMLElement.prototype, "showPopover"));
+    Object.defineProperty(HTMLElement.prototype, "hidePopover", {
+        configurable: true,
+        value: () => undefined,
+    });
+    onTestFinished(() => {
+        Reflect.deleteProperty(HTMLElement.prototype, "showPopover");
+        Reflect.deleteProperty(HTMLElement.prototype, "hidePopover");
+    });
 
     return shown;
 }
@@ -280,5 +290,136 @@ test("close a popover another takes the place of, as no press or key lets its ow
     expect({ asked, isOpen: content?.hasAttribute("data-open") }).toEqual({
         asked: [[false, "none", false, false]],
         isOpen: false,
+    });
+});
+
+test("open one popover from triggers elsewhere, showing each one's payload and labelled by it", () => {
+    // open from one person, move to another, and close from that one
+    showPopovers();
+    const changes: unknown[] = [];
+    const { container } = render(() => {
+        const card = new PopoverControl<string>({
+            onOpenChange: (open, { reason, trigger }) =>
+                changes.push([open, reason, trigger?.payload]),
+        });
+
+        return (
+            <>
+                <PopoverTrigger control={card} payload="Ada">
+                    Ada
+                </PopoverTrigger>
+                <PopoverTrigger control={card} payload="Ben">
+                    Ben
+                </PopoverTrigger>
+                <Popover control={card}>
+                    {(name) => <PopoverContent>{name()}</PopoverContent>}
+                </Popover>
+            </>
+        );
+    });
+    flush();
+    const triggers = [...container.querySelectorAll<HTMLElement>("[data-slot=popover-trigger]")];
+    const content = present(container.querySelector("[data-slot=popover-content]"), "the popover");
+    const steps = [0, 1, 1].map((at) => {
+        triggers[at]?.click();
+        flush();
+
+        return [
+            content.hasAttribute("data-open"),
+            content.textContent,
+            content.getAttribute("aria-labelledby") === triggers[at]?.id,
+            triggers.map((trigger) => trigger.getAttribute("aria-expanded")),
+        ];
+    });
+
+    expect({ steps, changes, ids: new Set(triggers.map(({ id }) => id)).size }).toEqual({
+        steps: [
+            [true, "Ada", true, ["true", "false"]],
+            [true, "Ben", true, ["false", "true"]],
+            [false, "Ben", true, ["false", "false"]],
+        ],
+        changes: [
+            [true, "trigger-press", "Ada"],
+            [true, "trigger-press", "Ben"],
+            [false, "trigger-press", "Ben"],
+        ],
+        ids: 2,
+    });
+});
+
+test("close a popover as the trigger it is open from goes away", () => {
+    showPopovers();
+    const [isThere, setThere] = createSignal(true);
+    const { container } = render(() => {
+        const card = new PopoverControl<string>();
+
+        return (
+            <>
+                <Show when={isThere()}>
+                    <PopoverTrigger control={card}>Ada</PopoverTrigger>
+                </Show>
+                <PopoverTrigger control={card}>Ben</PopoverTrigger>
+                <Popover control={card}>
+                    <PopoverContent>Card</PopoverContent>
+                </Popover>
+            </>
+        );
+    });
+    flush();
+    container.querySelector<HTMLElement>("[data-slot=popover-trigger]")?.click();
+    flush();
+    const isOpen = () =>
+        container.querySelector("[data-slot=popover-content]")?.hasAttribute("data-open");
+    const was = isOpen();
+    setThere(false);
+    flush();
+
+    expect([was, isOpen()]).toEqual([true, false]);
+});
+
+test("place a popover beside an element or a box in place of its trigger", () => {
+    // anchor beside an element, then where a selection is, then at the trigger again
+    showPopovers();
+    const heading = document.createElement("h2");
+    document.body.append(heading);
+    onTestFinished(() => heading.remove());
+    const [anchor, setAnchor] = createSignal<Anchor | undefined>(heading);
+    const placed: string[] = [];
+    vi.spyOn(Position, "attach").mockImplementation((_content, beside) => {
+        placed.push(beside.dataset["slot"] ?? beside.tagName);
+
+        return () => undefined;
+    });
+    onTestFinished(() => void vi.restoreAllMocks());
+    const { container } = render(() => (
+        <Popover defaultOpen>
+            <PopoverTrigger>Open</PopoverTrigger>
+            <PopoverContent anchor={anchor()}>Card</PopoverContent>
+        </Popover>
+    ));
+    flush();
+    setAnchor({ x: 10, y: 20, width: 30, height: 5 });
+    flush();
+    const box = container.querySelector<HTMLElement>("[data-slot=position-anchor]");
+    const isHidden = box?.getAttribute("aria-hidden");
+    const steps = [undefined, { x: 1, y: 2, width: 3, height: 4 }, heading, undefined].map(
+        (next) => {
+            setAnchor(() => next);
+            flush();
+
+            return placed.at(-1);
+        },
+    );
+
+    expect({
+        placed: placed.filter((each, i) => each !== placed[i - 1]).slice(0, 3),
+        steps,
+        isHidden,
+        isGone: container.querySelector("[data-slot=position-anchor]") === null,
+    }).toEqual({
+        placed: ["popover-trigger", "H2", "position-anchor"],
+        steps: ["popover-trigger", "position-anchor", "H2", "popover-trigger"],
+        isHidden: "true",
+        isGone: true,
     });
 });

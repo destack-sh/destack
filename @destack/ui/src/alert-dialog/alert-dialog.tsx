@@ -10,20 +10,22 @@ import {
     DialogHeader,
     DialogTitle,
     DialogTrigger,
-    type DialogButtonProperties,
     type DialogContentProperties,
     type DialogElementProperties,
     type DialogProperties,
+    type DialogTriggerProperties,
     useDialog,
 } from "../dialog/index.ts";
 
 /** Hold the open state of a dialog that asks to confirm an action. */
-export function AlertDialog(properties: DialogProperties): JSX.Element {
+export function AlertDialog<Payload = unknown>(properties: DialogProperties<Payload>): JSX.Element {
     return <Dialog {...properties} />;
 }
 
 /** Render a button that opens its alert dialog. */
-export function AlertDialogTrigger(properties: DialogButtonProperties): JSX.Element {
+export function AlertDialogTrigger<Payload = unknown>(
+    properties: DialogTriggerProperties<Payload>,
+): JSX.Element {
     return <DialogTrigger data-slot="alert-dialog-trigger" {...properties} />;
 }
 

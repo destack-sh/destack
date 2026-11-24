@@ -11,15 +11,24 @@ import {
     type JSX,
     merge,
     omit,
+    onCleanup,
     useContext,
     useEnvironment,
     untrack,
 } from "@destack/view";
 import { Hover } from "../interaction/index.ts";
 import { type ElementPartProperties, renderPart, mergeProperties } from "../part/index.ts";
-import { HoverPopover, type HoverPopoverProperties } from "../popover/index.ts";
-import { type Align, Position, type Side } from "../position/index.ts";
-import { OpenChange, TopLayer } from "../layer/index.ts";
+import { HoverPopover } from "../popover/index.ts";
+import { type Align, type Anchor, Position, PositionAnchor, type Side } from "../position/index.ts";
+import {
+    controlOf,
+    OpenChange,
+    type OpenChildren,
+    type OpenProperties,
+    type OpenReason,
+    TopLayer,
+    type TriggerProperties,
+} from "../layer/index.ts";
 
 /** The wait before a resting pointer shows a tooltip, in milliseconds. */
 const DELAY = 700;
@@ -40,7 +49,7 @@ const DEFAULTS: Required<Pick<TooltipContentProperties, "side" | "align">> = {
 };
 
 /** A tooltip: a hover popover that shows at once and without motion while its group is warm. */
-export class TooltipControl extends HoverPopover {
+export class TooltipControl<Payload = unknown> extends HoverPopover<Payload> {
     /** Whether the tooltip shows without motion: warm, or opened by the keyboard. */
     readonly isInstant: Accessor<boolean>;
     /** The group the tooltip shows and hides in. */
@@ -50,29 +59,36 @@ export class TooltipControl extends HoverPopover {
     /** Set whether the tooltip shows without motion. */
     readonly #setInstant: (isInstant: boolean) => void;
 
-    /** Create a tooltip of a group, waiting the group's delay on a clock. */
-    constructor(properties: TooltipProperties, group: TooltipGroup, clock: Clock) {
+    /** Create a tooltip of the nearest group, waiting the group's delay on the page's clock. */
+    constructor(options: TooltipOptions = {}) {
         // wait the group's delay, none while it is warm
+        const group = useContext(TooltipGroupContext);
+        const { clock } = useEnvironment();
         super(
-            properties,
-            () => group.delayOf(properties.delay, clock.now()),
-            () => properties.closeDelay ?? group.closeDelay,
+            options,
+            () => group.delayOf(options.delay, clock.now()),
+            () => options.closeDelay ?? group.closeDelay,
         );
         this.#group = group;
         this.#clock = clock;
         const [isInstant, setInstant] = createSignal(false);
         this.isInstant = isInstant;
         this.#setInstant = setInstant;
+
+        // count the tooltip in its group as it shows and hides
+        createEffect(this.isOpen, (isShown, wasShown) =>
+            group.follow(isShown, wasShown, clock.now()),
+        );
     }
 
     /** Open after the delay, at once and without motion while the group is warm. */
-    override openLater(change?: OpenChange): void {
+    override openLater(change?: OpenChange<Payload>): void {
         this.#setInstant(this.#group.isWarm(this.#clock.now()));
         super.openLater(change);
     }
 
     /** Open now, without motion where asked, as when the keyboard reaches the trigger. */
-    override open(change?: OpenChange, isImmediate = false): void {
+    override open(change?: OpenChange<Payload>, isImmediate = false): void {
         if (isImmediate) {
             this.#setInstant(true);
         }
@@ -176,26 +192,37 @@ const styles = style.create({
     },
 });
 
-/** The properties of a tooltip root, its open state included. */
-export interface TooltipProperties extends HoverPopoverProperties {
+/** How a tooltip opens. */
+export interface TooltipOptions extends OpenProperties {
     /** The wait before a resting pointer shows the tooltip, in milliseconds. */
     readonly delay?: number;
     /** The wait before a tooltip the pointer left hides, in milliseconds. */
     readonly closeDelay?: number;
 }
 
+/** The properties of a tooltip root, its open state included. */
+export interface TooltipProperties<Payload = unknown> extends TooltipOptions {
+    /** The tooltip that triggers elsewhere open, which holds the open state in the root's place. */
+    readonly control?: TooltipControl<Payload>;
+    /** The trigger and content, or what it shows for the trigger it opened from. */
+    readonly children?: OpenChildren<Payload>;
+}
+
 /** The properties of a tooltip's trigger, a native button's attributes included. */
-export type TooltipTriggerProperties = ElementPartProperties &
+export type TooltipTriggerProperties<Payload = unknown> = ElementPartProperties &
     Omit<
         JSX.ButtonHTMLAttributes<HTMLButtonElement>,
         "class" | "style" | "ref" | "onPointerEnter" | "onPointerLeave"
-    >;
+    > &
+    TriggerProperties<Payload, TooltipControl<Payload>>;
 
 /** The properties of a tooltip's content, the native element's attributes included. */
 export interface TooltipContentProperties extends Omit<
     JSX.HTMLAttributes<HTMLDivElement>,
     "class" | "ref" | "onToggle" | "onPointerEnter" | "onPointerLeave"
 > {
+    /** What it is placed beside in place of its trigger: an element, or a box in the viewport. */
+    readonly anchor?: Anchor | undefined;
     /** The side of the trigger it shows on, top by default. */
     readonly side?: Side;
     /** The edge of the trigger it lines up with, center by default. */
@@ -217,25 +244,32 @@ export function useTooltip(): TooltipControl {
 }
 
 /** Connect a trigger to the tooltip that describes it. */
-export function Tooltip(properties: TooltipProperties): JSX.Element {
-    // count the tooltip in its group as it shows and hides, on the page's clock
-    const group = useContext(TooltipGroupContext);
-    const { clock } = useEnvironment();
-    const tooltip = new TooltipControl(properties, group, clock);
-    createEffect(tooltip.isOpen, (isShown, wasShown) =>
-        group.follow(isShown, wasShown, clock.now()),
-    );
+export function Tooltip<Payload = unknown>(properties: TooltipProperties<Payload>): JSX.Element {
+    // take the caller's tooltip, else one of its own
+    const tooltip = controlOf(properties, () => new TooltipControl<Payload>(properties));
 
-    return <TooltipContext value={tooltip}>{properties.children}</TooltipContext>;
+    return (
+        <TooltipContext value={tooltip}>{tooltip.state.render(properties.children)}</TooltipContext>
+    );
 }
 
 /** Render the element that shows its tooltip on hover after the delay and on focus at once. */
-export function TooltipTrigger(properties: TooltipTriggerProperties): JSX.Element {
+export function TooltipTrigger<Payload = unknown>(
+    properties: TooltipTriggerProperties<Payload>,
+): JSX.Element {
+    // show its root's tooltip, or the one it is given from elsewhere
+    const given = untrack(() => properties.control);
+    const tooltip = given ?? useTooltip();
+    const rest = omit(properties, "control", "payload");
+    let element: HTMLElement | undefined;
+    const change = (reason: OpenReason, target: HTMLElement, event?: Event) =>
+        new OpenChange(reason, event, { element: target, payload: properties.payload });
+    onCleanup(() => given?.drop(element));
+
     // open the tooltip on hover after its delay, and on focus at once
-    const tooltip = useTooltip();
     let isPressed = false;
     const hover = new Hover({
-        onHoverStart: () => tooltip.openLater(new OpenChange("trigger-hover")),
+        onHoverStart: ({ target }) => tooltip.openLater(change("trigger-hover", target)),
         onHoverEnd: (event) => {
             isPressed = false;
             tooltip.leave(event);
@@ -245,20 +279,30 @@ export function TooltipTrigger(properties: TooltipTriggerProperties): JSX.Elemen
     return renderPart(
         "button",
         "tooltip-trigger",
-        properties,
+        rest,
         [],
         mergeProperties(hover.attributes(), {
             type: "button" as const,
             get "data-popup-open"() {
-                return tooltip.isOpen() ? "" : undefined;
+                return tooltip.state.isFrom(element) ? "" : undefined;
             },
-            "aria-describedby": tooltip.id,
-            ref: (element: HTMLElement) => tooltip.setTrigger(element),
+            get "aria-describedby"() {
+                return given === undefined || tooltip.state.isFrom(element)
+                    ? tooltip.id
+                    : undefined;
+            },
+            ref: (target: HTMLElement) => {
+                element = target;
+                if (given === undefined) {
+                    tooltip.setTrigger(target);
+                }
+            },
             onFocus: (event: FocusEvent & { readonly currentTarget: HTMLElement }) => {
                 // show a tooltip the keyboard reaches at once and without motion, none for a press
                 if (!isPressed) {
-                    const isImmediate = event.currentTarget.matches(":focus-visible");
-                    tooltip.open(new OpenChange("trigger-focus", event), isImmediate);
+                    const target = event.currentTarget;
+                    const isImmediate = target.matches(":focus-visible");
+                    tooltip.open(change("trigger-focus", target, event), isImmediate);
                 }
             },
             onPointerDown: (event: PointerEvent) => {
@@ -284,7 +328,7 @@ export function TooltipContent(properties: TooltipContentProperties): JSX.Elemen
     const tooltip = useTooltip();
     const isInstant = tooltip.isInstant;
     const content = merge(DEFAULTS, properties);
-    const rest = omit(content, "side", "align", "sideOffset", "xstyle", "style");
+    const rest = omit(content, "anchor", "side", "align", "sideOffset", "xstyle", "style");
 
     // show and hide the tooltip as it opens and closes
     createEffect(tooltip.isOpen, (isOpen) => untrack(() => tooltip.sync(isOpen)));
@@ -297,6 +341,10 @@ export function TooltipContent(properties: TooltipContentProperties): JSX.Elemen
 
     return (
         <TopLayer>
+            <PositionAnchor
+                anchor={content.anchor}
+                onAnchor={(element) => tooltip.setAnchor(element)}
+            />
             <div
                 id={tooltip.id}
                 popover="hint"

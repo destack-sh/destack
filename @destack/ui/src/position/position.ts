@@ -1,4 +1,5 @@
 import * as style from "@destack/style";
+import { isMotionReduced } from "@destack/view/motion";
 import { transition } from "@destack/theme/motion";
 import { space } from "@destack/theme/tokens.stylex";
 
@@ -33,6 +34,14 @@ type PhysicalSide = "top" | "right" | "bottom" | "left";
 
 /** The styles that place an overlay at a point. */
 const styles = style.create({
+    box: (left: string, top: string, width: string, height: string) => ({
+        position: "fixed",
+        left,
+        top,
+        width,
+        height,
+        pointerEvents: "none",
+    }),
     point: {
         marginBlockStart: 0,
         marginBlockEnd: 0,
@@ -149,6 +158,9 @@ const areas = style.create({
     },
 });
 
+/** How an overlay moves between triggers, as long as a short one enters, in milliseconds. */
+export const GLIDE = { duration: 200, easing: "cubic-bezier(0.2, 0, 0, 1)" };
+
 /** The attribute that names an anchor, which a rule turns into its anchor name. */
 const ANCHOR_ATTRIBUTE = "data-anchor-name";
 
@@ -160,6 +172,12 @@ const RULE_ATTRIBUTE = "data-anchor-rule";
 
 /** The attribute that counts the overlays sharing an anchor's rule. */
 const USES_ATTRIBUTE = "data-anchor-uses";
+
+/** A box in the viewport an overlay is placed beside, such as a text selection's. */
+export type AnchorBox = Pick<DOMRectReadOnly, "x" | "y" | "width" | "height">;
+
+/** What an overlay is placed beside in place of its trigger: an element, or a box. */
+export type Anchor = HTMLElement | AnchorBox;
 
 /** The placement of an overlay beside an anchor or at a point. */
 export const Position = {
@@ -289,6 +307,40 @@ export const Position = {
                 content.style.removeProperty(property);
             }
         };
+    },
+
+    /** Return the StyleX styles of an element that stands where a box is. */
+    box({ x, y, width, height }: AnchorBox): style.Styles {
+        const [left, top, across, down] = [x, y, width, height].map((each) => `${String(each)}px`);
+
+        return styles.box(left ?? "", top ?? "", across ?? "", down ?? "");
+    },
+
+    /** Glide a shown overlay to where it now is from where it was. */
+    glide(content: HTMLElement, from: DOMRect): void {
+        // move at once where the person wants less motion, or the page has no animations
+        if (isMotionReduced(content) || typeof content.animate !== "function") {
+            return;
+        }
+
+        // start from its old place and size
+        const to = content.getBoundingClientRect();
+        const way = `${String(from.left - to.left)}px ${String(from.top - to.top)}px`;
+        content.animate(
+            [
+                {
+                    translate: way,
+                    width: `${String(from.width)}px`,
+                    height: `${String(from.height)}px`,
+                },
+                {
+                    translate: "0px 0px",
+                    width: `${String(to.width)}px`,
+                    height: `${String(to.height)}px`,
+                },
+            ],
+            GLIDE,
+        );
     },
 
     /** Anchor a shown overlay beside its anchor: attached where the browser can, else by script. */

@@ -6,6 +6,7 @@ import {
     createContext,
     createEffect,
     createUniqueId,
+    flush,
     type JSX,
     merge,
     omit,
@@ -19,15 +20,20 @@ import { tabbablesIn } from "../focus/index.ts";
 import {
     Dismissal,
     LayerStack,
+    controlOf,
     OpenChange,
     type OpenProperties,
     OpenState,
+    type OpenChildren,
+    type OpenTrigger,
     TopLayer,
+    type TriggerProperties,
 } from "../layer/index.ts";
 import { Timeout } from "@destack/view/primitives/timer";
 import { type HoverEvent, SafePolygon } from "../interaction/index.ts";
-import { type Align, Position, type Side } from "../position/index.ts";
+import { type Align, type Anchor, Position, PositionAnchor, type Side } from "../position/index.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
+import { Viewport } from "./viewport.ts";
 import { CollectionBuilder } from "../collection/index.ts";
 
 /** The side and alignment of a popover that sets neither. */
@@ -73,10 +79,14 @@ const styles = style.create({
     description: {
         color: color.mutedForeground,
     },
+    viewport: {
+        position: "relative",
+        overflow: "clip",
+    },
 });
 
 /** The open state of a popover, controlled or its own, and the elements that show it. */
-export class PopoverControl {
+export class PopoverControl<Payload = unknown> {
     /** The id of the popover element. */
     readonly id: string;
     /** Whether the popover is open. */
@@ -87,16 +97,14 @@ export class PopoverControl {
     readonly isTitled: Accessor<boolean>;
     /** Whether a description describes the popover. */
     readonly isDescribed: Accessor<boolean>;
-    /** The open state. */
-    readonly #state: OpenState;
+    /** The open state, and the trigger it opened from. */
+    readonly state: OpenState<Payload>;
     /** Why the platform closes the popover. */
     readonly #dismissal: Dismissal;
     /** The titles on screen. */
     readonly #titles: CollectionBuilder<string>;
     /** The descriptions on screen. */
     readonly #descriptions: CollectionBuilder<string>;
-    /** The button that opens the popover and takes the focus back. */
-    #trigger: HTMLElement | undefined;
     /** The element the popover is placed beside in place of its trigger. */
     #anchor: HTMLElement | undefined;
     /** The popover element. */
@@ -107,28 +115,36 @@ export class PopoverControl {
     #isShown: boolean;
     /** Stop placing the shown popover beside its trigger. */
     #unplace: () => void;
+    /** Stop placing a modal popover. */
+    #unplaceModal: () => void;
+    /** The content that slides as the popover moves, undefined without a viewport. */
+    #viewport: Viewport | undefined;
     /** Detach the popover from its anchor. */
     #detach: () => void;
+    /** The popover element and the anchor it is attached to. */
+    #attached: { readonly content: HTMLElement; readonly anchor: HTMLElement } | undefined;
 
-    /** Create the state of a popover root, open when its properties ask for it. */
-    constructor(properties: PopoverProperties) {
+    /** Create the state of a popover, open when its options ask for it. */
+    constructor(options: PopoverOptions = {}) {
         // follow the controlled state, else the popover's own
-        this.#state = new OpenState(properties);
         this.#dismissal = new Dismissal();
         this.id = createUniqueId();
-        this.isOpen = this.#state.isOpen;
-        this.isModal = () => properties.modal === true;
+        this.state = new OpenState(options, this.id);
+        this.isOpen = this.state.isOpen;
+        this.isModal = () => options.modal === true;
         this.isTitled = () => this.#titles.size() > 0;
         this.isDescribed = () => this.#descriptions.size() > 0;
         this.#titles = new CollectionBuilder();
         this.#descriptions = new CollectionBuilder();
-        this.#trigger = undefined;
         this.#anchor = undefined;
         this.#content = undefined;
         this.#focused = undefined;
         this.#isShown = false;
         this.#unplace = () => undefined;
+        this.#unplaceModal = () => undefined;
+        this.#viewport = undefined;
         this.#detach = () => undefined;
+        this.#attached = undefined;
 
         // stop placing the popover and drop its anchor once its owner goes away
         onCleanup(() => {
@@ -143,16 +159,36 @@ export class PopoverControl {
         return this.#content;
     }
 
-    /** Set the button that opens the popover. */
+    /** Set the button of the popover's root. */
     setTrigger(element: HTMLElement): void {
-        this.#trigger = element;
+        this.state.setTrigger(element);
         this.#attach();
     }
 
+    /** Close the popover as the trigger it is open from goes away. */
+    drop(element: HTMLElement | undefined): void {
+        if (element !== undefined && untrack(() => this.isOpen() && this.state.isFrom(element))) {
+            this.close(new OpenChange("none", undefined, undefined, false));
+        }
+    }
+
+    /** Read the element the popover is placed beside. */
+    #beside(): HTMLElement | undefined {
+        return this.#anchor ?? untrack(this.state.trigger)?.element;
+    }
+
     /** Set the element the popover is placed beside in place of its trigger. */
-    setAnchor(element: HTMLElement): void {
+    setAnchor(element: HTMLElement | undefined): void {
+        // attach to it
         this.#anchor = element;
         this.#attach();
+
+        // place a shown popover there
+        const content = this.#content;
+        const anchor = this.#beside();
+        if (this.#isShown && content !== undefined && anchor !== undefined) {
+            this.#replace(content, anchor);
+        }
     }
 
     /** Label the popover by its title until the title unmounts. */
@@ -165,6 +201,11 @@ export class PopoverControl {
         this.#descriptions.add(`${this.id}-description`);
     }
 
+    /** Set the element whose content slides as the popover moves to another trigger. */
+    setViewport(element: HTMLElement): void {
+        this.#viewport = new Viewport(element);
+    }
+
     /** Set the popover element. */
     setContent(element: HTMLElement): void {
         this.#content = element;
@@ -173,27 +214,92 @@ export class PopoverControl {
 
     /** Attach a popover the platform shows to its anchor, beside it from its first frame. */
     #attach(): void {
+        // leave one beside its anchor already
+        const content = this.#content;
+        const anchor = this.#beside();
+        if (this.#attached?.content === content && this.#attached?.anchor === anchor) {
+            return;
+        }
+
         // anchor a modal popover only while it shows, as its dialog opens by script
         this.#detach();
-        const content = this.#content;
-        const anchor = this.#anchor ?? this.#trigger;
-        this.#detach =
-            content === undefined || anchor === undefined || content instanceof HTMLDialogElement
-                ? () => undefined
-                : Position.attach(content, anchor, this.id);
+        const isAnchored =
+            content !== undefined &&
+            anchor !== undefined &&
+            !(content instanceof HTMLDialogElement);
+        this.#detach = isAnchored ? Position.attach(content, anchor, this.id) : () => undefined;
+        this.#attached = isAnchored ? { content, anchor } : undefined;
     }
 
     /** Open the popover, unless its handler cancels it. */
-    open(change = new OpenChange()): void {
-        if (!this.isOpen()) {
-            this.#state.set(true, change);
+    open(change: OpenChange<Payload> = new OpenChange()): void {
+        // move an open popover to another trigger, from where it is
+        const content = this.#content;
+        const isElsewhere = this.state.isElsewhere(change);
+        if (this.isOpen() && isElsewhere && content !== undefined && this.#isShown) {
+            const from = content.getBoundingClientRect();
+            const beside = this.#beside()?.getBoundingClientRect();
+            this.#viewport?.keep();
+            this.state.set(true, change);
+            flush();
+            if (!change.isCanceled) {
+                this.#move(content, from, beside);
+            }
+        }
+        // open a closed one
+        else if (!this.isOpen()) {
+            this.state.set(true, change);
+        }
+    }
+
+    /** Toggle the popover from a trigger, or move it there from another. */
+    toggle(event: Event, trigger: OpenTrigger<Payload>): void {
+        // leave the platform's own toggle, as the state shows and hides the popover
+        event.preventDefault();
+        const change = new OpenChange("trigger-press", event, trigger);
+        if (untrack(() => this.state.isFrom(trigger.element))) {
+            this.close(change);
+        } else {
+            this.open(change);
+        }
+    }
+
+    /** Place a shown popover beside its trigger of now, gliding there from where it was. */
+    #move(content: HTMLElement, from: DOMRect, beside: DOMRect | undefined): void {
+        // leave one its owner placed elsewhere
+        const anchor = this.#beside();
+        if (anchor === undefined) {
+            return;
+        }
+
+        // anchor it to the trigger of now
+        this.#replace(content, anchor);
+
+        // glide there, its content sliding the same way
+        Position.glide(content, from);
+        if (beside !== undefined) {
+            this.#viewport?.slide(beside, anchor.getBoundingClientRect());
+        }
+        this.enter(content);
+    }
+
+    /** Place a shown popover beside another anchor. */
+    #replace(content: HTMLElement, anchor: HTMLElement): void {
+        // anchor a modal popover by its dialog, else by the platform
+        if (content instanceof HTMLDialogElement) {
+            this.#unplaceModal();
+            this.#unplaceModal = Position.anchor(content, anchor);
+        } else {
+            this.#unplace();
+            this.#attach();
+            this.#unplace = Position.place(content, anchor);
         }
     }
 
     /** Close the popover, unless its handler cancels it. */
-    close(change = new OpenChange()): void {
+    close(change: OpenChange<Payload> = new OpenChange()): void {
         if (this.isOpen()) {
-            this.#state.set(false, change);
+            this.state.set(false, change);
         }
     }
 
@@ -211,7 +317,8 @@ export class PopoverControl {
 
         // open by the platform, which the state follows
         this.#isShown = true;
-        if (!this.#state.follow(true, new OpenChange("trigger-press", event))) {
+        const trigger = untrack(this.state.trigger);
+        if (!this.state.follow(true, new OpenChange("trigger-press", event, trigger))) {
             this.#isShown = false;
             event.preventDefault();
         }
@@ -223,7 +330,7 @@ export class PopoverControl {
         this.#isShown = event.newState === "open";
         if (this.#isShown) {
             const content = this.#content;
-            const anchor = this.#anchor ?? this.#trigger;
+            const anchor = this.#beside();
             this.#unplace =
                 content === undefined || anchor === undefined
                     ? () => undefined
@@ -250,7 +357,7 @@ export class PopoverControl {
     protected exit(): void {
         const focused = document.activeElement;
         if (focused === document.body || this.#content?.contains(focused) === true) {
-            this.#trigger?.focus({ preventScroll: true });
+            untrack(this.state.trigger)?.element.focus({ preventScroll: true });
         }
     }
 
@@ -268,13 +375,14 @@ export class PopoverControl {
     #dismiss(): boolean {
         // read why, unless the state closed it
         const content = this.#content;
+        const trigger = untrack(this.state.trigger)?.element;
         const change =
             content === undefined
-                ? new OpenChange()
-                : this.#dismissal.change(content, this.#trigger);
+                ? new OpenChange<never>()
+                : this.#dismissal.change(content, trigger);
         this.#dismissal.stop();
 
-        return !untrack(this.isOpen) || this.#state.follow(false, change);
+        return !untrack(this.isOpen) || this.state.follow(false, change);
     }
 
     /** Close a modal popover as the platform asks for, such as on Escape or a press outside. */
@@ -315,10 +423,12 @@ export class PopoverControl {
             LayerStack.of(content).open(content);
             this.#dismissal.start(content);
             this.#unplace = this.#holdModal(content);
-        } else if (isOpen) {
-            content.showPopover(
-                this.#trigger === undefined ? undefined : { source: this.#trigger },
-            );
+        }
+        // show it beside its trigger
+        else if (isOpen) {
+            const trigger = untrack(this.state.trigger)?.element;
+            this.#attach();
+            content.showPopover(trigger === undefined ? undefined : { source: trigger });
         }
         // hide it the way it shows
         else {
@@ -335,21 +445,21 @@ export class PopoverControl {
     /** Anchor a modal popover until it closes, leaving the stack and focusing the trigger then. */
     #holdModal(content: HTMLDialogElement): () => void {
         // anchor to the trigger, or to the anchor set in its place
-        const trigger = this.#trigger;
-        const anchor = this.#anchor ?? trigger;
-        const unplace = anchor === undefined ? () => undefined : Position.anchor(content, anchor);
+        const anchor = this.#beside();
+        this.#unplaceModal =
+            anchor === undefined ? () => undefined : Position.anchor(content, anchor);
 
         return () => {
             // release the anchor and the layer, and hand the focus back to the trigger
-            unplace();
+            this.#unplaceModal();
             LayerStack.of(content).close(content);
-            trigger?.focus();
+            untrack(this.state.trigger)?.element.focus();
         };
     }
 }
 
 /** A popover that opens while its trigger is hovered or focused. */
-export class HoverPopover extends PopoverControl {
+export class HoverPopover<Payload = unknown> extends PopoverControl<Payload> {
     /** The wait before a hovered trigger opens the popover, in milliseconds. */
     readonly delay: Accessor<number>;
     /** The wait before a trigger the pointer left closes the popover, in milliseconds. */
@@ -360,13 +470,9 @@ export class HoverPopover extends PopoverControl {
     readonly #polygon: SafePolygon;
 
     /** Create a popover that waits the given delays and cancels them when its owner disposes. */
-    constructor(
-        properties: HoverPopoverProperties,
-        delay: Accessor<number>,
-        closeDelay: Accessor<number>,
-    ) {
+    constructor(options: OpenProperties, delay: Accessor<number>, closeDelay: Accessor<number>) {
         // set the delays, cancelling a pending change on disposal
-        super(properties);
+        super(options);
         this.delay = delay;
         this.closeDelay = closeDelay;
         this.#timer = new Timeout();
@@ -388,46 +494,54 @@ export class HoverPopover extends PopoverControl {
     /** Leave the focus where it is. */
     protected override exit(): void {}
 
-    /** Open the popover after the open delay. */
-    openLater(change?: OpenChange): void {
+    /** Open the popover after the open delay, at once where it moves from another trigger. */
+    openLater(change?: OpenChange<Payload>): void {
         this.#polygon.stop();
-        this.#timer.set(() => this.open(change), this.delay());
+        if (untrack(this.isOpen)) {
+            this.open(change);
+        } else {
+            this.#timer.set(() => this.open(change), this.delay());
+        }
     }
 
     /** Close the popover after the close delay. */
-    closeLater(change?: OpenChange): void {
+    closeLater(change?: OpenChange<Payload>): void {
         this.#timer.set(() => this.close(change), this.closeDelay());
     }
 
     /** Open the popover now, cancelling a pending change. */
-    override open(change?: OpenChange): void {
+    override open(change?: OpenChange<Payload>): void {
         this.#polygon.stop();
         this.#timer.clear();
         super.open(change);
     }
 
     /** Close the popover now, cancelling a pending change. */
-    override close(change?: OpenChange): void {
+    override close(change?: OpenChange<Payload>): void {
         this.#polygon.stop();
         this.#timer.clear();
         super.close(change);
     }
 }
 
-/** The properties of a popover root. */
-export interface PopoverProperties extends OpenProperties {
+/** How a popover opens. */
+export interface PopoverOptions extends OpenProperties {
     /** Whether the open popover traps the focus and makes the page behind it inert. */
     readonly modal?: boolean;
-    /** The trigger and content. */
-    readonly children?: JSX.Element;
 }
 
-/** The properties of a popover that opens on hover, which is never modal. */
-export type HoverPopoverProperties = Omit<PopoverProperties, "modal">;
+/** The properties of a popover root. */
+export interface PopoverProperties<Payload = unknown> extends PopoverOptions {
+    /** The popover that triggers elsewhere open, which holds the open state in the root's place. */
+    readonly control?: PopoverControl<Payload>;
+    /** The trigger and content, or what it shows for the trigger it opened from. */
+    readonly children?: OpenChildren<Payload>;
+}
 
 /** The properties of a popover's trigger, a native button's attributes included. */
-export type PopoverTriggerProperties = ElementPartProperties &
-    Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, "class" | "style" | "ref">;
+export type PopoverTriggerProperties<Payload = unknown> = ElementPartProperties &
+    Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, "class" | "style" | "ref"> &
+    TriggerProperties<Payload, PopoverControl<Payload>>;
 
 /** The properties of a popover's content. */
 export interface PopoverContentProperties extends Omit<
@@ -436,6 +550,8 @@ export interface PopoverContentProperties extends Omit<
 > {
     /** Handle a non-modal popover element opening or closing, after the popover follows it. */
     readonly onToggle?: (event: ToggleEvent & { readonly currentTarget: HTMLElement }) => void;
+    /** What it is placed beside in place of its trigger: an element, or a box in the viewport. */
+    readonly anchor?: Anchor | undefined;
     /** The side of the trigger it opens on, bottom by default. */
     readonly side?: Side;
     /** The edge of the trigger it lines up with, center by default. */
@@ -457,39 +573,54 @@ export function usePopover(): PopoverControl {
 }
 
 /** Connect a trigger to the popover content it opens. */
-export function Popover(properties: PopoverProperties): JSX.Element {
+export function Popover<Payload = unknown>(properties: PopoverProperties<Payload>): JSX.Element {
+    // take the caller's popover, else one of its own
+    const control = controlOf(properties, () => new PopoverControl<Payload>(properties));
+
     return (
-        <PopoverContext value={new PopoverControl(properties)}>
-            {properties.children}
-        </PopoverContext>
+        <PopoverContext value={control}>{control.state.render(properties.children)}</PopoverContext>
     );
 }
 
 /** Render the element that toggles its popover and anchors it, a button by default. */
-export function PopoverTrigger(properties: PopoverTriggerProperties): JSX.Element {
-    // open a modal popover by script, else through the platform's popover target
-    const popover = usePopover();
+export function PopoverTrigger<Payload = unknown>(
+    properties: PopoverTriggerProperties<Payload>,
+): JSX.Element {
+    // open its root's popover, or the one it is given from elsewhere
+    const given = untrack(() => properties.control);
+    const popover = given ?? usePopover();
+    const id = popover.state.triggerId();
+    const rest = omit(properties, "control", "payload");
+    let element: HTMLElement | undefined;
+    onCleanup(() => given?.drop(element));
 
-    return renderPart("button", "popover-trigger", properties, [], {
+    return renderPart("button", "popover-trigger", rest, [], {
         type: "button",
-        id: `${popover.id}-trigger`,
+        id,
         get "data-popup-open"() {
-            return popover.isOpen() ? "" : undefined;
+            return popover.state.isFrom(element) ? "" : undefined;
         },
         get popovertarget() {
             return popover.isModal() ? undefined : popover.id;
         },
         "aria-haspopup": "dialog",
         get "aria-expanded"() {
-            return popover.isModal() ? (popover.isOpen() ? "true" : "false") : undefined;
+            // leave a trigger alone with its popover to the platform, which tells it open
+            if (given === undefined && !popover.isModal()) {
+                return undefined;
+            }
+
+            return popover.state.isFrom(element) ? "true" : "false";
         },
         "aria-controls": popover.id,
-        ref: (element: HTMLElement) => popover.setTrigger(element),
-        onClick: (event: MouseEvent) => {
-            if (popover.isModal()) {
-                popover.open(new OpenChange("trigger-press", event));
+        ref: (target: HTMLElement) => {
+            element = target;
+            if (given === undefined) {
+                popover.setTrigger(target);
             }
         },
+        onClick: (event: MouseEvent & { readonly currentTarget: HTMLElement }) =>
+            popover.toggle(event, { element: event.currentTarget, payload: properties.payload }),
     });
 }
 
@@ -498,11 +629,22 @@ export function PopoverContent(properties: PopoverContentProperties): JSX.Elemen
     // read the popover and its placement
     const popover = usePopover();
     const content = merge(DEFAULTS, properties);
-    const rest = omit(content, "side", "align", "sideOffset", "xstyle", "style", "onToggle");
+    const rest = omit(
+        content,
+        "anchor",
+        "side",
+        "align",
+        "sideOffset",
+        "xstyle",
+        "style",
+        "onToggle",
+    );
     const modalRest = omit(rest, "tabindex");
     const label = (): string | undefined =>
         properties["aria-label"] === undefined
-            ? `${popover.id}-${popover.isTitled() ? "title" : "trigger"}`
+            ? popover.isTitled()
+                ? `${popover.id}-title`
+                : popover.state.labelId()
             : undefined;
 
     // show and hide the popover as it opens and closes
@@ -510,6 +652,10 @@ export function PopoverContent(properties: PopoverContentProperties): JSX.Elemen
 
     return (
         <TopLayer>
+            <PositionAnchor
+                anchor={content.anchor}
+                onAnchor={(element) => popover.setAnchor(element)}
+            />
             <Show
                 when={popover.isModal()}
                 fallback={
@@ -594,6 +740,18 @@ export function PopoverAnchor(properties: PopoverElementProperties<HTMLDivElemen
 
     return renderPart("div", "popover-anchor", properties, null, {
         ref: (element) => popover.setAnchor(element),
+    });
+}
+
+/** Render content that slides as its popover moves from one trigger to another. */
+export function PopoverViewport(properties: PopoverElementProperties<HTMLDivElement>): JSX.Element {
+    const popover = usePopover();
+
+    return renderPart("div", "popover-viewport", omit(properties, "children"), styles.viewport, {
+        ref: (element) => popover.setViewport(element),
+        get children() {
+            return <div data-slot="popover-viewport-content">{properties.children}</div>;
+        },
     });
 }
 

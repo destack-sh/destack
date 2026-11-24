@@ -53,8 +53,23 @@ import { ChoiceIcon } from "../action/choice-icon.tsx";
 import type { IconBodies } from "@destack/icon";
 import { useCommandPlatform } from "../kbd/index.ts";
 import { ListState } from "../focus/index.ts";
-import { type Align, type Point, Position, type Side } from "../position/index.ts";
-import { Dismissal, OpenChange, type OpenProperties, OpenState, TopLayer } from "../layer/index.ts";
+import {
+    type Align,
+    type Anchor,
+    type Point,
+    Position,
+    PositionAnchor,
+    type Side,
+} from "../position/index.ts";
+import {
+    Dismissal,
+    OpenChange,
+    type OpenChildren,
+    type OpenProperties,
+    OpenState,
+    type OpenTrigger,
+    TopLayer,
+} from "../layer/index.ts";
 
 /** The wait before a hovered trigger opens its submenu, in milliseconds. */
 const SUBMENU_DELAY = 100;
@@ -193,22 +208,23 @@ export class MenuRelease {
     }
 
     /** Open the menu as a mouse presses its trigger, leaving a finger and other buttons alone. */
-    press(event: PointerEvent): void {
+    press(event: PointerEvent, trigger?: OpenTrigger): void {
         // leave a press that closes the menu to its click
         this.#isClickSwallowed = false;
         const isPlain = event.button === 0 && !event.ctrlKey;
-        if (event.pointerType !== "mouse" || !isPlain || untrack(this.#control.isOpen)) {
+        const isOpen = untrack(() => this.#control.state.isFrom(trigger?.element));
+        if (event.pointerType !== "mouse" || !isPlain || isOpen) {
             return;
         }
 
         // open it and wait for the pointer
         this.#isClickSwallowed = true;
-        this.#control.open("first", new OpenChange("trigger-press", event));
+        this.#control.open("first", new OpenChange("trigger-press", event, trigger));
         this.await(event);
     }
 
     /** Open or close the menu on a click, unless its press opened it. */
-    click(event: MouseEvent): void {
+    click(event: MouseEvent, trigger?: OpenTrigger): void {
         // leave the click of the press that opened the menu alone, never a key's
         const isSwallowed = this.#isClickSwallowed && event.detail !== 0;
         this.#isClickSwallowed = false;
@@ -219,8 +235,8 @@ export class MenuRelease {
         }
 
         // open or close the menu
-        const change = new OpenChange("trigger-press", event);
-        if (untrack(this.#control.isOpen)) {
+        const change = new OpenChange("trigger-press", event, trigger);
+        if (untrack(() => this.#control.state.isFrom(trigger?.element))) {
             this.#control.close(true, change);
         } else {
             this.#control.open("first", change);
@@ -275,11 +291,11 @@ export class MenuRelease {
 }
 
 /** The open state, elements and focus of a menu or submenu. */
-export class MenuControl {
+export class MenuControl<Payload = unknown> {
     /** The id of the menu element. */
     readonly id: string;
-    /** The id of the trigger that opens the menu and labels it, unless it opens at a point. */
-    readonly triggerId: string;
+    /** The open state, and the trigger it opened from. */
+    readonly state: OpenState<Payload>;
     /** The menu this one is a submenu of, null for a top menu. */
     readonly parent: MenuControl | null;
     /** Whether the menu is open. */
@@ -292,8 +308,8 @@ export class MenuControl {
     readonly release: MenuRelease;
     /** Handle a horizontal arrow key a top menu leaves unused. */
     onCross: ((event: KeyboardEvent, direction: Direction) => void) | undefined;
-    /** The element that opens the menu and anchors it. */
-    #trigger: HTMLElement | undefined;
+    /** The element the menu is placed beside in place of its trigger. */
+    #anchor: HTMLElement | undefined;
     /** The menu element. */
     #content: HTMLElement | undefined;
     /** The item to focus once the menu shows. */
@@ -304,40 +320,28 @@ export class MenuControl {
     #unplace: () => void;
     /** The way of a pointer from a submenu's trigger to its submenu. */
     readonly polygon: SafePolygon;
-    /** The trigger the menu last opened at. */
-    readonly #origin: Accessor<HTMLElement | undefined>;
-    /** Replace the trigger the menu last opened at. */
-    readonly #setOrigin: Setter<HTMLElement | undefined>;
     /** The pending open of a submenu whose trigger is hovered. */
     readonly #timer: Timeout;
     /** The open submenus. */
     readonly #children: Set<MenuControl>;
-    /** The open state. */
-    readonly #state: OpenState;
     /** Why the platform closes the menu. */
     readonly #dismissal: Dismissal;
     /** Replace the point a context menu opens at. */
     readonly #setPoint: Setter<Point | undefined>;
 
     /** Create a closed menu, a submenu when it has a parent. */
-    constructor(parent: MenuControl | null, properties: MenuRootProperties = {}) {
+    constructor(parent: MenuControl | null, options: OpenProperties = {}) {
         // follow the controlled state, else the menu's own, without elements yet
-        this.#state = new OpenState(properties);
+        this.id = createUniqueId();
+        this.state = new OpenState(options, this.id);
         this.#dismissal = new Dismissal();
         const [point, setPoint] = createSignal<Point | undefined>(undefined);
-        const [origin, setOrigin] = createSignal<HTMLElement | undefined>(undefined, {
-            ownedWrite: true,
-        });
-        this.#origin = origin;
-        this.#setOrigin = setOrigin;
-        this.id = createUniqueId();
-        this.triggerId = `${this.id}-trigger`;
         this.parent = parent;
-        this.isOpen = this.#state.isOpen;
+        this.isOpen = this.state.isOpen;
         this.point = point;
         this.list = new ListState({ orientation: "vertical", isLooping: true, isTypeahead: true });
         this.onCross = undefined;
-        this.#trigger = undefined;
+        this.#anchor = undefined;
         this.#content = undefined;
         this.#focus = "first";
         this.#isReturningFocus = false;
@@ -357,7 +361,12 @@ export class MenuControl {
 
     /** Set the element that opens the menu and anchors it. */
     setTrigger(element: HTMLElement): void {
-        this.#trigger = element;
+        this.state.setTrigger(element);
+    }
+
+    /** Set the element the menu is placed beside in place of its trigger. */
+    setAnchor(element: HTMLElement | undefined): void {
+        this.#anchor = element;
     }
 
     /** Set the menu element and show or hide it as the menu opens and closes. */
@@ -375,12 +384,15 @@ export class MenuControl {
 
         // show it beside its trigger, or at its point, and focus the item asked for
         if (isOpen) {
-            const trigger = this.#trigger;
+            const trigger = untrack(this.state.trigger)?.element;
             const point = untrack(this.point);
-            const isBeside = trigger !== undefined && point === undefined;
-            const detach = isBeside ? Position.attach(content, trigger, this.id) : () => undefined;
-            content.showPopover(isBeside ? { source: trigger } : undefined);
-            const unplace = isBeside ? Position.place(content, trigger) : () => undefined;
+            const anchor = this.#anchor ?? trigger;
+            const isBeside = anchor !== undefined && point === undefined;
+            const detach = isBeside ? Position.attach(content, anchor, this.id) : () => undefined;
+            content.showPopover(
+                isBeside && trigger !== undefined ? { source: trigger } : undefined,
+            );
+            const unplace = isBeside ? Position.place(content, anchor) : () => undefined;
             const unfit = point === undefined ? () => undefined : Position.fit(content, point);
             this.#unplace = () => {
                 detach();
@@ -394,15 +406,22 @@ export class MenuControl {
             this.#unplace();
             content.hidePopover();
             if (this.#isReturningFocus) {
-                this.#trigger?.focus();
+                untrack(this.state.trigger)?.element.focus();
             }
         }
         this.#isReturningFocus = false;
     }
 
+    /** Close the menu as the trigger it is open from goes away. */
+    drop(element: HTMLElement | undefined): void {
+        if (element !== undefined && untrack(() => this.isOpen() && this.state.isFrom(element))) {
+            this.close(false, new OpenChange("none", undefined, undefined, false));
+        }
+    }
+
     /** Read where the top menu opened: its trigger, null without one. */
     origin(): Element | null {
-        return this.root().#origin() ?? null;
+        return this.root().state.trigger()?.element ?? null;
     }
 
     /** Show an open menu again, as the platform dismisses one that opened during a press. */
@@ -431,22 +450,20 @@ export class MenuControl {
     }
 
     /** Open the menu beside its trigger, or at a point for a context menu, focusing an item. */
-    open(focus: MenuFocus, change = new OpenChange(), point?: Point): void {
+    open(focus: MenuFocus, change: OpenChange<Payload> = new OpenChange(), point?: Point): void {
         // remember what to focus before opening and joining the parent's open submenus
         this.#focus = focus;
-        this.#setOrigin(this.#trigger);
         this.#setPoint(point);
 
         // render the items for where it opens, so it measures and focuses those, then show it
-        flush();
-        this.#state.set(true, change);
+        this.state.show(change);
         if (this.parent !== null) {
             this.parent.#children.add(this);
         }
     }
 
     /** Close the menu and its submenus. */
-    close(isReturningFocus: boolean, change = new OpenChange()): void {
+    close(isReturningFocus: boolean, change: OpenChange<Payload> = new OpenChange()): void {
         // close the submenus first
         this.closeSubmenus();
 
@@ -454,7 +471,7 @@ export class MenuControl {
         this.#timer.clear();
         this.polygon.stop();
         this.#isReturningFocus = isReturningFocus;
-        this.#state.set(false, change);
+        this.state.set(false, change);
         if (this.parent !== null) {
             this.parent.#children.delete(this);
         }
@@ -509,7 +526,8 @@ export class MenuControl {
         if (event.newState !== "closed" || content === undefined || !untrack(this.isOpen)) {
             return;
         }
-        const change = this.#dismissal.change(content, this.#trigger);
+        const trigger = untrack(this.state.trigger)?.element;
+        const change = this.#dismissal.change(content, trigger);
         const isKeeping = this.release.isKeeping();
         if (!isKeeping) {
             this.close(false, change);
@@ -555,9 +573,11 @@ export interface MenuItemJoin extends Record<"ref", (element: HTMLElement) => vo
 }
 
 /** The properties of a top menu's root. */
-export interface MenuRootProperties extends OpenProperties {
-    /** The trigger and content. */
-    readonly children?: JSX.Element;
+export interface MenuRootProperties<Payload = unknown> extends OpenProperties {
+    /** The menu that triggers elsewhere open, which holds the open state in the root's place. */
+    readonly control?: MenuControl<Payload>;
+    /** The trigger and content, or what it shows for the trigger it opened from. */
+    readonly children?: OpenChildren<Payload>;
 }
 
 /** The selected value of a radio group in a menu. */
@@ -580,6 +600,8 @@ export interface MenuContentProperties extends Omit<
     MenuElementProperties<HTMLDivElement>,
     "ref" | "onKeyDown" | "onToggle"
 > {
+    /** What it is placed beside in place of its trigger: an element, or a box in the viewport. */
+    readonly anchor?: Anchor | undefined;
     /** The side of the trigger it opens on, bottom by default. */
     readonly side?: Side;
     /** The edge of the trigger it lines up with, start by default. */
@@ -636,13 +658,13 @@ export function useMenu(): MenuControl {
 }
 
 /** Hold the open state of a top menu, or of a submenu of the nearest menu without one passed. */
-export function Menu(properties: {
-    readonly control?: MenuControl;
-    readonly children?: JSX.Element;
+export function Menu<Payload = unknown>(properties: {
+    readonly control?: MenuControl<Payload>;
+    readonly children?: OpenChildren<Payload>;
 }): JSX.Element {
-    const control = properties.control ?? new MenuControl(useMenu());
+    const control = untrack(() => properties.control) ?? new MenuControl<Payload>(useMenu());
 
-    return <MenuContext value={control}>{properties.children}</MenuContext>;
+    return <MenuContext value={control}>{control.state.render(properties.children)}</MenuContext>;
 }
 
 /** Render the menu in the top layer, which arrow keys, Home, End and typed letters move through. */
@@ -651,7 +673,7 @@ export function MenuContent(properties: MenuContentProperties): JSX.Element {
     const control = useMenu();
     const locale = useLocale();
     const content = merge(DEFAULTS, properties);
-    const rest = omit(content, "side", "align", "sideOffset", "xstyle", "style");
+    const rest = omit(content, "anchor", "side", "align", "sideOffset", "xstyle", "style");
 
     // show and hide the menu as it opens and closes
     createEffect(control.isOpen, (isOpen) => untrack(() => control.sync(isOpen)));
@@ -665,12 +687,18 @@ export function MenuContent(properties: MenuContentProperties): JSX.Element {
 
     return (
         <TopLayer>
+            <PositionAnchor
+                anchor={content.anchor}
+                onAnchor={(element) => control.setAnchor(element)}
+            />
             <div
                 id={control.id}
                 popover="auto"
                 role="menu"
                 tabindex={-1}
-                aria-labelledby={control.point() === undefined ? control.triggerId : undefined}
+                aria-labelledby={
+                    control.point() === undefined ? control.state.labelId() : undefined
+                }
                 data-slot="menu-content"
                 data-side={content.side}
                 data-align={content.align}
@@ -927,6 +955,7 @@ export function MenuSubTrigger(
     if (parent === null) {
         throw new TypeError("a menu sub trigger needs a submenu around it");
     }
+    const id = control.state.triggerId();
     const item = parent.join(() => !isEnabled());
     const opens = (key: string): boolean =>
         key === "Enter" ||
@@ -945,7 +974,7 @@ export function MenuSubTrigger(
 
     return (
         <div
-            id={control.triggerId}
+            id={id}
             role="menuitem"
             tabindex={-1}
             aria-haspopup="menu"

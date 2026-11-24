@@ -161,7 +161,7 @@ export function Menubar(properties: MenuElementProperties<HTMLDivElement>): JSX.
 }
 
 /** Hold the open state of one menu of a menubar. */
-export function MenubarMenu(properties: MenuRootProperties): JSX.Element {
+export function MenubarMenu(properties: Omit<MenuRootProperties, "control">): JSX.Element {
     // join the bar with a top menu of its own
     const bar = useMenubar();
     const menu = new MenuControl(null, properties);
@@ -195,6 +195,7 @@ export function MenubarTrigger(
     });
 
     // follow the pointer to this menu while another one is open
+    const id = menu.state.triggerId();
     const hover = new Hover({
         onHoverStart: (event) => {
             if (bar.isOpen() && !menu.isOpen()) {
@@ -212,7 +213,7 @@ export function MenubarTrigger(
         () => [text.sm, styles.trigger, menu.isOpen() && state.selected],
         {
             type: "button",
-            id: menu.triggerId,
+            id,
             role: "menuitem",
             "aria-haspopup": "menu",
             get "aria-expanded"() {

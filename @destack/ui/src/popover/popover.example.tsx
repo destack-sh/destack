@@ -1,17 +1,29 @@
 import { defineExample } from "@destack/package/declare";
+import { createSignal, For } from "@destack/view";
 import { Button } from "../button/index.ts";
 import { Field, FieldLabel } from "../field/index.ts";
 import { Stack } from "../stack/index.ts";
 import { Input } from "../input/index.ts";
+import type { AnchorBox } from "../position/index.ts";
+import { Tooltip, TooltipContent } from "../tooltip/index.ts";
 import {
     Popover,
     PopoverClose,
     PopoverContent,
+    PopoverControl,
     PopoverDescription,
     PopoverHeader,
     PopoverTitle,
     PopoverTrigger,
+    PopoverViewport,
 } from "./popover.tsx";
+
+/** The people of a list. */
+const PEOPLE = [
+    { name: "Ada", role: "Writes the plans" },
+    { name: "Ben", role: "Books the trains and finds the rooms" },
+    { name: "Cleo", role: "Takes the photos" },
+];
 
 /** A popover that edits the size of an image in a note. */
 export const popoverImageSize = defineExample({
@@ -112,4 +124,75 @@ export const popoverLinkSharing = defineExample({
             </PopoverContent>
         </Popover>
     ),
+});
+
+/** The people of a list, who share one popover that glides from one to the next. */
+export const popoverPeople = defineExample({
+    of: Popover,
+    name: "people",
+    description: "the people of a list, who share one popover that glides from one to the next",
+    render: () => {
+        const card = new PopoverControl<(typeof PEOPLE)[number]>();
+
+        return (
+            <>
+                <Stack space="2">
+                    <For each={PEOPLE}>
+                        {(person) => (
+                            <PopoverTrigger
+                                control={card}
+                                payload={person}
+                                render={(attributes) => (
+                                    <Button {...attributes} variant="ghost">
+                                        {person.name}
+                                    </Button>
+                                )}
+                            />
+                        )}
+                    </For>
+                </Stack>
+                <Popover control={card}>
+                    {(person) => (
+                        <PopoverContent side="right" align="start">
+                            <PopoverViewport>
+                                <PopoverHeader>
+                                    <PopoverTitle>{person()?.name}</PopoverTitle>
+                                    <PopoverDescription>{person()?.role}</PopoverDescription>
+                                </PopoverHeader>
+                            </PopoverViewport>
+                        </PopoverContent>
+                    )}
+                </Popover>
+            </>
+        );
+    },
+});
+
+/** The toolbar of a text's selection, beside the words a person selects. */
+export const popoverSelection = defineExample({
+    of: Popover,
+    name: "selection",
+    description: "the toolbar of a text's selection, beside the words a person selects",
+    layout: "padded",
+    render: () => {
+        const [box, setBox] = createSignal<AnchorBox>();
+        const select = (event: { readonly currentTarget: HTMLElement }) => {
+            const selection = event.currentTarget.ownerDocument.getSelection();
+            const isEmpty = selection === null || selection.isCollapsed;
+            setBox(isEmpty ? undefined : selection.getRangeAt(0).getBoundingClientRect());
+        };
+
+        return (
+            <>
+                <p onPointerUp={select} onKeyUp={select}>
+                    Take the early tram to the lake, then walk up to the pass before noon.
+                </p>
+                <Tooltip open={box() !== undefined}>
+                    <TooltipContent anchor={box()} side="top">
+                        Bold, italic, link
+                    </TooltipContent>
+                </Tooltip>
+            </>
+        );
+    },
 });

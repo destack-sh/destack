@@ -1,5 +1,12 @@
 import * as style from "@destack/style";
-import { type Accessor, createContext, type JSX, omit, useContext } from "@destack/view";
+import {
+    type Accessor,
+    createContext,
+    createUniqueId,
+    type JSX,
+    omit,
+    useContext,
+} from "@destack/view";
 import { followToggle, refuseDisabled } from "../disclosure/index.ts";
 import { OpenChange, type OpenProperties, OpenState } from "../layer/index.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
@@ -59,7 +66,7 @@ export function Collapsible(properties: CollapsibleProperties): JSX.Element {
         "xstyle",
         "style",
     );
-    const collapsible = new OpenState(properties);
+    const collapsible = new OpenState(properties, createUniqueId());
     const { isOpen } = collapsible;
 
     return (

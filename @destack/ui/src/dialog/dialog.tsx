@@ -21,10 +21,13 @@ import { Button } from "../button/index.ts";
 import {
     Dismissal,
     LayerStack,
+    controlOf,
     OpenChange,
+    type OpenChildren,
     type OpenProperties,
     OpenState,
     TopLayer,
+    type TriggerProperties,
 } from "../layer/index.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
 import { CollectionBuilder } from "../collection/index.ts";
@@ -98,7 +101,7 @@ const styles = style.create({
 const DialogContext = createContext<DialogControl | null>(null);
 
 /** The open state and ids of a dialog, which its trigger, content and text share. */
-export class DialogControl {
+export class DialogControl<Payload = unknown> {
     /** The id of the dialog element. */
     readonly id: string;
     /** The id of the dialog's title. */
@@ -111,35 +114,35 @@ export class DialogControl {
     readonly isDescribed: Accessor<boolean>;
     /** Whether the page behind the open dialog is inert. */
     readonly isModal: Accessor<boolean>;
-    /** The open state. */
-    readonly #state: OpenState;
+    /** The open state, and the trigger it opened from. */
+    readonly state: OpenState<Payload>;
     /** Why the platform closes the dialog. */
     readonly #dismissal: Dismissal;
     /** The descriptions on screen. */
     readonly #descriptions: CollectionBuilder<string>;
 
-    /** Create the state of a dialog root, open when its properties ask for it. */
-    constructor(properties: DialogProperties) {
+    /** Create the state of a dialog, open when its options ask for it. */
+    constructor(options: DialogOptions = {}) {
         // follow the controlled state, else the dialog's own
-        this.#state = new OpenState(properties);
         this.#dismissal = new Dismissal();
         this.id = createUniqueId();
+        this.state = new OpenState(options, this.id);
         this.titleId = createUniqueId();
         this.descriptionId = createUniqueId();
-        this.isOpen = this.#state.isOpen;
+        this.isOpen = this.state.isOpen;
         this.isDescribed = () => this.#descriptions.size() > 0;
-        this.isModal = () => properties.modal !== false;
+        this.isModal = () => options.modal !== false;
         this.#descriptions = new CollectionBuilder();
     }
 
     /** Open the dialog, unless its handler cancels it. */
-    open(change = new OpenChange()): void {
-        this.#state.set(true, change);
+    open(change: OpenChange<Payload> = new OpenChange()): void {
+        this.state.set(true, change);
     }
 
     /** Close the dialog, unless its handler cancels it. */
-    close(change = new OpenChange()): void {
-        this.#state.set(false, change);
+    close(change: OpenChange<Payload> = new OpenChange()): void {
+        this.state.set(false, change);
     }
 
     /** Show or close the dialog element for the open state. */
@@ -177,7 +180,7 @@ export class DialogControl {
         LayerStack.of(element).close(element);
         const change = this.#dismissal.change(element, undefined);
         this.#dismissal.stop();
-        if (untrack(this.isOpen) && !this.#state.follow(false, change)) {
+        if (untrack(this.isOpen) && !this.state.follow(false, change)) {
             this.sync(element);
         }
     }
@@ -194,17 +197,27 @@ export class DialogControl {
     }
 }
 
-/** The properties of a dialog root. */
-export interface DialogProperties extends OpenProperties {
+/** How a dialog opens. */
+export interface DialogOptions extends OpenProperties {
     /** Whether the page behind the open dialog is inert, true by default. */
     readonly modal?: boolean;
-    /** The trigger and content. */
-    readonly children?: JSX.Element;
 }
 
-/** The properties of a dialog's trigger and close buttons, a button's properties included. */
+/** The properties of a dialog root. */
+export interface DialogProperties<Payload = unknown> extends DialogOptions {
+    /** The dialog that triggers elsewhere open, which holds the open state in the root's place. */
+    readonly control?: DialogControl<Payload>;
+    /** The trigger and content, or what it shows for the trigger it opened from. */
+    readonly children?: OpenChildren<Payload>;
+}
+
+/** The properties of a dialog's buttons, a button's properties included. */
 export type DialogButtonProperties = ElementPartProperties &
     Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, "class" | "style">;
+
+/** The properties of a dialog's trigger, a button's properties included. */
+export type DialogTriggerProperties<Payload = unknown> = DialogButtonProperties &
+    TriggerProperties<Payload, DialogControl<Payload>>;
 
 /** The properties of a dialog's content, the native dialog's attributes included. */
 export interface DialogContentProperties extends Omit<
@@ -235,24 +248,36 @@ export function useDialog(): DialogControl {
 }
 
 /** Hold the open state a dialog's trigger, content and text share. */
-export function Dialog(properties: DialogProperties): JSX.Element {
+export function Dialog<Payload = unknown>(properties: DialogProperties<Payload>): JSX.Element {
+    // take the caller's dialog, else one of its own
+    const control = controlOf(properties, () => new DialogControl<Payload>(properties));
+
     return (
-        <DialogContext value={new DialogControl(properties)}>{properties.children}</DialogContext>
+        <DialogContext value={control}>{control.state.render(properties.children)}</DialogContext>
     );
 }
 
 /** Render the element that opens its dialog, a button by default. */
-export function DialogTrigger(properties: DialogButtonProperties): JSX.Element {
-    const control = useDialog();
+export function DialogTrigger<Payload = unknown>(
+    properties: DialogTriggerProperties<Payload>,
+): JSX.Element {
+    // open its root's dialog, or the one it is given from elsewhere
+    const control = untrack(() => properties.control) ?? useDialog();
+    const rest = omit(properties, "control", "payload");
+    let element: HTMLElement | undefined;
 
-    return renderPart("button", "dialog-trigger", properties, [], {
+    return renderPart("button", "dialog-trigger", rest, [], {
         type: "button",
         "aria-haspopup": "dialog",
         get "aria-expanded"() {
-            return control.isOpen() ? "true" : "false";
+            return control.state.isFrom(element) ? "true" : "false";
         },
         "aria-controls": control.id,
-        onClick: (event: MouseEvent) => control.open(new OpenChange("trigger-press", event)),
+        ref: (target: HTMLElement) => (element = target),
+        onClick: (event: MouseEvent & { readonly currentTarget: HTMLElement }) => {
+            const trigger = { element: event.currentTarget, payload: properties.payload };
+            control.open(new OpenChange("trigger-press", event, trigger));
+        },
     });
 }
 

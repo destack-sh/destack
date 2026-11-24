@@ -95,6 +95,7 @@ import {
     sortDescending,
     unpin,
 } from "./actions.ts";
+import { OpenChange } from "../layer/index.ts";
 import { Menu, MenuAction, MenuControl } from "../menu/index.ts";
 import { ContextMenuContent } from "../context-menu/index.ts";
 import {
@@ -653,8 +654,11 @@ export function DataTable<Features extends TableFeatures, Row extends RowData>(
         if (!rowActions.some(({ action }) => actions.has(action.reference, cell))) {
             return false;
         }
-        menu.setTrigger(cell);
-        menu.open("first", undefined, point);
+        menu.open(
+            "first",
+            new OpenChange("trigger-press", undefined, { element: cell, payload: undefined }),
+            point,
+        );
 
         return true;
     };

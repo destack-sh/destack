@@ -151,7 +151,7 @@ export function EventCalendar(properties: EventCalendarProperties): JSX.Element 
                 {...mergeProperties(keys, rest)}
                 {...style.attributes([styles.calendar, properties.xstyle], properties.style)}
             >
-                <HoverCard>{properties.children}</HoverCard>
+                <HoverCard control={control.card}>{properties.children}</HoverCard>
                 <Show when={!drags.isShared}>
                     <DragAnnouncer manager={control.manager} />
                 </Show>

@@ -17,6 +17,7 @@ import {
     type DialogContentProperties,
     type DialogElementProperties,
     type DialogProperties,
+    type DialogTriggerProperties,
 } from "../dialog/index.ts";
 
 /** The widest a left or right sheet grows. */
@@ -110,12 +111,14 @@ export interface SheetContentProperties extends DialogContentProperties {
 }
 
 /** Hold the open state of a panel that slides in from an edge of the screen. */
-export function Sheet(properties: DialogProperties): JSX.Element {
+export function Sheet<Payload = unknown>(properties: DialogProperties<Payload>): JSX.Element {
     return <Dialog {...properties} />;
 }
 
 /** Render a button that opens its sheet. */
-export function SheetTrigger(properties: DialogButtonProperties): JSX.Element {
+export function SheetTrigger<Payload = unknown>(
+    properties: DialogTriggerProperties<Payload>,
+): JSX.Element {
     return <DialogTrigger data-slot="sheet-trigger" {...properties} />;
 }
 

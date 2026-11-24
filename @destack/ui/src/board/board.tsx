@@ -60,6 +60,7 @@ import { ContextMenuContent } from "../context-menu/index.ts";
 import { Focus, type KeyboardDelegate } from "../focus/index.ts";
 import { useCommandPlatform } from "../kbd/index.ts";
 import { Press, type InteractionEvent } from "../interaction/index.ts";
+import { OpenChange } from "../layer/index.ts";
 import { Menu, MenuAction, MenuControl } from "../menu/index.ts";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "../dropdown-menu/index.ts";
 import { mergeProperties } from "../part/index.ts";
@@ -569,9 +570,7 @@ export class BoardControl {
     /** Open a composer by its cell and position, or close it. */
     readonly setComposing: (composing: BoardComposition | undefined) => void;
     /** The card menu a right click opens on a card. */
-    readonly menu: MenuControl;
-    /** The card the open card menu opened on. */
-    readonly menuKey: Accessor<string | undefined>;
+    readonly menu: MenuControl<string>;
     /** The board's properties, read for its handlers. */
     readonly properties: BoardProperties;
     /** The board's id, which tells its containers from another board's. */
@@ -596,8 +595,6 @@ export class BoardControl {
     readonly #columnMenus: CollectionBuilder<object>;
     /** The number of mounted card menus, the board opening one only while one is mounted. */
     #menus = 0;
-    /** Set the card the card menu opened on. */
-    readonly #setMenuKey: (key: string | undefined) => void;
     /** The locale the actions' titles are written in. */
     readonly #locale: ReturnType<typeof useLocale>;
     /** The page's actions, which the board handles its own among. */
@@ -696,15 +693,12 @@ export class BoardControl {
         // open one composer at a time, and one card menu for every card
         [this.composing, this.setComposing] = createSignal<BoardComposition | undefined>(undefined);
         this.#composers = new CollectionBuilder(undefined, (id) => id);
-        [this.menuKey, this.#setMenuKey] = createSignal<string | undefined>(undefined);
 
         // follow the hidden list's rows and count the column menus as they mount
         this.#hiddenLists = new CollectionBuilder();
         this.#hiddenRows = new CollectionBuilder(undefined, (row) => row.column);
         this.#columnMenus = new CollectionBuilder();
-        this.menu = new MenuControl(null, {
-            onOpenChange: (isOpen) => (isOpen ? undefined : this.#setMenuKey(undefined)),
-        });
+        this.menu = new MenuControl<string>(null);
     }
 
     /** Read the id of the board's row of columns, unique among boards. */
@@ -1226,11 +1220,10 @@ export class BoardControl {
             this.selection.replace([key]);
         }
         this.focus.focus(key);
-        this.#setMenuKey(key);
 
         // open the menu at the pointer, its focus returning to the card
-        this.menu.setTrigger(element);
-        this.menu.open("first", undefined, { x, y });
+        const change = new OpenChange("trigger-press", undefined, { element, payload: key });
+        this.menu.open("first", change, { x, y });
 
         return true;
     }
@@ -2322,7 +2315,7 @@ export function BoardItemMenu(properties: BoardItemMenuProperties): JSX.Element 
     const locale = useLocale();
     control.addMenu();
     const columns = () => {
-        const key = control.menuKey();
+        const key = control.menu.state.payload();
 
         return key === undefined ? [] : control.columnsFor(control.menu.origin());
     };

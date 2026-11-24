@@ -52,6 +52,7 @@ import {
 } from "./actions.ts";
 import { writeClipboard } from "@destack/view/primitives/clipboard";
 import type { Draggable, DragManager, DragOperation, DragTarget } from "../drag/index.ts";
+import { HoverCardControl } from "../hover-card/index.ts";
 import type { InteractionEvent } from "../interaction/index.ts";
 import { type MultipleSelection, Selection } from "../selection/index.ts";
 import type { EventCalendarEventProperties } from "./chip.tsx";
@@ -304,10 +305,8 @@ export class EventCalendarControl {
     readonly selection: Selection;
     /** The time marked free to share. */
     readonly availability: CalendarAvailability;
-    /** The key of the event the preview card shows, the last a pointer rested on or focused. */
-    readonly previewed: Accessor<string | undefined>;
-    /** Set the event the preview card shows. */
-    readonly setPreviewed: (key: string | undefined) => void;
+    /** The card that previews the event a pointer rests on, by its key. */
+    readonly card: HoverCardControl<string>;
     /** The instant under the pointer in the day views, which every zone's hours mark. */
     readonly hovered: Accessor<number | undefined>;
     /** Set the instant under the pointer, none once it leaves. */
@@ -376,9 +375,7 @@ export class EventCalendarControl {
             defaultValue: untrack(() => options.defaultView ?? "month"),
             onChange: (view) => options.onViewChange?.(view),
         });
-        const [previewed, setPreviewed] = createSignal<string | undefined>(undefined);
-        this.previewed = previewed;
-        this.setPreviewed = setPreviewed;
+        this.card = new HoverCardControl<string>();
         const [hovered, setHovered] = createSignal<number | undefined>(undefined);
         this.hovered = hovered;
         this.setHovered = setHovered;

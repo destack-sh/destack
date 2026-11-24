@@ -1,9 +1,11 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { createSignal, flush } from "@destack/view";
+import { OpenChange } from "../layer/index.ts";
 import {
     Dialog,
     DialogClose,
     DialogContent,
+    DialogControl,
     DialogDescription,
     DialogTitle,
     DialogTrigger,
@@ -240,4 +242,52 @@ test("show a controlled dialog for as long as its owner has it open", () => {
     flush();
 
     expect([isLeft, dialog.open]).toEqual([true, false]);
+});
+
+test("open one dialog from triggers elsewhere, showing each one's payload", () => {
+    // open from the second picture, then show the third while it is open
+    const { container } = render(() => {
+        const viewer = new DialogControl<string>();
+
+        return (
+            <>
+                <DialogTrigger control={viewer} payload="Lake">
+                    Lake
+                </DialogTrigger>
+                <DialogTrigger control={viewer} payload="Tram">
+                    Tram
+                </DialogTrigger>
+                <button
+                    type="button"
+                    id="next"
+                    onClick={(event) => {
+                        const trigger = { element: event.currentTarget, payload: "Pass" };
+                        viewer.open(new OpenChange("none", event, trigger));
+                    }}
+                >
+                    Next
+                </button>
+                <Dialog control={viewer}>
+                    {(name) => (
+                        <DialogContent showCloseButton={false}>
+                            <DialogTitle>{name()}</DialogTitle>
+                        </DialogContent>
+                    )}
+                </Dialog>
+            </>
+        );
+    });
+    flush();
+    const dialog = dialogOf(container);
+    const steps = ["[data-slot=dialog-trigger]:nth-of-type(2)", "#next"].map((selector) => {
+        find(container, selector).click();
+        flush();
+
+        return [dialog.open, dialog.textContent];
+    });
+
+    expect(steps).toEqual([
+        [true, "Tram"],
+        [true, "Pass"],
+    ]);
 });

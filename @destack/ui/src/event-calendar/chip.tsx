@@ -19,16 +19,14 @@ import {
     For,
     type JSX,
     omit,
+    onCleanup,
     Show,
     untrack,
     useLocale,
 } from "@destack/view";
 import { ActionButton, duplicateItems, openItem, removeItems } from "../action/index.ts";
-import {
-    HoverCardContent,
-    type HoverCardContentProperties,
-    useHoverCard,
-} from "../hover-card/index.ts";
+import { HoverCardContent, type HoverCardContentProperties } from "../hover-card/index.ts";
+import { OpenChange } from "../layer/index.ts";
 import { Hover, Press } from "../interaction/index.ts";
 import { mergeProperties } from "../part/index.ts";
 import { useEventCalendar } from "./control.ts";
@@ -256,13 +254,13 @@ export function EventCalendarEvent(properties: EventCalendarEventProperties): JS
     );
 
     // preview the event in the calendar's card while a pointer rests on it or it has the focus
-    const card = useHoverCard();
+    const { card } = control;
     let element: HTMLElement | undefined;
+    onCleanup(() => card.drop(element));
     const openPreview = () => {
         if (element !== undefined && !isBusy()) {
-            card.setTrigger(element);
-            control.setPreviewed(properties.event.key);
-            card.openLater();
+            const trigger = { element, payload: properties.event.key };
+            card.openLater(new OpenChange("trigger-hover", undefined, trigger));
         }
     };
     const hover = new Hover({
@@ -381,13 +379,13 @@ export function EventCalendarPreviewCard(
 ): JSX.Element {
     // show the previewed event while the calendar's card is open, closing it as a drag starts
     const control = useEventCalendar();
-    const card = useHoverCard();
+    const { card } = control;
     createEffect(
         () => control.manager.operation() !== undefined,
         (isDragging) => (isDragging ? card.close() : undefined),
     );
     const event = () => {
-        const key = control.previewed();
+        const key = card.state.payload();
 
         return card.isOpen() && key !== undefined && control.hasEvent(key)
             ? control.eventOf(key)

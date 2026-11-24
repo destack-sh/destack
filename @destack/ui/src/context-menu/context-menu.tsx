@@ -1,7 +1,7 @@
 import * as style from "@destack/style";
-import { type JSX } from "@destack/view";
+import { type JSX, omit, onCleanup, untrack } from "@destack/view";
 import { Timeout } from "@destack/view/primitives/timer";
-import { OpenChange } from "../layer/index.ts";
+import { controlOf, OpenChange, type TriggerProperties } from "../layer/index.ts";
 import {
     Menu,
     MenuCheckboxItem,
@@ -38,32 +38,52 @@ const styles = style.create({
 });
 
 /** Hold the open state of a menu that a right click or the context menu key opens. */
-export function ContextMenu(properties: MenuRootProperties): JSX.Element {
-    return <Menu control={new MenuControl(null, properties)}>{properties.children}</Menu>;
+export function ContextMenu<Payload = unknown>(
+    properties: MenuRootProperties<Payload>,
+): JSX.Element {
+    const control = controlOf(properties, () => new MenuControl<Payload>(null, properties));
+
+    return <Menu control={control}>{properties.children}</Menu>;
 }
 
 /** Render the area whose context menu event opens the menu at the pointer. */
-export function ContextMenuTrigger(
-    properties: Omit<
-        MenuElementProperties<HTMLDivElement>,
-        | "ref"
-        | "onContextMenu"
-        | "onPointerDown"
-        | "onPointerMove"
-        | "onPointerUp"
-        | "onPointerCancel"
-    >,
+export function ContextMenuTrigger<Payload = unknown>(
+    properties: TriggerProperties<Payload, MenuControl<Payload>> &
+        Omit<
+            MenuElementProperties<HTMLDivElement>,
+            | "ref"
+            | "onContextMenu"
+            | "onPointerDown"
+            | "onPointerMove"
+            | "onPointerUp"
+            | "onPointerCancel"
+        >,
 ): JSX.Element {
-    const control = useMenu();
+    // open its root's menu, or the one it is given from elsewhere
+    const given = untrack(() => properties.control);
+    const control = given ?? useMenu();
+    const rest = omit(properties, "control", "payload");
     const timer = new Timeout();
+    let element: HTMLElement | undefined;
+    onCleanup(() => given?.drop(element));
+    const change = (event: Event & { readonly currentTarget: HTMLElement }) =>
+        new OpenChange("trigger-press", event, {
+            element: event.currentTarget,
+            payload: properties.payload,
+        });
 
-    return renderPart("div", "context-menu-trigger", properties, styles.trigger, {
-        ref: (element) => control.setTrigger(element),
+    return renderPart("div", "context-menu-trigger", rest, styles.trigger, {
+        ref: (target) => {
+            element = target;
+            if (given === undefined) {
+                control.setTrigger(target);
+            }
+        },
         onContextMenu: (event) => {
             // open at the pointer, wait for one still down, and focus the first item
             event.preventDefault();
             const point = { x: event.clientX, y: event.clientY };
-            control.open("first", new OpenChange("trigger-press", event), point);
+            control.open("first", change(event), point);
             if (event.buttons !== 0) {
                 control.release.await(event);
             }
@@ -72,8 +92,9 @@ export function ContextMenuTrigger(
             // open under a finger that stays
             if (event.pointerType === "touch") {
                 const point = { x: event.clientX, y: event.clientY };
+                const pressed = change(event);
                 timer.set(() => {
-                    control.open("first", new OpenChange("trigger-press", event), point);
+                    control.open("first", pressed, point);
                     control.release.await(event);
                 }, LONG_PRESS);
             }

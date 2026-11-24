@@ -19,6 +19,7 @@ import {
     type DialogContentProperties,
     type DialogElementProperties,
     type DialogProperties,
+    type DialogTriggerProperties,
 } from "../dialog/index.ts";
 import { scrim } from "../dialog/scrim.stylex.ts";
 import { OpenChange } from "../layer/index.ts";
@@ -122,8 +123,8 @@ const seams = style.create({
 /** A length a drawer snaps to. */
 export type DrawerSnapPoint = number | string;
 
-/** The properties of a drawer root. */
-export interface DrawerProperties extends DialogProperties {
+/** Where a drawer opens from and rests. */
+export interface DrawerOptions {
     /** The edge the drawer slides in from, bottom by default. */
     readonly direction?: Side;
     /** The lengths a drag settles the drawer at, from the smallest to the largest. */
@@ -135,6 +136,10 @@ export interface DrawerProperties extends DialogProperties {
     /** Handle a drag settling the drawer at another snap point. */
     readonly onActiveSnapPointChange?: (point: DrawerSnapPoint) => void;
 }
+
+/** The properties of a drawer root. */
+export interface DrawerProperties<Payload = unknown>
+    extends DialogProperties<Payload>, DrawerOptions {}
 
 /** The edge and snap points of a drawer, which its content reads. */
 export class DrawerControl {
@@ -148,7 +153,7 @@ export class DrawerControl {
     readonly #setActive: (point: DrawerSnapPoint | undefined) => void;
 
     /** Create the state of a drawer root. */
-    constructor(properties: DrawerProperties) {
+    constructor(properties: DrawerOptions) {
         // follow the controlled snap point, else the drawer's own
         const [active, setActive] = createControllableSignal<DrawerSnapPoint | undefined>({
             isControlled: () => properties.activeSnapPoint !== undefined,
@@ -225,7 +230,7 @@ export function useDrawer(): DrawerControl {
 }
 
 /** Keep the open state of a drawer that slides in from an edge with a handle. */
-export function Drawer(properties: DrawerProperties): JSX.Element {
+export function Drawer<Payload = unknown>(properties: DrawerProperties<Payload>): JSX.Element {
     const rest = omit(
         properties,
         "direction",
@@ -243,7 +248,9 @@ export function Drawer(properties: DrawerProperties): JSX.Element {
 }
 
 /** Render a button that opens its drawer. */
-export function DrawerTrigger(properties: DialogButtonProperties): JSX.Element {
+export function DrawerTrigger<Payload = unknown>(
+    properties: DialogTriggerProperties<Payload>,
+): JSX.Element {
     return <SheetTrigger data-slot="drawer-trigger" {...properties} />;
 }
 

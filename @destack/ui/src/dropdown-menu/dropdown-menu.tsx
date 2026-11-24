@@ -1,5 +1,5 @@
-import { type JSX, omit } from "@destack/view";
-import { OpenChange } from "../layer/index.ts";
+import { type JSX, omit, onCleanup, untrack } from "@destack/view";
+import { controlOf, OpenChange, type TriggerProperties } from "../layer/index.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
 import {
     Menu,
@@ -25,45 +25,67 @@ import {
 } from "../menu/index.ts";
 
 /** The properties of a dropdown menu's trigger, a native button's attributes included. */
-export type DropdownMenuTriggerProperties = ElementPartProperties &
-    Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, "class" | "style" | "ref"> & {
+export type DropdownMenuTriggerProperties<Payload = unknown> = ElementPartProperties &
+    Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, "class" | "style" | "ref"> &
+    TriggerProperties<Payload, MenuControl<Payload>> & {
         /** Whether the up and down arrows open the menu, as they do outside a grid's cells. */
         readonly isOpenedByArrows?: boolean;
     };
 
 /** Hold the open state of a menu that a button opens. */
-export function DropdownMenu(properties: MenuRootProperties): JSX.Element {
-    return <Menu control={new MenuControl(null, properties)}>{properties.children}</Menu>;
+export function DropdownMenu<Payload = unknown>(
+    properties: MenuRootProperties<Payload>,
+): JSX.Element {
+    const control = controlOf(properties, () => new MenuControl<Payload>(null, properties));
+
+    return <Menu control={control}>{properties.children}</Menu>;
 }
 
 /** Render the element that opens its menu on click, Enter, Space and the arrows. */
-export function DropdownMenuTrigger(properties: DropdownMenuTriggerProperties): JSX.Element {
-    const control = useMenu();
+export function DropdownMenuTrigger<Payload = unknown>(
+    properties: DropdownMenuTriggerProperties<Payload>,
+): JSX.Element {
+    // open its root's menu, or the one it is given from elsewhere
+    const given = untrack(() => properties.control);
+    const control = given ?? useMenu();
+    const id = control.state.triggerId();
+    let element: HTMLElement | undefined;
+    const triggerOf = (event: Event & { readonly currentTarget: HTMLElement }) => ({
+        element: event.currentTarget,
+        payload: properties.payload,
+    });
+    onCleanup(() => given?.drop(element));
+    const rest = omit(properties, "control", "payload", "isOpenedByArrows");
 
-    return renderPart("button", "dropdown-menu-trigger", omit(properties, "isOpenedByArrows"), [], {
+    return renderPart("button", "dropdown-menu-trigger", rest, [], {
         type: "button",
-        id: control.triggerId,
+        id,
         "aria-haspopup": "menu",
         get "aria-expanded"() {
-            return control.isOpen() ? "true" : "false";
+            return control.state.isFrom(element) ? "true" : "false";
         },
         "aria-controls": control.id,
-        ref: (element: HTMLElement) => control.setTrigger(element),
-        onPointerDown: (event) => control.release.press(event),
+        ref: (target: HTMLElement) => {
+            element = target;
+            if (given === undefined) {
+                control.setTrigger(target);
+            }
+        },
+        onPointerDown: (event) => control.release.press(event, triggerOf(event)),
         onMouseDown: (event) => {
             // leave the focus to the menu a mouse opens
             if (control.isOpen()) {
                 event.preventDefault();
             }
         },
-        onClick: (event) => control.release.click(event),
+        onClick: (event) => control.release.click(event, triggerOf(event)),
         onKeyDown: (event) => {
             // open on the arrow keys where they open it, focusing the first or the last item
             const isArrow = event.key === "ArrowDown" || event.key === "ArrowUp";
             if (properties.isOpenedByArrows !== false && isArrow) {
                 event.preventDefault();
                 const focus = event.key === "ArrowDown" ? "first" : "last";
-                control.open(focus, new OpenChange("trigger-press", event));
+                control.open(focus, new OpenChange("trigger-press", event, triggerOf(event)));
             }
         },
     });
