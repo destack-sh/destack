@@ -49,8 +49,8 @@ export class ObjectConnectionServer {
     readonly #upgrade: Request;
     /** Verify a call's caller as the server verifies a request's. */
     readonly #authenticate: (request: Request) => Promise<RequestContextOptions>;
-    /** The procedures the calls run. */
-    readonly #handler: StandardRPCHandler<RequestContext>;
+    /** Read the procedures the calls run, the server's current ones. */
+    readonly #procedures: () => StandardRPCHandler<RequestContext>;
     /** The peer decoding the calls and encoding their answers and pages. */
     readonly #peer: ServerPeer;
     /** The telemetry a failed call no one awaits reports to. */
@@ -62,14 +62,14 @@ export class ObjectConnectionServer {
     constructor(
         socket: Socket,
         upgrade: Request,
-        handler: StandardRPCHandler<RequestContext>,
+        procedures: () => StandardRPCHandler<RequestContext>,
         telemetry: Environment["telemetry"],
         authenticate: (request: Request) => Promise<RequestContextOptions>,
     ) {
         // take the socket, the upgrade's verified caller and the procedures, decoding calls as a peer
         this.socket = socket;
         this.#upgrade = upgrade;
-        this.#handler = handler;
+        this.#procedures = procedures;
         this.#telemetry = telemetry;
         this.#authenticate = authenticate;
         this.#peer = new ServerPeer((message) =>
@@ -125,7 +125,7 @@ export class ObjectConnectionServer {
 
         // run the procedure in a context of its own, its caller verified for this call
         const context = new RequestContext(called, await this.#authenticate(called));
-        const { response } = await this.#handler.handle(
+        const { response } = await this.#procedures().handle(
             { ...request, body: () => Promise.resolve(request.body) },
             { context },
         );

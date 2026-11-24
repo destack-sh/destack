@@ -18,6 +18,7 @@ import {
     type ServerAccess,
 } from "./context.ts";
 import { ObjectConnectionServer, type ObjectConnectionAttachment } from "./connection.ts";
+import type { StandardRPCHandler } from "@orpc/server/standard";
 import {
     CONNECTION_PING,
     CONNECTION_PONG,
@@ -35,10 +36,10 @@ import type {} from "@destack/package/import-meta";
 export class Server implements AsyncDisposable {
     /** The health. */
     readonly health: Health;
-    /** The server options. */
-    readonly #options: ServerOptions;
-    /** The HTTP handler. */
-    readonly #handler: RequestHandler<RequestContext>;
+    /** The server options, which an update replaces. */
+    #options: ServerOptions;
+    /** The HTTP handler, which an update replaces. */
+    #handler: RequestHandler<RequestContext>;
     /** The accepted requests by their controllers. */
     readonly #requests = new Map<AbortController, Request>();
     /** Resolve when accepted requests complete. */
@@ -68,6 +69,13 @@ export class Server implements AsyncDisposable {
 
     /** Create the server. */
     private constructor(options: ServerOptions) {
+        this.#options = options;
+        this.health = options.health;
+        this.#handler = Server.#handlerOf(options);
+    }
+
+    /** Check a server's options and build its handler. */
+    static #handlerOf(options: ServerOptions): RequestHandler<RequestContext> {
         // reject missing enforcement
         for (const callback of ["authenticate", "authorizeMachine"] as const) {
             if (typeof options[callback] !== "function") {
@@ -89,13 +97,44 @@ export class Server implements AsyncDisposable {
         // require a policy for every permission
         Server.#requirePolicies(options.router, options.access);
 
-        // create the handler
-        this.#options = options;
-        this.health = options.health;
-        this.#handler = new RequestHandler(options.router, {
+        return new RequestHandler(options.router, {
             ...options,
             authorize: (context) => Server.#authorize(context, options),
         });
+    }
+
+    /** Serve another handler of the same package in place, its connections calling the new one. */
+    update(options: ServerOptions): void {
+        // require the same package
+        if (options.package.id !== this.#options.package.id) {
+            throw new TypeError(
+                `a server of package '${this.#options.package.id}' serves no other package`,
+            );
+        }
+
+        // take the new handler and options
+        this.#handler = Server.#handlerOf(options);
+        this.#options = options;
+
+        // end the connections of a handler that serves no store any more
+        if (this.#handler.connections === undefined) {
+            for (const id of this.#connections.keys()) {
+                void this.#end(id);
+            }
+        }
+    }
+
+    /** Read the store procedures the connections call, refusing a package serving no store. */
+    #procedures(): StandardRPCHandler<RequestContext> {
+        const handler = this.#handler.connections;
+        if (handler === undefined) {
+            throw ObjectError.of(
+                "CONNECTION_NOT_FOUND",
+                `connection not found: package '${this.#options.package.id}' serves no store`,
+            );
+        }
+
+        return handler;
     }
 
     /** Settle once the server serves, refusing once it fails or stops first. */
@@ -259,13 +298,8 @@ export class Server implements AsyncDisposable {
     ): Response {
         // require procedures to connect to and a host that keeps sockets
         const { hibernation } = this.#options;
-        const handler = this.#handler.connections;
-        if (handler === undefined) {
-            throw ObjectError.of(
-                "CONNECTION_NOT_FOUND",
-                `connection not found: package '${this.#options.package.id}' serves no store`,
-            );
-        } else if (hibernation === undefined) {
+        this.#procedures();
+        if (hibernation === undefined) {
             throw ObjectError.of(
                 "CONNECTION_UNAVAILABLE",
                 "connection is unavailable: the server's host keeps no sockets",
@@ -282,7 +316,7 @@ export class Server implements AsyncDisposable {
         const connection = new ObjectConnectionServer(
             socket,
             upgrade,
-            handler,
+            () => this.#procedures(),
             this.#options.environment.telemetry,
             async (request) =>
                 // vouch for an in-process caller again at each call, and verify any other call's own credential
