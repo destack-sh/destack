@@ -143,7 +143,7 @@ export const packageObject = defineObject(
     (method) => ({
         create: method.create("publish", {
             fields: ["accountId", "name", "visibility", "role"],
-            onConflict: "id",
+            onConflict: { key: "id" },
         }),
         /** Publish an account's packages in a pushed image under a tag, required ones first. */
         publish: method.mutation({

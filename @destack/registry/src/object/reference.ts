@@ -32,7 +32,9 @@ export const reference = defineObject(
                 kind: "check",
                 condition: {
                     name: {
-                        OR: GitReference.namespaces.map((namespace) => ({ startsWith: namespace })),
+                        OR: Object.values(GitReference.namespaces).map((namespace) => ({
+                            startsWith: namespace,
+                        })),
                     },
                 },
             },

@@ -4,7 +4,7 @@ import type { Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { Lease } from "@destack/resource";
 import { schema, present } from "@destack/schema";
-import { GitListing } from "@destack/git";
+import { GitListing, GitReference } from "@destack/git";
 import type {} from "@destack/package/import-meta";
 import { RepositoryName } from "@destack/package";
 import { RegistryError } from "../error/index.ts";
@@ -252,7 +252,9 @@ export const repository = defineObject(
             defaultReference: {
                 kind: "check",
                 condition: {
-                    defaultReference: { OR: [{ isNull: true }, { startsWith: "refs/heads/" }] },
+                    defaultReference: {
+                        OR: [{ isNull: true }, { startsWith: GitReference.namespaces.branch }],
+                    },
                 },
             },
             remote: {
