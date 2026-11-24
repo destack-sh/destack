@@ -57,6 +57,8 @@ export class ObjectConnectionServer {
     readonly #telemetry: Environment["telemetry"];
     /** The calls running now, each settling once its answer or its follow's last page went out. */
     readonly #running = new Set<Promise<void>>();
+    /** The abort of every call as the socket closes, a call decoded after the close included. */
+    readonly #closed = new AbortController();
 
     /** Serve a socket's calls as the caller an upgrade verified. */
     constructor(
@@ -90,6 +92,7 @@ export class ObjectConnectionServer {
 
     /** End every call and follow of a closed socket, settling once each one finished. */
     async close(): Promise<void> {
+        this.#closed.abort(new DOMException("the connection closed", "AbortError"));
         this.#peer.close();
         while (this.#running.size > 0) {
             await Promise.allSettled(this.#running);
@@ -104,7 +107,7 @@ export class ObjectConnectionServer {
 
     /** Answer one call in its own context: the upgrade's caller, the call's headers and abort. */
     async #answer(request: StandardRequest): Promise<StandardResponse> {
-        // read the call as a request beside the upgrade, without the upgrade's credentials, aborted as its client stops it
+        // read the call as a request beside the upgrade, without the upgrade's credentials, aborted as its client stops it or the socket closes
         const headers = new Headers(this.#upgrade.headers);
         for (const name of UPGRADE_CREDENTIALS) {
             headers.delete(name);
@@ -117,11 +120,10 @@ export class ObjectConnectionServer {
                 headers.set(name, value);
             }
         }
-        const { signal } = request;
-        const called = new Request(this.#upgrade.url, {
-            headers,
-            ...(signal === undefined ? {} : { signal }),
-        });
+        const closed = this.#closed.signal;
+        const signal =
+            request.signal === undefined ? closed : AbortSignal.any([request.signal, closed]);
+        const called = new Request(this.#upgrade.url, { headers, signal });
 
         // run the procedure in a context of its own, its caller verified for this call
         const context = new RequestContext(called, await this.#authenticate(called));

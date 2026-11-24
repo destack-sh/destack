@@ -296,6 +296,12 @@ export class Server implements AsyncDisposable {
         controller: AbortController,
         voucher: Voucher | undefined,
     ): Response {
+        // refuse a connection once the server drains, as its drain would never end it
+        const refused = this.health.refusal();
+        if (refused !== undefined) {
+            throw refused;
+        }
+
         // require procedures to connect to and a host that keeps sockets
         const { hibernation } = this.#options;
         this.#procedures();

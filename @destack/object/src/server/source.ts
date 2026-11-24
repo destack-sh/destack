@@ -689,7 +689,6 @@ export class ObjectSource {
             scope,
             AbortSignal.any([context.request.signal, context.closing]),
         );
-        await demand?.take(subscription.parameters);
         const follow = (feed: syncDataflow.Feed) =>
             this.#replicating(feed, {
                 subscription,
@@ -728,7 +727,9 @@ export class ObjectSource {
             },
             () => follow(this.store.feed),
         );
+        // take the asked queries before the first page, letting go of them however the stream ends
         try {
+            await demand?.take(subscription.parameters);
             yield* pages();
         } finally {
             serving.removeEventListener("abort", onServing);
