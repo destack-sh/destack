@@ -2,6 +2,7 @@ export {
     defineConfiguration,
     TEST_TIERS,
     TIERS_VARIABLE,
+    RESULTS_VARIABLE,
     type TestTier,
     scenarioPlugin,
     type ProjectConfiguration,

@@ -61,6 +61,9 @@ export const TEST_TIERS = {
 /** The variable listing the tiers a run includes, comma separated, every tier when absent. */
 export const TIERS_VARIABLE = "DESTACK_TEST_TIERS";
 
+/** The variable naming the file a run writes its test files' outcomes to, as Vitest's JSON. */
+export const RESULTS_VARIABLE = "DESTACK_TEST_RESULTS";
+
 /** The test options a tier sets, which configurations leave to it. */
 type TierOption = "testTimeout" | "hookTimeout" | "slowTestThreshold";
 
@@ -183,6 +186,11 @@ export type TestConfiguration = Omit<ViteUserConfig, "test"> & {
           }
     );
 
+/** Name Vitest's JSON reporter writing a run's results to a file. */
+function jsonReporter(outputFile: string): ["json", { outputFile: string }] {
+    return ["json", { outputFile }];
+}
+
 /** Define a test configuration whose package sources receive Destack module metadata. */
 export function defineConfiguration(
     configuration: TestConfiguration,
@@ -210,6 +218,9 @@ export function defineConfiguration(
           }));
     const tiered = tier === undefined ? {} : tierOptions(tier);
 
+    // read the results file the run names
+    const results = environment.process.variables[RESULTS_VARIABLE];
+
     // fail a run whose test outlives its tier's hang limit, its project naming the tier, else the configuration
     const limitOf = (project: string) => {
         const [prefix = ""] = project.split(":");
@@ -222,7 +233,12 @@ export function defineConfiguration(
         ...rest,
         test: {
             ...TEST,
-            reporters: ["default", hangReporter(limitOf, environment)],
+            // report to the terminal, watch for hangs, and write the results file a run names
+            reporters: [
+                "default",
+                hangReporter(limitOf, environment),
+                ...(results === undefined ? [] : [jsonReporter(results)]),
+            ],
             ...(projects === undefined
                 ? {
                       ...root,
