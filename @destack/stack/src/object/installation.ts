@@ -212,7 +212,7 @@ export const installation = defineObject(
             // let permissions read the scope an installation lives in
             attributes: { scope: "string" },
             permissions: {
-                // let the space's readers see its apps, its managers their bindings, parameters and directories
+                // let the space's readers see its apps
                 read: through("scope", "read"),
                 list: through("scope", "read"),
                 install: none(),
