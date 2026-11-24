@@ -144,7 +144,7 @@
             "rules": { "destack/no-system-environment": "off" }
         },
         {
-            "files": ["@destack/build/src/cache/closure.ts"],
+            "files": ["@destack/build/src/cache/fingerprint.ts"],
             "rules": { "destack/no-ambient-effect": "off" }
         },
         {
