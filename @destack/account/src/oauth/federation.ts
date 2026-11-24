@@ -97,6 +97,15 @@ export class FederatedVerifier {
             );
         }
 
+        // refuse a plain HTTP issuer unless the universe itself answers over plain HTTP, as a local stage does
+        const isPlain = new URL(issuer).protocol !== "https:";
+        if (isPlain && new URL(this.#endpoint).protocol === "https:") {
+            throw OAuthError.of(
+                "GRANT_INVALID",
+                `issuer '${issuer}' is invalid: a universe over HTTPS trusts HTTPS issuers alone`,
+            );
+        }
+
         // verify the signature by the issuer's keys, and the token's issuer, subject, audience and times
         const { keys, algorithms } = await this.#keys(issuer);
         const { claims } = await Jwt.verify(

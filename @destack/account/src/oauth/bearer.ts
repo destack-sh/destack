@@ -178,7 +178,7 @@ function assertionKey(
 
 /** Read the sets a space or a machine belongs to: its account, residency and people. */
 async function containment(database: DatabaseConnection, subject: Subject): Promise<Subject[]> {
-    // read the account a space or a machine lives in, none for another principal or a residency's machine
+    // read the account of a space or a machine, none for other principals
     const snapshot = database.snapshot();
     const isSpace = principal.space.is(subject);
     if (!isSpace && !principal.machine.is(subject)) {
