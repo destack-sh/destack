@@ -23,6 +23,7 @@ const styles = style.create({
         borderWidth: stroke.border,
         borderColor: { default: color.input, ":focus-visible": color.ring },
         borderRadius: radius[3],
+        outlineOffset: `calc(-1 * ${stroke.border})`,
         color: color.foreground,
         transitionProperty: "border-color, outline-color",
         transitionDuration: motion.durationShort,

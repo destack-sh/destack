@@ -72,6 +72,7 @@ const styles = style.create({
             [style.when.descendant(":focus-visible", controlMarker)]: "solid",
         },
         outlineWidth: stroke.ring,
+        outlineOffset: `calc(-1 * ${stroke.border})`,
         outlineColor: {
             default: color.ring,
             [style.when.descendant('[aria-invalid="true"]', controlMarker)]:

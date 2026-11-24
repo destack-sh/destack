@@ -40,6 +40,7 @@ const styles = style.create({
         transitionTimingFunction: motion.easingStandard,
         outlineStyle: { default: "none", ":focus-within": "solid" },
         outlineWidth: stroke.ring,
+        outlineOffset: `calc(-1 * ${stroke.border})`,
         outlineColor: color.ring,
     },
     bare: {

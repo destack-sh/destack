@@ -81,6 +81,7 @@ const styles = style.create({
         borderColor: color.ring,
         outlineStyle: "solid",
         outlineWidth: stroke.ring,
+        outlineOffset: `calc(-1 * ${stroke.border})`,
         outlineColor: color.ring,
     },
     caret: {

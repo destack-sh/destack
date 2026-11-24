@@ -5,7 +5,7 @@ import caretRight from "@destack/icon/phosphor/caret-right";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
-import { color, size, space, swatch, weight } from "@destack/theme/tokens.stylex";
+import { color, size, space, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import {
     type Accessor,
@@ -102,7 +102,7 @@ const styles = style.create({
         textAlign: "center",
     },
     today: {
-        color: swatch.accentText,
+        backgroundColor: color.hover,
         fontWeight: weight.semibold,
     },
     day: {
