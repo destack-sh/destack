@@ -49,27 +49,29 @@ export class ObjectConnectionServer {
     readonly #upgrade: Request;
     /** Verify a call's caller as the server verifies a request's. */
     readonly #authenticate: (request: Request) => Promise<RequestContextOptions>;
-    /** The procedures the calls run. */
-    readonly #handler: StandardRPCHandler<RequestContext>;
+    /** Read the procedures the calls run, the server's current ones. */
+    readonly #procedures: () => StandardRPCHandler<RequestContext>;
     /** The peer decoding the calls and encoding their answers and pages. */
     readonly #peer: ServerPeer;
     /** The telemetry a failed call no one awaits reports to. */
     readonly #telemetry: Environment["telemetry"];
     /** The calls running now, each settling once its answer or its follow's last page went out. */
     readonly #running = new Set<Promise<void>>();
+    /** The abort of every call as the socket closes, a call decoded after the close included. */
+    readonly #closed = new AbortController();
 
     /** Serve a socket's calls as the caller an upgrade verified. */
     constructor(
         socket: Socket,
         upgrade: Request,
-        handler: StandardRPCHandler<RequestContext>,
+        procedures: () => StandardRPCHandler<RequestContext>,
         telemetry: Environment["telemetry"],
         authenticate: (request: Request) => Promise<RequestContextOptions>,
     ) {
         // take the socket, the upgrade's verified caller and the procedures, decoding calls as a peer
         this.socket = socket;
         this.#upgrade = upgrade;
-        this.#handler = handler;
+        this.#procedures = procedures;
         this.#telemetry = telemetry;
         this.#authenticate = authenticate;
         this.#peer = new ServerPeer((message) =>
@@ -90,6 +92,7 @@ export class ObjectConnectionServer {
 
     /** End every call and follow of a closed socket, settling once each one finished. */
     async close(): Promise<void> {
+        this.#closed.abort(new DOMException("the connection closed", "AbortError"));
         this.#peer.close();
         while (this.#running.size > 0) {
             await Promise.allSettled(this.#running);
@@ -104,7 +107,7 @@ export class ObjectConnectionServer {
 
     /** Answer one call in its own context: the upgrade's caller, the call's headers and abort. */
     async #answer(request: StandardRequest): Promise<StandardResponse> {
-        // read the call as a request beside the upgrade, without the upgrade's credentials, aborted as its client stops it
+        // read the call as a request beside the upgrade, without the upgrade's credentials, aborted as its client stops it or the socket closes
         const headers = new Headers(this.#upgrade.headers);
         for (const name of UPGRADE_CREDENTIALS) {
             headers.delete(name);
@@ -117,15 +120,14 @@ export class ObjectConnectionServer {
                 headers.set(name, value);
             }
         }
-        const { signal } = request;
-        const called = new Request(this.#upgrade.url, {
-            headers,
-            ...(signal === undefined ? {} : { signal }),
-        });
+        const closed = this.#closed.signal;
+        const signal =
+            request.signal === undefined ? closed : AbortSignal.any([request.signal, closed]);
+        const called = new Request(this.#upgrade.url, { headers, signal });
 
         // run the procedure in a context of its own, its caller verified for this call
         const context = new RequestContext(called, await this.#authenticate(called));
-        const { response } = await this.#handler.handle(
+        const { response } = await this.#procedures().handle(
             { ...request, body: () => Promise.resolve(request.body) },
             { context },
         );

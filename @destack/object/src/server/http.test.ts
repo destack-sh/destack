@@ -15,6 +15,7 @@ import { CallError } from "../error/index.ts";
 import type { RequestContext } from "./context.ts";
 import { Bookmark, BOOKMARK_HEADER } from "../procedure/bookmark.ts";
 import { Watermark } from "@destack/sync";
+import { CONNECTION_PATH } from "../replica/connection.ts";
 
 /** The authentication lifetime of the lapsing callers, which the scenarios' clock moves past. */
 const LAPSE_MILLISECONDS = 200;
@@ -964,5 +965,45 @@ test("refuse a caller authenticated for another package as unauthenticated, audi
     );
     expect(audited).toEqual([
         "authentication required: caller authentication has a different audience or scope",
+    ]);
+});
+
+test("refuse a connection the server drains while authenticating it, and finish the drain", async () => {
+    // serve a store connection whose caller verifies only once released
+    const world = testSimulation().environment("test");
+    const release = Promise.withResolvers<void>();
+    const implementation = implement({ health });
+    const server = Server.start({
+        environment: world,
+        ...hosting,
+        health: new Health("connections"),
+        drainTimeout: 1000,
+        authenticate: async (request) => {
+            await release.promise;
+
+            return authenticateByName(world.clock)(request);
+        },
+        router: implementation.router({ health: implementHealth(new Health("connections")) }),
+    });
+    await server.health.waitUp(world.clock.timeout(1000));
+
+    // ask to connect, drain the server meanwhile, then verify the caller
+    const upgrade = new Request(`https://test.local${CONNECTION_PATH}`, {
+        headers: { authorization: "alice", upgrade: "websocket", connection: "Upgrade" },
+    });
+    const connecting = server.fetch(upgrade);
+    const closing = server.close();
+    release.resolve();
+
+    // answer the connection as draining, the drain ending with it
+    const answered = await connecting;
+    const body = schema.looseObject({ reason: schema.string(), message: schema.string() });
+    const { reason, message } = body.parse(await answered.json());
+    await closing;
+    expect([answered.status, reason, message, server.health.status]).toEqual([
+        503,
+        "SERVER_UNAVAILABLE",
+        "server 'connections' is unavailable: it is draining: the server drains its requests",
+        "stopped",
     ]);
 });

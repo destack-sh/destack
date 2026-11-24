@@ -132,6 +132,9 @@ export class WorkloadInstance implements AsyncDisposable {
             // switch to the next start, running one start's controllers at a time
             const previous = this.#current;
             this.#current = next;
+            this.#instruments.log.info("destack.workload.reloaded", {
+                "destack.workload.name": this.#workload.name,
+            });
             await previous.stopControllers();
             activation.resolve();
 
@@ -241,8 +244,9 @@ class WorkloadStart {
             readonly protocols: ReadonlyMap<string, readonly RegExp[]>;
         }
     >();
-    /** How the start serves its packages: the instance's options, alarm clock and activation. */
+    /** How the start serves: its workload, the instance's options, alarm clock and activation. */
     readonly #serving: {
+        readonly workload: Workload;
         readonly options: WorkloadInstanceOptions;
         readonly clock: AlarmClock | undefined;
         readonly activation: Promise<void>;
@@ -268,8 +272,9 @@ class WorkloadStart {
     /** The start's captures of failures no caller awaits, on its environment's telemetry. */
     readonly #instruments: TelemetryScope;
 
-    /** Prepare a start serving packages with its instance's options, alarm clock and activation. */
+    /** Prepare a start of a workload with its instance's options, alarm clock and activation. */
     private constructor(serving: {
+        readonly workload: Workload;
         readonly options: WorkloadInstanceOptions;
         readonly clock: AlarmClock | undefined;
         readonly activation: Promise<void>;
@@ -290,7 +295,7 @@ class WorkloadStart {
         activation: Promise<void>,
     ): Promise<WorkloadStart> {
         // abort the start with its instance
-        const start = new WorkloadStart({ options, clock, activation });
+        const start = new WorkloadStart({ workload, options, clock, activation });
         host.signal.addEventListener("abort", () => start.shutdown(), { once: true });
         if (host.signal.aborted) {
             start.shutdown();
@@ -312,9 +317,7 @@ class WorkloadStart {
             });
 
             // start a server per package, and run the store's jobs once this start is current
-            for (const served of implementation.packages) {
-                start.#serve(served);
-            }
+            start.serve(implementation.packages);
             start.#store = implementation.store;
             start.#running = start.#run(implementation.store, implementation.control ?? (() => []));
             start.#sockets = implementation.sockets;
@@ -367,25 +370,27 @@ class WorkloadStart {
         }
     }
 
-    /** Start a served package's server. */
+    /** Serve a package: start its server, else update the server serving it in place. */
     #serve(served: PackageHandler): void {
-        // refuse a cancelled start and a package served twice
+        // refuse a cancelled start
         this.#controller.signal.throwIfAborted();
         const { options } = this.#serving;
         const handle = served.package;
-        if (this.#packages.has(handle.id)) {
-            throw new TypeError(`duplicate workload package: '${handle.name}'`);
-        }
-
-        // start the server, which captures its own failures
-        const server = Server.start({
+        const running = this.#packages.get(handle.id)?.server;
+        const serverOptions = {
             ...options.serverOptions(handle),
             ...served,
             ...(options.hibernation === undefined ? {} : { hibernation: options.hibernation }),
-            health: new Health(handle.name),
+            health: running?.health ?? new Health(handle.name),
             resources: options.resources,
             environment: options.environment,
-        });
+        };
+
+        // update the running server, its connections calling the new handler, else start one
+        if (running !== undefined) {
+            running.update(serverOptions);
+        }
+        const server = running ?? Server.start(serverOptions);
 
         // match each protocol route's path and the paths below it, each parameter one segment
         const protocols = new Map(
@@ -400,23 +405,39 @@ class WorkloadStart {
         this.#packages.set(handle.id, { handle, handler: served, server, protocols });
     }
 
-    /** Serve another set of packages, keeping unchanged servers, the replaced ones draining. */
+    /** Serve another set of packages, updating changed servers in place, removed ones draining. */
     serve(handlers: readonly PackageHandler[]): void {
-        // take out the servers of packages no longer served or served by another handler
-        const replaced = [...this.#packages].filter(
-            ([, served]) => !handlers.includes(served.handler),
-        );
-        for (const [packageId] of replaced) {
+        // refuse a package served twice
+        const ids = handlers.map((handler) => handler.package.id);
+        const twice = handlers.find((handler, index) => ids.indexOf(handler.package.id) !== index);
+        if (twice !== undefined) {
+            throw new TypeError(`duplicate workload package: '${twice.package.name}'`);
+        }
+
+        // take out the servers of packages no longer served
+        const kept = new Set<string>(ids);
+        const removed = [...this.#packages].filter(([packageId]) => !kept.has(packageId));
+        for (const [packageId] of removed) {
             this.#packages.delete(packageId);
         }
 
         // serve the added and changed packages
-        for (const handler of handlers.filter((each) => !this.#packages.has(each.package.id))) {
+        const changed = handlers.filter(
+            (handler) => this.#packages.get(handler.package.id)?.handler !== handler,
+        );
+        for (const handler of changed) {
             this.#serve(handler);
         }
 
-        // drain the replaced servers beside the start, which may run the caller's own controller
-        for (const [, served] of replaced) {
+        // log the packages it serves anew and removes
+        this.#instruments.log.info("destack.workload.served", {
+            "destack.workload.name": this.#serving.workload.name,
+            "destack.workload.changed": changed.map((handler) => handler.package.name),
+            "destack.workload.removed": removed.map(([, served]) => served.handle.name),
+        });
+
+        // drain the removed servers beside the start, which may run the caller's own controller
+        for (const [, served] of removed) {
             const draining = served.server
                 .close()
                 .catch((error: unknown) =>

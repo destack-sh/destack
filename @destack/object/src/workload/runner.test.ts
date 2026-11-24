@@ -289,7 +289,10 @@ test("start the workload with its installation's settings, serve a forwarded cal
             .filter((request) => request.events.length > 0)
             .map(({ spans: _spans, ...request }) => request),
     }).toEqual({
-        started: [["destack.workload.start"], ["destack.workload.started"]],
+        started: [
+            ["destack.workload.start"],
+            ["destack.workload.served", "destack.workload.started"],
+        ],
         settings: { [`${notes.id}/language`]: "de" },
         unauthorized: [
             401,
@@ -315,7 +318,7 @@ test("start the workload with its installation's settings, serve a forwarded cal
                         "service.version": notes.version,
                     },
                 ],
-                events: ["destack.workload.started"],
+                events: ["destack.workload.served", "destack.workload.started"],
             },
             {
                 url: "http://host.test/.destack/telemetry/v1/logs",

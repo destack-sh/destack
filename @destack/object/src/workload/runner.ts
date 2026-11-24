@@ -1,3 +1,4 @@
+import { present } from "@destack/schema";
 import { OriginPath } from "@destack/package";
 import { CallFrame } from "../replica/frame.ts";
 import { Caller } from "@destack/access";
@@ -21,8 +22,14 @@ import { refusal } from "../error/report.ts";
 import { Egress } from "../declare/egress.ts";
 import { PackageMount } from "../declare/mount.ts";
 import { WorkloadInstance } from "./instance.ts";
-import { HOOK_PATH, type WorkloadStart } from "./start.ts";
-import { Hibernation, SOCKET_PATH, type SocketHost } from "./socket.ts";
+import { HOOK_PATH, PARTITION_HEADER, PARTITION_PARAMETER, type WorkloadStart } from "./start.ts";
+import {
+    Hibernation,
+    SOCKET_HEADER,
+    SOCKET_PATH,
+    SocketDescription,
+    type SocketHost,
+} from "./socket.ts";
 import type { Alarm } from "@destack/db/database";
 import type { EphemeralHost, ServerContext, Workload } from "./workload.ts";
 import { CallKey } from "../audit/key.ts";
@@ -80,6 +87,10 @@ export class WorkloadRunner implements AsyncDisposable {
     #isClosing = false;
     /** The workload's bounded attribute on its spans, durations and logs. */
     readonly #attributes: { readonly "destack.workload.name": string };
+    /** Start a partition's runner in this process, absent for a partition's own runner. */
+    readonly #startPartition: ((partition: string) => Promise<WorkloadRunner>) | undefined;
+    /** The runners of the partitions below this root, started on their first call. */
+    readonly #partitions = new Map<string, Promise<WorkloadRunner>>();
 
     /** Create the runner with a started instance and its telemetry. */
     private constructor(
@@ -92,10 +103,12 @@ export class WorkloadRunner implements AsyncDisposable {
         scheduler: Environment["scheduler"],
         report: (error: unknown) => void,
         attributes: { readonly "destack.workload.name": string },
+        startPartition: ((partition: string) => Promise<WorkloadRunner>) | undefined,
     ) {
         // set the instance and what it runs with
         this.start = start;
         this.#attributes = attributes;
+        this.#startPartition = startPartition;
         this.instance = instance;
         this.#packages = packages;
         this.#telemetry = running;
@@ -153,6 +166,16 @@ export class WorkloadRunner implements AsyncDisposable {
                 runner.environment.scheduler,
                 report,
                 attributes,
+                start.partition === undefined
+                    ? (partition) =>
+                          WorkloadRunner.start(
+                              runner,
+                              { ...start, partition },
+                              build,
+                              startTelemetry,
+                              report,
+                          )
+                    : undefined,
             );
             started.#export();
 
@@ -187,7 +210,12 @@ export class WorkloadRunner implements AsyncDisposable {
             url: Egress.beside(start.egress, SOCKET_PATH),
             fetch: (request: Request) => runner.environment.network.fetch(request),
         };
-        const hibernation = new Hibernation(host, { secret: start.secret }, environment.telemetry);
+        const hibernation = new Hibernation(
+            host,
+            { secret: start.secret },
+            environment.telemetry,
+            start.partition,
+        );
         const instance = await WorkloadInstance.start(runner.workload, {
             resources,
             server: WorkloadRunner.#server(runner, start, { build, stack, resources, keys }),
@@ -278,6 +306,12 @@ export class WorkloadRunner implements AsyncDisposable {
 
     /** Serve a forwarded request, exporting its traces and logs once it is answered. */
     fetch(request: Request): Promise<Response> {
+        // hand a call or a socket event of a partition below this root to the partition's runner
+        const partition = this.#partitionOf(request);
+        if (partition !== undefined) {
+            return this.#partition(partition).then((runner) => runner.fetch(request));
+        }
+
         // serve it, then export once it is answered or refused
         const answered = this.#serveRequest(request);
         const exported = () => this.#export();
@@ -372,6 +406,38 @@ export class WorkloadRunner implements AsyncDisposable {
         }
     }
 
+    /** Read the partition below this root a request goes to, absent for the root's own. */
+    #partitionOf(request: Request): string | undefined {
+        // take the partition a call names, else the one that accepted a socket an event concerns
+        const url = new URL(request.url);
+        const socket = request.headers.get(SOCKET_HEADER);
+        const named =
+            request.headers.get(PARTITION_HEADER) ??
+            url.searchParams.get(PARTITION_PARAMETER) ??
+            (socket === null ? undefined : SocketDescription.parse(JSON.parse(socket)).partition);
+
+        // leave a call for the root, its scope, or for a partition's own runner
+        const isRoot = named === undefined || named === this.start.scope;
+
+        return isRoot || this.#startPartition === undefined ? undefined : named;
+    }
+
+    /** Start a partition's runner below this root once, forgetting a failed start. */
+    #partition(partition: string): Promise<WorkloadRunner> {
+        // join a start in progress or done
+        const known = this.#partitions.get(partition);
+        if (known !== undefined) {
+            return known;
+        }
+
+        // start it in this process, as the cloud starts one object per partition
+        const started = present(this.#startPartition, "the root's partition start")(partition);
+        this.#partitions.set(partition, started);
+        started.catch(() => this.#partitions.delete(partition));
+
+        return started;
+    }
+
     /** Drain and stop the instance with its resources and its remaining telemetry. */
     async close(): Promise<void> {
         // stop the instance and its resources in the stop's span, then log the stop and flush
@@ -382,8 +448,15 @@ export class WorkloadRunner implements AsyncDisposable {
                 "destack.workload.stop",
                 attributes,
                 async () => {
+                    // stop the root, then each partition started below it
                     await this.instance.close();
                     await this.#connections.disposeAsync();
+                    const started = await Promise.allSettled(this.#partitions.values());
+                    for (const result of started) {
+                        if (result.status === "fulfilled") {
+                            await result.value.close();
+                        }
+                    }
                 },
                 { duration: { attributes } },
             );
