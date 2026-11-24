@@ -1,15 +1,11 @@
 import type { BrowserEnvironment } from "@destack/environment/browser";
-import type { Given } from "@destack/package/declare";
-import type { JsonObject, JsonValue } from "@destack/schema";
+import type { Example, Given, Scenario } from "@destack/package/declare";
+import { type JsonObject, type JsonValue, present } from "@destack/schema";
+import type { Catalog } from "@destack/locale";
 import type { JSX } from "@solidjs/web";
 import { computeAccessibleName, getRole, isDisabled, isInaccessible } from "dom-accessibility-api";
 import { createSignal } from "solid-js";
-import {
-    type Globals,
-    type Locator,
-    OBSERVED_STATES,
-    type Observation,
-} from "../scenario/index.ts";
+import { Globals, type Locator, OBSERVED_STATES, type Observation } from "../scenario/index.ts";
 import { renderExample } from "./frame.ts";
 
 /** The global a page exposes its stage as. */
@@ -80,29 +76,6 @@ export class Stage {
         }
 
         return new Stage(container, examples, mounted);
-    }
-
-    /** Load a scenario from a module and render its examples. */
-    static async load(
-        container: HTMLElement,
-        module: string,
-        name: string,
-        environment: BrowserEnvironment,
-    ): Promise<Stage> {
-        // find the scenario among the module's exports
-        const exports: unknown = await import(/* @vite-ignore */ module);
-        const scenario = Object.values(exports ?? {}).find(
-            (each): each is { readonly given: Given<JSX.Element, Globals> } =>
-                typeof each === "object" &&
-                each !== null &&
-                "given" in each &&
-                Reflect.get(each, "name") === name,
-        );
-        if (scenario === undefined) {
-            throw new TypeError(`module '${module}' exports no scenario '${name}'`);
-        }
-
-        return Stage.render(container, scenario.given, environment);
     }
 
     /** Unmount the examples. */
@@ -224,16 +197,6 @@ export class Stage {
 
         return nth === undefined ? [] : [nth];
     }
-}
-
-/** Render a scenario's examples in a page and expose their stage. */
-export async function hostScenario(
-    element: HTMLElement,
-    module: string,
-    name: string,
-    environment: BrowserEnvironment,
-): Promise<void> {
-    Reflect.set(globalThis, STAGE, await Stage.load(element, module, name, environment));
 }
 
 /** Read the accessible name of the focused element. */
@@ -369,4 +332,53 @@ function isModal(dialog: Element): boolean {
     const isMatched = typeof CSS !== "undefined" && CSS.supports("selector(:modal)");
 
     return isMatched && dialog.matches(":modal");
+}
+
+/** Frame the declaration a page's address selects by its module's path and its name. */
+export async function hostFrame(
+    element: HTMLElement,
+    modules: Readonly<Record<string, () => Promise<unknown>>>,
+    catalogs: readonly Catalog[],
+    environment: BrowserEnvironment,
+): Promise<void> {
+    // read the module, the name and the globals the URL names, and find the declaration by name
+    const url = new URL(environment.navigation.currentEntry.url);
+    const module = present(url.searchParams.get("module"), "the framed module");
+    const name = present(url.searchParams.get("name"), "the framed name");
+    const globals = Globals.parse(JSON.parse(url.searchParams.get("globals") ?? "{}"));
+    const load = present(modules[`/${module}`], `the module '${module}' of the frame`);
+    const loaded = await load();
+    const exported: readonly unknown[] =
+        typeof loaded === "object" && loaded !== null ? Object.values(loaded) : [];
+    const value = exported.find(
+        (each) => typeof each === "object" && each !== null && Reflect.get(each, "name") === name,
+    );
+
+    // refuse an export of the name that is no example or scenario
+    if (!isFramed(value)) {
+        throw new TypeError(
+            `export '${name}' of '${module}' is invalid: it is no example or scenario`,
+        );
+    }
+
+    // render an example
+    if (value.kind === "example") {
+        renderExample(element, { example: value, globals, catalogs }, environment);
+    }
+    // stage a scenario's examples for its driver
+    else {
+        Reflect.set(globalThis, STAGE, Stage.render(element, value.given, environment));
+    }
+}
+
+/** Report whether a module's export is an example or a scenario a frame shows, by its kind. */
+function isFramed(
+    value: unknown,
+): value is Example<object, JSX.Element> | Scenario<unknown, unknown, Globals, JSX.Element> {
+    return (
+        typeof value === "object" &&
+        value !== null &&
+        "kind" in value &&
+        (value.kind === "example" || value.kind === "scenario")
+    );
 }

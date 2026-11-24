@@ -17,7 +17,7 @@ import {
 import { BASELINE_MODULE } from "@destack/package/vite";
 import { type OutputContent, ViewDescription, ViewRender } from "@destack/package/manifest";
 import { ACTION_KIND, ActionDescription } from "@destack/object";
-import { present } from "@destack/schema";
+import { present, Version } from "@destack/schema";
 import { THEME_KIND } from "@destack/theme/declare";
 import { fontPlugin } from "./font.ts";
 import { imagePlugin } from "./image.ts";
@@ -36,6 +36,18 @@ export const PREFIX = `${GENERATED}view/`;
 
 /** The generated module of the package's device worker, serving every client view's objects. */
 const DEVICE_MODULE = `${GENERATED}device`;
+
+/** The generated module of a browser output's frame, rendering the example or scenario it names. */
+const FRAME_MODULE = `${GENERATED}frame`;
+
+/** The entrypoint of a browser output's frame, which the frame view mounts. */
+const FRAME_ENTRYPOINT = "./frame";
+
+/** The package's catalogs, which a frame translates its examples by, as Vite globs them. */
+const CATALOGS = `Object.values(import.meta.glob("/locale/**/*.json", { eager: true, import: "default" }))`;
+
+/** The modules of a package's examples and scenarios, which a frame loads as Vite globs them. */
+const FRAMED = `import.meta.glob(["/{src,test,tests}/**/*.{example,scenario}.{ts,tsx}"])`;
 
 /** The directory of the assets an output emits, as the build names them. */
 const ASSET_DIRECTORY = "asset/";
@@ -81,6 +93,15 @@ export const viewExtension: BuildExtension = {
             compilation.entry(`./view/${view.name}`, `${PREFIX}${view.name}`);
         }
 
+        // emit the frame of a browser development build whose package renders through this one
+        const isFramed =
+            compilation.runtime === "browser" &&
+            !Version.isRelease(compilation.package.version) &&
+            compilation.requires.has(VIEW_PACKAGE);
+        if (isFramed) {
+            compilation.entry(FRAME_ENTRYPOINT, FRAME_MODULE);
+        }
+
         // address a server output's assets where an origin publishes them, in a library too
         const isServer = compilation.runtime === "bun";
 
@@ -120,7 +141,16 @@ export const viewExtension: BuildExtension = {
         // refuse a second main view, which the package's origin opens at its root
         ViewDescription.main(views);
 
-        return { views };
+        // describe the frame a development build emits, which its origin serves at its reserved path
+        const entrypoint = compiled.exports[FRAME_ENTRYPOINT];
+        if (entrypoint === undefined) {
+            return { views };
+        }
+
+        return {
+            views,
+            frame: { entrypoint, stylesheets: compiled.stylesheets(FRAME_ENTRYPOINT) },
+        };
     },
     prerender: {
         isRendering: (declarations) =>
@@ -418,12 +448,27 @@ export function entryPlugin(views: readonly LocatedView[], compilation: ViewPack
                 const isServer = options?.ssr === true;
                 if (id === `\0${DEVICE_MODULE}`) {
                     return deviceModule(views.filter((entry) => entry.render.mode !== "static"));
+                } else if (id === `\0${FRAME_MODULE}`) {
+                    return frameModule();
                 }
 
                 return view && entryModule(view, isServer, compilation, declared);
             },
         },
     };
+}
+
+/** Write a browser output's frame module, framing the declaration its page's address selects. */
+function frameModule(): string {
+    return [
+        `import ${JSON.stringify(BASELINE_MODULE)};`,
+        ...STYLESHEETS.map((path) => `import ${JSON.stringify(path)};`),
+        `import { BrowserEnvironment } from "${VIEW_PACKAGE}/browser";`,
+        `import { hostFrame } from "${VIEW_PACKAGE}/example";`,
+        ``,
+        `await hostFrame(document.body, ${FRAMED}, ${CATALOGS}, BrowserEnvironment.system);`,
+        ``,
+    ].join("\n");
 }
 
 /** Write the package's device worker module, serving the person's device to its views' tabs. */

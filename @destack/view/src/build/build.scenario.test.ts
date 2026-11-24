@@ -49,7 +49,7 @@ function invoke(
     return Reflect.apply(hook.handler, undefined, parameters);
 }
 
-test("mount each declared view from a separate browser chunk and describe it in the output", async () => {
+test("split each view into a browser chunk", async () => {
     // build the notebook package's browser output on its stored dependency builds, the router's JSX on view's runtime
     await using simulation = testSimulation();
     await using store = await testStore();
@@ -65,7 +65,7 @@ test("mount each declared view from a separate browser chunk and describe it in 
         }),
     );
 
-    // describe the view by its generated chunk, exported under its entrypoint
+    // describe the view by its generated chunk, exported under its entrypoint, and the development build's frame
     const output = build.manifest.outputs["browser"];
     if (output === undefined) {
         throw new TypeError("missing browser output");
@@ -73,12 +73,13 @@ test("mount each declared view from a separate browser chunk and describe it in 
     const entrypoint = output.views["notebooks"]?.entrypoint ?? "";
     expect([
         Object.keys(output.views),
+        output.frame !== undefined,
         output.exports["./view/notebooks"]?.path === entrypoint,
         entrypoint === "output/browser/view-notebooks.js",
-    ]).toEqual([["notebooks"], true, true]);
+    ]).toEqual([["notebooks"], true, true, true]);
 });
 
-test("generate the module mounting a view with its package's theme and the actions it declares calling methods, and describe it with its package's browser capabilities", () => {
+test("generate a view's mount with its theme, actions and capabilities", () => {
     // compile a browser output of a package declaring one view, a theme, two actions calling methods and one its view handles, using the network and the camera
     const owner = PackageVersion.parse({
         id: "package-01996ab0-0000-7000-8000-00000000000c",
@@ -143,6 +144,7 @@ test("generate the module mounting a view with its package's theme and the actio
         package: owner,
         directory: "/package",
         exports: {},
+        requires: new Set(),
         runtime: "browser",
         sandbox: { network: { connect: ["api.github.com"] }, camera: {} },
         declarations: [
@@ -223,7 +225,7 @@ test("generate the module mounting a view with its package's theme and the actio
     ]);
 });
 
-test("refuse Solid server functions before their bodies can enter a browser output", async () => {
+test("refuse Solid server functions in a browser output", async () => {
     // transform a module declaring a server function through the framework plugin
     const [framework] = flatten(viewPlugins(false));
 

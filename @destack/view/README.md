@@ -29,7 +29,7 @@ Scenarios play a package's examples:
 
 - `viewInteraction`: the steps and observations of a UI scenario.
 - `ViewDriver`: plays scenarios in a test DOM.
-- `BrowserDriver`: plays scenarios in Chromium.
+- `BrowserDriver`: plays scenarios in Chromium, each in its package's frame.
 
 Declare a notes view that lists and renames notes live:
 
@@ -389,6 +389,20 @@ export const noteHold = defineScenario({
         },
     ],
 });
+```
+
+### Frame an example
+
+An origin serves a development build's frame at `OriginPath.frame`, rendering the example or scenario a `module` and `name` select.
+
+```ts
+import { OriginPath } from "@destack/package";
+
+export function frameOf(origin: string): string {
+    const query = new URLSearchParams({ module: "src/note/note.example.tsx", name: "groceries" });
+
+    return `${origin}${OriginPath.frame}?${query}`; // Storybook's iframe.html?id=
+}
 ```
 
 ## Comparison

@@ -1,8 +1,8 @@
 import { relative } from "node:path";
 import type { Clock } from "@destack/environment";
 import type { SimulatedTelemetry } from "@destack/environment/simulation";
-import { OriginPath } from "@destack/package";
 import type { Given, SetStep } from "@destack/package/declare";
+import { OriginPath } from "@destack/package";
 import { type JsonValue, present, schema } from "@destack/schema";
 import { type Driver, expect, inject } from "@destack/test";
 import type { JSX } from "@solidjs/web";
@@ -96,7 +96,7 @@ export class BrowserDriver implements Driver<Step, Observation> {
         const path = present(state.testPath, "the running test's file");
         const title = present(state.currentTestName, "the running test's name");
         const name = present(title.split(" > ").at(-1), "the running scenario's name");
-        const query = new URLSearchParams({ scenario: `/${relative(root, path)}`, name });
+        const query = new URLSearchParams({ module: relative(root, path), name });
         const now = testBrowser().clock.now();
         await page.clock.install({ time: now });
 
@@ -116,7 +116,7 @@ export class BrowserDriver implements Driver<Step, Observation> {
 
         // wait for the stage, then leave later errors to the driver
         const load = async () => {
-            await page.goto(`${origin}${OriginPath.examples}?${query.toString()}`);
+            await page.goto(`${origin}${OriginPath.frame}?${query.toString()}`);
             await page.waitForFunction((exposed) => exposed in globalThis, STAGE);
         };
         try {
