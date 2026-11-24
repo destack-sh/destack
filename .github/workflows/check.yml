@@ -8,6 +8,12 @@ on:
 permissions:
     contents: read
 
+env:
+    # the shared test store: test files that passed over each package closure, with their durations
+    DESTACK_CI_STORE: https://27c0d00fb3a27a4ccbf46a3cceab9301.r2.cloudflarestorage.com/destack-ci
+    DESTACK_CI_STORE_KEY_ID: ${{ secrets.DESTACK_CI_STORE_KEY_ID }}
+    DESTACK_CI_STORE_TOKEN: ${{ secrets.DESTACK_CI_STORE_TOKEN }}
+
 concurrency:
     group: ${{ github.workflow }}-check-${{ github.event.pull_request.number || github.ref }}
     cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -41,13 +47,6 @@ jobs:
                   sudo install actionlint /usr/local/bin/actionlint
             - name: Check the workflows, the repository's documents and the shared settings
               run: just check-repository
-            - name: Restore the test durations
-              uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-              with:
-                  # restore the latest record by prefix
-                  path: ~/.cache/destack/durations.json
-                  key: destack-test-durations-${{ runner.os }}-${{ github.sha }}-${{ github.run_attempt }}
-                  restore-keys: destack-test-durations-${{ runner.os }}-
             - name: List affected packages and divide them across the runners
               id: affected
               env:
@@ -69,7 +68,7 @@ jobs:
                   runners="[]"
                   if [ -n "$packages" ]; then
                       # shellcheck disable=SC2086
-                      runners="$(just check-runners "$HOME/.cache/destack/durations.json" $packages)"
+                      runners="$(just schedule $packages)"
                   fi
                   echo "runners=$runners" >> "$GITHUB_OUTPUT"
                   jq --raw-output '.[] | "runner \(.runner): \(.milliseconds / 1000 | round) s, " + ([.work[].package] | join(" "))' <<< "$runners"
@@ -148,53 +147,24 @@ jobs:
                       ~/.cache/destack/templates
                   key: destack-test-records-2-${{ runner.os }}-${{ github.sha }}
                   restore-keys: destack-test-records-2-${{ runner.os }}-
-            - name: Restore the check caches
-              uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-              with:
-                  # tsc rechecks only changed files, and a lint or a test run over the same inputs reuses its result
-                  path: |
-                      @*/*/node_modules/.cache/destack/test
-                  key: destack-check-2-${{ runner.os }}-${{ github.sha }}
-                  restore-keys: destack-check-2-${{ runner.os }}-
             - name: Run the checks
               env:
                   WORK: ${{ toJSON(matrix.work) }}
-                  RUNNER: ${{ matrix.runner }}
-                  DESTACK_TEST_POSTGRES: postgres://postgres@127.0.0.1:55432/postgres
               run: |
                   # run each package and go on past failures
                   failed=()
-                  record='{"files": {}, "checks": {}, "scripts": {}}'
                   while read -r item; do
                       package="$(jq --raw-output .package <<< "$item")"
                       mapfile -t files < <(jq --raw-output '.files[]' <<< "$item")
                       echo "::group::$package"
 
-                      # check and time the package
+                      # check the package on its one runner, then test its files not yet passed
                       if [ "$(jq --raw-output .isChecked <<< "$item")" = true ]; then
-                          started="${EPOCHREALTIME/./}"
                           just check-package "$package" || failed+=("$package checks")
-                          milliseconds=$(( (${EPOCHREALTIME/./} - started) / 1000 ))
-                          record="$(jq --arg package "$package" --argjson milliseconds "$milliseconds" '.checks[$package] = $milliseconds' <<< "$record")"
                       fi
-
-                      # test and time the files or the whole package
-                      started="${EPOCHREALTIME/./}"
                       just test "$package" "${files[@]}" || failed+=("$package tests")
-                      milliseconds=$(( (${EPOCHREALTIME/./} - started) / 1000 ))
-                      if [ "${#files[@]}" -eq 0 ]; then
-                          record="$(jq --arg package "$package" --argjson milliseconds "$milliseconds" '.scripts[$package] = $milliseconds' <<< "$record")"
-                      fi
-
-                      # record each file's share of the run
-                      durations="$(just test-durations "$package" "$milliseconds")"
-                      record="$(jq --argjson durations "$durations" '.files += $durations' <<< "$record")"
                       echo "::endgroup::"
                   done < <(jq --compact-output '.[]' <<< "$WORK")
-
-                  # keep the record for the durations job
-                  mkdir -p "$RUNNER_TEMP/durations"
-                  echo "$record" > "$RUNNER_TEMP/durations/durations-$RUNNER.json"
 
                   # name the failures and fail the job
                   if [ "${#failed[@]}" -gt 0 ]; then
@@ -204,32 +174,6 @@ jobs:
                       done
                       exit 1
                   fi
-            - name: Upload the test durations
-              if: always()
-              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-              with:
-                  name: durations-${{ matrix.runner }}
-                  retention-days: 1
-                  path: ${{ runner.temp }}/durations/durations-${{ matrix.runner }}.json
-                  if-no-files-found: ignore
-            - name: Pack the check caches
-              if: always()
-              run: |
-                  # pack the caches at their repository paths, which an artifact would cut to their common directory
-                  shopt -s nullglob
-                  caches=(@*/*/node_modules/.cache/destack/test)
-                  mkdir -p "$RUNNER_TEMP/check"
-                  if [ "${#caches[@]}" -gt 0 ]; then
-                      tar -cf "$RUNNER_TEMP/check/check-${{ matrix.runner }}.tar" "${caches[@]}"
-                  fi
-            - name: Upload the check caches
-              if: always()
-              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-              with:
-                  name: check-${{ matrix.runner }}
-                  retention-days: 1
-                  path: ${{ runner.temp }}/check/check-${{ matrix.runner }}.tar
-                  if-no-files-found: ignore
             - name: Save the test builds and templates
               # save once per commit from the runner with the heaviest part
               if: matrix.runner == 1
@@ -241,82 +185,6 @@ jobs:
                       ~/.cache/destack/test/layered
                       ~/.cache/destack/templates
                   key: destack-test-records-2-${{ runner.os }}-${{ github.sha }}
-
-    durations:
-        name: Record the test durations
-        needs: [repository, check]
-        if: ${{ !cancelled() && needs.repository.outputs.runners != '[]' }}
-        runs-on: ubuntu-24.04
-        timeout-minutes: 5
-        steps:
-            - name: Check out repository
-              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-              with:
-                  persist-credentials: false
-            - name: Restore the test durations
-              uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-              with:
-                  path: ~/.cache/destack/durations.json
-                  key: destack-test-durations-${{ runner.os }}-${{ github.sha }}-${{ github.run_attempt }}
-                  restore-keys: destack-test-durations-${{ runner.os }}-
-            - name: Download the runners' durations
-              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-              with:
-                  pattern: durations-*
-                  path: ${{ runner.temp }}/durations
-                  merge-multiple: true
-            - name: Merge the durations
-              run: |
-                  # merge the records and drop deleted files and packages
-                  shopt -s nullglob
-                  mkdir -p ~/.cache/destack
-                  records=("$RUNNER_TEMP"/durations/*.json)
-                  if [ -f ~/.cache/destack/durations.json ]; then
-                      records=(~/.cache/destack/durations.json "${records[@]}")
-                  fi
-                  git ls-files | jq --raw-input --slurp --compact-output 'split("\n")' > "$RUNNER_TEMP/tracked.json"
-                  jq --slurp --slurpfile tracked "$RUNNER_TEMP/tracked.json" '
-                      ($tracked[0] | map({ key: ., value: true }) | from_entries) as $files
-                      | ($tracked[0] | map(select(endswith("/package.json")) | rtrimstr("/package.json") | { key: ., value: true }) | from_entries) as $packages
-                      | reduce .[] as $record ({ files: {}, checks: {}, scripts: {} }; . * $record)
-                      | .files |= with_entries(select($files[.key]))
-                      | .checks |= with_entries(select($packages[.key]))
-                      | .scripts |= with_entries(select($packages[.key]))
-                  ' "${records[@]}" /dev/null > "$RUNNER_TEMP/durations.json"
-                  mv "$RUNNER_TEMP/durations.json" ~/.cache/destack/durations.json
-                  jq '{ files: (.files | length), checks: (.checks | length), scripts: (.scripts | length) }' ~/.cache/destack/durations.json
-            - name: Save the test durations
-              uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-              with:
-                  path: ~/.cache/destack/durations.json
-                  key: destack-test-durations-${{ runner.os }}-${{ github.sha }}-${{ github.run_attempt }}
-            - name: Restore the check caches
-              uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-              with:
-                  path: |
-                      @*/*/node_modules/.cache/destack/test
-                  key: destack-check-2-${{ runner.os }}-${{ github.sha }}
-                  restore-keys: destack-check-2-${{ runner.os }}-
-            - name: Download the runners' check caches
-              # overlay this run's caches on the previous ones, keeping the packages it left unchecked
-              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-              with:
-                  pattern: check-*
-                  path: ${{ runner.temp }}/check
-                  merge-multiple: true
-            - name: Unpack the runners' check caches
-              run: |
-                  # unpack each runner's caches at their repository paths
-                  shopt -s nullglob
-                  for archive in "$RUNNER_TEMP"/check/*.tar; do
-                      tar -xf "$archive"
-                  done
-            - name: Save the check caches
-              uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-              with:
-                  path: |
-                      @*/*/node_modules/.cache/destack/test
-                  key: destack-check-2-${{ runner.os }}-${{ github.sha }}
 
     macos:
         name: Test updates on macOS

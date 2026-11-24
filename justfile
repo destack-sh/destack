@@ -6,9 +6,6 @@ set dotenv-filename := ".env.local"
 # run every database test on SQLite and the test PostgreSQL
 export DESTACK_TEST_POSTGRES := "postgres://postgres@127.0.0.1:55432/postgres"
 
-# the milliseconds of work each CI runner takes: 2 to 3 minutes of wall time minus about a minute of setup
-runner_milliseconds := "120000"
-
 _default:
     @just --list --unsorted
 
@@ -171,120 +168,9 @@ bench *arguments:
     done
     bun run @destack/test/src/bench/main.ts target/bench "$baseline"
 
-# list a package's vitest test files
-test-files directory:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    # list the files the test plan runs in the unit and scenario tiers, each once
-    cd "{{justfile_directory()}}/@destack/test"
-    bun --eval '
-        import { TestPlan } from "@destack/test/plan";
-        import { BunEnvironment } from "@destack/environment/bun";
-        const plan = await TestPlan.of(process.argv[1], BunEnvironment.system.files);
-        const files = plan.targets.filter((target) => target.tier !== "bench").flatMap((target) => target.files);
-        console.log([...new Set(files)].sort().join("\n"));
-    ' "{{justfile_directory()}}/{{directory}}"
-
-# print each test file's share of a run's milliseconds as JSON
-test-durations directory milliseconds:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    cd "{{justfile_directory()}}/{{directory}}"
-    # sum each file's durations over its projects
-    shopt -s nullglob
-    jq --slurp --compact-output --arg package "{{directory}}" --argjson milliseconds "{{milliseconds}}" '
-        [.[] | select(.version == 1) | .projects[] | .files // {} | to_entries[]]
-        | group_by(.key)
-        | map({ key: ($package + "/" + .[0].key), value: (map(.value.duration) | add) })
-        | (map(.value) | add) as $sum
-        | if $sum > 0 then map(.value = (.value * $milliseconds / $sum | round)) else [] end
-        | from_entries
-    ' node_modules/.vite/vitest/*/results.json /dev/null
-
-# divide packages across the runners by duration, as JSON
-check-runners durations +directories:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    # read the recorded durations
-    durations="{{durations}}"
-    if [ ! -f "$durations" ]; then
-        durations=/dev/null
-    fi
-
-    # list each package's test files
-    for directory in {{directories}}; do
-        just test-files "$directory" | jq --raw-input --slurp --compact-output --arg package "$directory" \
-            '{ package: $package, files: (split("\n") | map(select(. != ""))) }'
-    done | jq --slurp --compact-output --argjson target "{{runner_milliseconds}}" --slurpfile table "$durations" '
-        def median: sort | if length == 0 then null else .[length / 2 | floor] end;
-        # pack items onto the lightest bin
-        def pack($count): sort_by(-.weight, .key)
-            | reduce .[] as $item ([range($count) | { weight: 0, items: [] }];
-                (to_entries | min_by(.value.weight) | .key) as $lightest
-                | .[$lightest].weight += $item.weight
-                | .[$lightest].items += [$item]);
-
-        ($table[0] // {}) as $table
-        | ($table.files // {}) as $known
-        | ([$known[]] | median // 1) as $fallback
-
-        # weigh files, packages and checks
-        | map(
-            .package as $package
-            | ([.files[] | $known[$package + "/" + .] | numbers] | median) as $local
-            | .files |= map({ key: ., weight: ($known[$package + "/" + .] // $local // $fallback) })
-            | .check = ($table.checks[$package] // 0)
-            | .test = (if .files == [] then ($table.scripts[$package] // $fallback) else (.files | map(.weight) | add) end)
-            | .weight = .check + .test
-        )
-        | (map({ key: .package, value: .check }) | from_entries) as $checks
-        | ([((map(.weight) | add) / $target | ceil), 1] | max) as $runners
-        | ((map(.weight) | add) / $runners) as $average
-
-        # split each package heavier than the average runner by its files
-        | [
-            .[]
-            | .package as $package
-            | if .files != [] and .weight > $average then
-                .files
-                | pack(map(.weight) | add / $average | ceil)
-                | .[]
-                | select(.items != [])
-                | { key: ($package + "/" + .items[0].key), package: $package, files: [.items[].key], weight }
-            else
-                { key: $package, package: $package, files: [], weight }
-            end
-        ]
-
-        # pack the runners
-        | pack($runners)
-        | [
-            to_entries[]
-            | select(.value.items != [])
-            | {
-                runner: (.key + 1),
-                milliseconds: .value.weight,
-                work: (
-                    .value.items
-                    | group_by(.package)
-                    | map({
-                        package: .[0].package,
-                        files: (if any(.files == []) then [] else [.[].files[]] | sort end),
-                        share: (map(.weight) | add)
-                    })
-                )
-            }
-        ]
-
-        # check each package on its largest runner
-        | (reduce (.[] | .runner as $runner | .work[] | { package, share, runner: $runner }) as $part ({};
-            if (.[$part.package].share // -1) < $part.share then .[$part.package] = $part else . end)) as $owners
-        | map(
-            .runner as $runner
-            | .work |= map(.isChecked = ($owners[.package].runner == $runner) | del(.share))
-            | .milliseconds = (.milliseconds + ([.work[] | select(.isChecked and .files != []) | $checks[.package]] | add // 0) | round)
-        )
-    '
+# print the CI runners for packages, as JSON: their checks and test files not yet passed, packed by duration
+schedule +directories:
+    @cd "{{justfile_directory()}}/@destack/check" && bun run --silent destack-check schedule {{directories}}
 
 # start, stop or report the test PostgreSQL
 postgres action:
