@@ -4,7 +4,7 @@ set dotenv-load := true
 set dotenv-filename := ".env.local"
 
 # run every database test on SQLite and the test PostgreSQL
-export DESTACK_TEST_POSTGRES := "postgres://postgres@127.0.0.1:55432/postgres"
+export DESTACK_TEST_POSTGRES := env("DESTACK_TEST_POSTGRES", "postgres://postgres@127.0.0.1:55432/postgres")
 
 _default:
     @just --list --unsorted

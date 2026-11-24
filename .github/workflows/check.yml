@@ -88,7 +88,8 @@ jobs:
                 image: postgres:18
                 env:
                     POSTGRES_HOST_AUTH_METHOD: trust
-                ports: ["55432:5432"]
+                # a host port Docker picks, as a fixed one may already be taken on the runner
+                ports: ["5432"]
                 options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 12
         steps:
             - name: Check out repository
@@ -134,8 +135,10 @@ jobs:
             - name: Run the test PostgreSQL without durability
               env:
                   POSTGRES: ${{ job.services.postgres.id }}
+                  PORT: ${{ job.services.postgres.ports['5432'] }}
               run: |
                   docker exec "$POSTGRES" psql -U postgres -c "ALTER SYSTEM SET fsync = off" -c "ALTER SYSTEM SET synchronous_commit = off" -c "ALTER SYSTEM SET full_page_writes = off" -c "SELECT pg_reload_conf()"
+                  echo "DESTACK_TEST_POSTGRES=postgres://postgres@127.0.0.1:$PORT/postgres" >> "$GITHUB_ENV"
             - name: Restore the test builds and templates
               uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
               with:
