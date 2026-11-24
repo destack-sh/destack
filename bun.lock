@@ -672,7 +672,6 @@
         "@destack/update": "workspace:*",
         "@destack/view": "workspace:*",
         "@destack/workflow": "workspace:*",
-        "semver": "7.8.5",
       },
       "devDependencies": {
         "@cloudflare/workers-types": "5.20260917.1",
@@ -693,7 +692,6 @@
         "@example/mention": "workspace:*",
         "@types/bun": "1.4.4",
         "@types/node": "26.6.1",
-        "@types/semver": "7.8.0",
         "fake-indexeddb": "6.2.5",
         "happy-dom": "21.0.4",
         "miniflare": "4.20260730.0",
@@ -1091,11 +1089,13 @@
       "name": "@destack/schema",
       "dependencies": {
         "re2js": "2.10.0",
+        "semver": "7.8.5",
         "zod": "4.6.7",
       },
       "devDependencies": {
         "@destack/environment": "workspace:*",
         "@destack/test": "workspace:*",
+        "@types/semver": "7.8.0",
       },
     },
     "@destack/setting": {

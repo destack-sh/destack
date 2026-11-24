@@ -1,3 +1,4 @@
+import { satisfies } from "semver";
 import { z } from "zod";
 
 /** A version: dev, or a release's calendar version such as 2026.9.0. */
@@ -20,6 +21,11 @@ export const Version = Object.assign(versionSchema, {
     /** Report whether a version is a release. */
     isRelease(version: string): boolean {
         return version !== DEVELOPMENT;
+    },
+
+    /** Report whether a version meets a dependency range, unreleased code meeting any. */
+    meets(version: string, range: string): boolean {
+        return version === DEVELOPMENT || (range !== DEVELOPMENT && satisfies(version, range));
     },
 
     /** Order versions by release, unreleased code after every release. */
