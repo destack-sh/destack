@@ -35,6 +35,9 @@ export function useRadioGroup(): RadioGroupControl {
 /** The checked state of the nearest radio, null outside one. */
 const RadioGroupItemContext = createContext<RadioGroupItemControl | null>(null);
 
+/** A control beside a label with its help, whose first line it sits on. */
+const BESIDE_CONTENT = ":is([data-slot=field]:has(> [data-slot=field-content]) > *)";
+
 /** The styles of a radio group, its radios and their indicators. */
 const styles = style.create({
     group: {
@@ -50,10 +53,11 @@ const styles = style.create({
         alignItems: "center",
         justifyContent: "center",
         flexShrink: 0,
+        marginBlockStart: { default: null, [BESIDE_CONTENT]: `calc((1lh - ${space[4]}) / 2)` },
         width: space[4],
         height: space[4],
         borderWidth: stroke.border,
-        borderColor: color.input,
+        borderColor: color.mutedForeground,
         borderRadius: radius.full,
         cursor: { default: "pointer", ":disabled": "not-allowed" },
         transitionProperty: "border-color, outline-color",

@@ -21,6 +21,9 @@ import {
     ToggleState,
 } from "../toggle-state/index.ts";
 
+/** A control beside a label with its help, whose first line it sits on. */
+const BESIDE_CONTENT = ":is([data-slot=field]:has(> [data-slot=field-content]) > *)";
+
 /** The styles of a checkbox and its indicator. */
 const styles = style.create({
     checkbox: {
@@ -28,10 +31,11 @@ const styles = style.create({
         alignItems: "center",
         justifyContent: "center",
         flexShrink: 0,
+        marginBlockStart: { default: null, [BESIDE_CONTENT]: `calc((1lh - ${space[4]}) / 2)` },
         width: space[4],
         height: space[4],
         borderWidth: stroke.border,
-        borderColor: color.input,
+        borderColor: color.mutedForeground,
         borderRadius: radius[2],
         color: swatch.accentLabel,
         cursor: { default: "pointer", ":disabled": "not-allowed" },

@@ -11,8 +11,15 @@ const styles = style.create({
         alignItems: "center",
         gap: space[1],
         maxInlineSize: "100%",
+        verticalAlign: "bottom",
+        lineHeight: "inherit",
         color: color.foreground,
         textDecoration: "none",
+    },
+    glyph: {
+        width: "1.2em",
+        height: "1.2em",
+        fontSize: "1em",
     },
     title: {
         overflow: "hidden",
@@ -51,7 +58,9 @@ export function ObjectChip(properties: ObjectChipProperties): JSX.Element {
     const rest = omit(properties, "title", "glyph", "color", "href", "xstyle", "style");
     const body = (
         <>
-            <Show when={properties.glyph}>{(glyph) => <Glyph glyph={glyph()} size="sm" />}</Show>
+            <Show when={properties.glyph}>
+                {(glyph) => <Glyph glyph={glyph()} size="sm" xstyle={styles.glyph} />}
+            </Show>
             <span {...style.attrs(styles.title)}>{properties.title}</span>
             <Show when={properties.color}>
                 {(accent) => <span {...style.attrs(styles.dot(swatch[`${accent()}Mark`]))} />}

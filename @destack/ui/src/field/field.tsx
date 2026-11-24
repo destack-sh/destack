@@ -96,7 +96,10 @@ const orientations = style.create({
     },
     horizontal: {
         flexDirection: "row",
-        alignItems: "center",
+        alignItems: {
+            default: "center",
+            ":has(> [data-slot=field-content])": "flex-start",
+        },
     },
     responsive: {
         flexDirection: { default: "column", [RESPONSIVE_QUERY]: "row" },
@@ -105,7 +108,7 @@ const orientations = style.create({
 });
 
 /** The text style of a legend in each variant. */
-const legends = { legend: text.sm, label: text.xs } as const;
+const legends = { legend: text.base, label: text.xs } as const;
 
 /** The direction a field lays out its label and control in. */
 export type FieldOrientation = "vertical" | "horizontal" | "responsive";

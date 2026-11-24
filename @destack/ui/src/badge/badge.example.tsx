@@ -11,9 +11,11 @@ export const badgeNoteState = defineExample({
         variant: "secondary",
     },
     render: (properties) => (
-        <p>
-            Groceries <Badge {...properties}>Draft</Badge> <Badge>3 comments</Badge>
-        </p>
+        <Cluster>
+            Groceries
+            <Badge {...properties}>Draft</Badge>
+            <Badge>3 comments</Badge>
+        </Cluster>
     ),
 });
 

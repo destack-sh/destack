@@ -180,6 +180,7 @@ const cards = style.create({
 export const gridListGallery = defineExample({
     of: GridList,
     name: "gallery",
+    layout: "padded",
     description:
         "a press kit as cards with covers, as many to a row as fit, opened by a press and selected with a modifier or Space",
     render: () => {
@@ -225,7 +226,11 @@ const PEOPLE = Array.from({ length: 5000 }, (_, index) => `Person ${String(index
 /** The styles of the list of people. */
 const people = style.create({
     list: {
+        width: "100%",
+        maxWidth: "24rem",
         maxHeight: "18rem",
+        marginInline: "auto",
+        borderRadius: radius[3],
         borderWidth: stroke.border,
         borderStyle: "solid",
         borderColor: color.border,
@@ -243,6 +248,7 @@ const people = style.create({
 export const gridListPeople = defineExample({
     of: GridList,
     name: "people",
+    layout: "padded",
     description:
         "five thousand people in one column under a search field, with only the rows in view in the document",
     render: () => {

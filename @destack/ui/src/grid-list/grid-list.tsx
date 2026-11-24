@@ -66,7 +66,7 @@ const styles = style.create({
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
-        borderRadius: radius[1],
+        borderRadius: radius[2],
         cursor: "pointer",
     },
     square: {
