@@ -1,13 +1,8 @@
 import { Timeout } from "@destack/view/primitives/timer";
 import * as style from "@destack/style";
+import { handleFormReset } from "../form-input/index.ts";
 import { visuallyHiddenStyle } from "../visually-hidden/index.ts";
-import {
-    type Accessor,
-    createControllableSignal,
-    type JSX,
-    onSettled,
-    untrack,
-} from "@destack/view";
+import { type Accessor, createControllableSignal, type JSX, untrack } from "@destack/view";
 
 /** The styles of the hidden native input that submits a control's state with its form. */
 const styles = style.create({
@@ -99,24 +94,18 @@ export function ToggleInput(properties: ToggleInputProperties): JSX.Element {
     // restore the first state when the input's form resets, a task later on the page's clock
     let element: HTMLInputElement | undefined;
     const restoring = new Timeout();
-    const reset = (event: Event) => {
-        // reset the control, then write its state over the one the form restores after the event
-        const input = element;
-        if (input === undefined || event.target !== input.form) {
-            return;
-        }
-        properties.onReset();
-        restoring.set(() => {
-            input.checked = properties.checked;
-        }, 0);
-    };
-
-    // listen for form resets once mounted
-    onSettled(() => {
-        document.addEventListener("reset", reset);
-
-        return () => document.removeEventListener("reset", reset);
-    });
+    handleFormReset(
+        () => element?.form,
+        () => {
+            // reset the control, then write its state over the one the form restores after it
+            properties.onReset();
+            restoring.set(() => {
+                if (element !== undefined) {
+                    element.checked = properties.checked;
+                }
+            }, 0);
+        },
+    );
 
     return (
         <input

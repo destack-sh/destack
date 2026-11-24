@@ -3,13 +3,13 @@ import { createSignal, flush } from "@destack/view";
 import { press, render } from "@destack/view/test";
 import {
     DateSegmentGroup,
-    type DateSegmentFormat,
+    type DateSegmentLayout,
     type DateSegmentKind,
     type DateSegmentValues,
 } from "./index.ts";
 
 /** A clock of hours and minutes, which steps an empty segment from 9:30. */
-const CLOCK: DateSegmentFormat = {
+const CLOCK: DateSegmentLayout = {
     layout: [
         { type: "hour", value: "" },
         { type: "literal", value: ":" },

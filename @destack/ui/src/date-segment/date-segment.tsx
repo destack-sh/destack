@@ -5,9 +5,22 @@ import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
 import { color, motion, radius, size, space, stroke } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import { For, type JSX, omit, Show, untrack, useEnvironment, useLocale } from "@destack/view";
+import {
+    createControllableSignal,
+    createEffect,
+    createSignal,
+    For,
+    type JSX,
+    omit,
+    Show,
+    untrack,
+    useEnvironment,
+    useLocale,
+} from "@destack/view";
 import { type FieldControl, useFieldControl } from "../field/control.ts";
 import { ListState } from "../focus/index.ts";
+import { mergeProperties } from "../part/index.ts";
+import { FormInput, type FormInputProperties, isFormControl } from "../form-input/index.ts";
 
 /** The text an empty hour, minute or day period shows. */
 const PLACEHOLDER_TIME = "––";
@@ -22,9 +35,32 @@ const KINDS: ReadonlySet<string> = new Set<DateSegmentKind>([
     "dayPeriod",
 ]);
 
+/** How far the page keys step each segment, as React Aria's. */
+const PAGES: Readonly<Record<DateSegmentKind, number>> = {
+    year: 5,
+    month: 2,
+    day: 7,
+    hour: 2,
+    minute: 15,
+    dayPeriod: 1,
+};
+
+/** The keys that change a segment beside those that type. */
+const CHANGES: ReadonlySet<string> = new Set([
+    "ArrowUp",
+    "ArrowDown",
+    "PageUp",
+    "PageDown",
+    "Home",
+    "End",
+    "Backspace",
+    "Delete",
+]);
+
 /** The styles of a segmented field and its segments. */
 const styles = style.create({
     box: {
+        position: "relative",
         display: "inline-flex",
         alignItems: "center",
         height: size[2],
@@ -100,7 +136,7 @@ export type DateSegmentKind = "year" | "month" | "day" | "hour" | "minute" | "da
 export type DateSegmentValues = Partial<Readonly<Record<DateSegmentKind, number>>>;
 
 /** How a segmented field lays out, bounds, writes and labels its segments in a locale. */
-export interface DateSegmentFormat {
+export interface DateSegmentLayout {
     /** The segments and the literals between them in the locale's order. */
     readonly layout: readonly Intl.DateTimeFormatPart[];
     /** Read the smallest and largest value of a segment, given the other segments. */
@@ -121,19 +157,62 @@ export interface DateSegmentFormat {
     ) => number;
 }
 
+/** How a segmented field reads a value of its segments, beside how it lays them out. */
+export interface DateSegmentFormat<Value> extends DateSegmentLayout {
+    /** Read the value of the segments, undefined while one is empty or there is none such. */
+    readonly valueOf: (values: DateSegmentValues) => Value | undefined;
+    /** Split a value into the values of its segments, none for no value. */
+    readonly valuesOf: (value: Value | undefined) => DateSegmentValues;
+    /** Order two values, zero for those that show the same segments. */
+    readonly compare: (left: Value, right: Value) => number;
+    /** Write a value as people read it. */
+    readonly label: (value: Value) => string;
+    /** Write a value as a form submits it. */
+    readonly write: (value: Value) => string;
+}
+
+/** The properties of a field of segments, the native element's attributes included. */
+export interface DateSegmentFieldProperties<Value>
+    extends
+        Omit<JSX.HTMLAttributes<HTMLDivElement>, "class" | "children" | "onChange">,
+        FormInputProperties {
+    /** The value, which makes the field controlled, undefined while none is entered. */
+    readonly value?: Value | undefined;
+    /** The value the field starts from when uncontrolled. */
+    readonly defaultValue?: Value | undefined;
+    /** Handle the value changing: a complete one, or undefined once a segment is cleared. */
+    readonly onValueChange?: (value: Value | undefined) => void;
+    /** The earliest value, before which one is refused. */
+    readonly min?: Value | undefined;
+    /** The latest value, after which one is refused. */
+    readonly max?: Value | undefined;
+    /** Whether the field takes no input. */
+    readonly disabled?: boolean | undefined;
+    /** Whether the value is shown alone, its segments in reach of the keys. */
+    readonly readOnly?: boolean | undefined;
+    /** The StyleX styles applied after the field's styles. */
+    readonly xstyle?: style.Styles;
+}
+
 /** The properties of a segmented field, the native element's attributes included. */
 export interface DateSegmentGroupProperties extends Omit<
     JSX.HTMLAttributes<HTMLDivElement>,
     "class" | "children"
 > {
     /** How the segments lay out, bound, read and name themselves. */
-    readonly format: DateSegmentFormat;
+    readonly format: DateSegmentLayout;
     /** The values of the segments. */
     readonly values: DateSegmentValues;
     /** Handle a key that changes the segments. */
     readonly onValuesChange: (values: DateSegmentValues, isTyping: boolean) => void;
     /** Whether the segments take no input. */
-    readonly disabled?: boolean;
+    readonly disabled?: boolean | undefined;
+    /** Whether the segments are shown alone. */
+    readonly readOnly?: boolean | undefined;
+    /** Whether the value is refused. */
+    readonly invalid?: boolean | undefined;
+    /** What submits the value with a form, none by default. */
+    readonly input?: JSX.Element;
     /** The StyleX styles applied after the group's styles. */
     readonly xstyle?: style.Styles;
 }
@@ -188,23 +267,32 @@ export class DateSegmentControl {
         // read the arrows of the writing direction
         const forward = this.#locale.direction === "rtl" ? "ArrowLeft" : "ArrowRight";
         const backward = this.#locale.direction === "rtl" ? "ArrowRight" : "ArrowLeft";
+        const digit = key.length === 1 ? this.#locale.parseNumber(key) : undefined;
 
         // move between segments along the writing direction
         if (key === forward || key === backward) {
             this.#move(kind, key === forward ? 1 : -1);
         }
-        // step the value
+        // leave the value of segments shown alone
+        else if (this.properties.readOnly === true) {
+            return key.length === 1 || CHANGES.has(key);
+        }
+        // step the value, by more at once, or to its bounds
         else if (key === "ArrowUp" || key === "ArrowDown") {
             this.#step(kind, key === "ArrowUp" ? 1 : -1);
+        } else if (key === "PageUp" || key === "PageDown") {
+            this.#step(kind, key === "PageUp" ? PAGES[kind] : -PAGES[kind]);
+        } else if (key === "Home" || key === "End") {
+            this.#toLimit(kind, key === "Home" ? 0 : 1);
         }
         // clear the segment
-        else if (key === "Backspace") {
+        else if (key === "Backspace" || key === "Delete") {
             this.#typed = "";
             this.#change(kind, undefined);
         }
-        // type a digit
-        else if (/^\d$/u.test(key) && kind !== "dayPeriod") {
-            this.#type(key, kind);
+        // type a digit, of the locale's own too
+        else if (digit !== undefined && kind !== "dayPeriod") {
+            this.#type(String(digit), kind);
         }
         // choose the day period whose text starts with the typed letter
         else if (kind === "dayPeriod" && key.length === 1) {
@@ -234,8 +322,14 @@ export class DateSegmentControl {
         }
     }
 
+    /** Set a segment to its smallest or largest value. */
+    #toLimit(kind: DateSegmentKind, place: 0 | 1): void {
+        this.#typed = "";
+        this.#change(kind, this.properties.format.limits(kind, this.properties.values)[place]);
+    }
+
     /** Step a segment's value and wrap at its bounds, starting an empty segment from now. */
-    #step(kind: DateSegmentKind, step: 1 | -1): void {
+    #step(kind: DateSegmentKind, step: number): void {
         // step from the value, or from now while the segment is empty
         const [min, max] = this.properties.format.limits(kind, this.properties.values);
         const value = this.properties.values[kind];
@@ -288,6 +382,114 @@ export class DateSegmentControl {
     }
 }
 
+/** Render the segments of a value, which follow the controlled value or the field's own. */
+export function DateSegmentField<Value>(
+    properties: DateSegmentFieldProperties<Value> & {
+        /** How it reads and lays out its segments. */
+        readonly format: DateSegmentFormat<Value>;
+    },
+): JSX.Element {
+    // follow the value, and the segments typed so far
+    const format = untrack(() => properties.format);
+    const locale = useLocale();
+    const field = useFieldControl();
+    const rest = omit(
+        properties,
+        "format",
+        "value",
+        "defaultValue",
+        "onValueChange",
+        "min",
+        "max",
+        "name",
+        "form",
+        "required",
+    );
+    const [value, setValue] = createControllableSignal<Value | undefined>({
+        isControlled: () => "value" in properties,
+        value: () => properties.value,
+        defaultValue: untrack(() => properties.defaultValue),
+        onChange: (next) => properties.onValueChange?.(next),
+    });
+    const [values, setValues] = createSignal(format.valuesOf(untrack(value)), {
+        ownedWrite: true,
+    });
+    const isSame = (left: Value | undefined, right: Value | undefined): boolean =>
+        left === undefined || right === undefined
+            ? left === right
+            : format.compare(left, right) === 0;
+
+    // show a value set from outside, and clear the segments once a shown value is unset
+    createEffect(
+        value,
+        (next, previous) => {
+            const current = format.valueOf(untrack(values));
+            const isUnset = next === undefined && previous !== undefined;
+            if (next !== undefined && !isSame(next, current)) {
+                setValues(format.valuesOf(next));
+            } else if (isUnset && isSame(previous, current)) {
+                setValues({});
+            }
+        },
+        { defer: true },
+    );
+
+    // refuse a value outside the limits, which stays shown
+    const refusal = (): string => {
+        // compare it with both
+        const current = value();
+        const { min, max } = properties;
+        if (current !== undefined && min !== undefined && format.compare(current, min) < 0) {
+            return locale.render(t`Choose ${format.label(min)} or later.`);
+        } else if (current !== undefined && max !== undefined && format.compare(current, max) > 0) {
+            return locale.render(t`Choose ${format.label(max)} or earlier.`);
+        }
+
+        return "";
+    };
+    const writeOf = (current: Value | undefined): string =>
+        current === undefined ? "" : format.write(current);
+    let group: HTMLElement | undefined;
+    const reset = (): void => {
+        const first = properties.defaultValue;
+        setValues(format.valuesOf(first));
+        setValue(first);
+    };
+
+    return (
+        <DateSegmentGroup
+            {...mergeProperties({ ref: (element: HTMLElement) => (group = element) }, rest)}
+            invalid={refusal() !== ""}
+            format={format}
+            values={values()}
+            input={
+                <Show when={isFormControl(properties) || refusal() !== ""}>
+                    <FormInput
+                        name={properties.name}
+                        form={properties.form}
+                        required={properties.required}
+                        disabled={properties.disabled === true || field?.isDisabled() === true}
+                        value={writeOf(value())}
+                        error={refusal()}
+                        onReset={reset}
+                        onFocus={() =>
+                            group?.querySelector<HTMLElement>("[data-slot=segment]")?.focus()
+                        }
+                    />
+                </Show>
+            }
+            onValuesChange={(next, isTyping) => {
+                // set the segments and report the value once it is complete or gone, typing done
+                setValues(next);
+                const changed = format.valueOf(next);
+                if (!isTyping && !isSame(changed, value())) {
+                    setValue(changed);
+                }
+            }}
+        />
+    );
+}
+
 /** Render a group of spinbuttons, one per part of a date or time. */
 export function DateSegmentGroup(properties: DateSegmentGroupProperties): JSX.Element {
     // label the group by its field's label and collect the digits typed into the focused segment
@@ -300,22 +502,29 @@ export function DateSegmentGroup(properties: DateSegmentGroupProperties): JSX.El
         "values",
         "onValuesChange",
         "disabled",
+        "readOnly",
+        "invalid",
+        "input",
         "xstyle",
         "style",
     );
     field?.group();
+    const isInvalid = (): boolean =>
+        properties.invalid === true ||
+        field?.isInvalid() === true ||
+        properties["aria-invalid"] === "true";
 
     return (
         <div
             role="group"
             {...field?.groupAttributes()}
             {...rest}
+            aria-invalid={isInvalid() ? "true" : undefined}
             onFocusOut={(event) => control.list.focus.focusOut(event)}
             {...style.attributes(
                 [
                     dateSegmentBoxStyle({
-                        invalid:
-                            field?.isInvalid() === true || properties["aria-invalid"] === "true",
+                        invalid: isInvalid(),
                         disabled: control.isDisabled(),
                     }),
                     properties.xstyle,
@@ -344,6 +553,7 @@ export function DateSegmentGroup(properties: DateSegmentGroupProperties): JSX.El
                                 format={properties.format}
                                 values={properties.values}
                                 isDisabled={control.isDisabled()}
+                                isReadOnly={properties.readOnly === true}
                                 emptyText={locale.render(t`Empty`)}
                                 onKey={(key) => !control.isDisabled() && control.press(key, kind())}
                                 onBlur={() => control.finish()}
@@ -352,6 +562,7 @@ export function DateSegmentGroup(properties: DateSegmentGroupProperties): JSX.El
                     </Show>
                 )}
             </For>
+            {properties.input}
         </div>
     );
 }
@@ -376,11 +587,13 @@ function DateSegment(properties: {
     /** The part of the date or time it edits. */
     readonly kind: DateSegmentKind;
     /** How it bounds, writes and labels itself. */
-    readonly format: DateSegmentFormat;
+    readonly format: DateSegmentLayout;
     /** The values of every segment, its own included. */
     readonly values: DateSegmentValues;
     /** Whether it takes no input. */
     readonly isDisabled: boolean;
+    /** Whether it is shown alone. */
+    readonly isReadOnly: boolean;
     /** The value text of an empty segment. */
     readonly emptyText: string;
     /** Handle a key typed into the segment, reporting whether it took it. */
@@ -423,7 +636,7 @@ function DateSegment(properties: {
         <span
             role="spinbutton"
             tabindex={properties.isDisabled ? undefined : 0}
-            contenteditable={properties.isDisabled ? undefined : "true"}
+            contenteditable={properties.isDisabled || properties.isReadOnly ? undefined : "true"}
             inputmode={properties.kind === "dayPeriod" ? "text" : "numeric"}
             enterkeyhint="next"
             spellcheck={false}
@@ -433,6 +646,7 @@ function DateSegment(properties: {
             aria-valuemax={limits()[1]}
             aria-valuetext={spoken()}
             aria-disabled={properties.isDisabled ? "true" : undefined}
+            aria-readonly={properties.isReadOnly ? "true" : undefined}
             data-slot="segment"
             data-segment={properties.kind}
             data-placeholder={isEmpty() ? "" : undefined}
