@@ -361,7 +361,7 @@ store ─► sandbox: authorize, relate, expand, prepare, handle(next ─► sto
 
 ### defineAction
 
-`defineAction(definition)` declares an operation people run, as VS Code's commands: with a `call`, it calls a method of one of the package's types; without one, a view handles it.
+`defineAction(definition)` declares an operation people run, as VS Code's commands: with a `call`, it calls a method of a type, the package's own or another's; without one, a view handles it.
 
 | Option                | What it is                                                             |
 | --------------------- | ---------------------------------------------------------------------- |

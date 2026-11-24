@@ -354,7 +354,7 @@ test("refuse a call reading what is no input, and a key combination editors do n
     ]);
 });
 
-test("list a package's actions on its own objects, refusing a call of a type it does not serve or an action named as a method", async () => {
+test("list a package's actions, on another package's objects too, and refuse a name of another type or method", async () => {
     // declare actions on tasks, on notes and one named as the tasks' mark method
     const owner = { package: task.package };
     const markDone = defineAction(
@@ -366,7 +366,7 @@ test("list a package's actions on its own objects, refusing a call of a type it 
         },
         owner,
     );
-    const stray = defineAction(
+    const foreign = defineAction(
         {
             name: "note.finish",
             title: t`Finish`,
@@ -397,39 +397,20 @@ test("list a package's actions on its own objects, refusing a call of a type it 
         ),
     );
 
-    // list each on a package serving the tasks alone
+    // list both on a package serving the tasks alone
     const handle = definePackage(
         {
             ...testIdentity,
             objects: [task],
-            actions: [markDone],
+            actions: [markDone, foreign],
         },
         owner,
     );
-    const refused = [
-        await refusal(() =>
-            definePackage(
-                {
-                    ...testIdentity,
-                    objects: [task],
-                    actions: [stray],
-                },
-                owner,
-            ),
-        ),
-        named,
-        bare,
-    ];
 
-    // expect the action listed, and the others refused by name
-    expect({ listed: Object.keys(handle.actions), refused }).toEqual({
-        listed: ["task.markDone"],
+    // expect both listed, and the bad names refused
+    expect({ listed: Object.keys(handle.actions), refused: [named, bare] }).toEqual({
+        listed: ["task.markDone", "note.finish"],
         refused: [
-            [
-                "BAD_REQUEST",
-                "DEFINITION_INVALID",
-                `action 'note.finish' is invalid: '${task.package.name}' lists it on note, which it does not serve`,
-            ],
             [
                 "BAD_REQUEST",
                 "DEFINITION_INVALID",

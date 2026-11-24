@@ -215,19 +215,6 @@ function handleOf<const Options extends PackageOptions, Identity extends object>
         );
     }
 
-    // refuse a call of an object type the package does not serve
-    const served = new Set<unknown>(Object.values(objects));
-    const calls = Object.values(actions).flatMap((action) =>
-        action.call === undefined ? [] : [{ name: action.name, object: action.call.object }],
-    );
-    const stray = calls.find((call) => !served.has(call.object));
-    if (stray !== undefined) {
-        throw PackageError.of(
-            "DEFINITION_INVALID",
-            `action '${stray.name}' is invalid: '${owner.name}' lists it on ${stray.object.name}, which it does not serve`,
-        );
-    }
-
     // refuse a mount answering at or below another's path
     const paths = Object.values(mounts).map((mount) => mount.path);
     const overlap = paths.find((path, index) =>

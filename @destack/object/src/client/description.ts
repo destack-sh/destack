@@ -89,17 +89,16 @@ export class ObjectStoreDescription {
         return kind.select(implementation.declarations);
     }
 
-    /** List the actions a package declares that call a type's methods, on that type. */
-    async actions(
-        implementation: PackageImplementationDescription,
-        type: ObjectType,
-    ): Promise<Action[]> {
+    /** List the actions every served package declares that call a type's methods, on that type. */
+    async actions(type: ObjectType): Promise<Action[]> {
         // take the actions on the type, and the types of the objects their inputs take
         const { packageId, type: name } = type.typeReference;
-        const declared = this.declarations(implementation, ACTION_KIND).filter(
-            ({ description }) =>
-                description.call?.packageId === packageId && description.call.type === name,
-        );
+        const declared = this.packages
+            .flatMap((implementation) => this.declarations(implementation, ACTION_KIND))
+            .filter(
+                ({ description }) =>
+                    description.call?.packageId === packageId && description.call.type === name,
+            );
         const types = new Map([[ObjectTypeReference.key(type.typeReference), type]]);
         for (const { description } of declared) {
             for (const input of description.call?.inputs ?? []) {
