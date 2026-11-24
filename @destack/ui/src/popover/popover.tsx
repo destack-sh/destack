@@ -16,6 +16,7 @@ import {
     useContext,
 } from "@destack/view";
 import { transition } from "@destack/theme/motion";
+import { tabbablesIn } from "../focus/index.ts";
 import { LayerStack, TopLayer } from "../layer/index.ts";
 import { Timeout } from "@destack/view/primitives/timer";
 import { type HoverEvent, SafePolygon } from "../interaction/index.ts";
@@ -35,6 +36,7 @@ const PopoverContext = createContext<PopoverControl | null>(null);
 /** The styles every popover shares. */
 const styles = style.create({
     content: {
+        outlineStyle: "none",
         width: width.popover,
         maxWidth: `calc(100vw - 2 * ${space[1]})`,
         maxHeight: `calc(100dvh - 2 * ${space[1]})`,
@@ -200,9 +202,29 @@ export class PopoverControl {
                     ? () => undefined
                     : Position.place(content, anchor);
             this.open();
+            if (content !== undefined) {
+                this.enter(content);
+            }
         } else {
             this.#unplace();
             this.close();
+            this.exit();
+        }
+    }
+
+    /** Hand the focus back to the trigger, unless it moved on elsewhere. */
+    protected exit(): void {
+        const focused = document.activeElement;
+        if (focused === document.body || this.#content?.contains(focused) === true) {
+            this.#trigger?.focus({ preventScroll: true });
+        }
+    }
+
+    /** Move the focus into the shown popover, to its first control or itself without any. */
+    protected enter(content: HTMLElement): void {
+        // leave a focus already inside, as an autofocused control has
+        if (!content.contains(document.activeElement)) {
+            (tabbablesIn(content)[0] ?? content).focus({ preventScroll: true });
         }
     }
 
@@ -293,6 +315,12 @@ export class HoverPopover extends PopoverControl {
             () => this.closeLater(),
         );
     }
+
+    /** Leave the focus on the trigger a pointer or the focus rests on. */
+    protected override enter(): void {}
+
+    /** Leave the focus where it is. */
+    protected override exit(): void {}
 
     /** Open the popover after the open delay. */
     openLater(): void {
@@ -412,6 +440,10 @@ export function PopoverContent(properties: PopoverContentProperties): JSX.Elemen
     const content = merge(DEFAULTS, properties);
     const rest = omit(content, "side", "align", "sideOffset", "xstyle", "style", "onToggle");
     const modalRest = omit(rest, "tabindex");
+    const label = (): string | undefined =>
+        properties["aria-label"] === undefined
+            ? `${popover.id}-${popover.isTitled() ? "title" : "trigger"}`
+            : undefined;
 
     // show and hide the popover as it opens and closes
     createEffect(popover.isOpen, (isOpen) => untrack(() => popover.sync(isOpen)));
@@ -425,7 +457,8 @@ export function PopoverContent(properties: PopoverContentProperties): JSX.Elemen
                         id={popover.id}
                         popover="auto"
                         role="dialog"
-                        aria-labelledby={`${popover.id}-${popover.isTitled() ? "title" : "trigger"}`}
+                        tabindex={-1}
+                        aria-labelledby={label()}
                         aria-describedby={
                             popover.isDescribed() ? `${popover.id}-description` : undefined
                         }
@@ -457,7 +490,7 @@ export function PopoverContent(properties: PopoverContentProperties): JSX.Elemen
                 <dialog
                     id={popover.id}
                     closedby="any"
-                    aria-labelledby={`${popover.id}-${popover.isTitled() ? "title" : "trigger"}`}
+                    aria-labelledby={label()}
                     aria-describedby={
                         popover.isDescribed() ? `${popover.id}-description` : undefined
                     }
