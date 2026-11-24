@@ -54,6 +54,8 @@ export interface Example<
     Properties extends object = object,
     Instance = unknown,
 > extends Declaration {
+    /** The kind of declaration, which a host tells examples from scenarios by. */
+    readonly kind: "example";
     /** The declaration the example shows. */
     readonly of: unknown;
     /** One sentence saying what the example shows. */
@@ -92,6 +94,7 @@ export function defineExample<Of, Instance = never>(
     const { render } = definition;
 
     return Object.freeze({
+        kind: "example",
         package: owner,
         name,
         of,

@@ -193,3 +193,13 @@ function strength(view: Pick<ViewDescription, "presents">): number {
               ),
           );
 }
+
+/** A development build's frame: the module rendering an example or scenario, and its styles. */
+export const FrameDescription = schema.object({
+    /** The module the frame's page loads. */
+    entrypoint: PackagePath,
+    /** The stylesheets the frame's page links. */
+    stylesheets: schema.array(PackagePath),
+});
+/** The frame of a development build. */
+export type FrameDescription = schema.Infer<typeof FrameDescription>;

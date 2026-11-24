@@ -281,7 +281,10 @@ export interface Scenario<
     Globals = unknown,
     Instance = unknown,
 >
-    extends Declaration, ScenarioDefinition<Step, Observation, Globals, Instance> {}
+    extends Declaration, ScenarioDefinition<Step, Observation, Globals, Instance> {
+    /** The kind of declaration, which a host tells scenarios from examples by. */
+    readonly kind: "scenario";
+}
 
 /** Declare a scenario after Gherkin's Given, When and Then, read through its interaction. */
 export function defineScenario<Step, Observation, Globals, Instance>(
@@ -324,6 +327,7 @@ export function defineScenario<Step, Observation, Globals, Instance>(
     }
 
     return Object.freeze({
+        kind: "scenario",
         package: owner,
         of,
         interaction,

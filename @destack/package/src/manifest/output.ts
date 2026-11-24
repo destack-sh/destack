@@ -6,7 +6,7 @@ import { DependencyName } from "../definition/index.ts";
 import { PackageFile, PackagePath } from "../file/index.ts";
 import { Runtime } from "../runtime/index.ts";
 import { WorkloadDescription } from "./workload.ts";
-import { ViewDescription } from "./view.ts";
+import { FrameDescription, ViewDescription } from "./view.ts";
 import { DeclarationName } from "../definition/package.ts";
 
 /** An output's export: its emitted file and the dependency specifiers its chunks import. */
@@ -38,6 +38,8 @@ export const PackageOutput = schema.object({
     workloads: schema.record(DeclarationName, WorkloadDescription),
     /** The views this output mounts, keyed by their declared names. */
     views: schema.record(DeclarationName, ViewDescription),
+    /** The frame of a browser development build, which its origin serves at `/.destack/frame`. */
+    frame: FrameDescription.exactOptional(),
     /** The output directory within the build. */
     directory: PackagePath,
     /** Generated entrypoints keyed by their exported names. */

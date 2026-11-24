@@ -16,6 +16,6 @@ export const OriginPath = {
     build: "/.destack/build",
     /** Serve the files the installation's own server output emits. */
     asset: "/.destack/asset",
-    /** Show a package's examples in development, each below its module and name. */
-    examples: "/.destack/examples",
+    /** Frame one example or scenario of a development build, which the query selects. */
+    frame: "/.destack/frame",
 } as const;

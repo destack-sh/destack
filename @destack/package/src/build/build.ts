@@ -111,6 +111,8 @@ export interface Compilation {
     readonly directory: string;
     /** The absolute source modules the output compiles, by export path, such as `./server`. */
     readonly exports: Readonly<Record<string, string>>;
+    /** The names of the packages the package requires at run time. */
+    readonly requires: ReadonlySet<string>;
     /** The runtime the output runs on. */
     readonly runtime: Runtime;
     /** What the package's workloads and views always use beyond the bare sandbox. */
@@ -134,7 +136,7 @@ export interface CompiledOutput {
 }
 
 /** The workloads and views an extension describes in one output. */
-export type OutputDescription = Partial<Pick<PackageOutput, "workloads" | "views">>;
+export type OutputDescription = Partial<Pick<PackageOutput, "workloads" | "views" | "frame">>;
 
 /** A package's own declaration, located by the module exporting it. */
 export interface DeclarationModule {

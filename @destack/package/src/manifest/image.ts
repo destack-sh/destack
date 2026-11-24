@@ -200,7 +200,7 @@ export const BuildImage = Object.assign(image, {
         read: (manifest: Digest) => Promise<PackageManifest | undefined>,
         entries: "run" | "export" = "run",
     ): Promise<ReadonlySet<Digest>> {
-        // start at each output's workloads and the exports its views mount, or at every export
+        // start at each output's workloads and the exports its views and frame mount, or at every export
         const manifests = new Map<Digest, Promise<PackageManifest | undefined>>();
         const once = (digest: Digest) => {
             const reading = manifests.get(digest) ?? read(digest);
@@ -213,7 +213,12 @@ export const BuildImage = Object.assign(image, {
             present(first, `the root of image ${value.root}`),
             runtime,
         ).flatMap((output) => {
-            const mounted = new Set(Object.values(output.views).map((view) => view.entrypoint));
+            const mounted = new Set(
+                [
+                    ...Object.values(output.views),
+                    ...(output.frame === undefined ? [] : [output.frame]),
+                ].map((view) => view.entrypoint),
+            );
             const started =
                 entries === "export"
                     ? Object.keys(output.exports)
@@ -314,7 +319,9 @@ export const BuildImage = Object.assign(image, {
         const visited = new Set<string>([`${value.root} app`]);
         const pending = [{ digest: value.root, scope: map.imports, isLinked: false }];
         for (const { digest, scope, isLinked } of pending) {
-            for (const output of PackageManifest.outputs(await read(digest), runtime)) {
+            const dependent = await read(digest);
+            const own = dependent.package.name;
+            for (const output of PackageManifest.outputs(dependent, runtime)) {
                 // take each imported package's build
                 const names = new Set(
                     Object.values(output.exports).flatMap((exported) =>
@@ -322,6 +329,11 @@ export const BuildImage = Object.assign(image, {
                     ),
                 );
                 const dependencies = [...names].flatMap((name) => {
+                    // take the build itself for its package's name, as a package imports its exports by it
+                    if (name === own) {
+                        return [{ name, manifest: digest, isLinked }];
+                    }
+
                     // take the image's build of a name
                     const pinned = isLinked ? undefined : BuildImage.resolve(value, digest, name);
                     const isPinned = pinned !== undefined && loaded.has(pinned);
