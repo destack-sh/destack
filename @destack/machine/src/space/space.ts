@@ -2544,9 +2544,13 @@ export class Space {
 
     /** Hand the space store a socket's message or close its machine's host delivered. */
     async receive(request: Request): Promise<void> {
+        // wait for a ready store, except for a close, which only ends a connection, a draining store's too
         const hibernation = present(this.#hibernation, "the space store's sockets");
-        await this.instance.ready();
-        await hibernation.receive(request, this.instance.sockets);
+        if (request.method !== "DELETE") {
+            await this.instance.ready();
+        }
+
+        return hibernation.receive(request, this.instance.sockets);
     }
 
     /** Serve a request to the space: its health's probes, else through its gateway. */
