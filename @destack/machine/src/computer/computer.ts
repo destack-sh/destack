@@ -749,6 +749,9 @@ export class Computer implements AsyncDisposable {
                 delay: OtlpExporter.delay(options.environment.process.variables),
             }),
             output: (running, line) => {
+                // write the line to the machine's own log, as it writes its own records
+                options.environment.process.stderr.writeSync(`${line}\n`);
+
                 // forward the line as a log record of the instance to its space's receivers
                 const now = BigInt(options.environment.clock.now());
                 const record = {
