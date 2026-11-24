@@ -155,7 +155,11 @@ export class TestRelay implements AsyncDisposable {
             },
             // run the relay's changes at the universe as their signer, as the home's machine sends them
             push: (scope, push, signal) =>
-                universal.push(scope, { ...push, signer: push.signer ?? installation }, signal),
+                universal.push(
+                    scope,
+                    { ...push, signer: push.signer ?? Caller.of(installation) },
+                    signal,
+                ),
         };
 
         // keep each instance's memory in its own database, the root's read for its replicas' progress
