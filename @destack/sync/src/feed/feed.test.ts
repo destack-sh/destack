@@ -3,6 +3,7 @@ import { TestDatabase } from "@destack/db/test";
 import { type JsonObject, nth, schema } from "@destack/schema";
 import { DatabaseError, defineRelations, defineTable, eq, json, TABLE, text } from "@destack/db";
 import { Feed } from "./feed.ts";
+import { EVERYONE } from "./audience.ts";
 import { Subscription } from "../replica/publication.ts";
 import type { Stream } from "./stream.ts";
 import type { Page } from "../query/page.ts";
@@ -591,6 +592,34 @@ test("watch an ordered query reusing unchanged rows and placing a changed row by
         true,
         false,
     ]);
+});
+
+test("read a commit at once while a watcher keeps the feed following behind it", async () => {
+    await using simulation = new Simulation({
+        world: testWorldOptions(),
+        seed: 1,
+        start: START,
+    });
+    const database = await open({ simulation });
+    const feed = new Feed(database, [note]);
+    const query = { table: note, scopes: ["inbox"], orderBy: { title: "asc" } } satisfies Query;
+
+    // keep the feed following the log through a watcher
+    const watching = feed.watch("notes", query, AbortSignal.timeout(5000));
+    expect(await nextValue(watching)).toEqual([]);
+
+    // commit a note, then read the query at once, before the watcher's next value
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(note).values([{ ...first, id: "a", title: "Apples" }]),
+    );
+    const read = await feed.read({ notes: query }, EVERYONE, undefined, (dataflow) =>
+        dataflow.read("notes"),
+    );
+    await watching.return(undefined);
+
+    // read the committed note
+    expect(read.map((item) => item.row["title"])).toEqual(["Apples"]);
 });
 
 test("watch projects with their tasks, reordering one project's tasks and leaving the other project as it was", async () => {

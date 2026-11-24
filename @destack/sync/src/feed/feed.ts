@@ -377,28 +377,39 @@ export class Feed implements Cache {
         } while (last !== undefined);
     }
 
-    /** Use the shared materialized dataflow of queries for an audience at the log's head, alone. */
+    /** Use the shared dataflow of queries for an audience at the latest commit, alone. */
     read<Value>(
         queries: Readonly<Record<string, Query>>,
         audience: Audience,
         start: { readonly row: Row; readonly cursor: string } | undefined,
         use: (dataflow: Dataflow) => Promise<Value>,
     ): Promise<Value> {
-        return this.#useShared(queries, audience, start, async (shared) => use(shared.dataflow));
+        // read at the latest commit this process saw, which the feed may not have read yet
+        const committed = async () => {
+            const head = await this.#head();
+            const sequence = this.database.state.commits.sequence;
+
+            return { ...head, sequence: Math.max(head.sequence, sequence) };
+        };
+
+        return this.#useShared(queries, audience, start, committed, async (shared) =>
+            use(shared.dataflow),
+        );
     }
 
-    /** Use the shared dataflow of queries for an audience at the head, one use of it at a time. */
+    /** Use the shared dataflow of queries for an audience at a head, one use of it at a time. */
     #useShared<Value>(
         queries: Readonly<Record<string, Query>>,
         audience: Audience,
         start: { readonly row: Row; readonly cursor: string } | undefined,
+        head: () => Promise<LogPosition>,
         use: (shared: SharedDataflow) => Promise<Value>,
     ): Promise<Value> {
         // run after the earlier uses of the same dataflow, as stepping and reading change it
         const key = `${Dataflow.describe(queries)}\n${audience.key}\n${start?.cursor ?? ""}`;
         const earlier = this.#uses.get(key) ?? Promise.resolve();
         const running = earlier.then(async () =>
-            use(await this.#readShared(key, queries, audience, start)),
+            use(await this.#readShared(key, queries, audience, start, await head())),
         );
         const settled = running.then(
             () => undefined,
@@ -414,12 +425,13 @@ export class Feed implements Cache {
         return running;
     }
 
-    /** Take the shared dataflow under a key at the log's head, loading it once. */
+    /** Take the shared dataflow under a key at a head, loading it once. */
     async #readShared(
         key: string,
         queries: Readonly<Record<string, Query>>,
         audience: Audience,
         start: { readonly row: Row; readonly cursor: string } | undefined,
+        head: LogPosition,
     ): Promise<SharedDataflow> {
         // take the shared dataflow while its audience's decisions stand, else load one at the head
         const now = this.clock.now();
@@ -427,9 +439,9 @@ export class Feed implements Cache {
         this.#shared.delete(key);
         const isStanding = known !== undefined && (known.until === undefined || now < known.until);
         const shared =
-            known !== undefined && isStanding && (await this.#stepShared(known))
+            known !== undefined && isStanding && (await this.#stepShared(known, head))
                 ? known
-                : await this.#loadShared(queries, audience, start?.row);
+                : await this.#loadShared(queries, audience, start?.row, head);
 
         // keep it as the most recently read, dropping the oldest past the bound or the time to live
         shared.readAt = now;
@@ -444,11 +456,12 @@ export class Feed implements Cache {
         return shared;
     }
 
-    /** Load a materialized dataflow of queries for an audience at the log's head. */
+    /** Load a materialized dataflow of queries for an audience at a head. */
     async #loadShared(
         queries: Readonly<Record<string, Query>>,
         audience: Audience,
         start: Row | undefined,
+        head: LogPosition,
     ): Promise<SharedDataflow> {
         // compile the queries, then select their rows at the head
         const dataflow = new Dataflow(queries, {
@@ -461,7 +474,6 @@ export class Feed implements Cache {
             capacity: this.capacity,
             pageSize: this.pageSize,
         });
-        const head = await this.#head();
         await dataflow.load(new View(this.database, head, this), start);
 
         return {
@@ -474,13 +486,17 @@ export class Feed implements Cache {
     }
 
     /** Step a shared dataflow through the watched changes up to the head, false once compacted. */
-    async #stepShared(shared: SharedDataflow): Promise<boolean> {
+    async #stepShared(shared: SharedDataflow, head: LogPosition): Promise<boolean> {
         // require a position of the head's log and epoch
         const { dataflow, audience } = shared;
         const position = dataflow.position;
-        const head = await this.#head();
         if (position === undefined || position.log !== head.log || position.epoch !== head.epoch) {
             return false;
+        }
+
+        // leave a dataflow that a read already moved past this head
+        if (position.sequence >= head.sequence) {
+            return true;
         }
 
         // read the watched changes since: the dataflow's rows and its audience's deciding rows
@@ -562,6 +578,7 @@ export class Feed implements Cache {
                     { [name]: query },
                     EVERYONE,
                     undefined,
+                    async () => this.#head(),
                     async (shared) => ({
                         changed: shared.changed,
                         sequence: present(shared.dataflow.position, "the dataflow's position")
