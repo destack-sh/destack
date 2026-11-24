@@ -446,7 +446,7 @@ interface StoreComposition {
     readonly publisher?: (home: string) => sync.Publisher;
     /** The followed installation's remote, taking changes to replicated rows. */
     readonly remote?: ObjectRemote;
-    /** The outbox of the node's writes of rows homed elsewhere, absent for none. */
+    /** The outbox pushing writes of rows homed elsewhere as the node: one person's device alone. */
     readonly outbox?: OutboxOptions;
     /** The device the store runs on, partitioning device-scoped local objects. */
     readonly device?: Subject;
@@ -1206,7 +1206,6 @@ export class ObjectStore {
                     this.#pushAs(home, push.mutations, callerOf(push.signer), {
                         ...(push.writerId === undefined ? {} : { writerId: push.writerId }),
                         ...(push.origin === undefined ? {} : { origin: push.origin }),
-                        isEntered: true,
                     }),
                 ),
             call: (scope, call, signer) =>
@@ -1738,7 +1737,7 @@ export class ObjectStore {
                     this.requireProtocolType(context, call.type);
                 }
 
-                // enter the pushed scope as the caller, unless every mutation goes to its home as the caller
+                // enter the pushed scope as the caller, leaving rows forwarded to their home for it to decide
                 const isForwarded = input.mutations.every((mutation) =>
                     this.#isForwarded(mutation),
                 );
@@ -1749,7 +1748,6 @@ export class ObjectStore {
                 return this.#pushAs(input.scope, input.mutations, context.access(input.scope), {
                     ...(input.writerId === undefined ? {} : { writerId: input.writerId }),
                     ...(input.origin === undefined ? {} : { origin: input.origin }),
-                    isEntered: !isForwarded,
                 });
             }),
             watermark: store.watermark.handler(async ({ input, context }) => {
@@ -2549,15 +2547,10 @@ export class ObjectStore {
         scope: string,
         mutations: readonly sync.Mutation[],
         caller: AccessContext,
-        pusher: {
-            readonly writerId?: string;
-            readonly origin?: string;
-            /** Whether the caller entered the scope, which queuing for its home needs. */
-            readonly isEntered: boolean;
-        },
+        pusher: { readonly writerId?: string; readonly origin?: string } = {},
     ): Promise<PushResult> {
         // run each mutation in a separate transaction, or queue it, answering this store's watermark
-        const { writerId, origin, isEntered } = pusher;
+        const { writerId, origin } = pusher;
         const outcomes: PushResult["outcomes"][number][] = [];
         const queued: string[] = [];
         for (const pushed of mutations) {
@@ -2578,9 +2571,9 @@ export class ObjectStore {
                         `mutation pushed to '${scope}' is invalid: it acts in another scope`,
                     );
                 }
-                // queue a change of rows homed elsewhere for a caller in the scope, else run or forward it as the caller
+                // queue a change of rows homed elsewhere for the pushing party, answering at once, else run it here
                 const home =
-                    this.outbox !== undefined && isEntered && this.#isForwarded(mutation)
+                    this.outbox !== undefined && this.#isForwarded(mutation)
                         ? await this.#homeOf(mutation)
                         : undefined;
                 if (this.outbox !== undefined && home !== undefined) {

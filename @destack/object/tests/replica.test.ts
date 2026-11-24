@@ -52,6 +52,7 @@ import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
 import { tablesOf } from "../src/stack/db.ts";
 import { TestRemote } from "../src/test/publisher.ts";
+import { call } from "@orpc/server";
 import type { ObjectRemote } from "../src/client/index.ts";
 import type { Environment } from "@destack/environment";
 import objectPackage from "../src/package.ts";
@@ -686,7 +687,7 @@ test("send a change of a replicated type's row to its home, which decides it", a
         {
             push: async (scope, push) => {
                 const methods = push.mutations.flatMap((mutation) =>
-                    mutation.calls.map((call) => call.method),
+                    mutation.calls.map((entry) => entry.method),
                 );
                 pushed.push([scope, methods]);
                 const outcomes = push.mutations.map((mutation) => ({
@@ -1004,6 +1005,59 @@ test("answer a query follow of a type the store does not serve with a complete p
     ).toEqual([true, 0]);
 });
 
+test("forward a stranger's push of a replicated row to its home, which decides it as the stranger", async () => {
+    // store a realm's row as a replica of a home it reaches, the home refusing every push
+    const world = testSimulation().environment("test");
+    const pushed: unknown[] = [];
+    const refused = {
+        code: "FORBIDDEN" as const,
+        reason: "PERMISSION_DENIED",
+        domain: "@destack/access",
+        message: "permission 'write' is forbidden: it is not granted",
+    };
+    const silent = { [Symbol.asyncIterator]: () => ({ next: () => new Promise<never>(() => {}) }) };
+    const home = TestRemote.of(
+        { stream: () => silent, request: async () => {} },
+        {
+            push: async (scope, push) => {
+                pushed.push([scope, push.mutations.length]);
+                const outcomes = push.mutations.map((mutation) => ({
+                    id: mutation.id,
+                    outcome: { error: refused },
+                }));
+                const watermark = {
+                    scope,
+                    log: "home",
+                    epoch: "01996ab0-0000-7000-8000-000000000001",
+                    sequence: 1,
+                };
+
+                return { outcomes, queued: [], watermark };
+            },
+        },
+    );
+    const { store, realm, realmId } = await openRealms(world, home);
+
+    // push a rename of the realm as a stranger to its scope
+    const stranger = principal.user.reference(Scope.universe.id, users.other);
+    const id = RequestId.create(world);
+    const answered = await call(
+        store.procedures().push,
+        {
+            scope: Scope.universe.id,
+            mutations: [{ id, calls: [realm.call("rename", { id: realmId, title: "Globe" })] }],
+        },
+        { context: subjectContext(stranger, Scope.universe.id, { environment: world }) },
+    );
+
+    // send it to the home, which refuses it, without this store deciding it
+    expect([answered.queued, answered.outcomes, pushed]).toEqual([
+        [],
+        [{ id, outcome: { error: refused } }],
+        [[Scope.universe.id, 1]],
+    ]);
+});
+
 /** Store a realm's row as a replica of its home, reached through a remote when given. */
 async function openRealms(world: Environment, remote?: ObjectRemote) {
     // store a realm's row as a replica of its home, enclosing the notes the store serves
@@ -1030,7 +1084,7 @@ async function openRealms(world: Environment, remote?: ObjectRemote) {
             }),
         }),
     ).implement({
-        methods: { describe: async (call) => ({ title: call.target.title }) },
+        methods: { describe: async (described) => ({ title: described.target.title }) },
     });
     const note = defineObject(
         {
