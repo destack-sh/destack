@@ -279,6 +279,9 @@
         "22km7rpz6ljz3": "{$p0} pesa menos de {$p1}",
         "2sp2mpg6mvchm": ".input {$p0 :number}\n.match $p0\none {{Elige un solo archivo}}\n* {{Elige hasta {$p0} archivos}}",
         "3h8g0swru27j2": "Una carpeta",
-        "3t92w8t3e7k1i": "{$p0} es una carpeta"
+        "3t92w8t3e7k1i": "{$p0} es una carpeta",
+        "33wbdbzd0edms": "Alejar",
+        "3mtyuia6kwmlb": "Acercar",
+        "cuyl0ejg4enf": "Descargar"
     }
 }

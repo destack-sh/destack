@@ -91,6 +91,7 @@
         "./tooltip": "./src/tooltip/index.ts",
         "./tree": "./src/tree/index.ts",
         "./virtualizer": "./src/virtualizer/index.ts",
+        "./viewer": "./src/viewer/index.ts",
         "./virtual-list": "./src/virtual-list/index.ts",
         "./load-more": "./src/load-more/index.ts",
         "./feed": "./src/feed/index.ts",

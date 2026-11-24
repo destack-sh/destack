@@ -1,7 +1,18 @@
 import { defineExample } from "@destack/package/declare";
 import { createSignal } from "@destack/view";
-import { Dialog, DialogContent, DialogControl, DialogTitle } from "../dialog/index.ts";
-import { OpenChange } from "../layer/index.ts";
+import {
+    Viewer,
+    ViewerClose,
+    ViewerControl,
+    ViewerCount,
+    ViewerHeader,
+    ViewerNext,
+    ViewerPrevious,
+    ViewerStage,
+    ViewerTitle,
+    ViewerZoom,
+    ViewerZoomToggle,
+} from "../viewer/index.ts";
 import { Gallery, galleryContentStyle, GalleryItem } from "./gallery.tsx";
 import { CollageLayout, GridLayout, type Layout, MasonryLayout, RowLayout } from "./layout.ts";
 import * as style from "@destack/style";
@@ -38,30 +49,29 @@ const PHOTOS: readonly Photo[] = Array.from({ length: 23 }, (_photo, i) => {
     };
 });
 
-/** The photos of a trip in a layout, each opening in one dialog. */
+/** The photos of a trip in a layout, each opening in one viewer. */
 function Photos(properties: {
     /** How they are laid out. */
     readonly layout: Layout;
     /** How many there are. */
     readonly count: number;
 }) {
-    const viewer = new DialogControl<Photo>();
+    const photos = () => PHOTOS.slice(0, properties.count);
+    const viewer = new ViewerControl({ items: photos, key: (photo) => photo.title });
 
     return (
         <>
             <Gallery
                 aria-label="Trip"
-                each={PHOTOS.slice(0, properties.count)}
+                each={photos()}
                 ratio={(photo) => photo.ratio}
                 layout={properties.layout}
             >
                 {(photo) => (
                     <GalleryItem
+                        ref={viewer.thumbnail(photo())}
                         label={photo().title}
-                        onOpen={(event) => {
-                            const trigger = { element: event.currentTarget, payload: photo() };
-                            viewer.open(new OpenChange("trigger-press", event, trigger));
-                        }}
+                        onOpen={(event) => viewer.open(photo(), event)}
                     >
                         <img
                             alt=""
@@ -71,14 +81,31 @@ function Photos(properties: {
                     </GalleryItem>
                 )}
             </Gallery>
-            <Dialog control={viewer}>
+            <Viewer control={viewer}>
                 {(photo) => (
-                    <DialogContent>
-                        <DialogTitle>{photo()?.title}</DialogTitle>
-                        <img alt="" src={photo()?.source ?? ""} />
-                    </DialogContent>
+                    <>
+                        <ViewerHeader>
+                            <ViewerTitle>{photo().title}</ViewerTitle>
+                            <ViewerCount />
+                            <ViewerZoomToggle />
+                            <ViewerClose />
+                        </ViewerHeader>
+                        <ViewerStage control={viewer}>
+                            {(shown) => (
+                                <ViewerZoom ratio={shown().ratio}>
+                                    <img
+                                        alt={shown().title}
+                                        src={shown().source}
+                                        {...style.attributes([galleryContentStyle()])}
+                                    />
+                                </ViewerZoom>
+                            )}
+                        </ViewerStage>
+                        <ViewerPrevious />
+                        <ViewerNext />
+                    </>
                 )}
-            </Dialog>
+            </Viewer>
         </>
     );
 }

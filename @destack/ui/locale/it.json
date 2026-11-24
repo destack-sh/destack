@@ -279,6 +279,9 @@
         "22km7rpz6ljz3": "{$p0} è più piccolo di {$p1}",
         "2sp2mpg6mvchm": ".input {$p0 :number}\n.match $p0\none {{Scegli un solo file}}\n* {{Scegli fino a {$p0} file}}",
         "3h8g0swru27j2": "Una cartella",
-        "3t92w8t3e7k1i": "{$p0} è una cartella"
+        "3t92w8t3e7k1i": "{$p0} è una cartella",
+        "33wbdbzd0edms": "Riduci",
+        "3mtyuia6kwmlb": "Ingrandisci",
+        "cuyl0ejg4enf": "Scarica"
     }
 }

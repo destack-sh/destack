@@ -279,6 +279,9 @@
         "22km7rpz6ljz3": "{$p0} is kleiner dan {$p1}",
         "2sp2mpg6mvchm": ".input {$p0 :number}\n.match $p0\none {{Kies één bestand}}\n* {{Kies hooguit {$p0} bestanden}}",
         "3h8g0swru27j2": "Een map",
-        "3t92w8t3e7k1i": "{$p0} is een map"
+        "3t92w8t3e7k1i": "{$p0} is een map",
+        "33wbdbzd0edms": "Uitzoomen",
+        "3mtyuia6kwmlb": "Inzoomen",
+        "cuyl0ejg4enf": "Downloaden"
     }
 }

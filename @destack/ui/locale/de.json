@@ -279,6 +279,9 @@
         "22km7rpz6ljz3": "{$p0} ist kleiner als {$p1}",
         "2sp2mpg6mvchm": ".input {$p0 :number}\n.match $p0\none {{Wähle nur eine Datei aus}}\n* {{Wähle höchstens {$p0} Dateien aus}}",
         "3h8g0swru27j2": "Ein Ordner",
-        "3t92w8t3e7k1i": "{$p0} ist ein Ordner"
+        "3t92w8t3e7k1i": "{$p0} ist ein Ordner",
+        "33wbdbzd0edms": "Verkleinern",
+        "3mtyuia6kwmlb": "Vergrößern",
+        "cuyl0ejg4enf": "Herunterladen"
     }
 }

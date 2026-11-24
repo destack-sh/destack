@@ -279,6 +279,9 @@
         "22km7rpz6ljz3": "{$p0} fait moins de {$p1}",
         "2sp2mpg6mvchm": ".input {$p0 :number}\n.match $p0\none {{Choisissez un seul fichier}}\n* {{Choisissez jusqu’à {$p0} fichiers}}",
         "3h8g0swru27j2": "Un dossier",
-        "3t92w8t3e7k1i": "{$p0} est un dossier"
+        "3t92w8t3e7k1i": "{$p0} est un dossier",
+        "33wbdbzd0edms": "Dézoomer",
+        "3mtyuia6kwmlb": "Zoomer",
+        "cuyl0ejg4enf": "Télécharger"
     }
 }

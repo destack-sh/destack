@@ -3,7 +3,9 @@ import play from "@destack/icon/phosphor/play";
 import waveform from "@destack/icon/phosphor/waveform";
 import { defineExample } from "@destack/package/declare";
 import { createSignal, For } from "@destack/view";
+import * as style from "@destack/style";
 import { PICTURES } from "../example/picture.ts";
+import { galleryContentStyle } from "../gallery/index.ts";
 import { Icon } from "../icon/index.ts";
 import { Stack } from "../stack/index.ts";
 import {
@@ -18,6 +20,18 @@ import {
     FileItemRemove,
     FileItemTitle,
 } from "./file-item.tsx";
+import {
+    Viewer,
+    ViewerClose,
+    ViewerControl,
+    ViewerDownload,
+    ViewerHeader,
+    ViewerNext,
+    ViewerPrevious,
+    ViewerStage,
+    ViewerTitle,
+    ViewerZoom,
+} from "../viewer/index.ts";
 
 /** A trip's files. */
 const FILES = [
@@ -87,30 +101,61 @@ export const fileItemRows = defineExample({
     ),
 });
 
-/** A trip's photos as cards, which a person removes. */
+/** A trip's photos as cards, which a person opens and removes. */
 export const fileItemCards = defineExample({
     of: FileItem,
     name: "cards",
-    description: "a trip's photos as cards, which a person removes",
+    description: "a trip's photos as cards, which a person opens and removes",
     layout: "padded",
     render: () => {
         const [photos, setPhotos] = createSignal<readonly (typeof PHOTOS)[number][]>(PHOTOS);
+        const viewer = new ViewerControl({ items: photos, key: (photo) => photo.name });
 
         return (
-            <FileItemGroup layout="card" aria-label="Photos">
-                <For each={photos()}>
-                    {({ source, ...file }) => (
-                        <FileItem
-                            layout="card"
-                            file={file}
-                            source={source}
-                            onRemove={() =>
-                                setPhotos((left) => left.filter(({ name }) => name !== file.name))
-                            }
-                        />
+            <>
+                <FileItemGroup layout="card" aria-label="Photos">
+                    <For each={photos()}>
+                        {(photo) => (
+                            <FileItem
+                                ref={viewer.thumbnail(photo)}
+                                layout="card"
+                                file={photo}
+                                source={photo.source}
+                                onOpen={() => viewer.open(photo)}
+                                onRemove={() =>
+                                    setPhotos((left) =>
+                                        left.filter(({ name }) => name !== photo.name),
+                                    )
+                                }
+                            />
+                        )}
+                    </For>
+                </FileItemGroup>
+                <Viewer control={viewer}>
+                    {(photo) => (
+                        <>
+                            <ViewerHeader>
+                                <ViewerTitle>{photo().name}</ViewerTitle>
+                                <ViewerDownload href={photo().source} name={photo().name} />
+                                <ViewerClose />
+                            </ViewerHeader>
+                            <ViewerStage control={viewer}>
+                                {(shown) => (
+                                    <ViewerZoom ratio={4 / 3}>
+                                        <img
+                                            alt={shown().name}
+                                            src={shown().source}
+                                            {...style.attributes([galleryContentStyle()])}
+                                        />
+                                    </ViewerZoom>
+                                )}
+                            </ViewerStage>
+                            <ViewerPrevious />
+                            <ViewerNext />
+                        </>
                     )}
-                </For>
-            </FileItemGroup>
+                </Viewer>
+            </>
         );
     },
 });
