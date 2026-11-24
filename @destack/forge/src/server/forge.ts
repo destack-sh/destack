@@ -271,7 +271,7 @@ export class Forge {
     ): Promise<ObjectReference> {
         const found = (await Forge.find(name, reader, home)).package;
         if (found === undefined) {
-            throw ForgeError.of("PACKAGE_NOT_FOUND", "package not found");
+            throw ForgeError.of("PACKAGE_NOT_FOUND", `package '${name}' not found`);
         }
 
         return found;
@@ -291,7 +291,7 @@ export class Forge {
         await Forge.#acquire(reader, Claim.key(account, "handle", [handle]));
         const accountId = await new Directory(reader).account(handle);
         if (accountId === undefined) {
-            throw ForgeError.of("PACKAGE_NOT_FOUND", "package not found");
+            throw ForgeError.of("PACKAGE_NOT_FOUND", `package '${name}' not found`);
         }
 
         // find the package claiming the name within the account
@@ -397,7 +397,7 @@ export class Forge {
             read: (table) => view.read(table),
         };
         const found = await Forge.package(name, reader, this.#options.home);
-        await Forge.conceal("PACKAGE_NOT_FOUND", "package not found", () =>
+        await Forge.conceal("PACKAGE_NOT_FOUND", `package '${name}' not found`, () =>
             objects.query(
                 context.access(found.scope),
                 packageObject.call("get", { spaceId: found.scope, id: found.id }),
@@ -451,7 +451,7 @@ export class Forge {
         const asked = NPM_PATH.exec(path);
         const [, handle, name, , version] = asked ?? [];
         if (handle === undefined || name === undefined) {
-            throw ForgeError.of("PACKAGE_NOT_FOUND", "package not found");
+            throw ForgeError.of("PACKAGE_NOT_FOUND", `package at '${path}' not found`);
         }
 
         // find the package of the name, and read it as the caller, concealing each refusal
@@ -469,7 +469,7 @@ export class Forge {
         if (found === undefined) {
             const builtin = await (await this.#builtinsOnce()).get(full)?.();
             if (builtin === undefined) {
-                throw ForgeError.of("PACKAGE_NOT_FOUND", "package not found");
+                throw ForgeError.of("PACKAGE_NOT_FOUND", `package '${full}' not found`);
             } else if (version !== undefined && version !== builtin.version) {
                 throw ForgeError.of("RELEASE_NOT_FOUND", `release '${version}' not found`);
             } else if (version !== undefined) {
@@ -488,7 +488,7 @@ export class Forge {
                 ]),
             );
         }
-        await Forge.conceal("PACKAGE_NOT_FOUND", "package not found", () =>
+        await Forge.conceal("PACKAGE_NOT_FOUND", `package '${full}' not found`, () =>
             objects.query(
                 context.access(found.scope),
                 packageObject.call("get", { spaceId: found.scope, id: found.id }),

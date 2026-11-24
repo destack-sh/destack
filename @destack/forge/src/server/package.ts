@@ -308,7 +308,7 @@ function find(
 async function resolve(
     context: MethodContextOf<typeof packageObject, "resolve">,
 ): Promise<ResultOf<typeof packageObject, "resolve">> {
-    return Forge.conceal("PACKAGE_NOT_FOUND", "package not found", () =>
+    return Forge.conceal("PACKAGE_NOT_FOUND", `package '${context.input.name}' not found`, () =>
         context.query(
             context.caller,
             packageObject.call("get", packageObject.target(context.prepared)),

@@ -86,7 +86,7 @@ test("list a package to npm clients and serve its release's tarball, to its read
         defined: true,
         code: "NOT_FOUND",
         status: 404,
-        message: "package not found",
+        message: "package '@example/answer' not found",
         domain: "@destack/forge",
         reason: "PACKAGE_NOT_FOUND",
     };
