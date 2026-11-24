@@ -90,6 +90,7 @@ const styles = style.create({
     },
     label: {
         position: "relative",
+        flexShrink: 0,
         maxWidth: `calc(100% - ${size[3]})`,
         "::after": {
             content: "''",

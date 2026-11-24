@@ -922,6 +922,7 @@ function BarTrack(
                         },
                     })}
                     {...style.attrs(
+                        state.touch,
                         styles.progressGrip,
                         places.at(from() + (to() - from()) * (progress() ?? 0)),
                     )}
