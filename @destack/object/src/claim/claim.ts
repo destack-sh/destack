@@ -168,30 +168,32 @@ export const Claim = Object.assign(claim, {
         values: readonly unknown[],
         scope?: string,
     ): Promise<ClaimHolder | undefined> {
-        return await Claim.first(type, claims, name, [values], scope);
+        const [found] = await Claim.matching(type, claims, name, [values], scope);
+
+        return found;
     },
 
-    /** Look up the first candidate values an object claims in an index, all in one lookup. */
-    async first(
+    /** List the claims matching candidate values in an index, in candidate order. */
+    async matching(
         type: ObjectType,
         claims: ClaimLookup,
         name: string,
         candidates: readonly (readonly unknown[])[],
         scope?: string,
-    ): Promise<ClaimHolder | undefined> {
+    ): Promise<ClaimHolder[]> {
         // key every candidate, then find their owners at once
         const keyed = candidates.map((values) => Claim.key(type, name, values, scope));
         const named = Claim.index(type, name);
         const owners = await claims.resolve({ index: named, keys: keyed.map((each) => each.key) });
 
-        // take the first candidate an object claims
-        const found = keyed
-            .map((each) => owners.get(each.key))
-            .find((owner) => owner !== undefined);
+        // list the candidates an object claims
+        return keyed.flatMap((each) => {
+            const owner = owners.get(each.key);
 
-        return found === undefined
-            ? undefined
-            : { scope: found.owner, id: found.objectId, state: found.state };
+            return owner === undefined
+                ? []
+                : [{ scope: owner.owner, id: owner.objectId, state: owner.state }];
+        });
     },
 
     /** Reserve an object's names until its write commits, returning the names others claim. */
