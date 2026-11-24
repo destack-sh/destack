@@ -4,7 +4,8 @@ import { type Action, type ActionInputs, type ValuesOf } from "@destack/object";
 import { Icon } from "@destack/ui/icon";
 import type { IconBodies } from "@destack/icon";
 import { Shortcut } from "@destack/locale";
-import { type JSX, omit, Show, useActions, useLocale } from "@destack/view";
+import { createSignal, type JSX, omit, Show, useActions, useLocale } from "@destack/view";
+import { mergeProperties } from "../part/index.ts";
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { useCommandPlatform } from "../kbd/index.ts";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../tooltip/index.ts";
@@ -40,10 +41,23 @@ export function ActionButton<Inputs extends ActionInputs>(
     const actions = useActions();
     const locale = useLocale();
     const isCommand = useCommandPlatform();
-    const rest = omit(properties, "action", "given", "element", "icon", "children");
+    const rest = omit(properties, "action", "given", "element", "icon", "variant", "children");
     const title = () => locale.render(properties.action.title);
     const keys = () => actions.keybinding(properties.action);
     const isAlone = () => properties.size === "icon" || properties.size === "icon-sm";
+    const [button, setButton] = createSignal<Element | undefined>(undefined, { ownedWrite: true });
+    const isOn = () => {
+        // read it where a press would run it
+        const own = button();
+        const place = own === undefined ? null : actions.placeOf(properties.action, own);
+
+        return actions.isOn(properties.action, properties.element ?? place);
+    };
+    const pressed = () => {
+        const on = isOn();
+
+        return on === undefined ? undefined : on ? "true" : "false";
+    };
     const run = (element: Element) => {
         const { action, given } = properties;
         const place =
@@ -58,11 +72,15 @@ export function ActionButton<Inputs extends ActionInputs>(
             <TooltipTrigger
                 render={(attributes) => (
                     <Button
-                        {...attributes}
+                        {...mergeProperties(attributes, {
+                            ref: (created: HTMLElement) => setButton(created),
+                        })}
                         {...rest}
                         data-slot="action-button"
                         data-action={properties.action.name}
                         aria-label={isAlone() ? title() : undefined}
+                        aria-pressed={pressed()}
+                        variant={isOn() === true ? "secondary" : (properties.variant ?? "default")}
                         aria-keyshortcuts={
                             keys() === undefined
                                 ? undefined

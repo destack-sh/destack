@@ -1,5 +1,5 @@
 import * as style from "@destack/style";
-import { radius, space, swatch } from "@destack/theme/tokens.stylex";
+import { space } from "@destack/theme/tokens.stylex";
 import { plural, t } from "@destack/locale";
 import type { ActionInput, ActionValue, ActionValues, Choice } from "@destack/object";
 import { type JsonValue, type PlainDate, type PlainTime, TimeZone } from "@destack/schema";
@@ -28,6 +28,7 @@ import {
     AlertDialogTitle,
 } from "../alert-dialog/index.ts";
 import { Button } from "../button/index.ts";
+import { ChoiceIcon } from "./choice-icon.tsx";
 import {
     CommandDialog,
     CommandEmpty,
@@ -44,7 +45,6 @@ import {
     DialogHeader,
     DialogTitle,
 } from "../dialog/index.ts";
-import { Glyph } from "../glyph/index.ts";
 import { Field, FieldGroup, FieldLabel } from "../field/index.ts";
 import { Input } from "../input/index.ts";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../select/index.ts";
@@ -62,20 +62,6 @@ const styles = style.create({
         flexDirection: "column",
         gap: space[4],
     },
-    glyph: {
-        width: "1rem",
-        height: "1rem",
-        fontSize: "1em",
-    },
-    hue: (fill: string) => ({
-        color: fill,
-    }),
-    dot: (fill: string) => ({
-        width: space[2],
-        height: space[2],
-        borderRadius: radius.full,
-        backgroundColor: fill,
-    }),
     fields: {
         gap: space[4],
     },
@@ -216,26 +202,6 @@ function ActionPick(properties: {
     );
 }
 
-/** Render a choice's icon, else its color as a dot, nothing without either. */
-function ChoiceIcon(properties: {
-    /** The choice. */
-    readonly choice: Choice;
-}): JSX.Element {
-    const { icon, color: hue } = properties.choice;
-    if (icon !== undefined && !("file" in icon)) {
-        return (
-            <Glyph
-                glyph={icon}
-                xstyle={[styles.glyph, hue !== undefined && styles.hue(swatch[`${hue}Mark`])]}
-            />
-        );
-    }
-
-    return hue === undefined ? undefined : (
-        <span {...style.attrs(styles.dot(swatch[`${hue}Mark`]))} />
-    );
-}
-
 /** Render a confirmation before an action removes for good. */
 function ActionConfirm(properties: {
     /** The question. */
@@ -244,11 +210,13 @@ function ActionConfirm(properties: {
     // count the objects it removes
     const locale = useLocale();
     const { question, answer } = properties.asking;
-    const { action, values } = question;
+    const { action, values, element } = question;
+    const actions = useActions();
     const target = action.call?.target;
     const given = target === undefined ? undefined : values[target];
     const count = Array.isArray(given) ? given.length : 1;
     const title = locale.render(action.title);
+    const sentence = actions.sentence(action, element, locale, values);
 
     return (
         <AlertDialog
@@ -261,7 +229,7 @@ function ActionConfirm(properties: {
         >
             <AlertDialogContent>
                 <AlertDialogHeader>
-                    <AlertDialogTitle>{locale.render(t`${title}?`)}</AlertDialogTitle>
+                    <AlertDialogTitle>{locale.render(t`${sentence}?`)}</AlertDialogTitle>
                     <AlertDialogDescription>
                         {locale.render(
                             t`${plural(count, { one: "This cannot be undone.", other: "This affects # items and cannot be undone." })}`,

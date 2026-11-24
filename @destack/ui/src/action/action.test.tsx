@@ -1,11 +1,12 @@
-import { t } from "@destack/locale";
+import { argument, plural, t } from "@destack/locale";
 import { defineAction, field } from "@destack/object";
 import { schema } from "@destack/schema";
 import { expect, onTestFinished, test, vi } from "@destack/test";
-import { ActionRegistry, flush, handleAction } from "@destack/view";
+import { ActionRegistry, createSignal, flush, handleAction } from "@destack/view";
 import { render, stubPopovers, wait } from "@destack/view/test";
 import { Toaster } from "../toast/index.ts";
-import { ActionButton, ActionDialog } from "./index.ts";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "../dropdown-menu/index.ts";
+import { ActionButton, ActionDialog, MenuAction } from "./index.ts";
 
 /** Archive the note. */
 const archive = defineAction({ name: "archive", title: t`Archive`, keybinding: "mod+e" });
@@ -168,4 +169,85 @@ test("run nothing once the person cancels, and ask anew", async () => {
     const isOpen = document.querySelector("form")?.closest("dialog")?.open;
 
     expect({ ran, closed, isOpen }).toEqual({ ran: [], closed: false, isOpen: true });
+});
+
+/** Pin the note. */
+const pin = defineAction({ name: "note.pin", title: t`Pin` });
+
+/** Set the note's color. */
+const paint = defineAction({
+    name: "note.paint",
+    title: t`Color`,
+    input: {
+        color: field.enum({
+            red: { title: t`Red`, color: "red" },
+            blue: { title: t`Blue`, color: "blue" },
+        }),
+    },
+});
+
+/** Put the note a number of days off. */
+const postpone = defineAction({
+    name: "note.postpone",
+    title: t`Postpone`,
+    summary: t`Postpone by ${plural(argument("days"), { one: "# day", other: "# days" })}`,
+    input: { days: field.integer() },
+});
+
+test("check what is on in a menu and on a button, open choices as a submenu, and say what a given value does", async () => {
+    // draw a note's menu and its pin button
+    stubPopovers();
+    const ran: unknown[] = [];
+    const [isPinned, setPinned] = createSignal(false);
+    const { container } = render(() => {
+        handleAction(pin, { isOn: isPinned, run: () => void setPinned((is) => !is) });
+        handleAction(paint, { run: ({ values }) => void ran.push(values) });
+        handleAction(postpone, { run: ({ values }) => void ran.push(values) });
+
+        return (
+            <>
+                <ActionButton action={pin} />
+                <DropdownMenu defaultOpen>
+                    <DropdownMenuTrigger>Note</DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                        <MenuAction action={pin} />
+                        <MenuAction action={paint} />
+                        <MenuAction action={postpone} given={{ days: 3 }} />
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </>
+        );
+    });
+    flush();
+    await wait(0);
+    flush();
+    const read = () =>
+        [...container.querySelectorAll<HTMLElement>("[data-menu-item]")].map((each) => [
+            each.getAttribute("role"),
+            (each.textContent ?? "").replaceAll(/[\u2066-\u2069]/gu, ""),
+            each.getAttribute("aria-checked"),
+        ]);
+    const before = read();
+
+    // pin by the button, pick blue from the submenu, and postpone by the given days
+    const [button] = container.querySelectorAll("button");
+    button?.click();
+    flush();
+    const pressed = button?.getAttribute("aria-pressed");
+    const items = [...container.querySelectorAll<HTMLElement>("[data-menu-item]")];
+    items.find((each) => each.textContent === "Blue")?.click();
+    items.at(-1)?.click();
+    await wait(0);
+
+    expect({ before, pressed, ran }).toEqual({
+        before: [
+            ["menuitemcheckbox", "Pin", "false"],
+            ["menuitem", "Color", null],
+            ["menuitem", "Red", null],
+            ["menuitem", "Blue", null],
+            ["menuitem", "Postpone by 3 days", null],
+        ],
+        pressed: "true",
+        ran: [{ color: "blue" }, { days: 3 }],
+    });
 });

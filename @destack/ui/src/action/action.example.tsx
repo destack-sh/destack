@@ -1,10 +1,14 @@
 import calendarBlank from "@destack/icon/phosphor/calendar-blank";
+import starIcon from "@destack/icon/phosphor/star";
 import trash from "@destack/icon/phosphor/trash";
-import { t } from "@destack/locale";
+import { argument, plural, t } from "@destack/locale";
 import { defineAction, field, ObjectError } from "@destack/object";
 import { defineExample } from "@destack/package/declare";
 import { schema } from "@destack/schema";
 import { createSignal, handleAction, type JSX } from "@destack/view";
+import { Button } from "../button/index.ts";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "../dropdown-menu/index.ts";
+import { MenuAction } from "../menu/index.ts";
 import { Cluster } from "../cluster/index.ts";
 import { Stack } from "../stack/index.ts";
 import { Toaster } from "../toast/index.ts";
@@ -56,6 +60,17 @@ const plan = defineAction({
     },
 });
 
+/** Star the task. */
+const star = defineAction({ name: "task.star", title: t`Star`, keybinding: "b" });
+
+/** Postpone the task. */
+const postpone = defineAction({
+    name: "task.postpone",
+    title: t`Postpone`,
+    summary: t`Postpone by ${plural(argument("days"), { one: "# day", other: "# days" })}`,
+    input: { days: field.integer().labeled(t`Days`) },
+});
+
 /** Publish the task, which its space refuses. */
 const publish = defineAction({ name: "publish", title: t`Publish` });
 
@@ -82,6 +97,11 @@ function TaskActions(): JSX.Element {
     handleAction(plan, {
         run: ({ values }) => void setDone(`Planned ${values.title}, ${values.points} points`),
     });
+    const [isStarred, setStarred] = createSignal(false);
+    handleAction(star, { isOn: isStarred, run: () => void setStarred((is) => !is) });
+    handleAction(postpone, {
+        run: ({ values }) => void setDone(`Postponed by ${values.days} days`),
+    });
     handleAction(publish, {
         run: () => {
             throw ObjectError.of("CALL_BLOCKED", "cannot publish the task: its launch is over");
@@ -99,6 +119,21 @@ function TaskActions(): JSX.Element {
                     Assign to Ada
                 </ActionButton>
                 <ActionButton action={publish} variant="outline" />
+                <ActionButton action={star} icon={starIcon} size="icon" variant="ghost" />
+                <DropdownMenu>
+                    <DropdownMenuTrigger
+                        render={(attributes) => <Button {...attributes} variant="outline" />}
+                    >
+                        More
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                        <MenuAction action={star} />
+                        <MenuAction action={changeStatus} />
+                        <MenuAction action={assign} />
+                        <MenuAction action={postpone} given={{ days: 3 }} />
+                        <MenuAction action={remove} />
+                    </DropdownMenuContent>
+                </DropdownMenu>
                 <ActionButton action={remove} icon={trash} size="icon" variant="ghost" />
             </Cluster>
             <output>{done()}</output>

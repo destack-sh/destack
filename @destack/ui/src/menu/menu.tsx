@@ -24,6 +24,7 @@ import {
     createEffect,
     createSignal,
     createUniqueId,
+    For,
     onCleanup,
     type JSX,
     merge,
@@ -46,7 +47,9 @@ import {
     renderPart,
 } from "../part/index.ts";
 import { type Direction, Shortcut } from "@destack/locale";
-import type { Action, ActionInputs, ValuesOf } from "@destack/object";
+import type { Action, ActionInput, ActionInputs, Choice, ValuesOf } from "@destack/object";
+import { type JsonValue, mapValues } from "@destack/schema";
+import { ChoiceIcon } from "../action/choice-icon.tsx";
 import type { IconBodies } from "@destack/icon";
 import { useCommandPlatform } from "../kbd/index.ts";
 import { ListState } from "../focus/index.ts";
@@ -76,6 +79,9 @@ const MenuContext = createContext<MenuControl | null>(null);
 
 /** The selected value of the nearest radio group of a menu, null outside one. */
 const MenuRadioContext = createContext<MenuRadioControl | null>(null);
+
+/** A mark after an item's shortcut, which the shortcut pushes to the end. */
+const AFTER_SHORTCUT = ":is([data-slot=menu-shortcut] ~ *)";
 
 /** The styles of a menu and its elements. */
 const styles = style.create({
@@ -123,7 +129,10 @@ const styles = style.create({
     },
     indicator: {
         display: "inline-flex",
-        marginInlineStart: "auto",
+        marginInlineStart: {
+            default: "auto",
+            [AFTER_SHORTCUT]: 0,
+        },
         color: color.mutedForeground,
     },
     label: {
@@ -145,7 +154,10 @@ const styles = style.create({
         letterSpacing: "0.1em",
     },
     chevron: {
-        marginInlineStart: "auto",
+        marginInlineStart: {
+            default: "auto",
+            [AFTER_SHORTCUT]: 0,
+        },
         display: "inline-flex",
     },
 });
@@ -1050,21 +1062,121 @@ export function MenuAction<Inputs extends ActionInputs>(
         properties.element === undefined ? control.origin() : properties.element;
     const isEnabled = createMemo(() => actions.has(properties.action.reference, element()));
     const keys = () => actions.keybinding(properties.action);
+    const start = () => actions.start(properties.action, element(), properties.given);
+
+    // read what it turns on, and the one input left that a person picks from a list
+    const isOn = createMemo(() =>
+        isEnabled() ? actions.isOn(properties.action, element()) : undefined,
+    );
+    const picked = createMemo(() => {
+        // take the one input left
+        const asked = isEnabled()
+            ? actions.asked(properties.action, element(), properties.given)
+            : [];
+        const [input, ...others] = asked;
+        const isListed =
+            input !== undefined && actions.isListed(properties.action, input, element());
+
+        return others.length === 0 && isListed ? input : undefined;
+    });
+    const title = () => (
+        <>
+            <Show when={properties.icon}>{(icon) => <Icon icon={icon()} />}</Show>
+            {properties.children ??
+                actions.sentence(properties.action, element(), locale, properties.given)}
+        </>
+    );
+    const shortcut = () => (
+        <Show when={properties.given === undefined ? keys() : undefined}>
+            {(pressed) => <MenuShortcut>{Shortcut.format(pressed(), isCommand())}</MenuShortcut>}
+        </Show>
+    );
 
     return (
         <Show when={isEnabled()}>
-            <MenuItem
-                variant={properties.action.isDestructive ? "destructive" : "default"}
-                onSelect={() => actions.start(properties.action, element(), properties.given)}
+            <Show
+                when={picked()}
+                fallback={
+                    <Show
+                        when={isOn() !== undefined}
+                        fallback={
+                            <MenuItem
+                                variant={
+                                    properties.action.isDestructive ? "destructive" : "default"
+                                }
+                                onSelect={start}
+                            >
+                                {title()}
+                                {shortcut()}
+                            </MenuItem>
+                        }
+                    >
+                        <MenuCheckboxItem checked={isOn() === true} onCheckedChange={start}>
+                            {title()}
+                            {shortcut()}
+                        </MenuCheckboxItem>
+                    </Show>
+                }
             >
-                <Show when={properties.icon}>{(icon) => <Icon icon={icon()} />}</Show>
-                {properties.children ?? locale.render(properties.action.title)}
-                <Show when={properties.given === undefined ? keys() : undefined}>
-                    {(shortcut) => (
-                        <MenuShortcut>{Shortcut.format(shortcut(), isCommand())}</MenuShortcut>
-                    )}
-                </Show>
-            </MenuItem>
+                {(input) => (
+                    <Menu>
+                        <MenuSubTrigger>
+                            {title()}
+                            {shortcut()}
+                        </MenuSubTrigger>
+                        <MenuContent side="right" align="start">
+                            <MenuChoices
+                                input={input()}
+                                list={() =>
+                                    actions.choices(properties.action, input(), element(), locale)
+                                }
+                                onPick={(value) =>
+                                    actions.start(properties.action, element(), {
+                                        ...properties.given,
+                                        ...mapValues<
+                                            Record<string, JsonValue>,
+                                            Partial<ValuesOf<Inputs>>
+                                        >({ [input().name]: value }, (each) => each),
+                                    })
+                                }
+                            />
+                        </MenuContent>
+                    </Menu>
+                )}
+            </Show>
         </Show>
+    );
+}
+
+/** Render the choices of an action's input as a submenu's items, read as its menu opens. */
+function MenuChoices(properties: {
+    /** The input. */
+    readonly input: ActionInput;
+    /** List its choices. */
+    readonly list: () => Promise<readonly Choice[]>;
+    /** Pick one. */
+    readonly onPick: (value: JsonValue) => void;
+}): JSX.Element {
+    // read the choices each time the menu around opens
+    const control = useMenu();
+    const [choices, setChoices] = createSignal<readonly Choice[]>([], { ownedWrite: true });
+    createEffect(
+        () => control.root().isOpen(),
+        (isOpen) => {
+            if (isOpen) {
+                void properties.list().then(setChoices, reportError);
+            }
+        },
+    );
+
+    return (
+        <For each={choices()}>
+            {(choice) => (
+                <MenuItem onSelect={() => properties.onPick(choice.value)}>
+                    <ChoiceIcon choice={choice} />
+                    {choice.title}
+                </MenuItem>
+            )}
+        </For>
     );
 }
