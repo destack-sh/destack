@@ -41,6 +41,7 @@ test("schedule a package whose files all passed as its check alone, on one runne
         {
             runner: 1,
             milliseconds: 9_000,
+            isBrowsing: false,
             work: [{ package: "@destack/check", files: [], isChecked: true }],
         },
     ]);

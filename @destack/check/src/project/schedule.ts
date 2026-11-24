@@ -9,6 +9,9 @@ const RUNNER_MILLISECONDS = 120_000;
 /** The most runners a schedule uses, below GitHub's limit on concurrent jobs. */
 const MOST_RUNNERS = 40;
 
+/** The infix of test files that run in a browser, as the test plan names them. */
+const BROWSER_SUFFIX = ".browser.scenario.";
+
 /** The packages read at once, each listing its closure and spawning a git listing. */
 const PACKAGE_CONCURRENCY = 8;
 
@@ -28,6 +31,8 @@ export interface Runner {
     readonly runner: number;
     /** How long the work should take, in milliseconds. */
     readonly milliseconds: number;
+    /** Whether any of its test files runs in a browser, so the runner installs Chromium. */
+    readonly isBrowsing: boolean;
     /** The packages and files it checks and tests. */
     readonly work: readonly Work[];
 }
@@ -42,6 +47,8 @@ interface Item {
     readonly weight: number;
     /** Whether this item's runner checks the package. */
     readonly isChecked: boolean;
+    /** Whether this item is the whole package, run without naming its files. */
+    readonly isWhole: boolean;
 }
 
 /** The CI runners for packages: their missing test files, packed by their last durations. */
@@ -125,6 +132,7 @@ export class Schedule {
                         files: bin.items,
                         weight: bin.weight + (index === 0 ? item.check : 0),
                         isChecked: index === 0,
+                        isWhole: false,
                     }));
             }
             // keep a light package whole
@@ -132,9 +140,10 @@ export class Schedule {
                 return [
                     {
                         package: item.package,
-                        files: [],
+                        files: item.files,
                         weight: item.weight + item.check,
                         isChecked: true,
+                        isWhole: true,
                     },
                 ];
             }
@@ -147,10 +156,11 @@ export class Schedule {
 
         // describe each runner's work, grouped by package
         const runners = bins.map((bin, index): Runner => {
+            // group the runner's parts by package
             const byPackage = Map.groupBy(bin.items, (part) => part.package);
             const work = [...byPackage].map(([name, group]): Work => {
                 // run a whole package's missing files, or the named ones of a split package
-                const isWhole = group.some((part) => part.files.length === 0);
+                const isWhole = group.some((part) => part.isWhole);
                 const files = isWhole
                     ? []
                     : group.flatMap((part) => part.files.map(([file]) => file));
@@ -162,7 +172,12 @@ export class Schedule {
                 };
             });
 
-            return { runner: index + 1, milliseconds: Math.round(bin.weight), work };
+            // note whether a file it runs needs a browser
+            const isBrowsing = bin.items.some((part) =>
+                part.files.some(([file]) => file.includes(BROWSER_SUFFIX)),
+            );
+
+            return { runner: index + 1, milliseconds: Math.round(bin.weight), isBrowsing, work };
         });
 
         return new Schedule(runners);
