@@ -93,7 +93,7 @@ test("install a published app, returning once the space serves its revision", as
     }).toEqual({
         installing: [0, ""],
         // follow the latest tag, showing the installation until the space serves its revision
-        followed: ["latest", "tag latest", served.targetRevisionId],
+        followed: ["latest", "latest · updates automatically", served.targetRevisionId],
         served: served.targetRevisionId,
         installed: {
             id: installed.id,
