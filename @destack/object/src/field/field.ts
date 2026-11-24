@@ -4,6 +4,7 @@ import {
     type ActionValue,
     type VALUE_KINDS,
 } from "../declare/input.ts";
+import { NumberInput } from "../declare/number.ts";
 import { PackageId } from "@destack/package";
 import {
     bigint,
@@ -29,8 +30,14 @@ import {
     type Table,
     textEnum,
 } from "@destack/db";
-import { Message } from "@destack/locale";
-import { canonicalize, schema, type Identifier, type JsonValue } from "@destack/schema";
+import { Message, NumberFormat } from "@destack/locale";
+import {
+    canonicalize,
+    schema,
+    toJsonSchema,
+    type Identifier,
+    type JsonValue,
+} from "@destack/schema";
 import type { BuilderCall } from "../object/description.ts";
 import type { ObjectConstraint } from "../object/constraint.ts";
 import type { IdentityOf, ObjectStorage, ObjectType } from "../object/object.ts";
@@ -111,8 +118,6 @@ const BUILDER_TYPES: Readonly<Record<FieldSource["builder"], FieldType>> = {
 const VALUE_KIND: Readonly<Partial<Record<FieldType, (typeof VALUE_KINDS)[number]>>> = {
     string: "text",
     text: "text",
-    integer: "number",
-    number: "number",
     boolean: "boolean",
     time: "time",
     subject: "person",
@@ -190,10 +195,12 @@ export const StateMachine = {
 export type FieldSource =
     | { readonly builder: "string"; readonly arguments: readonly [schema.Schema<string>] }
     | {
+          readonly builder: "integer" | "number";
+          readonly arguments: readonly [] | readonly [schema.Schema<number>];
+      }
+    | {
           readonly builder:
-              | "integer"
               | "bigint"
-              | "number"
               | "binary"
               | "boolean"
               | "time"
@@ -243,6 +250,7 @@ export const FIELD_MODIFIERS = [
     "sensitive",
     "personal",
     "labeled",
+    "formatted",
     "open",
     "caller",
     "guard",
@@ -468,6 +476,8 @@ interface FieldOptions<Configuration extends FieldConfiguration> {
     readonly isPersonal?: boolean;
     /** The field's name as people read it. */
     readonly label?: Message;
+    /** How people read a number field's values. */
+    readonly format?: NumberFormat;
     /** Whether a subject field accepts the subjects and sets other types contribute. */
     readonly isOpen?: boolean;
     /** How a sensitive value is encrypted at rest, randomly unless a lookup finds it by value. */
@@ -502,6 +512,8 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
     readonly isPersonal: boolean;
     /** The field's name as people read it, absent to read it from its property. */
     readonly label: Message | undefined;
+    /** How people read a number field's values, absent for plain numbers and other fields. */
+    readonly format: NumberFormat | undefined;
     /** Whether a subject field accepts contributed subjects and sets. */
     readonly isOpen: boolean;
     /** How a sensitive value is encrypted at rest, randomly unless a lookup finds it by value. */
@@ -523,6 +535,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
         this.initial = definition.initial;
         this.isPersonal = definition.isPersonal ?? false;
         this.label = definition.label;
+        this.format = definition.format;
         this.isOpen = definition.isOpen ?? false;
         this.encryption = definition.encryption ?? "randomized";
         this.access = definition.access;
@@ -575,12 +588,14 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
                 ? { kind: "object", type, source: "picked", where: undefined }
                 : source.builder === "enum"
                   ? { kind: "choice", choices: this.choices ?? [] }
-                  : {
-                        kind:
-                            this.principals === undefined
-                                ? (VALUE_KIND[this.type] ?? "json")
-                                : "person",
-                    };
+                  : source.builder === "integer" || source.builder === "number"
+                    ? { kind: "number", ...Field.numbers(source, this.format) }
+                    : {
+                          kind:
+                              this.principals === undefined
+                                  ? (VALUE_KIND[this.type] ?? "json")
+                                  : "person",
+                      };
         const declared = this.isDefault ? "default" : this.required ? "required" : "optional";
 
         return new ActionInput({ name, label: this.label, presence: presence ?? declared, value });
@@ -697,6 +712,21 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
         return new Field<Configuration>({ ...this.#options, ...this.#flags, label });
     }
 
+    /** Write the field's numbers as people read them, such as a share or an amount. */
+    formatted(format: NumberFormat): Field<Configuration> {
+        // refuse a format of no number
+        if (this.type !== "integer" && this.type !== "number") {
+            throw new TypeError("only number fields have a number format");
+        }
+
+        // refuse a currency or a unit no language writes
+        if (!NumberFormat.safeParse(format).success) {
+            throw new TypeError(`no language writes the format ${JSON.stringify(format)}`);
+        }
+
+        return new Field<Configuration>({ ...this.#options, ...this.#flags, format });
+    }
+
     /** Accept the subjects and subject sets other types contribute. */
     open(): Field<Override<Configuration, { readonly open: true }>> {
         if (this.type !== "subject") {
@@ -797,6 +827,9 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
                 ? [{ builder: "personal", arguments: [] }]
                 : []),
             ...(this.label === undefined ? [] : [{ builder: "labeled", arguments: [this.label] }]),
+            ...(this.format === undefined
+                ? []
+                : [{ builder: "formatted", arguments: [this.format] }]),
             ...(this.isOpen && !plain.isOpen ? [{ builder: "open", arguments: [] }] : []),
             ...(this.isCallerFilled && !plain.isCallerFilled
                 ? [{ builder: "caller", arguments: [] }]
@@ -968,6 +1001,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
             ...(this.initial === undefined ? {} : { initial: this.initial }),
             isPersonal: this.isPersonal,
             ...(this.label === undefined ? {} : { label: this.label }),
+            ...(this.format === undefined ? {} : { format: this.format }),
             isOpen: this.isOpen,
             encryption: this.encryption,
             ...(this.access === undefined ? {} : { access: this.access }),
@@ -1011,6 +1045,17 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
         build: BuildColumn<Value>,
     ): FieldOf<{ value: Value }> {
         return new Field<FieldConfigurationOf<{ value: Value }>>({ source, build, ...WRITTEN });
+    }
+
+    /** Read the numbers a number field takes, and how people read them. */
+    static numbers(
+        source: Extract<FieldSource, { readonly builder: "integer" | "number" }>,
+        format: NumberFormat | undefined,
+    ): NumberInput {
+        const [validator] = source.arguments;
+        const plain = source.builder === "integer" ? schema.number().int() : schema.number();
+
+        return NumberInput.of(validator ?? plain, format);
     }
 
     /** Declare a field an aggregate maintains, starting at a value. */
@@ -1281,9 +1326,17 @@ export const field = {
     /** Text a string schema validates. */
     string,
 
-    /** A whole number within the exactly representable range. */
-    integer() {
-        return Field.required({ builder: "integer", arguments: [] }, integer);
+    /** A whole number within the exactly representable range, or that a schema validates. */
+    integer(validator?: schema.Schema<number>): FieldOf<{ value: number }> {
+        // refuse a schema of other numbers
+        if (validator !== undefined && toJsonSchema(validator).type !== "integer") {
+            throw new TypeError("an integer field takes a schema of whole numbers");
+        }
+
+        return Field.required(
+            { builder: "integer", arguments: validator === undefined ? [] : [validator] },
+            (name) => (validator === undefined ? integer(name) : integer(name).validate(validator)),
+        );
     },
 
     /** A whole number of 64 bits, beyond the exact range of a double. */
@@ -1291,9 +1344,12 @@ export const field = {
         return Field.required({ builder: "bigint", arguments: [] }, bigint);
     },
 
-    /** A double-precision number. */
-    number() {
-        return Field.required({ builder: "number", arguments: [] }, real);
+    /** A double-precision number, or one a schema validates. */
+    number(validator?: schema.Schema<number>): FieldOf<{ value: number }> {
+        return Field.required(
+            { builder: "number", arguments: validator === undefined ? [] : [validator] },
+            (name) => (validator === undefined ? real(name) : real(name).validate(validator)),
+        );
     },
 
     /** The count of objects belonging to each object. */

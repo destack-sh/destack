@@ -134,7 +134,27 @@ export async function finishTask(
 | `sensitive()`, `personal()`               | encrypts the value at rest, or marks it as personal data |
 | `immutable()`, `caller()`                 | writes it only at creation, or fills it with the creator |
 | `guard(read, write)`, `guardWrite(write)` | requires permissions to read or write it                 |
+| `formatted(format)`                       | writes a number as a share, an amount or a measure       |
 | `open()`                                  | accepts subjects other types contribute                  |
+
+### Numbers
+
+`field.integer(schema)` and `field.number(schema)` take the limits of their schema, and `formatted` says how people read them.
+Inputs, lists and the terminal write and refuse numbers by both.
+
+```ts
+import { field } from "@destack/object";
+import { schema } from "@destack/schema";
+
+/** The fields of a booking. */
+export const fields = {
+    guests: field.integer(schema.number().int().min(1).max(8)),
+    discount: field
+        .number(schema.number().min(0).max(1).multipleOf(0.05))
+        .formatted({ style: "percent" }),
+    price: field.number().formatted({ style: "currency", currency: "EUR" }),
+};
+```
 
 ### Text
 

@@ -1,3 +1,4 @@
+import { NumberInput } from "./number.ts";
 import { Condition, type JsonCondition } from "@destack/db";
 import { Message } from "@destack/locale";
 import { type JsonObject, type JsonValue, present, schema } from "@destack/schema";
@@ -13,12 +14,11 @@ import {
 } from "./variable.ts";
 
 /** The kinds of value a person gives, objects and choices aside. */
-export const VALUE_KINDS = ["text", "number", "boolean", "time", "person", "json"] as const;
+export const VALUE_KINDS = ["text", "boolean", "time", "person", "json"] as const;
 
 /** The type of the JSON value of each kind a person gives. */
 const VALUE_TYPES = {
     text: "string",
-    number: "number",
     boolean: "boolean",
     time: "number",
 } as const;
@@ -31,9 +31,8 @@ const PRESENCES: Readonly<Partial<Record<string, InputPresence>>> = {
 };
 
 /** The kinds of value people give for a schema, by its type. */
-const SCHEMA_KINDS: Readonly<Partial<Record<string, "text" | "number" | "boolean">>> = {
+const SCHEMA_KINDS: Readonly<Partial<Record<string, "text" | "boolean">>> = {
     string: "text",
-    number: "number",
     boolean: "boolean",
 };
 
@@ -56,6 +55,7 @@ export type InputPresence = "required" | "optional" | "default";
 /** What an input takes: a value, one of some choices, or objects from a source. */
 export type ActionValue =
     | { readonly kind: (typeof VALUE_KINDS)[number] }
+    | (NumberInput & { readonly kind: "number" })
     | { readonly kind: "choice"; readonly choices: readonly FieldChoice[] }
     | {
           readonly kind: "object";
@@ -129,7 +129,9 @@ export class ActionInput {
                       kind: "choice",
                       choices: (inner.options ?? []).map((each) => ({ value: each })),
                   }
-                : { kind: SCHEMA_KINDS[inner.type] ?? "json" };
+                : inner.type === "number"
+                  ? { kind: "number", ...NumberInput.of(definition) }
+                  : { kind: SCHEMA_KINDS[inner.type] ?? "json" };
 
         return new ActionInput({ name, label: undefined, presence, value });
     }
@@ -190,6 +192,11 @@ export class ActionInput {
             return ObjectReference.safeParse(value).success;
         }
 
+        // take a number within its limits
+        else if (taken.kind === "number") {
+            return typeof value === "number" && NumberInput.takes(taken, value);
+        }
+
         return taken.kind === "json" || typeof value === VALUE_TYPES[taken.kind];
     }
 
@@ -206,6 +213,10 @@ export class ActionInput {
         };
         if (value.kind === "choice") {
             return { ...shared, choices: [...value.choices] };
+        } else if (value.kind === "number") {
+            const { kind: _kind, ...numbers } = value;
+
+            return Object.keys(numbers).length === 0 ? shared : { ...shared, numbers };
         } else if (value.kind === "object") {
             return {
                 ...shared,
@@ -235,7 +246,9 @@ export class ActionInput {
                         source: present(description.source, `the source of input '${name}'`),
                         where: description.where,
                     }
-                  : { kind };
+                  : kind === "number"
+                    ? { kind, ...description.numbers }
+                    : { kind };
 
         return new ActionInput({ name, label, presence, value, variable: description.variable });
     }
@@ -248,7 +261,7 @@ export class ActionInput {
             choices !== undefined
                 ? { kind: "choice", choices: choices.map((each) => ({ value: each })) }
                 : type === "number" || type === "integer"
-                  ? { kind: "number" }
+                  ? { kind: "number", ...NumberInput.ofJson(value) }
                   : type === "boolean"
                     ? { kind: "boolean" }
                     : { kind: type === "string" ? "text" : "json" };
@@ -266,9 +279,11 @@ export const ActionInputDescription = schema.object({
     /** Whether the person must give it, may, or leaves it to its default. */
     presence: schema.enum(["required", "optional", "default"]),
     /** What it takes. */
-    kind: schema.enum([...VALUE_KINDS, "choice", "object"]),
+    kind: schema.enum([...VALUE_KINDS, "number", "choice", "object"]),
     /** The key of the variable places give it by. */
     variable: schema.string().min(1).exactOptional(),
+    /** The numbers of a number, any when absent. */
+    numbers: NumberInput.exactOptional(),
     /** The choices of a choice. */
     choices: schema.array(FieldChoice).exactOptional(),
     /** The type of an object. */

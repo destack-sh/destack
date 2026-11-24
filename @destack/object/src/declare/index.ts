@@ -6,6 +6,7 @@ export * from "./description.ts";
 export * from "./fetch.ts";
 export * from "./action.ts";
 export * from "./keybinding.ts";
+export * from "./number.ts";
 export * from "./call.ts";
 export * from "./variable.ts";
 export * from "./input.ts";

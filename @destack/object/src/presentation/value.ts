@@ -1,6 +1,6 @@
 import { type JsonValue, schema } from "@destack/schema";
 import { type Field, type FieldType, StateMachine, type StateStage } from "../field/field.ts";
-import type { Localization } from "@destack/locale";
+import type { Localization, NumberFormat } from "@destack/locale";
 import type { ObjectType } from "../object/object.ts";
 import { Choice } from "./choice.ts";
 
@@ -8,7 +8,12 @@ import { Choice } from "./choice.ts";
 export type ObjectValue =
     | { readonly kind: "absent" }
     | { readonly kind: "text"; readonly value: string }
-    | { readonly kind: "number"; readonly value: number }
+    | {
+          readonly kind: "number";
+          readonly value: number;
+          /** How people read it, as a plain number when absent. */
+          readonly format: NumberFormat | undefined;
+      }
     | { readonly kind: "boolean"; readonly value: boolean }
     | { readonly kind: "time"; readonly value: number }
     | (Choice & { readonly kind: "choice"; readonly value: string })
@@ -71,7 +76,9 @@ export const ObjectValue = {
         const kind = KINDS[field.type];
         const machine = field.machine;
         const target = field.target?.().name;
-        if (kind === "number" || kind === "time") {
+        if (kind === "number") {
+            return { kind, value: schema.number().parse(value), format: field.format };
+        } else if (kind === "time") {
             return { kind, value: schema.number().parse(value) };
         } else if (kind === "boolean") {
             return { kind, value: schema.boolean().parse(value) };
