@@ -15,6 +15,7 @@
         "./stack": "./src/stack/index.ts",
         "./error": "./src/error/index.ts",
         "./build": "./src/build/index.ts",
+        "./source": "./src/source/index.ts",
         "./setting": "./src/setting/index.ts"
     },
     "dependencies": {
@@ -34,7 +35,8 @@
         "@destack/schema": "workspace:*",
         "@destack/setting": "workspace:*",
         "@destack/sync": "workspace:*",
-        "@destack/view": "workspace:*"
+        "@destack/view": "workspace:*",
+        "@destack/workflow": "workspace:*"
     },
     "peerDependencies": {
         "@destack/environment": "workspace:*",
@@ -42,7 +44,10 @@
         "@destack/identity": "workspace:*",
         "@destack/sandbox": "workspace:*",
         "@destack/test": "workspace:*",
-        "@destack/universe": "workspace:*"
+        "@destack/universe": "workspace:*",
+        "magic-string": "1.4.1",
+        "oxfmt": "0.68.0",
+        "rolldown": "1.2.19"
     },
     "peerDependenciesMeta": {
         "@destack/environment": {
@@ -62,6 +67,15 @@
         },
         "@destack/universe": {
             "optional": true
+        },
+        "magic-string": {
+            "optional": true
+        },
+        "oxfmt": {
+            "optional": true
+        },
+        "rolldown": {
+            "optional": true
         }
     },
     "devDependencies": {
@@ -72,8 +86,11 @@
         "@destack/sandbox": "workspace:*",
         "@destack/test": "workspace:*",
         "@destack/universe": "workspace:*",
+        "@oxc-project/types": "0.156.0",
         "@types/bun": "1.4.4",
+        "magic-string": "1.4.1",
         "miniflare": "4.20260730.0",
+        "oxfmt": "0.68.0",
         "rolldown": "1.2.19"
     }
 }

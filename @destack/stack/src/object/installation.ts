@@ -55,6 +55,7 @@ import {
 } from "@destack/sync";
 import { space, Space } from "@destack/account/object";
 import { StackError } from "../error/index.ts";
+import { EditOperation, EditSource } from "./edit.ts";
 import { InstallationWait } from "./wait.ts";
 import { Failure } from "@destack/error";
 import { InstallationRevision, installationRevision } from "./revision.ts";
@@ -228,6 +229,8 @@ export const installation = defineObject(
                 allow: none(),
                 apply: none(),
                 open: none(),
+                // let the space's managers commit changes to the branch an installation follows
+                edit: through("scope", "manage"),
             },
             reserved: ["replicate", "run"],
         },
@@ -287,6 +290,19 @@ export const installation = defineObject(
             title: t`Allow`,
             permission: "allow",
             input: schema.object({ capability: DeclarationName }),
+        }),
+        /** Commit a change to the branch the installation follows, as the caller. */
+        edit: method.mutation({
+            title: t`Edit`,
+            permission: "edit",
+            input: schema.object({
+                /** The changes, applied in order. */
+                operations: schema.array(EditOperation).min(1),
+                /** The message of the commit. */
+                message: schema.string().min(1),
+            }),
+            output: schema.object({ run: schema.identifier("run") }),
+            prepared: EditSource,
         }),
         /** Withdraw an optional capability allowed at the installation's request. */
         disallow: method.mutation({

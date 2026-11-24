@@ -1,47 +1,41 @@
-import {
-    PackageDirectory,
-    defineObject,
-    defineShape,
-    field,
-    type ResultsOf,
-} from "@destack/object";
+import { PackageDirectory, defineObject, field, type ResultsOf } from "@destack/object";
 import { and, desc, eq, isNull, type Select } from "@destack/db";
 import type { DatabaseConnection, Snapshot } from "@destack/db/database";
-import { none, relation, through, union } from "@destack/access";
+import { none, through } from "@destack/access";
 import { PackageId, PackageRelease } from "@destack/package";
-import { type Call, ObjectReference, Subject } from "@destack/sync";
+import type { Call } from "@destack/sync";
 import { Commit, Digest, type Identifier, present, schema, Version } from "@destack/schema";
-import { machine, space } from "@destack/account/object";
+import { space } from "@destack/account/object";
 import { Failure } from "@destack/error";
 import { installationRevision } from "./revision.ts";
 import type {} from "@destack/package/import-meta";
 import { StackError } from "../error/index.ts";
 import { argument, plural, t } from "@destack/locale";
+import { defineWorkflow } from "@destack/workflow";
 
-/** Where a build stands: waiting for its runner, running, or finished one of three ways. */
-export const BUILD_STATES = ["pending", "running", "succeeded", "failed", "cancelled"] as const;
-
-/** The states of a build its runner runs or will run. */
-export const ACTIVE_BUILD_STATES = ["pending", "running"] as const;
+/** Where a build stands: compiling, or finished one of three ways. */
+export const BUILD_STATES = ["running", "succeeded", "failed", "cancelled"] as const;
 
 /** The states of a build that ended. */
 export const FINISHED_BUILD_STATES = ["succeeded", "failed", "cancelled"] as const;
 
-/** The steps of a running build: resolving its source, compiling it, and storing the result. */
-export const BUILD_PHASES = ["preparing", "building", "storing"] as const;
+/** A working directory registered on a machine, built in place by that machine alone. */
+export const CheckoutSource = schema.object({
+    /** A working directory registered on a machine. */
+    kind: schema.literal("checkout"),
+    /** The machine administering the checkout, which runs the build. */
+    machine: schema.identifier("machine"),
+    /** The checkout registered on that machine. */
+    checkout: schema.identifier("checkout"),
+    /** The package directory within the checkout. */
+    directory: PackageDirectory,
+});
+/** A working directory registered on a machine. */
+export type CheckoutSource = schema.Infer<typeof CheckoutSource>;
 
 /** The source a build has: a checkout with unpublished changes, a commit, or a release. */
 export const BuildSource = schema.discriminatedUnion("kind", [
-    schema.object({
-        /** A working directory registered on a machine. */
-        kind: schema.literal("checkout"),
-        /** The machine administering the checkout, which runs the build. */
-        machine: schema.identifier("machine"),
-        /** The checkout registered on that machine. */
-        checkout: schema.identifier("checkout"),
-        /** The package directory within the checkout. */
-        directory: PackageDirectory,
-    }),
+    CheckoutSource,
     schema.object({
         /** Committed repository history. */
         kind: schema.literal("commit"),
@@ -66,42 +60,19 @@ export const BuildSource = schema.discriminatedUnion("kind", [
 /** The source a build has. */
 export type BuildSource = schema.Infer<typeof BuildSource>;
 
-/** The progress a runner reports: compiling the outputs, or storing the compiled build. */
-export const BuildProgress = schema.discriminatedUnion("phase", [
-    schema.object({
-        /** Compiling the source's outputs. */
-        phase: schema.literal("building"),
-        /** The outputs compiled. */
-        outputs: schema.array(schema.string().min(1)).min(1),
-        /** The commit a clean checkout is at, absent for a dirty one. */
-        commit: Commit.exactOptional(),
-    }),
-    schema.object({
-        /** Storing the compiled build through the space's builds mount. */
-        phase: schema.literal("storing"),
-    }),
-]);
-
-/** A build that failed, with why. */
-const FailedBuild = schema.object({
-    /** A build that failed. */
-    kind: schema.literal("failed"),
-    /** Why the build failed. */
-    failure: Failure,
+/** What a build's compile answers: the image stored and the outputs it compiled. */
+export const CompileOutput = schema.object({
+    /** The digest of the stored image. */
+    image: Digest,
+    /** The outputs compiled. */
+    outputs: schema.array(schema.string().min(1)).min(1),
+    /** The commit a clean checkout was at, absent for a dirty one or a commit's own. */
+    commit: Commit.exactOptional(),
 });
+/** What a build's compile answers. */
+export type CompileOutput = schema.Infer<typeof CompileOutput>;
 
-/** How a build ended: stored under the image its runner pushed, or failed. */
-export const BuildOutcome = schema.discriminatedUnion("kind", [
-    schema.object({
-        /** A build whose image the space stores. */
-        kind: schema.literal("stored"),
-        /** The digest of the stored image. */
-        image: Digest,
-    }),
-    FailedBuild,
-]);
-
-/** One compilation of a package's source into a stored build, run by its runner. */
+/** One compilation of a package's source into a stored build, which its compile run fills. */
 export const build = defineObject(
     {
         name: "build",
@@ -117,9 +88,7 @@ export const build = defineObject(
 
             // how it runs
             /** Where the build stands. */
-            state: field.enum(BUILD_STATES).default("pending"),
-            /** The step of a running build. */
-            phase: field.enum(BUILD_PHASES).optional(),
+            state: field.enum(BUILD_STATES),
             /** The version the build releases its package at, absent for a development build. */
             version: field.string(Version).optional(),
             /** The commit built: a commit build's own, or a clean checkout's when built. */
@@ -131,11 +100,9 @@ export const build = defineObject(
             /** Why the build failed, once failed. */
             failure: field.json(Failure).optional(),
             /** The start of the build's run, in UTC epoch milliseconds. */
-            startedAt: field.time().optional(),
+            startedAt: field.time(),
             /** The finish, in UTC epoch milliseconds. */
             finishedAt: field.time().optional(),
-            /** The machine running the build, absent on a machine running none. */
-            runner: field.subject(machine).optional(),
             /** When retention removed the succeeded build's files, in UTC epoch milliseconds. */
             expiredAt: field.time().optional(),
         },
@@ -151,15 +118,6 @@ export const build = defineObject(
                     checkout: { isNotNull: true },
                     state: { ne: "cancelled" },
                     expiredAt: { isNull: true },
-                },
-            },
-            phase: {
-                kind: "check",
-                condition: {
-                    OR: [
-                        { state: "running", phase: { isNotNull: true } },
-                        { state: { ne: "running" }, phase: { isNull: true } },
-                    ],
                 },
             },
             image: {
@@ -189,18 +147,7 @@ export const build = defineObject(
                 condition: {
                     OR: [
                         { outputs: { isNotNull: true } },
-                        { state: { in: ["pending", "failed", "cancelled"] } },
-                        { phase: "preparing" },
-                    ],
-                },
-            },
-            start: {
-                kind: "check",
-                condition: {
-                    OR: [
-                        { state: "cancelled" },
-                        { state: "pending", startedAt: { isNull: true } },
-                        { state: { ne: "pending" }, startedAt: { isNotNull: true } },
+                        { state: { in: ["running", "failed", "cancelled"] } },
                     ],
                 },
             },
@@ -222,36 +169,22 @@ export const build = defineObject(
         },
         container: "scope",
         access: {
-            relations: {
-                runner: { subjects: [machine] },
-            },
-            // let the space's readers read its builds and their index, and a build's runner run it
+            // let the space's readers read its builds and their index
             permissions: {
-                read: union(relation("runner"), through("scope", "read")),
+                read: through("scope", "read"),
                 create: none(),
                 cancel: none(),
-                run: relation("runner"),
                 record: none(),
                 push: none(),
             },
-            reserved: ["run"],
         },
     },
     (method) => ({
         create: method.create("create", {
-            fields: [
-                "source",
-                "outputs",
-                "version",
-                "runnerPackageId",
-                "runnerType",
-                "runnerScope",
-                "runnerId",
-            ],
+            fields: ["source", "outputs", "version"],
         }),
         cancel: method.update("cancel", { fields: [] }),
         update: method.update("record", { visibility: "package" }),
-        start: method.mutation({ title: t`Start`, permission: "run", output: schema.object({}) }),
         /** Push the succeeded build's files to the forge of its package's account. */
         push: method.mutation({
             title: t`Push`,
@@ -276,19 +209,6 @@ export const build = defineObject(
             output: schema.object({ releases: schema.array(PackageRelease) }),
             prepared: schema.object({ releases: schema.array(PackageRelease) }),
         }),
-        progress: method.mutation({
-            title: t`Progress`,
-            permission: "run",
-            input: schema.object({ progress: BuildProgress }),
-            output: schema.object({}),
-        }),
-        finish: method.mutation({
-            title: t`Finish`,
-            permission: "run",
-            input: schema.object({ outcome: BuildOutcome }),
-            output: schema.object({}),
-            prepared: BuildOutcome,
-        }),
     }),
 );
 
@@ -297,7 +217,7 @@ export type BuildState =
     | { readonly state: "succeeded"; readonly image: Digest; readonly failure: null }
     | { readonly state: "failed"; readonly image: null; readonly failure: Failure }
     | {
-          readonly state: "pending" | "running" | "cancelled";
+          readonly state: "running" | "cancelled";
           readonly image: null;
           readonly failure: null;
       };
@@ -522,18 +442,13 @@ function sourcePackage(source: BuildSource): readonly string[] {
     }
 }
 
-/** The builds of one space assigned to one runner, replicated to the runner's machine. */
-export const buildShape = defineShape({
-    name: "build",
-    parameters: schema.object({
-        /** The runner's subject key. */
-        runner: schema.string().min(1),
+/** Compile a build's source on a runner, storing its image and recording it on the build. */
+export const compile = defineWorkflow({
+    name: "compile",
+    title: t`Compile`,
+    input: schema.object({
+        /** The build compiled. */
+        build: schema.identifier("build"),
     }),
-    objects: [build],
-    queries: ({ runner }) => [
-        build.query({
-            scopes: "every",
-            where: ObjectReference.columns("runner", Subject.read(runner)),
-        }),
-    ],
+    output: CompileOutput,
 });

@@ -13,6 +13,10 @@
             "runtimes": ["bun"],
             "internal": true
         },
+        "./source": {
+            "runtimes": ["bun"],
+            "internal": true
+        },
         "./stack": {
             "runtimes": ["bun", "workerd"]
         },

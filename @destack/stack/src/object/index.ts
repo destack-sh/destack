@@ -6,6 +6,7 @@ export * from "./socket.ts";
 export * from "./stack.ts";
 export * from "./binding.ts";
 export * from "./build.ts";
+export * from "./edit.ts";
 export * from "./graph.ts";
 export * from "./deployment.ts";
 export * from "./instance.ts";

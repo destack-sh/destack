@@ -3,8 +3,10 @@ import { principal } from "@destack/access";
 import { BUILD_STORE_TABLES } from "@destack/build/table";
 import { defineMount, definePackage } from "@destack/object";
 import { catalog, declaration, module, symbol } from "./object/graph.ts";
+import { edit } from "./object/edit.ts";
 import {
     build,
+    compile,
     deployment,
     installation,
     installationRevision,
@@ -25,7 +27,7 @@ export { STACK_INSTALLATION } from "./object/installation.ts";
 /** The path of the space-move data plane below the stack package's mount. */
 export const HANDOFF_PATH = "/handoff";
 
-/** The path of runners' build uploads below the stack package's mount. */
+/** The path of machines' build uploads below the stack package's mount. */
 export const PUSH_PATH = "/push";
 
 /** The path of installations' hook sessions below the stack package's mount. */
@@ -46,6 +48,8 @@ export default definePackage({
         snapshot,
         restore,
         build,
+        ...compile.objects,
+        ...edit.objects,
         route,
         socket,
         module,

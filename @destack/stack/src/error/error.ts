@@ -9,6 +9,7 @@ export const StackError = defineErrorFamily({
         ACTIVE_TRANSFER_NOT_FOUND: {},
         BLOB_NOT_FOUND: {},
         BUILD_NOT_FOUND: {},
+        DEPENDENCY_NOT_FOUND: {},
         GRAPH_NOT_FOUND: {},
         HANDOFF_NOT_FOUND: {},
         HOSTNAME_NOT_FOUND: {},
@@ -26,6 +27,7 @@ export const StackError = defineErrorFamily({
 
         // exists
         BUILD_EXISTS: {},
+        INSTALLATION_EXISTS: {},
 
         // conflict
         BUILD_CONFLICT: {},
@@ -60,11 +62,11 @@ export const StackError = defineErrorFamily({
         MOUNT_BLOCKED: {},
         BINDING_BLOCKED: {},
         BUILD_BLOCKED: {},
-        BUILD_RUNNER_BLOCKED: {},
         CAPABILITY_BLOCKED: {},
         DATABASE_BLOCKED: {},
         DEPENDENCY_BLOCKED: {},
         DEPENDENT_BLOCKED: {},
+        EDIT_BLOCKED: {},
         FENCE_BLOCKED: {},
         HOOK_BLOCKED: {},
         HOSTNAME_BLOCKED: {},
@@ -73,6 +75,7 @@ export const StackError = defineErrorFamily({
         PLAN_BLOCKED: {},
         PROVIDER_BLOCKED: {},
         RELEASE_BLOCKED: {},
+        RUNNER_BLOCKED: {},
         REPLICA_BLOCKED: {},
         REPOSITORIES_BLOCKED: {},
         RESOURCE_BLOCKED: {},
