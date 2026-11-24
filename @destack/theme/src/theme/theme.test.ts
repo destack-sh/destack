@@ -668,7 +668,7 @@ test("emit the default theme's custom properties for the system appearance", () 
         "--destack-shadow-raised":
             "0px 0px 0px 1px var(--destack-shadow-edge), 0px 1px 3px 0px var(--destack-shadow-cast)",
         "--destack-shadow-overlay":
-            "0px 12px 32px -16px var(--destack-shadow-cast), 0px 12px 60px 0px var(--destack-shadow-cast)",
+            "0px 12px 32px -16px var(--destack-shadow-cast), 0px 6px 24px -4px var(--destack-shadow-cast)",
         "--destack-motion-duration-short": "calc(150ms * var(--destack-motion-scale, 1))",
         "--destack-motion-duration-medium": "calc(300ms * var(--destack-motion-scale, 1))",
         "--destack-motion-duration-long": "calc(500ms * var(--destack-motion-scale, 1))",
