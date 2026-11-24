@@ -6,18 +6,21 @@ import { DataTable } from "./data-table.tsx";
 /** The table's body rows. */
 const rows = { css: "[data-slot=data-table] tbody tr" };
 
-/** Narrow the tasks to one status with its faceted filter, then rename a task in place. */
+/** Narrow the tasks to one status, then rename a task in place. */
 export const dataTableFilterAndRename = defineScenario({
     of: DataTable,
     interaction: viewInteraction,
     name: "filter-and-rename",
-    description:
-        "narrow the tasks to one status with its faceted filter, then rename a task in place",
+    description: "narrow the tasks to one status, then rename a task in place",
     given: { examples: [dataTableTasks] },
     parameters: {},
     when: [
         {
-            step: { action: "click", target: { role: "button", name: "Status" } },
+            step: { action: "click", target: { role: "button", name: "Filter" } },
+            then: [{ observe: { kind: "focused" }, is: "Filter by…" }],
+        },
+        {
+            step: { action: "click", target: { role: "option", name: "Status" } },
             then: [{ observe: { kind: "count", target: rows }, is: 4 }],
         },
         {

@@ -23,6 +23,7 @@ import {
 } from "./index.ts";
 import { createSignal, Errored, flush, type JSX } from "@destack/view";
 import { render, stubPopovers, wait } from "@destack/view/test";
+import { SearchField } from "../search-field/index.ts";
 import {
     createTable,
     DataTable,
@@ -32,7 +33,6 @@ import {
     DataTableEditor,
     type DataTableRowMove,
     orderColumn,
-    DataTableFilter,
     DataTablePagination,
     selectionColumn,
     useDataTableState,
@@ -96,7 +96,7 @@ const COLUMNS = COLUMN.columns([
     }),
 ]);
 
-/** Render the invoices with a filter and a pagination. */
+/** Render the invoices with a search and a pagination. */
 function drawInvoices(): HTMLElement {
     return render(() => {
         const table = createTable({
@@ -108,7 +108,7 @@ function drawInvoices(): HTMLElement {
 
         return (
             <>
-                <DataTableFilter table={table} placeholder="Filter invoices" />
+                <SearchField onValueChange={(text) => table.setGlobalFilter(text)} />
                 <DataTable table={table} />
                 <DataTablePagination table={table} />
             </>
@@ -180,7 +180,7 @@ test("sort by a column ascending, descending and back to the rows' order as give
 
 test("filter rows across their searchable cells, showing a message when none match", () => {
     const container = drawInvoices();
-    const input = container.querySelector<HTMLInputElement>("[data-slot=data-table-filter]");
+    const input = container.querySelector<HTMLInputElement>("[data-slot=search-field] input");
     if (input !== null) {
         input.value = "grace";
         input.dispatchEvent(new Event("input", { bubbles: true }));

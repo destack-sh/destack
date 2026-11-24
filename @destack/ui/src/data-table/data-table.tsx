@@ -41,8 +41,6 @@ import type {
     CellSelectionDirection,
     Column,
     Column_ColumnVisibility,
-    Column_ColumnFaceting,
-    Column_ColumnFiltering,
     Column_ColumnPinning,
     Column_ColumnResizing,
     Column_ColumnSizing,
@@ -59,12 +57,10 @@ import type {
     Row_RowExpanding,
     Row_RowSelection,
     RowData,
-    Table_GlobalFiltering,
     Table_RowPagination,
     Table_RowSelection,
     TableFeatures,
     TableState_ColumnGrouping,
-    TableState_GlobalFiltering,
     TableState_RowExpanding,
     TableState_RowPagination,
     TableState_RowSelection,
@@ -81,7 +77,6 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "../dropdown-menu/index.ts";
-import { Badge } from "../badge/index.ts";
 import type { Action } from "@destack/object";
 import { ActionButton, hideColumn } from "../action/index.ts";
 import {
@@ -98,17 +93,7 @@ import {
 import { OpenChange } from "../layer/index.ts";
 import { Menu, MenuAction, MenuControl } from "../menu/index.ts";
 import { ContextMenuContent } from "../context-menu/index.ts";
-import {
-    Command,
-    CommandEmpty,
-    CommandGroup,
-    CommandInput,
-    CommandItem,
-    CommandList,
-    CommandSeparator,
-} from "../command/index.ts";
 import { Input } from "../input/index.ts";
-import { Popover, PopoverContent, PopoverTrigger } from "../popover/index.ts";
 import { Select, SelectItem } from "../select/index.ts";
 import {
     tableStyle,
@@ -287,22 +272,6 @@ const styles = style.create({
     resizing: {
         backgroundColor: swatch.accentMark,
     },
-    facet: {
-        borderStyle: "dashed",
-    },
-    facetContent: {
-        width: "auto",
-        minWidth: "12rem",
-        padding: 0,
-    },
-    facetCount: {
-        marginInlineStart: "auto",
-        color: color.mutedForeground,
-        fontVariantNumeric: "tabular-nums",
-    },
-    check: (isChecked: boolean) => ({
-        visibility: isChecked ? "visible" : "hidden",
-    }),
     bulkBar: {
         display: "flex",
         alignItems: "center",
@@ -1389,7 +1358,7 @@ export function DataTableColumnHeader<Features extends TableFeatures, Row extend
             <Show when={column.getCanSort()} fallback={labelOf(column)}>
                 <Button
                     variant="ghost"
-                    xstyle={[text.xs, styles.sort, isEnd(column) && styles.sortEnd]}
+                    xstyle={[text.xs, state.unframed, styles.sort, isEnd(column) && styles.sortEnd]}
                     onClick={(event) => {
                         // toggle the sort beside the other sorted columns on Shift
                         const next = column.getNextSortingOrder(event.shiftKey);
@@ -1693,173 +1662,6 @@ function PageStep(properties: {
         >
             <Icon icon={properties.icon} />
         </Button>
-    );
-}
-
-/** The properties of a data table's filter input. */
-export interface DataTableFilterProperties<Features extends TableFeatures, Row extends RowData> {
-    /** The table the input filters. */
-    readonly table: Table_GlobalFiltering<Features, Row> & {
-        /** The table's state, read to track it. */
-        readonly tracked: Accessor<TableState_GlobalFiltering>;
-    };
-    /** The input's prompt and accessible name. */
-    readonly placeholder: string;
-}
-
-/** Render an input that filters a table's rows across every column. */
-export function DataTableFilter<Features extends TableFeatures, Row extends RowData>(
-    properties: DataTableFilterProperties<Features, Row>,
-): JSX.Element {
-    const filter = (): string => {
-        const value: unknown = properties.table.tracked().globalFilter;
-
-        return typeof value === "string" ? value : "";
-    };
-
-    return (
-        <Input
-            type="search"
-            data-slot="data-table-filter"
-            aria-label={properties.placeholder}
-            placeholder={properties.placeholder}
-            value={filter()}
-            onInput={(event) => properties.table.setGlobalFilter(event.currentTarget.value)}
-            xstyle={styles.filter}
-        />
-    );
-}
-
-/** A value a faceted filter offers, and how it reads. */
-export interface DataTableFacetOption {
-    /** The column value. */
-    readonly value: string;
-    /** The label the filter shows. */
-    readonly label: string;
-}
-
-/** The properties of a faceted filter over one column of a data table. */
-export interface DataTableFacetedFilterProperties<
-    Features extends TableFeatures,
-    Row extends RowData,
-> {
-    /** The table whose column the filter narrows. */
-    readonly table: DataTableInstance<Features, Row>;
-    /** The id of the column it filters and counts, whose `filterFn` is `arrHas`. */
-    readonly column: string;
-    /** The column's name, which labels the filter. */
-    readonly title: string;
-    /** The values it offers. */
-    readonly options: readonly DataTableFacetOption[];
-}
-
-/** The chosen values a faceted filter's trigger lists before it counts the rest. */
-const NAMED_FACETS = 2;
-
-/** Render a filter that narrows a column to chosen values, each with its count, after shadcn's. */
-export function DataTableFacetedFilter<Features extends TableFeatures, Row extends RowData>(
-    properties: DataTableFacetedFilterProperties<Features, Row>,
-): JSX.Element {
-    // read the column, refusing one that does not filter and count its values
-    const locale = useLocale();
-    const column = createMemo(() => {
-        const found: object | undefined = properties.table.getColumn(properties.column);
-        if (found === undefined || !isFaceted(found)) {
-            throw new TypeError(
-                `data table column '${properties.column}' is invalid: it does not both filter and count its values`,
-            );
-        }
-
-        return found;
-    });
-
-    // read the chosen values and each value's count as the table changes
-    const chosen = createMemo(() => {
-        properties.table.tracked();
-        const value = column().getFilterValue();
-
-        return new Set(Array.isArray(value) ? value.map(String) : []);
-    });
-    const counts = createMemo(() => {
-        properties.table.tracked();
-
-        return column().getFacetedUniqueValues();
-    });
-    const named = () => properties.options.filter((option) => chosen().has(option.value));
-
-    // toggle a value, clearing the filter when none is left
-    const toggle = (value: string) => {
-        const next = new Set(chosen());
-        if (next.has(value)) {
-            next.delete(value);
-        } else {
-            next.add(value);
-        }
-        column().setFilterValue(next.size === 0 ? undefined : [...next]);
-    };
-
-    return (
-        <Popover>
-            <PopoverTrigger
-                render={(attributes) => (
-                    <Button {...attributes} variant="outline" size="sm" xstyle={styles.facet} />
-                )}
-                data-slot="data-table-faceted-filter"
-            >
-                <Icon name="plus-circle" />
-                {properties.title}
-                <Show when={named().length > 0}>
-                    <Show
-                        when={named().length <= NAMED_FACETS}
-                        fallback={<Badge variant="secondary">{named().length}</Badge>}
-                    >
-                        <For each={named()}>
-                            {(option) => <Badge variant="secondary">{option.label}</Badge>}
-                        </For>
-                    </Show>
-                </Show>
-            </PopoverTrigger>
-            <PopoverContent align="start" xstyle={styles.facetContent}>
-                <Command aria-label={properties.title}>
-                    <CommandInput placeholder={properties.title} />
-                    <CommandList>
-                        <CommandEmpty>{locale.render(t`No results.`)}</CommandEmpty>
-                        <CommandGroup>
-                            <For each={properties.options}>
-                                {(option) => (
-                                    <CommandItem
-                                        value={option.value}
-                                        keywords={[option.label]}
-                                        aria-checked={chosen().has(option.value) ? "true" : "false"}
-                                        onSelect={() => toggle(option.value)}
-                                    >
-                                        <Icon
-                                            name="check"
-                                            xstyle={styles.check(chosen().has(option.value))}
-                                        />
-                                        {option.label}
-                                        <span {...style.attrs(styles.facetCount)}>
-                                            {counts().get(option.value) ?? 0}
-                                        </span>
-                                    </CommandItem>
-                                )}
-                            </For>
-                        </CommandGroup>
-                        <Show when={chosen().size > 0}>
-                            <CommandSeparator />
-                            <CommandGroup>
-                                <CommandItem
-                                    value="clear"
-                                    onSelect={() => column().setFilterValue(undefined)}
-                                >
-                                    {locale.render(t`Clear filters`)}
-                                </CommandItem>
-                            </CommandGroup>
-                        </Show>
-                    </CommandList>
-                </Command>
-            </PopoverContent>
-        </Popover>
     );
 }
 
@@ -2313,19 +2115,6 @@ function isPinnable(column: object): column is Column_ColumnPinning & Column_Col
         typeof column.getIsPinned === "function" &&
         "getStart" in column &&
         typeof column.getStart === "function"
-    );
-}
-
-/** Report whether a column filters and counts its values. */
-function isFaceted(
-    column: object,
-): column is Column_ColumnFiltering<TableFeatures, RowData> &
-    Column_ColumnFaceting<TableFeatures, RowData> {
-    return (
-        "getFacetedUniqueValues" in column &&
-        typeof column.getFacetedUniqueValues === "function" &&
-        "setFilterValue" in column &&
-        typeof column.setFilterValue === "function"
     );
 }
 

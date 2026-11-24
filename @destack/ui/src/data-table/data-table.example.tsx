@@ -4,15 +4,11 @@ import { defineExample } from "@destack/package/declare";
 import {
     aggregationFn_sum,
     cellSelectionFeature,
-    columnFacetingFeature,
     columnOrderingFeature,
     columnFilteringFeature,
     columnPinningFeature,
     columnResizingFeature,
     columnSizingFeature,
-    createFacetedRowModel,
-    createFacetedUniqueValues,
-    filterFn_arrHas,
     columnGroupingFeature,
     columnVisibilityFeature,
     createColumnHelper,
@@ -33,20 +29,21 @@ import {
     sortFn_basic,
     tableFeatures,
 } from "./index.ts";
-import { createSignal, type JSX } from "@destack/view";
+import { createMemo, createSignal, type JSX, useEnvironment } from "@destack/view";
+import type { JsonCondition } from "@destack/db";
 import { present } from "@destack/schema";
 import { t } from "@destack/locale";
 import { defineAction } from "@destack/object";
 import { removeItems } from "../action/index.ts";
 import type { DataTableRowAction } from "./actions.ts";
+import { Filter, type FilterFields, matchesFilter } from "../filter/index.ts";
+import { SearchField } from "../search-field/index.ts";
 import { SortableMove } from "../sortable/index.ts";
 import { Cluster } from "../cluster/index.ts";
 import { Stack } from "../stack/index.ts";
 import {
     DataTable,
     DataTableColumnHeader,
-    DataTableFacetedFilter,
-    DataTableFilter,
     DataTablePagination,
     DataTableViewOptions,
     DataTableBulkBar,
@@ -62,6 +59,9 @@ const styles = style.create({
     margin: {
         // leave room for the grip and the checkbox before each row
         paddingInlineStart: space[5],
+    },
+    search: {
+        width: "16rem",
     },
     scrolling: {
         maxHeight: "24rem",
@@ -145,7 +145,12 @@ function NotesTable(properties: {
     return (
         <Stack>
             <Cluster justify="between">
-                <DataTableFilter table={table} placeholder="Filter notes" />
+                <SearchField
+                    aria-label="Search notes"
+                    placeholder="Search notes"
+                    xstyle={styles.search}
+                    onValueChange={(text) => table.setGlobalFilter(text)}
+                />
                 <DataTableViewOptions table={table} />
             </Cluster>
             <DataTable
@@ -355,14 +360,8 @@ interface LaunchTask {
     readonly isBlocked: boolean;
 }
 
-/** The features of the tasks table: faceted filters, sized and pinned columns. */
+/** The features of the tasks table: sized and pinned columns, selected rows and cells. */
 const LAUNCH_FEATURES = tableFeatures({
-    columnFilteringFeature,
-    filteredRowModel: createFilteredRowModel(),
-    filterFns: { arrHas: filterFn_arrHas },
-    columnFacetingFeature,
-    facetedRowModel: createFacetedRowModel(),
-    facetedUniqueValues: createFacetedUniqueValues(),
     columnSizingFeature,
     columnResizingFeature,
     columnPinningFeature,
@@ -443,10 +442,32 @@ const PRIORITY_LABELS: Readonly<Record<LaunchTask["priority"], string>> = {
 /** Archive the tasks. */
 const archive = defineAction({ name: "archive-tasks", title: t`Archive` });
 
-/** Render the launch's tasks with faceted filters, editable titles and row actions. */
+/** Render the launch's tasks with a filter, editable titles and row actions. */
 function LaunchTasksTable(): JSX.Element {
     // store the tasks, changing the cells people edit or paste
     const [tasks, setTasks] = createSignal(LAUNCH_TASKS);
+    const [where, setWhere] = createSignal<JsonCondition>({});
+    const { clock, timeZone } = useEnvironment();
+    const moment = { now: clock.now(), timeZone };
+    const shown = createMemo(() =>
+        tasks().filter((task) => matchesFilter(where(), { ...task }, moment)),
+    );
+    const fields: FilterFields = {
+        status: {
+            label: "Status",
+            type: { kind: "choice" },
+            choices: LAUNCH_STATUSES.map(({ value, label }) => ({ value, title: label })),
+            count: (value) => tasks().filter(({ status }) => status === value).length,
+        },
+        priority: {
+            label: "Priority",
+            type: { kind: "choice" },
+            choices: LAUNCH_PRIORITIES.map(({ value, label }) => ({ value, title: label })),
+            count: (value) => tasks().filter(({ priority }) => priority === value).length,
+        },
+        estimate: { label: "Estimate", type: { kind: "number", minimum: 0 } },
+        isBlocked: { label: "Blocked", type: { kind: "boolean" } },
+    };
     const change = (changes: readonly DataTableCellChange[]) =>
         setTasks((current) =>
             current.map((task) => {
@@ -480,14 +501,12 @@ function LaunchTasksTable(): JSX.Element {
         LAUNCH.accessor("status", {
             header: "Status",
             size: 120,
-            filterFn: "arrHas",
             meta: { label: "Status", editor: DataTableEditor.select(LAUNCH_STATUSES) },
             cell: (context) => STATUS_LABELS[context.getValue()],
         }),
         LAUNCH.accessor("priority", {
             header: "Priority",
             size: 120,
-            filterFn: "arrHas",
             meta: { label: "Priority", editor: DataTableEditor.select(LAUNCH_PRIORITIES) },
             cell: (context) => PRIORITY_LABELS[context.getValue()],
         }),
@@ -511,7 +530,7 @@ function LaunchTasksTable(): JSX.Element {
         features: LAUNCH_FEATURES,
         columns,
         get data() {
-            return tasks();
+            return shown();
         },
         getRowId: (row) => row.id,
         enableRowSelection: true,
@@ -521,20 +540,7 @@ function LaunchTasksTable(): JSX.Element {
 
     return (
         <Stack xstyle={styles.margin}>
-            <Cluster>
-                <DataTableFacetedFilter
-                    table={table}
-                    column="status"
-                    title="Status"
-                    options={LAUNCH_STATUSES}
-                />
-                <DataTableFacetedFilter
-                    table={table}
-                    column="priority"
-                    title="Priority"
-                    options={LAUNCH_PRIORITIES}
-                />
-            </Cluster>
+            <Filter fields={fields} value={where()} onValueChange={setWhere} />
             <DataTableBulkBar table={table} actions={rowActions} />
             <DataTable
                 table={table}
@@ -558,12 +564,12 @@ function LaunchTasksTable(): JSX.Element {
     );
 }
 
-/** A launch's tasks with faceted filters, sized and pinned columns, editable titles and actions. */
+/** A launch's tasks with a filter, sized and pinned columns, editable titles and actions. */
 export const dataTableTasks = defineExample({
     of: DataTable,
     name: "tasks",
     description:
-        "a launch's tasks with faceted filters, resizable pinned columns, editable titles and row actions",
+        "a launch's tasks with a filter, resizable pinned columns, editable titles and row actions",
     layout: "padded",
     render: () => <LaunchTasksTable />,
 });

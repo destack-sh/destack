@@ -81,6 +81,7 @@
         "./sidebar": "./src/sidebar/index.ts",
         "./skeleton": "./src/skeleton/index.ts",
         "./slider": "./src/slider/index.ts",
+        "./sort": "./src/sort/index.ts",
         "./sortable": "./src/sortable/index.ts",
         "./spinner": "./src/spinner/index.ts",
         "./switch": "./src/switch/index.ts",
@@ -105,6 +106,7 @@
         "./stack": "./src/stack/index.ts",
         "./stack.css": "./src/stack/stack.css",
         "./cluster": "./src/cluster/index.ts",
+        "./filter": "./src/filter/index.ts",
         "./form": "./src/form/index.ts",
         "./gallery": "./src/gallery/index.ts",
         "./grid": "./src/grid/index.ts",
@@ -130,6 +132,7 @@
     "dependencies": {
         "@destack/code": "workspace:*",
         "@destack/color": "workspace:*",
+        "@destack/db": "workspace:*",
         "@destack/environment": "workspace:*",
         "@destack/icon": "workspace:*",
         "@destack/locale": "workspace:*",
