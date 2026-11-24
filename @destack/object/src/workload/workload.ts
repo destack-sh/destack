@@ -8,7 +8,7 @@ import {
 import type { ObjectStore } from "../server/store.ts";
 import type { ControllerSet, BlobStore, DatabaseConnection } from "@destack/db/database";
 import type { Environment } from "@destack/environment";
-import type { Table } from "@destack/db";
+import type { DatabaseSchema, Table } from "@destack/db";
 import type { Identifier, JsonValue } from "@destack/schema";
 import type { ObjectRemote } from "../replica/remote.ts";
 import type { Declaration } from "@destack/package/declare";
@@ -56,9 +56,9 @@ export function defineWorkload(
 
 /** Where an instance stores its ephemeral objects. */
 export interface EphemeralHost {
-    /** Open the memory database with tables. */
+    /** Open the memory database of a schema with replicated tables, or of tables alone. */
     readonly open: (
-        tables: readonly Table[],
+        schema: DatabaseSchema | readonly Table[],
     ) => Promise<DatabaseConnection & { readonly close: () => Promise<void> }>;
 }
 
