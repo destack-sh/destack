@@ -184,8 +184,10 @@ export const InstallationTarget = {
         // read the live installations, their targeted revisions and those revisions' builds
         const rows = await call.read(installation.table).findMany({ where: { scope } });
         const installed = rows.filter((row) => row.deletedAt === null);
+
+        // leave out stacks' requirements: a stack's image carries every package any of its stacks installs, and its declarations are the roots
         const targeted = installed.flatMap((row) =>
-            row.targetRevisionId === null ? [] : [row.targetRevisionId],
+            row.targetRevisionId === null || row.export !== null ? [] : [row.targetRevisionId],
         );
         const revisions = await call
             .read(installationRevision.table)

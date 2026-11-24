@@ -72,7 +72,6 @@ import {
 import { ObjectReference, RequestId, Scope } from "@destack/sync";
 import type { FamilyError } from "@destack/error";
 import { StackError, type StackReason } from "@destack/stack/error";
-import { satisfies } from "semver";
 import { ResourceError, UnreachablePlan } from "@destack/resource/error";
 import type { Runtime } from "../runtime/runtime.ts";
 import type { Binder } from "../resource/binding.ts";
@@ -1065,7 +1064,7 @@ export class ApplicationInstallation {
             const row = installed.find((each) => each.packageId === entry.package.id);
             const release = revisions.find((each) => each.id === row?.appliedRevisionId)?.release;
             const range = build.manifest.requires[entry.package.name];
-            if (release !== undefined && range !== undefined && !satisfies(release, range)) {
+            if (release !== undefined && range !== undefined && !Version.meets(release, range)) {
                 return StackError.of(
                     "DEPENDENCY_BLOCKED",
                     `cannot deploy installation '${target.name}': it needs '${entry.package.name}' at '${range}', but the space runs '${release}'`,
