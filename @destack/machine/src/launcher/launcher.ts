@@ -1,3 +1,4 @@
+import { GitAuthor } from "@destack/git";
 import { type Installation, InstallationView } from "@destack/stack/object";
 import type { DatabaseConnection } from "@destack/db/database";
 import {
@@ -106,6 +107,20 @@ export class Launcher {
 
     /** Find the user's personal account, which they signed up with. */
     async account(): Promise<Identifier<"account">> {
+        return (await this.#personal()).id;
+    }
+
+    /** Read the author of the commits Destack makes for the user. */
+    async author(): Promise<GitAuthor> {
+        return GitAuthor.of(await this.#personal());
+    }
+
+    /** Read the user's personal account, which they signed up with. */
+    async #personal(): Promise<{
+        readonly id: Identifier<"account">;
+        readonly name: string;
+        readonly handle: string;
+    }> {
         // list the user's accounts of kind personal
         const { items } = await this.session.accounts().account.list({
             scope: this.user.userId,
@@ -119,7 +134,7 @@ export class Launcher {
             );
         }
 
-        return personal.id;
+        return personal;
     }
 
     /** List the addresses of the spaces of the user's accounts, and those shared with the user. */

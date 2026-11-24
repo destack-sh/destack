@@ -3,6 +3,7 @@ import * as accountObject from "@destack/account/object";
 import type { Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { Commit, schema } from "@destack/schema";
+import { GitAuthor } from "@destack/git";
 import { Lease } from "@destack/resource";
 import { WorkingTree, WorkingTreeSource } from "./tree.ts";
 import { argument, plural, t } from "@destack/locale";
@@ -77,6 +78,8 @@ export const checkout = defineObject(
                 lease: Lease,
                 /** What to push: the working tree as it is, or HEAD with no uncommitted change. */
                 of: schema.enum(["tree", "head"]),
+                /** The author of the snapshot commit. */
+                author: GitAuthor,
             }),
             output: CheckoutPush,
             prepared: CheckoutPush,

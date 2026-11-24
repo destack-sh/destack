@@ -1,6 +1,7 @@
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { PackageId, PackageName } from "@destack/package";
 import { schema } from "@destack/schema";
+import { GitAuthor } from "@destack/git";
 import { Lease } from "@destack/resource";
 import type {} from "@destack/package/import-meta";
 import { MachineError } from "../../../error/index.ts";
@@ -36,6 +37,8 @@ export const WorkingTreeSource = schema.discriminatedUnion("kind", [
         name: PackageName,
         /** The lease to write the repository, which its first commit is pushed with. */
         lease: Lease,
+        /** The author of the first commit. */
+        author: GitAuthor,
     }),
 ]);
 /** Where a checkout's working tree comes from. */

@@ -1,9 +1,13 @@
+import { GitAuthor } from "@destack/git";
 import { join } from "node:path";
 import { testSimulation } from "@destack/object/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { MachineError } from "../../../error/index.ts";
 import { WorkingTree } from "../object/index.ts";
 import { Git } from "./git.ts";
+
+/** The author of the snapshot commits. */
+const AUTHOR = GitAuthor.of({ name: "Ada", handle: "ada" });
 
 /** The root of the fixture's working tree. */
 const ROOT = "/work/repository";
@@ -85,12 +89,12 @@ test("snapshot a working tree: HEAD while clean, else a commit on HEAD with chan
     await git(repository, "add", "README.md");
     await git(repository, "commit", "--quiet", "--message=Add README");
     const head = await git(repository, "rev-parse", "HEAD");
-    const clean = (await new Git(host).snapshot(repository, "Snapshot")).commit;
+    const clean = (await new Git(host).snapshot(repository, "Snapshot", AUTHOR)).commit;
 
     // change the committed file, add an untracked one, and snapshot again
     await files.writeTextFile(join(repository, "README.md"), "# Changed\n");
     await files.writeTextFile(join(repository, "new.ts"), "export {};\n");
-    const changed = (await new Git(host).snapshot(repository, "Snapshot")).commit;
+    const changed = (await new Git(host).snapshot(repository, "Snapshot", AUTHOR)).commit;
     const read = (path: string) => git(repository, "show", `${changed}:${path}`);
 
     // resolve the root from a directory inside and refuse a relative one
@@ -141,14 +145,14 @@ test("mirror a working tree's snapshots, keeping its dependencies until a lockfi
     await files.writeTextFile(join(first.path, "node_modules", "kept.js"), "\n");
     await files.writeTextFile(join(first.path, "stray.ts"), "\n");
     await files.writeTextFile(join(repository, "README.md"), "# Edited\n");
-    const edited = (await new Git(host).snapshot(repository, "Snapshot")).commit;
+    const edited = (await new Git(host).snapshot(repository, "Snapshot", AUTHOR)).commit;
     const second = await new Git(host).mirror(repository, edited);
     const listed = (await files.readDirectory(second.path)).map((entry) => entry.name).toSorted();
     const readme = await files.readTextFile(join(second.path, "README.md"));
 
     // mirror a snapshot that changes the lockfile, then remove the mirror
     await files.writeTextFile(join(repository, "bun.lock"), "{ }\n");
-    const locked = (await new Git(host).snapshot(repository, "Snapshot")).commit;
+    const locked = (await new Git(host).snapshot(repository, "Snapshot", AUTHOR)).commit;
     const third = await new Git(host).mirror(repository, locked);
     const removed = await new Git(host).removeMirror(repository);
 

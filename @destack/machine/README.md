@@ -113,6 +113,7 @@ export async function openNotes(loginId: Identifier<"login">) {
 `checkout.create` registers a working tree at its root once, and `checkout.push` commits it as it is to `refs/checkouts/<id>`.
 
 ```ts
+import type { GitAuthor } from "@destack/git";
 import type machinePackage from "@destack/machine/package";
 import type { ClientOf } from "@destack/object/client";
 import type { Lease } from "@destack/resource";
@@ -123,10 +124,11 @@ export async function pushSite(
     machineId: Identifier<"machine">,
     requestId: string,
     lease: Lease,
+    author: GitAuthor,
 ) {
     const checkout = await client.checkout.create({ machineId, requestId, directory: "/work/site", source: { kind: "existing" } });
 
-    return await client.checkout.push({ machineId, id: checkout.id, requestId, lease, of: "tree" }); // { commit, reference }
+    return await client.checkout.push({ machineId, id: checkout.id, requestId, lease, of: "tree", author }); // { commit, reference }
 }
 ```
 

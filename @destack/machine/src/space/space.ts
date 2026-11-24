@@ -143,7 +143,7 @@ import {
 } from "@destack/sync";
 import type * as sync from "@destack/sync";
 import { StackError } from "@destack/stack/error";
-import type { GitAuthor } from "@destack/git";
+import { GitAuthor } from "@destack/git";
 import type {
     EgressCaller,
     InstanceSpec,
@@ -174,9 +174,6 @@ import { MachineError } from "../error/index.ts";
 import type { GrantRequest } from "@destack/account/authentication";
 import * as accountObject from "@destack/account/object";
 import * as stackObject from "@destack/stack/object";
-
-/** The domain of the addresses commits name their authors by, which receives no mail. */
-const AUTHOR_DOMAIN = "users.noreply.destack.app";
 
 /** The release a space's declared stack runs, resolved at its forge, with the stack's digest. */
 interface ResolvedStack {
@@ -3084,7 +3081,7 @@ export class Space {
             `the personal account of '${subject.id}'`,
         );
 
-        return { name: personal.name, email: `${personal.handle}@${AUTHOR_DOMAIN}` };
+        return GitAuthor.of(personal);
     }
 
     /** Read the machine running the space's work: its serving machine, when it runs work. */

@@ -1,3 +1,4 @@
+import type { GitAuthor } from "@destack/git";
 import { Uuid } from "@destack/schema";
 import { dirname, isAbsolute } from "node:path";
 import { FileSystemError } from "@destack/environment";
@@ -124,6 +125,7 @@ export class Git {
     async snapshot(
         root: string,
         message: string,
+        author: GitAuthor,
     ): Promise<{ readonly commit: string; readonly head: string }> {
         // read HEAD, refusing a working tree without a commit
         const { code, output } = await Command.run(
@@ -144,7 +146,17 @@ export class Git {
         const isClean = tree === (await this.#git(root, "rev-parse", `${head}^{tree}`));
         const commit = isClean
             ? head
-            : await this.#local(root, {}, "commit-tree", tree, "-p", head, "-m", message);
+            : await this.#local(
+                  root,
+                  {},
+                  ...Git.#identity(author),
+                  "commit-tree",
+                  tree,
+                  "-p",
+                  head,
+                  "-m",
+                  message,
+              );
 
         return { commit, head };
     }
@@ -153,10 +165,11 @@ export class Git {
     async introduce(
         root: string,
         message: string,
+        author: GitAuthor,
     ): Promise<{ readonly commit: string; readonly branch: string }> {
         // commit every file on the working tree's branch
         await this.#local(root, {}, "add", "--all");
-        await this.#local(root, {}, "commit", "--quiet", "-m", message);
+        await this.#local(root, {}, ...Git.#identity(author), "commit", "--quiet", "-m", message);
         const branch = await this.#git(root, "symbolic-ref", "--short", "HEAD");
 
         return { commit: await this.#git(root, "rev-parse", "HEAD"), branch };
@@ -277,6 +290,11 @@ export class Git {
                 "checkout directory is invalid: it must be absolute",
             );
         }
+    }
+
+    /** Write the configuration of a commit's author and committer. */
+    static #identity(author: GitAuthor): readonly string[] {
+        return ["-c", `user.name=${author.name}`, "-c", `user.email=${author.email}`];
     }
 
     /** Run a local Git command as the person running the machine, with more variables. */

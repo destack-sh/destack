@@ -1,3 +1,4 @@
+import { GitAuthor } from "@destack/git";
 import { installation, build, edit, installationRevision } from "@destack/stack/object";
 import { ENDED_STATES } from "@destack/workflow";
 import { Failure } from "@destack/error";
@@ -31,6 +32,9 @@ const MAIN = "refs/heads/main";
 
 /** How long a pushed commit takes at most to deploy to its installation. */
 const DEPLOY_MILLISECONDS = 15_000;
+
+/** The author of the snapshot commits. */
+const AUTHOR = GitAuthor.of({ name: "Ada", handle: "ada" });
 
 /** The environment of the developer's git commands: no user configuration, a fixed identity. */
 const GIT_ENVIRONMENT = {
@@ -405,6 +409,7 @@ test("deploy each push of a checkout's working tree to the installation followin
             requestId: RequestId.create(environment),
             lease,
             of: "tree",
+            author: AUTHOR,
         });
         await site.list();
 

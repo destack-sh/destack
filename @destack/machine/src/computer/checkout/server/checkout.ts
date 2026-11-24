@@ -110,6 +110,7 @@ export class CheckoutServer {
                         const { commit, head } = await new Git(host).snapshot(
                             root,
                             `Snapshot ${id}`,
+                            context.input.author,
                         );
                         if (context.input.of === "head" && commit !== head) {
                             throw MachineError.of(
@@ -150,7 +151,11 @@ export class CheckoutServer {
         });
 
         // commit everything as the person, and push the commit to its branch
-        const { commit, branch } = await new Git(host).introduce(root, `Introduce ${source.name}`);
+        const { commit, branch } = await new Git(host).introduce(
+            root,
+            `Introduce ${source.name}`,
+            source.author,
+        );
         const signal = host.clock.timeout(PUSH_MILLISECONDS);
         await GitLease.set(source.lease, root, GitReference.branch(branch), commit, host, signal);
     }
