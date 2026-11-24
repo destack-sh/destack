@@ -19,6 +19,9 @@ const SHEET_SETTLE = 150;
 /** The file a build keeps its StyleX rules in, beside each output's modules. */
 const RULES_FILE = "stylex.json";
 
+/** The constant a rule stands under in place of a media query, before StyleX fills it in. */
+const PRELUDE_CONSTANT = /var\(--([\w-]+)\)\s*\{/gu;
+
 /** One StyleX rule, as its babel plugin's `Rule` type has it. */
 const Rule = schema.tuple([
     schema.string().min(1),
@@ -133,8 +136,9 @@ function sheetPlugin(
     dependencies: readonly string[],
     environment: Environment<"files">,
 ): Plugin {
-    // the server, the class names of the sheet last served, and the queued reload
+    // the server, the sheet last served with its class names, and the queued reload
     let server: ViteDevServer | undefined;
+    let css = "";
     let served = new Set<string>();
     let isReloadQueued = false;
 
@@ -170,16 +174,26 @@ function sheetPlugin(
             if (withoutQuery(id) !== RESOLVED_SHEET_ID) {
                 return undefined;
             }
-            served = new Set(
-                [...stylex.__stylexGetSharedStore().rulesById.values()].flatMap((rules) =>
-                    schema
-                        .array(Rule)
-                        .parse(rules)
-                        .map(([name]) => name),
+            if (server === undefined) {
+                return "";
+            }
+
+            // serve the last sheet while a rule stands under a constant not compiled yet, whose compiling reloads it
+            const rules = [...stylex.__stylexGetSharedStore().rulesById.values()].flatMap((rule) =>
+                schema.array(Rule).parse(rule),
+            );
+            const constants = new Set(rules.flatMap(([, { constKey }]) => constKey ?? []));
+            const isWhole = rules.every(([, { ltr, rtl }]) =>
+                [...`${ltr}${rtl ?? ""}`.matchAll(PRELUDE_CONSTANT)].every(([, constant = ""]) =>
+                    constants.has(constant),
                 ),
             );
+            if (isWhole) {
+                served = new Set(rules.map(([name]) => name));
+                css = stylex.__stylexCollectCss();
+            }
 
-            return server === undefined ? "" : stylex.__stylexCollectCss();
+            return css;
         },
         generateBundle: {
             order: "pre",

@@ -58,6 +58,11 @@ function fixtures(): Plugin {
                 return ".page { margin: 0 }\n";
             }
 
+            // write a module whose style stands under a constant another module defines
+            else if (id.endsWith("/fixture/hover.ts")) {
+                return `import * as style from "@destack/style";\nimport { media } from "../../style/media.stylex.ts";\nexport const styles = style.create({ text: { color: { default: "teal", ":hover": { default: null, [media.hover]: "plum" } } } });\n`;
+            }
+
             // write a module whose one style sets the color its name gives
             const color = /\/fixture\/([a-z]+)\.ts$/u.exec(id)?.[1];
             if (color === undefined) {
@@ -110,7 +115,7 @@ async function serve(environment: Environment<"files">): Promise<ViteDevServer> 
         configFile: false,
         logLevel: "silent",
         appType: "custom",
-        server: { middlewareMode: true, hmr: false, ws: false },
+        server: { middlewareMode: true, hmr: false, ws: false, preTransformRequests: false },
         optimizeDeps: { noDiscovery: true },
         plugins: [
             fixtures(),
@@ -175,6 +180,30 @@ test("serve the collected rules as a stylesheet module, reloading it when transf
         sheet: "@layer base;\n\n@layer priority1 {\n  .xy1w8w {\n    color: teal;\n  }\n}\n",
         unchanged: 0,
         grown: 1,
+    });
+});
+
+test("serve the last sheet until the constants its styles stand under are compiled", async () => {
+    // serve the sheet with the style alone, then with the constant
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const server = await serve(environment);
+    const client = server.environments.client;
+    await client.transformRequest("/fixture/hover");
+    const reload = vi.spyOn(client, "reloadModule").mockResolvedValue();
+    await client.transformRequest("virtual:stylex.css");
+    const without = await client.pluginContainer.load("\0virtual:stylex.css");
+    await client.transformRequest("/src/style/media.stylex.ts");
+    await flushPending(simulation);
+
+    expect({
+        without,
+        reloads: reload.mock.calls.length,
+        with: await client.pluginContainer.load("\0virtual:stylex.css"),
+    }).toEqual({
+        without: "",
+        reloads: 1,
+        with: "@layer base;\n\n@layer priority1 {\n  .xy1w8w {\n    color: teal;\n  }\n}\n\n@layer priority2 {\n  @media (hover: hover) {\n    .xaomgs3.xaomgs3:hover {\n      color: plum;\n    }\n  }\n}\n",
     });
 });
 
