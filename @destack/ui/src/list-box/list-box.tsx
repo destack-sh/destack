@@ -12,6 +12,7 @@ import {
     createSignal,
     createUniqueId,
     type JSX,
+    merge,
     omit,
     onSettled,
     Show,
@@ -149,6 +150,8 @@ export class ListBoxControl {
     readonly selection: Selection | undefined;
     /** Whether the options lie in a grid. */
     readonly isGrid: boolean;
+    /** Whether the choice follows the focus. */
+    readonly isFollowing: boolean;
     /** The layout the keys move through. */
     readonly delegate: ListDelegate<ListBoxOption> | GridDelegate<ListBoxOption>;
     /** The options the list box was created with. */
@@ -165,6 +168,7 @@ export class ListBoxControl {
         this.#options = options;
         this.selection = options.selection;
         this.isGrid = options.layout === "grid";
+        this.isFollowing = options.selectionBehavior === "replace";
         this.collection = new Collection({
             sections: () => sectioned(this.options.items(), autocomplete),
             key: (option) => option.key,
@@ -360,7 +364,7 @@ export function ListBox(properties: ListBoxProperties): JSX.Element {
                 selection:
                     properties.selection === undefined
                         ? undefined
-                        : new Selection(properties.selection),
+                        : new Selection(merge(() => properties.selection ?? {})),
             }),
     );
     const rest = omit(
@@ -502,10 +506,10 @@ export function ListBoxItem(properties: ListBoxItemProperties): JSX.Element {
     const isActive = (): boolean => control.focus.isActive(option.key);
     const isVirtual = control.focus.mode === "virtual";
 
-    // mark a chosen option of a list box that selects: a check in a list, filled in a grid
+    // mark a chosen option: filled where the choice follows the focus or in a grid, else by a check
     const isChosen = (): boolean =>
         control.selection !== undefined && !isVirtual && control.isSelected(option);
-    const isGrid = control.isGrid;
+    const isFilled = control.isGrid || control.isFollowing;
 
     return (
         <div
@@ -540,7 +544,7 @@ export function ListBoxItem(properties: ListBoxItemProperties): JSX.Element {
                     state.focus,
                     styles.option,
                     isVirtual && isActive() && state.selected,
-                    isChosen() && isGrid && state.selected,
+                    isChosen() && isFilled && state.selected,
                     properties.disabled === true && state.inert,
                     properties.xstyle,
                 ],
@@ -548,7 +552,7 @@ export function ListBoxItem(properties: ListBoxItemProperties): JSX.Element {
             )}
         >
             {properties.children}
-            <Show when={isChosen() && !isGrid}>
+            <Show when={isChosen() && !isFilled}>
                 <Icon icon={check} xstyle={styles.check} />
             </Show>
         </div>

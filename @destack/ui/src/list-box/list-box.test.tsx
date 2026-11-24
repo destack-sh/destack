@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { flush } from "@destack/view";
+import { createSignal, flush } from "@destack/view";
 import { render } from "@destack/view/test";
 import { ListBox, ListBoxItem, ListBoxSection } from "./index.ts";
 
@@ -70,4 +70,39 @@ test("toggle the values of a multiple selection, marking the list box multiselec
             option.getAttribute("aria-selected"),
         ),
     }).toEqual({ multiselectable: "true", selected: ["false", "true"] });
+});
+
+test("follow a controlled selection as its owner changes it, filled where the choice follows the focus", () => {
+    // choose from outside the list box
+    const [value, setValue] = createSignal("trips", { ownedWrite: true });
+    const { container } = render(() => (
+        <ListBox
+            aria-label="Notebook"
+            selectionBehavior="replace"
+            selection={{ value: value(), onValueChange: (next) => void setValue(next ?? "") }}
+        >
+            <ListBoxItem value="trips">Trips</ListBoxItem>
+            <ListBoxItem value="work">Work</ListBoxItem>
+        </ListBox>
+    ));
+    flush();
+    const chosen = () =>
+        [...container.querySelectorAll("[role=option]")].map((option) => [
+            option.getAttribute("aria-selected"),
+            option.querySelector("svg") !== null,
+        ]);
+    const before = chosen();
+    setValue("work");
+    flush();
+
+    expect({ before, after: chosen() }).toEqual({
+        before: [
+            ["true", false],
+            ["false", false],
+        ],
+        after: [
+            ["false", false],
+            ["true", false],
+        ],
+    });
 });
