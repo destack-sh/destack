@@ -3,6 +3,7 @@ import { TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
 import { principal } from "@destack/access";
 import { copyRequest } from "@destack/environment";
+import { type DatabaseSchema, Relations, TABLE } from "@destack/db";
 import { MemoryBlobStorage } from "@destack/resource";
 import { UniverseOrigin } from "@destack/account/address";
 import {
@@ -10,9 +11,10 @@ import {
     identityShape,
     machine,
     type ResidencyCode,
+    residencyShape,
     residentsShape,
 } from "@destack/account/object";
-import { Egress, type Follow, PackageMount, tablesOf } from "@destack/object";
+import { Egress, type Follow, PackageMount, tablesOf, VERSION_HEADER } from "@destack/object";
 import objectPackage from "@destack/object/package";
 import { implementPackage, ObjectStore } from "@destack/object/server";
 import { ObjectRemote } from "@destack/object/client";
@@ -46,20 +48,27 @@ const IDENTITY_FOLLOW = identityShape.at({ key: { scope: Scope.universe.id } });
 /** The universe's directory, which names resolve through. */
 const DIRECTORY_FOLLOW = directoryShape.at({ key: { scope: Scope.universe.id } });
 
-/** Follow the accounts of the residency a relay serves, whose machines alone tunnel to it. */
+/** The universe's residencies, whose containment sets the machines' tunnel tokens carry. */
+const RESIDENCY_FOLLOW = residencyShape.at({ key: { scope: Scope.universe.id } });
+
+/** Follow the accounts of the residency a relay serves, whose handles name their machines. */
 function residentsFollow(code: ResidencyCode) {
     return residentsShape.at({ key: { scope: Scope.universe.id, residency: code } });
 }
 
-/** A relay's memory replica of the universe's directory, identities and residents. */
-const REPLICA = tablesOf({
+/** The tables of a relay's memory replica: its own and the followed ones. */
+const REPLICA_TABLES = tablesOf({
     packages: [objectPackage],
-    follows: [DIRECTORY_FOLLOW, IDENTITY_FOLLOW, residentsShape.at()],
+    follows: [DIRECTORY_FOLLOW, IDENTITY_FOLLOW, RESIDENCY_FOLLOW, residentsShape.at()],
     tables: [],
 });
 
-/** The replica's own tables and the followed ones, as one table list. */
-const REPLICA_TABLES = [...REPLICA.tables, ...(REPLICA.replicated ?? [])];
+/** A relay's memory replica, storing the followed tables as replicas without their foreign keys. */
+const REPLICA: DatabaseSchema = {
+    tables: [...REPLICA_TABLES.tables, ...(REPLICA_TABLES.replicated ?? [])],
+    replicated: new Set((REPLICA_TABLES.replicated ?? []).map((table) => table[TABLE].sqlName)),
+    relations: new Relations(),
+};
 
 /** The relay's workload: the router of names at its root, a machine's tunnel in a partition. */
 export const relayWorkload = defineWorkload({
@@ -98,22 +107,25 @@ async function serveRoot(
     const code = residency.read(server.settings);
     const address = UniverseOrigin.of(universe.read(server.settings));
     const residents = residentsFollow(code);
-    const follows = [DIRECTORY_FOLLOW, IDENTITY_FOLLOW, residents];
+    const follows = [DIRECTORY_FOLLOW, IDENTITY_FOLLOW, RESIDENCY_FOLLOW, residents];
     const names = (request: Request) =>
         relay.fetch(copyRequest(restore(request), { signal: request.signal }));
     const store = await openReplica(context, server, follows, answer, names);
     const relay = new Relay({
         origin: origin.read(server.settings),
         universe: address,
-        itself: server.at(Egress.address(server.name, server.scope)),
+        itself: itselfOf(server),
         view: store.database.snapshot(),
         fetch: (request) => server.fetch(request),
         environment: context.environment,
+        residency: code,
         synced: async () => {
-            // wait until the directory's and the residents' replicas synced
+            // wait until the directory's, the identities', the residencies' and the residents' replicas synced
             const isSynced = async () => {
                 const synced = await Promise.all([
                     DIRECTORY_FOLLOW.shape.isSynced(store.database, { scope: Scope.universe.id }),
+                    IDENTITY_FOLLOW.shape.isSynced(store.database, { scope: Scope.universe.id }),
+                    RESIDENCY_FOLLOW.shape.isSynced(store.database, { scope: Scope.universe.id }),
                     residents.shape.isSynced(store.database, {
                         scope: Scope.universe.id,
                         residency: code,
@@ -141,21 +153,30 @@ async function servePartition(
     // answer the root's calls to the tunnel
     const answer = (request: Request) => tunnelCall(request, running);
 
-    // follow the identities into memory, verifying the renewals by their keys
-    const store = await openReplica(context, server, [IDENTITY_FOLLOW], answer, refuseNames);
-    const root = server.at(Egress.address(server.name, server.scope));
+    // follow the identities and the residencies into memory, verifying the renewals by them
+    const follows = [IDENTITY_FOLLOW, RESIDENCY_FOLLOW];
+    const store = await openReplica(context, server, follows, answer, refuseNames);
+    const root = itselfOf(server);
     const running: Tunnel = new Tunnel(Tunnel.machine(partition), {
         hibernation: present(context.hibernation, "the hibernation of the tunnel's sockets"),
         url: new URL(TUNNEL_PATH, origin.read(server.settings)).href,
         tokens: new TunnelToken(
             UniverseOrigin.of(universe.read(server.settings)).issuer,
+            residency.read(server.settings),
             store.database.snapshot(),
             context.environment,
         ),
-        identities: async () => {
-            // wait until the replica of the universe's identities synced
-            const isSynced = () =>
-                IDENTITY_FOLLOW.shape.isSynced(store.database, { scope: Scope.universe.id });
+        synced: async () => {
+            // wait until the replicas of the universe's identities and residencies synced
+            const isSynced = async () => {
+                const synced = await Promise.all(
+                    follows.map((follow) =>
+                        follow.shape.isSynced(store.database, { scope: Scope.universe.id }),
+                    ),
+                );
+
+                return synced.every(Boolean);
+            };
             await store.database.log.waitUntil(isSynced, context.signal);
         },
         standing: async () => {
@@ -178,12 +199,10 @@ async function servePartition(
                 url: new URL(origin.read(server.settings)).origin,
                 lapsesAt,
             });
-            await ObjectRemote.mutate(
-                server.remote,
-                account,
-                { id: RequestId.create(context.environment), calls: [relayed] },
-                principal.installation.reference(server.scope, server.installation),
-            );
+            await ObjectRemote.mutate(server.remote, account, {
+                id: RequestId.create(context.environment),
+                calls: [relayed],
+            });
         },
         environment: context.environment,
     });
@@ -212,8 +231,8 @@ async function openReplica(
 ): Promise<ObjectStore> {
     // open the replica in a memory database, closed with the start
     const ephemeral = present(context.ephemeral, "the memory of the relay's instance");
-    const database = await ephemeral.open(REPLICA_TABLES);
-    await database.migrate(REPLICA_TABLES);
+    const database = await ephemeral.open(REPLICA);
+    await database.migrate(REPLICA.tables);
     context.defer(() => database.close());
 
     // follow the rows through the home space's replicas, served at the relay installation
@@ -234,6 +253,22 @@ async function openReplica(
 /** Refuse a routed name at a machine's tunnel, as the root alone routes names. */
 function refuseNames(): Promise<Response> {
     throw RelayError.of("TUNNEL_CALL_NOT_FOUND", "name route at a machine's tunnel not found");
+}
+
+/** Call the relay installation itself at its own release, which the gateway routes calls by. */
+function itselfOf(server: ServerContext): ReturnType<ServerContext["at"]> {
+    const at = server.at(Egress.address(server.name, server.scope));
+
+    return {
+        ...at,
+        fetch: (request) => {
+            // state the release the call speaks, which picks the deployment serving it
+            const headers = new Headers(request.headers);
+            headers.set(VERSION_HEADER, import.meta.destack.package.version);
+
+            return at.fetch(copyRequest(request, { headers }));
+        },
+    };
 }
 
 /** Answer one call of the root to a machine's tunnel. */

@@ -237,6 +237,7 @@ test("refuse a handshake with a person's token, of a machine left keyless, and o
         fetch: async () => new Response(null),
         synced: async () => {},
         environment: computer.environment,
+        residency: "eu",
     });
     const offer = (token: string) =>
         WebSocketUpgrade.to(relay.url, TunnelProtocol.offer(token)).request;
@@ -306,6 +307,7 @@ test("refuse a machine's handshake at a relay of another residency than its acco
         fetch: async () => new Response(null),
         synced: async () => {},
         environment: computer.environment,
+        residency: "us",
     });
     const token = await computer.machine.token(relayPackage.id);
     const offer = WebSocketUpgrade.to(us.url, TunnelProtocol.offer(token)).request;
@@ -313,7 +315,7 @@ test("refuse a machine's handshake at a relay of another residency than its acco
     expect(await refusal(handshakes.handshake(offer))).toEqual([
         "FORBIDDEN",
         "RESIDENCY_DENIED",
-        `'${await computer.address()}' is forbidden: it tunnels through the relay of its account's residency`,
+        `machine '${computer.machine.id}' is forbidden: it tunnels through the relay of its account's residency`,
     ]);
 });
 
@@ -756,6 +758,7 @@ test("close a machine's tunnel as moved at a relay its endpoint no longer leads 
         fetch: async () => new Response(null),
         synced: async () => {},
         environment: computer.environment,
+        residency: "eu",
     });
     await elsewhere.reconcile(computer.machine.id);
 

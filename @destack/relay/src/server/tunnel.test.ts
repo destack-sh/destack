@@ -103,7 +103,7 @@ function openTunnel() {
         },
         url: TUNNEL_URL,
         tokens: testTokens(standing),
-        identities: async () => {},
+        synced: async () => {},
         standing: () => standing.standing(),
         publish: async (account: string, lapsesAt: number) => {
             published.push([account, lapsesAt]);
