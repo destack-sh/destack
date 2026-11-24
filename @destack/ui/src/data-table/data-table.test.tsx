@@ -1,3 +1,4 @@
+import { Locale, Localization } from "@destack/locale";
 import { t } from "@destack/locale";
 import { defineAction } from "@destack/object";
 import { beforeEach, expect, onTestFinished, test } from "@destack/test";
@@ -1227,4 +1228,26 @@ test("select a block of cells by sweeping the pointer across them", () => {
     );
 
     expect(marked).toEqual(["fern:name", "fern:count", "rose:name", "rose:count"]);
+});
+
+test("read and write numbers as the language does", () => {
+    const german = Localization.of(Locale.parse("de"), []);
+    const plain = DataTableEditor.number();
+    const price = DataTableEditor.number({ style: "currency", currency: "EUR" });
+
+    expect([
+        plain.parse("1.234,5", german),
+        plain.parse("x", german),
+        plain.parse(" ", german),
+        plain.format(1234.5, german),
+        price.parse("12,50 €", german),
+        price.format(12.5, german),
+    ]).toEqual([
+        { kind: "valid", value: 1234.5 },
+        { kind: "invalid" },
+        { kind: "valid", value: null },
+        "1234,5",
+        { kind: "valid", value: 12.5 },
+        "12,50\u00a0€",
+    ]);
 });

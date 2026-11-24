@@ -1,8 +1,8 @@
 import * as style from "@destack/style";
 import { space } from "@destack/theme/tokens.stylex";
 import { plural, t } from "@destack/locale";
-import type { ActionInput, ActionValue, ActionValues, Choice } from "@destack/object";
-import { type JsonValue, type PlainDate, type PlainTime, TimeZone } from "@destack/schema";
+import type { ActionInput, ActionValues, Choice } from "@destack/object";
+import type { JsonValue } from "@destack/schema";
 import {
     type Accessor,
     type ActionQuestion,
@@ -14,7 +14,6 @@ import {
     Show,
     untrack,
     useActions,
-    useEnvironment,
     useLocale,
 } from "@destack/view";
 import {
@@ -46,11 +45,7 @@ import {
     DialogTitle,
 } from "../dialog/index.ts";
 import { Field, FieldGroup, FieldLabel } from "../field/index.ts";
-import { Input } from "../input/index.ts";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../select/index.ts";
-import { Switch } from "../switch/index.ts";
-import { DateField } from "../date-field/index.ts";
-import { TimeField } from "../time-field/index.ts";
+import { ValueField } from "../value-field/index.ts";
 
 /** The kinds of input a person picks from a list, however short. */
 const PICKED_KINDS: ReadonlySet<string> = new Set(["object", "choice", "person"]);
@@ -64,17 +59,6 @@ const styles = style.create({
     },
     fields: {
         gap: space[4],
-    },
-    control: {
-        width: "100%",
-    },
-    half: {
-        flex: "1 1 0",
-    },
-    time: {
-        display: "flex",
-        flexWrap: "wrap",
-        gap: space[2],
     },
 });
 
@@ -300,6 +284,7 @@ function ActionForm(properties: {
                                 <ActionField
                                     input={input}
                                     choices={choices.get(input.name) ?? []}
+                                    value={values()[input.name]}
                                     onGive={(value) => give(input.name, value)}
                                 />
                             )}
@@ -327,6 +312,8 @@ function ActionField(properties: {
     readonly input: ActionInput;
     /** The choices a person picks it from, none for one they type. */
     readonly choices: readonly Choice[];
+    /** The value given, undefined for none. */
+    readonly value: JsonValue | undefined;
     /** Take the value given, undefined for none. */
     readonly onGive: (value: JsonValue | undefined) => void;
 }): JSX.Element {
@@ -344,110 +331,13 @@ function ActionField(properties: {
     return (
         <Field orientation={value.kind === "boolean" ? "horizontal" : "vertical"}>
             <FieldLabel>{label}</FieldLabel>
-            <ActionControl
-                value={value}
-                isRequired={presence === "required"}
+            <ValueField
+                type={value}
+                value={properties.value}
+                onValueChange={onGive}
                 choices={choices}
-                onGive={onGive}
+                required={presence === "required"}
             />
         </Field>
-    );
-}
-
-/** Render the control of a value, by its kind. */
-function ActionControl(properties: {
-    /** The kind of value. */
-    readonly value: ActionValue;
-    /** Whether the person must give it. */
-    readonly isRequired: boolean;
-    /** The choices a person picks it from, none for one they type. */
-    readonly choices: readonly Choice[];
-    /** Take the value given, undefined for none. */
-    readonly onGive: (value: JsonValue | undefined) => void;
-}): JSX.Element {
-    // switch a yes or no, and take a time as its day and time of day
-    const locale = useLocale();
-    const { value, isRequired, choices, onGive } = properties;
-    const isListed = choices.length > 0 || PICKED_KINDS.has(value.kind);
-    if (value.kind === "boolean") {
-        return <Switch onCheckedChange={(isOn) => onGive(isOn)} />;
-    } else if (value.kind === "time") {
-        return <ActionTime onGive={onGive} />;
-    }
-    // choose one of the choices
-    else if (isListed) {
-        return (
-            <Select
-                xstyle={styles.control}
-                required={isRequired}
-                onValueChange={(chosen) =>
-                    onGive(choices.find((choice) => JSON.stringify(choice.value) === chosen)?.value)
-                }
-            >
-                <SelectTrigger>
-                    <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="">{locale.render(t`Choose…`)}</SelectItem>
-                    <For each={choices}>
-                        {(choice) => (
-                            <SelectItem value={JSON.stringify(choice.value)}>
-                                {choice.title}
-                            </SelectItem>
-                        )}
-                    </For>
-                </SelectContent>
-            </Select>
-        );
-    }
-
-    // type a number or text
-    const isNumber = value.kind === "number";
-
-    return (
-        <Input
-            required={isRequired}
-            type={isNumber ? "number" : "text"}
-            onInput={({ currentTarget: field }) => {
-                const typed = isNumber ? field.valueAsNumber : field.value;
-                onGive(field.value === "" ? undefined : typed);
-            }}
-        />
-    );
-}
-
-/** Render the fields of a time: its day and time of day, in the reader's zone. */
-function ActionTime(properties: {
-    /** Take the moment given, undefined for none. */
-    readonly onGive: (value: JsonValue | undefined) => void;
-}): JSX.Element {
-    // give the moment once both are set, else none
-    const { timeZone } = useEnvironment();
-    let day: PlainDate | undefined;
-    let time: PlainTime | undefined;
-    const give = () =>
-        properties.onGive(
-            day === undefined || time === undefined
-                ? undefined
-                : TimeZone.instant(timeZone, day, time),
-        );
-
-    return (
-        <div {...style.attrs(styles.time)}>
-            <DateField
-                xstyle={styles.half}
-                onValueChange={(given) => {
-                    day = given;
-                    give();
-                }}
-            />
-            <TimeField
-                xstyle={styles.half}
-                onValueChange={(given) => {
-                    time = given;
-                    give();
-                }}
-            />
-        </div>
     );
 }

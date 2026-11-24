@@ -530,6 +530,7 @@ export function DataTable<Features extends TableFeatures, Row extends RowData>(
     const isVirtual = untrack(() => properties.isVirtual === true);
     const gutter = createGutter(root, columns, () => properties.gutter ?? "outside");
     const control = new DataTableControl({
+        locale: useLocale(),
         table: untrack(() => properties.table),
         rows,
         columns,
@@ -2764,7 +2765,12 @@ function DataTableCellEditor<Features extends TableFeatures, Data extends RowDat
                     ref={(element) => {
                         // set the text once, the field changing it until the edit ends
                         field = element;
-                        element.value = initial ?? editor.format(untrack(() => properties.value));
+                        element.value =
+                            initial ??
+                            editor.format(
+                                untrack(() => properties.value),
+                                locale,
+                            );
                     }}
                     type={editor.kind === "date" ? "date" : "text"}
                     inputmode={editor.kind === "number" ? "decimal" : undefined}

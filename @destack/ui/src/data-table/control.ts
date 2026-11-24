@@ -1,4 +1,4 @@
-import type { Direction } from "@destack/locale";
+import type { Direction, Localization, NumberFormat } from "@destack/locale";
 import { present } from "@destack/schema";
 import {
     type Accessor,
@@ -69,9 +69,9 @@ export interface DataTableEditor {
     /** The choices of a select column, none for the other kinds. */
     readonly options: readonly DataTableOption[];
     /** Read a value from text, as typed or pasted. */
-    readonly parse: (text: string) => DataTableValue;
+    readonly parse: (text: string, locale: Localization) => DataTableValue;
     /** Write a value as text, as copied or edited. */
-    readonly format: (value: unknown) => string;
+    readonly format: (value: unknown, locale: Localization) => string;
 }
 
 /** The editors of a data table's columns. */
@@ -86,21 +86,28 @@ export const DataTableEditor = {
         };
     },
 
-    /** Edit a number, empty text as null, refusing text that is no number. */
-    number(): DataTableEditor {
+    /** Edit a number as people of the language write it, empty text as null. */
+    number(format: NumberFormat = {}): DataTableEditor {
         return {
             kind: "number",
             options: [],
-            parse: (text) => {
-                const value = Number(text.trim());
+            parse: (text, locale) => {
+                const value = locale.parseNumber(text, format);
 
                 return text.trim() === ""
                     ? { kind: "valid", value: null }
-                    : Number.isNaN(value)
+                    : value === undefined
                       ? { kind: "invalid" }
                       : { kind: "valid", value };
             },
-            format: textOf,
+            format: (value, locale) =>
+                typeof value === "number"
+                    ? locale.number(value, {
+                          maximumFractionDigits: 20,
+                          ...format,
+                          useGrouping: false,
+                      })
+                    : textOf(value),
         };
     },
 
@@ -256,6 +263,8 @@ export interface DataTableSpan {
 
 /** What a data table's grid reads of its table and its element. */
 export interface DataTableControlOptions<Features extends TableFeatures, Data extends RowData> {
+    /** The language numbers are read and written in. */
+    readonly locale: Localization;
     /** The table. */
     readonly table: DataTableInstance<Features, Data>;
     /** The body rows shown, the current page's in order. */
@@ -595,7 +604,7 @@ export class DataTableControl<
     /** Clear the selected block's editable cells, else the focused cell, after spreadsheets. */
     clear(): void {
         const changes = this.#cellsIn(this.#block()).flatMap((cell) => {
-            const value = this.editorOf(cell)?.parse("");
+            const value = this.editorOf(cell)?.parse("", this.#options.locale);
 
             return value?.kind === "valid"
                 ? [{ row: cell.row.id, column: cell.column.id, value: value.value }]
@@ -622,7 +631,7 @@ export class DataTableControl<
             const cells = each === undefined ? [] : this.cellsOf(each);
             const values = cells
                 .slice(block.minColumnIndex, block.maxColumnIndex + 1)
-                .map(textOfCell);
+                .map((cell) => textOfCell(cell, this.#options.locale));
             lines.push(values.map(quote).join("\t"));
         }
         event.clipboardData.setData("text/plain", lines.join("\n"));
@@ -667,7 +676,8 @@ export class DataTableControl<
                 const cell = cells[block.minColumnIndex + offset];
                 const value = isFill ? values[0]?.[0] : values[line]?.[offset];
                 const editor = cell === undefined ? undefined : this.editorOf(cell);
-                const parsed = value === undefined ? undefined : editor?.parse(value);
+                const parsed =
+                    value === undefined ? undefined : editor?.parse(value, this.#options.locale);
                 // change a cell whose editor reads the value
                 if (cell !== undefined && parsed?.kind === "valid") {
                     changes.push({ row: cell.row.id, column: cell.column.id, value: parsed.value });
@@ -787,7 +797,9 @@ export class DataTableControl<
 
         // read the text, taking text a field cannot read as invalid
         const value: DataTableValue =
-            editor === undefined || text === undefined ? { kind: "invalid" } : editor.parse(text);
+            editor === undefined || text === undefined
+                ? { kind: "invalid" }
+                : editor.parse(text, this.#options.locale);
 
         return { edit, cell, value };
     }
@@ -1071,10 +1083,11 @@ function parseTable(text: string): string[][] {
 /** Write a cell's value as text: through its column's editor, else as plain text. */
 function textOfCell<Features extends TableFeatures, Data extends RowData>(
     cell: Cell<Features, Data>,
+    locale: Localization,
 ): string {
     const editor = metaOf(cell.column).editor;
 
-    return editor === undefined ? textOf(cell.getValue()) : editor.format(cell.getValue());
+    return editor === undefined ? textOf(cell.getValue()) : editor.format(cell.getValue(), locale);
 }
 
 /** Write a value as plain text, nothing for an empty value. */
