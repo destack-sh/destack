@@ -2,6 +2,12 @@ import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
 import { color, stroke, swatch, weight } from "../token/tokens.stylex.ts";
 
+/** The least a finger is sure to hit, as WCAG's target size asks for. */
+const TOUCH = "1.5rem";
+
+/** The size of text a person types: the small text style's. */
+const TYPED_SIZE = "var(--destack-text-sm-font-size)";
+
 /** The scale of a pressed control: subtle, between 0.95 and 0.98. */
 const PRESS_SCALE = "scale(0.97)";
 
@@ -26,7 +32,34 @@ export const state = style.create({
     },
     /** A control while it is pressed, which shrinks a little to answer the press. */
     press: {
+        touchAction: "manipulation",
         transform: { default: null, ":active": PRESS_SCALE },
+    },
+    /** A control smaller than a finger, which takes presses a little around it on touch. */
+    touch: {
+        position: "relative",
+        "::after": {
+            content: { default: null, [media.pointerCoarse]: "''" },
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            width: `max(100%, ${TOUCH})`,
+            height: `max(100%, ${TOUCH})`,
+            transform: "translate(-50%, -50%)",
+        },
+    },
+    /** Text a person types, large enough that an iPhone does not zoom, filled in as the theme. */
+    typed: {
+        fontSize: {
+            default: TYPED_SIZE,
+            [media.pointerCoarse]: `max(16px, ${TYPED_SIZE})`,
+        },
+        caretColor: color.foreground,
+        boxShadow: {
+            default: null,
+            ":autofill": `inset 0 0 0 100vmax color-mix(in oklab, ${swatch.accentMark} 12%, ${color.background})`,
+        },
+        WebkitTextFillColor: { default: null, ":autofill": color.foreground },
     },
     /** A control while it is disabled, natively or by ARIA as a link is. */
     disabled: {
