@@ -217,6 +217,8 @@ export interface Publication {
     readonly replica: (subscription: SubscriptionRecord) => Replica;
     /** Read a subscription's parameters by the publication's schema, refusing invalid ones. */
     readonly read: <Requested extends SubscriptionRecord>(subscription: Requested) => Requested;
+    /** Report whether a reshape may start from previous parameters: those of the current shape. */
+    readonly reshapes: (previous: unknown) => boolean;
 }
 
 /** A declared publication, with the typed subscriptions of its parameters. */
@@ -263,6 +265,7 @@ export function definePublication<Parameters extends object>(definition: {
             }),
         subscription: (subscription) => read({ ...subscription, publication: definition.name }),
         read,
+        reshapes: (previous) => definition.parameters.safeParse(previous).success,
     };
 }
 
