@@ -624,7 +624,6 @@
                 "@destack/test/src/plan/vitest.ts",
                 "@destack/theme/src/token/generate.ts",
                 "@destack/ui/scripts/emoji.ts",
-                "@destack/ui/scripts/examples.ts",
                 "@destack/ui/src/chart/generate.ts",
                 "@destack/universe/src/cloudflare/worker.ts",
                 "@destack/update/src/test/command.ts",
