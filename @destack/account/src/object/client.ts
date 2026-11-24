@@ -163,7 +163,7 @@ export const client = defineObject(
                 "version",
             ],
             isPredicted: false,
-            onConflict: "id",
+            onConflict: { key: "id" },
         }),
         /** Trust a program to act for the account by its issuer's tokens, such as a CI workflow. */
         trust: method.create("trust", {
@@ -174,7 +174,7 @@ export const client = defineObject(
         declare: method.create("declare", {
             visibility: "package",
             fields: ["name", "issuer", "subject"],
-            onConflict: "workflow",
+            onConflict: { key: "workflow" },
         }),
         /** Issue a bearer token acting for the person under their grant of its permissions. */
         issue: method.create("issue", {
