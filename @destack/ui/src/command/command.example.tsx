@@ -381,8 +381,8 @@ const SEARCH_HEIGHT = "24rem";
 /** The styles of the search's frame and its detail. */
 const searchStyles = style.create({
     frame: {
-        width: SEARCH_WIDTH,
-        maxWidth: "100%",
+        width: "100%",
+        maxWidth: SEARCH_WIDTH,
         height: SEARCH_HEIGHT,
         borderWidth: stroke.border,
         borderStyle: "solid",
