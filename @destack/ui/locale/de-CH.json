@@ -1,0 +1,13 @@
+{
+    "package": "package-01a1075a-34ee-7343-832f-9faf3e1c456c",
+    "locale": "de-CH",
+    "messages": {
+        "2c8oe9edp68v1": "Schliessen",
+        "1i41c2w3ppc5x": "«{$p0}» erstellen",
+        "1gmmuqukd7lsf": "«{$p0}» kann nicht in {$p1} eingesetzt werden",
+        "2u92230fz0yqt": "Schliessen",
+        "2u507gay3xurl": "Grösser als {$p0}",
+        "1o6pdeuzb5fwk": "{$p0} ist grösser als {$p1}",
+        "1f1tn6kf52c51": "«{$p0}» hat nicht funktioniert"
+    }
+}
