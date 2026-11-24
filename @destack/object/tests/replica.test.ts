@@ -578,7 +578,7 @@ test("refuse a follow with malformed chain parameters as a bad request", async (
     expect(await refusal(pages.next())).toEqual([
         "BAD_REQUEST",
         "PARAMETERS_INVALID",
-        "publication 'chain' is invalid: its parameters do not match: 'scopes: invalid input: expected array, received undefined; replicas: invalid input: expected array, received undefined; replicated: invalid input: expected array, received undefined; via: invalid input: expected array, received undefined; between: invalid input: expected array, received undefined'",
+        "publication 'chain' is invalid: its parameters do not match: 'scopes: invalid input: expected array, received undefined; replicated: invalid input: expected array, received undefined; via: invalid input: expected array, received undefined; between: invalid input: expected array, received undefined'",
     ]);
 });
 

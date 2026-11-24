@@ -289,7 +289,6 @@ test("list the types a home and a follower decide in the chain subscription, add
         {
             scopes: [spaceId, Scope.universe.id],
             local: local.map((type) => type.typeReference),
-            replicas: [],
             replicated: replicated.map((scope) => ({ scope, types: [] })),
             via: [],
             between: [],

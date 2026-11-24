@@ -130,7 +130,6 @@ test("subscribe to a fixed key and to one key per row the follower has as one re
             parameters: {
                 scopes: [spaceId, Scope.universe.id],
                 local: [page.typeReference],
-                replicas: [],
                 replicated: [spaceId, Scope.universe.id].map((scope) => ({ scope, types: [] })),
                 via: [],
                 between: [],

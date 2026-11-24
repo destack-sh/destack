@@ -772,7 +772,6 @@ export class ObjectSink {
                 parameters: {
                     scopes: chain,
                     local: [...this.store.authorizer.local],
-                    replicas: this.store.replicas.map((type) => type.typeReference),
                     // leave out the propagated rows of a scope the store serves beside its own, which it originates
                     replicated: replicated.map((scope) => ({
                         scope,
@@ -836,7 +835,6 @@ export class ObjectSink {
                 parameters: {
                     scopes: [],
                     local: [],
-                    replicas: [],
                     replicated: [{ scope: Scope.universe.id, types: this.#outsideTypes() }],
                     ...outside,
                 },

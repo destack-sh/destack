@@ -219,7 +219,12 @@ export class ObjectSource {
     async *relayed(request: sync.Subscription, context: RequestContext): AsyncGenerator<sync.Page> {
         // read the subscription by its publication, refusing invalid parameters, and allow the caller by its audience
         const publication = this.publication(request);
-        const subscription = publication.read(request);
+        const read = publication.read(request);
+
+        // snapshot anew from previous parameters of another shape, as a release may change the shape, else reshape
+        const { previous, ...fresh } = read;
+        const subscription =
+            previous === undefined || publication.reshapes(previous) ? read : fresh;
         this.store.requireProtocolSubscription(context, request);
         const follower = await this.#authorizeFollower(publication, subscription, context);
         // refuse a session whose credential lapsed already, for the follower to resume with a fresh one
