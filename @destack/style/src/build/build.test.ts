@@ -84,6 +84,7 @@ async function bundle(
                 dependencies,
                 runtime: "browser",
                 server: false,
+                mode: "release",
                 environment,
             }),
         ],
