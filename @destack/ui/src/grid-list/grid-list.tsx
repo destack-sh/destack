@@ -37,7 +37,7 @@ const UNMEASURED_ROWS = 24;
 /** The grid list of the nearest grid list as its parts read it, null outside one. */
 const GridListContext = createContext<Pick<
     GridListControl<never>,
-    "observe" | "state" | "isEmpty" | "isFitted"
+    "focus" | "observe" | "state" | "isEmpty" | "isFitted"
 > | null>(null);
 
 /** The styles of a grid list's parts. */
@@ -413,7 +413,7 @@ interface GridListHeadingAttributes extends Pick<JSX.HTMLAttributes<HTMLDivEleme
 /** Read the grid list of the nearest grid list, refusing parts outside one. */
 export function useGridList(): Pick<
     GridListControl<never>,
-    "observe" | "state" | "isEmpty" | "isFitted"
+    "focus" | "observe" | "state" | "isEmpty" | "isFitted"
 > {
     const control = useContext(GridListContext);
     if (control === null) {
@@ -506,7 +506,9 @@ export function GridListRow(properties: GridListRowProperties): JSX.Element {
 
 /** Render a cell's element of a grid list, marked while focused. */
 export function GridListCell(properties: GridListCellFrameProperties): JSX.Element {
-    const isFitted = useGridList().isFitted;
+    // fill the active cell unless its focus ring shows it
+    const { isFitted, focus } = useGridList();
+    const isFilled = !isFitted || focus.mode === "virtual";
     const rest = omit(properties, "isActive", "isSelected", "xstyle", "style");
 
     return (
@@ -520,7 +522,7 @@ export function GridListCell(properties: GridListCellFrameProperties): JSX.Eleme
                 [
                     styles.cell,
                     isFitted ? [state.focus, styles.fitted] : styles.square,
-                    properties.isActive && !isFitted && state.selected,
+                    properties.isActive && isFilled && state.selected,
                     properties.isSelected && state.selected,
                     properties.isSelected && styles.selected,
                     properties["aria-disabled"] === "true" && state.inert,

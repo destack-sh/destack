@@ -175,6 +175,36 @@ function drawLoading(load: Load<readonly string[]>): HTMLElement {
     )).container;
 }
 
+test("fill the cell a search field is on, in a list fitted to its width", () => {
+    const { container } = render(() => {
+        const autocomplete = new AutocompleteControl({});
+        const grid = new GridListControl<readonly [string, string]>({
+            sections: () => [{ key: "math", items: SYMBOLS }],
+            key: ([symbol]) => symbol,
+            text: ([, name]) => name,
+            autocomplete,
+            onAction: () => undefined,
+        });
+
+        return (
+            <AutocompleteContext value={autocomplete}>
+                <AutocompleteInput aria-label="Symbol" />
+                <GridList control={grid} aria-label="Symbols" label={([, name]) => name} />
+            </AutocompleteContext>
+        );
+    });
+    flush();
+    const looks = [...container.querySelectorAll("[data-slot=grid-list-cell]")].map(
+        (cell) => cell.className,
+    );
+
+    // the first cell alone is filled, the others look alike
+    expect([new Set(looks.slice(1)).size, looks.slice(1).includes(looks[0] ?? "")]).toEqual([
+        1,
+        false,
+    ]);
+});
+
 test("take typing in the search while the items load, then show the loaded items", async () => {
     // type before the load finishes, then let it finish
     const { promise, resolve } = Promise.withResolvers<readonly string[]>();
