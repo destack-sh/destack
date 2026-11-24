@@ -74,8 +74,6 @@ export const CliError = defineErrorFamily({
 
         GIT_SETUP_BROKEN: {},
 
-        GIT_FETCH_BROKEN: {},
-
         MACHINE_START_BROKEN: {},
 
         PREVIEW_BROKEN: {},

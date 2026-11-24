@@ -3,6 +3,7 @@ import objectPackage from "@destack/object/package";
 import { PackageDefinition, type PackageId, PackageName } from "@destack/package";
 import { ForgeError } from "@destack/forge/error";
 import { LATEST_TAG, reference, release, tag } from "@destack/registry/object";
+import { GitLease } from "@destack/git/local";
 import type { Lease } from "@destack/resource";
 import { type Identifier, present, schema, Version } from "@destack/schema";
 import stackPackage, { STACK_INSTALLATION } from "@destack/stack/package";
@@ -407,47 +408,19 @@ async function branchTarget(
     };
 }
 
-/** Read a file at a branch's commit through a read lease, fetching that commit alone. */
+/** Read a file at a branch's head through a read lease, fetching that commit alone. */
 async function readAtBranch(
     lease: Lease,
     branch: string,
     path: string,
     environment: CommandEnvironment,
 ): Promise<string> {
-    // fetch the branch's commit into an empty repository, sending the lease's headers
+    // check the branch's head out into a new directory, removing it after
     const directory = await environment.files.makeTemporaryDirectory("destack-branch-");
-    const headers = Object.entries(lease.headers).flatMap(([name, value]) => [
-        "-c",
-        `http.extraHeader=${name}: ${value}`,
-    ]);
-
-    // run a git command in it, failing with git's message without the lease's address
-    const git = async (verb: string, ...words: readonly string[]) => {
-        // run the command, reading its output
-        const command = ["git", "-C", directory, ...headers, verb, ...words];
-        const { code, stdout, stderr } = await environment.process.run(command);
-
-        // fail with git's message, its address left out
-        if (code !== 0) {
-            const message = new TextDecoder()
-                .decode(stderr)
-                .trim()
-                .replaceAll(lease.url, "the lease");
-            throw CliError.of(
-                "GIT_FETCH_BROKEN",
-                `git '${verb}' exited with status ${code}: ${message}`,
-            );
-        }
-
-        return new TextDecoder().decode(stdout);
-    };
-
-    // read the file at the fetched commit, removing the repository after
     try {
-        await git("init", "--quiet", "--bare");
-        await git("fetch", "--quiet", "--depth", "1", lease.url, `${BRANCH_PREFIX}${branch}`);
+        await GitLease.branch(lease, branch, directory, environment, new AbortController().signal);
 
-        return await git("show", `FETCH_HEAD:${path}`);
+        return await environment.files.readTextFile(join(directory, path));
     } finally {
         await environment.files.remove(directory, { recursive: true });
     }
