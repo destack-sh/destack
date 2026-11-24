@@ -7,6 +7,7 @@ import {
     PermissionReference,
     principal,
     self,
+    through,
     type GrantDeclaration,
     type GrantContext,
     PermissionSet,
@@ -208,8 +209,9 @@ export const installation = defineObject(
             // let permissions read the scope an installation lives in
             attributes: { scope: "string" },
             permissions: {
-                read: none(),
-                list: none(),
+                // let the space's readers see its installed apps, as members see a workspace's apps
+                read: through("scope", "read"),
+                list: through("scope", "read"),
                 install: none(),
                 update: none(),
                 delete: none(),
