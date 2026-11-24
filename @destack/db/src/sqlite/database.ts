@@ -26,7 +26,7 @@ export class SqliteDatabase<
     /** Bind tables to a SQLite connection, within a shared store's namespace when given. */
     constructor(
         client: Client,
-        tables: declaration.Database<Models> | readonly Table[],
+        tables: declaration.DatabaseSchema<Models> | readonly Table[],
         locality: Locality,
         role: ConnectionRole,
         options: SqliteConnectOptions & { readonly namespace?: string; readonly name: string },

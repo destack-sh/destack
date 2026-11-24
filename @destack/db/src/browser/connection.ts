@@ -9,7 +9,7 @@ export function connectWasmSqlite<
     Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
 >(
     client: WasmClient,
-    tables: declaration.Database<Models> | readonly Table[],
+    tables: declaration.DatabaseSchema<Models> | readonly Table[],
     options: SqliteConnectOptions & { readonly name: string },
 ): SqliteDatabase<WasmClient, Models> {
     return new SqliteDatabase(client, tables, "embedded", "writer", options);

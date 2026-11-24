@@ -54,7 +54,7 @@ export class PostgresDatabase<
     /** Bind tables to a pool, listening to other writers' commits unless it is the sole writer. */
     constructor(
         pool: PostgresPool,
-        tables: declaration.Database<Models> | readonly Table[],
+        tables: declaration.DatabaseSchema<Models> | readonly Table[],
         options: PostgresConnectOptions & { readonly poolCloser: "database" | "caller" },
     ) {
         // read how the connection writes, and declare the distinct tables

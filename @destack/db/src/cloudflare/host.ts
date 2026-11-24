@@ -218,7 +218,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
 
     /** Open a database in the storage in the host's environment, the object its sole writer. */
     connect<Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>>(
-        tables: declaration.Database<Models> | readonly Table[],
+        tables: declaration.DatabaseSchema<Models> | readonly Table[],
         options: DurableObjectConnectOptions = {},
     ): SqliteDatabase<DurableObjectClient, Models> {
         return this.#open(tables, options);
@@ -238,7 +238,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
 
     /** Open a database of the storage whose statements run in a mode. */
     #open<Models extends Readonly<Record<string, Model>>>(
-        tables: declaration.Database<Models> | readonly Table[],
+        tables: declaration.DatabaseSchema<Models> | readonly Table[],
         options: DurableObjectConnectOptions,
     ): SqliteDatabase<DurableObjectClient, Models> {
         // open the database, recorded by name for the readers waiting for its commits

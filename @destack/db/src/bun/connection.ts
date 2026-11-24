@@ -24,7 +24,7 @@ export async function connectBunSqlite<
     Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
 >(
     connection: string | Database,
-    tables: declaration.Database<Models> | readonly Table[],
+    tables: declaration.DatabaseSchema<Models> | readonly Table[],
     options: SqliteConnectOptions,
 ): Promise<SqliteDatabase<BunClient, Models>> {
     // open the file, or take the database given
