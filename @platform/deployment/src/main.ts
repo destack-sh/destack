@@ -11,7 +11,7 @@ import {
     sealCustody,
     validatePlatform,
 } from "./deployment/command.ts";
-import { cliLocal, desktopLocal, resetLocal, serveLocal } from "./local/command.ts";
+import { cliLocal, desktopLocal, publishLocal, resetLocal, serveLocal } from "./local/command.ts";
 import { deploySite } from "./site/site.ts";
 
 /** The deployment commands by their noun and verb, each checking its own arguments. */
@@ -30,6 +30,7 @@ const COMMANDS: Readonly<Record<string, Command>> = {
 
     "local serve": serveLocal,
     "local reset": resetLocal,
+    "local publish": publishLocal,
     "local desktop": desktopLocal,
     "local cli": cliLocal,
 };

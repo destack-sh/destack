@@ -66,6 +66,18 @@ export async function cliLocal(
     process.exitCode = await child.exited;
 }
 
+/** Publish the checkout's releases locally: `local publish [<flags of LocalUniverse>]`. */
+export async function publishLocal(
+    environment: Environment<HostCapability>,
+    arguments_: readonly string[],
+): Promise<void> {
+    const local = await LocalUniverse.of(arguments_, environment);
+    await local.publish();
+    local.scope.log.info("platform.release.published", {
+        "platform.release.tag": local.deployment.tag,
+    });
+}
+
 /** Drop a local universe's state: `local reset [<flags of LocalUniverse>]`. */
 export async function resetLocal(
     environment: Environment<HostCapability>,

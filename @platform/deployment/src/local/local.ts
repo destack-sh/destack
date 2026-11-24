@@ -1,7 +1,7 @@
 import { TelemetryScope } from "@destack/telemetry";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { MachineKey } from "@destack/account/client";
+import { IssuerCredential, MachineKey, Session } from "@destack/account/client";
 import { LocalBucket } from "@destack/bucket/bun";
 import { S3Server } from "@destack/bucket/s3";
 import { Toolchain } from "@destack/check/toolchain";
@@ -27,6 +27,7 @@ import {
 } from "@destack/machine/computer";
 import { Device, type MachineEnrollment } from "@destack/machine/device";
 import { PrintTransport } from "@destack/mail/print";
+import { Bookmark } from "@destack/object/client";
 import type { HostListening } from "@destack/object/workload";
 import { DISTRIBUTION_LAYER, DistributionManifest, DistributionPlatform } from "@destack/package";
 import { BunDistribution } from "@destack/package/bun";
@@ -34,8 +35,9 @@ import { BuildLayer } from "@destack/package/manifest";
 import { present, schema } from "@destack/schema";
 import type { UniverseDefinition } from "@destack/universe";
 import { BunUniverse } from "@destack/universe/bun";
+import { LATEST_TAG } from "@destack/registry/object";
 import { Profile } from "@destack/update/release";
-import { CHECKOUT, PlatformBuild, printStatus } from "@platform/distribution";
+import { CHECKOUT, PlatformBuild, printStatus, readCommit } from "@platform/distribution";
 import { PLATFORM, type PlatformResidency, RESIDENCIES } from "@platform/stack";
 import {
     type SuppliedModules,
@@ -53,6 +55,7 @@ import {
     WRANGLER_VARIABLES,
 } from "../deployment/root.ts";
 import { PrintedMail } from "./mail.ts";
+import { LocalPublisher } from "./publisher.ts";
 import { LocalProcess } from "./process.ts";
 
 /** The local PostgreSQL server, the test server of `just postgres up`. */
@@ -67,7 +70,7 @@ const DEFAULT_NAME = "local";
 /** A local universe's name, a PostgreSQL identifier's tail and a directory name. */
 const NAME = /^[a-z][a-z0-9_]*$/u;
 
-/** The ports between two local universes' universe ports: their four ports, rounded up. */
+/** The ports between two local universes' universe ports: their five ports, rounded up. */
 const PORT_BLOCK = 10;
 
 /** The file in a local universe's directory with the universe port it took at its first open. */
@@ -94,7 +97,7 @@ const LOCAL_RUNTIMES = ["bun", "workerd"] as const;
 
 /** The usage of a local universe's flags. */
 const USAGE =
-    "use local <serve|reset|desktop|cli> [--runtime <bun|workerd>] [--universe <name>], a name of a-z, 0-9 and _";
+    "use local <serve|reset|publish|desktop|cli> [--runtime <bun|workerd>] [--universe <name>], a name of a-z, 0-9 and _";
 
 /** The directories of a local universe's state, which a reset removes. */
 const STATE_DIRECTORIES = ["universe", "machines", "workers"] as const;
@@ -286,8 +289,21 @@ export class LocalUniverse {
             await PlatformBuild.build(CHECKOUT, environment, { isUnreleased: true }),
         );
 
-        // declare the universe, and write the distribution its machines ship
-        const definition = deployment.definition(OPERATOR, custody, build);
+        // issue the local release client's assertions, as the release workflow's issuer does
+        const publisher = await this.#publisher();
+        const issuing = environment.server.http({
+            hostname: LOOPBACK,
+            port: this.ports.publisher,
+            fetch: (request) => publisher.fetch(request),
+        });
+        stack.defer(async () => issuing.stop(true));
+
+        // declare the universe trusting that client to publish, and write the distribution its machines ship
+        const declared = deployment.definition(OPERATOR, custody, build);
+        const definition = {
+            ...declared,
+            platform: { ...declared.platform, clients: [publisher.client] },
+        };
         await build.writeDistribution(
             this.distribution,
             DistributionPlatform.of(environment.host),
@@ -315,6 +331,30 @@ export class LocalUniverse {
         this.scope.log.info("platform.universe.signaled", {
             "platform.signal": String(signal.reason),
         });
+    }
+
+    /** Publish the checkout's releases into the universe's forge, as a deploy's workflow does. */
+    async publish(): Promise<void> {
+        // sign in as the local release client, whose issuer the serving universe answers
+        const { deployment, environment } = this;
+        const publisher = await this.#publisher();
+        const send = (request: Request) => environment.network.fetch(request);
+        const session = new Session(
+            new IssuerCredential(publisher.signer, deployment.universe.issuer, send, environment),
+            { universe: deployment.universe.origin, send, bookmark: new Bookmark(), environment },
+        );
+
+        // build the checkout's releases, and publish them at its commit pointing latest
+        await using build = await PlatformBuild.build(CHECKOUT, environment);
+        await build.publish(session, deployment.universe.origin, deployment.tag, {
+            commit: await readCommit(CHECKOUT, environment),
+            tags: [LATEST_TAG],
+        });
+    }
+
+    /** Open the local release client's issuer at its loopback port. */
+    #publisher(): Promise<LocalPublisher> {
+        return LocalPublisher.open(`http://${LOOPBACK}:${this.ports.publisher}`, this.environment);
     }
 
     /** Drop the universe's database, universe and cloud machines, and erase its machine. */
