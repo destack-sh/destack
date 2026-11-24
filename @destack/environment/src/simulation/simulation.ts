@@ -17,6 +17,7 @@ import { SimulatedClock } from "../clock/simulated.ts";
 import { SeverityNumber } from "@opentelemetry/api";
 import { SIMULATION_SCOPE, SimulatedScheduler } from "../scheduler/simulated.ts";
 import { SimulatedNetwork } from "../network/simulated.ts";
+import { HostBridge } from "./bridge.ts";
 import { InstrumentedProcess } from "../process/instrumented.ts";
 import type { Process } from "../process/process.ts";
 import { SimulatedRandom } from "../random/simulated.ts";
@@ -25,6 +26,9 @@ import type { World, WorldStep } from "../world/world.ts";
 import { Clock } from "../clock/clock.ts";
 import { yieldToEventLoop } from "../clock/wait.ts";
 import { WorldOptions } from "./options.ts";
+
+/** The node a bridged host process's requests come from. */
+const BRIDGE_NODE = "host";
 
 /** The turns world work may spin between completions: at about 1 µs a turn, 200 ms. */
 const LIVELOCK_TURNS = 200_000;
@@ -274,6 +278,8 @@ export interface SimulationOptions {
     readonly skew?: Skew;
     /** Where the nodes' files live: on the host under the world's root, or in memory. */
     readonly files?: "host" | "memory";
+    /** Whether host processes reach the world's network through a proxy, off by default. */
+    readonly isBridged?: boolean;
 }
 
 /** How far nodes' clocks stray from the world's: each node draws its offset and drift within. */
@@ -340,6 +346,8 @@ export class Simulation {
     #drives = 0;
     /** The failure of the loop, refusing later waits, thrown at dispose unless a wait took it. */
     #failure: { readonly error: unknown; readonly isTaken: boolean } | undefined;
+    /** The proxy host processes reach the world's network through, absent unless bridged. */
+    readonly #bridge: HostBridge | undefined;
     /** The world's disposal, absent until it began. */
     #disposed: Promise<void> | undefined;
     /** The events that happened, traced or not, which the loop reads as progress. */
@@ -392,7 +400,19 @@ export class Simulation {
                       directories: [home],
                   })
                 : undefined;
-        this.#process = options.process ?? Simulation.#hostProcess(this.root, home);
+
+        // bridge host processes into the world's network when asked
+        this.#bridge =
+            options.isBridged === true
+                ? new HostBridge(join(this.root, "bridge"), (request) =>
+                      this.environment(BRIDGE_NODE).network.fetch(request),
+                  )
+                : undefined;
+        const process = options.process ?? Simulation.#hostProcess(this.root, home);
+        this.#process = {
+            ...process,
+            variables: { ...process.variables, ...this.#bridge?.variables },
+        };
         this.#host = options.host ?? { ...HOST, home };
 
         // run the world
@@ -436,6 +456,7 @@ export class Simulation {
         this.clock.detach();
         this.scheduler.detach();
         this.telemetry.context.disable();
+        this.#bridge?.close();
         await rm(this.root, { recursive: true, force: true });
         if (this.#failure !== undefined && !this.#failure.isTaken) {
             throw this.#failure.error;
