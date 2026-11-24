@@ -33,6 +33,9 @@ const RANGE = { min: 0, max: 100 };
 /** The ring a focused thumb shows. */
 const FOCUS_RING = `0 0 0 ${stroke.ring} ${color.ring}`;
 
+/** The width and height of a thumb. */
+const THUMB_SIZE = space[4];
+
 /** The look of a thumb in every engine. */
 const THUMB = {
     boxSizing: "border-box",
@@ -131,7 +134,8 @@ const styles = style.create({
         height: space[1],
         borderRadius: radius.full,
         backgroundColor: color.mutedForeground,
-        translate: "-50% -50%",
+        marginInlineStart: `calc(${space[1]} / -2)`,
+        marginBlockStart: `calc(${space[1]} / -2)`,
     },
     markAt: (inline: string, block: string) => ({
         insetInlineStart: inline,
@@ -197,6 +201,14 @@ export class SliderControl {
     /** Read a value's share of the range as a percentage. */
     share(value: number): number {
         return ((value - this.min()) / (this.max() - this.min())) * 100;
+    }
+
+    /** Read how far from a side of the track a thumb's center sits for a value. */
+    offset(value: number, side: "start" | "end"): string {
+        // travel between the track's ends by the thumb's own width less
+        const share = side === "start" ? this.share(value) : 100 - this.share(value);
+
+        return `calc(${THUMB_SIZE} / 2 + (100% - ${THUMB_SIZE}) * ${share / 100})`;
     }
 
     /** Add a thumb until it unmounts, returning its place among the thumbs. */
@@ -307,35 +319,41 @@ export function Slider(properties: SliderProperties): JSX.Element {
                         <SliderTrack>
                             <SliderIndicator />
                         </SliderTrack>
+                        <SliderMarks />
                         <Repeat count={control.values().length}>
                             {(index) => <SliderThumb index={index} />}
                         </Repeat>
                     </>
                 )}
-                <Show when={properties.marks}>
-                    {(marks) => (
-                        <div data-slot="slider-marks" {...style.attrs(styles.marks)}>
-                            <For each={marks()}>
-                                {(mark) => (
-                                    <span
-                                        data-slot="slider-mark"
-                                        {...style.attrs(
-                                            styles.mark,
-                                            control.isVertical()
-                                                ? styles.markAt(
-                                                      "50%",
-                                                      `${100 - control.share(mark)}%`,
-                                                  )
-                                                : styles.markAt(`${control.share(mark)}%`, "50%"),
-                                        )}
-                                    />
-                                )}
-                            </For>
-                        </div>
-                    )}
-                </Show>
             </div>
         </SliderContext>
+    );
+}
+
+/** Render the marks of the nearest slider, between its track and its thumbs. */
+export function SliderMarks(): JSX.Element {
+    const control = useSlider();
+
+    return (
+        <Show when={control.properties.marks}>
+            {(marks) => (
+                <div data-slot="slider-marks" {...style.attrs(styles.marks)}>
+                    <For each={marks()}>
+                        {(mark) => (
+                            <span
+                                data-slot="slider-mark"
+                                {...style.attrs(
+                                    styles.mark,
+                                    control.isVertical()
+                                        ? styles.markAt("50%", control.offset(mark, "end"))
+                                        : styles.markAt(control.offset(mark, "start"), "50%"),
+                                )}
+                            />
+                        )}
+                    </For>
+                </div>
+            )}
+        </Show>
     );
 }
 
@@ -370,9 +388,9 @@ export function SliderIndicator(
     const from = (): string => {
         const values = control.values();
 
-        return `${values.length > 1 ? control.share(values[0] ?? control.min()) : 0}%`;
+        return values.length > 1 ? control.offset(values[0] ?? control.min(), "start") : "0%";
     };
-    const to = (): string => `${100 - control.share(control.values().at(-1) ?? control.min())}%`;
+    const to = (): string => control.offset(control.values().at(-1) ?? control.min(), "end");
 
     return renderPart(
         "div",
