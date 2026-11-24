@@ -1,0 +1,31 @@
+{
+    "package": "package-01a0e95b-c8db-7258-a257-e7661dbc93c3",
+    "locale": "pt",
+    "messages": {
+        "5e9yby7z9xs7": ".input {$count :number}\n.match $count\none {{Atividade}}\n* {{Atividades}}",
+        "3a1s6bs1r29sq": "Notificar",
+        "dl9fg5poec1p": "Agir",
+        "201kpf3h9zgvs": ".input {$count :number}\n.match $count\none {{Anúncio}}\n* {{Anúncios}}",
+        "1jei56r0iswfc": "Anunciar",
+        "3n6hjvrn4e073": "Expandir",
+        "2dfkaj8neyql0": ".input {$count :number}\n.match $count\none {{Notificação}}\n* {{Notificações}}",
+        "cmvdkwhll6f0": "Entregar",
+        "2ufyhyttpsr0j": "Marcar como lida",
+        "39vr387e8zx4d": "Marcar como não lida",
+        "1np1cgw860ey5": "Adiar",
+        "2lfv05pzntf5b": "Arquivar",
+        "owu1gvg05fi6": "Desarquivar",
+        "e9fg17hqk8ds": ".input {$count :number}\n.match $count\none {{Inscrição}}\n* {{Inscrições}}",
+        "34jzqbzm187a1": ".input {$count :number}\n.match $count\none {{Resumo}}\n* {{Resumos}}",
+        "2mz1xwt94e5h5": "Enviar",
+        "gu13ooczcf55": "Notificações",
+        "w027yep9y2wp": "Declarar notificações, avisar destinatários, acompanhar objetos e entregá-las como mensagens.",
+        "2cm4swco3c572": "Entregar suas notificações por e-mail, push e nos seus computadores",
+        "3bq8i6hm612bg": "Enviar notificações push para seus navegadores e dispositivos",
+        "3d3xzrgg4r7k1": "Foco",
+        "qa7gimuopaom": "Quando as notificações esperam na caixa de entrada em vez de alertar você.",
+        "2gs46b47gorz5": "Como as notificações de cada app chegam até você.",
+        "2onm05suvsexs": "Quando e como são enviadas as notificações reunidas em um resumo.",
+        "fp21yr62itna": "Resumo agendado"
+    }
+}
