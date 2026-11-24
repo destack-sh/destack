@@ -2,7 +2,7 @@ import { testSimulation } from "../src/test/world.ts";
 import { refusal, test } from "@destack/test";
 import { join } from "node:path";
 import { PackageBuild } from "../src/index.ts";
-import { COMPILER_VERSION } from "../src/cache/cache.ts";
+import { COMPILER_VERSION } from "../src/cache/fingerprint.ts";
 import { Digest } from "@destack/schema";
 import {
     Fixture,

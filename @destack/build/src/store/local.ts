@@ -5,19 +5,14 @@ import { BlobStore } from "@destack/db/database";
 import { connectBunSqlite } from "@destack/db/bun";
 import { type Environment, type FileSystem, FileSystemError } from "@destack/environment";
 import { type PackageFile, PackagePath } from "@destack/package/file";
-import {
-    BuildObject,
-    BuildStore,
-    CACHE_MILLISECONDS,
-    LOADED_RUNTIMES,
-    ImportClosure,
-    CLOSURE_BASE,
-    USE_MILLISECONDS,
-} from "./store.ts";
+import { BuildObject, BuildStore } from "./store.ts";
+import { CACHE_MILLISECONDS, USE_MILLISECONDS } from "../cache/cache.ts";
 import { BuildError } from "../error/index.ts";
 import {
     BuildReader,
     BuildImage,
+    ImportMap,
+    LOADED_RUNTIMES,
     MANIFEST_PATH,
     PackageManifest,
     BuildLayer,
@@ -32,6 +27,9 @@ import {
 import { BuildTree } from "../dependency/tree.ts";
 import { Digest, JsonValue, present, schema, Uuid } from "@destack/schema";
 import { HOST_RUNTIME, type Runtime } from "@destack/package/runtime";
+
+/** The URL prefix a layer names its builds' modules below. */
+const LAYER_BASE = "/";
 
 /** The most bytes of files a pack takes: 16 MiB, below a Worker's 25 MiB per static asset. */
 const PACK_BYTES = 16 * 1024 * 1024;
@@ -537,13 +535,15 @@ export class LocalBuildStore
         const reached = new Set<string>();
         for (const image of images.values()) {
             for (const runtime of runtimes.filter((each) => LOADED_RUNTIMES.has(each))) {
-                const closure = await this.imports(image, runtime, CLOSURE_BASE, linked);
+                const map = await BuildImage.imports(image, runtime, LAYER_BASE, linked, (build) =>
+                    this.get(build),
+                );
                 const root = await this.contents(image.root);
-                const modules = await ImportClosure.modules(
-                    await ImportClosure.entries(image.root, root, runtime),
+                const modules = await ImportMap.modules(
+                    map,
+                    LAYER_BASE,
                     runtime,
-                    closure,
-                    CLOSURE_BASE,
+                    await root.entries(runtime),
                     (build) => this.contents(build),
                 );
                 for (const name of modules.keys()) {
@@ -566,7 +566,7 @@ export class LocalBuildStore
             // group the build's files no earlier build listed
             const distributed = await reader.references();
             listed.set(digest, distributed);
-            const unreached = ImportClosure.unused(digest, reader, distributed, reached);
+            const unreached = await reader.unused(distributed, reached);
             const added = distributed
                 .filter((file) => wanted.has(file.digest) && !unreached.has(file.digest))
                 .filter((file) => !sources.has(file.digest));
@@ -712,15 +712,13 @@ export class LocalBuildStore
 
             return stored;
         };
-        const reached = await this.imports(image, runtime, CLOSURE_BASE, builtins, find);
-        const images = [
-            image,
-            ...[...builtins.values()].filter((each) => reached.builds.has(each.root)),
-        ];
-        const closures = await Promise.all(
-            images.map((each) => this.closure(each, runtime, find, "export")),
+        const map = await BuildImage.imports(image, runtime, LAYER_BASE, builtins, find);
+        const mapped = ImportMap.builds(map, LAYER_BASE);
+        const images = [image, ...[...builtins.values()].filter((each) => mapped.has(each.root))];
+        const loads = await Promise.all(
+            images.map((each) => BuildImage.loads(each, runtime, find, "export")),
         );
-        const closure = new Set(closures.flatMap((each) => [...each]));
+        const closure = new Set(loads.flatMap((each) => [...each]));
 
         // list each image's releases once
         const listed = await Promise.all(
@@ -799,8 +797,8 @@ export class LocalBuildStore
         await this.blobs.storage.clean();
 
         // drop the unused cache entries and fit the size, then delete what nothing retains
-        await this.expire();
-        await this.evict(MAX_BYTES);
+        await this.cache.expire();
+        await this.cache.evict(MAX_BYTES);
         await this.blobs.collect(0);
 
         // delete the trees of the builds whose manifests the store no longer has, whole or in part

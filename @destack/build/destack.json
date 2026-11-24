@@ -9,9 +9,9 @@
     "check": {
         "expect": [
             {
-                "files": ["src/cache/closure.ts"],
+                "files": ["src/cache/fingerprint.ts"],
                 "rules": ["destack/no-ambient-effect"],
-                "reason": "the toolchain closure resolves its imports as Bun loads them, which only Bun's resolver over the host's files does"
+                "reason": "the compiler fingerprint resolves its entry's imports as Bun loads them, which only Bun's resolver over the host's files does"
             },
             {
                 "files": ["src/main.ts"],

@@ -1,6 +1,6 @@
 import type { IndexedDeclarations } from "../build/message.ts";
 import { dirname, join, resolve } from "node:path";
-import { type FileSystem, FileSystemError } from "@destack/environment";
+import { type Environment, type FileSystem, FileSystemError } from "@destack/environment";
 import type { BunLockfile } from "@destack/check/bun";
 import { DomainError } from "@destack/error";
 import {
@@ -26,12 +26,16 @@ import {
     readPackageJson,
     type SourceOptions,
 } from "../source/index.ts";
-import { BuildStore, type CacheOutcome } from "../store/index.ts";
+import { BuildStore } from "../store/index.ts";
+import type { BuildCacheOutcome } from "../cache/index.ts";
 import type { LocalBuildStore } from "../store/local.ts";
 import type { DependencyBuild } from "./tree.ts";
 import type {} from "@destack/package/import-meta";
 import { TelemetryScope } from "@destack/telemetry";
 import { Checkout } from "@destack/check/workspace";
+
+/** The lockfile Bun writes at a workspace's root. */
+const LOCKFILE = "bun.lock";
 
 /** The files no build reads: test modules, the tests folder and recipes. */
 const UNREAD_FILES = [/(?:^|\/)[^/]*\.test\.[^/]+$/u, /^tests\//u, /(?:^|\/)justfile$/u];
@@ -179,6 +183,50 @@ export class Workspace {
             {},
             () => Workspace.#open(directory, compilers, options),
         );
+    }
+
+    /** Install a directory's locked dependencies or update its lockfile, answering the lockfile. */
+    static async install(
+        directory: string,
+        environment: Environment<"files" | "process">,
+        options: { readonly isFrozen: boolean; readonly signal: AbortSignal },
+    ): Promise<string | undefined> {
+        // install at the lockfile's workspace, else at the directory, leaving a frozen install without one
+        const { files, process } = environment;
+        const lockfile = await readLockfileMaybe(directory, files);
+        if (lockfile === undefined && options.isFrozen) {
+            return undefined;
+        }
+        const root = lockfile === undefined ? directory : await Workspace.#locate(lockfile, files);
+
+        // run the host's executable as Bun without package scripts, offline when frozen
+        const command = [
+            process.executable,
+            "install",
+            "--ignore-scripts",
+            ...(options.isFrozen ? ["--frozen-lockfile", "--prefer-offline"] : []),
+        ];
+        const { code, stderr } = await process.run(command, {
+            workingDirectory: root,
+            variables: { ...process.variables, BUN_BE_BUN: "1" },
+            signal: options.signal,
+        });
+
+        // fail with Bun's message, naming the workspace's package
+        options.signal.throwIfAborted();
+        if (code !== 0) {
+            const { name } = (await readPackageJson(root, files)).package;
+            const message = new TextDecoder().decode(stderr).trim();
+            throw BuildError.of(
+                "DEPENDENCY_INVALID",
+                `dependencies of '${name}' are invalid: bun install exited with status ${code}: ${message}`,
+            );
+        }
+
+        // answer the lockfile Bun left, none for a workspace without dependencies
+        const written = join(root, LOCKFILE);
+
+        return (await files.exists(written)) ? written : undefined;
     }
 
     /** Read the lockfile's members, the checkout, the toolchain and the locked npm releases. */
@@ -920,7 +968,7 @@ export class WorkspacePackage {
         isUnreleased: boolean,
     ): Promise<Digest> {
         // build in the unit's span, its duration by how the cache answered
-        let cache: CacheOutcome["cache"] | undefined;
+        let cache: BuildCacheOutcome["cache"] | undefined;
         const answered = () =>
             cache === undefined ? {} : { "destack.workspace.build.cache": cache };
 
@@ -944,13 +992,13 @@ export class WorkspacePackage {
         unit: WorkspaceUnit,
         options: PackageBuildOptions,
         isUnreleased: boolean,
-    ): Promise<CacheOutcome> {
+    ): Promise<BuildCacheOutcome> {
         // key the unit by its sources as they read now
         const sources = await this.workspace.checkout.identify(unit.directory, UNREAD_FILES);
         const key = await this.#key(unit, options, sources, isUnreleased);
 
         // build it once when missing
-        return await this.#store.cachedBuild(key, async () => {
+        return await this.#store.cache.build(key, async () => {
             // stamp unreleased source at dev
             const given = WorkspacePackage.#versionsOf(options);
             const versions = isUnreleased ? { ...given, [unit.name]: Version.development } : given;

@@ -5,7 +5,7 @@ import type { Toolchain } from "@destack/check/toolchain";
 import { Once } from "@destack/environment";
 import { Compiler } from "./compiler.ts";
 import type { LocalBuildStore } from "../store/local.ts";
-import { CompilerFingerprint } from "../cache/cache.ts";
+import { CompilerFingerprint } from "../cache/fingerprint.ts";
 import { NpmInstallation } from "../dependency/npm.ts";
 import type { NpmRelease } from "@destack/package";
 import type {} from "@destack/package/import-meta";

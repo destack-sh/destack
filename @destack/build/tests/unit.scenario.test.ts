@@ -11,7 +11,7 @@ import { LocalBuildStore } from "../src/store/local.ts";
 import { countObjects, exported, importBuilt, property } from "./fixture.ts";
 import { copySource } from "../src/test/source.ts";
 import { Toolchain } from "@destack/check/toolchain";
-import { COMPILER_VERSION } from "../src/cache/cache.ts";
+import { COMPILER_VERSION } from "../src/cache/fingerprint.ts";
 
 /** One module output per unit, its dependencies external. */
 const OUTPUTS = { bun: { kind: "module", runtime: "bun" } } as const;

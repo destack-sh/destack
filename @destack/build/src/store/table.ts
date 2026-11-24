@@ -1,6 +1,6 @@
 import { blob, boolean, defineTable, index, integer, json, text } from "@destack/db";
 import { Digest } from "@destack/schema";
-import { CacheEntry } from "../cache/entry.ts";
+import { BuildCacheEntry } from "../cache/entry.ts";
 
 /** The builds a store has, each with its manifest and lists, and all its files once complete. */
 export const buildManifest = defineTable("manifest", {
@@ -77,7 +77,7 @@ export const buildCache = defineTable(
         /** The cache key's digest. */
         key: text("key").validate(Digest).primaryKey(),
         /** What the key stores. */
-        entry: json("entry", CacheEntry).notNull(),
+        entry: json("entry", BuildCacheEntry).notNull(),
         /** When the entry was last stored or read, in UTC epoch milliseconds. */
         usedAt: integer("used_at").notNull(),
     },

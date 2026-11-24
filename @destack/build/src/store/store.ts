@@ -3,35 +3,30 @@ import { Digest, type DigestCrypto, found, present, schema } from "@destack/sche
 import type { BlobStorage } from "@destack/resource";
 import {
     and,
-    asc,
     defineDatabase,
     eq,
     inArray,
     isNull,
-    lte,
-    Now,
     or,
     type SQLWrapper,
     BLOB_TABLES,
 } from "@destack/db";
-import type { BlobStore, Controller, DatabaseConnection } from "@destack/db/database";
-import { DependencyName, type DependencyRelease, graph, type PackageId } from "@destack/package";
+import type { BlobStore, DatabaseConnection } from "@destack/db/database";
+import { type DependencyRelease, graph, type PackageId } from "@destack/package";
 import { PackageFile } from "@destack/package/file";
 import {
     BuildLayer,
     BuildListCache,
     BuildReader,
-    ImportMap,
     BuildImage,
     MANIFEST_PATH,
     PackageManifest,
-    type PackageOutput,
 } from "@destack/package/manifest";
 import type { Runtime } from "@destack/package/runtime";
 import { BuildError } from "../error/index.ts";
 import { TarballEntry } from "@destack/package/archive";
 import { comparePath } from "../build/serialization.ts";
-import type { CacheEntry } from "../cache/entry.ts";
+import { BuildCache, CACHE_ROOT_PREFIX } from "../cache/cache.ts";
 import { type PackageAccess, serveStore } from "./http.ts";
 import type {} from "@destack/package/import-meta";
 import { TelemetryScope } from "@destack/telemetry";
@@ -48,23 +43,8 @@ import {
 /** The rows one statement binds: 500, far under SQLite's 32,766 parameters at two columns. */
 const BATCH_ROWS = 500;
 
-/** How long a cache entry or a used build lasts past its last use: a week, as Nx does. */
-export const CACHE_MILLISECONDS = 7 * 24 * 60 * 60_000;
-
-/** How often a store records a use: daily, a seventh of a cache entry's or build's lifetime. */
-export const USE_MILLISECONDS = 24 * 60 * 60_000;
-
-/** The prefix of the root a cache entry retains its blobs by, followed by its key. */
-const CACHE_ROOT_PREFIX = "cache:";
-
 /** The path prefix a build's module graph files are attached at, each by its module's path. */
 const GRAPH_PREFIX = "graph/";
-
-/** What a closure follows from its root: what the root runs, or every export of the root. */
-export type ClosureEntries = "run" | "export";
-
-/** Read a build's manifest at a package's registry, absent where none is stored. */
-export type ManifestRead = (manifest: Digest) => Promise<PackageManifest | undefined>;
 
 /** The most bytes a write gathers into a pack or an upload sends: 64 MiB, bounding memory. */
 export const MAX_WRITE_BYTES = 64 * 1024 * 1024;
@@ -138,7 +118,7 @@ export const BuildObject = {
 
     /** List the objects some runtimes run of images and builds: files, manifests, then images. */
     async runtime(
-        store: Pick<BuildStore, "closure" | "contents" | "head" | "image">,
+        store: Pick<BuildStore, "get" | "contents" | "head" | "image">,
         roots: readonly Pick<BuildObject, "kind" | "digest">[],
         runtimes: readonly Runtime[],
     ): Promise<BuildObject[]> {
@@ -154,7 +134,12 @@ export const BuildObject = {
                 const reached =
                     image === undefined
                         ? [root.digest]
-                        : await store.closure(image, runtime, undefined, "export");
+                        : await BuildImage.loads(
+                              image,
+                              runtime,
+                              (build) => store.get(build),
+                              "export",
+                          );
                 for (const build of reached) {
                     imported.set(build, (imported.get(build) ?? new Set()).add(runtime));
                 }
@@ -233,13 +218,6 @@ export type BuildAttachment = schema.Infer<typeof BuildAttachment>;
 export type BuildRequirements = Pick<PackageManifest, "package" | "requires">;
 
 /** A cache key's build, and how the cache answered: stored, built now, or joined. */
-export interface CacheOutcome {
-    /** The build's manifest digest. */
-    readonly manifest: Digest;
-    /** How the cache answered the key. */
-    readonly cache: "hit" | "miss" | "joined";
-}
-
 /** An object with its bytes, as a store packs it. */
 interface StoredObject {
     /** What the object is. */
@@ -297,8 +275,6 @@ export class BuildStore<
     readonly #images = new Map<Digest, Promise<BuildImage>>();
     /** What the builds of the images read so far require, by image, as images never change. */
     readonly #requirements = new Map<Digest, Promise<readonly BuildRequirements[]>>();
-    /** The builds of cache keys in flight, so callers asking at once build each key once. */
-    readonly #building = new Map<Digest, Promise<CacheOutcome>>();
     /** The builds in flight to the store, by manifest digest, each stored once. */
     readonly #putting = new Map<Digest, Promise<Digest>>();
     /** The read-only builds the store reads in place. */
@@ -311,6 +287,8 @@ export class BuildStore<
     readonly #pullRemote: BuildStoreOptions<StoreEnvironment, Storage>["pull"];
     /** The spans and durations of the store's verbs. */
     readonly scope: TelemetryScope;
+    /** The cache of builds and derived files by key, retaining what each entry references. */
+    readonly cache: BuildCache;
 
     /** Store builds in a partition's blobs, reading some read-only builds in place. */
     constructor(options: BuildStoreOptions<StoreEnvironment, Storage>) {
@@ -322,6 +300,7 @@ export class BuildStore<
         this.sources = options.sources ?? [];
         this.#pullRemote = options.pull;
         this.scope = TelemetryScope.of(import.meta.destack.package, options.environment.telemetry);
+        this.cache = new BuildCache(this);
     }
 
     /** Read when a lease taken now ends. */
@@ -755,18 +734,7 @@ export class BuildStore<
                     ? await this.head(object)
                     : BuildStore.#manifestFile(object, buffer.byteLength);
             },
-            closure: (
-                pulled: BuildImage,
-                runtime: Runtime,
-                read?: ManifestRead,
-                entries?: ClosureEntries,
-            ) =>
-                this.closure(
-                    pulled,
-                    runtime,
-                    read ?? (async (build) => found(readers, build).manifest),
-                    entries,
-                ),
+            get: async (build: Digest) => found(readers, build).manifest,
         };
         const objects =
             runtimes === "all"
@@ -1199,71 +1167,6 @@ export class BuildStore<
         return reader;
     }
 
-    /** Read a cache key's entry, recording its use once a day, absent for a miss. */
-    async cached(key: Digest): Promise<CacheEntry | undefined> {
-        // read the entry, a root of what it references while it lives
-        const [row] = await this.database
-            .select({ entry: buildCache.entry, usedAt: buildCache.usedAt })
-            .from(buildCache)
-            .where(eq(buildCache.key, key));
-
-        // record a hit's use once a day
-        const now = this.environment.clock.now();
-        if (row !== undefined && now - row.usedAt >= USE_MILLISECONDS) {
-            await this.database
-                .update(buildCache)
-                .set({ usedAt: now })
-                .where(eq(buildCache.key, key));
-        }
-
-        return row?.entry;
-    }
-
-    /** Store an entry under a cache key, once the manifest or files it references are stored. */
-    async cache(key: Digest, entry: CacheEntry): Promise<void> {
-        // record the entry at the use time
-        const usedAt = this.environment.clock.now();
-        await this.database.transaction(async (transaction) => {
-            await transaction
-                .insert(buildCache)
-                .values({ key, entry, usedAt })
-                .onConflictDoUpdate({ target: buildCache.key, set: { entry, usedAt } });
-
-            // retain what it references under its root
-            await BuildStore.#replaceRoot(
-                transaction,
-                `${CACHE_ROOT_PREFIX}${key}`,
-                new Set(BuildStore.#digests(entry)),
-            );
-        });
-    }
-
-    /** Take the build a key caches, else build and cache it once for all callers at once. */
-    cachedBuild(key: Digest, build: () => Promise<Digest>): Promise<CacheOutcome> {
-        // join a build of the key in flight
-        const flying = this.#building.get(key);
-        if (flying !== undefined) {
-            return flying.then(({ manifest }) => ({ manifest, cache: "joined" }));
-        }
-
-        // build the key once, forgetting the build once it settles
-        const building = (async (): Promise<CacheOutcome> => {
-            // take the cached build, else build and cache its manifest
-            const entry = await this.cached(key);
-            if (entry?.kind === "build") {
-                return { manifest: entry.manifest, cache: "hit" };
-            }
-            const built = await build();
-            await this.cache(key, { kind: "build", manifest: built });
-
-            return { manifest: built, cache: "miss" };
-        })();
-        this.#building.set(key, building);
-        void building.finally(() => this.#building.delete(key)).catch(() => undefined);
-
-        return building;
-    }
-
     /** Lease a build or file until a moment, retaining it and what it references until then. */
     async lease(digest: Digest, expiresAt: Date): Promise<void> {
         await this.blobs.lease([digest], expiresAt.getTime());
@@ -1272,7 +1175,7 @@ export class BuildStore<
     /** Retain builds under a root's name, such as a space's, until it retains others. */
     async retain(name: string, manifests: ReadonlySet<Digest>): Promise<void> {
         await this.database.transaction((transaction) =>
-            BuildStore.#replaceRoot(transaction, name, manifests),
+            BuildStore.replaceRoot(transaction, name, manifests),
         );
     }
 
@@ -1392,82 +1295,6 @@ export class BuildStore<
         return roots;
     }
 
-    /** Drop cache entries unused for a week with their roots, answering the next one's end. */
-    async expire(): Promise<number | undefined> {
-        // drop the unused entries and their roots, which retires what only they kept
-        const now = this.environment.clock.now();
-        await this.database.transaction(async (transaction) => {
-            const unused = await transaction
-                .delete(buildCache)
-                .where(lte(buildCache.usedAt, now - CACHE_MILLISECONDS))
-                .returning({ key: buildCache.key });
-            await transaction.delete(buildRoot).where(
-                inArray(
-                    buildRoot.name,
-                    unused.map(({ key }) => `${CACHE_ROOT_PREFIX}${key}`),
-                ),
-            );
-        });
-
-        // look again once the oldest entry left ends
-        const [oldest] = await this.database
-            .select({ usedAt: buildCache.usedAt })
-            .from(buildCache)
-            .orderBy(asc(buildCache.usedAt))
-            .limit(1);
-
-        return oldest === undefined ? undefined : oldest.usedAt + CACHE_MILLISECONDS;
-    }
-
-    /** Declare the controller dropping the cache entries unused for a week. */
-    controller(): Controller<typeof buildCache> {
-        return {
-            name: "destack.build.expire",
-            table: buildCache,
-            when: { usedAt: { lte: new Now().minus({ milliseconds: CACHE_MILLISECONDS }) } },
-            by: [],
-            reconcile: async () => {
-                await this.expire();
-            },
-        };
-    }
-
-    /** Evict the least recently used entries and leases until the blobs fit a size, while alone. */
-    evict(maxBytes: number): Promise<void> {
-        return this.scope.span("destack.build.evict", {}, () => this.#evict(maxBytes));
-    }
-
-    /** Drop the oldest entry or leases and collect, until the blobs fit a size. */
-    async #evict(maxBytes: number): Promise<void> {
-        while ((await this.blobs.size()) > maxBytes) {
-            // take the least recently used: the oldest cache entry, else the blobs a use leased longest ago
-            const [entry] = await this.database
-                .select({ key: buildCache.key })
-                .from(buildCache)
-                .orderBy(asc(buildCache.usedAt))
-                .limit(1);
-            const leased = entry === undefined ? await this.blobs.oldestLeased() : [];
-            if (entry === undefined && leased.length === 0) {
-                return;
-            }
-
-            // drop the entry and its root, or end the leases
-            if (entry !== undefined) {
-                await this.database.transaction(async (transaction) => {
-                    await transaction.delete(buildCache).where(eq(buildCache.key, entry.key));
-                    await transaction
-                        .delete(buildRoot)
-                        .where(eq(buildRoot.name, `${CACHE_ROOT_PREFIX}${entry.key}`));
-                });
-            } else {
-                await this.blobs.release(leased);
-            }
-
-            // delete what nothing retains at once, as no other process reads the store
-            await this.blobs.collect(0);
-        }
-    }
-
     /** Delete every build's index, as the partition leaves its host. */
     async clear(): Promise<void> {
         await this.database.transaction(async (transaction) => {
@@ -1482,174 +1309,6 @@ export class BuildStore<
             }
         });
         this.#manifests.clear();
-    }
-
-    /** Read the builds an image's root imports on a runtime, from what it runs or every export. */
-    async closure(
-        image: BuildImage,
-        runtime: Runtime,
-        read: ManifestRead = (digest) => this.get(digest),
-        entries: ClosureEntries = "run",
-    ): Promise<ReadonlySet<Digest>> {
-        // start at each output's workloads and the exports its views mount, or at every export
-        const manifests = new Map<Digest, Promise<PackageManifest | undefined>>();
-        const once: ManifestRead = (digest) => {
-            const reading = manifests.get(digest) ?? read(digest);
-            manifests.set(digest, reading);
-
-            return reading;
-        };
-        const first = await once(image.root);
-        const pending = outputsOn(
-            present(first, `the root of image ${image.root}`),
-            runtime,
-        ).flatMap((output) => {
-            const mounted = new Set(Object.values(output.views).map((view) => view.entrypoint));
-            const started =
-                entries === "export"
-                    ? Object.keys(output.exports)
-                    : [
-                          ...Object.values(output.workloads).map((each) => each.entrypoint),
-                          ...Object.entries(output.exports)
-                              .filter(([, exported]) => mounted.has(exported.path))
-                              .map(([subpath]) => subpath),
-                      ];
-
-            return started.map((subpath) => ({ manifest: image.root, subpath }));
-        });
-
-        // follow each export once to the image's builds its chunks import
-        const closure = new Set<Digest>([image.root]);
-        const visited = new Set<string>();
-        const expanded = new Set<Digest>();
-        const units: Digest[] = [];
-        for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
-            const key = `${next.manifest} ${next.subpath}`;
-            const opened = visited.has(key) ? undefined : await once(next.manifest);
-            visited.add(key);
-            if (opened !== undefined) {
-                // follow every export of the root
-                const output = present(
-                    outputsOn(opened, runtime)[0],
-                    `the ${runtime} output of ${next.manifest}`,
-                );
-                if (
-                    entries === "export" &&
-                    next.manifest === image.root &&
-                    !expanded.has(next.manifest)
-                ) {
-                    expanded.add(next.manifest);
-                    for (const subpath of Object.keys(output.exports)) {
-                        pending.push({ ...next, subpath });
-                    }
-                }
-
-                // take each imported package's build
-                const { imports } = present(
-                    output.exports[next.subpath],
-                    `the export ${next.subpath} of ${next.manifest}`,
-                );
-                for (const specifier of imports) {
-                    const build = BuildImage.resolve(
-                        image,
-                        next.manifest,
-                        DependencyName.of(specifier),
-                    );
-                    const imported = build === undefined ? undefined : await once(build);
-                    if (
-                        build !== undefined &&
-                        imported !== undefined &&
-                        !PackageManifest.isPackage(imported)
-                    ) {
-                        units.push(build);
-                    } else if (build !== undefined) {
-                        closure.add(build);
-                        pending.push({
-                            manifest: build,
-                            subpath: DependencyName.subpath(specifier),
-                        });
-                    }
-                }
-            }
-        }
-
-        // add each imported npm unit with the units it links
-        for (let unit = units.pop(); unit !== undefined; unit = units.pop()) {
-            if (!closure.has(unit)) {
-                closure.add(unit);
-                units.push(...Object.values(BuildImage.links(image, unit)));
-            }
-        }
-
-        return closure;
-    }
-
-    /** Map an image's modules on a runtime below a URL prefix, builtins at their linked builds. */
-    async imports(
-        image: BuildImage,
-        runtime: Runtime,
-        base: string,
-        linked: ReadonlyMap<string, BuildImage>,
-        read: (digest: Digest) => Promise<PackageManifest> = async (digest) =>
-            present(await this.get(digest), `the manifest of build ${digest}`),
-    ): Promise<ImportClosure> {
-        // read the builds the root's modules import on the runtime
-        const closure = await this.closure(image, runtime, read);
-        const links = [...linked.values()].flatMap((each) => Object.entries(each.builds));
-        const builtins = BuildImage.of(image.root, Object.fromEntries(links));
-
-        // map each dependency's exports in its dependent's scope
-        const map: ImportMap = { imports: {}, scopes: {} };
-        const builds = new Set<Digest>([image.root]);
-        const visited = new Set<string>([`${image.root} app`]);
-        const pending = [{ digest: image.root, scope: map.imports, isLinked: false }];
-        for (const { digest, scope, isLinked } of pending) {
-            for (const output of outputsOn(await read(digest), runtime)) {
-                // take each imported package's build
-                const names = new Set(
-                    Object.values(output.exports).flatMap((exported) =>
-                        exported.imports.map((specifier) => DependencyName.of(specifier)),
-                    ),
-                );
-                const dependencies = [...names].flatMap((name) => {
-                    // take the image's build of a name
-                    const pinned = isLinked ? undefined : BuildImage.resolve(image, digest, name);
-                    const isPinned = pinned !== undefined && closure.has(pinned);
-                    const manifest = isPinned
-                        ? pinned
-                        : ((BuildImage.lists(builtins, digest)
-                              ? BuildImage.resolve(builtins, digest, name)
-                              : undefined) ?? linked.get(name)?.root);
-
-                    return manifest === undefined ? [] : [{ name, manifest, isLinked: !isPinned }];
-                });
-                for (const dependency of dependencies) {
-                    // map the dependency's exports to its files below its build's prefix
-                    const { name, manifest } = dependency;
-                    const prefix = `${base}${manifest}/`;
-                    for (const each of outputsOn(await read(manifest), runtime)) {
-                        for (const [subpath, exported] of Object.entries(each.exports)) {
-                            const specifier = subpath === "." ? name : `${name}${subpath.slice(1)}`;
-                            scope[specifier] = `${prefix}${exported.path}`;
-                        }
-                    }
-
-                    // map the dependency's own imports in its scope once per side
-                    const side = `${manifest} ${dependency.isLinked ? "linked" : "app"}`;
-                    builds.add(manifest);
-                    if (!visited.has(side)) {
-                        visited.add(side);
-                        pending.push({
-                            digest: manifest,
-                            scope: (map.scopes[prefix] ??= {}),
-                            isLinked: dependency.isLinked,
-                        });
-                    }
-                }
-            }
-        }
-
-        return { map, builds };
     }
 
     /** List the real directories the store's layer keeps files in, which its readers read. */
@@ -2141,7 +1800,7 @@ export class BuildStore<
     }
 
     /** Replace the blobs a root retains. */
-    static async #replaceRoot(
+    static async replaceRoot(
         transaction: DatabaseConnection,
         name: string,
         digests: ReadonlySet<Digest>,
@@ -2192,18 +1851,6 @@ export class BuildStore<
     static async *#chunks(bytes: Uint8Array<ArrayBuffer>): AsyncIterable<Uint8Array> {
         yield bytes;
     }
-
-    /** List the blobs a cache entry references: a manifest, or a file. */
-    static #digests(entry: CacheEntry): Digest[] {
-        switch (entry.kind) {
-            // list a whole build's manifest
-            case "build":
-                return [entry.manifest];
-            // list a transform's file
-            case "file":
-                return [entry.file.digest];
-        }
-    }
 }
 
 /** A build being recorded: its manifest's size, its distinct files, and each output's run files. */
@@ -2239,156 +1886,4 @@ function requireDistinctPaths(list: readonly PackageFile[]): void {
         }
         paths.add(file.path);
     }
-}
-
-/** A build's closure on a runtime: the import map of its modules and the builds it maps. */
-export interface ImportClosure {
-    /** The import map of the build's modules and its dependencies' on the runtime. */
-    readonly map: ImportMap;
-    /** The builds the map's URLs point into: the build itself and its dependencies'. */
-    readonly builds: ReadonlySet<Digest>;
-}
-
-/** The runtimes that load a build's modules by import from the store. */
-export const LOADED_RUNTIMES: ReadonlySet<Runtime> = new Set<Runtime>(["workerd", "browser"]);
-
-/** The URL prefix a layer's closure names its builds' modules below. */
-export const CLOSURE_BASE = "/";
-
-/** The suffix of a module's source map beside it. */
-const MAP_SUFFIX = ".map";
-
-/** The path of a JavaScript module. */
-const MODULE_PATH = /\.m?js$/u;
-
-/** The media type of a JavaScript module, which a runtime loads by import. */
-const MODULE_MEDIA_TYPE = "text/javascript";
-
-/** What a closure's modules are read from: a build's manifest, its files and a file's bytes. */
-export type ModuleReader = Pick<BuildReader, "manifest" | "files" | "load">;
-
-/** The verbs of an import closure: the modules its entries import, and the files none does. */
-export const ImportClosure = {
-    /** Read each module some entries import, directly or through others, by digest and path. */
-    async modules(
-        entries: readonly string[],
-        runtime: Runtime,
-        closure: ImportClosure,
-        base: string,
-        contents: (build: Digest) => Promise<ModuleReader>,
-    ): Promise<Map<string, string>> {
-        // start at the entries, and follow what each module imports
-        const read = new Map<string, string>();
-        const listed = new Map<Digest, ReadonlySet<string>>();
-        const pending = [...entries];
-        for (let name = pending.pop(); name !== undefined; name = pending.pop()) {
-            // read a module once
-            if (read.has(name)) {
-                continue;
-            }
-
-            // leave a path that is no module of its build on the runtime
-            const [digest = "", ...path] = name.split("/");
-            const build = Digest.parse(digest);
-            const reader = await contents(build);
-            const names = await ImportClosure.listed(build, runtime, reader, listed);
-            if (!names.has(name)) {
-                continue;
-            }
-
-            // reach each module it imports, or its whole build where it imports by a computed name
-            const code = new TextDecoder().decode(await reader.load(path.join("/")));
-            read.set(name, code);
-            const imported = await ImportMap.imports(closure.map, code, `${base}${name}`);
-            pending.push(
-                ...imported.modules.map((module) => module.slice(base.length)),
-                ...(imported.isOpen ? names : []),
-            );
-        }
-
-        return read;
-    },
-
-    /** Name the modules a build runs by itself: all of an output with workloads or views. */
-    async entries(build: Digest, reader: ModuleReader, runtime: Runtime): Promise<string[]> {
-        // take every module of an output that starts workloads or mounts views, as documents name them by URL
-        const running = outputsOn(reader.manifest, runtime)
-            .filter(
-                (output) =>
-                    Object.keys(output.workloads).length > 0 ||
-                    Object.keys(output.views).length > 0,
-            )
-            .map((output) => `${output.directory}/`);
-        const listed = await ImportClosure.listed(build, runtime, reader, new Map());
-
-        return [...listed].filter((name) =>
-            running.some((directory) => name.startsWith(`${build}/${directory}`)),
-        );
-    },
-
-    /** List the files of a build no entry imports: its unused modules and their source maps. */
-    unused(
-        build: Digest,
-        reader: Pick<ModuleReader, "manifest">,
-        files: readonly PackageFile[],
-        modules: ReadonlySet<string>,
-    ): Set<Digest> {
-        // take the build's output directories on the runtimes loading modules by import
-        const directories = Object.values(reader.manifest.outputs)
-            .filter((output) => LOADED_RUNTIMES.has(output.runtime))
-            .map((output) => `${output.directory}/`);
-
-        // leave out each module below them that no root reaches, with the source map beside it
-        const isLeft = (file: PackageFile) => {
-            const module = file.path.endsWith(MAP_SUFFIX)
-                ? file.path.slice(0, -MAP_SUFFIX.length)
-                : file.path;
-            const isModule =
-                MODULE_PATH.test(module) &&
-                directories.some((directory) => module.startsWith(directory));
-
-            return isModule && !modules.has(`${build}/${module}`);
-        };
-
-        // keep bytes a kept file shares, such as a reached module copied for two runtimes
-        const kept = new Set(files.filter((file) => !isLeft(file)).map((file) => file.digest));
-        const left = files.filter((file) => isLeft(file) && !kept.has(file.digest));
-
-        return new Set(left.map((file) => file.digest));
-    },
-
-    /** Name every module of a build's output on a runtime, below the build's digest. */
-    async listed(
-        build: Digest,
-        runtime: Runtime,
-        reader: ModuleReader,
-        listed: Map<Digest, ReadonlySet<string>>,
-    ): Promise<ReadonlySet<string>> {
-        // answer a build listed before
-        const known = listed.get(build);
-        if (known !== undefined) {
-            return known;
-        }
-
-        // name each JavaScript module below the build's output directories on the runtime
-        const directories = outputsOn(reader.manifest, runtime).map(
-            (output) => `${output.directory}/`,
-        );
-        const names = (await reader.files())
-            .filter(
-                (file) =>
-                    file.mediaType === MODULE_MEDIA_TYPE &&
-                    directories.some((directory) => file.path.startsWith(directory)),
-            )
-            .map((file) => `${build}/${file.path}`);
-        const named = new Set(names);
-        listed.set(build, named);
-
-        return named;
-    },
-};
-
-/** List a build's outputs on a runtime. */
-function outputsOn(manifest: PackageManifest, runtime: Runtime): PackageOutput[] {
-    return Object.values(manifest.outputs).filter((output) => output.runtime === runtime);
 }

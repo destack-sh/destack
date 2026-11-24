@@ -18,14 +18,7 @@ import {
 } from "@destack/package/manifest";
 import { CallError } from "@destack/object";
 import { Digest, found, present } from "@destack/schema";
-import {
-    BuildObject,
-    type PackageAccess,
-    RemoteBuildStore,
-    BuildStore,
-    ImportClosure,
-} from "./index.ts";
-import { MemoryBuild } from "@destack/package/test";
+import { BuildObject, type PackageAccess, RemoteBuildStore, BuildStore } from "./index.ts";
 import { buildManifest } from "./table.ts";
 
 /** The mount the tests serve stores below. */
@@ -143,52 +136,6 @@ function bunOutputs(
             workloads,
             views: {},
             directory: "bun",
-            exports,
-            peers: {},
-        },
-    };
-}
-
-/** Place a browser export's file by its subpath. */
-function browserPath(subpath: string): string {
-    return `browser/${subpath.slice(2) || "index"}.js`;
-}
-
-/** Describe a build's browser output with its exports' imports and a view. */
-function browserOutputs(
-    imports: Readonly<Record<string, readonly string[]>>,
-    view?: string,
-): Readonly<Record<string, OutputContent>> {
-    // export each subpath at a file of its own, mounting a view at one
-    const exports = Object.fromEntries(
-        Object.entries(imports).map(([subpath, specifiers]) => [
-            subpath,
-            { path: browserPath(subpath), imports: [...specifiers] },
-        ]),
-    );
-    const views =
-        view === undefined
-            ? {}
-            : {
-                  main: {
-                      entrypoint: browserPath(view),
-                      stylesheets: [],
-                      sandbox: {},
-                      presents: [],
-                      categories: [],
-                      audience: "person" as const,
-                      packages: [],
-                      render: { mode: "client" as const },
-                  },
-              };
-
-    return {
-        browser: {
-            runtime: "browser",
-            emit: true,
-            workloads: {},
-            views,
-            directory: "browser",
             exports,
             peers: {},
         },
@@ -331,8 +278,8 @@ test("collect the builds no root or lease retains, the blobs only they reference
         ),
     );
     const keys = { live: Digest.parse("a".repeat(64)), dropped: Digest.parse("b".repeat(64)) };
-    await store.cache(keys.live, { kind: "build", manifest: live });
-    await store.cache(keys.dropped, { kind: "build", manifest: dropped });
+    await store.cache.set(keys.live, { kind: "build", manifest: live });
+    await store.cache.set(keys.dropped, { kind: "build", manifest: dropped });
     await store.retain("space-a", new Set([live]));
     const both = await blobsOf(store, [live, dropped]);
 
@@ -345,7 +292,7 @@ test("collect the builds no root or lease retains, the blobs only they reference
     await simulation.jump(simulation.clock.now() + LEASE_MILLISECONDS);
     const cached = await collect(store);
     await simulation.jump(simulation.clock.now() + DAY_MILLISECONDS - LEASE_MILLISECONDS);
-    await store.cached(keys.live);
+    await store.cache.get(keys.live);
     await simulation.jump(simulation.clock.now() + CACHE_MILLISECONDS - MINUTE_MILLISECONDS);
     const unused = await collect(store);
 
@@ -356,7 +303,7 @@ test("collect the builds no root or lease retains, the blobs only they reference
         cached,
         unused,
         after: await listing(store, both),
-        entries: [await store.cached(keys.live), await store.cached(keys.dropped)],
+        entries: [await store.cache.get(keys.live), await store.cache.get(keys.dropped)],
     }).toEqual({
         leased: { manifests: [], next: start + LEASE_MILLISECONDS },
         before: both,
@@ -1086,7 +1033,7 @@ test("evict the least recently used builds until the store fits its size, keepin
 
     // evict down to the size of the rooted and the newest build's blobs
     const fitting = (await blobsSize(store, [rooted, newer])) + 1;
-    await store.evict(fitting);
+    await store.cache.evict(fitting);
     expect({
         stored: await Promise.all(builds.map((digest) => store.contains(digest))),
         isFitting: (await store.blobs.size()) <= fitting,
@@ -1226,7 +1173,7 @@ async function collect(
 ): Promise<{ readonly manifests: readonly Digest[]; readonly next: number | undefined }> {
     // expire and collect, looking again at the earlier deadline
     const before = await recorded(store);
-    const expiring = await store.expire();
+    const expiring = await store.cache.expire();
     const leased = await store.blobs.collect(0);
     const after = new Set(await recorded(store));
     const ends = [expiring, leased].filter((end) => end !== undefined);
@@ -1243,341 +1190,6 @@ async function recorded(store: BuildStore): Promise<Digest[]> {
 
     return rows.map(({ digest }) => digest).toSorted();
 }
-
-test("map a view's browser modules and its dependencies' below a prefix, each build's imports in its scope", async () => {
-    // store a deep library, a library importing it, and an application whose view imports the library
-    await using simulation = testSimulation();
-    const environment = simulation.environment("test");
-    await using opened = await openStore(await temporary(environment.files), environment);
-    const { store } = opened;
-    const { crypto } = environment;
-    const deep = await store.put(
-        await written({ "src/deep.ts": "export {};\n" }, crypto, browserOutputs({ ".": [] })),
-    );
-    const middle = await store.put(
-        await written(
-            { "src/middle.ts": "export {};\n" },
-            crypto,
-            browserOutputs({ ".": ["@example/deep"], "./static": [] }),
-        ),
-    );
-    const application = await store.put(
-        await written(
-            SOURCES,
-            crypto,
-            browserOutputs({ "./view": ["@example/middle/static", "@example/middle"] }, "./view"),
-        ),
-    );
-
-    // map the application's imports at the root, the library's in its own scope
-    const image = BuildImage.of(application, {
-        [application]: { "@example/middle": middle },
-        [middle]: { "@example/deep": deep },
-        [deep]: {},
-    });
-    const closure = await store.imports(image, "browser", "/.destack/build/", new Map());
-
-    expect({ map: closure.map, builds: [...closure.builds] }).toEqual({
-        map: {
-            imports: {
-                "@example/middle": `/.destack/build/${middle}/browser/index.js`,
-                "@example/middle/static": `/.destack/build/${middle}/browser/static.js`,
-            },
-            scopes: {
-                [`/.destack/build/${middle}/`]: {
-                    "@example/deep": `/.destack/build/${deep}/browser/index.js`,
-                },
-                [`/.destack/build/${deep}/`]: {},
-            },
-        },
-        builds: [application, middle, deep],
-    });
-});
-
-test("map a library again once a builtin imports it, with what its other exports import", async () => {
-    // store a library whose stack export imports an extra library, and a builtin importing that export
-    await using simulation = testSimulation();
-    const environment = simulation.environment("test");
-    await using opened = await openStore(await temporary(environment.files), environment);
-    const { store } = opened;
-    const { crypto } = environment;
-    const extra = await store.put(
-        await written({ "src/extra.ts": "export {};\n" }, crypto, browserOutputs({ ".": [] })),
-    );
-    const shared = await store.put(
-        await written(
-            { "src/shared.ts": "export {};\n" },
-            crypto,
-            browserOutputs({ ".": [], "./stack": ["@example/extra"] }),
-        ),
-    );
-    const view = {
-        id: PackageId.parse("package-00000000-0000-7000-8000-00000000a005"),
-        name: "@example/view",
-        version: "2026.11.0",
-    };
-    const linked = await store.put(
-        await written(
-            { "src/view.ts": "export {};\n" },
-            crypto,
-            browserOutputs({ ".": ["@example/shared/stack"] }),
-            view,
-        ),
-    );
-
-    // reach the library's root from the application's view before the builtin
-    const application = await store.put(
-        await written(
-            SOURCES,
-            crypto,
-            browserOutputs({ "./view": ["@example/shared", "@example/view"] }, "./view"),
-        ),
-    );
-    const closure = await store.imports(
-        imageOf(application, { "@example/extra": extra, "@example/shared": shared }),
-        "browser",
-        "/.destack/build/",
-        new Map([
-            [
-                view.name,
-                BuildImage.of(linked, {
-                    [linked]: { "@example/shared": shared },
-                    [shared]: { "@example/extra": extra },
-                    [extra]: {},
-                }),
-            ],
-        ]),
-    );
-
-    // map the extra library in the shared library's scope, which the builtin's import needs
-    expect(closure.map.scopes).toEqual({
-        [`/.destack/build/${shared}/`]: {
-            "@example/extra": `/.destack/build/${extra}/browser/index.js`,
-        },
-        [`/.destack/build/${linked}/`]: {
-            "@example/shared": `/.destack/build/${shared}/browser/index.js`,
-            "@example/shared/stack": `/.destack/build/${shared}/browser/stack.js`,
-        },
-        [`/.destack/build/${extra}/`]: {},
-    });
-});
-
-test("map a builtin at its linked build in every scope, with the builds it imports", async () => {
-    // store the linked builtin importing a deep library
-    await using simulation = testSimulation();
-    const environment = simulation.environment("test");
-    await using opened = await openStore(await temporary(environment.files), environment);
-    const { store } = opened;
-    const { crypto } = environment;
-    const deep = await store.put(
-        await written({ "src/deep.ts": "export {};\n" }, crypto, browserOutputs({ ".": [] })),
-    );
-    const view = {
-        id: PackageId.parse("package-00000000-0000-7000-8000-00000000a005"),
-        name: "@example/view",
-        version: "2026.11.0",
-    };
-    const linked = await store.put(
-        await written(
-            { "src/view.ts": "export {};\n" },
-            crypto,
-            browserOutputs({ ".": ["@example/deep"] }),
-            view,
-        ),
-    );
-    const middle = await store.put(
-        await written(
-            { "src/middle.ts": "export {};\n" },
-            crypto,
-            browserOutputs({ ".": ["@example/view"] }),
-        ),
-    );
-    const application = await store.put(
-        await written(
-            SOURCES,
-            crypto,
-            browserOutputs({ "./view": ["@example/middle", "@example/view"] }, "./view"),
-        ),
-    );
-
-    // map the builtin at the linked build in every scope, and its own imports in its scope
-    const closure = await store.imports(
-        imageOf(application, { "@example/middle": middle }),
-        "browser",
-        "/.destack/build/",
-        new Map([
-            [view.name, BuildImage.of(linked, { [linked]: { "@example/deep": deep }, [deep]: {} })],
-        ]),
-    );
-
-    expect({ map: closure.map, builds: [...closure.builds] }).toEqual({
-        map: {
-            imports: {
-                "@example/middle": `/.destack/build/${middle}/browser/index.js`,
-                "@example/view": `/.destack/build/${linked}/browser/index.js`,
-            },
-            scopes: {
-                [`/.destack/build/${middle}/`]: {
-                    "@example/view": `/.destack/build/${linked}/browser/index.js`,
-                },
-                [`/.destack/build/${linked}/`]: {
-                    "@example/deep": `/.destack/build/${deep}/browser/index.js`,
-                },
-                [`/.destack/build/${deep}/`]: {},
-            },
-        },
-        builds: [application, middle, linked, deep],
-    });
-});
-
-/** Encode a module's code as a build file's bytes. */
-function moduleBytes(code: string): Uint8Array<ArrayBuffer> {
-    return new TextEncoder().encode(code);
-}
-
-test("keep a reached module that shares bytes with an unreached one", async () => {
-    // write a library whose browser and workerd outputs have the same module, and one module only workerd has
-    const { crypto } = testSimulation().environment("test");
-    const output = { emit: true, workloads: {}, views: {}, exports: {} } as const;
-    const shared = moduleBytes("export const web = 1;");
-    const kit = await MemoryBuild.write(
-        new Map([
-            ["output/browser/web.js", shared],
-            ["output/workerd/web.js", shared],
-            ["output/workerd/server.js", moduleBytes("export const server = 1;")],
-        ]),
-        {
-            role: "library",
-            package: { name: "@example/kit", version: "1.0.0", integrity: "sha512-kit" },
-            outputs: {
-                browser: { ...output, runtime: "browser", directory: "output/browser" },
-                workerd: { ...output, runtime: "workerd", directory: "output/workerd" },
-            },
-        },
-        crypto,
-    );
-
-    // reach only the browser's copy
-    const digest = await kit.digest();
-    const unreached = ImportClosure.unused(
-        digest,
-        kit,
-        await kit.files(),
-        new Set([`${digest}/output/browser/web.js`]),
-    );
-
-    // leave out the workerd-only module alone, keeping the shared bytes the browser's copy needs
-    const paths = new Map((await kit.files()).map((file) => [file.digest, file.path]));
-    expect([...unreached].map((each) => found(paths, each))).toEqual(["output/workerd/server.js"]);
-});
-
-test("reach the modules an entry imports across builds, a whole build for a computed name, and list the rest unreached", async () => {
-    // write an app importing one module of a kit, and a kit whose loader imports by a computed name
-    const { crypto } = testSimulation().environment("test");
-    const output = {
-        runtime: "workerd",
-        emit: true,
-        workloads: {},
-        views: {},
-        exports: {},
-    } as const;
-    const app = await MemoryBuild.write(
-        new Map([
-            [
-                "output/workerd/main.js",
-                moduleBytes('import "@example/kit/used";\nimport "./local.js";'),
-            ],
-            ["output/workerd/local.js", moduleBytes("export const local = 1;")],
-            ["output/workerd/stray.js", moduleBytes("export const stray = 1;")],
-        ]),
-        {
-            role: "app",
-            package: { name: "@example/app", version: "1.0.0", integrity: "sha512-app" },
-            outputs: { workerd: { ...output, directory: "output/workerd" } },
-        },
-        crypto,
-    );
-    const kit = await MemoryBuild.write(
-        new Map([
-            ["output/workerd/used.js", moduleBytes('import "./chunk.js";')],
-            ["output/workerd/chunk.js", moduleBytes("export const chunk = 1;")],
-            ["output/workerd/unused.js", moduleBytes("export const unused = 1;")],
-            ["output/workerd/unused.js.map", moduleBytes("{}")],
-        ]),
-        {
-            role: "library",
-            package: { name: "@example/kit", version: "1.0.0", integrity: "sha512-kit" },
-            outputs: { workerd: { ...output, directory: "output/workerd" } },
-        },
-        crypto,
-    );
-    const [appDigest, kitDigest] = [await app.digest(), await kit.digest()];
-    const contents = async (build: Digest) => (build === appDigest ? app : kit);
-    const closure = {
-        map: {
-            imports: { "@example/kit/used": `/${kitDigest}/output/workerd/used.js` },
-            scopes: {},
-        },
-        builds: new Set([appDigest, kitDigest]),
-    };
-
-    // reach the entry, its local module and the kit's used module with its chunk
-    const reached = await ImportClosure.modules(
-        [`${appDigest}/output/workerd/main.js`],
-        "workerd",
-        closure,
-        "/",
-        contents,
-    );
-    const unreached = ImportClosure.unused(
-        kitDigest,
-        kit,
-        await kit.files(),
-        new Set(reached.keys()),
-    );
-    const paths = new Map((await kit.files()).map((file) => [file.digest, file.path]));
-    expect({
-        reached: [...reached.keys()].toSorted(),
-        unreached: [...unreached].map((digest) => found(paths, digest)).toSorted(),
-    }).toEqual({
-        reached: [
-            `${appDigest}/output/workerd/local.js`,
-            `${appDigest}/output/workerd/main.js`,
-            `${kitDigest}/output/workerd/chunk.js`,
-            `${kitDigest}/output/workerd/used.js`,
-        ].toSorted(),
-        unreached: ["output/workerd/unused.js", "output/workerd/unused.js.map"],
-    });
-
-    // reach every module of a build whose module imports by a computed name
-    const open = await MemoryBuild.write(
-        new Map([
-            [
-                "output/workerd/lazy.js",
-                moduleBytes("export const load = (name) => import(`./${name}.js`);"),
-            ],
-            ["output/workerd/a.js", moduleBytes("export const a = 1;")],
-        ]),
-        {
-            role: "library",
-            package: { name: "@example/open", version: "1.0.0", integrity: "sha512-open" },
-            outputs: { workerd: { ...output, directory: "output/workerd" } },
-        },
-        crypto,
-    );
-    const openDigest = await open.digest();
-    const whole = await ImportClosure.modules(
-        [`${openDigest}/output/workerd/lazy.js`],
-        "workerd",
-        { map: { imports: {}, scopes: {} }, builds: new Set([openDigest]) },
-        "/",
-        async () => open,
-    );
-    expect([...whole.keys()].toSorted()).toEqual([
-        `${openDigest}/output/workerd/a.js`,
-        `${openDigest}/output/workerd/lazy.js`,
-    ]);
-});
 
 test("list a stored build's objects from the store's rows, the same files its manifest distributes", async () => {
     // store a build

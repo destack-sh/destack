@@ -379,7 +379,7 @@ export class Compiler implements AsyncDisposable {
         const { store } = this;
         let bytes: Uint8Array<ArrayBuffer> | null = null;
         if (request.kind === "read") {
-            const entry = await store.cached(request.key);
+            const entry = await store.cache.get(request.key);
             bytes = entry?.kind === "file" ? await store.file(entry.file) : null;
         }
         // return the file under its key once stored
@@ -392,7 +392,7 @@ export class Compiler implements AsyncDisposable {
                 store.environment.crypto,
             );
             await store.write(BuildObject.files([{ digest: file.digest, bytes: request.bytes }]));
-            await store.cache(request.key, { kind: "file", file });
+            await store.cache.set(request.key, { kind: "file", file });
         }
 
         // answer the request
