@@ -71,8 +71,8 @@ export interface ActionEvent<Inputs extends ActionInputs = ActionInputs> {
 export interface ActionHandler<Inputs extends ActionInputs = ActionInputs> {
     /** Run the action where the person was, with its inputs' values. */
     run(event: ActionEvent<Inputs>): Promise<void> | void;
-    /** List the values a person picks an input from where they are, none of an input they type. */
-    readonly choices?: (input: string, element: Element | null) => readonly Choice[] | undefined;
+    /** List the values a person picks an input from where they are, such as a board's columns. */
+    readonly choices?: (input: string, element: Element | null) => readonly Choice[];
     /** Report whether the handler runs where the person is, read reactively, as menus validate. */
     readonly isEnabled?: (element: Element | null) => boolean;
     /** Report whether what it turns on is on, absent for what turns nothing on. */
@@ -325,7 +325,7 @@ export class ActionRegistry {
         return (
             kind === "object" ||
             kind === "choice" ||
-            this.#chosen(key, element)?.handler.choices?.(input.name, element) !== undefined
+            this.#chosen(key, element)?.handler.choices !== undefined
         );
     }
 
