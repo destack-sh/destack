@@ -378,6 +378,7 @@ test("store the account's row in the chain replica of a space storing accounts",
                 parameters: {
                     scopes: [],
                     local: [],
+                    replicas: [],
                     replicated: [
                         {
                             scope: accountId,
@@ -436,6 +437,7 @@ test("follow a machine's chain as a space of its account, and refuse a space of 
                     parameters: {
                         scopes: [],
                         local: [],
+                        replicas: [],
                         replicated: [
                             {
                                 scope: accountId,
@@ -490,6 +492,7 @@ test("follow a machine's chain via the universe as a machine of its account, and
                 parameters: {
                     scopes: [],
                     local: [],
+                    replicas: [],
                     replicated: [
                         {
                             scope: Scope.universe.id,
