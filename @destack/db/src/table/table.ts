@@ -93,8 +93,8 @@ export class Table<
         );
     }
 
-    /** Close tables over those their aggregates write and their dependents keep. */
-    static closure(tables: Iterable<Table>): Set<Table> {
+    /** Add to tables those their aggregates write and their dependents cascade into. */
+    static affected(tables: Iterable<Table>): Set<Table> {
         const closed = new Set(tables);
         for (const table of closed) {
             // add the table an aggregate counts into or from, and each dependent

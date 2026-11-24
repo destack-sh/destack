@@ -218,7 +218,7 @@ class ImageCache {
     ): Promise<ImageCache> {
         // find the checkout's root, the module's package and the packages it depends on
         const root = await ImageCache.#root(module);
-        const packages = await ImageCache.#closure(module, root);
+        const packages = await ImageCache.#dependencies(module, root);
 
         // key the inputs: the database, the runtime, the checkout, the module and the sources
         const digests = await ImageCache.#digests(root, packages);
@@ -406,7 +406,7 @@ class ImageCache {
     }
 
     /** List the directories of a path's package and its workspace dependencies, transitively. */
-    static async #closure(path: string, root: string): Promise<string[]> {
+    static async #dependencies(path: string, root: string): Promise<string[]> {
         // index the workspace's packages by name, across every pattern
         const workspace = WorkspaceManifest.parse(await readJson(join(root, "package.json")));
         const named = new Map<string, string>();
