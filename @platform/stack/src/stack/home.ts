@@ -14,7 +14,7 @@ import vaultPackage from "@destack/vault/package";
 export const HOME_INSTALLATION = install(
     PlatformInput.handle(HOME_INPUT),
     {},
-    { name: HOME_APPLICATION, selection: { kind: "host" } },
+    { name: HOME_APPLICATION, version: { kind: "host" } },
 );
 
 /** Every account's home stack: its start page, inbox, connections, comments and observability. */

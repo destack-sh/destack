@@ -74,7 +74,7 @@ function residencyStack(own: NonNullable<StackInput["installations"]>) {
                 {},
                 { isolation: "host", name: "notification" },
             ),
-            relay: install(relayPackage, {}, { name: "relay", selection: { kind: "host" } }),
+            relay: install(relayPackage, {}, { name: "relay", version: { kind: "host" } }),
             home: HOME_INSTALLATION,
             ...own,
             social: install(socialPackage, {}, { isolation: "host", name: "social" }),
@@ -89,7 +89,7 @@ function residencyStack(own: NonNullable<StackInput["installations"]>) {
 
 /** The stack of the European Union's home, the platform residency's, with the site. */
 export const RESIDENCY_STACK_EU = residencyStack({
-    site: install(sitePackage, {}, { name: "site", selection: { kind: "host" } }),
+    site: install(sitePackage, {}, { name: "site", version: { kind: "host" } }),
 });
 
 /** The stack of the United States' home. */
