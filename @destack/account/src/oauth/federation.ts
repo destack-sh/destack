@@ -69,7 +69,7 @@ export class FederatedVerifier {
     static isFederated(token: string): boolean {
         const { iss } = Jwt.claims(token);
 
-        return iss?.startsWith("https://") === true;
+        return iss !== undefined && URL.canParse(iss);
     }
 
     /** Verify a federated token at a time, answering its client as the caller. */
