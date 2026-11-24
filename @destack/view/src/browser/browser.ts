@@ -11,7 +11,7 @@ import { BrowserTab } from "@destack/object/browser";
 import { BrowserClient } from "@destack/account/browser";
 import { ObjectTypeReference, type Subject } from "@destack/sync";
 import { principal } from "@destack/access";
-import { type ClientOptions, ObjectConnection } from "@destack/object/client";
+import { type Endpoint, ObjectConnection } from "@destack/object/client";
 import { reportToDevtools, startTelemetry } from "@destack/telemetry/browser";
 import { OtlpExporter } from "@destack/telemetry/otlp";
 import {
@@ -642,10 +642,7 @@ async function openTabs(
 }
 
 /** Call a path below the page's origin and base, which its session cookie authenticates. */
-function pageOrigin(
-    root: string,
-    authorization: PageAuthorization,
-): (path: string) => ClientOptions {
+function pageOrigin(root: string, authorization: PageAuthorization): (path: string) => Endpoint {
     return (path) => ({ url: `${root}${path}`, fetch: (request) => authorization.fetch(request) });
 }
 

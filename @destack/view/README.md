@@ -93,6 +93,7 @@ A static view has an `origin`, `pages` with its paths, an optional `document`, a
 
 `useSpace({ note })` answers `query.note.findMany(…)`, as in `@destack/db`, and `mutate.note.update(…)`, as in `@destack/object`.
 `useQuery(query)` follows a query, pending until the replica has it, and writes show at once.
+`useFiles(note)` sends files of notes and writes their addresses, as `ObjectFileClient` in `@destack/object`.
 
 ### Actions
 

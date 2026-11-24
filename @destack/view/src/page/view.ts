@@ -1,13 +1,13 @@
 import { useContext } from "solid-js";
 import type { ObjectClient, ObjectConnection } from "@destack/object/client";
 import { type Client, type Package, type ProcedureRouter, PackageMount } from "@destack/object";
-import { type ClientOptions, createClient } from "@destack/object/client";
+import { type ClientOptions, createClient, type Endpoint } from "@destack/object/client";
 import { ScopePath } from "../declare/context.ts";
 import { ViewError } from "../error/error.ts";
 import { useEnvironment, ViewMountContext } from "./context.ts";
 
 /** Read how the mounted view calls a path below its page's origin with the page's credential. */
-export function useOrigin(): (path: string) => ClientOptions {
+export function useOrigin(): (path: string) => Endpoint {
     return useContext(ViewMountContext).origin;
 }
 
