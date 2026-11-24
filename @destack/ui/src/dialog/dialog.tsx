@@ -110,6 +110,8 @@ export class DialogControl<Payload = unknown> {
     readonly descriptionId: string;
     /** Whether the dialog is open. */
     readonly isOpen: Accessor<boolean>;
+    /** Whether a title is on screen. */
+    readonly isTitled: Accessor<boolean>;
     /** Whether a description is on screen. */
     readonly isDescribed: Accessor<boolean>;
     /** Whether the page behind the open dialog is inert. */
@@ -118,6 +120,8 @@ export class DialogControl<Payload = unknown> {
     readonly state: OpenState<Payload>;
     /** Why the platform closes the dialog. */
     readonly #dismissal: Dismissal;
+    /** The titles on screen. */
+    readonly #titles: CollectionBuilder<string>;
     /** The descriptions on screen. */
     readonly #descriptions: CollectionBuilder<string>;
 
@@ -130,9 +134,16 @@ export class DialogControl<Payload = unknown> {
         this.titleId = createUniqueId();
         this.descriptionId = createUniqueId();
         this.isOpen = this.state.isOpen;
+        this.isTitled = () => this.#titles.size() > 0;
         this.isDescribed = () => this.#descriptions.size() > 0;
         this.isModal = () => options.modal !== false;
+        this.#titles = new CollectionBuilder();
         this.#descriptions = new CollectionBuilder();
+    }
+
+    /** Name the dialog by its title until the title unmounts. */
+    title(): void {
+        this.#titles.add(this.titleId);
     }
 
     /** Open the dialog, unless its handler cancels it. */
@@ -324,7 +335,7 @@ export function DialogContent(properties: DialogContentProperties): JSX.Element 
                 data-open={control.isOpen() ? "" : undefined}
                 data-closed={control.isOpen() ? undefined : ""}
                 closedby="any"
-                aria-labelledby={control.titleId}
+                aria-labelledby={control.isTitled() ? control.titleId : undefined}
                 aria-describedby={control.isDescribed() ? control.descriptionId : undefined}
                 {...rest}
                 ref={(dialog) => (element = dialog)}
@@ -366,6 +377,7 @@ export function DialogFooter(properties: DialogElementProperties<HTMLDivElement>
 /** Render the title that names its dialog. */
 export function DialogTitle(properties: DialogElementProperties<HTMLHeadingElement>): JSX.Element {
     const control = useDialog();
+    control.title();
 
     return renderPart("h2", "dialog-title", properties, [text.lg, styles.title], {
         id: control.titleId,

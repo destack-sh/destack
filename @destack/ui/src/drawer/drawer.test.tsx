@@ -19,11 +19,7 @@ test("place a drawer against its direction, with a handle above a bottom drawer'
         </>
     ));
     expect(markup(container)).toBe(
-        '<dialog id="id-1" data-closed="" closedby="any" aria-labelledby="id-2" data-side="bottom" data-slot="drawer-content">' +
-            '<div data-slot="drawer-handle" aria-hidden="true"></div>' +
-            '<h2 id="id-2" data-slot="drawer-title">Share</h2></dialog>' +
-            '<dialog id="id-3" data-closed="" closedby="any" aria-labelledby="id-4" data-side="right" data-slot="drawer-content">' +
-            '<h2 id="id-4" data-slot="drawer-title">Details</h2></dialog>',
+        '<dialog id="id-1" data-closed="" closedby="any" data-side="bottom" data-slot="drawer-content" aria-labelledby="id-2"><div data-slot="drawer-handle" aria-hidden="true"></div><h2 id="id-2" data-slot="drawer-title">Share</h2></dialog><dialog id="id-3" data-closed="" closedby="any" data-side="right" data-slot="drawer-content" aria-labelledby="id-4"><h2 id="id-4" data-slot="drawer-title">Details</h2></dialog>',
     );
 });
 

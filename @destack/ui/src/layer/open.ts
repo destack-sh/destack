@@ -139,11 +139,13 @@ export class OpenState<Payload = unknown> {
         return this.#count === 1 ? `${this.#id}-trigger` : `${this.#id}-trigger-${this.#count}`;
     }
 
-    /** Read the id of the trigger that labels the overlay. */
-    labelId(): string {
+    /** Read the id of the trigger that labels the overlay, undefined where none has one. */
+    labelId(): string | undefined {
+        // take the trigger it opened from, else the first
         const id = this.trigger()?.element.id ?? "";
+        const first = this.#count === 0 ? undefined : `${this.#id}-trigger`;
 
-        return id === "" ? `${this.#id}-trigger` : id;
+        return id === "" ? first : id;
     }
 
     /** Render a root's content, for the trigger it opened from where it asks. */

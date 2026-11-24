@@ -1,6 +1,7 @@
 import { Icon } from "@destack/ui/icon";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
+import { state } from "@destack/theme/state";
 import { media } from "@destack/style/media.stylex";
 import { color, radius, size, space, stroke } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
@@ -15,6 +16,7 @@ import {
     type Setter,
     Show,
     useContext,
+    untrack,
     useLocale,
 } from "@destack/view";
 import {
@@ -501,8 +503,14 @@ export function CommandInput(
                 "input",
                 "command-input",
                 omit(properties, "onKeyDown", "value", "defaultValue", "onValueChange"),
-                [text.sm, styles.input, isDialog && dialogStyles.input],
-                merge(mergeProperties(omit(search, "onKeyDown"), back)),
+                [text.sm, state.typed, styles.input, isDialog && dialogStyles.input],
+                merge(
+                    {
+                        "aria-label":
+                            untrack(() => properties.placeholder) ?? locale.render(t`Search`),
+                    },
+                    mergeProperties(omit(search, "onKeyDown"), back),
+                ),
             )}
         </div>
     );

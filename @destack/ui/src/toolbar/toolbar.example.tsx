@@ -34,8 +34,8 @@ export const toolbarText = defineExample({
                 </ToggleGroupItem>
             </ToggleGroup>
             <ToolbarSeparator />
-            <Select defaultValue="body">
-                <SelectTrigger aria-label="Size">
+            <Select defaultValue="body" aria-label="Size">
+                <SelectTrigger>
                     <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
