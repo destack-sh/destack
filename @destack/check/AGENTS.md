@@ -191,7 +191,7 @@ Use the idiomatic vocabulary with zero fluff:
 - **WN11** Names SHOULD follow modern prior art terminology where it exists.
 - **WN12** Names MUST NOT invent vocabulary where the codebase already has a concept / word.
 - **WN13** Terminology MUST be established and kept consistent, continously, across nouns, verbs and their families for types, methods, enums, variants and fields.
-- **WN14** Names and prose SHOULD NOT use abstraction sludge words _unless_ the topic idiomatically requires them: seam, lane, part, parts, info, factory, syntax, semantics, data, inner, wrapper, facts, seat, summary, channel, boundary, contract, surface, currency, accounting, load bearing, any "-bearing", spine, spelling, computation, recipe, glue, judge, proof, evidence, drive, carry, own, demand, grammar, reach, truth, product, atom, axes, coordinates, transcribe, law, knot, tie, seal, pin, tighten, slot, mint, helper, util, support, misc, name (as a verb), carry, admit, keep.
+- **WN14** Names and prose SHOULD NOT use abstraction sludge words (_unless_ the topic idiomatically requires them): seam, lane, part, parts, info, factory, syntax, semantics, data, inner, wrapper, facts, seat, summary, channel, boundary, contract, surface, currency, accounting, load bearing, any "-bearing", spine, spelling, computation, recipe, glue, judge, proof, evidence, drive, carry, own, demand, grammar, reach, truth, product, atom, axes, coordinates, transcribe, law, knot, tie, seal, pin, tighten, slot, mint, helper, util, support, misc, name (as a verb), carry, admit, keep.
 
 Keep names symmetric and general:
 - **WN20** Names of related logic and state SHOULD be symmetric (across nouns, verbs, adjectives, etc.).
@@ -375,7 +375,7 @@ Document everything in plain sentences:
 - **WD02** Documentation MUST cover all functions, types, variants and fields, in one line where possible. (`destack/require-jsdoc`)
 - **WD03** Documentation MUST consist of proper sentences with punctuation. (`destack/jsdoc-sentence`)
 - **WD04** Files MUST NOT have top-level documentation comments, since they always get stale. (`destack/jsdoc-sentence`)
-- **WD05** Constants SHOULD be external facts, identities, or tuning values, each documented with its source or the napkin math that sets it; a tuning value callers vary becomes the default of an option on the noun that owns it.
+- **WD05** Constants SHOULD be used only for external facts, identities, or tuning values, each documented with its source or the napkin math that sets it.
   ```ts
   /** The longest identifier PostgreSQL stores without truncation, NAMEDATALEN minus one. */
   const MAX_IDENTIFIER_LENGTH = 63;
@@ -512,8 +512,9 @@ Test the real thing in its scope:
 - **CT04** Hard-to-test code SHOULD get crisper models and more realistic tests instead.
 
 Name tests by behavior:
-- **CT10** Tests MUST be named with a verb that states their content, such as `roundtrip duration` or `test_send_receive_message`.
+- **CT10** Tests MUST be named with a verb that states their content, such as `send and receive duration` or `test_send_receive_message`.
 - **CT11** Test first lines or docstrings MUST describe the desired behavior without mentioning "test".
+- **CT22** As with everything, shoret test names and descriptions SHOULD be preferred, and multi-clause packing prose slop MUST be avoided.
 
 Test whole outputs, as hard as possible:
 - **CT20** Tests SHOULD be the strongest, most brutal form we can think of: PBT, DST, roundtrip tests, whatever is applicable.
@@ -529,6 +530,10 @@ Keep tests fast:
 - **CT40** "Regular" unit-style tests slower than a few milliseconds, tens at most, SHOULD be investigated for fundamental model issues (heavier integration- and scenario-style tests may take longer, but we SHOULD do the napkin math and figure out what which tests really need where).
 - **CT41** Test runs MUST use a tight timeout, such as building first without a timeout and then testing with one; slow tests are a hard failure.
 - **CT42** Avoid differential testing as a process (where a test must first fail without the change) unless really needed for actual regressions (e.g. because the behavior was especially tricky to reproduce).
+
+Keep testing fast:
+- **CT50** The overall length of the duration comes down to edit cycles and test cycles. thus, we SHOULD prioritise test spsed ups, and run the fastest loops first and most, and the slowest last and least. 
+- **CT51** Faster testing tools and processes SHOULD be designed and preferred where available (e.g., in regular TS, prefer `bun check` over `tsc`).  
 
 ### Formatting (CF)
 
