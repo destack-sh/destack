@@ -190,7 +190,7 @@ async function dependencyBuild(owner: PackageVersion, crypto: Crypto): Promise<B
         mounts: {},
         protocols: [],
         views: [],
-        version: [],
+        follows: [],
         permissions: {},
         capabilities: {},
         errors: [],
@@ -238,7 +238,7 @@ function requesting(permissions: GrantDeclaration): Declaration {
             mounts: {},
             protocols: [],
             views: [],
-            version: [],
+            follows: [],
             permissions,
             capabilities: {},
             errors: [],
@@ -380,7 +380,7 @@ async function recordBuild(
     build?: BuildReader,
     builds: readonly BuildReader[] = [],
 ) {
-    // record it a millisecond after the last, as the newest build of a checkout is the one it version
+    // record it a millisecond after the last, as the newest build of a checkout is the one its version names
     const reader = build ?? (await notesBuild([main], fixture.environment.crypto));
     await fixture.simulation.sleep(1);
     const built = await fixture.recordBuild(reader, undefined, builds);
@@ -1114,7 +1114,7 @@ test("refuse a build routing hooks nothing serves", async () => {
             mounts: {},
             protocols: [],
             views: [],
-            version: [],
+            follows: [],
             permissions: {},
             capabilities: {},
             errors: [],
@@ -1155,7 +1155,7 @@ test("refuse a build declaring mounts no workload answers", async () => {
             mounts: { inbox: { path: "/inbox" } },
             protocols: [],
             views: [],
-            version: [],
+            follows: [],
             permissions: {},
             capabilities: {},
             errors: [],

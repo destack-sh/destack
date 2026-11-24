@@ -416,7 +416,7 @@ export class CheckoutServer {
         const [existing] = items;
         const version = {
             ...ObjectReference.columns(
-                "follows",
+                "version",
                 checkout.reference(selection.machine, selection.checkout),
             ),
             directory: selection.directory,

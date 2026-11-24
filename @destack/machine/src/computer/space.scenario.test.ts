@@ -310,7 +310,7 @@ async function install(served: Echoing, release: BuildReader, name: string, peer
         requestId: RequestId.create(computer.environment),
         packageId: released.id,
         ...ObjectReference.columns(
-            "follows",
+            "version",
             await InstallationTarget.resolveVersion(computer.computer.machine, released.id, {
                 kind: "release",
                 version: released.version,
