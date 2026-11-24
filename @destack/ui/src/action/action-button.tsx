@@ -4,7 +4,16 @@ import { type Action, type ActionInputs, type ValuesOf } from "@destack/object";
 import { Icon } from "@destack/ui/icon";
 import type { IconBodies } from "@destack/icon";
 import { Shortcut } from "@destack/locale";
-import { createSignal, type JSX, omit, Show, useActions, useLocale } from "@destack/view";
+import {
+    createMemo,
+    createSignal,
+    type JSX,
+    omit,
+    onSettled,
+    Show,
+    useActions,
+    useLocale,
+} from "@destack/view";
 import { mergeProperties } from "../part/index.ts";
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { useCommandPlatform } from "../kbd/index.ts";
@@ -46,25 +55,35 @@ export function ActionButton<Inputs extends ActionInputs>(
     const keys = () => actions.keybinding(properties.action);
     const isAlone = () => properties.size === "icon" || properties.size === "icon-sm";
     const [button, setButton] = createSignal<Element | undefined>(undefined, { ownedWrite: true });
-    const isOn = () => {
-        // read it where a press would run it
+    const place = () => {
+        // find where a press would run it
         const own = button();
-        const place = own === undefined ? null : actions.placeOf(properties.action, own);
 
-        return actions.isOn(properties.action, properties.element ?? place);
+        return properties.element !== undefined || own === undefined
+            ? (properties.element ?? null)
+            : actions.placeOf(properties.action, own);
     };
+    let created: HTMLElement | undefined;
+    onSettled(() => {
+        // look for what runs it once it is in the page
+        setButton(created);
+    });
+    const isOn = createMemo(() => actions.isOn(properties.action, place()));
+    const isDisabled = createMemo(
+        () =>
+            properties.disabled === true ||
+            (button() !== undefined && !actions.has(properties.action.reference, place())),
+    );
     const pressed = () => {
         const on = isOn();
 
         return on === undefined ? undefined : on ? "true" : "false";
     };
-    const run = (element: Element) => {
-        const { action, given } = properties;
-        const place =
-            properties.element === undefined
-                ? actions.placeOf(action, element)
-                : properties.element;
-        actions.start(action, place, given);
+    const run = () => {
+        // leave an action that does not run, whose button stays in the tab order
+        if (!isDisabled()) {
+            actions.start(properties.action, place(), properties.given);
+        }
     };
 
     return (
@@ -73,7 +92,7 @@ export function ActionButton<Inputs extends ActionInputs>(
                 render={(attributes) => (
                     <Button
                         {...mergeProperties(attributes, {
-                            ref: (created: HTMLElement) => setButton(created),
+                            ref: (element: HTMLElement) => (created = element),
                         })}
                         {...rest}
                         data-slot="action-button"
@@ -86,7 +105,8 @@ export function ActionButton<Inputs extends ActionInputs>(
                                 ? undefined
                                 : Shortcut.keys(keys() ?? "", isCommand()).join("+")
                         }
-                        onClick={(event) => run(event.currentTarget)}
+                        aria-disabled={isDisabled() ? "true" : undefined}
+                        onClick={run}
                     />
                 )}
             >

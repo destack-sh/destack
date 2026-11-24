@@ -2,7 +2,7 @@ import { argument, plural, t } from "@destack/locale";
 import { defineAction, field } from "@destack/object";
 import { schema } from "@destack/schema";
 import { expect, onTestFinished, test, vi } from "@destack/test";
-import { ActionRegistry, createSignal, flush, handleAction } from "@destack/view";
+import { ActionRegistry, createSignal, flush, handle, handleAction, Show } from "@destack/view";
 import { render, stubPopovers, wait } from "@destack/view/test";
 import { Toaster } from "../toast/index.ts";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "../dropdown-menu/index.ts";
@@ -250,4 +250,58 @@ test("check what is on in a menu and on a button, open choices as a submenu, and
         pressed: "true",
         ran: [{ color: "blue" }, { days: 3 }],
     });
+});
+
+test("enable a button that appears later where its action is handled around it", () => {
+    // show the button inside an element that handles the action
+    const ran: string[] = [];
+    const [isShown, setShown] = createSignal(false, { ownedWrite: true });
+    const { container } = render(
+        () => (
+            <section ref={handle(archive, { run: () => void ran.push("archive") })}>
+                <Show when={isShown()}>
+                    <ActionButton action={archive} />
+                </Show>
+            </section>
+        ),
+        { actions: new ActionRegistry() },
+    );
+    flush();
+    setShown(true);
+    flush();
+    const button = container.querySelector("button");
+    button?.click();
+    flush();
+
+    expect([button?.getAttribute("aria-disabled"), ran]).toEqual([null, ["archive"]]);
+});
+
+test("disable a button while its action does not run, the button staying in the tab order", () => {
+    // enable the action, press, and disable it again
+    const ran: string[] = [];
+    const [isEnabled, setEnabled] = createSignal(false, { ownedWrite: true });
+    const { container } = render(
+        () => {
+            handleAction(archive, { isEnabled, run: () => void ran.push("archive") });
+
+            return <ActionButton action={archive} />;
+        },
+        { actions: new ActionRegistry() },
+    );
+    flush();
+    const button = container.querySelector("button");
+    const states = [false, true, false].map((next) => {
+        setEnabled(next);
+        flush();
+        button?.click();
+        flush();
+
+        return [button?.getAttribute("aria-disabled"), button?.disabled, ran.length];
+    });
+
+    expect(states).toEqual([
+        ["true", false, 0],
+        [null, false, 1],
+        ["true", false, 1],
+    ]);
 });
