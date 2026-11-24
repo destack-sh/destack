@@ -180,10 +180,13 @@ export function renderPart<Tag extends keyof JSX.IntrinsicElements>(
         properties[PART_STYLES],
         properties.xstyle,
     ];
-    const part = merge({ "data-slot": slot }, attributes ?? {}, () => ({
+    const styled = () => ({
         ...style.attributes(composed(), properties.style),
         [PART_STYLES]: composed(),
-    }));
+    });
+
+    // put them before its attributes, whose content then stays as they change
+    const part = merge({ "data-slot": slot }, styled, attributes ?? {});
 
     // read the caller's element once
     const render = untrack(() => properties.render);

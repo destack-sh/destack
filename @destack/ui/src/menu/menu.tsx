@@ -734,6 +734,16 @@ export function MenuItem(properties: MenuItemProperties): JSX.Element {
         onHoverStart: (event) => control.hover(event.target, () => hover.isHovered()),
     });
     const part: PartAttributes = merge(
+        () =>
+            style.attributes(
+                [
+                    styles.item,
+                    properties.variant === "destructive" && styles.destructive,
+                    properties.disabled === true && state.inert,
+                    properties.xstyle,
+                ],
+                properties.style,
+            ),
         hover.attributes(),
         {
             role: "menuitem" as const,
@@ -754,16 +764,6 @@ export function MenuItem(properties: MenuItemProperties): JSX.Element {
             onClick: (event: MouseEvent) => choose(event, control, properties),
             onKeyDown: activate,
         },
-        () =>
-            style.attributes(
-                [
-                    styles.item,
-                    properties.variant === "destructive" && styles.destructive,
-                    properties.disabled === true && state.inert,
-                    properties.xstyle,
-                ],
-                properties.style,
-            ),
     );
 
     return useRender({

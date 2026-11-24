@@ -140,6 +140,17 @@ export function Switch(properties: SwitchProperties): JSX.Element {
 
     // mark the part, report its state and flip it on activation
     const part: PartAttributes = merge(
+        () =>
+            style.attributes(
+                [
+                    state.focus,
+                    state.disabled,
+                    styles.switch,
+                    toggle.isChecked() && styles.checked,
+                    properties.xstyle,
+                ],
+                properties.style,
+            ),
         {
             role: "switch" as const,
             get "aria-checked"() {
@@ -164,17 +175,6 @@ export function Switch(properties: SwitchProperties): JSX.Element {
             },
         },
         () => ({ ...field?.attributes(), disabled: isDisabled() ? true : undefined }),
-        () =>
-            style.attributes(
-                [
-                    state.focus,
-                    state.disabled,
-                    styles.switch,
-                    toggle.isChecked() && styles.checked,
-                    properties.xstyle,
-                ],
-                properties.style,
-            ),
     );
 
     return (

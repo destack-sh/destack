@@ -611,6 +611,11 @@ export function NavigationMenuLink(properties: NavigationMenuLinkProperties): JS
     }
     const rest = omit(properties, "active", "xstyle", "style", "render");
     const part: PartAttributes = merge(
+        () =>
+            style.attributes(
+                [text.sm, state.focus, styles.link, properties.xstyle],
+                properties.style,
+            ),
         {
             get "aria-current"() {
                 return properties.active === true ? "page" : undefined;
@@ -630,11 +635,6 @@ export function NavigationMenuLink(properties: NavigationMenuLinkProperties): JS
                 }
             },
         },
-        () =>
-            style.attributes(
-                [text.sm, state.focus, styles.link, properties.xstyle],
-                properties.style,
-            ),
     );
 
     return useRender({

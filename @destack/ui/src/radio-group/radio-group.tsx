@@ -263,6 +263,17 @@ export function RadioGroupItem(properties: RadioGroupItemProperties): JSX.Elemen
 
     // mark the part, report its state and check it on a click or Space
     const part: PartAttributes = merge(
+        () =>
+            style.attributes(
+                [
+                    state.focus,
+                    state.disabled,
+                    styles.item,
+                    isChecked() && styles.checked,
+                    properties.xstyle,
+                ],
+                properties.style,
+            ),
         {
             role: "radio" as const,
             get "aria-checked"() {
@@ -296,17 +307,6 @@ export function RadioGroupItem(properties: RadioGroupItemProperties): JSX.Elemen
                 return properties.children ?? <RadioGroupIndicator />;
             },
         },
-        () =>
-            style.attributes(
-                [
-                    state.focus,
-                    state.disabled,
-                    styles.item,
-                    isChecked() && styles.checked,
-                    properties.xstyle,
-                ],
-                properties.style,
-            ),
     );
 
     return (

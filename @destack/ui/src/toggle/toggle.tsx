@@ -108,6 +108,18 @@ export function Toggle(properties: ToggleProperties): JSX.Element {
 
     // mark the part, report its state and flip it
     const part: PartAttributes = merge(
+        () =>
+            style.attributes(
+                [
+                    toggleVariants({
+                        variant: properties.variant ?? "default",
+                        size: properties.size ?? "default",
+                        pressed: isPressed(),
+                    }),
+                    properties.xstyle,
+                ],
+                properties.style,
+            ),
         {
             "data-slot": "toggle",
             get "data-pressed"() {
@@ -121,18 +133,6 @@ export function Toggle(properties: ToggleProperties): JSX.Element {
                 setPressed(!isPressed());
             },
         },
-        () =>
-            style.attributes(
-                [
-                    toggleVariants({
-                        variant: properties.variant ?? "default",
-                        size: properties.size ?? "default",
-                        pressed: isPressed(),
-                    }),
-                    properties.xstyle,
-                ],
-                properties.style,
-            ),
     );
 
     return useRender({

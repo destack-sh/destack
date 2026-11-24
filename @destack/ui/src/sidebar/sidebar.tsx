@@ -842,6 +842,18 @@ export function SidebarMenuButton(properties: SidebarMenuButtonProperties): JSX.
     });
     onCleanup(() => tooltip.drop(element));
     const part: PartAttributes = merge(
+        () =>
+            style.attributes(
+                [
+                    state.focus,
+                    state.hover,
+                    styles.menuButton,
+                    sizes[properties.size ?? "default"],
+                    properties.active === true && [state.current, styles.active],
+                    properties.xstyle,
+                ],
+                properties.style,
+            ),
         hover.attributes(),
         {
             "data-slot": "sidebar-menu-button",
@@ -858,18 +870,6 @@ export function SidebarMenuButton(properties: SidebarMenuButtonProperties): JSX.
             onFocus: (event: PartEvent<Event>) => hint("trigger-focus", event.currentTarget),
             onBlur: (event: FocusEvent) => tooltip.close(new OpenChange("focus-out", event)),
         },
-        () =>
-            style.attributes(
-                [
-                    state.focus,
-                    state.hover,
-                    styles.menuButton,
-                    sizes[properties.size ?? "default"],
-                    properties.active === true && [state.current, styles.active],
-                    properties.xstyle,
-                ],
-                properties.style,
-            ),
     );
 
     // render a link for an address, else a button
@@ -950,15 +950,6 @@ export function SidebarMenuSubItem(
 export function SidebarMenuSubButton(properties: SidebarMenuSubButtonProperties): JSX.Element {
     const rest = omit(properties, "active", "xstyle", "style", "render");
     const part: PartAttributes = merge(
-        {
-            get "aria-current"() {
-                return properties.active === true ? "page" : undefined;
-            },
-            "data-slot": "sidebar-menu-sub-button",
-            get "data-active"() {
-                return properties.active === true ? "" : undefined;
-            },
-        },
         () =>
             style.attributes(
                 [
@@ -971,6 +962,15 @@ export function SidebarMenuSubButton(properties: SidebarMenuSubButtonProperties)
                 ],
                 properties.style,
             ),
+        {
+            get "aria-current"() {
+                return properties.active === true ? "page" : undefined;
+            },
+            "data-slot": "sidebar-menu-sub-button",
+            get "data-active"() {
+                return properties.active === true ? "" : undefined;
+            },
+        },
     );
 
     return useRender({

@@ -133,6 +133,18 @@ export function Checkbox(properties: CheckboxProperties): JSX.Element {
 
     // mark the part, report its state and check it on a click or Space but not Enter
     const part: PartAttributes = merge(
+        () =>
+            style.attributes(
+                [
+                    state.focus,
+                    state.disabled,
+                    styles.checkbox,
+                    value() !== "unchecked" && styles.checked,
+                    isInvalid() && state.invalid,
+                    properties.xstyle,
+                ],
+                properties.style,
+            ),
         {
             role: "checkbox" as const,
             get "aria-checked"() {
@@ -169,18 +181,6 @@ export function Checkbox(properties: CheckboxProperties): JSX.Element {
             },
         },
         () => ({ ...field?.attributes(), disabled: isDisabled() ? true : undefined }),
-        () =>
-            style.attributes(
-                [
-                    state.focus,
-                    state.disabled,
-                    styles.checkbox,
-                    value() !== "unchecked" && styles.checked,
-                    isInvalid() && state.invalid,
-                    properties.xstyle,
-                ],
-                properties.style,
-            ),
     );
 
     return (

@@ -31,7 +31,7 @@ test("tint a badge in a swatch and report the swatch, apart from an untinted bad
 
     // the tinted badge takes its swatch's tint and text, the plain one none
     expect(markup(container)).toBe(
-        '<span data-slot="badge" data-variant="default" data-color="green" style="--x-backgroundColor: var(--destack-swatch-green-tint); --x-color: var(--destack-swatch-green-tint-text);">Site</span>' +
+        '<span style="--x-backgroundColor: var(--destack-swatch-green-tint); --x-color: var(--destack-swatch-green-tint-text);" data-slot="badge" data-variant="default" data-color="green">Site</span>' +
             '<span data-slot="badge" data-variant="default">Site</span>',
     );
 });

@@ -342,6 +342,19 @@ export function TabsTrigger(properties: TabsTriggerProperties): JSX.Element {
     const rest = omit(properties, "value", "xstyle", "style", "render");
     const isSelected = (): boolean => control.value() === properties.value;
     const part: PartAttributes = merge(
+        () =>
+            style.attributes(
+                [
+                    text.sm,
+                    state.focusInset,
+                    state.disabled,
+                    styles.trigger,
+                    triggers[control.properties.orientation],
+                    isSelected() && [styles.selected, marks[variant()]],
+                    properties.xstyle,
+                ],
+                properties.style,
+            ),
         {
             role: "tab" as const,
             get id() {
@@ -372,19 +385,6 @@ export function TabsTrigger(properties: TabsTriggerProperties): JSX.Element {
             onClick: () => control.select(properties.value),
             onFocus: () => control.list.focus.focusIn(properties.value),
         },
-        () =>
-            style.attributes(
-                [
-                    text.sm,
-                    state.focusInset,
-                    state.disabled,
-                    styles.trigger,
-                    triggers[control.properties.orientation],
-                    isSelected() && [styles.selected, marks[variant()]],
-                    properties.xstyle,
-                ],
-                properties.style,
-            ),
     );
 
     return useRender({

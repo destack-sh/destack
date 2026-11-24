@@ -25,7 +25,7 @@ test("render a native range input per thumb over a track whose range fills up to
     expect(markup(container)).toBe(
         '<div role="group" data-slot="slider" data-orientation="horizontal" aria-label="Volume">' +
             '<div data-slot="slider-track" data-orientation="horizontal">' +
-            '<div data-slot="slider-indicator" data-orientation="horizontal" style="--x-insetInlineStart: 0%; --x-insetInlineEnd: calc(var(--destack-space-4) / 2 + (100% - var(--destack-space-4)) * 0.6);"></div></div>' +
+            '<div data-slot="slider-indicator" style="--x-insetInlineStart: 0%; --x-insetInlineEnd: calc(var(--destack-space-4) / 2 + (100% - var(--destack-space-4)) * 0.6);" data-orientation="horizontal"></div></div>' +
             '<input type="range" data-slot="slider-thumb" data-orientation="horizontal" min="0" max="100" step="5" aria-label="Volume"></div>',
     );
     expect(thumbs(container)).toEqual(["40"]);

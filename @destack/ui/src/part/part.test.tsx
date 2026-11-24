@@ -1,5 +1,6 @@
 import * as style from "@destack/style";
 import { expect, test } from "@destack/test";
+import { createSignal, flush } from "@destack/view";
 import { markup, render } from "@destack/view/test";
 import { mergeProperties, type PartAttributes, renderPart, useRender } from "./index.ts";
 
@@ -144,4 +145,23 @@ test("run a caller's reference on the element it renders", () => {
     );
 
     expect(elements).toEqual([container.querySelector("a")]);
+});
+
+test("keep a part's content as its styles change", () => {
+    const [isSticky, setSticky] = createSignal(false, { ownedWrite: true });
+    const { container } = render(() =>
+        renderPart("div", "card", {}, () => [isSticky() && styles.caller], {
+            get children() {
+                return <b>Note</b>;
+            },
+        }),
+    );
+    const content = container.querySelector("b");
+    setSticky(true);
+    flush();
+
+    expect([
+        container.querySelector("b") === content,
+        container.firstElementChild?.className,
+    ]).toEqual([true, style.attributes([styles.caller]).class]);
 });

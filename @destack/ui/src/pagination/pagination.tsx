@@ -102,15 +102,6 @@ export function PaginationItem(
 export function PaginationLink(properties: PaginationLinkProperties): JSX.Element {
     const rest = omit(properties, "active", "size", "xstyle", "style", "render");
     const part: PartAttributes = merge(
-        {
-            get "aria-current"() {
-                return properties.active === true ? "page" : undefined;
-            },
-            "data-slot": "pagination-link",
-            get "data-active"() {
-                return properties.active === true ? "" : undefined;
-            },
-        },
         () =>
             style.attributes(
                 [
@@ -123,6 +114,15 @@ export function PaginationLink(properties: PaginationLinkProperties): JSX.Elemen
                 ],
                 properties.style,
             ),
+        {
+            get "aria-current"() {
+                return properties.active === true ? "page" : undefined;
+            },
+            "data-slot": "pagination-link",
+            get "data-active"() {
+                return properties.active === true ? "" : undefined;
+            },
+        },
     );
 
     return useRender({

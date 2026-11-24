@@ -144,6 +144,18 @@ export function ToggleGroupItem(properties: ToggleGroupItemProperties): JSX.Elem
     const isSingle = (): boolean => control.properties.multiple !== true;
     const state = (): "true" | "false" => (isPressed() ? "true" : "false");
     const part: PartAttributes = merge(
+        () =>
+            style.attributes(
+                [
+                    toggleVariants({
+                        variant: control.properties.variant ?? "default",
+                        size: control.properties.size ?? "default",
+                        pressed: isPressed(),
+                    }),
+                    properties.xstyle,
+                ],
+                properties.style,
+            ),
         {
             get role() {
                 return isSingle() ? ("radio" as const) : undefined;
@@ -173,18 +185,6 @@ export function ToggleGroupItem(properties: ToggleGroupItemProperties): JSX.Elem
             onClick: () => control.selection.toggle(properties.value),
             onFocus: () => control.list.focus.focusIn(properties.value),
         },
-        () =>
-            style.attributes(
-                [
-                    toggleVariants({
-                        variant: control.properties.variant ?? "default",
-                        size: control.properties.size ?? "default",
-                        pressed: isPressed(),
-                    }),
-                    properties.xstyle,
-                ],
-                properties.style,
-            ),
     );
 
     return useRender({

@@ -89,6 +89,7 @@ export function Badge(properties: BadgeProperties): JSX.Element {
     const badge = merge(DEFAULTS, properties);
     const rest = omit(badge, "variant", "color", "xstyle", "style", "render");
     const part: PartAttributes = merge(
+        () => style.attributes([badgeVariants(badge), badge.xstyle], badge.style),
         {
             "data-slot": "badge",
             get "data-variant"() {
@@ -98,7 +99,6 @@ export function Badge(properties: BadgeProperties): JSX.Element {
                 return badge.color;
             },
         },
-        () => style.attributes([badgeVariants(badge), badge.xstyle], badge.style),
     );
 
     return useRender({

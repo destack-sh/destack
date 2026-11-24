@@ -46,6 +46,11 @@ export function Separator(properties: SeparatorProperties): JSX.Element {
     const separator = merge(DEFAULTS, properties);
     const rest = omit(separator, "orientation", "decorative", "xstyle", "style", "render");
     const part: PartAttributes = merge(
+        () =>
+            style.attributes(
+                [orientations[separator.orientation], separator.xstyle],
+                separator.style,
+            ),
         {
             "data-slot": "separator",
             get "data-orientation"() {
@@ -60,11 +65,6 @@ export function Separator(properties: SeparatorProperties): JSX.Element {
                     : undefined;
             },
         },
-        () =>
-            style.attributes(
-                [orientations[separator.orientation], separator.xstyle],
-                separator.style,
-            ),
     );
 
     return useRender({

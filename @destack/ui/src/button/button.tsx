@@ -180,6 +180,7 @@ export function Button(properties: ButtonProperties): JSX.Element {
 
     // mark the part and give it its styles with the caller's last
     const part: PartAttributes = merge(
+        () => style.attributes([buttonVariants(button), join(), button.xstyle], button.style),
         {
             get "data-slot"() {
                 return button["data-slot"] ?? "button";
@@ -207,7 +208,6 @@ export function Button(properties: ButtonProperties): JSX.Element {
                 );
             },
         },
-        () => style.attributes([buttonVariants(button), join(), button.xstyle], button.style),
     );
 
     return useRender({
