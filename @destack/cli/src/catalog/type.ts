@@ -4,7 +4,7 @@ import { ObjectClient, type ObjectConnection } from "@destack/object/client";
 import { CalendarLayout, type Layout, ObjectView, type ObjectQuery } from "@destack/object";
 import { principal } from "@destack/access";
 import { Scope } from "@destack/sync";
-import { type JsonObject, JsonValue, present, schema, type TimeScale } from "@destack/schema";
+import { type JsonObject, JsonValue, nth, present, schema, type TimeScale } from "@destack/schema";
 import {
     type Command,
     type CommandBody,
@@ -15,10 +15,12 @@ import { Interrupt } from "../command/failure.ts";
 import type { CommandContext } from "../command/context.ts";
 import type { Live } from "../terminal/index.ts";
 
-import { FlagSet, INPUT_OPTION, LIST_OPTIONS } from "./flag.ts";
+import { type FileFlag, FlagSet, INPUT_OPTION, LIST_OPTIONS } from "./flag.ts";
 import type { CatalogEntry, Store } from "./catalog.ts";
 import {
+    Casing,
     type MethodKind,
+    type ObjectFile,
     type ObjectType,
     type PackageImplementationDescription,
 } from "@destack/object";
@@ -26,6 +28,9 @@ import { Localization, SOURCE_LOCALE } from "@destack/locale";
 import type { Action, ActionCall, ActionContext } from "@destack/object";
 import { Frame } from "../terminal/frame.ts";
 import { Pager } from "../terminal/pager.ts";
+import { type Environment, FileSystemError, Pipe } from "@destack/environment";
+import { MediaType } from "@destack/package/file";
+import { basename } from "node:path";
 import { CliError } from "../error/index.ts";
 
 /** The lines a terminal is taken to have when it reports none: 24, the VT100's. */
@@ -49,6 +54,12 @@ const RESULT_WORDS: Readonly<Record<string, string | undefined>> = {
     revert: "Reverted",
     edit: "Edited",
 };
+
+/** The word that downloads an object's file. */
+const DOWNLOAD = "download";
+
+/** The ending of a file being saved, until it is whole. */
+const PARTIAL = ".partial";
 
 /** The option confirming an action that cannot be undone. */
 const YES_OPTION = {
@@ -520,6 +531,9 @@ function objectCommand(noun: CatalogType): CommandBody {
             command: (id) => ({
                 ...getCommand(noun, id),
                 commands: Object.fromEntries([
+                    ...(fileFields(noun.type).length === 0
+                        ? []
+                        : [[DOWNLOAD, downloadCommand(noun, id)] satisfies [string, Command]]),
                     ...called.map(([name]): [string, Command] => [
                         name,
                         methodCommand(noun, name, id),
@@ -532,6 +546,106 @@ function objectCommand(noun: CatalogType): CommandBody {
             }),
         },
     };
+}
+
+/** List a type's file fields. */
+function fileFields(type: ObjectType): string[] {
+    return Object.entries(type.fields)
+        .filter(([, field]) => field.limits !== undefined)
+        .map(([name]) => name);
+}
+
+/** Build the command downloading an object's file to this machine. */
+function downloadCommand(noun: CatalogType, id: string): Command {
+    // take a field by its flag's name, the only one when there is one
+    const fields = new Map(fileFields(noun.type).map((name) => [Casing.kebab(name), name]));
+    const names = [...fields.keys()];
+    const [only] = names;
+
+    return {
+        description: "Download a file",
+        isJson: true,
+        arguments: [
+            {
+                name: "field",
+                usage: names.join("|"),
+                ...(only === undefined || names.length > 1 ? {} : { default: only }),
+                complete: async () => names,
+            },
+        ],
+        options: {
+            output: {
+                type: "string",
+                description: "The path to save it to, its own name here by default",
+                argument: "path",
+            },
+        },
+        async run({ arguments: given, options, isJson: json }, context) {
+            // read the object, refusing a field without a file
+            const named = given["field"] ?? "";
+            const field = fields.get(named);
+            if (field === undefined) {
+                throw CliError.of(
+                    "USAGE_INVALID",
+                    `file '${named}' is invalid: '${noun.name}' has '${names.join(", ")}'`,
+                );
+            }
+            const remote = await noun.client(context);
+            const identified = await noun.identify(id, context);
+            const row = schema
+                .jsonObject()
+                .parse(await remote.run(noun.type, noun.method("get"), { id: identified }));
+            const found = noun.type.fields[field]?.file(row[field]);
+            if (found === undefined) {
+                throw CliError.of(
+                    "USAGE_INVALID",
+                    `${noun.name} '${id}' is invalid: its '${named}' has no file`,
+                );
+            }
+
+            // save it under the given path, else its own name
+            const { file } = found;
+            const output = CommandOption.string(options["output"], "output");
+            const path = output ?? file.name;
+            const client = await remote.files();
+            const reference = noun.type.reference(schema.string().parse(row["scope"]), identified);
+            const body = await client.open(reference, field);
+            await saveFile(context, path, body, output === undefined);
+            await context.terminal.print(
+                json
+                    ? JSON.stringify({ path, size: file.size, type: file.type })
+                    : context.terminal.event("Saved", "done", path),
+            );
+        },
+    };
+}
+
+/** Save a file's bytes as they arrive, replacing a file only at a path the person wrote. */
+async function saveFile(
+    { environment: { files } }: CommandContext,
+    path: string,
+    body: ReadableStream<Uint8Array>,
+    isNew: boolean,
+): Promise<void> {
+    // refuse to replace a file that another person's name picked
+    if (isNew && (await files.exists(path))) {
+        await body.cancel();
+        throw CliError.of(
+            "USAGE_INVALID",
+            `file '${path}' is invalid: it exists already, so give another --output`,
+        );
+    }
+
+    // write it beside its place, and put it there once it is whole
+    const partial = `${path}${PARTIAL}`;
+    try {
+        await using file = await files.open(partial, { write: true, createNew: true });
+        await Pipe.to(body, file.writable());
+    } catch (error) {
+        await files.remove(partial, { force: true });
+        throw error;
+    }
+    await files.rename(partial, path);
 }
 
 /** Build the command getting one object, once or live. */
@@ -591,7 +705,7 @@ function methodCommand(noun: CatalogType, method: string, id: string | undefined
             const flags = FlagSet.input(noun.type, method);
 
             // build the input from the JSON option, the flags and the object
-            const written = await methodInput(flags, options, context);
+            const written = await methodInput(noun, flags, options, context);
             const input = id === undefined ? written : { ...written, id };
 
             // call the method and show its result
@@ -667,7 +781,7 @@ function actionCommand(noun: CatalogType, action: Action, id: string | undefined
 
             // fill the inputs from the JSON option, the flags and the object, refusing a missing one
             const values = {
-                ...(await methodInput(flags(), given.options, context)),
+                ...(await methodInput(noun, flags(), given.options, context)),
                 ...(target === undefined ? {} : targetOf(call, remote, target)),
             };
             const missing = call.inputs.find(
@@ -713,10 +827,12 @@ async function identifyFlags(
 
 /** Read a method's input: the JSON of --input, with the flags written over it. */
 async function methodInput(
+    noun: CatalogType,
     flags: FlagSet,
     options: CommandCall["options"],
     context: CommandContext,
 ): Promise<JsonObject> {
+    // read the JSON, with the flags as the person writes them
     const filter = flags.filter(
         await context.me(),
         context.environment.clock.now(),
@@ -729,7 +845,75 @@ async function methodInput(
         context.terminal,
     );
 
-    return flags.input(options, given, filter);
+    // send the files the flags give paths of, over the input
+    const sent: Record<string, JsonValue> = {};
+    for (const { flag, path } of flags.files(options)) {
+        sent[nth(flag.path, 0)] =
+            path === undefined ? null : await sendFile(noun, flag, path, context);
+    }
+
+    return { ...flags.input(options, given, filter), ...sent };
+}
+
+/** Send a file at a path to a type's store, refusing a path without one. */
+async function sendFile(
+    noun: CatalogType,
+    flag: FileFlag,
+    path: string,
+    context: CommandContext,
+): Promise<ObjectFile> {
+    // find it and its size
+    const { files } = context.environment;
+    const status = await files.stat(path).catch((error: unknown) => {
+        if (FileSystemError.is(error, "FILE_NOT_FOUND")) {
+            return undefined;
+        }
+        throw error;
+    });
+    if (status?.kind !== "file") {
+        throw CliError.of(
+            "USAGE_INVALID",
+            status === undefined
+                ? `--'${flag.name}' file '${path}' is invalid: it does not exist`
+                : `--'${flag.name}' file '${path}' is invalid: it is not a file`,
+        );
+    }
+
+    // refuse one its field does not take
+    const { size } = status;
+    const type = MediaType.of(path);
+    flag.require(path, type, size);
+
+    // send each part as it is read, under the file's own name
+    const slice = (start: number, end: number) => ({
+        bytes: () => readRange(context.environment, path, start, end),
+    });
+    const remote = await noun.client(context);
+    const client = await remote.files();
+
+    return client.upload({ size, slice }, { name: basename(path), type }).done;
+}
+
+/** Read the bytes of a file from a start to an end, refusing a file that became shorter. */
+async function readRange(
+    { files }: Environment<"files">,
+    path: string,
+    start: number,
+    end: number,
+): Promise<Uint8Array<ArrayBuffer>> {
+    // read until the range is whole
+    await using file = await files.open(path, { read: true });
+    await file.seek(start);
+    const bytes = new Uint8Array(end - start);
+    for (let read = 0; read < bytes.byteLength;) {
+        const count = await file.read(bytes.subarray(read));
+        if (count === null) {
+            throw CliError.of("USAGE_INVALID", `file '${path}' is invalid: it became shorter`);
+        }
+        read += count;
+    }
+
+    return bytes;
 }
 
 /** Render a method's result: a changed object as one event, any other result as it is. */

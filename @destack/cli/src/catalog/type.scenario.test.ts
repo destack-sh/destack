@@ -1,6 +1,7 @@
 import { TerminalSize } from "@destack/environment";
 import { join } from "node:path";
 import { card } from "@example/board/object";
+import { PART_BYTES } from "@destack/object";
 import { schema } from "@destack/schema";
 import { expect, onTestFinished, single, test } from "@destack/test";
 import { testHost } from "@destack/test/host";
@@ -282,6 +283,7 @@ Usage: destack card <command>
   new                 Call card.create
   new-ideas           New Ideas Card
   <id>                Show one of the cards
+  <id> download       Download a file
   <id> update         Call card.update
   <id> pin            Call card.pin
   <id> relationships  Call card.relationships
@@ -301,6 +303,7 @@ Usage: destack card create
   -h, --help              Show help
       --json              Print JSON
       --title <string>    The title
+      --cover <path>      The cover, from a file, null for none
       --input <json>      The method's input as a JSON object, - for stdin, @path for a file
 `,
         new: `Call card.create
@@ -310,6 +313,7 @@ Usage: destack card new
   -h, --help              Show help
       --json              Print JSON
       --title <string>    The title
+      --cover <path>      The cover, from a file, null for none
       --input <json>      The method's input as a JSON object, - for stdin, @path for a file
 `,
     });
@@ -491,5 +495,77 @@ test("watch one object as JSON lines, printing it again at each change, until in
         lines: [created, updated],
         error: "",
         titles: ["Plans", "Ideas"],
+    });
+});
+
+test("send a file through a flag and download it, refusing a wrong file and to replace one", async () => {
+    // write a picture longer than one part, and a text
+    const terminal = await open(WORK_BOARD);
+    const { files } = testHost();
+    const directory = await files.makeTemporaryDirectory("destack-cli-file-");
+    onTestFinished(() => files.remove(directory, { recursive: true }));
+    const picture = join(directory, "Lisboa é.JPG");
+    const bytes = new Uint8Array(PART_BYTES + 1000).map((_, place) => place % 251);
+    await files.writeFile(picture, bytes);
+    const text = join(directory, "notes.txt");
+    await files.writeTextFile(text, "notes");
+
+    // create a card with it, and download it over another file, its own name taken
+    const send = (...words: readonly string[]) =>
+        line(terminal, ["card", "create", "--title", "Lisbon", ...words, "--json"]);
+    const made = schema
+        .looseObject({ id: schema.string(), cover: schema.looseObject({}) })
+        .parse(JSON.parse((await send("--cover", picture)).output));
+    const copy = join(directory, "copy.jpg");
+    await files.writeTextFile(copy, "old");
+    const download = (...words: readonly string[]) =>
+        line(terminal, ["card", made.id, "download", ...words, "--json"]);
+    const saved = await download("--output", copy);
+    const named = await download("cover", "--output", copy);
+    const unknown = await download("photo");
+
+    // clear it
+    const cleared = await line(terminal, ["card", made.id, "update", "--cover", "null", "--json"]);
+    const without = await download();
+    const { signature, parts, ...cover } = made.cover;
+
+    expect({
+        cover,
+        isSigned: typeof signature,
+        parts: schema.array(schema.string()).parse(parts).length,
+        saved: schema.json().parse(JSON.parse(saved.output)),
+        named: named.code,
+        isSame: (await files.readFile(copy)).toHex() === bytes.toHex(),
+        unknown: unknown.error,
+        cleared: schema.looseObject({ cover: schema.json() }).parse(JSON.parse(cleared.output))
+            .cover,
+        without: without.error,
+        missing: (await send("--cover", "/none.png")).error,
+        folder: (await send("--cover", directory)).error,
+        wrong: (await send("--cover", text)).error,
+    }).toEqual({
+        cover: {
+            name: "Lisboa é.JPG",
+            picture: null,
+            size: bytes.byteLength,
+            type: "image/jpeg",
+        },
+        isSigned: "string",
+        parts: 2,
+        saved: { path: copy, size: bytes.byteLength, type: "image/jpeg" },
+        named: 0,
+        isSame: true,
+        unknown: failure("BAD_REQUEST", "file 'photo' is invalid: 'card' has 'cover'"),
+        cleared: null,
+        without: failure("BAD_REQUEST", `card '${made.id}' is invalid: its 'cover' has no file`),
+        missing: failure("BAD_REQUEST", "--'cover' file '/none.png' is invalid: it does not exist"),
+        folder: failure(
+            "BAD_REQUEST",
+            `--'cover' file '${directory}' is invalid: it is not a file`,
+        ),
+        wrong: failure(
+            "BAD_REQUEST",
+            `--'cover' file '${text}' is invalid: it takes no file of type text/plain`,
+        ),
     });
 });

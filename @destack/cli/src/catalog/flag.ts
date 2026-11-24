@@ -1,4 +1,10 @@
-import { type ActionInput, Casing, type ObjectType } from "@destack/object";
+import {
+    type ActionInput,
+    Casing,
+    type ObjectFileLimits,
+    isAccepted,
+    type ObjectType,
+} from "@destack/object";
 import { principal } from "@destack/access";
 import {
     type Comparable,
@@ -195,6 +201,45 @@ export class Flag {
             schema.identifier(this.identity).safeParse(value).success;
 
         return !isIdentifier && !value.startsWith("@") && value !== "null";
+    }
+}
+
+/** A flag of a file field, which takes the path of the file to send. */
+export class FileFlag extends Flag {
+    /** The media types and sizes the field takes. */
+    readonly limits: ObjectFileLimits;
+
+    /** Refer to a file field within limits. */
+    constructor(name: string, path: readonly string[], limits: ObjectFileLimits) {
+        super(name, path, { type: "string", isKeyed: false });
+        this.limits = limits;
+    }
+
+    /** Describe the flag's command-line option. */
+    override option(): CommandOption {
+        const words = this.name.replaceAll("-", " ");
+
+        return {
+            type: "string",
+            description: `The ${words}, from a file, null for none`,
+            argument: "path",
+        };
+    }
+
+    /** Refuse a file outside the field's limits before it is sent. */
+    require(path: string, type: string, size: number): void {
+        const most = this.limits.size;
+        if (!isAccepted(type, this.limits)) {
+            throw CliError.of(
+                "USAGE_INVALID",
+                `--'${this.name}' file '${path}' is invalid: it takes no file of type ${type}`,
+            );
+        } else if (most !== undefined && size > most) {
+            throw CliError.of(
+                "USAGE_INVALID",
+                `--'${this.name}' file '${path}' is invalid: it takes at most ${most} bytes`,
+            );
+        }
     }
 }
 
@@ -410,13 +455,26 @@ export class FlagSet {
         for (const flag of this.flags) {
             // read each given flag as its path's value
             const given = options[flag.name];
-            if (given !== undefined) {
+            if (given !== undefined && !(flag instanceof FileFlag)) {
                 const value = typeof given === "boolean" ? given : flag.value(given, filter);
                 input = FlagSet.#assign(input, flag.path, value);
             }
         }
 
         return input;
+    }
+
+    /** List the file flags given, each with the path of the file to send, absent for null. */
+    files(
+        options: CommandCall["options"],
+    ): { readonly flag: FileFlag; readonly path: string | undefined }[] {
+        return this.flags.flatMap((flag) => {
+            const path = options[flag.name];
+
+            return flag instanceof FileFlag && typeof path === "string"
+                ? [{ flag, path: path === "null" ? undefined : path }]
+                : [];
+        });
     }
 
     /** Convert a literal for its field: a date for time, a person's key for a subject. */
@@ -474,6 +532,12 @@ export class FlagSet {
             ].join("-");
             if (routed.includes(property) || RESERVED.has(name)) {
                 return [];
+            }
+
+            // take a file, sent from a path
+            const field = isNested && prefix.length === 0 ? type.fields[property] : undefined;
+            if (field?.limits !== undefined) {
+                return [new FileFlag(name, path, field.limits)];
             }
 
             // take a scalar, and the scalars of a structured value where nested
