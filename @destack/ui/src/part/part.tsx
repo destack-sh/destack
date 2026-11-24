@@ -50,6 +50,7 @@ export type Render = (attributes: PartAttributes) => JSX.Element;
 
 /** The attributes besides `aria-*` and `data-*` that a part forwards to its caller's element. */
 const FORWARDED: ReadonlySet<string> = new Set([
+    "ref",
     "id",
     "href",
     "role",
@@ -190,17 +191,26 @@ export function renderPart<Tag extends keyof JSX.IntrinsicElements>(
     return useRender({ render, defaultTagName: tag, part, properties: rest });
 }
 
-/** Run two handlers in sequence, or take the one that is a function. */
+/** Run two handlers or references in order, or the one there is, either a list of several. */
 function chain(first: unknown, second: unknown): unknown {
-    // take a lone handler
-    if (!isHandler(first) || !isHandler(second)) {
-        return isHandler(first) ? first : second;
+    // take a lone handler as it is
+    const handlers = [...handlersOf(first), ...handlersOf(second)];
+    if (handlers.length < 2) {
+        return handlers[0] ?? second;
     }
 
     return (...values: unknown[]) => {
-        first(...values);
-        second(...values);
+        for (const handler of handlers) {
+            handler(...values);
+        }
     };
+}
+
+/** List the handlers a value is, as a reference may be several. */
+function handlersOf(value: unknown): readonly ((...values: unknown[]) => void)[] {
+    const values: readonly unknown[] = Array.isArray(value) ? value.flat(Infinity) : [value];
+
+    return values.filter(isHandler);
 }
 
 /** Report whether a value is a handler or a reference callback. */

@@ -113,3 +113,35 @@ test("compose an outer part's styles between a kit part's styles and its caller'
         style.attributes([styles.inner, styles.outer, styles.caller]).class,
     );
 });
+
+test("run every reference of lists", () => {
+    const ran: string[] = [];
+    const mark = (name: string) => () => void ran.push(name);
+    render(() => (
+        <div
+            {...mergeProperties(
+                { ref: [mark("part one"), [mark("part two")]] },
+                { ref: [mark("caller")] },
+            )}
+        />
+    ));
+
+    expect(ran).toEqual(["caller", "part one", "part two"]);
+});
+
+test("run a caller's reference on the element it renders", () => {
+    const elements: Element[] = [];
+    const { container } = render(() =>
+        renderPart(
+            "button",
+            "button",
+            {
+                ref: (element: Element) => void elements.push(element),
+                render: (attributes) => <a href="#notes" {...attributes} />,
+            },
+            [],
+        ),
+    );
+
+    expect(elements).toEqual([container.querySelector("a")]);
+});

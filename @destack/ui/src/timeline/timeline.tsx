@@ -1,9 +1,28 @@
-import { Shortcut, t } from "@destack/locale";
+import { t } from "@destack/locale";
+import type { Action } from "@destack/object";
+import { present } from "@destack/schema";
 import * as style from "@destack/style";
 import { color, radius, stroke } from "@destack/theme/tokens.stylex";
-import { type JSX, omit, Show, untrack, useEnvironment, useLocale, useNow } from "@destack/view";
+import {
+    handle,
+    type JSX,
+    omit,
+    Show,
+    untrack,
+    useEnvironment,
+    useLocale,
+    useNow,
+} from "@destack/view";
 import { DragAnnouncer, useDragManager } from "../drag/index.ts";
-import { useCommandPlatform } from "../kbd/index.ts";
+import {
+    clearSelection,
+    openItem,
+    selectAll,
+    toggleSelection,
+    zoomIn,
+    zoomOut,
+    zoomToFit,
+} from "../action/index.ts";
 import { Move, Zoom } from "../interaction/index.ts";
 import { mergeProperties } from "../part/index.ts";
 import {
@@ -13,6 +32,7 @@ import {
     useTimeline,
     type TimelinePartProperties,
 } from "./control.ts";
+import { linkItem, moveRowDown, moveRowUp, panLeft, panRight } from "./actions.ts";
 import { places } from "./places.ts";
 import { TimelineItem } from "./tree.ts";
 
@@ -117,8 +137,60 @@ export function Timeline(properties: TimelineProperties): JSX.Element {
     // handle the timeline's keys on its rows
     const isChangeable = untrack(() => properties.onItemsChange !== undefined);
     const isLinkable = untrack(() => properties.onLinkCreate !== undefined);
-    const isCommand = useCommandPlatform();
+    const pan = (sign: 1 | -1): void => {
+        // pan the way the arrow points, mirrored in right-to-left text
+        control.window.pan((locale.direction === "rtl" ? -sign : sign) * PAN_STEP);
+    };
+    const rowAt = (element: Element | null): string | undefined => {
+        // find the row the person is on, none while a drag takes the keys
+        const row = element?.closest<HTMLElement>(ROW_SLOT);
+
+        return control.drag.manager.operation() === undefined ? row?.dataset["key"] : undefined;
+    };
+    const onRow = (action: Action, isEnabled: () => boolean, run: (key: string) => void) =>
+        handle(action, {
+            isEnabled: (element) => rowAt(element) !== undefined && isEnabled(),
+            run: ({ element }) => run(present(rowAt(element), "the row an action runs on")),
+        });
+    const isMovable = (): boolean => control.options.onRowMove !== undefined;
+    const handlers = [
+        // select rows
+        onRow(
+            toggleSelection,
+            () => true,
+            (key) => control.selection.toggle(key),
+        ),
+        handle(selectAll, { run: () => control.selection.selectAll(control.tree.collection) }),
+        handle(clearSelection, {
+            isEnabled: () =>
+                control.drag.manager.operation() === undefined &&
+                control.selection.values().length > 0,
+            run: () => control.selection.clear(),
+        }),
+
+        // open, move and link a row
+        onRow(
+            openItem,
+            () => control.options.onAction !== undefined,
+            (key) => control.open(key),
+        ),
+        onRow(moveRowUp, isMovable, (key) => control.stepRow(key, -1)),
+        onRow(moveRowDown, isMovable, (key) => control.stepRow(key, 1)),
+        onRow(
+            linkItem,
+            () => isLinkable,
+            (key) => control.drag.lift(key, "link-end"),
+        ),
+
+        // zoom and pan the window
+        handle(zoomIn, { run: () => control.window.zoom(ZOOM_STEP, 0.5) }),
+        handle(zoomOut, { run: () => control.window.zoom(1 / ZOOM_STEP, 0.5) }),
+        handle(zoomToFit, { run: () => control.window.fit() }),
+        handle(panLeft, { run: () => pan(-1) }),
+        handle(panRight, { run: () => pan(1) }),
+    ];
     const keys = {
+        ref: handlers,
         onKeyDown: (event: KeyboardEvent) => {
             // take keys on the rows alone, leaving the toolbar's and the links' keys to them
             const focused = control.focus.current();
@@ -128,38 +200,16 @@ export function Timeline(properties: TimelineProperties): JSX.Element {
                 return;
             }
 
-            // open the focused row's item with Enter
-            if (focused !== undefined && event.key === "Enter") {
-                event.preventDefault();
-                control.open(focused);
+            // leave arrows with a modifier to the actions
+            const isModified = event.altKey || event.ctrlKey || event.metaKey;
+            if (isModified && event.key.startsWith("Arrow")) {
+                return;
             }
-            // move the focused row a place up or down with Mod+Shift and the arrows
-            else if (
-                focused !== undefined &&
-                control.options.onRowMove !== undefined &&
-                (Shortcut.matches("mod+shift+up", event, isCommand()) ||
-                    Shortcut.matches("mod+shift+down", event, isCommand()))
-            ) {
-                event.preventDefault();
-                control.stepRow(focused, event.key === "ArrowUp" ? -1 : 1);
-            }
+
             // unfold the focused row's siblings with an asterisk, as a tree does
-            else if (focused !== undefined && event.key === "*") {
+            if (focused !== undefined && event.key === "*") {
                 event.preventDefault();
                 control.tree.expandSiblings(focused);
-            }
-            // toggle the focused row's selection with X
-            else if (focused !== undefined && (event.key === "x" || event.key === "X")) {
-                event.preventDefault();
-                control.selection.toggle(focused);
-            }
-            // select every row with Mod+A, and clear the selection with Escape
-            else if (Shortcut.matches("mod+a", event, isCommand())) {
-                event.preventDefault();
-                control.selection.selectAll(control.tree.collection);
-            } else if (event.key === "Escape" && control.selection.values().length > 0) {
-                event.preventDefault();
-                control.selection.clear();
             }
             // lift the focused row's bar with Space or place an undated item there
             else if (focused !== undefined && isChangeable && event.key === " ") {
@@ -169,30 +219,6 @@ export function Timeline(properties: TimelineProperties): JSX.Element {
                 } else {
                     control.schedule(focused);
                 }
-            }
-            // lift a link from the focused row's end with L
-            else if (
-                focused !== undefined &&
-                isLinkable &&
-                (event.key === "l" || event.key === "L")
-            ) {
-                event.preventDefault();
-                control.drag.lift(focused, "link-end");
-            } else if (event.key === "+" || event.key === "=") {
-                event.preventDefault();
-                control.window.zoom(ZOOM_STEP, 0.5);
-            } else if (event.key === "-") {
-                event.preventDefault();
-                control.window.zoom(1 / ZOOM_STEP, 0.5);
-            } else if (event.key === "0") {
-                event.preventDefault();
-                control.window.fit();
-            }
-            // pan a quarter of the window with Alt and the inline arrows, mirrored right to left
-            else if (event.altKey && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
-                event.preventDefault();
-                const isLater = (event.key === "ArrowRight") === (locale.direction === "ltr");
-                control.window.pan(isLater ? PAN_STEP : -PAN_STEP);
             }
             // fold or unfold the focused row on the inline arrows
             else if (control.fold(event, locale.direction)) {

@@ -33,6 +33,75 @@ export const openItem = defineAction({
     keybinding: "enter",
 });
 
+/** Show the item after the one shown. */
+export const nextItem = defineAction({
+    name: "item.next",
+    title: t`Next`,
+    category: t`Navigation`,
+    keybinding: "j",
+});
+
+/** Show the item before the one shown. */
+export const previousItem = defineAction({
+    name: "item.previous",
+    title: t`Previous`,
+    category: t`Navigation`,
+    keybinding: "k",
+});
+
+/** Save the item as a file. */
+export const downloadItem = defineAction({
+    name: "item.download",
+    title: t`Download`,
+    category: t`File`,
+});
+
+/** Send the item again after it failed. */
+export const retryItem = defineAction({
+    name: "item.retry",
+    title: t`Try again`,
+    category: t`File`,
+});
+
+/** Choose files to add where the person is. */
+export const attachFiles = defineAction({
+    name: "file.attach",
+    title: t`Add files`,
+    category: t`File`,
+});
+
+/** Show what the person sees closer. */
+export const zoomIn = defineAction({
+    name: "view.zoomIn",
+    title: t`Zoom in`,
+    category: t`View`,
+    keybinding: ["plus", "="],
+});
+
+/** Show more of what the person sees. */
+export const zoomOut = defineAction({
+    name: "view.zoomOut",
+    title: t`Zoom out`,
+    category: t`View`,
+    keybinding: "-",
+});
+
+/** Show what the person sees closer, or all of it again. */
+export const toggleZoom = defineAction({
+    name: "view.toggleZoom",
+    title: t`Zoom`,
+    category: t`View`,
+    keybinding: "z",
+});
+
+/** Show all of what the person sees. */
+export const zoomToFit = defineAction({
+    name: "view.zoomToFit",
+    title: t`Zoom to fit`,
+    category: t`View`,
+    keybinding: "0",
+});
+
 /** Add an item where the person is. */
 export const createItem = defineAction({
     name: "item.create",
@@ -54,7 +123,7 @@ export const removeItems = defineAction({
     name: "item.remove",
     title: t`Delete`,
     category: t`Edit`,
-    keybinding: "delete",
+    keybinding: { key: "delete", mac: ["backspace", "delete"] },
     isDestructive: true,
 });
 

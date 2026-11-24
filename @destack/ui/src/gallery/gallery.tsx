@@ -10,6 +10,7 @@ import {
     createSignal,
     createUniqueId,
     For,
+    handle,
     type JSX,
     omit,
     Show,
@@ -17,6 +18,7 @@ import {
     useLocale,
 } from "@destack/view";
 import { createElementSize } from "@destack/view/primitives/resize-observer";
+import { openItem } from "../action/index.ts";
 import { ListState } from "../focus/index.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
 import { type Box, CollageLayout, type Flow, type Layout } from "./layout.ts";
@@ -278,7 +280,10 @@ export function GalleryItem(properties: GalleryItemProperties): JSX.Element {
                                 data-slot="gallery-open"
                                 aria-label={[properties.label, more()].join(" ").trim()}
                                 tabindex={item.list.focus.isActive(key) ? 0 : -1}
-                                ref={(element) => (button = element)}
+                                ref={[
+                                    (element: HTMLElement) => (button = element),
+                                    handle(openItem, { run: () => button?.click() }),
+                                ]}
                                 onFocus={() => item.list.focus.focusIn(key)}
                                 onClick={(event) => open()(event)}
                                 {...style.attrs(state.focus, styles.open)}

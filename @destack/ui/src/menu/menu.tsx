@@ -1099,7 +1099,7 @@ export function MenuAction<Inputs extends ActionInputs>(
     const element = () =>
         properties.element === undefined ? control.origin() : properties.element;
     const isEnabled = createMemo(() => actions.has(properties.action.reference, element()));
-    const keys = () => actions.keybinding(properties.action);
+    const keys = () => actions.keybindings(properties.action, isCommand())[0];
     const start = () => actions.start(properties.action, element(), properties.given);
 
     // read what it turns on, and the one input left that a person picks from a list

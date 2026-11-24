@@ -14,7 +14,7 @@ import {
     useActions,
     useLocale,
 } from "@destack/view";
-import { mergeProperties } from "../part/index.ts";
+import { mergeProperties, type PartAttributes } from "../part/index.ts";
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { useCommandPlatform } from "../kbd/index.ts";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../tooltip/index.ts";
@@ -40,6 +40,10 @@ export interface ActionButtonProperties<Inputs extends ActionInputs = ActionInpu
     readonly element?: Element | null;
     /** The icon, beside the title or alone in an icon size. */
     readonly icon?: IconBodies;
+    /** The address a press follows as a link, doing what the action does. */
+    readonly href?: string;
+    /** The name a press saves the address under, followed instead by default. */
+    readonly download?: string;
 }
 
 /** Render a button that runs an action where it stands, else where the person last was. */
@@ -50,9 +54,19 @@ export function ActionButton<Inputs extends ActionInputs>(
     const actions = useActions();
     const locale = useLocale();
     const isCommand = useCommandPlatform();
-    const rest = omit(properties, "action", "given", "element", "icon", "variant", "children");
+    const rest = omit(
+        properties,
+        "action",
+        "given",
+        "element",
+        "icon",
+        "href",
+        "download",
+        "variant",
+        "children",
+    );
     const title = () => locale.render(properties.action.title);
-    const keys = () => actions.keybinding(properties.action);
+    const keys = () => actions.keybindings(properties.action, isCommand())[0];
     const isAlone = () => properties.size === "icon" || properties.size === "icon-sm";
     const [button, setButton] = createSignal<Element | undefined>(undefined, { ownedWrite: true });
     const place = () => {
@@ -79,12 +93,27 @@ export function ActionButton<Inputs extends ActionInputs>(
 
         return on === undefined ? undefined : on ? "true" : "false";
     };
-    const run = () => {
+    const run = (event: MouseEvent) => {
         // leave an action that does not run, whose button stays in the tab order
-        if (!isDisabled()) {
+        if (isDisabled()) {
+            event.preventDefault();
+        }
+        // run it, where the browser follows no link
+        else if (properties.href === undefined) {
             actions.start(properties.action, place(), properties.given);
         }
     };
+
+    // keep the page where a browser opens what it does not save, as it does of another origin
+    const link = (attributes: PartAttributes): JSX.Element => (
+        <a
+            {...attributes}
+            href={properties.href}
+            download={properties.download}
+            target={properties.download === undefined ? undefined : "_blank"}
+            rel={properties.download === undefined ? undefined : "noreferrer"}
+        />
+    );
 
     return (
         <Tooltip>
@@ -94,8 +123,9 @@ export function ActionButton<Inputs extends ActionInputs>(
                         {...mergeProperties(attributes, {
                             ref: (element: HTMLElement) => (created = element),
                         })}
-                        {...rest}
                         data-slot="action-button"
+                        {...rest}
+                        {...(properties.href === undefined ? {} : { render: link })}
                         data-action={properties.action.name}
                         aria-label={isAlone() ? title() : undefined}
                         aria-pressed={pressed()}
@@ -103,7 +133,7 @@ export function ActionButton<Inputs extends ActionInputs>(
                         aria-keyshortcuts={
                             keys() === undefined
                                 ? undefined
-                                : Shortcut.keys(keys() ?? "", isCommand()).join("+")
+                                : Shortcut.aria(keys() ?? "", isCommand())
                         }
                         aria-disabled={isDisabled() ? "true" : undefined}
                         onClick={run}

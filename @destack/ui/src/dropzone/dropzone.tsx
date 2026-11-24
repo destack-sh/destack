@@ -20,6 +20,7 @@ import {
     createEffect,
     createSignal,
     For,
+    handle,
     type JSX,
     merge,
     omit,
@@ -29,6 +30,7 @@ import {
 } from "@destack/view";
 import { createDropzone } from "@destack/view/primitives/upload";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
+import { attachFiles } from "../action/index.ts";
 import { useFieldControl } from "../field/control.ts";
 import {
     describeLimits,
@@ -329,7 +331,13 @@ export function Dropzone(properties: DropzoneProperties): JSX.Element {
             zone.disabled && styles.disabled,
         ],
         {
-            ref: (element: HTMLElement) => (isPage() ? undefined : dropzone.ref(element)),
+            ref: [
+                (element: HTMLElement) => (isPage() ? undefined : dropzone.ref(element)),
+                handle(attachFiles, {
+                    isEnabled: () => !zone.disabled,
+                    run: () => control.choose(),
+                }),
+            ],
             get "data-variant"() {
                 return zone.variant;
             },

@@ -1,12 +1,14 @@
 import { expect, test } from "@destack/test";
 import { present } from "@destack/schema";
-import { createSignal, flush } from "@destack/view";
+import { ActionRegistry, createSignal, flush } from "@destack/view";
 import { render } from "@destack/view/test";
+import { OpenChange } from "../layer/index.ts";
 import {
     Viewer,
     ViewerClose,
     ViewerControl,
     ViewerCount,
+    ViewerDownload,
     ViewerHeader,
     ViewerNext,
     ViewerPrevious,
@@ -21,38 +23,43 @@ const ISOLATES = /[\u2066-\u2069]/gu;
 function draw(isLooping = false) {
     const [names, setNames] = createSignal(["Lake", "Pass", "Tram"]);
     const controls: ViewerControl<string>[] = [];
-    const { container } = render(() => {
-        const viewer = new ViewerControl<string>({
-            items: names,
-            key: (name) => name,
-            isLooping,
-        });
-        controls.push(viewer);
+    const actions = new ActionRegistry();
+    const { container } = render(
+        () => {
+            const viewer = new ViewerControl<string>({
+                items: names,
+                key: (name) => name,
+                isLooping,
+            });
+            controls.push(viewer);
 
-        return (
-            <>
-                <div id="thumbnail" ref={viewer.thumbnail("Tram")}>
-                    <button type="button">Tram</button>
-                </div>
-                <Viewer control={viewer}>
-                    {(name) => (
-                        <>
-                            <ViewerHeader>
-                                <ViewerTitle>{name()}</ViewerTitle>
-                                <ViewerCount />
-                                <ViewerClose />
-                            </ViewerHeader>
-                            <ViewerStage control={viewer}>
-                                {(shown) => <p>{shown()}</p>}
-                            </ViewerStage>
-                            <ViewerPrevious />
-                            <ViewerNext />
-                        </>
-                    )}
-                </Viewer>
-            </>
-        );
-    });
+            return (
+                <>
+                    <div id="thumbnail" ref={viewer.thumbnail("Tram")}>
+                        <button type="button">Tram</button>
+                    </div>
+                    <Viewer control={viewer}>
+                        {(name) => (
+                            <>
+                                <ViewerHeader>
+                                    <ViewerTitle>{name()}</ViewerTitle>
+                                    <ViewerCount />
+                                    <ViewerDownload href={`/${name()}`} />
+                                    <ViewerClose />
+                                </ViewerHeader>
+                                <ViewerStage control={viewer}>
+                                    {(shown) => <p>{shown()}</p>}
+                                </ViewerStage>
+                                <ViewerPrevious />
+                                <ViewerNext />
+                            </>
+                        )}
+                    </Viewer>
+                </>
+            );
+        },
+        { actions },
+    );
     const viewer = present(controls[0], "the viewer");
     viewer.open("Pass");
     flush();
@@ -73,7 +80,7 @@ function draw(isLooping = false) {
         return shown();
     };
 
-    return { container, viewer, shown, press, setNames };
+    return { container, viewer, actions, shown, press, setNames };
 }
 
 test("move between items by keys", () => {
@@ -81,16 +88,48 @@ test("move between items by keys", () => {
 
     expect([
         shown(),
+        container.querySelectorAll("[data-slot=viewer-next]").length,
         ...["ArrowRight", "ArrowRight", "Home", "ArrowLeft", "End"].map(press),
-        container.querySelector("[data-slot=viewer-next]"),
+        container.querySelectorAll("[data-slot=viewer-next]").length,
     ]).toEqual([
         ["Pass", "2 of 3"],
+        1,
         ["Tram", "3 of 3"],
         ["Tram", "3 of 3"],
         ["Lake", "1 of 3"],
         ["Lake", "1 of 3"],
         ["Tram", "3 of 3"],
-        null,
+        0,
+    ]);
+});
+
+test("move between items by actions", () => {
+    const { press } = draw();
+
+    expect(["j", "j", "k"].map(press)).toEqual([
+        ["Tram", "3 of 3"],
+        ["Tram", "3 of 3"],
+        ["Pass", "2 of 3"],
+    ]);
+});
+
+test("offer what runs to the palette", () => {
+    const { container, viewer, actions, press } = draw();
+    const offered = () =>
+        actions
+            .actions(container.querySelector("dialog"))
+            .map(({ name }) => name)
+            .toSorted();
+    const middle = offered();
+    press("End");
+    const end = offered();
+    viewer.dialog.close(new OpenChange("none"));
+    flush();
+
+    expect([middle, end, actions.actions(null).map(({ name }) => name)]).toEqual([
+        ["item.download", "item.next", "item.previous"],
+        ["item.download", "item.previous"],
+        [],
     ]);
 });
 

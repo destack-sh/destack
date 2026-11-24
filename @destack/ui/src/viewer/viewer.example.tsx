@@ -18,6 +18,13 @@ import {
     ViewerZoomToggle,
 } from "./viewer.tsx";
 
+/** The style of a file's card in its gallery. */
+const styles = style.create({
+    card: {
+        height: "100%",
+    },
+});
+
 /** A file of a trip. */
 interface TripFile {
     /** Its name. */
@@ -73,7 +80,11 @@ export const viewerTrip = defineExample({
                             <Show
                                 when={file().type.startsWith("image/")}
                                 fallback={
-                                    <FileItem layout="card" file={{ ...file(), size: 1200 }} />
+                                    <FileItem
+                                        layout="card"
+                                        file={{ ...file(), size: 1200 }}
+                                        xstyle={styles.card}
+                                    />
                                 }
                             >
                                 <img

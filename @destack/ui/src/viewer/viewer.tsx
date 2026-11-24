@@ -15,6 +15,8 @@ import {
     createEffect,
     createSignal,
     For,
+    handle,
+    handleAction,
     type JSX,
     omit,
     Show,
@@ -24,6 +26,17 @@ import {
     useLocale,
 } from "@destack/view";
 import { isMotionReduced } from "@destack/view/motion";
+import {
+    ActionButton,
+    type ActionButtonProperties,
+    downloadItem,
+    nextItem,
+    previousItem,
+    toggleZoom,
+    zoomIn,
+    zoomOut,
+    zoomToFit,
+} from "../action/index.ts";
 import { Button, type ButtonProperties } from "../button/index.ts";
 import {
     Dialog,
@@ -86,6 +99,9 @@ const styles = style.create({
         "::backdrop": {
             backgroundColor: color.background,
         },
+    },
+    items: {
+        display: "contents",
     },
     header: {
         zIndex: 1,
@@ -189,6 +205,22 @@ export function Viewer<Item>(properties: ViewerProperties<Item>): JSX.Element {
         }
     };
 
+    // offer what a person does as actions
+    const { scale } = control;
+    const isCloser = () => scale.isScalable() && scale.isCloser();
+    const handlers = [
+        handle(nextItem, { isEnabled: () => control.has(1), run: () => control.step(1) }),
+        handle(previousItem, { isEnabled: () => control.has(-1), run: () => control.step(-1) }),
+        handle(zoomIn, { isEnabled: scale.isScalable, run: () => scale.zoom(KEY_SCALE) }),
+        handle(zoomOut, { isEnabled: isCloser, run: () => scale.zoom(1 / KEY_SCALE) }),
+        handle(toggleZoom, {
+            isEnabled: scale.isScalable,
+            isOn: () => scale.isCloser(),
+            run: () => scale.toggle(),
+        }),
+        handle(zoomToFit, { isEnabled: isCloser, run: () => scale.reset() }),
+    ];
+
     // grow from what stands for the item on the page, and shrink back to it
     createEffect(control.dialog.isOpen, (isOpen, wasOpen) => {
         if (isOpen && element !== undefined) {
@@ -212,9 +244,10 @@ export function Viewer<Item>(properties: ViewerProperties<Item>): JSX.Element {
                     data-slot="viewer"
                     showCloseButton={false}
                     xstyle={styles.dialog}
+                    ref={handlers}
                     onKeyDown={press}
                 >
-                    <div ref={(created) => (element = created)} style={{ display: "contents" }}>
+                    <div ref={(created) => (element = created)} {...style.attrs(styles.items)}>
                         <Show when={control.item()}>{(item) => properties.children(item)}</Show>
                     </div>
                 </DialogContent>
@@ -278,33 +311,32 @@ export function ViewerClose(properties: ButtonProperties): JSX.Element {
     );
 }
 
+/** The properties of a button of a viewer, which runs an action there. */
+export type ViewerButtonProperties = Omit<ActionButtonProperties, "action" | "element">;
+
 /** Render the button that shows a picture closer or whole, nothing for an item without one. */
-export function ViewerZoomToggle(properties: ButtonProperties): JSX.Element {
-    // tell whether it shows the picture closer
+export function ViewerZoomToggle(properties: ViewerButtonProperties): JSX.Element {
     const viewer = useViewer();
-    const locale = useLocale();
-    const isCloser = (): boolean => viewer.scale.isCloser();
 
     return (
         <Show when={viewer.scale.isScalable()}>
-            <Button
+            <ActionButton
                 data-slot="viewer-zoom-toggle"
                 variant="ghost"
                 size="icon"
-                aria-label={locale.render(isCloser() ? t`Zoom out` : t`Zoom in`)}
-                {...mergeProperties(
-                    { onClick: () => viewer.scale.toggle() },
-                    omit(properties, "children"),
-                )}
-            >
-                {properties.children ?? <Icon icon={isCloser() ? zoomOutIcon : zoomInIcon} />}
-            </Button>
+                icon={viewer.scale.isCloser() ? zoomOutIcon : zoomInIcon}
+                {...properties}
+                action={toggleZoom}
+            />
         </Show>
     );
 }
 
 /** The properties of a viewer's download, the button's included. */
-export interface ViewerDownloadProperties extends ButtonProperties {
+export interface ViewerDownloadProperties extends Omit<
+    ViewerButtonProperties,
+    "href" | "download"
+> {
     /** The address of the item. */
     readonly href: string;
     /** The name it is saved under, the address's own by default. */
@@ -313,37 +345,53 @@ export interface ViewerDownloadProperties extends ButtonProperties {
 
 /** Render the link that saves a viewer's item. */
 export function ViewerDownload(properties: ViewerDownloadProperties): JSX.Element {
-    const locale = useLocale();
-    const rest = omit(properties, "href", "name", "children");
+    // save the item from anywhere while the viewer is open
+    const viewer = useViewer();
+    const rest = omit(properties, "href", "name");
+    handleAction(downloadItem, {
+        isEnabled: () => viewer.dialog.isOpen(),
+        run: () => {
+            // follow a link of its own, as a browser saves by one
+            const link = document.createElement("a");
+            link.href = properties.href;
+            link.download = properties.name ?? "";
+            link.target = "_blank";
+            link.rel = "noreferrer";
+            link.click();
+        },
+    });
 
     return (
-        <Button
+        <ActionButton
             data-slot="viewer-download"
             variant="ghost"
             size="icon"
-            aria-label={locale.render(t`Download`)}
-            render={(attributes) => (
-                <a {...attributes} href={properties.href} download={properties.name ?? ""} />
-            )}
+            icon={downloadIcon}
             {...rest}
-        >
-            {properties.children ?? <Icon icon={downloadIcon} />}
-        </Button>
+            href={properties.href}
+            download={properties.name ?? ""}
+            action={downloadItem}
+        />
     );
 }
 
 /** Render the button that shows the item before, nothing before the first. */
-export function ViewerPrevious(properties: ButtonProperties): JSX.Element {
-    return <ViewerStep step={-1} {...properties} />;
+export function ViewerPrevious(properties: ViewerButtonProperties): JSX.Element {
+    return <ViewerStep {...properties} step={-1} />;
 }
 
 /** Render the button that shows the item after, nothing after the last. */
-export function ViewerNext(properties: ButtonProperties): JSX.Element {
-    return <ViewerStep step={1} {...properties} />;
+export function ViewerNext(properties: ViewerButtonProperties): JSX.Element {
+    return <ViewerStep {...properties} step={1} />;
 }
 
 /** Render the button that shows an item a step away. */
-function ViewerStep(properties: ButtonProperties & { readonly step: 1 | -1 }): JSX.Element {
+function ViewerStep(
+    properties: ViewerButtonProperties & {
+        /** The step. */
+        readonly step: 1 | -1;
+    },
+): JSX.Element {
     // point the way the item is, mirrored in right-to-left text
     const viewer = useViewer();
     const locale = useLocale();
@@ -352,19 +400,15 @@ function ViewerStep(properties: ButtonProperties & { readonly step: 1 | -1 }): J
 
     return (
         <Show when={viewer.has(properties.step)}>
-            <Button
+            <ActionButton
                 data-slot={isNext() ? "viewer-next" : "viewer-previous"}
                 variant="outline"
                 size="icon"
-                aria-label={locale.render(isNext() ? t`Next` : t`Previous`)}
-                {...mergeProperties(
-                    { onClick: () => viewer.step(properties.step) },
-                    omit(properties, "children", "step", "xstyle"),
-                )}
+                icon={icon()}
+                {...omit(properties, "step", "xstyle")}
+                action={isNext() ? nextItem : previousItem}
                 xstyle={[styles.step, isNext() ? styles.next : styles.previous, properties.xstyle]}
-            >
-                {properties.children ?? <Icon icon={icon()} />}
-            </Button>
+            />
         </Show>
     );
 }
@@ -583,9 +627,9 @@ export function ViewerZoom(properties: ViewerZoomProperties): JSX.Element {
     );
 }
 
-/** Move between items, scale the picture, or leave the key alone. */
+/** Move between items by the arrow keys, Home and End, or leave the key alone. */
 function steer(event: KeyboardEvent, viewer: ViewerState, direction: "ltr" | "rtl"): void {
-    // read the step, the end or the scale the key asks for
+    // read the step or the end the key asks for, mirrored in right-to-left text
     const forward = direction === "ltr" ? "ArrowRight" : "ArrowLeft";
     const backward = direction === "ltr" ? "ArrowLeft" : "ArrowRight";
     if (event.key === forward) {
@@ -596,12 +640,6 @@ function steer(event: KeyboardEvent, viewer: ViewerState, direction: "ltr" | "rt
         viewer.end("first");
     } else if (event.key === "End") {
         viewer.end("last");
-    } else if (event.key === "+" || event.key === "=") {
-        viewer.scale.zoom(KEY_SCALE);
-    } else if (event.key === "-") {
-        viewer.scale.zoom(1 / KEY_SCALE);
-    } else if (event.key === "0") {
-        viewer.scale.reset();
     }
     // leave any other key
     else {

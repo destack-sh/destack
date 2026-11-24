@@ -30,6 +30,7 @@ import {
     createContext,
     createSignal,
     createUniqueId,
+    handle,
     type JSX,
     merge,
     omit,
@@ -37,6 +38,7 @@ import {
     useContext,
     useLocale,
 } from "@destack/view";
+import { openItem, removeItems, retryItem } from "../action/index.ts";
 import { Button, type ButtonProperties } from "../button/index.ts";
 import { ListState } from "../focus/index.ts";
 import { type ElementPartProperties, mergeProperties, renderPart } from "../part/index.ts";
@@ -163,7 +165,9 @@ const styles = style.create({
         fontSize: "1rem",
     },
     frameCard: {
+        flexShrink: 1,
         width: "100%",
+        minHeight: 0,
         aspectRatio: "1",
         fontSize: "2rem",
     },
@@ -304,6 +308,17 @@ export function FileItem(properties: FileItemProperties): JSX.Element {
         "onRemove",
         "children",
     );
+    const handlers = [
+        handle(openItem, {
+            isEnabled: () => control.isOpenable,
+            run: () => opens(element)?.click(),
+        }),
+        handle(removeItems, {
+            isEnabled: (place) => isGrouped && place === element && control.isRemovable,
+            run: () => control.remove(),
+        }),
+        handle(retryItem, { isEnabled: () => control.isRetryable, run: () => control.retry() }),
+    ];
     const isCard = (): boolean => control.layout === "card";
     const isSmall = (): boolean => control.size === "sm";
     const isSmallRow = (): boolean => isSmall() && !isCard();
@@ -322,14 +337,17 @@ export function FileItem(properties: FileItemProperties): JSX.Element {
             isGrouped && state.focus,
         ],
         {
-            ref: (target: HTMLElement) => (element = target),
+            ref: [(target: HTMLElement) => (element = target), ...handlers],
             get tabindex() {
                 return group === null ? undefined : group.focus.isActive(key) ? 0 : -1;
             },
             onFocus: () => group?.focus.focusIn(key),
             onKeyDown: (event: KeyboardEvent & { readonly currentTarget: Element }) => {
-                if (isGrouped && event.target === event.currentTarget) {
-                    steer(event, control);
+                // open it by Space, as a button does
+                const isOwn = isGrouped && event.target === event.currentTarget;
+                if (isOwn && event.key === " " && control.isOpenable) {
+                    event.preventDefault();
+                    opens(element)?.click();
                 }
             },
             get "data-layout"() {
@@ -713,24 +731,9 @@ export function FileItemGroup(properties: FileItemGroupProperties): JSX.Element 
     );
 }
 
-/** Open a focused file on Enter or Space, and remove it on Delete or Backspace. */
-function steer(
-    event: KeyboardEvent & { readonly currentTarget: Element },
-    item: FileItemControl,
-): void {
-    // click what opens it, as a link opens with the browser's own ways
-    if (event.key === "Enter" || event.key === " ") {
-        const open = event.currentTarget.querySelector<HTMLElement>("[data-slot=file-item-open]");
-        if (open !== null) {
-            event.preventDefault();
-            open.click();
-        }
-    }
-    // remove it, the focus moving to the file that takes its place
-    else if ((event.key === "Delete" || event.key === "Backspace") && item.isRemovable) {
-        event.preventDefault();
-        item.remove();
-    }
+/** Find what opens a file, which the browser follows as it does a link. */
+function opens(item: HTMLElement | undefined): HTMLElement | null {
+    return item?.querySelector<HTMLElement>("[data-slot=file-item-open]") ?? null;
 }
 
 /** Write why a file could not be sent: in the app's words, as a refusal, or as its upload ended. */

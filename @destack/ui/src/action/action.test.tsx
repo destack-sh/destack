@@ -305,3 +305,33 @@ test("disable a button while its action does not run, the button staying in the 
         ["true", false, 1],
     ]);
 });
+
+test("follow a link in place of its action", () => {
+    const ran: string[] = [];
+    const [isEnabled, setEnabled] = createSignal(true, { ownedWrite: true });
+    const { container } = render(
+        () => {
+            handleAction(archive, { isEnabled, run: () => void ran.push("archive") });
+
+            return <ActionButton action={archive} href="#archive" download="archive.zip" />;
+        },
+        { actions: new ActionRegistry() },
+    );
+    flush();
+    const link = container.querySelector("a");
+    const follow = () =>
+        link?.dispatchEvent(new MouseEvent("click", { cancelable: true, bubbles: true }));
+    const followed = follow();
+    setEnabled(false);
+    flush();
+
+    expect({
+        link: [link?.getAttribute("href"), link?.download, link?.target, link?.rel],
+        followed: [followed, follow()],
+        ran,
+    }).toEqual({
+        link: ["#archive", "archive.zip", "_blank", "noreferrer"],
+        followed: [true, false],
+        ran: [],
+    });
+});
