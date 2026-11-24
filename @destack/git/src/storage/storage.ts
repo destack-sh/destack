@@ -30,6 +30,16 @@ export const GitListing = schema.object({
 /** Every branch and tag of a repository, and the existing branch of its HEAD. */
 export type GitListing = schema.Infer<typeof GitListing>;
 
+/** The person a commit names as its author. */
+export const GitAuthor = schema.object({
+    /** The author's name. */
+    name: schema.string().min(1),
+    /** The author's email address. */
+    email: schema.string().min(1),
+});
+/** The person a commit names as its author. */
+export type GitAuthor = schema.Infer<typeof GitAuthor>;
+
 /** A short-lived HTTP basic credential for Git over HTTPS. */
 const credential = schema.object({
     /** The basic authentication user name. */
