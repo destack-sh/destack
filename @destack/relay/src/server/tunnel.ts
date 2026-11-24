@@ -148,8 +148,8 @@ export interface TunnelOptions {
     readonly url: string;
     /** The universe's tunnel tokens and keys, which machines renew their tunnels with. */
     readonly tokens: Pick<TunnelToken, "verify" | "isStanding">;
-    /** Wait until the partition follows the universe's identities, whose keys verify the tokens. */
-    readonly identities: () => Promise<void>;
+    /** Wait until the replicas verifying the tokens, identities and residencies, synced. */
+    readonly synced: () => Promise<void>;
     /** Read from the relay's root whether the machine stands, and its name. */
     readonly standing: () => Promise<TunnelStanding>;
     /** Publish the machine's tunnel here at the universe, lapsing with its token. */
@@ -522,7 +522,7 @@ export class Tunnel implements SocketHandler {
         }
 
         // close each woken socket whose token's key the universe revoked, keeping the others
-        await this.#options.identities();
+        await this.#options.synced();
         for (const socket of woken) {
             // keep a socket whose key stands, and close one a concurrent close did not take meanwhile
             const isStanding = await this.#options.tokens.isStanding(socket.attachment.kid);
@@ -617,7 +617,7 @@ export class Tunnel implements SocketHandler {
         // verify the token and the machine's standing, then store the lapse and answer the name
         let response: Response;
         try {
-            await this.#options.identities();
+            await this.#options.synced();
             const attachment = await this.#verifyRenewal(request);
             const name = await this.#requireName();
             this.#relapse(renewing, attachment);

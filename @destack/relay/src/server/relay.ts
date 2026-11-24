@@ -19,6 +19,7 @@ import {
     key,
     machine,
     Placement,
+    type ResidencyCode,
     space,
 } from "@destack/account/object";
 import type { Projection, Snapshot } from "@destack/db/database";
@@ -56,8 +57,10 @@ export interface RelayOptions {
     readonly fetch: Fetch;
     /** The clock tokens and endpoints lapse on, and the WebCrypto verifying the tokens. */
     readonly environment: Pick<Environment, "clock" | "crypto" | "network" | "telemetry">;
-    /** Wait until the directory's and the residents' replicas synced, which standing reads. */
+    /** Wait until the replicas of the directory, the identities and the residencies synced. */
     readonly synced: () => Promise<void>;
+    /** The residency whose accounts' machines tunnel to the relay. */
+    readonly residency: ResidencyCode;
 }
 
 /** Where the relay forwards a name's requests: a machine's tunnel, or a published endpoint. */
@@ -72,7 +75,7 @@ export class Relay {
 
     /** The replica of the directory and the identities: placements, machines and keys. */
     readonly #view: Snapshot;
-    /** Wait until the replicas standing reads synced. */
+    /** Wait until the replicas that handshakes and standings read synced. */
     readonly #synced: () => Promise<void>;
 
     /** The directory over the replica, which resolves names, handles and placements. */
@@ -106,7 +109,12 @@ export class Relay {
         this.#telemetry = options.environment.telemetry;
 
         // set the token verifier and the calls to tunnels and cloud machines
-        this.#tokens = new TunnelToken(options.universe.issuer, this.#view, options.environment);
+        this.#tokens = new TunnelToken(
+            options.universe.issuer,
+            options.residency,
+            this.#view,
+            options.environment,
+        );
         this.universe = options.universe;
         this.#itself = options.itself;
         this.#origin = new URL(options.origin);
@@ -163,6 +171,9 @@ export class Relay {
                 "authentication required: the bearer subprotocol has no token",
             );
         }
+
+        // verify the token for the relay's residency by the universe's keys once their replica synced
+        await this.#synced();
         const { machineId, lapsesAt, kid } = await this.#tokens.verify(token, this.#clock.now());
 
         // require the machine to stand with a standing key
@@ -170,17 +181,6 @@ export class Relay {
         if ("reason" in standing) {
             const [reason, refused] = STANDING_ERRORS[standing.reason];
             throw RelayError.of(reason, `machine ${machineId} ${refused}`);
-        }
-
-        // require its account among the relay's residents
-        const resident = await this.#view
-            .read(account.table)
-            .findFirst({ where: { id: standing.account } });
-        if (resident === undefined) {
-            throw RelayError.of(
-                "RESIDENCY_DENIED",
-                `'${standing.name}' is forbidden: it tunnels through the relay of its account's residency`,
-            );
         }
 
         return { machineId, lapsesAt, kid, name: standing.name, account: standing.account };

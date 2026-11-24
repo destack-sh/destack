@@ -1,5 +1,11 @@
 import { t } from "@destack/locale";
 import { defineMount, definePackage } from "@destack/object";
+import {
+    directoryShape,
+    identityShape,
+    residencyShape,
+    residentsShape,
+} from "@destack/account/object";
 import { RelayError } from "./error/error.ts";
 
 /** The handle stacks import to install the relay in a residency's home. */
@@ -12,5 +18,7 @@ export default definePackage({
         defineMount({ name: "tunnels", path: "/machines", callers: "self" }),
         defineMount({ name: "names", path: "/names" }),
     ],
+    // follow the universe's directory, identities and residencies, and the residency's accounts, which route and verify tunnels
+    follows: [directoryShape, identityShape, residencyShape, residentsShape],
     errors: RelayError,
 });
