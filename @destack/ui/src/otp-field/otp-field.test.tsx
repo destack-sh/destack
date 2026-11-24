@@ -2,25 +2,25 @@ import { expect, test } from "@destack/test";
 import { render } from "@destack/view/test";
 import { flush } from "@destack/view";
 import { Field, FieldLabel } from "../field/index.ts";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "./index.ts";
+import { OtpField, OtpFieldGroup, OtpFieldSlot } from "./index.ts";
 
 /** Render a four-digit code input labelled by its field, recording each change and completion. */
 function drawCode(changes: string[], completions: string[]): HTMLElement {
     return render(() => (
         <Field>
             <FieldLabel>Code</FieldLabel>
-            <InputOTP
+            <OtpField
                 maxLength={4}
                 onValueChange={(value) => changes.push(value)}
                 onComplete={(value) => completions.push(value)}
             >
-                <InputOTPGroup>
-                    <InputOTPSlot index={0} />
-                    <InputOTPSlot index={1} />
-                    <InputOTPSlot index={2} />
-                    <InputOTPSlot index={3} />
-                </InputOTPGroup>
-            </InputOTP>
+                <OtpFieldGroup>
+                    <OtpFieldSlot index={0} />
+                    <OtpFieldSlot index={1} />
+                    <OtpFieldSlot index={2} />
+                    <OtpFieldSlot index={3} />
+                </OtpFieldGroup>
+            </OtpField>
         </Field>
     )).container;
 }
@@ -35,7 +35,7 @@ function enter(input: HTMLInputElement, text: string): void {
 
 /** Read the character each slot shows. */
 function slots(container: Element): string[] {
-    return [...container.querySelectorAll("[data-slot=input-otp-slot]")].map(
+    return [...container.querySelectorAll("[data-slot=otp-field-slot]")].map(
         (slot) => slot.textContent ?? "",
     );
 }
@@ -75,7 +75,7 @@ test("mark the slot with the caret while the input has the focus", () => {
     if (input !== null) {
         enter(input, "7");
     }
-    const active = [...container.querySelectorAll("[data-slot=input-otp-slot]")].map((slot) =>
+    const active = [...container.querySelectorAll("[data-slot=otp-field-slot]")].map((slot) =>
         slot.hasAttribute("data-active"),
     );
     expect(active).toEqual([false, true, false, false]);

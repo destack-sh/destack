@@ -56,7 +56,7 @@ import { iconActions } from "../icon/icon.example.tsx";
 import { iconPickerProjectIcon } from "../icon-picker/icon-picker.example.tsx";
 import { inputSearch, inputSearchDisabled, inputSearchInvalid } from "../input/input.example.tsx";
 import { inputGroupNoteSearch } from "../input-group/input-group.example.tsx";
-import { inputOTPSignInCode } from "../input-otp/input-otp.example.tsx";
+import { otpFieldSignInCode } from "../otp-field/otp-field.example.tsx";
 import { itemRecentNotes } from "../item/item.example.tsx";
 import { kbdCommandShortcut } from "../kbd/kbd.example.tsx";
 import { labelTermsCheckbox } from "../label/label.example.tsx";
@@ -256,7 +256,7 @@ const COMPONENTS: readonly (readonly [string, readonly Shown[]])[] = [
     ["Icon picker", [iconPickerProjectIcon]],
     ["Input", [inputSearch]],
     ["Input group", [inputGroupNoteSearch]],
-    ["Input otp", [inputOTPSignInCode]],
+    ["Input otp", [otpFieldSignInCode]],
     ["Item", [itemRecentNotes]],
     ["Kbd", [kbdCommandShortcut]],
     ["Label", [labelTermsCheckbox]],
