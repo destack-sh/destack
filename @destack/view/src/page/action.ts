@@ -290,7 +290,7 @@ export class ActionRegistry {
     ): string {
         // write the title without a sentence, or while an input is missing
         const { values, asked } = this.#resolve(action, element, JsonValue.object(given));
-        if (action.summary === undefined || asked.some(({ need }) => need === "required")) {
+        if (action.summary === undefined || asked.some(({ presence }) => presence === "required")) {
             return localization.render(action.title);
         }
 
