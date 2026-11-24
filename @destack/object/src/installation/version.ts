@@ -44,23 +44,13 @@ const versions = schema.discriminatedUnion("kind", [
         kind: schema.literal("repository"),
         /** The registered repository. */
         repository: schema.identifier("repository"),
-        /** The full branch or tag reference. */
-        reference: schema.string().regex(/^refs\/(heads|tags)\/.+$/u),
+        /** The full branch, tag or checkout reference. */
+        reference: schema.string().regex(/^refs\/(heads|tags|checkouts)\/.+$/u),
         /** The package directory within the repository. */
         directory: PackageDirectory,
     }),
-    schema.object({
-        /** Follow a local working directory, including unpublished changes. */
-        kind: schema.literal("checkout"),
-        /** The machine administering the checkout. */
-        machine: schema.identifier("machine"),
-        /** The checkout registered on that machine. */
-        checkout: schema.identifier("checkout"),
-        /** The package directory within the checkout. */
-        directory: PackageDirectory,
-    }),
 ]);
-/** The version an installation runs: a release, a tag, the host's, a reference or a checkout. */
+/** The version an installation runs: a release, a tag, the host's, or a repository reference. */
 export const InstallationVersion = Object.assign(versions, {
     /** Report whether a version resolves to a release: by version, by tag, or the host's. */
     isRelease(version: InstallationVersion): boolean {

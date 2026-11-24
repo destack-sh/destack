@@ -16,7 +16,8 @@ import { conceal, CallError } from "../error/call.ts";
 import { ObjectError } from "../error/error.ts";
 import { MethodContext, RecordedRow } from "../method/context.ts";
 import { Execution, type StoreExecution } from "../method/execution.ts";
-import { Method, type MethodConfiguration } from "../method/method.ts";
+import { Method, type MethodConfiguration, type MethodConflict } from "../method/method.ts";
+import { Step } from "../method/step.ts";
 import { EventLog } from "../query/event.ts";
 import { Numbered } from "../trait/numbered.ts";
 import { Orderable } from "../trait/orderable.ts";
@@ -454,16 +455,24 @@ export const RecordExecution = {
         return rows;
     },
 
-    /** Insert a created object. */
+    /** Insert a created object, else answer the existing one its written row matches on a key. */
     async createObject(
         context: MethodContext<MethodConfiguration, unknown, string>,
         execution: Execution,
+        conflict?: MethodConflict,
     ): Promise<Select<Table>> {
+        // answer the object the row as written matches on the key, changing the fields the conflict updates
+        const written = Row.parse(await RecordExecution.createdValues(context, execution));
+        const existing =
+            conflict === undefined
+                ? undefined
+                : await RecordExecution.existing(context, execution, conflict.key, written);
+        if (conflict !== undefined && existing !== undefined) {
+            return RecordExecution.updateConflict(context, execution, existing, written, conflict);
+        }
+
         // write the created row and record its number, then record its access
-        const row = ObjectRecord.createdRow(
-            context.object.table,
-            await RecordExecution.createdValues(context, execution),
-        );
+        const row = ObjectRecord.createdRow(context.object.table, written);
         await Execution.write(execution, context, {
             table: context.object.table,
             before: null,
@@ -475,6 +484,39 @@ export const RecordExecution = {
         await RecordExecution.recordCreation(context, context.id, execution);
 
         return row;
+    },
+
+    /** Change the fields a conflict updates on an existing object, as its update permits. */
+    async updateConflict(
+        context: MethodContext<MethodConfiguration, unknown, string>,
+        execution: Execution,
+        existing: Row,
+        written: Row,
+        conflict: MethodConflict,
+    ): Promise<Select<Table>> {
+        // take the listed fields the written row changes
+        const definition = context.object.table[TABLE];
+        const encodedWritten = definition.encode(Table.values(context.object.table, written));
+        const encodedExisting = definition.encode(existing);
+        const updated = (conflict.update ?? []).filter(
+            (name) => !Step.same(encodedWritten[name] ?? null, encodedExisting[name] ?? null),
+        );
+        if (updated.length === 0) {
+            return Table.complete(context.object.table, existing);
+        }
+
+        // require the type's update permission on the object at its home, then change the fields
+        if (!execution.isPredicted) {
+            const updating = Object.values(context.object.methods).find(
+                (method) => method.kind === "update",
+            );
+            const { permission } = present(updating, `the update method of ${context.object.name}`);
+            const target = context.object.reference(context.scope, RecordedRow.parse(existing).id);
+            await context.require(context.object.permission(permission), target);
+        }
+        const changes = Object.fromEntries(updated.map((name) => [name, written[name]]));
+
+        return await context.at(existing).update(changes);
     },
 
     /** Record a created object's access: a new scope's chain and its first relationships. */
@@ -578,8 +620,9 @@ export const RecordExecution = {
     /** Read the object that already exists under a creation's unique key, as written. */
     async existing(
         context: MethodContext,
-        execution: StoreExecution,
+        execution: Execution,
         key: string | undefined,
+        written?: Row,
     ): Promise<Row | undefined> {
         // find nothing without a key
         if (key === undefined) {
@@ -596,26 +639,31 @@ export const RecordExecution = {
         const columns = declared !== undefined && "on" in declared ? declared.on : ["id"];
 
         // match the written values on those columns, the identifier the caller gives among them
-        const written = Table.values(
-            context.object.table,
-            Row.parse(await RecordExecution.createdValues(context, execution)),
-        );
-        const values = context.id === undefined ? written : { ...written, id: context.id };
+        const created =
+            written ?? Row.parse(await RecordExecution.createdValues(context, execution));
+        const stored = Table.values(context.object.table, created);
+        const values = context.id === undefined ? stored : { ...stored, id: context.id };
         if (columns.includes("id") && context.id === undefined) {
             throw new TypeError(
                 `answering a ${context.object.name} on an id conflict needs the caller's id`,
             );
         }
         const matched = Object.fromEntries(columns.map((column) => [column, values[column]]));
-        const where = Condition.equal(MATCH.parse(matched));
+        const equal = Condition.equal(MATCH.parse(matched));
+
+        // match only the rows a partial unique index covers
+        const covered = declared?.kind === "index" ? declared.where : undefined;
+        const where = covered === undefined ? equal : { AND: [equal, covered] };
         const [row] = await context.read(context.object.table).findMany({ where, limit: 1 });
         if (row === undefined) {
             return undefined;
         }
 
-        // answer it to a caller who could create it as written
-        const grants = await execution.authorization.reader(context.scope);
-        await RecordExecution.requirePermitted(context, execution, row, grants, "concealed");
+        // answer it to a caller who could create it as written, which a prediction's replica shows already
+        if (!execution.isPredicted) {
+            const grants = await execution.authorization.reader(context.scope);
+            await RecordExecution.requirePermitted(context, execution, row, grants, "concealed");
+        }
 
         return row;
     },

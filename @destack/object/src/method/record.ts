@@ -135,31 +135,20 @@ export const ObjectRecord = {
         return calls.length === 0 ? undefined : calls;
     },
 
+    /** Restore the fields a conflicting creation changed on an existing object. */
+    restoreConflict(step: Step, fields: readonly string[]): readonly sync.Call[] | undefined {
+        const changed = fields.filter(
+            (name) => !Step.same(step.before?.[name], step.after?.[name]),
+        );
+
+        return restoreFields(step, changed, (input) => Step.call(step, "update", input));
+    },
+
     /** Restore the updated fields a step wrote that stayed unchanged since. */
     restoreUpdated(step: Step): readonly sync.Call[] | undefined {
-        // restore nothing for a deleted object
-        const current = step.current;
-        if (current === undefined) {
-            return undefined;
-        }
+        const written = step.object.written.filter((name) => Object.hasOwn(step.input, name));
 
-        // restore the fields unchanged since
-        const restored = Object.fromEntries(
-            step.object.written
-                .filter((name) => Object.hasOwn(step.input, name))
-                .filter((name) => Step.same(current[name], step.after?.[name]))
-                .map((name) => [name, step.before?.[name] ?? null]),
-        );
-        if (Object.keys(restored).length === 0) {
-            return undefined;
-        }
-
-        return [
-            Step.record(step, step.name, {
-                ...Step.target(step),
-                ...restored,
-            }),
-        ];
+        return restoreFields(step, written, (input) => Step.record(step, step.name, input));
     },
 
     /** Refuse tracked objects, whose change records bulk calls skip. */
@@ -224,3 +213,29 @@ export const ObjectRecord = {
         };
     },
 };
+
+/** Restore a step's fields unchanged since through a call, none for a deleted object. */
+function restoreFields(
+    step: Step,
+    fields: readonly string[],
+    call: (input: JsonObject) => sync.Call | undefined,
+): readonly sync.Call[] | undefined {
+    // restore nothing for a deleted object
+    const current = step.current;
+    if (current === undefined) {
+        return undefined;
+    }
+
+    // restore the fields unchanged since
+    const restored = Object.fromEntries(
+        fields
+            .filter((name) => Step.same(current[name], step.after?.[name]))
+            .map((name) => [name, step.before?.[name] ?? null]),
+    );
+    const restoring =
+        Object.keys(restored).length === 0
+            ? undefined
+            : call({ ...Step.target(step), ...restored });
+
+    return restoring === undefined ? undefined : [restoring];
+}

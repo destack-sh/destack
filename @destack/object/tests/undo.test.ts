@@ -102,6 +102,24 @@ const stamp = defineObject({
     traits: [shareable({})],
 });
 
+/** Badges unique by label, whose creation of a taken label changes that badge's colour. */
+const badge = defineObject(
+    {
+        name: "badge",
+        plural: "badges",
+        title: t`${plural(argument("count"), { one: "Badge", other: "Badges" })}`,
+        scope: space,
+        fields: { label: field.string(), color: field.string() },
+        constraints: { label: { kind: "unique", on: ["scope", "label"] } },
+        traits: [shareable({})],
+    },
+    (method) => ({
+        create: method.create("write", { onConflict: { key: "label", update: ["color"] } }),
+        update: method.update("write"),
+        delete: method.delete("write"),
+    }),
+);
+
 test("invert each trait's methods into the calls that undo them, and leave the rest undoable by nothing", () => {
     // invert a call of the page type
     const target = { spaceId: "space-1", id: "page-1" };
@@ -679,5 +697,108 @@ test("undo an update of a bytes field, restoring its bytes on the device and the
         await read(storage.database),
         worldTelemetry(client.environment).exceptions(),
     ]).toEqual([[{ bytes: original, label: "a" }], [{ bytes: original, label: "a" }], []]);
+    await client.close();
+});
+
+test("upsert a badge by its label, and undo the update back to its colour and the creation away", async () => {
+    // run in a new world, serving the badges of a space
+    const world = testSimulation().environment("test");
+    const storage = await TestDatabase.create(
+        defineDatabase({
+            name: "main",
+            ...tablesOf({
+                packages: [objectPackage, { objects: { badge }, tables: [] }],
+                follows: [],
+                tables: [],
+            }),
+        }),
+        { environment: world, isMigrated: true },
+    );
+    onTestFinished(() => storage.close());
+    await openSpace(storage.database, world, spaceId);
+    const badges = definePackage({ ...testIdentity, objects: [badge] });
+    const served = TestObjectStore.serve(
+        await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
+            servers: [implementPackage(badges, {})],
+            chain: async () => undefined,
+            environment: world,
+            origin: { package: PackageVersion.of(badges) },
+            principal: spacePrincipal(spaceId),
+            callKey: testCallKey,
+            events: await testEvents(storage.database, world),
+            database: storage.database,
+        }),
+    );
+    onTestFinished(() => served[Symbol.asyncDispose]());
+
+    // store the space's badges on a device that pushes and follows
+    const local = await TestDatabase.create(ObjectClient.tables({ badge }), {
+        environment: world,
+        dialect: "sqlite",
+        storage: "file",
+    });
+    onTestFinished(() => local.close());
+    const client = await ObjectClient.open({
+        environment: world,
+        database: local.database,
+        objects: { badge },
+        scope: spaceId,
+        caller: principal.user.reference("universe", users.alice),
+        remote: served.as(users.alice).connect(badges, { scope: spaceId }),
+    });
+    client.queryType(badge).findMany().subscribe();
+    const stopping = new AbortController();
+    const loops = [client.follow(stopping.signal), client.push(stopping.signal)];
+    const read = async (database: DatabaseConnection) =>
+        database
+            .select({
+                label: badge.table.label,
+                color: badge.table.color,
+                revision: badge.table.revision,
+            })
+            .from(badge.table);
+
+    // create a badge, then again by its label in another colour, then in the same, one undo each
+    const first = client.mutate(badge).create({ label: "ops", color: "red" });
+    const created = await first.predicted;
+    await first.confirmed;
+    await client.undoStack.close();
+    const second = client.mutate(badge).create({ label: "ops", color: "blue" });
+    const updated = await second.predicted;
+    await second.confirmed;
+    await client.undoStack.close();
+    const third = client.mutate(badge).create({ label: "ops", color: "blue" });
+    const kept = await third.predicted;
+    await third.confirmed;
+    const upserted = [await read(client.database), await read(storage.database)];
+
+    // undo the changed upsert past the unchanged one, which has nothing to undo, then the creation
+    await client.undoStack.undo().confirmed;
+    const restored = [await read(client.database), await read(storage.database)];
+    await client.undoStack.undo().confirmed;
+    const undone = [await read(client.database), await read(storage.database)];
+    stopping.abort();
+    await Promise.all(loops);
+
+    // land each upsert on the first badge, writing a revision only for the changed colour
+    expect({
+        ids: [updated.id, kept.id].map((id) => id === created.id),
+        upserted,
+        restored,
+        undone,
+        exceptions: worldTelemetry(client.environment).exceptions(),
+    }).toEqual({
+        ids: [true, true],
+        upserted: [
+            [{ label: "ops", color: "blue", revision: 2 }],
+            [{ label: "ops", color: "blue", revision: 2 }],
+        ],
+        restored: [
+            [{ label: "ops", color: "red", revision: 3 }],
+            [{ label: "ops", color: "red", revision: 3 }],
+        ],
+        undone: [[], []],
+        exceptions: [],
+    });
     await client.close();
 });

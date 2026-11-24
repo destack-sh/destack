@@ -31,21 +31,52 @@ const handle = defineObject(
         title: t`${plural(argument("count"), { one: "Handle", other: "Handles" })}`,
         scope: space,
         fields: {
-            holder: field.reference(principal.user),
+            owner: field.reference(principal.user),
             name: field.string(schema.string().min(1)),
         },
         constraints: {
             name: { kind: "unique", on: ["scope", "name"] },
         },
         access: {
-            permissions: { read: relation("holder"), create: relation("holder") },
+            permissions: { read: relation("owner"), create: relation("owner") },
             elevated: { create: RECENT },
         },
     },
     (method) => ({
         create: method.create("create"),
-        claim: method.create("create", { onConflict: "name" }),
-        adopt: method.create("create", { onConflict: "id" }),
+        claim: method.create("create", { onConflict: { key: "name" } }),
+        adopt: method.create("create", { onConflict: { key: "id" } }),
+    }),
+);
+
+/** Tags unique by label among the live ones, whose creation of a live label changes its colour. */
+const tag = defineObject(
+    {
+        name: "tag",
+        plural: "tags",
+        title: t`${plural(argument("count"), { one: "Tag", other: "Tags" })}`,
+        scope: space,
+        fields: {
+            owner: field.reference(principal.user),
+            label: field.string(schema.string().min(1)),
+            color: field.string(schema.string().min(1)),
+            retiredAt: field.time().optional(),
+        },
+        constraints: {
+            live: {
+                kind: "index",
+                on: ["scope", "label"],
+                unique: true,
+                where: { retiredAt: { isNull: true } },
+            },
+        },
+        access: {
+            permissions: { read: relation("owner"), create: relation("owner"), update: none() },
+        },
+    },
+    (method) => ({
+        create: method.create("create", { onConflict: { key: "live", update: ["color"] } }),
+        update: method.update("update", { fields: ["color"] }),
     }),
 );
 
@@ -81,7 +112,7 @@ test("report a create's conflicts only to callers the create permission allows, 
     });
     const create = (
         user: Identifier<"user">,
-        input: { readonly holderId: string; readonly name: string; readonly id?: string },
+        input: { readonly ownerId: string; readonly name: string; readonly id?: string },
         scope = spaceId,
     ) => {
         const context = userContext(user, scope, {
@@ -98,24 +129,24 @@ test("report a create's conflicts only to callers the create permission allows, 
     };
 
     // take a name and an identifier as alice
-    const taken = await create(users.alice, { holderId: users.alice, name: "notes" });
+    const taken = await create(users.alice, { ownerId: users.alice, name: "notes" });
 
     // tell bob of the taken name and identifier only for a handle he may create
-    expect(await refusal(create(users.bob, { holderId: users.bob, name: "notes" }))).toEqual([
+    expect(await refusal(create(users.bob, { ownerId: users.bob, name: "notes" }))).toEqual([
         "CONFLICT",
         "OBJECT_EXISTS",
         "'handle' with the same 'scope and name' already exists",
     ]);
     expect(
-        await refusal(create(users.bob, { holderId: users.bob, name: "tasks", id: taken.id })),
+        await refusal(create(users.bob, { ownerId: users.bob, name: "tasks", id: taken.id })),
     ).toEqual(["CONFLICT", "ID_EXISTS", "'handle' identifier already exists"]);
 
     // find nothing for a handle bob may not create, taken or free
     const refusals: unknown[] = [];
     for (const input of [
-        { holderId: users.alice, name: "notes" },
-        { holderId: users.alice, name: "tasks", id: taken.id },
-        { holderId: users.alice, name: "tasks" },
+        { ownerId: users.alice, name: "notes" },
+        { ownerId: users.alice, name: "tasks", id: taken.id },
+        { ownerId: users.alice, name: "tasks" },
     ]) {
         refusals.push(await refusal(create(users.bob, input)));
     }
@@ -127,22 +158,20 @@ test("report a create's conflicts only to callers the create permission allows, 
 
     // challenge bob before a conflict, and find nothing for alice's handle
     level = 1;
-    await expect(create(users.bob, { holderId: users.bob, name: "notes" })).rejects.toMatchObject({
+    await expect(create(users.bob, { ownerId: users.bob, name: "notes" })).rejects.toMatchObject({
         reason: "ASSURANCE_UNAUTHENTICATED",
         data: RECENT,
     });
-    await expect(create(users.bob, { holderId: users.alice, name: "notes" })).rejects.toMatchObject(
-        {
-            code: "NOT_FOUND",
-            message: "handle not found",
-        },
-    );
+    await expect(create(users.bob, { ownerId: users.alice, name: "notes" })).rejects.toMatchObject({
+        code: "NOT_FOUND",
+        message: "handle not found",
+    });
     level = 2;
 
     // create a handle in a space the caller cannot read, as its permission allows
-    const allowed = await create(users.alice, { holderId: users.alice, name: "notes" }, privateId);
-    expect({ holderId: allowed.holderId, name: allowed.name }).toEqual({
-        holderId: users.alice,
+    const allowed = await create(users.alice, { ownerId: users.alice, name: "notes" }, privateId);
+    expect({ ownerId: allowed.ownerId, name: allowed.name }).toEqual({
+        ownerId: users.alice,
         name: "notes",
     });
 });
@@ -205,7 +234,7 @@ test("answer the object a creation's unique constraint matches on a conflict, to
         return store
             .mutate(context.access(), {
                 id: RequestId.create(world),
-                calls: [handle.call(method, { spaceId, holderId: user, ...input })],
+                calls: [handle.call(method, { spaceId, ownerId: user, ...input })],
             })
             .then(([written]) => written);
     };
@@ -532,7 +561,7 @@ test("create an object without a field its creation fills, taking the field the 
     ]);
 });
 
-/** Channels keyed by the slug their holder chooses. */
+/** Channels keyed by the slug their owner chooses. */
 const channel = defineObject(
     {
         name: "channel",
@@ -542,11 +571,11 @@ const channel = defineObject(
         key: "slug",
         fields: {
             slug: field.string(schema.string().regex(/^[a-z]+$/u)).immutable(),
-            holder: field.reference(principal.user),
+            owner: field.reference(principal.user),
             name: field.string(),
         },
         access: {
-            permissions: { read: relation("holder"), create: relation("holder") },
+            permissions: { read: relation("owner"), create: relation("owner") },
         },
     },
     (method) => ({ create: method.create("create"), get: method.get("read") }),
@@ -561,11 +590,11 @@ const post = defineObject(
         scope: space,
         fields: {
             channel: field.reference(channel),
-            holder: field.reference(principal.user),
+            owner: field.reference(principal.user),
             text: field.string(),
         },
         access: {
-            permissions: { read: relation("holder"), create: relation("holder") },
+            permissions: { read: relation("owner"), create: relation("owner") },
         },
     },
     (method) => ({ create: method.create("create") }),
@@ -601,7 +630,7 @@ test("create an object under a natural key the creator chooses, read it by that 
             .mutate(context.access(), {
                 id: RequestId.create(world),
                 calls: [
-                    channel.call("create", { spaceId, slug: "core", holderId: users.alice, name }),
+                    channel.call("create", { spaceId, slug: "core", ownerId: users.alice, name }),
                 ],
             })
             .then(([written]) => written);
@@ -617,7 +646,7 @@ test("create an object under a natural key the creator chooses, read it by that 
                 post.call("create", {
                     spaceId,
                     channelId: slug,
-                    holderId: users.alice,
+                    ownerId: users.alice,
                     text: "Hi",
                 }),
             ],
@@ -648,11 +677,11 @@ const desk = defineObject(
         key: "name",
         fields: {
             name: field.string(),
-            holder: field.reference(principal.user),
+            owner: field.reference(principal.user),
             closedAt: field.time().optional(),
         },
         access: {
-            permissions: { read: relation("holder"), write: relation("holder") },
+            permissions: { read: relation("owner"), write: relation("owner") },
         },
         traits: [recoverable({ within: { days: 30 }, by: "write" })],
     },
@@ -663,7 +692,7 @@ const desk = defineObject(
     }),
 );
 
-test("keep a key on a closed object, free it on deletion, and refuse restoring the deleted holder", async () => {
+test("keep a key on a closed object, free it on deletion, and refuse restoring the deleted owner", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
     const storage = await TestDatabase.create(
@@ -692,7 +721,7 @@ test("keep a key on a closed object, free it on deletion, and refuse restoring t
         store
             .mutate(access, {
                 id: request(),
-                calls: [desk.call("create", { spaceId, name: "front", holderId: users.alice })],
+                calls: [desk.call("create", { spaceId, name: "front", ownerId: users.alice })],
             })
             .then(([written]) => written);
 
@@ -728,16 +757,16 @@ test("keep a key on a closed object, free it on deletion, and refuse restoring t
     ]);
 });
 
-/** Topics of a space, which a holder creates. */
+/** Topics of a space, which a owner creates. */
 const topic = defineObject(
     {
         name: "topic",
         plural: "topics",
         title: t`${plural(argument("count"), { one: "Topic", other: "Topics" })}`,
         scope: space,
-        fields: { holder: field.reference(principal.user), name: field.string() },
+        fields: { owner: field.reference(principal.user), name: field.string() },
         access: {
-            permissions: { read: relation("holder"), create: relation("holder") },
+            permissions: { read: relation("owner"), create: relation("owner") },
         },
     },
     (method) => ({ create: method.create("create") }),
@@ -772,7 +801,7 @@ test("create an object once for a request two transactions run, the one reading 
         // create the topic unless the transaction reads it, both transactions under one request
         const caller = userContext(users.alice, spaceId, { environment: world }).access();
         const id = RequestId.create(world);
-        const create = topic.call("create", { spaceId, holderId: users.alice, name: "ideas" });
+        const create = topic.call("create", { spaceId, ownerId: users.alice, name: "ideas" });
         const step = (attempted: () => Promise<void>) =>
             storage.database.commit(async (transaction) => {
                 const [found] = await transaction
@@ -868,4 +897,61 @@ test("fill a subject field from the caller, and write all its columns in a serve
         spacePrincipal(spaceId),
         ada,
     ]);
+});
+
+test("create anew past a retired tag the partial index leaves out, and refuse a conflict's update the type denies", async () => {
+    // serve the tags in a public space
+    const world = testSimulation().environment("test");
+    const storage = await TestDatabase.create(
+        tablesOf({
+            packages: [objectPackage, { objects: { tag }, tables: [] }],
+            follows: [],
+            tables: [],
+        }).tables,
+        { environment: world, isMigrated: true },
+    );
+    onTestFinished(() => storage.close());
+    await openSpace(storage.database, world, spaceId);
+    const store = TestObjectStore.of({
+        chain: async () => undefined,
+        environment: world,
+        principal: spacePrincipal(spaceId),
+        servers: serversOf([tag]),
+        database: storage.database,
+        callKey: testCallKey,
+        events: await testEvents(storage.database, world),
+        origin: { package: tag.package },
+    });
+    const create = (color: string) =>
+        store
+            .mutate(userContext(users.alice, spaceId, { environment: world }).access(), {
+                id: RequestId.create(world),
+                calls: [tag.call("create", { spaceId, ownerId: users.alice, label: "ops", color })],
+            })
+            .then(([written]) => written);
+
+    // create a tag, retire it, and create its label again, then once more in another colour
+    const first = await create("red");
+    await storage.database.transaction(
+        async (transaction) =>
+            await transaction.update(tag.table).set({ retiredAt: world.clock.now() }),
+    );
+    const second = await create("red");
+    const refused = await refusal(create("blue"));
+    const rows = await storage.database.select({ color: tag.table.color }).from(tag.table);
+
+    // create a second tag past the retired one, and refuse changing its colour, which no one may update
+    expect({
+        isNew: second.id !== first.id,
+        refused,
+        colors: rows.map((row) => row.color),
+    }).toEqual({
+        isNew: true,
+        refused: [
+            "FORBIDDEN",
+            "PERMISSION_DENIED",
+            "permission 'update' is forbidden: it is not granted",
+        ],
+        colors: ["red", "red"],
+    });
 });

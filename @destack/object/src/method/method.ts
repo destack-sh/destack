@@ -172,6 +172,14 @@ export type MethodSource =
           ];
       };
 
+/** What a creation answers when the row it writes matches an existing one on a unique key. */
+export interface MethodConflict<Field extends string = string> {
+    /** The unique key, `id` or a unique constraint, the written row is matched on. */
+    readonly key: string;
+    /** The fields the existing row takes from the written row, none to answer it unchanged. */
+    readonly update?: readonly Field[];
+}
+
 /** A named operation on an object type, typed by its input, output and prepared work. */
 export interface Method<Configuration extends MethodConfiguration = MethodConfiguration> {
     /** The brand marking a declared method. */
@@ -260,6 +268,8 @@ export interface Method<Configuration extends MethodConfiguration = MethodConfig
     readonly validate?: (object: ObjectType) => void;
     /** Derive the calls undoing a step. */
     readonly inverse?: (step: Step) => readonly sync.Call[] | undefined;
+    /** What a creation answers when the row it writes matches an existing one on a unique key. */
+    readonly onConflict?: MethodConflict;
     /** Compose a step into the previous one as one call doing both, absent when apart. */
     readonly compose?: (previous: Step, next: Step) => Step | undefined;
     /** The code an implementation attaches by phase, without the declared behaviour it wraps. */

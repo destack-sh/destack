@@ -1773,16 +1773,20 @@ export class ObjectClient<
         input: sync.Call["input"],
         isInverse = false,
     ): Promise<{ readonly step: StoredStep; readonly result: unknown }> {
-        // read the target around the prediction
-        const id = typeof input["id"] === "string" ? input["id"] : undefined;
-        const before = id === undefined ? undefined : await this.row(database, object, id);
+        // read the target around the prediction: the existing row a creation's conflict lands on, else the created row
         const method = object.method(name);
+        const given = typeof input["id"] === "string" ? input["id"] : undefined;
+        const id =
+            method.onConflict === undefined
+                ? given
+                : await this.#landing(database, object, name, input);
+        const before = id === undefined ? undefined : await this.row(database, object, id);
         const hasTarget = !Method.loads(method) || before !== undefined;
         const result =
             isInverse && !hasTarget
                 ? undefined
                 : await this.#predictCall(database, object, name, input);
-        const created = id ?? Method.resultId(result);
+        const created = Method.resultId(result) ?? id;
         const after = created === undefined ? undefined : await this.row(database, object, created);
 
         // store the result and the rows in the JSON form the server answers
@@ -1801,6 +1805,30 @@ export class ObjectClient<
         };
 
         return { step, result };
+    }
+
+    /** Find the row a creation lands on, predicting it once in a savepoint it rolls back. */
+    async #landing(
+        database: DatabaseConnection,
+        object: ObjectType,
+        name: string,
+        input: sync.Call["input"],
+    ): Promise<string | undefined> {
+        // predict the creation, then roll it back, keeping the identifier it answered
+        let landed: string | undefined;
+        const rolled = new Error("roll back the landing prediction");
+        await database
+            .transaction(async (savepoint) => {
+                landed = Method.resultId(await this.#predictCall(savepoint, object, name, input));
+                throw rolled;
+            })
+            .catch((error: unknown) => {
+                if (error !== rolled) {
+                    throw error;
+                }
+            });
+
+        return landed;
     }
 
     /** Read an object's row as the client has it, absent when it has none. */

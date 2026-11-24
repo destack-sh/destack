@@ -607,6 +607,30 @@ export const note = defineObject({
 });
 ```
 
+### Create or update by a unique key
+
+`onConflict` answers the existing object whose `key` the created row matches, changing the fields `update` lists.
+
+```ts
+import { argument, plural, t } from "@destack/locale";
+import { defineObject, field } from "@destack/object";
+
+const badge = defineObject(
+    {
+        name: "badge",
+        plural: "badges",
+        title: t`${plural(argument("count"), { one: "Badge", other: "Badges" })}`,
+        container: "scope",
+        fields: { label: field.string(), color: field.string() },
+        constraints: { label: { kind: "unique", on: ["scope", "label"] } },
+        access: { permissions: ["write"] },
+    },
+    (method) => ({
+        create: method.create("write", { onConflict: { key: "label", update: ["color"] } }), // Drizzle's onConflictDoUpdate
+    }),
+);
+```
+
 ### Address a board by its name
 
 `key` lets calls address an object by a field instead of its identifier.

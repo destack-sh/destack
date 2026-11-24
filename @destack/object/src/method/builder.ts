@@ -10,6 +10,7 @@ import {
     type MethodDefinition,
     type MethodSource,
     type MethodVisibility,
+    type MethodConflict,
 } from "./method.ts";
 import {
     Empty,
@@ -60,6 +61,7 @@ export interface CreateOptions<
     Visibility extends MethodVisibility,
     Sum extends Variants = Variants,
     Filled extends string = string,
+    Written extends string = string,
 > {
     /** Who may call the creation; server-only creations take the caller fields as input. */
     readonly visibility?: Visibility;
@@ -81,8 +83,8 @@ export interface CreateOptions<
     readonly convert?: Readonly<Record<number, Readonly<Record<string, Expression>>>>;
     /** How often the method runs per key, and whose limit a call counts against. */
     readonly limits?: MethodLimits;
-    /** The unique key, `id` or a unique constraint, whose existing match the creation answers. */
-    readonly onConflict?: string;
+    /** What a creation answers when the row it writes matches an existing one on a unique key. */
+    readonly onConflict?: MethodConflict<NoInfer<Written>>;
 }
 
 /** How a bulk creation creates: its written fields and creator. */
@@ -459,7 +461,7 @@ export class MethodBuilder<
     >(
         this: MethodBuilder<Definition>,
         permission: Permission,
-        options: CreateOptions<Fields, Input, Prepared, Visibility, Sum, Filled> = {},
+        options: CreateOptions<Fields, Input, Prepared, Visibility, Sum, Filled, Written> = {},
     ) {
         // relate the creation's creator, and answer the object its unique key matches on a conflict
         const { creator, onConflict, ...declared } = options;
@@ -486,12 +488,16 @@ export class MethodBuilder<
             result: "object",
             procedure: (name, schemas) => ObjectRecord.createProcedure(name, schemas, options),
             ...(creator === undefined ? {} : { relate: ObjectRecord.relateCreator(creator) }),
+            ...(onConflict === undefined ? {} : { onConflict }),
             handler: (context, execution) =>
-                execution.store.record.createObject(context, execution),
+                execution.store.record.createObject(context, execution, onConflict),
             authorize: (context, execution) =>
                 execution.store.record.authorizeCreate(context, execution),
             inverse: (step) => {
-                // delete the created object
+                // restore an existing object a conflict updated, else delete the created one
+                if (step.before !== undefined) {
+                    return ObjectRecord.restoreConflict(step, onConflict?.update ?? []);
+                }
                 const call = Step.call(step, "delete", Step.target(step));
 
                 return call === undefined ? undefined : [call];
@@ -513,16 +519,6 @@ export class MethodBuilder<
                     await execution.store.record.append(context, execution, [row]);
 
                     return row;
-                }
-
-                // answer the object that already exists under the kept key
-                const existing = await execution.store.record.existing(
-                    context,
-                    execution,
-                    onConflict,
-                );
-                if (existing !== undefined) {
-                    return existing;
                 }
 
                 // insert under an unused identifier and record its access

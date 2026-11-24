@@ -1,7 +1,7 @@
 import type { DatabaseState } from "@destack/db";
 import type { Crypto } from "@destack/environment";
 import { type PackageId, PackageVersion } from "@destack/package";
-import { type BuildReader, type OutputContent, PackageManifest } from "@destack/package/manifest";
+import { type BuildReader, type PackageOutput, PackageManifest } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import { ResourceDeclaration } from "@destack/resource";
 import {
@@ -20,13 +20,14 @@ import {
 } from "../object/index.ts";
 
 /** The output of every test build: a Bun server output exporting the server, running nothing. */
-const SERVER_OUTPUT: OutputContent = {
+const SERVER_OUTPUT: PackageOutput = {
     runtime: "bun",
     emit: true,
     workloads: {},
     views: {},
     directory: "server",
     exports: { [SERVER_EXPORT]: { path: "server/index.js", imports: [] } },
+    peers: {},
 };
 
 /** A declaration a test build declares beside its package and object types. */
