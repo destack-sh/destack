@@ -1,3 +1,4 @@
+import { computeAccessibleName } from "dom-accessibility-api";
 import type { BrowserEnvironment } from "@destack/environment/browser";
 import { setContext } from "@solidjs/signals";
 import { createComponent, createRoot, flush } from "solid-js";
@@ -345,4 +346,9 @@ export async function frame(): Promise<void> {
 export async function wait(milliseconds: number): Promise<void> {
     const { simulation } = testWorld();
     await simulation.sleep(milliseconds);
+}
+
+/** Read the name a screen reader says of an element, empty for none. */
+export function accessibleName(element: Element): string {
+    return computeAccessibleName(element);
 }
