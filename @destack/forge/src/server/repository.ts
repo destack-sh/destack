@@ -78,17 +78,21 @@ export function implementRepository(hosting: RepositoryHosting): typeof reposito
                     await hosting.discard(context.requireId(), prepared);
                 },
             },
-            open: {
+            pull: {
                 authorize: async (context) => {
-                    // require push for push access, and for any lease of a stored credential, whatever the mode
+                    // require push to read through a stored credential too, as its lease includes the credential
                     const isCredential =
                         context.target.hosting === "git" &&
                         context.target.authentication === "credential";
-                    if (context.input.mode === "write" || isCredential) {
+                    if (isCredential) {
                         await context.require(repository.permission("push"), context.reference());
                     }
                 },
-                prepare: (context) => hosting.lease(context.target, context.input.mode, context),
+                prepare: (context) => hosting.lease(context.target, "read", context),
+                handle: async (context) => context.prepared,
+            },
+            push: {
+                prepare: (context) => hosting.lease(context.target, "write", context),
                 handle: async (context) => context.prepared,
             },
             refresh: {

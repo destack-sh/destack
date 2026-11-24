@@ -427,7 +427,7 @@ test("delete, restore and purge a repository through the trash", async () => {
 
     // refuse checkouts and refreshes of a repository in the trash
     expect([
-        await outcome(owner.repository.open({ spaceId: forge.space, id: site.id, mode: "read" })),
+        await outcome(owner.repository.pull({ spaceId: forge.space, id: site.id })),
         await outcome(
             owner.repository.refresh({
                 spaceId: forge.space,
@@ -490,12 +490,10 @@ test("lease checkouts of platform and anonymous repositories by permission", asy
     // open the platform repository through the storage: the reader pulls, the owner pushes, strangers see nothing
     const local = (mode: "read" | "write") => ({ url: site.remote, mode, headers: {} });
     expect([
-        await reader.repository.open({ spaceId: forge.space, id: site.id, mode: "read" }),
-        await refusal(reader.repository.open({ spaceId: forge.space, id: site.id, mode: "write" })),
-        await owner.repository.open({ spaceId: forge.space, id: site.id, mode: "write" }),
-        await refusal(
-            stranger.repository.open({ spaceId: forge.space, id: site.id, mode: "read" }),
-        ),
+        await reader.repository.pull({ spaceId: forge.space, id: site.id }),
+        await refusal(reader.repository.push({ spaceId: forge.space, id: site.id })),
+        await owner.repository.push({ spaceId: forge.space, id: site.id }),
+        await refusal(stranger.repository.pull({ spaceId: forge.space, id: site.id })),
     ]).toEqual([
         local("read"),
         ["FORBIDDEN", "PERMISSION_DENIED", "permission 'push' is forbidden: it is not granted"],
@@ -505,10 +503,8 @@ test("lease checkouts of platform and anonymous repositories by permission", asy
 
     // pull an anonymous remote unchanged and push to it without a platform credential
     expect([
-        await owner.repository.open({ spaceId: forge.space, id: mirror.id, mode: "read" }),
-        await refusal(
-            owner.repository.open({ spaceId: forge.space, id: mirror.id, mode: "write" }),
-        ),
+        await owner.repository.pull({ spaceId: forge.space, id: mirror.id }),
+        await refusal(owner.repository.push({ spaceId: forge.space, id: mirror.id })),
     ]).toEqual([
         { url: "https://git.example.test/mirror.git", mode: "read", headers: {} },
         [
@@ -619,7 +615,7 @@ test("leave a machine repository's references and checkouts to its machine", asy
                 requestId: RequestId.create(forge.environment),
             }),
         ),
-        await refusal(owner.repository.open({ spaceId: forge.space, id: laptop.id, mode: "read" })),
+        await refusal(owner.repository.pull({ spaceId: forge.space, id: laptop.id })),
     ]).toEqual([
         [
             "BAD_REQUEST",
@@ -748,14 +744,11 @@ test("keep a Git remote's credential in the forge's vault", async () => {
             .where(and(eq(secret.table.name, mirror.id), isNull(secret.table.purgedAt)));
 
     // lease the remote to pull and push with the credential as Basic authentication, refusing a reader the credential
-    const open = (mode: "read" | "write") =>
-        owner.repository.open({ spaceId: forge.space, id: mirror.id, mode });
+    const target = { spaceId: forge.space, id: mirror.id };
     const leased = [
-        await open("read"),
-        await open("write"),
-        await refusal(
-            reader.repository.open({ spaceId: forge.space, id: mirror.id, mode: "read" }),
-        ),
+        await owner.repository.pull(target),
+        await owner.repository.push(target),
+        await refusal(reader.repository.pull({ spaceId: forge.space, id: mirror.id })),
     ];
 
     // rotate the credential, then move the remote to anonymous, which purges it from the vault
@@ -768,7 +761,7 @@ test("keep a Git remote's credential in the forge's vault", async () => {
             ...input,
         });
     await update({ credential: { user: "ada", password: "token-2" } });
-    const rotated = await open("read");
+    const rotated = await owner.repository.pull(target);
     const current = await credentials();
     await update({ authentication: "anonymous" });
     const live = await credentials();

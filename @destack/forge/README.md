@@ -40,7 +40,7 @@ export async function createSite(
     });
 
     // lease a URL and headers to push with
-    return await client.repository.open({ spaceId, id: site.id, mode: "write" });
+    return await client.repository.push({ spaceId, id: site.id });
 }
 ```
 

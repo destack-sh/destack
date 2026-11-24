@@ -93,20 +93,20 @@ export class ForgeDriver implements Driver<ForgeStep, ForgeObservation> {
         // push the next local commit through a write lease
         else if (step.action === "push") {
             const commit = present(this.#commits[this.#pushed], "a local commit to push");
-            const lease = await owner.repository.open({ spaceId, id: this.#id(), mode: "write" });
+            const lease = await owner.repository.push({ spaceId, id: this.#id() });
             await this.#worktree.push(lease.url, `${commit}:refs/heads/${BRANCH}`);
             this.#pushed += 1;
         }
         // clone through a read lease
         else if (step.action === "clone") {
-            const lease = await owner.repository.open({ spaceId, id: this.#id(), mode: "read" });
+            const lease = await owner.repository.pull({ spaceId, id: this.#id() });
             this.#checkout = await Worktree.clone(lease.url);
             this.#clones.push(this.#checkout);
         }
         // pull into the next clone through a read lease
         else {
             const clone = present(this.#clones[this.#pulled], "a clone to pull into");
-            const lease = await owner.repository.open({ spaceId, id: this.#id(), mode: "read" });
+            const lease = await owner.repository.pull({ spaceId, id: this.#id() });
             await clone.pull(lease.url, BRANCH);
             this.#pulled += 1;
             this.#checkout = clone;

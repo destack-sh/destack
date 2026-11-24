@@ -302,8 +302,8 @@ test("serve a GitHub repository through its connected installation", async () =>
     forge.github.requests.length = 0;
     const expiresAt = forge.environment.clock.now() + TOKEN_MILLISECONDS;
     expect([
-        await owner.repository.open({ spaceId: forge.space, id: created.id, mode: "read" }),
-        await owner.repository.open({ spaceId: forge.space, id: created.id, mode: "write" }),
+        await owner.repository.pull({ spaceId: forge.space, id: created.id }),
+        await owner.repository.push({ spaceId: forge.space, id: created.id }),
     ]).toEqual([
         lease("read", "ghs_4242_contents_read", expiresAt),
         lease("write", "ghs_4242_contents_write", expiresAt),
@@ -323,7 +323,8 @@ test("serve a GitHub repository through its connected installation", async () =>
         (await auditedCalls(forge.home.database))
             .filter(
                 (call) =>
-                    call.method === "repository.open" && call.execution.target.id === created.id,
+                    ["repository.pull", "repository.push"].includes(call.method) &&
+                    call.execution.target.id === created.id,
             )
             .map((call) => [
                 AuditCaller.actor(call.execution.context.caller),

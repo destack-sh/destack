@@ -16,11 +16,7 @@ test("serve a platform repository's advertisement to git below its account's han
         name: "site",
         hosting: "platform",
     });
-    const lease = await owner.repository.open({
-        spaceId: forge.space,
-        id: created.id,
-        mode: "write",
-    });
+    const lease = await owner.repository.push({ spaceId: forge.space, id: created.id });
     const worktree = await Worktree.open();
     const commit = await worktree.commit("README.md", "# Site\n");
     await worktree.push(lease.url, "main");

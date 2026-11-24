@@ -601,7 +601,7 @@ export class Forge {
         const lease = await Forge.conceal("REPOSITORY_NOT_FOUND", "repository not found", () =>
             objects.query(
                 context.access(target.scope),
-                repository.call("open", { ...repository.target(target), mode }),
+                repository.call(mode === "write" ? "push" : "pull", repository.target(target)),
             ),
         );
         const response = await this.#repositories.serve(

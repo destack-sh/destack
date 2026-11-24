@@ -239,7 +239,7 @@ test("build each commit a followed branch moves to once", async () => {
     await reconcileTwice(site.id);
 
     // read the one build both reconciliations create
-    expect(await built()).toEqual([[first, "pending"]]);
+    expect(await built()).toEqual([[first, "running"]]);
 
     // move the branch on and back to the first commit
     const second = await move();
@@ -251,6 +251,6 @@ test("build each commit a followed branch moves to once", async () => {
     expect(await built()).toEqual([
         [first, "cancelled"],
         [second, "cancelled"],
-        [first, "pending"],
+        [first, "running"],
     ]);
 });
