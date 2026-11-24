@@ -220,10 +220,14 @@ test("run the innermost action a key binds, by the person's keys, leaving fields
     pressed.push(pressOn(day, "q"));
     await Promise.resolve();
 
-    expect({ pressed, ran, keys: [actions.keybinding(plan), actions.keybinding(pick)] }).toEqual({
+    expect({
+        pressed,
+        ran,
+        keys: [actions.keybindings(plan, false), actions.keybindings(pick, true)],
+    }).toEqual({
         pressed: [true, true, false, true, true, true, false],
         ran: ["calendar", "page", "page", "calendar"],
-        keys: ["q", "p"],
+        keys: [["q"], ["p"]],
     });
 });
 

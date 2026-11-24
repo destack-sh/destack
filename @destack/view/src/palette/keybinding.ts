@@ -1,7 +1,7 @@
 import { DeclarationReference } from "@destack/package/declare";
 import { Shortcut } from "@destack/locale";
 import { schema } from "@destack/schema";
-import { type ActionDescription, ActionFocus } from "@destack/object";
+import { type ActionDescription, ActionFocus, ActionKeybinding } from "@destack/object";
 
 /** A key combination running an action, outside form fields or anywhere. */
 const keybinding = schema.object({
@@ -15,18 +15,20 @@ const keybinding = schema.object({
 
 /** A key combination running an action, outside form fields or anywhere. */
 export const Keybinding = Object.assign(keybinding, {
-    /** Bind an action to the person's key combination for it, else its declared one, if any. */
+    /** Bind an action to the person's key combination for it, else each of its declared ones. */
     of(
         action: DeclarationReference,
-        declared: { readonly key: Shortcut | undefined; readonly focus: ActionFocus },
+        declared: {
+            readonly keybinding: ActionKeybinding | undefined;
+            readonly focus: ActionFocus;
+        },
         overrides: Readonly<Record<string, Shortcut | null>>,
-    ): Keybinding | undefined {
-        const settingKey = DeclarationReference.key(action);
-        const key = settingKey in overrides ? overrides[settingKey] : declared.key;
+        isCommand: boolean,
+    ): Keybinding[] {
+        const { keybinding: keys, focus } = declared;
+        const chosen = overrides[DeclarationReference.key(action)];
 
-        return key === null || key === undefined
-            ? undefined
-            : { action, key, focus: declared.focus };
+        return ActionKeybinding.on(keys, isCommand, chosen).map((key) => ({ action, key, focus }));
     },
 });
 /** A key combination running an action. */

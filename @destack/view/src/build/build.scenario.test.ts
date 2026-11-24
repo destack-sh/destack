@@ -259,7 +259,9 @@ test("generate a view's mount with its theme, actions and capabilities", () => {
         package: declaring,
         name,
         title: { package: declaring.id, id: name, source: name, values: {} },
-        ...(keybinding === undefined ? {} : { keybinding }),
+        ...(keybinding === undefined
+            ? {}
+            : { keybinding: { key: [keybinding], mac: [keybinding] } }),
         focus: "page",
         ...(isCall
             ? { call: { packageId: owner.id, type: "note", method: name, input: {}, inputs: [] } }

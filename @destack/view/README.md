@@ -110,7 +110,7 @@ Its keys run it outside form fields, unless its `focus` is `"any"`.
 | `at(element)`                             | lists every action at an element, each titled method of the objects too |
 | `has(reference, element)`                 | reports whether it runs there now                                       |
 | `sentence(action, element, localization)` | writes what it does there, by its `summary`                             |
-| `keybinding(action)`                      | reads the person's keys for it, else its own                            |
+| `keybindings(action, isCommand)`          | lists the person's keys for it, else the platform's own                 |
 
 `provide(variable, value)` gives the actions in the element it is the `ref` of a variable's value, such as the sprint a section shows, and `provideVariable` the whole page's.
 `handleFailing(fail)` tells the person which action failed and why, as `Toaster` of `@destack/ui` does.

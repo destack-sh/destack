@@ -7,6 +7,7 @@ import {
     type Action,
     type ActionCall,
     ActionInput,
+    ActionKeybinding,
     type ActionInputs,
     type ActionResolution,
     type ActionValues,
@@ -451,12 +452,11 @@ export class ActionRegistry {
             .map(({ place }) => place);
     }
 
-    /** Read the key combination that runs an action: the person's, else its declared one. */
-    keybinding(action: Action): Shortcut | undefined {
-        const key = DeclarationReference.key(action.reference);
-        const keybindings = this.#keybindings();
+    /** List the key combinations that run an action: the person's, else the platform's declared. */
+    keybindings(action: Action, isCommand: boolean): readonly Shortcut[] {
+        const chosen = this.#keybindings()[DeclarationReference.key(action.reference)];
 
-        return key in keybindings ? (keybindings[key] ?? undefined) : action.keybinding;
+        return ActionKeybinding.on(action.keybinding, isCommand, chosen);
     }
 
     /** Run the innermost action a key press binds, of a part where one asks. */
@@ -469,7 +469,7 @@ export class ActionRegistry {
             ? undefined
             : this.actions(focus).find((each) => {
                   // match its keys, within the part where one asks
-                  const keys = this.keybinding(each);
+                  const keys = this.keybindings(each, isCommand);
                   const key = DeclarationReference.key(each.reference);
                   const chosen = this.#chosen(key, focus)?.element;
                   const isOwn =
@@ -477,9 +477,8 @@ export class ActionRegistry {
 
                   return (
                       isOwn &&
-                      keys !== undefined &&
                       (each.focus === "any" || !isField) &&
-                      Shortcut.matches(keys, event, isCommand)
+                      keys.some((shortcut) => Shortcut.matches(shortcut, event, isCommand))
                   );
               });
         if (action === undefined) {

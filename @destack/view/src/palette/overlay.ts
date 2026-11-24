@@ -83,7 +83,11 @@ export class PaletteOverlay {
         const listener = (event: KeyboardEvent) => {
             // find the binding the keys run where they were pressed, leaving any other press to the page
             const focus = event.target instanceof Element ? event.target : null;
-            const binding = PaletteOverlay.#find(this.keybindings(focus), event, isCommand);
+            const binding = PaletteOverlay.#find(
+                this.keybindings(focus, isCommand),
+                event,
+                isCommand,
+            );
             if (binding === undefined) {
                 return;
             }
@@ -126,29 +130,21 @@ export class PaletteOverlay {
     }
 
     /** List the key combinations at a focus: its handled actions', then the package's offered. */
-    keybindings(focus: Element | null): Keybinding[] {
+    keybindings(focus: Element | null, isCommand: boolean): Keybinding[] {
         // bind each handled action, and each declared one while the person offers them
         const { keybindings: overrides, isOffered } = this.#presentation();
         const actions = this.#actions
             .actions(focus)
-            .map((action) =>
-                Keybinding.of(
-                    action.reference,
-                    { key: action.keybinding, focus: action.focus },
-                    overrides,
-                ),
-            );
+            .flatMap((action) => Keybinding.of(action.reference, action, overrides, isCommand));
         const declared = isOffered
-            ? this.#declared.map((action) =>
-                  Keybinding.of(
-                      action,
-                      { key: action.description.keybinding, focus: "page" },
-                      overrides,
-                  ),
-              )
+            ? this.#declared.flatMap((action) => {
+                  const { keybinding } = action.description;
+
+                  return Keybinding.of(action, { keybinding, focus: "page" }, overrides, isCommand);
+              })
             : [];
 
-        return [...actions, ...declared].filter((binding) => binding !== undefined);
+        return [...actions, ...declared];
     }
 
     /** Open the palette over a focus in a modal dialog framing its space's origin. */
@@ -270,12 +266,14 @@ export class PaletteOverlay {
 
     /** List the actions handled at a focus as the palette offers them, with their keys. */
     #entries(focus: Element | null): ActionEntry[] {
+        // find the keys there
         const localization = this.#localization();
+        const isCommand = Shortcut.isCommand(navigator.userAgent);
+        const bindings = this.keybindings(focus, isCommand);
+
+        // offer each by the first of its keys
         const bound = new Map(
-            this.keybindings(focus).map((binding) => [
-                DeclarationReference.key(binding.action),
-                binding.key,
-            ]),
+            bindings.toReversed().map(({ action, key }) => [DeclarationReference.key(action), key]),
         );
 
         return this.#actions.actions(focus).map((action) => ({
