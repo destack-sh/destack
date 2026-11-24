@@ -1,3 +1,4 @@
+import { nth } from "@destack/schema";
 import type { Direction } from "@destack/locale";
 import { type Accessor, createMemo } from "@destack/view";
 import type { Collection, CollectionSection } from "../collection/index.ts";
@@ -16,10 +17,37 @@ export type GridMove =
     | "gridStart"
     | "gridEnd";
 
-/** A row of a grid: a section's heading, or a row of its keys a column count wide. */
+/** The size of a row's cells, in pixels. */
+export interface GridSize {
+    /** The height of the row. */
+    readonly height: number;
+    /** The width of each cell. */
+    readonly widths: readonly number[];
+    /** The gap between them. */
+    readonly gap: number;
+}
+
+/** A row of a grid: a section's heading, or a row of its keys. */
 export type GridRow =
     | { readonly kind: "heading"; readonly key: string; readonly label: string }
-    | { readonly kind: "cells"; readonly key: string; readonly keys: readonly string[] };
+    | {
+          readonly kind: "cells";
+          readonly key: string;
+          readonly keys: readonly string[];
+          /** The size of its cells, absent for cells of one width. */
+          readonly size: GridSize | undefined;
+      };
+
+/** Some of a section's keys that stand in a row, and the size of their cells. */
+export interface GridLine {
+    /** The keys. */
+    readonly keys: readonly string[];
+    /** The size of their cells, absent for cells of one width. */
+    readonly size: GridSize | undefined;
+}
+
+/** Break a section's keys into rows. */
+export type GridBreaks = (keys: readonly string[]) => readonly GridLine[];
 
 /** A key's place in a grid: its row among every row and its column. */
 export interface GridPlace {
@@ -44,11 +72,16 @@ export class GridDelegate<Item> implements KeyboardDelegate<string> {
     /** The rows and the place of each key, laid out again as the keys or columns change. */
     readonly #layout: Accessor<GridLayout>;
 
-    /** Lay out a collection's sections in rows of a column count. */
-    constructor(collection: Collection<Item>, columns: Accessor<number>) {
+    /** Lay a collection's sections out in rows of a column count, or as they are broken. */
+    constructor(collection: Collection<Item>, columns: Accessor<number>, breaks?: GridBreaks) {
+        // break the keys of each section into rows
         this.collection = collection;
         this.#layout = createMemo(() =>
-            layOut(collection.sections(), collection, Math.max(1, columns())),
+            layOut(
+                collection.sections(),
+                collection,
+                breaks ?? ((keys) => linesOf(keys, Math.max(1, columns()))),
+            ),
         );
     }
 
@@ -79,9 +112,9 @@ export class GridDelegate<Item> implements KeyboardDelegate<string> {
         } else if (move === "previous") {
             return this.collection.at(Math.max(index - 1, 0));
         } else if (move === "down") {
-            return this.#inColumn(place.row, 1, place.column);
+            return this.#inColumn(place, 1);
         } else if (move === "up") {
-            return this.#inColumn(place.row, -1, place.column);
+            return this.#inColumn(place, -1);
         }
         // the ends of the row or of the grid
         else if (move === "rowStart") {
@@ -116,24 +149,59 @@ export class GridDelegate<Item> implements KeyboardDelegate<string> {
 
     /** Read the keys of a row of cells, undefined for a heading or past the ends. */
     #cells(row: number): readonly string[] | undefined {
-        const found = this.rows()[row];
-
-        return found?.kind === "cells" ? found.keys : undefined;
+        return this.#line(row)?.keys;
     }
 
-    /** Read the key in a column of the next row of cells up or down. */
-    #inColumn(row: number, step: 1 | -1, column: number): string | undefined {
+    /** Read a row of cells, undefined for a heading or past the ends. */
+    #line(row: number): GridLine | undefined {
+        const found = this.rows()[row];
+
+        return found?.kind === "cells" ? found : undefined;
+    }
+
+    /** Read the key in a place's column of the next row of cells up or down. */
+    #inColumn({ row, column }: GridPlace, step: 1 | -1): string | undefined {
         // skip the headings between rows of cells
+        const from = this.#line(row);
         const rows = this.rows();
         for (let next = row + step; next >= 0 && next < rows.length; next += step) {
-            const keys = this.#cells(next);
-            if (keys !== undefined) {
-                return keys[Math.min(column, keys.length - 1)];
+            const line = this.#line(next);
+            if (line !== undefined) {
+                return line.keys[columnBeside(line, from, column)];
             }
         }
 
         return undefined;
     }
+}
+
+/** Read the column of a row beside a column of another, by their widths where cells have any. */
+function columnBeside(line: GridLine, from: GridLine | undefined, column: number): number {
+    // take the same column among cells of one width
+    if (line.size === undefined || from?.size === undefined) {
+        return Math.min(column, line.keys.length - 1);
+    }
+
+    // find the cell the middle of the other stands at, the last where the row is shorter
+    const { widths, gap } = from.size;
+    const before = widths.slice(0, column).reduce((sum, width) => sum + width + gap, 0);
+    const middle = before + nth(widths, column) / 2;
+    let end = 0;
+    const found = line.size.widths.findIndex((width) => {
+        end += width + gap;
+
+        return middle < end;
+    });
+
+    return found === -1 ? line.keys.length - 1 : found;
+}
+
+/** Break keys into rows of a count. */
+function linesOf(keys: readonly string[], count: number): readonly GridLine[] {
+    return Array.from({ length: Math.ceil(keys.length / count) }, (_line, i) => ({
+        keys: keys.slice(i * count, (i + 1) * count),
+        size: undefined,
+    }));
 }
 
 /** Read the move a key asks for in a grid. */
@@ -169,11 +237,11 @@ export function gridMoveOf(event: KeyboardEvent, direction: Direction): GridMove
     }
 }
 
-/** Lay sections out as rows: each section's heading, then its keys a width at a time. */
+/** Lay sections out as rows: each section's heading, then its keys as they are broken. */
 function layOut<Item>(
     sections: readonly CollectionSection<Item>[],
     collection: Collection<Item>,
-    width: number,
+    breaks: GridBreaks,
 ): GridLayout {
     // lay out every section, placing each key in its row and column
     const rows: GridRow[] = [];
@@ -185,13 +253,14 @@ function layOut<Item>(
             rows.push({ kind: "heading", key: section.key, label: section.label });
         }
 
-        // split its keys into rows of the width
-        for (let start = 0; start < keys.length; start += width) {
-            const row = keys.slice(start, start + width);
-            for (const [column, key] of row.entries()) {
+        // place each key in its row
+        let start = 0;
+        for (const line of breaks(keys)) {
+            for (const [column, key] of line.keys.entries()) {
                 places.set(key, { row: rows.length, column });
             }
-            rows.push({ kind: "cells", key: `${section.key}-${String(start)}`, keys: row });
+            rows.push({ kind: "cells", key: `${section.key}-${String(start)}`, ...line });
+            start += line.keys.length;
         }
     }
 

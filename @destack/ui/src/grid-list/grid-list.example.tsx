@@ -1,3 +1,4 @@
+import { RowLayout } from "../gallery/layout.ts";
 import * as style from "@destack/style";
 import { defineExample } from "@destack/package/declare";
 import { color, radius, shadow, space, stroke, swatch, weight } from "@destack/theme/tokens.stylex";
@@ -291,6 +292,72 @@ export const gridListPeople = defineExample({
                     <output>{picked()}</output>
                 </Stack>
             </AutocompleteContext>
+        );
+    },
+});
+
+/** Ten thousand photos of ten trips, each with its ratio and color. */
+const PHOTOS = Array.from({ length: 10_000 }, (_, i) => ({
+    id: String(i),
+    title: `Photo ${String(i + 1)}`,
+    ratio: [1.5, 4 / 3, 0.75, 1, 16 / 9, 9 / 16, 2.4][(i * 5) % 7] ?? 1,
+    color: `hsl(${String((i * 47) % 360)} 45% 62%)`,
+}));
+
+/** The styles of a library of photos. */
+const library = style.create({
+    list: {
+        maxHeight: "26rem",
+    },
+    photo: {
+        overflow: "hidden",
+        borderRadius: radius[3],
+    },
+    picture: (tint: string) => ({
+        width: "100%",
+        height: "100%",
+        backgroundColor: tint,
+    }),
+});
+
+/** Ten thousand photos in rows that fill the page, only those in view in the document. */
+export const gridListPhotos = defineExample({
+    of: GridList,
+    name: "photos",
+    layout: "padded",
+    description:
+        "ten thousand photos in rows that fill the page, only those in view in the document",
+    render: () => {
+        // break the photos of each trip into rows, and report the one opened
+        const [opened, setOpened] = createSignal("");
+        const grid = new GridListControl<(typeof PHOTOS)[number]>({
+            sections: () =>
+                Array.from({ length: 10 }, (_, i) => ({
+                    key: String(i),
+                    label: `Trip ${String(i + 1)}`,
+                    items: PHOTOS.slice(i * 1000, (i + 1) * 1000),
+                })),
+            key: (photo) => photo.id,
+            text: (photo) => photo.title,
+            layout: new RowLayout({ height: 110, gap: 6 }),
+            ratio: (photo) => photo.ratio,
+            selection: { multiple: true, behavior: "replace" },
+            onAction: (photo) => setOpened(photo.title),
+        });
+
+        return (
+            <GridListProvider control={grid}>
+                <GridListViewport xstyle={library.list}>
+                    <GridList control={grid} aria-label="Photos" label={(photo) => photo.title}>
+                        {(cell) => (
+                            <GridListCell {...omit(cell, "item")} xstyle={library.photo}>
+                                <div {...style.attrs(library.picture(cell.item.color))} />
+                            </GridListCell>
+                        )}
+                    </GridList>
+                </GridListViewport>
+                <output>{opened()}</output>
+            </GridListProvider>
         );
     },
 });

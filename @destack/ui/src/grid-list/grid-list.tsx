@@ -23,7 +23,8 @@ import { createElementSize } from "@destack/view/primitives/resize-observer";
 import { Hover, type InteractionEvent, Press } from "../interaction/index.ts";
 import type { AutocompleteControl } from "../autocomplete/index.ts";
 import { Collection, type CollectionOptions, type CollectionState } from "../collection/index.ts";
-import { Focus, GridDelegate, type GridRow } from "../focus/index.ts";
+import { Focus, GridDelegate, type GridLine, type GridRow } from "../focus/index.ts";
+import type { RowLayout } from "../gallery/layout.ts";
 import { Selection, type SelectionProperties } from "../selection/index.ts";
 import { Virtualizer } from "../virtualizer/index.ts";
 import { type ElementPartProperties, mergeProperties, renderPart } from "../part/index.ts";
@@ -83,6 +84,14 @@ const styles = style.create({
         color: color.mutedForeground,
     },
     spacer: (height: string) => ({ height }),
+    sized: (columns: string, height: string, gap: number) => ({
+        display: "grid",
+        gridTemplateColumns: columns,
+        gridTemplateRows: height,
+        columnGap: `${String(gap)}px`,
+        paddingBlockEnd: `${String(gap)}px`,
+        height: "auto",
+    }),
     fit: (columns: number, gap: number) => ({
         display: "grid",
         gridTemplateColumns: `repeat(${String(columns)}, minmax(0, 1fr))`,
@@ -141,7 +150,7 @@ export class GridListControl<Item> {
 
         // take the given columns, else fit as many cells of the least width as fit the width
         const measured = createElementSize(() => viewport() ?? element());
-        const gap = options.gap ?? 0;
+        const gap = options.layout?.gap ?? options.gap ?? 0;
         const least = options.minItemWidth;
         this.gap = gap;
         this.isFitted = options.columns === undefined;
@@ -154,12 +163,28 @@ export class GridListControl<Item> {
                           options.maxColumns ?? Number.POSITIVE_INFINITY,
                           Math.max(1, Math.floor(((measured.width ?? 0) + gap) / (least + gap))),
                       ));
-        this.delegate = new GridDelegate(this.collection, this.columns);
+        const { layout } = options;
+        const width = (): number => measured.width ?? 0;
+        this.delegate = new GridDelegate(
+            this.collection,
+            this.columns,
+            layout === undefined ? undefined : (keys) => this.#break(keys, layout, width()),
+        );
         const rowHeight = options.rowHeight ?? ROW_HEIGHT;
-        const estimate = (): number => rowHeight;
         this.#virtualizer = new Virtualizer({
             count: () => this.delegate.rows().length,
-            estimateSize: () => estimate,
+            estimateSize: () => {
+                // take the height of a row of cells with a size, else the estimate
+                const rows = this.delegate.rows();
+
+                return (index) => {
+                    const row = rows[index];
+
+                    return row?.kind === "cells" && row.size !== undefined
+                        ? row.size.height + gap
+                        : rowHeight;
+                };
+            },
             scrollElement: viewport,
             initialRect: { width: 0, height: UNMEASURED_ROWS * rowHeight },
         });
@@ -266,6 +291,18 @@ export class GridListControl<Item> {
         }
     }
 
+    /** Count the cells of the longest row. */
+    columnCount(): number {
+        return this.#options.layout === undefined
+            ? this.columns()
+            : this.delegate
+                  .rows()
+                  .reduce(
+                      (most, row) => Math.max(most, row.kind === "cells" ? row.keys.length : 0),
+                      1,
+                  );
+    }
+
     /** Follow the grid element, which a grid list without a viewport measures. */
     attach(element: HTMLElement | undefined): void {
         this.#setElement(element);
@@ -314,6 +351,28 @@ export class GridListControl<Item> {
         });
     }
 
+    /** Break a section's keys into rows as a layout breaks their items. */
+    #break(keys: readonly string[], layout: RowLayout, width: number): readonly GridLine[] {
+        // stand one in a row until the grid list is measured
+        const ratios = keys.map((key) => {
+            const item = this.collection.item(key);
+
+            return item === undefined ? 1 : (this.#options.ratio?.(item) ?? 1);
+        });
+        if (width === 0) {
+            return keys.map((key) => ({ keys: [key], size: undefined }));
+        }
+
+        return layout.rows(ratios, width).map(({ start, end, height }) => ({
+            keys: keys.slice(start, end),
+            size: {
+                height,
+                widths: ratios.slice(start, end).map((ratio) => ratio * height),
+                gap: layout.gap,
+            },
+        }));
+    }
+
     /** Scroll a key's row into the viewport. */
     #reveal(key: string): void {
         const place = this.delegate.place(key);
@@ -327,6 +386,10 @@ export class GridListControl<Item> {
 export interface GridListOptions<Item> extends CollectionOptions<Item> {
     /** The cells in each row, as many as fit by their least width when absent, else one. */
     readonly columns?: Accessor<number>;
+    /** The layout that breaks the items into rows by their ratios, in place of columns. */
+    readonly layout?: RowLayout;
+    /** Read an item's ratio of width to height for a layout, square by default. */
+    readonly ratio?: (item: Item) => number;
     /** The least width of a cell in pixels, which sets how many fit a row. */
     readonly minItemWidth?: number;
     /** The most cells in a row that fits its cells. */
@@ -453,7 +516,7 @@ export function GridList<Item>(properties: GridListProperties<Item>): JSX.Elemen
             role="grid"
             tabindex={isVirtual ? 0 : undefined}
             aria-rowcount={control.delegate.rows().length}
-            aria-colcount={control.columns()}
+            aria-colcount={control.columnCount()}
             aria-activedescendant={isVirtual ? control.focus.descendant() : undefined}
             aria-multiselectable={control.selection?.isMultiple() === true ? "true" : undefined}
             data-slot="grid-list"
@@ -606,6 +669,13 @@ function renderRow<Item>(
             return String(place());
         },
         get xstyle() {
+            // size each cell of a row a layout broke, else share the row
+            if (row.kind === "cells" && row.size !== undefined) {
+                const columns = row.size.widths.map((each) => `${String(each)}px`).join(" ");
+
+                return styles.sized(columns, `${String(row.size.height)}px`, control.gap);
+            }
+
             return control.isFitted ? styles.fit(control.columns(), control.gap) : undefined;
         },
         ref: (element: Element) => control.measure(element, untrack(place)),

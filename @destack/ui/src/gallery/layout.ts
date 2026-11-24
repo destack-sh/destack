@@ -45,6 +45,16 @@ interface Columns {
     readonly width: number;
 }
 
+/** A row of a layout: its first item, the one after its last, and its height in pixels. */
+export interface LayoutRow {
+    /** The first item. */
+    readonly start: number;
+    /** The item after the last. */
+    readonly end: number;
+    /** The height. */
+    readonly height: number;
+}
+
 /** Equal cells in rows, such as files or people. */
 export class GridLayout implements Layout {
     /** The least width of a cell. */
@@ -101,12 +111,10 @@ export class RowLayout implements Layout {
 
     /** Place each item in a width, in pixels. */
     place(ratios: readonly number[], width: number): readonly Box[] {
-        // place the items of each row side by side, the last row no taller than the others
+        // place the items of each row side by side
         const boxes: Box[] = [];
         let y = 0;
-        for (const [start, end] of this.#rows(ratios, width)) {
-            const full = this.#heightOf(ratios.slice(start, end), width);
-            const height = end === ratios.length ? Math.min(full, this.#height) : full;
+        for (const { start, end, height } of this.rows(ratios, width)) {
             let x = 0;
             for (const ratio of ratios.slice(start, end)) {
                 boxes.push({ x, y, width: ratio * height, height });
@@ -119,7 +127,7 @@ export class RowLayout implements Layout {
     }
 
     /** Choose the rows whose heights together come nearest to the one asked for. */
-    #rows(ratios: readonly number[], width: number): readonly (readonly [number, number])[] {
+    rows(ratios: readonly number[], width: number): readonly LayoutRow[] {
         // find the least cost of the items before each, and where the row before it starts
         const costs = [0];
         const starts = [0];
@@ -148,10 +156,13 @@ export class RowLayout implements Layout {
             starts.push(best);
         }
 
-        // read the rows back from the last
-        const rows: (readonly [number, number])[] = [];
+        // read the rows back from the last, which is no taller than the others
+        const rows: LayoutRow[] = [];
         for (let end = ratios.length; end > 0; end = nth(starts, end)) {
-            rows.push([nth(starts, end), end]);
+            const start = nth(starts, end);
+            const full = this.#heightOf(ratios.slice(start, end), width);
+            const height = end === ratios.length ? Math.min(full, this.#height) : full;
+            rows.push({ start, end, height });
         }
 
         return rows.toReversed();
