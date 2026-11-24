@@ -169,10 +169,14 @@ function choose(select: HTMLSelectElement, values: readonly string[]): void {
     }
 }
 
+/** The properties of a select's button, whose label the select itself takes. */
+export type SelectTriggerProperties = Omit<
+    SelectElementProperties<JSX.ButtonHTMLAttributes<HTMLButtonElement>>,
+    "aria-label" | "aria-labelledby"
+>;
+
 /** Render the button a select shows its chosen option in. */
-export function SelectTrigger(
-    properties: SelectElementProperties<JSX.ButtonHTMLAttributes<HTMLButtonElement>>,
-): JSX.Element {
+export function SelectTrigger(properties: SelectTriggerProperties): JSX.Element {
     return renderPart("button", "select-trigger", properties, styles.trigger);
 }
 
