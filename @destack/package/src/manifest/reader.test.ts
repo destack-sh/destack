@@ -1,7 +1,7 @@
 import { testSimulation } from "@destack/test/world";
 import { dirname, join } from "node:path";
 import { expect, refusal, test } from "@destack/test";
-import { Digest } from "@destack/schema";
+import { Digest, found } from "@destack/schema";
 import { PackageVersion } from "../definition/package.ts";
 import { PackageError } from "../error/error.ts";
 import { MemoryBuild } from "../test/memory.ts";
@@ -272,4 +272,43 @@ test("read a build a directory keeps: its manifest, its file list and each file'
         files: (await build.files()).map((file) => file.path),
         bytes: new TextDecoder().decode(await build.load("output/bun/index.js")),
     }).toEqual({ manifest: written, files: ["output/bun/index.js"], bytes: "export {};\n" });
+});
+
+/** Encode a module's code as a build file's bytes. */
+function moduleBytes(code: string): Uint8Array<ArrayBuffer> {
+    return new TextEncoder().encode(code);
+}
+
+test("keep a reached module that shares bytes with an unreached one", async () => {
+    // write a library whose browser and workerd outputs have the same module, and one module only workerd has
+    const { crypto } = testSimulation().environment("test");
+    const output = { emit: true, workloads: {}, views: {}, exports: {} } as const;
+    const shared = moduleBytes("export const web = 1;");
+    const kit = await MemoryBuild.write(
+        new Map([
+            ["output/browser/web.js", shared],
+            ["output/workerd/web.js", shared],
+            ["output/workerd/server.js", moduleBytes("export const server = 1;")],
+        ]),
+        {
+            role: "library",
+            package: { name: "@example/kit", version: "1.0.0", integrity: "sha512-kit" },
+            outputs: {
+                browser: { ...output, runtime: "browser", directory: "output/browser" },
+                workerd: { ...output, runtime: "workerd", directory: "output/workerd" },
+            },
+        },
+        crypto,
+    );
+
+    // reach only the browser's copy
+    const digest = await kit.digest();
+    const unreached = await kit.unused(
+        await kit.files(),
+        new Set([`${digest}/output/browser/web.js`]),
+    );
+
+    // leave out the workerd-only module alone, keeping the shared bytes the browser's copy needs
+    const paths = new Map((await kit.files()).map((file) => [file.digest, file.path]));
+    expect([...unreached].map((each) => found(paths, each))).toEqual(["output/workerd/server.js"]);
 });

@@ -11,6 +11,18 @@ import type { Runtime } from "../runtime/runtime.ts";
 /** The path of a build's root manifest beside its files, in stores and running workloads. */
 export const MANIFEST_PATH = "manifest.json";
 
+/** The runtimes that load a build's modules by import from the store. */
+export const LOADED_RUNTIMES: ReadonlySet<Runtime> = new Set<Runtime>(["workerd", "browser"]);
+
+/** The suffix of a module's source map beside it. */
+const MAP_SUFFIX = ".map";
+
+/** The path of a JavaScript module. */
+const MODULE_PATH = /\.m?js$/u;
+
+/** The media type of a JavaScript module, which a runtime loads by import. */
+const MODULE_MEDIA_TYPE = "text/javascript";
+
 /** The status of a server unable to answer now, Service Unavailable (RFC 9110 15.6.4). */
 const SERVICE_UNAVAILABLE = 503;
 
@@ -105,6 +117,72 @@ export class BuildReader {
         return this.#digest.get(() =>
             Digest.of(PackageManifest.serialize(this.manifest), this.#crypto),
         );
+    }
+
+    /** Name every module of the build's outputs on a runtime, below the build's digest. */
+    async modules(runtime: Runtime): Promise<ReadonlySet<string>> {
+        // name each JavaScript module below the build's output directories on the runtime
+        const build = await this.digest();
+        const directories = PackageManifest.outputs(this.manifest, runtime).map(
+            (output) => `${output.directory}/`,
+        );
+        const names = (await this.files())
+            .filter(
+                (file) =>
+                    file.mediaType === MODULE_MEDIA_TYPE &&
+                    directories.some((directory) => file.path.startsWith(directory)),
+            )
+            .map((file) => `${build}/${file.path}`);
+
+        return new Set(names);
+    }
+
+    /** Name the modules the build runs by itself: all of an output with workloads or views. */
+    async entries(runtime: Runtime): Promise<string[]> {
+        // take every module of an output that starts workloads or mounts views, as documents name them by URL
+        const build = await this.digest();
+        const running = PackageManifest.outputs(this.manifest, runtime)
+            .filter(
+                (output) =>
+                    Object.keys(output.workloads).length > 0 ||
+                    Object.keys(output.views).length > 0,
+            )
+            .map((output) => `${output.directory}/`);
+        const modules = await this.modules(runtime);
+
+        return [...modules].filter((name) =>
+            running.some((directory) => name.startsWith(`${build}/${directory}`)),
+        );
+    }
+
+    /** List the files of the build no entry imports: its unused modules and their source maps. */
+    async unused(
+        files: readonly PackageFile[],
+        modules: ReadonlySet<string>,
+    ): Promise<Set<Digest>> {
+        // take the build's output directories on the runtimes loading modules by import
+        const build = await this.digest();
+        const directories = Object.values(this.manifest.outputs)
+            .filter((output) => LOADED_RUNTIMES.has(output.runtime))
+            .map((output) => `${output.directory}/`);
+
+        // leave out each module below them that no root reaches, with the source map beside it
+        const isLeft = (file: PackageFile) => {
+            const module = file.path.endsWith(MAP_SUFFIX)
+                ? file.path.slice(0, -MAP_SUFFIX.length)
+                : file.path;
+            const isModule =
+                MODULE_PATH.test(module) &&
+                directories.some((directory) => module.startsWith(directory));
+
+            return isModule && !modules.has(`${build}/${module}`);
+        };
+
+        // keep bytes a kept file shares, such as a reached module copied for two runtimes
+        const kept = new Set(files.filter((file) => !isLeft(file)).map((file) => file.digest));
+        const left = files.filter((file) => isLeft(file) && !kept.has(file.digest));
+
+        return new Set(left.map((file) => file.digest));
     }
 
     /** Read one distributed file whole by its relative path and verify its exact bytes. */

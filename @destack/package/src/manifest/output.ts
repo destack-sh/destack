@@ -1,6 +1,7 @@
 import * as lexer from "es-module-lexer/js";
 import MagicString from "magic-string";
-import { present, schema } from "@destack/schema";
+import { Digest, present, schema } from "@destack/schema";
+import type { BuildReader } from "./reader.ts";
 import { DependencyName } from "../definition/index.ts";
 import { PackageFile, PackagePath } from "../file/index.ts";
 import { Runtime } from "../runtime/index.ts";
@@ -79,6 +80,9 @@ export interface ModuleImports {
     /** Whether it imports a module by a computed name, which reaches any module beside it. */
     readonly isOpen: boolean;
 }
+
+/** What a map's modules are read from: a build's manifest, its modules and a file's bytes. */
+export type ModuleReader = Pick<BuildReader, "manifest" | "modules" | "load">;
 
 /** An import map, as browsers read it: module specifiers to URLs, with scopes by URL prefix. */
 const importMap = schema.object({
@@ -164,6 +168,61 @@ export const ImportMap = Object.assign(importMap, {
         }
 
         return { modules, isOpen };
+    },
+
+    /** List the builds a map's URLs point into below a URL prefix, its root's own left out. */
+    builds(map: ImportMap, base: string): Set<Digest> {
+        // read the build digest leading each URL below the prefix
+        const urls = [
+            ...Object.values(map.imports),
+            ...Object.values(map.scopes).flatMap((scope) => Object.values(scope)),
+        ];
+        const digests = urls.flatMap((url) =>
+            url.startsWith(base) ? [url.slice(base.length).split("/")[0] ?? ""] : [],
+        );
+
+        return new Set(digests.map((digest) => Digest.parse(digest)));
+    },
+
+    /** Read each module some entries import through a map, directly or through others, by path. */
+    async modules(
+        map: ImportMap,
+        base: string,
+        runtime: Runtime,
+        entries: readonly string[],
+        contents: (build: Digest) => Promise<ModuleReader>,
+    ): Promise<Map<string, string>> {
+        // start at the entries, and follow what each module imports
+        const read = new Map<string, string>();
+        const listed = new Map<Digest, ReadonlySet<string>>();
+        const pending = [...entries];
+        for (let name = pending.pop(); name !== undefined; name = pending.pop()) {
+            // read a module once
+            if (read.has(name)) {
+                continue;
+            }
+
+            // leave a path that is no module of its build on the runtime
+            const [digest = "", ...path] = name.split("/");
+            const build = Digest.parse(digest);
+            const reader = await contents(build);
+            const names = listed.get(build) ?? (await reader.modules(runtime));
+            listed.set(build, names);
+            if (!names.has(name)) {
+                continue;
+            }
+
+            // reach each module it imports, or its whole build where it imports by a computed name
+            const code = new TextDecoder().decode(await reader.load(path.join("/")));
+            read.set(name, code);
+            const imported = await ImportMap.imports(map, code, `${base}${name}`);
+            pending.push(
+                ...imported.modules.map((module) => module.slice(base.length)),
+                ...(imported.isOpen ? names : []),
+            );
+        }
+
+        return read;
     },
 });
 /** An import map, as browsers read it: module specifiers to URLs, with scopes by URL prefix. */

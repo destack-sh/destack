@@ -2,7 +2,9 @@ import type { Crypto } from "@destack/environment";
 import { canonicalize, Digest, present, schema } from "@destack/schema";
 import type { DependencyRelease } from "../definition/dependency.ts";
 import { DependencyName } from "../definition/package.ts";
-import type { PackageManifest } from "./manifest.ts";
+import { PackageManifest } from "./manifest.ts";
+import type { ImportMap } from "./output.ts";
+import type { Runtime } from "../runtime/index.ts";
 
 /** The image format a store writes. */
 export const IMAGE_FORMAT = 2;
@@ -189,6 +191,174 @@ export const BuildImage = Object.assign(image, {
     /** Find the build a requirement of a build resolves to, absent for one the runtime links. */
     resolve(value: BuildImage, build: Digest, name: string): Digest | undefined {
         return BuildImage.links(value, build)[name];
+    },
+
+    /** Read the builds a runtime loads of an image, from what its root runs or every export. */
+    async loads(
+        value: BuildImage,
+        runtime: Runtime,
+        read: (manifest: Digest) => Promise<PackageManifest | undefined>,
+        entries: "run" | "export" = "run",
+    ): Promise<ReadonlySet<Digest>> {
+        // start at each output's workloads and the exports its views mount, or at every export
+        const manifests = new Map<Digest, Promise<PackageManifest | undefined>>();
+        const once = (digest: Digest) => {
+            const reading = manifests.get(digest) ?? read(digest);
+            manifests.set(digest, reading);
+
+            return reading;
+        };
+        const first = await once(value.root);
+        const pending = PackageManifest.outputs(
+            present(first, `the root of image ${value.root}`),
+            runtime,
+        ).flatMap((output) => {
+            const mounted = new Set(Object.values(output.views).map((view) => view.entrypoint));
+            const started =
+                entries === "export"
+                    ? Object.keys(output.exports)
+                    : [
+                          ...Object.values(output.workloads).map((each) => each.entrypoint),
+                          ...Object.entries(output.exports)
+                              .filter(([, exported]) => mounted.has(exported.path))
+                              .map(([subpath]) => subpath),
+                      ];
+
+            return started.map((subpath) => ({ manifest: value.root, subpath }));
+        });
+
+        // follow each export once to the image's builds its chunks import
+        const loaded = new Set<Digest>([value.root]);
+        const visited = new Set<string>();
+        const expanded = new Set<Digest>();
+        const units: Digest[] = [];
+        for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+            const key = `${next.manifest} ${next.subpath}`;
+            const opened = visited.has(key) ? undefined : await once(next.manifest);
+            visited.add(key);
+            if (opened !== undefined) {
+                // follow every export of the root
+                const output = present(
+                    PackageManifest.outputs(opened, runtime)[0],
+                    `the ${runtime} output of ${next.manifest}`,
+                );
+                if (
+                    entries === "export" &&
+                    next.manifest === value.root &&
+                    !expanded.has(next.manifest)
+                ) {
+                    expanded.add(next.manifest);
+                    for (const subpath of Object.keys(output.exports)) {
+                        pending.push({ ...next, subpath });
+                    }
+                }
+
+                // take each imported package's build
+                const { imports } = present(
+                    output.exports[next.subpath],
+                    `the export ${next.subpath} of ${next.manifest}`,
+                );
+                for (const specifier of imports) {
+                    const build = BuildImage.resolve(
+                        value,
+                        next.manifest,
+                        DependencyName.of(specifier),
+                    );
+                    const imported = build === undefined ? undefined : await once(build);
+                    // take an npm unit's build with its links later
+                    if (
+                        build !== undefined &&
+                        imported !== undefined &&
+                        !PackageManifest.isPackage(imported)
+                    ) {
+                        units.push(build);
+                    }
+                    // follow a package's build through the export it imports
+                    else if (build !== undefined) {
+                        loaded.add(build);
+                        pending.push({
+                            manifest: build,
+                            subpath: DependencyName.subpath(specifier),
+                        });
+                    }
+                }
+            }
+        }
+
+        // add each imported npm unit with the units it links
+        for (let unit = units.pop(); unit !== undefined; unit = units.pop()) {
+            if (!loaded.has(unit)) {
+                loaded.add(unit);
+                units.push(...Object.values(BuildImage.links(value, unit)));
+            }
+        }
+
+        return loaded;
+    },
+
+    /** Map an image's modules on a runtime below a URL prefix, builtins at their linked builds. */
+    async imports(
+        value: BuildImage,
+        runtime: Runtime,
+        base: string,
+        linked: ReadonlyMap<string, BuildImage>,
+        read: (manifest: Digest) => Promise<PackageManifest>,
+    ): Promise<ImportMap> {
+        // read the builds the root's modules import on the runtime
+        const loaded = await BuildImage.loads(value, runtime, read);
+        const links = [...linked.values()].flatMap((each) => Object.entries(each.builds));
+        const builtins = BuildImage.of(value.root, Object.fromEntries(links));
+
+        // map each dependency's exports in its dependent's scope
+        const map: ImportMap = { imports: {}, scopes: {} };
+        const visited = new Set<string>([`${value.root} app`]);
+        const pending = [{ digest: value.root, scope: map.imports, isLinked: false }];
+        for (const { digest, scope, isLinked } of pending) {
+            for (const output of PackageManifest.outputs(await read(digest), runtime)) {
+                // take each imported package's build
+                const names = new Set(
+                    Object.values(output.exports).flatMap((exported) =>
+                        exported.imports.map((specifier) => DependencyName.of(specifier)),
+                    ),
+                );
+                const dependencies = [...names].flatMap((name) => {
+                    // take the image's build of a name
+                    const pinned = isLinked ? undefined : BuildImage.resolve(value, digest, name);
+                    const isPinned = pinned !== undefined && loaded.has(pinned);
+                    const manifest = isPinned
+                        ? pinned
+                        : ((BuildImage.lists(builtins, digest)
+                              ? BuildImage.resolve(builtins, digest, name)
+                              : undefined) ?? linked.get(name)?.root);
+
+                    return manifest === undefined ? [] : [{ name, manifest, isLinked: !isPinned }];
+                });
+                for (const dependency of dependencies) {
+                    // map the dependency's exports to its files below its build's prefix
+                    const { name, manifest } = dependency;
+                    const prefix = `${base}${manifest}/`;
+                    for (const each of PackageManifest.outputs(await read(manifest), runtime)) {
+                        for (const [subpath, exported] of Object.entries(each.exports)) {
+                            const specifier = subpath === "." ? name : `${name}${subpath.slice(1)}`;
+                            scope[specifier] = `${prefix}${exported.path}`;
+                        }
+                    }
+
+                    // map the dependency's own imports in its scope once per side
+                    const side = `${manifest} ${dependency.isLinked ? "linked" : "app"}`;
+                    if (!visited.has(side)) {
+                        visited.add(side);
+                        pending.push({
+                            digest: manifest,
+                            scope: (map.scopes[prefix] ??= {}),
+                            isLinked: dependency.isLinked,
+                        });
+                    }
+                }
+            }
+        }
+
+        return map;
     },
 });
 

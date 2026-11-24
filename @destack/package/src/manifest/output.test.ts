@@ -1,4 +1,7 @@
+import { testSimulation } from "@destack/test/world";
 import { expect, test } from "@destack/test";
+import { type Digest, found } from "@destack/schema";
+import { MemoryBuild } from "../test/memory.ts";
 import { ImportMap } from "./output.ts";
 
 /** A map of a build's imports at the top, and a dependency's own imports in its scope. */
@@ -66,5 +69,110 @@ test("list the modules a module imports or names by URL, and whether it imports 
             isOpen: false,
         },
         { modules: [], isOpen: true },
+    ]);
+});
+
+/** Encode a module's code as a build file's bytes. */
+function moduleBytes(code: string): Uint8Array<ArrayBuffer> {
+    return new TextEncoder().encode(code);
+}
+
+test("reach the modules an entry imports across builds, a whole build for a computed name, and list the rest unreached", async () => {
+    // write an app importing one module of a kit, and a kit whose loader imports by a computed name
+    const { crypto } = testSimulation().environment("test");
+    const output = {
+        runtime: "workerd",
+        emit: true,
+        workloads: {},
+        views: {},
+        exports: {},
+    } as const;
+    const app = await MemoryBuild.write(
+        new Map([
+            [
+                "output/workerd/main.js",
+                moduleBytes('import "@example/kit/used";\nimport "./local.js";'),
+            ],
+            ["output/workerd/local.js", moduleBytes("export const local = 1;")],
+            ["output/workerd/stray.js", moduleBytes("export const stray = 1;")],
+        ]),
+        {
+            role: "app",
+            package: { name: "@example/app", version: "1.0.0", integrity: "sha512-app" },
+            outputs: { workerd: { ...output, directory: "output/workerd" } },
+        },
+        crypto,
+    );
+    const kit = await MemoryBuild.write(
+        new Map([
+            ["output/workerd/used.js", moduleBytes('import "./chunk.js";')],
+            ["output/workerd/chunk.js", moduleBytes("export const chunk = 1;")],
+            ["output/workerd/unused.js", moduleBytes("export const unused = 1;")],
+            ["output/workerd/unused.js.map", moduleBytes("{}")],
+        ]),
+        {
+            role: "library",
+            package: { name: "@example/kit", version: "1.0.0", integrity: "sha512-kit" },
+            outputs: { workerd: { ...output, directory: "output/workerd" } },
+        },
+        crypto,
+    );
+    const [appDigest, kitDigest] = [await app.digest(), await kit.digest()];
+    const contents = async (build: Digest) => (build === appDigest ? app : kit);
+    const map = {
+        imports: { "@example/kit/used": `/${kitDigest}/output/workerd/used.js` },
+        scopes: {},
+    };
+
+    // reach the entry, its local module and the kit's used module with its chunk
+    const reached = await ImportMap.modules(
+        map,
+        "/",
+        "workerd",
+        [`${appDigest}/output/workerd/main.js`],
+        contents,
+    );
+    const unreached = await kit.unused(await kit.files(), new Set(reached.keys()));
+    const paths = new Map((await kit.files()).map((file) => [file.digest, file.path]));
+    expect({
+        reached: [...reached.keys()].toSorted(),
+        unreached: [...unreached].map((digest) => found(paths, digest)).toSorted(),
+    }).toEqual({
+        reached: [
+            `${appDigest}/output/workerd/local.js`,
+            `${appDigest}/output/workerd/main.js`,
+            `${kitDigest}/output/workerd/chunk.js`,
+            `${kitDigest}/output/workerd/used.js`,
+        ].toSorted(),
+        unreached: ["output/workerd/unused.js", "output/workerd/unused.js.map"],
+    });
+
+    // reach every module of a build whose module imports by a computed name
+    const open = await MemoryBuild.write(
+        new Map([
+            [
+                "output/workerd/lazy.js",
+                moduleBytes("export const load = (name) => import(`./${name}.js`);"),
+            ],
+            ["output/workerd/a.js", moduleBytes("export const a = 1;")],
+        ]),
+        {
+            role: "library",
+            package: { name: "@example/open", version: "1.0.0", integrity: "sha512-open" },
+            outputs: { workerd: { ...output, directory: "output/workerd" } },
+        },
+        crypto,
+    );
+    const openDigest = await open.digest();
+    const whole = await ImportMap.modules(
+        { imports: {}, scopes: {} },
+        "/",
+        "workerd",
+        [`${openDigest}/output/workerd/lazy.js`],
+        async () => open,
+    );
+    expect([...whole.keys()].toSorted()).toEqual([
+        `${openDigest}/output/workerd/a.js`,
+        `${openDigest}/output/workerd/lazy.js`,
     ]);
 });

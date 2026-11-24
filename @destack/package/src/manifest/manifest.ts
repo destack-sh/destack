@@ -10,6 +10,7 @@ import {
 import { PackageError } from "../error/error.ts";
 import { PackageFile } from "../file/file.ts";
 import { PackageOutput } from "./output.ts";
+import type { Runtime } from "../runtime/index.ts";
 
 /** The manifest format a build writes. */
 export const MANIFEST_FORMAT = 5;
@@ -57,6 +58,11 @@ export const PackageManifest = Object.assign(manifest, {
         value: PackageManifest,
     ): value is PackageManifest & { readonly package: PackageVersion } {
         return "id" in value.package;
+    },
+
+    /** List a build's outputs on a runtime. */
+    outputs(value: PackageManifest, runtime: Runtime): PackageOutput[] {
+        return Object.values(value.outputs).filter((output) => output.runtime === runtime);
     },
 
     /** Read the Destack package a build builds, refusing an npm unit's build. */
