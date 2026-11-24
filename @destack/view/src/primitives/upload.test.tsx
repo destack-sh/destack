@@ -1,16 +1,6 @@
-import { afterEach, expect, refusal, test, vi } from "@destack/test";
+import { afterEach, expect, test, vi } from "@destack/test";
 import { createRoot, flush } from "solid-js";
-import {
-    createDropzone,
-    createFilePicker,
-    createFileUploader,
-    dropzone,
-    fileSender,
-    fileUploader,
-    type SendFunction,
-    type UploadFile,
-    type UploadProgress,
-} from "./upload.ts";
+import { createDropzone, createFilePicker, dropzone, fileUploader } from "./upload.ts";
 import { wait } from "../test/dom.ts";
 
 afterEach(() => {
@@ -57,25 +47,21 @@ function fileList(...files: File[]): FileList {
     return new StubFileList(files);
 }
 
-/** Wrap a file as an upload file. */
-function uploadFile(name = "picture.png"): UploadFile {
-    const content = file(name);
-
-    return { source: `blob:${name}`, name, size: content.size, file: content };
-}
-
 /** Choose files in an input. */
 function choose(input: HTMLInputElement, files: FileList): void {
     Object.defineProperty(input, "files", { configurable: true, value: files });
     input.dispatchEvent(new Event("change"));
 }
 
-/** Dispatch a drag event, with files on drop. */
-function drag(target: EventTarget, type: string, files?: FileList): DragEvent {
+/** Dispatch a drag event of files, shown on drop, or of text. */
+function drag(
+    target: EventTarget,
+    type: string,
+    files: FileList = fileList(),
+    types: readonly string[] = ["Files"],
+): DragEvent {
     const event = new DragEvent(type, { bubbles: true, cancelable: true });
-    if (files !== undefined) {
-        Object.defineProperty(event, "dataTransfer", { value: { files } });
-    }
+    Object.defineProperty(event, "dataTransfer", { value: { files, types } });
     target.dispatchEvent(event);
     flush();
 
@@ -239,6 +225,27 @@ test("follow drags over a drop zone and take the dropped files", async () => {
     });
 });
 
+test("leave a drag of text to the page", async () => {
+    const element = document.createElement("div");
+    const zone = createRoot((dispose) => {
+        const state = createDropzone();
+        state.ref(element);
+
+        return { ...state, dispose };
+    });
+    flush();
+    const events = ["dragenter", "dragover", "drop"].map((type) =>
+        drag(element, type, fileList(), ["text/plain"]),
+    );
+    const isDragging = zone.isDragging();
+    zone.dispose();
+
+    expect([isDragging, events.map((event) => event.defaultPrevented)]).toEqual([
+        false,
+        [false, false, false],
+    ]);
+});
+
 test("move a drop zone's listeners to the element its ref receives next", () => {
     const first = document.createElement("div");
     const second = document.createElement("div");
@@ -290,190 +297,5 @@ test("hand the files chosen in an input to a callback, clearing it, and report f
         held: [["chosen.png"]],
         errors: [new Error("callback failed")],
         value: "",
-    });
-});
-
-test("upload each file in its own request, following each and all of them", async () => {
-    // send two files whose requests the test settles
-    const requests: {
-        name: string;
-        progress: (progress: UploadProgress) => void;
-        settle: (outcome: unknown) => void;
-    }[] = [];
-    const send: SendFunction = (sent, onProgress) =>
-        new Promise((resolve, reject) => {
-            requests.push({
-                name: sent.name,
-                progress: onProgress,
-                settle: (outcome) =>
-                    outcome instanceof Error ? reject(outcome) : resolve(outcome),
-            });
-        });
-    const uploader = createRoot((disposeRoot) => ({
-        ...createFileUploader(send),
-        dispose: disposeRoot,
-    }));
-    const idle = uploader.status();
-    const uploaded = uploader.upload([uploadFile("first.png"), uploadFile("second.png")]);
-    flush();
-    const uploading = uploader.status();
-
-    // report progress, then let one succeed and one fail
-    requests[0]?.progress({ loaded: 50, total: 100, percentage: 50 });
-    requests[1]?.progress({ loaded: 0, total: 100, percentage: 0 });
-    flush();
-    const progress = uploader.progress();
-    requests[0]?.settle({ ok: true });
-    requests[1]?.settle(new Error("upload failed"));
-    const responses = await uploaded;
-    flush();
-    const entries = uploader.files.map((entry) => [
-        entry.file.name,
-        entry.status,
-        entry.response,
-        entry.error,
-    ]);
-    const status = uploader.status();
-    uploader.dispose();
-
-    expect({ idle, uploading, progress, responses, entries, status }).toEqual({
-        idle: "idle",
-        uploading: "uploading",
-        progress: { loaded: 50, total: 200, percentage: 25 },
-        responses: [{ ok: true }, undefined],
-        entries: [
-            ["first.png", "success", { ok: true }, null],
-            ["second.png", "error", null, new Error("upload failed")],
-        ],
-        status: "error",
-    });
-});
-
-test("abort uploads, and drop files while aborting what is in flight", async () => {
-    // abort a request that listens to its signal
-    const signals: AbortSignal[] = [];
-    const send: SendFunction = (_file, _onProgress, signal) =>
-        new Promise((_resolve, reject) => {
-            signals.push(signal);
-            signal.addEventListener("abort", () =>
-                reject(new DOMException("upload aborted", "AbortError")),
-            );
-        });
-    const uploader = createRoot((disposeRoot) => ({
-        ...createFileUploader(send),
-        dispose: disposeRoot,
-    }));
-    const first = uploader.upload([uploadFile()]);
-    uploader.abort();
-    await first;
-    flush();
-    const aborted = uploader.status();
-
-    // upload two files, then drop one and clear the rest
-    void uploader.upload([uploadFile("first.png"), uploadFile("second.png")]);
-    flush();
-    uploader.removeFile("first.png");
-    flush();
-    const kept = uploader.files.map((entry) => entry.file.name);
-    uploader.clearFiles();
-    flush();
-    uploader.dispose();
-
-    expect({
-        aborted,
-        signals: signals.map((signal) => signal.aborted),
-        kept,
-        files: uploader.files.length,
-        status: uploader.status(),
-    }).toEqual({
-        aborted: "aborted",
-        signals: [true, true, true],
-        kept: ["second.png"],
-        files: 0,
-        status: "idle",
-    });
-});
-
-test("post files as a form with headers and progress, parsing JSON responses", async () => {
-    // stand in for the request, recording what it is told
-    const calls: string[] = [];
-    const listeners = new Map<string, () => void>();
-    const progressListeners: ((event: ProgressEvent) => void)[] = [];
-    let type = "application/json";
-    let status = 200;
-    class StubRequest {
-        /** The status line. */
-        statusText = "OK";
-        /** The response body. */
-        responseText = '{"ok":true}';
-        /** The upload whose progress the test reports. */
-        readonly upload = {
-            addEventListener: (_type: string, listener: (event: ProgressEvent) => void) =>
-                progressListeners.push(listener),
-        };
-        /** Read the status code. */
-        get status(): number {
-            return status;
-        }
-        /** Record the method and address. */
-        open(method: string, url: string): void {
-            calls.push(`${method} ${url}`);
-        }
-        /** Record a header. */
-        setRequestHeader(name: string, value: string): void {
-            calls.push(`${name}: ${value}`);
-        }
-        /** Record the body's kind. */
-        send(body: unknown): void {
-            calls.push(body instanceof FormData ? "form" : "other");
-        }
-        /** Abort nothing. */
-        abort(): void {}
-        /** Read the content type. */
-        getResponseHeader(): string {
-            return type;
-        }
-        /** Keep a listener. */
-        addEventListener(name: string, listener: () => void): void {
-            listeners.set(name, listener);
-        }
-    }
-    vi.stubGlobal("XMLHttpRequest", StubRequest);
-    const send = fileSender("/upload", {
-        headers: { "X-Token": "secret", "Content-Type": "ignored" },
-    });
-
-    // send, report progress, and load as JSON, as text, and as a failure
-    const progress: UploadProgress[] = [];
-    const json = send(
-        uploadFile(),
-        (reported) => progress.push(reported),
-        new AbortController().signal,
-    );
-    for (const listener of progressListeners) {
-        listener(
-            new ProgressEvent("progress", { lengthComputable: true, loaded: 256, total: 1024 }),
-        );
-    }
-    listeners.get("load")?.();
-    type = "text/plain";
-    const text = send(uploadFile(), () => {}, new AbortController().signal);
-    listeners.get("load")?.();
-    status = 413;
-    const failed = refusal(send(uploadFile(), () => {}, new AbortController().signal));
-    listeners.get("load")?.();
-
-    expect({
-        calls: calls.slice(0, 3),
-        progress,
-        json: await json,
-        text: await text,
-        failed: await failed,
-    }).toEqual({
-        calls: ["POST /upload", "X-Token: secret", "form"],
-        progress: [{ loaded: 256, total: 1024, percentage: 25 }],
-        json: { ok: true },
-        text: '{"ok":true}',
-        failed: ["BAD_GATEWAY", "UPLOAD_UNREACHABLE", "could not upload: HTTP 413 'OK'"],
     });
 });

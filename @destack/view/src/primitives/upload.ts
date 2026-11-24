@@ -1,14 +1,6 @@
 import { isServer } from "@solidjs/web";
-import {
-    type Accessor,
-    createEffect,
-    createMemo,
-    createSignal,
-    createStore,
-    onCleanup,
-} from "solid-js";
+import { type Accessor, createEffect, createSignal, onCleanup } from "solid-js";
 import { TRANSPARENT } from "./utils.ts";
-import { ViewError } from "../error/error.ts";
 
 /** A chosen file, with an object URL that shows it. */
 export type UploadFile = {
@@ -92,69 +84,6 @@ export interface DropzoneOptions {
     readonly onDragOver?: DragEventCallback;
 }
 
-/** Where an upload stands. */
-export type UploadStatus = "idle" | "uploading" | "success" | "error" | "aborted";
-
-/** How much of an upload has been sent. */
-export type UploadProgress = {
-    /** The bytes sent. */
-    readonly loaded: number;
-    /** The bytes to send. */
-    readonly total: number;
-    /** The share sent, in whole percent. */
-    readonly percentage: number;
-};
-
-/** Send one file, reporting progress, rejecting with an `AbortError` when the signal aborts. */
-export type SendFunction = (
-    file: UploadFile,
-    onProgress: (progress: UploadProgress) => void,
-    signal: AbortSignal,
-) => Promise<unknown>;
-
-/** One file of an upload, with its progress, status, error and response. */
-export type FileUploadEntry = {
-    /** The file. */
-    file: UploadFile;
-    /** How much of it has been sent. */
-    progress: UploadProgress;
-    /** Where its upload stands. */
-    status: UploadStatus;
-    /** Why its upload failed, null unless it did. */
-    error: unknown;
-    /** The server's response, null until it succeeds. */
-    response: unknown;
-};
-
-/** An uploader's upload action, its files, and their combined progress and status. */
-export interface FileUploader {
-    /** Send each file in its own request, resolving once all settle. */
-    readonly upload: (files: UploadFile[]) => Promise<unknown[]>;
-    /** The files of the latest upload, each updating on its own. */
-    readonly files: readonly FileUploadEntry[];
-    /** The progress of all files together. */
-    readonly progress: Accessor<UploadProgress>;
-    /** The status of all files together. */
-    readonly status: Accessor<UploadStatus>;
-    /** Abort every upload in flight. */
-    readonly abort: () => void;
-    /** Drop a file by name, aborting every upload in flight. */
-    readonly removeFile: (fileName: string) => void;
-    /** Drop every file, aborting every upload in flight. */
-    readonly clearFiles: () => void;
-}
-
-/** How `fileSender` posts files. */
-export type FileSenderOptions = {
-    /** The form field each file is posted as, `file` by default. */
-    readonly fieldName?: string;
-    /** More request headers, never the content type, which the browser sets. */
-    readonly headers?: Record<string, string>;
-};
-
-/** No progress yet. */
-const NO_PROGRESS: UploadProgress = { loaded: 0, total: 0, percentage: 0 };
-
 /** Open the device's file picker and follow the chosen files. */
 export function createFilePicker(options: FilePickerOptions = {}): FilePicker {
     // choose nothing on the server
@@ -224,6 +153,10 @@ export function createDropzone<Target extends HTMLElement = HTMLElement>(
 
     // allow drops over the zone
     const over = (event: DragEvent): void => {
+        // leave a drag of text or of the page's own elements
+        if (!hasFiles(event)) {
+            return;
+        }
         event.preventDefault();
         void options.onDragOver?.(event);
     };
@@ -237,6 +170,10 @@ export function createDropzone<Target extends HTMLElement = HTMLElement>(
             }
             let depth = 0;
             const enter = (event: DragEvent): void => {
+                // leave a drag without files
+                if (!hasFiles(event)) {
+                    return;
+                }
                 depth++;
                 if (depth === 1) {
                     setIsDragging(true);
@@ -244,6 +181,10 @@ export function createDropzone<Target extends HTMLElement = HTMLElement>(
                 }
             };
             const leave = (event: DragEvent): void => {
+                // leave a drag without files
+                if (!hasFiles(event)) {
+                    return;
+                }
                 depth = Math.max(depth - 1, 0);
                 if (depth === 0) {
                     setIsDragging(false);
@@ -251,6 +192,11 @@ export function createDropzone<Target extends HTMLElement = HTMLElement>(
                 }
             };
             const drop = (event: DragEvent): void => {
+                // leave a drag without files
+                if (!hasFiles(event)) {
+                    return;
+                }
+
                 // stop the drag
                 event.preventDefault();
                 depth = 0;
@@ -295,190 +241,6 @@ export function dropzone<Target extends HTMLElement = HTMLElement>(
     return Object.assign(ref, state);
 }
 
-/** Upload files through a send function, each file in its own request. */
-export function createFileUploader(send: SendFunction): FileUploader {
-    // upload nothing on the server
-    if (isServer) {
-        return {
-            upload: async () => [],
-            files: [],
-            progress: () => NO_PROGRESS,
-            status: () => "idle",
-            abort: () => {},
-            removeFile: () => {},
-            clearFiles: () => {},
-        };
-    }
-
-    // hold each file's state, ignoring writes from uploads a later one replaced
-    const [files, setFiles] = createStore<FileUploadEntry[]>([]);
-    let controllers: AbortController[] = [];
-    let generation = 0;
-    const update = (
-        index: number,
-        current: number,
-        change: (entry: FileUploadEntry) => void,
-    ): void => {
-        if (generation === current) {
-            setFiles((draft) => {
-                const entry = draft[index];
-                if (entry !== undefined) {
-                    change(entry);
-                }
-            });
-        }
-    };
-    const abort = (): void => {
-        for (const controller of controllers) {
-            controller.abort();
-        }
-    };
-
-    // send every file, recording its progress, response, failure or abort
-    const upload = async (uploadFiles: UploadFile[]): Promise<unknown[]> => {
-        // abort the last upload, starting every file anew with a controller of its own
-        abort();
-        const sends = uploadFiles.map((file) => ({ file, controller: new AbortController() }));
-        controllers = sends.map((entry) => entry.controller);
-        const current = ++generation;
-        setFiles(() =>
-            uploadFiles.map((file) => ({
-                file,
-                progress: NO_PROGRESS,
-                status: "uploading",
-                error: null,
-                response: null,
-            })),
-        );
-
-        return Promise.all(
-            sends.map(async ({ file, controller }, index) => {
-                const signal = controller.signal;
-                try {
-                    const response = await send(
-                        file,
-                        (progress) =>
-                            update(index, current, (entry) => (entry.progress = progress)),
-                        signal,
-                    );
-                    update(index, current, (entry) => {
-                        entry.status = "success";
-                        entry.response = response;
-                    });
-
-                    return response;
-                } catch (error) {
-                    const isAborted = error instanceof DOMException && error.name === "AbortError";
-                    update(index, current, (entry) => {
-                        entry.status = isAborted ? "aborted" : "error";
-                        entry.error = isAborted ? null : error;
-                    });
-
-                    return undefined;
-                }
-            }),
-        );
-    };
-
-    // drop files, aborting what is in flight
-    const removeFile = (fileName: string): void => {
-        // abort and forget what is in flight
-        abort();
-        controllers = [];
-        generation++;
-        setFiles((draft) => {
-            const index = draft.findIndex((entry) => entry.file.name === fileName);
-            if (index !== -1) {
-                draft.splice(index, 1);
-            }
-        });
-    };
-    const clearFiles = (): void => {
-        // abort and forget what is in flight
-        abort();
-        controllers = [];
-        generation++;
-        setFiles(() => []);
-    };
-
-    // combine the files' progress and status
-    const progress = createMemo((): UploadProgress => {
-        const loaded = files.reduce((sum, entry) => sum + entry.progress.loaded, 0);
-        const total = files.reduce((sum, entry) => sum + entry.progress.total, 0);
-
-        return { loaded, total, percentage: total === 0 ? 0 : Math.round((loaded / total) * 100) };
-    }, TRANSPARENT);
-    const status = createMemo((): UploadStatus => {
-        if (files.length === 0) {
-            return "idle";
-        }
-        for (const candidate of ["uploading", "error", "aborted"] as const) {
-            if (files.some((entry) => entry.status === candidate)) {
-                return candidate;
-            }
-        }
-
-        return "success";
-    }, TRANSPARENT);
-    onCleanup(abort);
-
-    return { upload, files, progress, status, abort, removeFile, clearFiles };
-}
-
-/** Make a send function that posts each file in a form. */
-export function fileSender(url: string, options: FileSenderOptions = {}): SendFunction {
-    const { fieldName = "file", headers = {} } = options;
-
-    return async (file, onProgress, signal) =>
-        new Promise((resolve, reject) => {
-            // post the file as a form field
-            const form = new FormData();
-            form.append(fieldName, file.file, file.name);
-            const request = new XMLHttpRequest();
-            signal.addEventListener("abort", () => request.abort());
-
-            // report progress, and settle with the response, parsed as JSON when it says it is
-            request.upload.addEventListener("progress", (event) => {
-                if (event.lengthComputable) {
-                    onProgress({
-                        loaded: event.loaded,
-                        total: event.total,
-                        percentage: Math.round((event.loaded / event.total) * 100),
-                    });
-                }
-            });
-            request.addEventListener("load", () => {
-                if (request.status < 200 || request.status >= 300) {
-                    reject(
-                        ViewError.of(
-                            "UPLOAD_UNREACHABLE",
-                            `could not upload: HTTP ${request.status} '${request.statusText}'`,
-                        ),
-                    );
-
-                    return;
-                }
-                const isJson = request.getResponseHeader("content-type")?.includes("json") === true;
-                resolve(isJson ? JSON.parse(request.responseText) : request.responseText);
-            });
-            request.addEventListener("error", () =>
-                reject(ViewError.of("UPLOAD_UNREACHABLE", "could not upload over the network")),
-            );
-            request.addEventListener("abort", () =>
-                reject(new DOMException("upload aborted", "AbortError")),
-            );
-
-            // send with the headers, leaving the content type to the browser
-            request.open("POST", url);
-            for (const [name, value] of Object.entries(headers)) {
-                if (name.toLowerCase() !== "content-type") {
-                    request.setRequestHeader(name, value);
-                }
-            }
-            request.send(form);
-        });
-}
-
 /** Hand the files chosen in a file input a ref receives to a callback. */
 export function fileUploader(options: FileUploaderDirective): (element: HTMLInputElement) => void {
     // choose nothing on the server
@@ -514,6 +276,11 @@ export function fileUploader(options: FileUploaderDirective): (element: HTMLInpu
         target = element;
         element.addEventListener("change", listener);
     };
+}
+
+/** Report whether a drag has files, which the browser tells before they are dropped. */
+function hasFiles(event: DragEvent): boolean {
+    return event.dataTransfer?.types.includes("Files") === true;
 }
 
 /** Hold a list of chosen files, revoking each file's object URL once it is dropped. */

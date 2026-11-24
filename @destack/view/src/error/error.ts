@@ -51,7 +51,6 @@ export const ViewError = defineErrorFamily({
         CATALOG_UNREACHABLE: {},
         FAVICON_LOAD_UNREACHABLE: {},
         PRERENDER_UNREACHABLE: {},
-        UPLOAD_UNREACHABLE: {},
 
         // broken
         PAGE_ADDRESS_BROKEN: {},
