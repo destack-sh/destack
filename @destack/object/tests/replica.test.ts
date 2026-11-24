@@ -574,8 +574,72 @@ test("refuse a follow with malformed chain parameters as a bad request", async (
     expect(await refusal(pages.next())).toEqual([
         "BAD_REQUEST",
         "PARAMETERS_INVALID",
-        "publication 'chain' is invalid: its parameters do not match: 'scopes: invalid input: expected array, received undefined; replicated: invalid input: expected array, received undefined; via: invalid input: expected array, received undefined; between: invalid input: expected array, received undefined'",
+        "publication 'chain' is invalid: its parameters do not match: 'scopes: invalid input: expected array, received undefined; replicas: invalid input: expected array, received undefined; replicated: invalid input: expected array, received undefined; via: invalid input: expected array, received undefined; between: invalid input: expected array, received undefined'",
     ]);
+});
+
+test("end a stream that left out an unserved type once the store serves it", async () => {
+    // store a space's mentions and memos, serving the mentions alone
+    const simulation = testSimulation(Date.UTC(2026, 9, 1));
+    const { clock } = simulation;
+    const world = simulation.environment("test");
+    const memo = defineObject(
+        {
+            name: "memo",
+            plural: "memos",
+            title: t`${plural(argument("count"), { one: "Memo", other: "Memos" })}`,
+            scope: space,
+            fields: { text: field.string() },
+            access: { permissions: { read: none(), write: none() } },
+        },
+        (method) => ({ create: method.create("write", { fields: ["text"] }) }),
+    );
+    const storage = await TestDatabase.create(
+        tablesOf({
+            packages: [objectPackage, { objects: { mention, memo }, tables: [] }],
+            follows: [],
+            tables: [...replicaTables],
+        }).tables,
+        { environment: world, isMigrated: true },
+    );
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    await openSpace(database, world, spaceId);
+    const store = TestObjectStore.of({
+        chain: async () => undefined,
+        environment: world,
+        principal: spacePrincipal(spaceId),
+        servers: serversOf([mention]),
+        database,
+        callKey: testCallKey,
+        events: await testEvents(database, world),
+        origin: { package: mention.package },
+    });
+
+    // follow the space's memos as alice, which the store answers with none
+    const alice = principal.user.reference("universe", users.alice);
+    const following = new AbortController();
+    onTestFinished(() => following.abort());
+    const pages = store.source.relayed(
+        {
+            name: QUERIES_PUBLICATION,
+            publication: store.source.queriesPublication.name,
+            scope: spaceId,
+            target: spaceId,
+            parameters: schema.jsonObject().parse({ queries: { memos: memo.query({}) } }),
+            revision: FOLLOWER_REVISION,
+        },
+        subjectContext(alice, spaceId, { signal: following.signal, environment: world }),
+    );
+    const first = await pages.next();
+
+    // serve the memos, then read the stream to its end
+    store.apply(serversOf([mention, memo]), []);
+    await simulation.jump(clock.now() + 60_000);
+    const rest = await Array.fromAsync(pages);
+
+    // end the stream at once, for its follower to resume and compile the memos
+    expect([first.done === false && first.value.complete, rest]).toEqual([true, []]);
 });
 
 test("answer a replicated type's query over its replica rows, and refuse its mutations", async () => {

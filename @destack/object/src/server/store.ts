@@ -414,6 +414,8 @@ interface StoreComposition {
     readonly replicas?: readonly ObjectType[];
     /** Further policies and table mappings to authorize. */
     readonly policies?: readonly (Policy | ObjectType | TableMapping)[];
+    /** The built-in types the host knows beside those it serves, which installations refer to. */
+    readonly known?: readonly ObjectType[];
     /** The database with the objects. */
     readonly database: DatabaseConnection;
     /** The storage of the partition's blobs, which its rows' blob columns keep alive. */
@@ -572,6 +574,8 @@ export class ObjectStore {
     }>();
     /** Aborts the running loop once the served jobs change. */
     #reloading = new AbortController();
+    /** Aborts once the store serves other types, which streams that left some out recompile at. */
+    #serving = new AbortController();
     /** The wait for the replicas gating readiness, shared by every implemented package. */
     #readiness: Promise<boolean> | undefined;
     /** The health of each server waiting on the replicas gating readiness. */
@@ -821,7 +825,14 @@ export class ObjectStore {
         if (controlled !== this.#controlled) {
             this.#controlled = controlled;
             this.#reloading.abort();
+            this.#serving.abort();
+            this.#serving = new AbortController();
         }
+    }
+
+    /** The signal aborting once the store serves other types. */
+    get serving(): AbortSignal {
+        return this.#serving.signal;
     }
 
     /** The object types served. */
@@ -1348,8 +1359,7 @@ export class ObjectStore {
         signal?: AbortSignal,
     ): Promise<void> {
         // read when the store's own follow of the key lapses
-        const { shape, onDemand } = follow;
-        const { scope } = at.key;
+        const { onDemand } = follow;
         const key = this.#followKey(STORE_FOLLOWER, follow, at);
         const [current] = await this.database
             .select({ expiresAt: followKey.expiresAt })
@@ -1364,7 +1374,19 @@ export class ObjectStore {
             await this.#writeFollowKeys([key], now + ttl);
         }
 
+        // wait for the replica to follow it
+        await this.waitSynced(follow, at, signal);
+    }
+
+    /** Wait until the replica follows a key's queries, refusing a replica still syncing. */
+    async waitSynced<Parameters extends object>(
+        follow: OnDemandFollow<Parameters>,
+        at: FollowKey<Parameters>,
+        signal?: AbortSignal,
+    ): Promise<void> {
         // wait on commits until the synced replica follows the key's queries, refusing a late one
+        const { shape } = follow;
+        const { scope } = at.key;
         const timeout = this.clock.timeout(ACQUIRE_MILLISECONDS);
         try {
             await this.database.log.waitUntil(

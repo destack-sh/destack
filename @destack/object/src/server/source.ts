@@ -606,27 +606,38 @@ export class ObjectSource {
         };
     }
 
-    /** Filter a follow's queries to the types this store serves or follows, with rows here. */
-    #served(named: QueriesParameters["queries"]): QueriesParameters["queries"] {
-        return named === undefined
-            ? undefined
-            : Object.fromEntries(
-                  Object.entries(named).filter(([, query]) =>
-                      this.store.followed.objects.some(
-                          (object) =>
-                              object.name === query.object && object.package.id === query.package,
-                      ),
-                  ),
-              );
+    /** Take a request's queries of known types, refusing others outside a scope homed here. */
+    #served(named: QueriesParameters["queries"], isHome: boolean): QueriesParameters["queries"] {
+        // split the queries of types the store serves or replicates from the others
+        const known = this.store.followed.objects;
+        const entries = Object.entries(named ?? {});
+        const isKnown = (query: ObjectQuery) =>
+            known.some(
+                (object) => object.name === query.object && object.package.id === query.package,
+            );
+        const unknown = entries.find(([, query]) => !isKnown(query));
+
+        // leave out unknown types in a scope homed here, which has none of their rows
+        if (unknown === undefined || isHome) {
+            return named === undefined
+                ? undefined
+                : Object.fromEntries(entries.filter(([, query]) => isKnown(query)));
+        }
+        // refuse them elsewhere, as the rows live at a home this store neither is nor replicates
+        else {
+            const [, query] = unknown;
+            throw ObjectError.of(
+                "HOME_OR_REPLICA_NOT_FOUND",
+                `home or replica of '${query.object}' rows of '${query.package}' here not found`,
+            );
+        }
     }
 
     /** Report whether a queries request reads a type the store follows at its home. */
     #isReplicated(parameters: JsonObject): boolean {
         // read the asked queries the store follows on demand
         const follow = this.store.queriesFollow;
-        const asked = Object.values(
-            this.#served(QueriesParameters.parse(parameters).queries) ?? {},
-        );
+        const asked = Object.values(QueriesParameters.parse(parameters).queries ?? {});
 
         return asked.some((query) =>
             (follow?.shape.objects ?? []).some(
@@ -650,13 +661,27 @@ export class ObjectSource {
         const reader = this.#reader(follower, scope);
         const { generation } = this.store.database.state.commits;
         const audience = await AccessAudience.of(this.store, scope, reader);
+        const isHome = await this.store.authorizer.isHome(this.store.database.snapshot(), scope);
 
-        // compile a request's queries over the scope's chain now
-        const compile = (parameters: JsonObject) =>
-            this.store.followed.queries(
-                this.#served(QueriesParameters.parse(parameters).queries),
-                audience.chain,
-            );
+        // compile a request's queries over the scope's chain now, noting whether it left some out
+        let isPartial = false;
+        const compile = (parameters: JsonObject) => {
+            const asked = QueriesParameters.parse(parameters).queries;
+            const served = this.#served(asked, isHome);
+            isPartial ||= Object.keys(served ?? {}).length < Object.keys(asked ?? {}).length;
+
+            return this.store.followed.queries(served, audience.chain);
+        };
+
+        // end a stream that left queries out once the store serves other types, for its follower to resume
+        const recompile = new AbortController();
+        const onServing = () => {
+            if (isPartial) {
+                recompile.abort();
+            }
+        };
+        const serving = this.store.serving;
+        serving.addEventListener("abort", onServing, { once: true });
 
         // follow the requested queries of rows homed elsewhere upstream for as long as the stream lasts
         const demand = this.#followQueries(scope);
@@ -672,7 +697,7 @@ export class ObjectSource {
                 after,
                 previous,
                 requested,
-                drain: context.closing,
+                drain: AbortSignal.any([context.closing, recompile.signal]),
                 signal: context.request.signal,
             });
 
@@ -702,6 +727,7 @@ export class ObjectSource {
         try {
             yield* pages();
         } finally {
+            serving.removeEventListener("abort", onServing);
             await demand?.end();
         }
     }
@@ -754,7 +780,7 @@ export class ObjectSource {
             take: async (parameters) => {
                 // follow the newly asked queries, and unfollow the dropped ones
                 const asked = Object.values(
-                    this.#served(QueriesParameters.parse(parameters).queries) ?? {},
+                    QueriesParameters.parse(parameters).queries ?? {},
                 ).filter((query) =>
                     follow.shape.objects.some(
                         (object) =>
@@ -763,11 +789,11 @@ export class ObjectSource {
                 );
                 const next = new Map(asked.map((query) => [canonicalize(query), query]));
                 const added = [...next].filter(([key]) => !followed.has(key));
-                await this.store.follow(
-                    stream,
-                    follow,
-                    added.map(([, query]) => ({ key: { scope, query } })),
-                );
+                const keys = added.map(([, query]) => ({ key: { scope, query } }));
+                await this.store.follow(stream, follow, keys);
+
+                // answer the added queries only once the store's replica has their rows
+                await Promise.all(keys.map((at) => this.store.waitSynced(follow, at)));
                 await unfollow(
                     [...followed].filter(([key]) => !next.has(key)).map(([, query]) => query),
                 );
