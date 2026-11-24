@@ -34,6 +34,8 @@ export const media = defineConsts({
     motionSafe: "@media (prefers-reduced-motion: no-preference)",
     /** A person who asked for more contrast. */
     contrastMore: "@media (prefers-contrast: more)",
+    /** A device that draws in its own few colors, which keeps no fill but a system color. */
+    forcedColors: "@media (forced-colors: active)",
     /** A printed page. */
     print: "@media print",
     /** A screen held upright. */
