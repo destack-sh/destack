@@ -1,10 +1,10 @@
 import { ComputeDefinition, DeclarationName, DirectoryGrant, PackageId } from "@destack/package";
-import { schema, Version } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { SECRET_TARGET } from "./binding.ts";
 import {
     InstallationBindings,
     InstallationName,
-    InstallationSelection,
+    InstallationVersion,
     type Package,
     Release,
     Tag,
@@ -30,10 +30,8 @@ export const InstallationDefinition = schema
     .object({
         /** The installed package. */
         packageId: PackageId,
-        /** What the author pinned it to: a release, tag, reference, checkout or the host's. */
-        selection: InstallationSelection.exactOptional(),
-        /** The version the stack was built with, which an installation without a pin follows. */
-        version: Version.exactOptional(),
+        /** The version it runs, else the release of its build in the stack's image. */
+        version: InstallationVersion.exactOptional(),
         /** Whether this installation should serve requests. */
         status: schema.enum(["enabled", "suspended"]),
         /** Space-local URL name, independent of the stable installation key. */
@@ -52,12 +50,8 @@ export const InstallationDefinition = schema
         tags: schema.record(schema.string().min(1), schema.string()),
     })
     .refine(
-        (installed) => installed.selection !== undefined || installed.version !== undefined,
-        "an installation needs a version or a selection",
-    )
-    .refine(
-        (installed) => installed.isolation !== "host" || installed.selection?.kind === "host",
-        "a host installation follows the host's release",
+        (installed) => installed.isolation !== "host" || installed.version?.kind === "host",
+        "a host installation runs the host's release",
     );
 /** A package installation declared in a configuration. */
 export type InstallationDefinition = schema.Infer<typeof InstallationDefinition>;
@@ -86,15 +80,13 @@ export interface InstallOptions {
     readonly isolation?: InstallationDefinition["isolation"];
     /** User-defined labels. */
     readonly tags?: InstallationDefinition["tags"];
-    /** The release to follow, the handle's version by default. */
-    readonly selection?: InstallationDefinition["selection"];
+    /** The version it runs, the build the stack's image has by default. */
+    readonly version?: InstallationDefinition["version"];
 }
 
 /** Install a package release, binding its declarations to this space's resources and secrets. */
 export function install<
-    const Handle extends Pick<Package, "id" | "name" | "resources" | "secrets"> & {
-        readonly version?: string;
-    },
+    const Handle extends Pick<Package, "id" | "name" | "resources" | "secrets">,
 >(
     handle: Handle,
     bindings: InstallBindingMap<Handle>,
@@ -146,20 +138,13 @@ export function install<
         }
     }
 
-    // pin the selected release, else the host's for a host installation, beside the version it was built with
-    const selection =
-        options.selection ?? (options.isolation === "host" ? { kind: "host" } : undefined);
-    if (selection === undefined && handle.version === undefined) {
-        throw StackError.of(
-            "DEFINITION_INVALID",
-            `installation '${handle.name}' is invalid: it needs a version or a selection`,
-        );
-    }
+    // run the named version, else the host's for a host installation, else the stack's image's build
+    const version =
+        options.version ?? (options.isolation === "host" ? { kind: "host" } : undefined);
 
     return InstallationDefinition.parse({
         packageId: handle.id,
-        ...(selection === undefined ? {} : { selection }),
-        ...(handle.version === undefined ? {} : { version: handle.version }),
+        ...(version === undefined ? {} : { version }),
         status: options.status ?? "enabled",
         name: options.name ?? handle.name.slice(handle.name.lastIndexOf("/") + 1),
         bindings: bound,

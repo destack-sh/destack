@@ -21,9 +21,9 @@ export type StackEvaluation = schema.Infer<typeof StackEvaluation>;
 
 /** A build for the installation following it to deploy, with a stack's export and arguments. */
 export const Submission = schema.object({
-    /** The tag, release, reference or checkout the installation follows, absent for the host's. */
-    follows: ObjectReference.exactOptional(),
-    /** The package directory within a followed repository or checkout. */
+    /** The tag, release, reference or checkout row the installation runs, absent for the host's. */
+    version: ObjectReference.exactOptional(),
+    /** The package directory within a repository or checkout. */
     directory: PackageDirectory.exactOptional(),
     /** The succeeded build of the space to deploy. */
     build: schema.identifier("build"),

@@ -113,8 +113,8 @@ export const installation = defineObject(
         fields: {
             /** The installed package. */
             packageId: field.string(PackageId),
-            /** The tag, release, reference or checkout it follows, absent for the host's. */
-            follows: field.object().optional(),
+            /** The release, tag, reference, build or checkout row it runs, none for the host's. */
+            version: field.object().optional(),
             /** The package directory within a followed repository or checkout. */
             directory: field.string(PackageDirectory).optional(),
             /** The targets it selects for its package's declarations. */
@@ -145,8 +145,8 @@ export const installation = defineObject(
             submittedBy: field.subject().optional(),
             /** The digest of the space's stack the installation last followed, absent for none. */
             appliedStack: field.string(Digest).optional(),
-            /** The image of the host's release it last followed, when it follows the host. */
-            followedImage: field.string(Digest).optional(),
+            /** The image of the host's release it last ran, when it runs the host's. */
+            hostImage: field.string(Digest).optional(),
             /** The revision it targets, absent before the first. */
             targetRevision: field.reference(() => installationRevision).optional(),
             /** The revision fully applied, absent before the first application. */
@@ -244,10 +244,10 @@ export const installation = defineObject(
             fields: [
                 "packageId",
                 "name",
-                "followsPackageId",
-                "followsType",
-                "followsScope",
-                "followsId",
+                "versionPackageId",
+                "versionType",
+                "versionScope",
+                "versionId",
                 "directory",
                 "bindings",
                 "export",
@@ -261,10 +261,10 @@ export const installation = defineObject(
         }),
         update: method.update("update", {
             fields: [
-                "followsPackageId",
-                "followsType",
-                "followsScope",
-                "followsId",
+                "versionPackageId",
+                "versionType",
+                "versionScope",
+                "versionId",
                 "directory",
                 "bindings",
                 "export",
@@ -324,7 +324,7 @@ export const installation = defineObject(
                 /** The digest of the space's stack, dropping an owner's earlier apply. */
                 appliedStack: Digest.exactOptional(),
                 /** The image of the host's release of its package. */
-                followedImage: Digest.exactOptional(),
+                hostImage: Digest.exactOptional(),
             }),
         }),
 
@@ -425,11 +425,11 @@ export const Installation = {
 
     /** Report whether one following the host's release runs an image this machine does not. */
     isSuperseded(
-        installed: Pick<Installation, "followsId">,
+        installed: Pick<Installation, "versionId">,
         image: Digest,
         trusted: ReadonlySet<Digest>,
     ): boolean {
-        return installed.followsId === null && !trusted.has(image);
+        return installed.versionId === null && !trusted.has(image);
     },
 
     /** List the optional capabilities an installation allows: declared ones and requested ones. */
@@ -655,18 +655,18 @@ export const Installation = {
         const rows = await store.database
             .snapshot()
             .read(installation.table)
-            .findMany({ where: { scope: spaceId, followsType: { isNull: true } } });
+            .findMany({ where: { scope: spaceId, versionType: { isNull: true } } });
 
         // record the host's image of each whose image changed
         const calls = rows.flatMap((row) => {
             const image = hosted(row.packageId);
 
-            return image === undefined || image === row.followedImage
+            return image === undefined || image === row.hostImage
                 ? []
                 : [
                       installation.call("follow", {
                           ...installation.target(row),
-                          followedImage: image,
+                          hostImage: image,
                       }),
                   ];
         });

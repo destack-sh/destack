@@ -82,7 +82,7 @@ export const StackDefinition = Object.assign(schema.jsonObject(), {
         // read each installation's build in the stack's image, but for one the host provides
         const declaredInstallations = Object.entries(document.installations).flatMap(
             ([key, installed]) => {
-                if (installed.selection?.kind === "host") {
+                if (installed.version?.kind === "host") {
                     return [];
                 }
                 const built = builds.get(installed.packageId);
@@ -137,8 +137,27 @@ export const StackDefinition = Object.assign(schema.jsonObject(), {
             }
         }
 
+        // run each installation without a version at the release of its build in the stack's image
+        const installations = Object.fromEntries(
+            Object.entries(document.installations).map(([key, installed]) => {
+                const built = builds.get(installed.packageId);
+                const isImaged = installed.version === undefined && built !== undefined;
+
+                return [
+                    key,
+                    isImaged
+                        ? {
+                              ...installed,
+                              version: { kind: "release", version: built.package.version },
+                          }
+                        : installed,
+                ];
+            }),
+        );
+
         return StackDefinition.parse({
             ...declared,
+            installations,
             settings: { ...document.settings, ...StackDefinition.placed(placed.settings) },
             routes: { ...document.routes, ...placed.routes },
         });
