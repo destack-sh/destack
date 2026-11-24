@@ -13,7 +13,7 @@ test("render a group of buttons with a vertical separator between them", () => {
     ));
     expect(markup(container)).toBe(
         '<div data-slot="button-group" data-orientation="horizontal" role="group" aria-label="Save">' +
-            '<button data-slot="button" data-variant="default" data-size="default">Save</button>' +
+            '<button data-slot="button" data-variant="default" data-size="default" type="button">Save</button>' +
             '<div data-orientation="vertical" role="none" data-slot="button-group-separator"></div></div>',
     );
 });

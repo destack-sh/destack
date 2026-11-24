@@ -12,7 +12,17 @@ import {
     swatch,
 } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import { type JSX, merge, omit, Show, untrack } from "@destack/view";
+import {
+    createEffect,
+    createSignal,
+    type JSX,
+    merge,
+    omit,
+    onCleanup,
+    Show,
+    untrack,
+    useEnvironment,
+} from "@destack/view";
 import { type PartAttributes, type Render, useRender } from "../part/index.ts";
 import { useJoin } from "../join/index.ts";
 import { Spinner } from "../spinner/index.ts";
@@ -28,6 +38,18 @@ const DEFAULTS: Required<Pick<ButtonProperties, "variant" | "size">> = {
     variant: "default",
     size: "default",
 };
+
+/** How long an action runs before its button shows a spinner, in milliseconds. */
+const WAIT = 150;
+
+/** How long a spinner stays once it shows, in milliseconds, so it never flickers. */
+const STAY = 400;
+
+/** A spinner as it appears. */
+const appear = style.keyframes({
+    from: { opacity: 0 },
+    to: { opacity: 1 },
+});
 
 /** The styles every button shares. */
 const styles = style.create({
@@ -51,6 +73,31 @@ const styles = style.create({
     },
     flush: {
         paddingInline: 0,
+    },
+    busy: {
+        position: "relative",
+        cursor: { default: null, ":is([aria-busy=true])": "progress" },
+        opacity: { default: null, ":is([aria-busy=true])": 1 },
+    },
+    label: {
+        display: "inherit",
+        alignItems: "inherit",
+        justifyContent: "inherit",
+        gap: "inherit",
+        transitionProperty: "opacity",
+        transitionDuration: motion.durationShort,
+    },
+    hidden: {
+        opacity: 0,
+    },
+    spinner: {
+        position: "absolute",
+        inset: 0,
+        display: "grid",
+        placeItems: "center",
+        animationName: appear,
+        animationDuration: motion.durationShort,
+        animationFillMode: "both",
     },
 });
 
@@ -131,7 +178,7 @@ export interface ButtonProperties
     readonly xstyle?: style.Styles;
     /** Render another element with the button's attributes, such as a link. */
     readonly render?: Render;
-    /** Whether the button's action runs, which shows a spinner, marks it busy and disables it. */
+    /** Whether its action runs: it refuses clicks, and shows a spinner in place of its label. */
     readonly loading?: boolean;
 }
 
@@ -177,10 +224,48 @@ export function Button(properties: ButtonProperties): JSX.Element {
         "disabled",
         "children",
     );
+    const isBusy = (): boolean => button.loading === true;
+    const isWaiting = untrack(() => "loading" in properties);
+
+    // show a spinner once its action takes a while, and for a while
+    const { clock } = useEnvironment();
+    const [isSpinning, setSpinning] = createSignal(false, { ownedWrite: true });
+    let timer: number | undefined;
+    let shownAt: number | undefined;
+    if (isWaiting) {
+        createEffect(isBusy, (isRunning) => {
+            // wait until it takes a while, and until it stayed a while
+            clock.clearTimeout(timer);
+            const since = shownAt === undefined ? STAY : clock.now() - shownAt;
+            const wait = isRunning ? WAIT : Math.max(STAY - since, 0);
+            if (isRunning !== untrack(isSpinning)) {
+                timer = clock.setTimeout(() => {
+                    shownAt = isRunning ? clock.now() : undefined;
+                    setSpinning(isRunning);
+                }, wait);
+            }
+        });
+        onCleanup(() => clock.clearTimeout(timer));
+    }
+
+    // refuse clicks while its action runs, the focus staying where it is
+    const click = (event: MouseEvent & { readonly currentTarget: HTMLButtonElement }): void => {
+        const told: unknown = button.onClick;
+        if (isBusy()) {
+            event.preventDefault();
+            event.stopPropagation();
+        } else if (typeof told === "function") {
+            Reflect.apply(told, undefined, [event]);
+        }
+    };
 
     // mark the part and give it its styles with the caller's last
     const part: PartAttributes = merge(
-        () => style.attributes([buttonVariants(button), join(), button.xstyle], button.style),
+        () =>
+            style.attributes(
+                [buttonVariants(button), isWaiting && styles.busy, join(), button.xstyle],
+                button.style,
+            ),
         {
             get "data-slot"() {
                 return button["data-slot"] ?? "button";
@@ -192,19 +277,28 @@ export function Button(properties: ButtonProperties): JSX.Element {
                 return button.size;
             },
             get "aria-busy"() {
-                return button.loading === true ? "true" : undefined;
+                return isBusy() ? "true" : undefined;
             },
             get disabled() {
-                return button.disabled === true || button.loading === true ? true : undefined;
+                return button.disabled === true ? true : undefined;
+            },
+            get "aria-disabled"() {
+                return isBusy() ? "true" : button["aria-disabled"];
             },
             get children() {
-                return (
+                return isWaiting ? (
                     <>
-                        <Show when={button.loading}>
-                            <Spinner aria-hidden="true" />
+                        <span {...style.attrs(styles.label, isSpinning() && styles.hidden)}>
+                            {button.children}
+                        </span>
+                        <Show when={isSpinning()}>
+                            <span {...style.attrs(styles.spinner)}>
+                                <Spinner aria-hidden="true" />
+                            </span>
                         </Show>
-                        {button.children}
                     </>
+                ) : (
+                    button.children
                 );
             },
         },
@@ -214,6 +308,10 @@ export function Button(properties: ButtonProperties): JSX.Element {
         render: untrack(() => button.render),
         defaultTagName: "button",
         part: part,
-        properties: rest,
+        properties: merge(
+            untrack(() => button.render) === undefined ? { type: "button" as const } : {},
+            rest,
+            isWaiting ? { onClick: click } : {},
+        ),
     });
 }

@@ -1,3 +1,5 @@
+import { BrowserSimulation } from "@destack/environment/browser/simulation";
+import { testSimulation } from "@destack/test/world";
 import { expect, test } from "@destack/test";
 import { createSignal, flush } from "@destack/view";
 import * as style from "@destack/style";
@@ -25,7 +27,7 @@ test("restyle a button when its variant changes", () => {
     // the button follows its variant without rendering again
     expect(classes(container)).not.toEqual(before);
     expect(markup(container)).toBe(
-        '<button data-slot="button" data-variant="destructive" data-size="default"></button>',
+        '<button data-slot="button" data-variant="destructive" data-size="default" type="button"></button>',
     );
 });
 
@@ -61,19 +63,46 @@ test("render a link with the button's part attributes, its native button's attri
     );
 });
 
-test("show a spinner and mark a loading button busy, refusing clicks until it finishes", () => {
+test("mark a loading button busy and refuse clicks, with a spinner once it takes a while", async () => {
+    await using simulation = testSimulation();
+    const tab = new BrowserSimulation(simulation).environment("tab");
+    const [isLoading, setLoading] = createSignal(true);
     const clicks: string[] = [];
-    const { container } = render(() => (
-        <Button loading onClick={() => clicks.push("save")}>
-            Save
-        </Button>
-    ));
+    const { container } = render(
+        () => (
+            <Button loading={isLoading()} onClick={() => clicks.push("save")}>
+                Save
+            </Button>
+        ),
+        { environment: tab },
+    );
     const button = container.querySelector("button");
-    button?.click();
-    expect([
+    const read = () => [
         button?.getAttribute("aria-busy"),
+        button?.getAttribute("aria-disabled"),
         button?.disabled,
-        button?.querySelector("[data-slot=spinner]")?.getAttribute("aria-hidden"),
-        clicks,
-    ]).toEqual(["true", true, "true", []]);
+        container.querySelector("[data-slot=spinner]") !== null,
+    ];
+    const pass = async (milliseconds: number) => {
+        await simulation.jump(simulation.clock.now() + milliseconds);
+        flush();
+
+        return read();
+    };
+    button?.click();
+    const atOnce = read();
+    const later = await pass(200);
+    setLoading(false);
+    flush();
+    const done = read();
+    button?.click();
+    const gone = await pass(400);
+
+    expect({ atOnce, later, done, gone, clicks }).toEqual({
+        atOnce: ["true", "true", false, false],
+        later: ["true", "true", false, true],
+        done: [null, null, false, true],
+        gone: [null, null, false, false],
+        clicks: ["save"],
+    });
 });
