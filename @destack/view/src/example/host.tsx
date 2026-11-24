@@ -30,7 +30,17 @@ import { faceRules } from "../document/font.tsx";
 import { destackFonts } from "../document/typeface.ts";
 
 /** The locales an example is checked in: the source, the translated ones, and one right to left. */
-const LOCALES = ["en-US", "de-AT", "de-CH", "fr-CH", "it-CH", "ar-EG"] as const;
+const LOCALES = [
+    "en-US",
+    "de-AT",
+    "de-CH",
+    "fr-CH",
+    "it-CH",
+    "es-ES",
+    "pt-BR",
+    "nl-NL",
+    "ar-EG",
+] as const;
 
 /** The widths an example is checked at in CSS pixels: a phone's and a tablet's. */
 const WIDTHS = ["390", "768"] as const;
