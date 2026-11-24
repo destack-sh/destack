@@ -1,5 +1,11 @@
 import { installation, Installation } from "@destack/stack/object";
-import { Observation, type ObjectType, type Package, PackageMount } from "@destack/object";
+import {
+    type InstanceOf,
+    Observation,
+    type ObjectType,
+    type Package,
+    PackageMount,
+} from "@destack/object";
 import {
     type Environment,
     type FileSystem,
@@ -811,7 +817,7 @@ export class TestComputer implements AsyncDisposable {
         build: BuildReader,
         name: string,
         options: { readonly isolation?: "sandbox" | "host" } = {},
-    ): Promise<Installation> {
+    ): Promise<InstanceOf<typeof installation>> {
         // install the build's release as the person, until the space applies it
         const released = PackageManifest.package(build.manifest);
         const service = await this.#objects(login, spaceId);
@@ -834,7 +840,7 @@ export class TestComputer implements AsyncDisposable {
         spaceId: Identifier<"space">,
         name: string,
         build: BuildReader,
-    ): Promise<Installation> {
+    ): Promise<InstanceOf<typeof installation>> {
         // select the release for the named installation as the person, until the space applies it
         const { version } = PackageManifest.package(build.manifest);
         const service = await this.#objects(login, spaceId);

@@ -1,5 +1,4 @@
 import { installation } from "@destack/stack/object";
-import type { Select } from "@destack/db";
 import stackPackage from "@destack/stack/package";
 import { createClient } from "@destack/object/client";
 import { present } from "@destack/schema";
@@ -59,8 +58,8 @@ test("deliver a home change to a laptop replica soon after the home restarts", a
 });
 
 /** Find the start installation among a watch's rows, absent once the watch ends. */
-function startOf(
-    result: IteratorResult<readonly Select<typeof installation.table>[], void>,
-): Select<typeof installation.table> | undefined {
+function startOf<Row extends { readonly name: string }>(
+    result: IteratorResult<readonly Row[], void>,
+): Row | undefined {
     return result.done === true ? undefined : result.value.find((row) => row.name === "start");
 }
