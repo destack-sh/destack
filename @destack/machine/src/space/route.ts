@@ -179,8 +179,8 @@ export const SpaceRequest = {
 
     /** Copy a request a client sent without the headers only a machine and a host write. */
     received(request: Request): Request {
-        // keep the client's head on an instance's call out, which its gateway verifies and sends on as its installation
-        const isEgress = new URL(request.url).pathname.includes(`${Egress.path}/`);
+        // pass the client's head on with an instance's egress call, which its gateway verifies
+        const isEgress = new URL(request.url).pathname.startsWith(`${Egress.path}/`);
         const dropped = isEgress
             ? MACHINE_HEADERS.filter((name) => name !== CLIENT_HEAD_HEADER)
             : MACHINE_HEADERS;
@@ -284,15 +284,16 @@ export const SpaceRequest = {
             return addressed(request, s3);
         }
 
-        // read the space below an explicit prefix, and the route of a space served here the host and path take
+        // read the space below an explicit prefix, and where it is placed when not here
         const url = new URL(request.url);
         const explicit = SpaceMount.parse(url.pathname);
         const space =
             explicit !== undefined && isSpace(explicit.spaceId) ? explicit.spaceId : undefined;
-        const serves = (scope: string) =>
-            isSpace(scope) ? names.serves(scope) : Promise.resolve(false);
         const isServed = space !== undefined && (await names.serves(space));
-        const route = isServed ? undefined : await names.route(url.hostname, url.pathname, serves);
+        const placed =
+            space === undefined || isServed
+                ? undefined
+                : new URL(`${url.pathname}${url.search}`, await names.locate(space));
 
         // serve a space placed here below its prefix
         if (explicit !== undefined && space !== undefined && isServed) {
@@ -300,20 +301,17 @@ export const SpaceRequest = {
 
             return addressed(copyRequest(request, {}, url.href), space);
         }
-        // take the route, such as a relay's for names served elsewhere
-        else if (route !== undefined) {
-            return routed(request, route);
+        // move a request for a space placed elsewhere to its machine, unless it is at that machine's name
+        else if (space !== undefined && placed !== undefined && placed.host !== url.host) {
+            return { space, request, moved: { kind: "placed", url: placed.href } };
         }
-        // move a request for a space placed elsewhere to its machine
-        else if (space !== undefined) {
-            const at = new URL(`${url.pathname}${url.search}`, await names.locate(space));
 
-            return { space, request, moved: { kind: "placed", url: at.href } };
-        }
-        // take no space otherwise
-        else {
-            return undefined;
-        }
+        // take the route a space served here has for the host and path, such as a relay's for other names
+        const serves = (scope: string) =>
+            isSpace(scope) ? names.serves(scope) : Promise.resolve(false);
+        const route = await names.route(url.hostname, url.pathname, serves);
+
+        return route === undefined ? undefined : routed(request, route);
     },
 };
 
