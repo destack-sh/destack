@@ -468,15 +468,14 @@ test("pause serving while the account drains the machine", async () => {
         `server '${machine.id}' is unavailable: it is down: its account set its status to draining`,
     ];
 
-    // drain the machine until it refuses the space's calls and starts
+    // drain the machine until it refuses the space's calls, and its starts once the space closed
     await change("drain");
     await expect.poll(list, PAUSE_POLL).toEqual(paused);
-    const started = await refusal(machine.space(created));
+    await expect.poll(() => refusal(machine.space(created)), PAUSE_POLL).toEqual(paused);
 
     // enable it until it serves the space again
     await change("enable");
     await expect.poll(list, PAUSE_POLL).toBe("done");
-    expect(started).toEqual(paused);
 });
 
 test("decide checkout permissions for the owner, the machine and a stranger", async () => {
