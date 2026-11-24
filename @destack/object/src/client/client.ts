@@ -72,7 +72,7 @@ import { MemoryBlobStorage } from "@destack/resource";
 import { ObjectStore } from "../server/store.ts";
 import { STORE_TABLES } from "../stack/db.ts";
 import { Outbox } from "../server/outbox.ts";
-import { type OnDemandFollow, type FollowKey, defineShape, Shape } from "../replica/shape.ts";
+import { type OnDemandFollow, type FollowKey, QUERY_TTL, Shape } from "../replica/shape.ts";
 import { implementPackage, type PackageImplementation } from "../server/implementation.ts";
 import { Package } from "../declare/package.ts";
 /** The hexadecimal digest digits identifying a query: 64 bits, safe among a client's queries. */
@@ -86,9 +86,6 @@ const FOREVER_FOLLOWER = "forever";
 
 /** The storages beside the durable replica: ephemeral and external replicas, and local objects. */
 const SEPARATE_STORAGES = ["ephemeral", "external", "local"] as const;
-
-/** How long a closed live query stays followed: five minutes, Zero's default. */
-const QUERY_TTL = { minutes: 5 } as const;
 
 /** How long the local log retains changes: a minute, past any tab's catch-up. */
 const LOCAL_LOG_RETENTION = { minutes: 1 } as const;
@@ -487,13 +484,8 @@ export class ObjectClient<
 
         // key each publication's shape by the storages of its types
         return new Map(
-            [...byPublication].flatMap(([publication, members]) => {
-                const follow = defineShape({
-                    name: publication,
-                    parameters: schema.object({ query: ObjectQuery }),
-                    objects: members,
-                    queries: ({ query }) => [query],
-                }).onDemand(QUERY_TTL);
+            [...byPublication].flatMap(([, members]) => {
+                const follow = Shape.queried(members).onDemand(QUERY_TTL);
 
                 return [...new Set(members.map((object) => object.storage))].map(
                     (storage) => [storage, follow] as const,

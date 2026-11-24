@@ -6,13 +6,12 @@ import {
     integer,
     json,
     text,
-    TABLE,
     uniqueIndex,
     BLOB_TABLES,
     bucket,
     lease,
     type DatabaseDefinition,
-    type Table,
+    Table,
 } from "@destack/db";
 import { JournalEntry } from "../audit/execution.ts";
 import { accessTables } from "@destack/access";
@@ -94,7 +93,7 @@ export function tablesOf(store: {
     const types = store.packages
         .flatMap((handle) => Object.values(handle.objects))
         .filter((declared) => declared instanceof ObjectType);
-    const local = new Set<Table>([
+    const local = Table.closure([
         ...SYSTEM_TABLES,
         ...types
             .filter((type) => type.storage === "durable" || type.storage === "events")
@@ -102,17 +101,6 @@ export function tablesOf(store: {
         ...store.packages.flatMap((handle) => handle.tables),
         ...store.tables,
     ]);
-
-    // add the tables each table's aggregates and dependents read, such as an issue's comments
-    for (const table of local) {
-        const { aggregates, dependents } = table[TABLE];
-        for (const aggregate of aggregates) {
-            local.add("into" in aggregate ? aggregate.into() : aggregate.from());
-        }
-        for (const dependent of dependents) {
-            local.add(dependent.from());
-        }
-    }
 
     return {
         tables: [...local].filter((table) => !replicated.has(table)),

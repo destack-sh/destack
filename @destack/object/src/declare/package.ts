@@ -16,6 +16,7 @@ import type { Action } from "./action.ts";
 import type { ProcedureRouter } from "../procedure/index.ts";
 import { GrantDeclaration, type Policy } from "@destack/access";
 import type { ObjectTypeReference } from "@destack/sync";
+import type { Shape } from "../replica/shape.ts";
 import { ResourceDeclaration } from "@destack/resource";
 import { type CamelCase, Casing } from "../object/name.ts";
 
@@ -69,6 +70,8 @@ export interface PackageOptions {
     readonly actions?: readonly Action[];
     /** The mounts serving protocols others define below the package. */
     readonly mounts?: readonly MountDeclaration[];
+    /** The shapes the package's code follows from other scopes, which its spaces replicate. */
+    readonly follows?: readonly Shape[];
     /** The resources the package uses and the secrets it reads. */
     readonly resources?: readonly (ResourceRequirement | Declaration)[];
     /** Who the package's installations act as. */
@@ -102,6 +105,8 @@ export interface Package<Options extends PackageOptions = PackageOptions> extend
     readonly actions: ByName<Options["actions"]>;
     /** The mounts serving protocols others define below the package, by name. */
     readonly mounts: ByName<Options["mounts"]>;
+    /** The shapes the package's code follows from other scopes. */
+    readonly follows: readonly Shape[];
     /** The resources the package uses, by name. */
     readonly resources: Keyed<ResourceOf<Listed<Options["resources"]>>>;
     /** The secrets the package reads, by name. */
@@ -263,6 +268,7 @@ function handleOf<const Options extends PackageOptions, Identity extends object>
         views: mapValues<typeof views, ByName<Options["views"]>>(views, (each) => each),
         actions: mapValues<typeof actions, ByName<Options["actions"]>>(actions, (each) => each),
         mounts: mapValues<typeof mounts, ByName<Options["mounts"]>>(mounts, (each) => each),
+        follows: [...(options.follows ?? [])],
         resources: mapValues<typeof resources, Keyed<ResourceOf<Listed<Options["resources"]>>>>(
             resources,
             (each) => each,
