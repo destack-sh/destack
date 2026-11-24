@@ -1,4 +1,5 @@
 import { Failure } from "@destack/error";
+import { ObjectTypeReference } from "@destack/sync";
 import { PackageError } from "@destack/package";
 import { isContractProcedure } from "@orpc/contract";
 import type { ProcedureRouter } from "../procedure/index.ts";
@@ -70,6 +71,16 @@ export function describePackage(handle: Package & PackageIdentity): PackageDescr
             Object.values(handle.mounts).map((mount) => [mount.name, { path: mount.path }]),
         ),
         views: Object.keys(handle.views),
+        follows: [
+            ...new Map(
+                handle.follows
+                    .flatMap((shape) => shape.objects)
+                    .map((type) => [
+                        ObjectTypeReference.key(type.typeReference),
+                        type.typeReference,
+                    ]),
+            ).values(),
+        ],
         permissions: handle.permissions,
         capabilities: handle.capabilities,
         errors: handle.errors,

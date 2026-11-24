@@ -9,8 +9,11 @@ import {
     EXTERNAL_PUBLICATION,
     QUERIES_PUBLICATION,
     QueriesParameters,
-    type ObjectQuery,
+    ObjectQuery,
 } from "./replica.ts";
+
+/** How long a live query stays followed once no follower asks: five minutes, Zero's default. */
+export const QUERY_TTL = { minutes: 5 } as const;
 
 /** The 64-bit FNV-1a offset basis. */
 const FNV_OFFSET = 0xcbf29ce484222325n;
@@ -50,6 +53,16 @@ export class Shape<Parameters extends object = object> {
         const [object] = this.#definition.objects;
 
         return object === undefined ? QUERIES_PUBLICATION : Shape.publicationOf(object);
+    }
+
+    /** Follow live queries of some object types of one publication, one key per query. */
+    static queried(objects: readonly ObjectType[]): Shape<{ readonly query: ObjectQuery }> {
+        return new Shape({
+            name: Shape.publicationOf(nth(objects, 0)),
+            parameters: schema.object({ query: ObjectQuery }),
+            objects,
+            queries: ({ query }) => [query],
+        });
     }
 
     /** Read the publication an object type's rows replicate through, by its storage. */

@@ -414,6 +414,8 @@ interface StoreComposition {
     readonly replicas?: readonly ObjectType[];
     /** Further policies and table mappings to authorize. */
     readonly policies?: readonly (Policy | ObjectType | TableMapping)[];
+    /** The built-in types the host knows beside those it serves, which installations refer to. */
+    readonly known?: readonly ObjectType[];
     /** The database with the objects. */
     readonly database: DatabaseConnection;
     /** The storage of the partition's blobs, which its rows' blob columns keep alive. */
@@ -444,7 +446,7 @@ interface StoreComposition {
     readonly publisher?: (home: string) => sync.Publisher;
     /** The followed installation's remote, taking changes to replicated rows. */
     readonly remote?: ObjectRemote;
-    /** The outbox of the node's writes of rows homed elsewhere, absent for none. */
+    /** The outbox pushing writes of rows homed elsewhere as the node: one person's device alone. */
     readonly outbox?: OutboxOptions;
     /** The device the store runs on, partitioning device-scoped local objects. */
     readonly device?: Subject;
@@ -572,6 +574,8 @@ export class ObjectStore {
     }>();
     /** Aborts the running loop once the served jobs change. */
     #reloading = new AbortController();
+    /** Aborts once the store serves other types, which streams that left some out recompile at. */
+    #serving = new AbortController();
     /** The wait for the replicas gating readiness, shared by every implemented package. */
     #readiness: Promise<boolean> | undefined;
     /** The health of each server waiting on the replicas gating readiness. */
@@ -821,7 +825,16 @@ export class ObjectStore {
         if (controlled !== this.#controlled) {
             this.#controlled = controlled;
             this.#reloading.abort();
+            // install the next signal first, so a stream listening again hears the change after this one
+            const previous = this.#serving;
+            this.#serving = new AbortController();
+            previous.abort();
         }
+    }
+
+    /** The signal aborting once the store serves other types. */
+    get serving(): AbortSignal {
+        return this.#serving.signal;
     }
 
     /** The object types served. */
@@ -888,6 +901,11 @@ export class ObjectStore {
     /** The served or authorized durable types whose rows the database replicates from home. */
     get replicated(): readonly ObjectType[] {
         return this.#catalog.replicated;
+    }
+
+    /** The types this database replicates from their home: authorized and followed. */
+    get #replicating(): readonly ObjectType[] {
+        return [...this.#catalog.replicated, ...this.#catalog.replicas];
     }
 
     /** The scope's branch types, absent for a store without branches. */
@@ -1348,8 +1366,7 @@ export class ObjectStore {
         signal?: AbortSignal,
     ): Promise<void> {
         // read when the store's own follow of the key lapses
-        const { shape, onDemand } = follow;
-        const { scope } = at.key;
+        const { onDemand } = follow;
         const key = this.#followKey(STORE_FOLLOWER, follow, at);
         const [current] = await this.database
             .select({ expiresAt: followKey.expiresAt })
@@ -1364,7 +1381,19 @@ export class ObjectStore {
             await this.#writeFollowKeys([key], now + ttl);
         }
 
+        // wait for the replica to follow it
+        await this.waitSynced(follow, at, signal);
+    }
+
+    /** Wait until the replica follows a key's queries, refusing a replica still syncing. */
+    async waitSynced<Parameters extends object>(
+        follow: OnDemandFollow<Parameters>,
+        at: FollowKey<Parameters>,
+        signal?: AbortSignal,
+    ): Promise<void> {
         // wait on commits until the synced replica follows the key's queries, refusing a late one
+        const { shape } = follow;
+        const { scope } = at.key;
         const timeout = this.clock.timeout(ACQUIRE_MILLISECONDS);
         try {
             await this.database.log.waitUntil(
@@ -1708,8 +1737,13 @@ export class ObjectStore {
                     this.requireProtocolType(context, call.type);
                 }
 
-                // enter the pushed scope as the request's caller, and run the mutations as it
-                await this.enter(context, input.scope, true);
+                // enter the pushed scope as the caller, leaving rows forwarded to their home for it to decide
+                const isForwarded = input.mutations.every((mutation) =>
+                    this.#isForwarded(mutation),
+                );
+                if (!isForwarded) {
+                    await this.enter(context, input.scope, true);
+                }
 
                 return this.#pushAs(input.scope, input.mutations, context.access(input.scope), {
                     ...(input.writerId === undefined ? {} : { writerId: input.writerId }),
@@ -2210,7 +2244,7 @@ export class ObjectStore {
 
         // resolve the call, refusing external work and other storages, except events beside durable rows
         const { object, name, input } = ObjectType.resolve(
-            this.#callable(placed, mutates, [...this.replicated, ...this.replicas]),
+            this.#callable(placed, mutates, this.#replicating),
             placed,
             mutates,
             site,
@@ -2626,7 +2660,7 @@ export class ObjectStore {
             return;
         }
         const object = present(
-            ObjectType.find(this.replicated, call),
+            ObjectType.find(this.#replicating, call),
             `the type of ${call.method}`,
         );
         const scope = object.readScope(call.method, call.input);
@@ -2684,7 +2718,7 @@ export class ObjectStore {
 
     /** Report whether a call's type's rows replicate from their home instead of living here. */
     #isUplinked(call: sync.Call): boolean {
-        const object = ObjectType.find(this.replicated, call);
+        const object = ObjectType.find(this.#replicating, call);
 
         return object !== undefined && !this.objects.some((served) => served.same(object));
     }
@@ -2692,7 +2726,7 @@ export class ObjectStore {
     /** Find the remote taking a change of replicated rows, else the store's remote. */
     async remoteOf(call: sync.Call): Promise<ObjectRemote | undefined> {
         // find the replica of the call's table in its scope
-        const object = ObjectType.find(this.replicated, call);
+        const object = ObjectType.find(this.#replicating, call);
         const scope = object?.readScope(call.method, call.input);
         const entries = await this.sink.followed();
         const home = entries.find(({ subscription, publisher }) => {
@@ -2723,7 +2757,7 @@ export class ObjectStore {
         const routed = await Promise.all(
             mutation.calls.map(async (call) => {
                 // read the call's replicated type and scope, a home only for rows replicated here
-                const object = ObjectType.find(this.replicated, call);
+                const object = ObjectType.find(this.#replicating, call);
                 const scope = object?.readScope(call.method, call.input);
                 const isReplica =
                     object !== undefined &&

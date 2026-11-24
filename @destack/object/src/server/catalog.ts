@@ -12,7 +12,7 @@ import { found, type Identifier } from "@destack/schema";
 import { PackageContext, type ServerContext } from "../workload/workload.ts";
 import { PACKAGE_KIND, PackageDescription } from "../declare/description.ts";
 import { Package } from "../declare/package.ts";
-import type { Follow } from "../replica/shape.ts";
+import { type Follow, QUERY_TTL, Shape } from "../replica/shape.ts";
 import { branchType, type BranchType } from "../branch/index.ts";
 import { ObjectType } from "../object/object.ts";
 import { ObjectTypePool, ObjectDescription, type KnownDeclaration } from "../object/description.ts";
@@ -79,6 +79,8 @@ export interface CatalogOptions {
     readonly partition?: string;
     /** Further policies and table mappings to authorize. */
     readonly policies?: readonly CatalogPolicy[];
+    /** The built-in types the host knows beside those it serves, which installations refer to. */
+    readonly known?: readonly ObjectType[];
     /** The database with the objects. */
     readonly database: DatabaseConnection;
     /** The partition's blobs, which package code reads through its context. */
@@ -285,16 +287,40 @@ export class Catalog {
         // route every package's types
         const routes = Catalog.#routes(served);
 
-        // answer queries of replicated types nothing here serves, and list the follows and files
-        const replicas = known
-            .filter((type) => type instanceof ObjectType)
-            .filter(
-                (type) =>
-                    !routes.has(ObjectTypeReference.key(type.typeReference)) &&
-                    database.replicates(type.table),
-            );
+        // answer queries of the replicated types nothing here serves, followed ones included
+        const followed = [
+            ...servers.flatMap((each) => each.package.follows.flatMap((shape) => shape.objects)),
+            ...isolates.flatMap((isolate) =>
+                Catalog.#isolateFollows(isolate, [...known, ...(given.known ?? [])]),
+            ),
+        ];
+        const replicas = [
+            ...new Map(
+                [...known, ...followed]
+                    .filter((type) => type instanceof ObjectType)
+                    .filter(
+                        (type) =>
+                            !routes.has(ObjectTypeReference.key(type.typeReference)) &&
+                            database.replicates(type.table),
+                    )
+                    .map((type) => [ObjectTypeReference.key(type.typeReference), type]),
+            ).values(),
+        ];
         const declared = [...routes.values()].map((route) => route.type);
-        const follows = served.flatMap((each) => Catalog.#follows(each.definition));
+
+        // follow the code's shapes, and fetch the followed types' queries through, one follow per publication
+        const isReplica = new Set(
+            replicas.map((type) => ObjectTypeReference.key(type.typeReference)),
+        );
+        const fetched = followed.filter((type) =>
+            isReplica.has(ObjectTypeReference.key(type.typeReference)),
+        );
+        const follows = [
+            ...served.flatMap((each) => Catalog.#follows(each.definition)),
+            ...[...Map.groupBy(fetched, (type) => Shape.publicationOf(type)).values()].map(
+                (types) => Shape.queried([...new Set(types)]).onDemand(QUERY_TTL),
+            ),
+        ];
 
         // serve each type at its package's installation, else the store's, else as the scope's own
         const installed = new Map(
@@ -755,6 +781,30 @@ export class Catalog {
         return entry.server !== undefined
             ? `installation '${entry.server.installation}'`
             : `the scope's own '${entry.package.name}'`;
+    }
+
+    /** Resolve the types an isolated installation's packages follow from other scopes. */
+    static #isolateFollows(isolate: Isolate, known: readonly KnownDeclaration[]): ObjectType[] {
+        // resolve the followed types of each package, refusing a type nothing here knows
+        const byReference = new Map(
+            known
+                .filter((declared) => declared instanceof ObjectType)
+                .map((type) => [ObjectTypeReference.key(type.typeReference), type]),
+        );
+
+        return isolate.declarations
+            .filter((entry) => PACKAGE_KIND.has(entry))
+            .flatMap((entry) => PackageDescription.parse(entry.description).follows)
+            .map((reference) => {
+                const type = byReference.get(ObjectTypeReference.key(reference));
+                if (type === undefined) {
+                    throw new TypeError(
+                        `installation '${isolate.server.installation}' follows ${reference.type} objects of '${reference.packageId}', but nothing here knows them`,
+                    );
+                }
+
+                return type;
+            });
     }
 
     /** Serve an installation's package, running the code of its types in its isolate. */

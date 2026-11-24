@@ -1369,6 +1369,7 @@ test("refuse a chain follow with no via to a caller without replicate on the sco
         parameters: {
             scopes: [spaceId, accountId, Scope.universe.id],
             local: [],
+            replicas: [],
             replicated: [{ scope: accountId, types: [] }],
             via: [],
             between: [],
@@ -1408,6 +1409,7 @@ test("refuse a chain follow with no via to a caller without replicate on the sco
                             parameters: {
                                 scopes,
                                 local: [],
+                                replicas: [],
                                 replicated: replicated.map((scope) => ({ scope, types: [] })),
                                 via: [],
                                 between: [],
@@ -1489,6 +1491,7 @@ test("replicate a partition's chain via its installation's space, whose source h
         parameters: {
             scopes: [],
             local: [],
+            replicas: [],
             replicated: [{ scope: Scope.universe.id, types: [] }],
             via: [spaceId],
             between: [accountId],
@@ -1523,6 +1526,7 @@ test("replicate a partition's chain via its installation's space, whose source h
         parameters: {
             scopes: [FOREIGN_ACCOUNT],
             local: [],
+            replicas: [],
             replicated: [{ scope: Scope.universe.id, types: [] }],
             via: [spaceId],
             between: [accountId],

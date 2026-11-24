@@ -173,6 +173,7 @@ test("describe a package's routes, mounts, views, requested permissions, capabil
         mounts: { npm: { path: "/npm" } },
         protocols: [],
         views: [],
+        follows: [],
         permissions: {
             space: {
                 universe: [{ packageId: MODULE.package.id, type: "user", name: "recipient" }],

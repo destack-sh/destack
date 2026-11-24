@@ -1,7 +1,7 @@
 import { Message } from "@destack/locale";
 import * as accessExports from "@destack/access";
 import { Policy, PolicySubject } from "@destack/access";
-import { TABLE, type Table, DatabaseState } from "@destack/db";
+import { TABLE, Table, DatabaseState } from "@destack/db";
 import {
     defineKind,
     graph,
@@ -334,19 +334,13 @@ export const ObjectDescription = Object.assign(objectDescription, {
     ): DatabaseState {
         // declare the types against each other and the known ones, and take the durable and events tables
         const declared = ObjectTypePool.of(known).declare(descriptions);
-        const tables = new Set(
+        const tables = Table.closure(
             declared
                 .filter((type) => type.storage === "durable" || type.storage === "events")
                 .flatMap((type) => type.tables),
         );
 
         // describe them beside the known types' tables that cascade from theirs
-        for (const table of tables) {
-            for (const dependent of table[TABLE].dependents) {
-                tables.add(dependent.from());
-            }
-        }
-
         return DatabaseState.of([...tables], { packages });
     },
 

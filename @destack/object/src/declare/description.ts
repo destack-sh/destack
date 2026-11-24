@@ -143,6 +143,8 @@ const packageDescription = schema.object({
     ),
     /** The names of the views it offers. */
     views: schema.array(DeclarationName),
+    /** The object types it reads from other scopes, which its spaces replicate on demand. */
+    follows: schema.array(ObjectTypeReference),
     /** The permissions its installations always request, by delegator. */
     permissions: GrantDeclaration,
     /** What its installations can do beyond its request, by name. */
