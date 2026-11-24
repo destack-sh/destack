@@ -40,7 +40,7 @@ export const newCommand: CommandBody = {
         // create the package's repository in its account, at its universe's address
         const device = await context.native();
         const forge = await context.registry(name);
-        await forge.client.repository.create({
+        const repository = await forge.client.repository.create({
             spaceId: forge.home,
             accountId: forge.accountId,
             requestId: RequestId.create(device.environment),
@@ -49,8 +49,12 @@ export const newCommand: CommandBody = {
         });
         const { universe } = (await context.launcher()).session;
         const remote = new URL(`/${name}.git`, universe).href;
+        const lease = await forge.client.repository.push({
+            spaceId: forge.home,
+            id: repository.id,
+        });
 
-        // check the repository out under the checkouts directory, else where asked, with the package in it
+        // check the repository out under the checkouts directory, else where asked, with the package committed in it
         const target =
             directory === undefined || directory === ""
                 ? UniverseHome.current(context.environment).checkout(remote)
@@ -65,15 +69,13 @@ export const newCommand: CommandBody = {
                 template: found.id,
                 release: template.release,
                 name,
+                lease,
             },
         });
         const { terminal } = context;
         const lines = [
             terminal.event("Created", "done", `package '${name}'`, created.directory),
-            terminal.hint(
-                "next",
-                `cd ${created.directory} && bun install && git add . && git commit -m "start" && git push && destack dev`,
-            ),
+            terminal.hint("next", `cd ${created.directory} && destack dev`),
         ];
         await context.terminal.print(
             json

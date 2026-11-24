@@ -4,6 +4,7 @@ import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { TerminalFixture } from "../test/terminal.ts";
+import { testHost } from "@destack/test/host";
 
 /** The identifier of Example's template, which a package made from it replaces. */
 const STARTER_ID = "package-01996ab0-0000-7000-8000-0000000000d5";
@@ -15,7 +16,16 @@ const Created = schema.object({
     checkout: schema.identifier("checkout"),
 });
 
-test("make a package from a published template in a new repository and its checkout, tracking its forge remote and registries at the universe", async () => {
+/** Run git in a working tree, answering its trimmed output. */
+async function git(directory: string, ...command: readonly string[]): Promise<string> {
+    const ran = testHost().process.spawn(["git", "-C", directory, ...command]);
+    const [output, code] = await Promise.all([new Response(ran.stdout).text(), ran.exited]);
+    expect(code).toBe(0);
+
+    return output.trim();
+}
+
+test("make a package from a published template in a new repository and its checkout, installed, committed and pushed to its forge", async () => {
     // open the owner's home, the template published by their example organization
     const published = { organizations: [PUBLISHER], published: ["starter"] };
     const terminal = await TerminalFixture.open({ NO_COLOR: "1" }, [], published);
@@ -45,10 +55,20 @@ test("make a package from a published template in a new repository and its check
         isOwn: id !== STARTER_ID,
         bunfig: await read("bunfig.toml"),
         origin: /url = (?<url>\S+)/u.exec(await read(".git/config"))?.groups?.["url"],
+        commit: await git(created.directory, "log", "-1", "--format=%s"),
+        status: await git(created.directory, "status", "--porcelain"),
     }).toEqual({
         code: [0, ""],
         name: "@example/notes",
-        entries: [".git", "bunfig.toml", "destack.json", "package.json", "src"],
+        entries: [
+            ".git",
+            "bun.lock",
+            "bunfig.toml",
+            "destack.json",
+            "node_modules",
+            "package.json",
+            "src",
+        ],
         manifest: {
             name: "@example/notes",
             type: "module",
@@ -71,5 +91,7 @@ test("make a package from a published template in a new repository and its check
             "",
         ].join("\n"),
         origin: `${universe.origin}/@example/notes.git`,
+        commit: "Introduce @example/notes",
+        status: "",
     });
 });

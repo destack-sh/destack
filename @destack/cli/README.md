@@ -91,7 +91,7 @@ destack approve notes --plan 9a2e…
 
 ### Develop and publish a package
 
-`new` makes a package from a template, `dev` previews it, `check` and `test` run its pinned toolchain, and `publish` releases it under a tag.
+`new` makes a package from a template, `dev` pushes its working tree on each save to the installation following it, and `publish` releases it under a tag.
 
 ```sh
 destack new @example/notebooks

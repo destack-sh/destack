@@ -1,6 +1,5 @@
 import type { Login } from "@destack/account/native";
 import type { Environment } from "@destack/environment";
-import { dirname, relative } from "node:path";
 import { type ObjectType, type Package } from "@destack/object";
 import type { ClientOf, ObjectClient } from "@destack/object/client";
 import type registryPackage from "@destack/registry/package";
@@ -14,7 +13,6 @@ import {
     type MachineCredential,
 } from "@destack/machine/device";
 import type { StepUp } from "@destack/access";
-import type { Checkout } from "@destack/machine/checkout";
 import { type Identifier, schema, Version } from "@destack/schema";
 
 import type { Catalog } from "../catalog/catalog.ts";
@@ -305,48 +303,6 @@ export class CommandContext implements AsyncDisposable {
         ].join("\n");
 
         return (await this.terminal.prompt.confirm(question)) ? "approve" : "deny";
-    }
-
-    /** Register a directory's working tree unless a checkout has it, and read its path there. */
-    async registerCheckout(
-        directory: string,
-    ): Promise<{ readonly checkout: Checkout; readonly path: string }> {
-        // list the canonical directory and its ancestors
-        const canonical = await this.environment.files.realPath(directory);
-        let ancestor = canonical;
-        const ancestors = [ancestor];
-        while (dirname(ancestor) !== ancestor) {
-            ancestor = dirname(ancestor);
-            ancestors.push(ancestor);
-        }
-
-        // query the checkouts registered at any of them
-        const { checkout } = await this.module(() => import("@destack/machine/checkout"));
-        const { RequestId } = await this.module(() => import("@destack/sync"));
-        const client = await this.native();
-        await using opened = new AsyncDisposableStack();
-        const checkouts = await client.follow({ checkout }, opened);
-        const rows = await checkouts.query.checkout.findMany({
-            where: { directory: { in: ancestors } },
-        });
-        const [innermost] = rows.toSorted(
-            (left, right) => right.directory.length - left.directory.length,
-        );
-
-        // take the innermost, else register the directory's existing working tree
-        const found =
-            innermost ??
-            (await client.machine().checkout.create({
-                machineId: (await client.loopback.computer()).machineId,
-                requestId: RequestId.create(client.environment),
-                directory: canonical,
-                source: { kind: "existing" },
-            }));
-
-        // read the directory's path relative to the checkout's root, `.` for the root
-        const inside = relative(found.root, canonical);
-
-        return { checkout: found, path: inside === "" ? "." : inside };
     }
 
     /** Find the setting of a name or a package-qualified name, at its latest release. */

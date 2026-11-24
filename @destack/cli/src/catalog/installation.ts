@@ -1,3 +1,4 @@
+import { GitReference } from "@destack/git";
 import { join } from "node:path";
 import objectPackage from "@destack/object/package";
 import { PackageDefinition, type PackageId, PackageName } from "@destack/package";
@@ -5,13 +6,14 @@ import { ForgeError } from "@destack/forge/error";
 import { LATEST_TAG, reference, release, tag } from "@destack/registry/object";
 import { GitLease } from "@destack/git/local";
 import type { Lease } from "@destack/resource";
-import { type Identifier, present, schema, Version } from "@destack/schema";
+import { type Identifier, type JsonObject, present, schema, Version } from "@destack/schema";
 import stackPackage, { STACK_INSTALLATION } from "@destack/stack/package";
 import { ObjectReference, RequestId } from "@destack/sync";
 import { CommandOption, type CommandBody } from "../command/command.ts";
 import type { CommandContext, CommandEnvironment } from "../command/context.ts";
 import { CliError } from "../error/index.ts";
 import { InstallationStatus } from "./status.ts";
+import { LocalCheckout } from "../checkout/checkout.ts";
 
 /** The separator of a package specifier's version or tag. */
 const VERSION_SEPARATOR = "@";
@@ -19,8 +21,8 @@ const VERSION_SEPARATOR = "@";
 /** The separator of a repository specifier's branch. */
 const BRANCH_SEPARATOR = "#";
 
-/** The prefix of a branch's full reference name. */
-const BRANCH_PREFIX = "refs/heads/";
+/** A directory argument: one starting with `.` or `/`, such as `.`, `./site` or `/work/site`. */
+const DIRECTORY_PATTERN = /^[./]/u;
 
 /** The installation argument of plan, approve and reject, the space's stack by default. */
 const INSTALLATION_ARGUMENT = {
@@ -29,7 +31,7 @@ const INSTALLATION_ARGUMENT = {
     default: STACK_INSTALLATION,
 } as const;
 
-/** What install reads: a package's release or tag, or a repository branch's package directory. */
+/** What install reads: a release or tag, or a package directory of a branch or a checkout. */
 export type PackageSpecifier =
     | {
           /** A package's release by version, or the release a tag points at. */
@@ -48,14 +50,24 @@ export type PackageSpecifier =
           readonly directory: string;
           /** The branch. */
           readonly branch: string;
+      }
+    | {
+          /** A package directory of a checkout on this computer. */
+          readonly kind: "checkout";
+          /** The directory, relative to the working directory or absolute. */
+          readonly directory: string;
       };
 
 /** Read package specifiers. */
 export const PackageSpecifier = {
-    /** Read `@scope/name[@version|@tag]` or `@handle/repository[/directory]#branch`. */
+    /** Read `@scope/name[@version|@tag]`, `@handle/repository[/directory]#branch` or `./dir`. */
     read(text: string): PackageSpecifier {
+        // read a checkout's directory by its path
+        if (DIRECTORY_PATTERN.test(text)) {
+            return { kind: "checkout", directory: text };
+        }
         // read a repository's branch after its separator
-        if (text.includes(BRANCH_SEPARATOR)) {
+        else if (text.includes(BRANCH_SEPARATOR)) {
             const [path = "", branch = ""] = text.split(BRANCH_SEPARATOR);
             const [handle = "", name = "", ...below] = path.split("/");
             const repository = `${handle}/${name}`;
@@ -110,7 +122,7 @@ export const installCommand: CommandBody = {
     arguments: [
         {
             name: "package",
-            usage: "@scope/name[@version|@tag] or @handle/repository[/directory]#branch",
+            usage: "@scope/name[@version|@tag], @handle/repository[/directory]#branch or ./directory",
         },
     ],
     options: {
@@ -123,17 +135,26 @@ export const installCommand: CommandBody = {
     },
     isJson: true,
     async run({ arguments: { package: given }, options, isJson: json }, context) {
-        // follow a repository's branch, or a package's release or tag
+        // follow a checkout's or a repository's branch, or a package's release or tag
         const specifier = present(given, "the package argument");
         const named = CommandOption.string(options["name"], "name");
         const read = PackageSpecifier.read(specifier);
-        const target =
-            read.kind === "branch"
-                ? await branchTarget(read, context)
-                : await releaseTarget(read, context);
+        let target: InstallationTarget;
+        // push a checkout and follow its reference
+        if (read.kind === "checkout") {
+            target = await (await LocalCheckout.open(read.directory, context)).target(context);
+        }
+        // follow a repository's branch
+        else if (read.kind === "branch") {
+            target = await InstallationTarget.branch(read, context);
+        }
+        // follow a release or a tag
+        else {
+            target = await InstallationTarget.release(read, context);
+        }
 
         // install it, and follow it until its space serves it
-        const { id, name } = await upsert(context, target, named);
+        const { id, name } = await target.install(named, undefined, context);
         await InstallationStatus.drive(id, options["yes"] === true, json, context);
 
         // report what it runs and its version
@@ -296,8 +317,16 @@ async function packageOf(name: string, context: CommandContext): Promise<Package
     return (await client.package.resolve({ spaceId: home, name })).id;
 }
 
+/** The export a stack installation evaluates, and its arguments. */
+export interface InstallationStack {
+    /** The exported stack. */
+    readonly export: string;
+    /** The arguments of a parameterised stack. */
+    readonly parameters: JsonObject;
+}
+
 /** The version an installation runs: the package, its version's row there, and what to report. */
-interface InstallTarget {
+export class InstallationTarget {
     /** The installed package. */
     readonly packageId: PackageId;
     /** The release, tag or branch reference it runs. */
@@ -310,102 +339,177 @@ interface InstallTarget {
     readonly output: Readonly<Record<string, string | null>>;
     /** What the terminal output says it runs and follows. */
     readonly detail: string;
-}
 
-/** Resolve a package's release or tag: a version pins its release, else the tag updates it. */
-async function releaseTarget(
-    specifier: Extract<PackageSpecifier, { readonly kind: "release" }>,
-    context: CommandContext,
-): Promise<InstallTarget> {
-    // take the package's name and the release or tag asked for
-    const { name: packageName, release: asked } = specifier;
+    /** Take the package, its version and what to report. */
+    constructor(
+        fields: Pick<
+            InstallationTarget,
+            "packageId" | "version" | "directory" | "fallback" | "output" | "detail"
+        >,
+    ) {
+        // set the package, its version and what to report
+        this.packageId = fields.packageId;
+        this.version = fields.version;
+        this.directory = fields.directory;
+        this.fallback = fields.fallback;
+        this.output = fields.output;
+        this.detail = fields.detail;
+    }
 
-    // resolve the release at the package's forge
-    const { client, home } = await context.registry(packageName);
-    const found = await client.package.resolve({ spaceId: home, name: packageName });
-    const resolved = await client.release
-        .resolve({ spaceId: home, parentId: found.id, release: asked })
-        .catch((error: unknown) => {
-            // name the package the person asked for, as the forge names it by its id
-            if (ForgeError.is(error, "RELEASE_NOT_FOUND")) {
+    /** Resolve a package's release or tag: a version pins its release, else the tag updates it. */
+    static async release(
+        specifier: Extract<PackageSpecifier, { readonly kind: "release" }>,
+        context: CommandContext,
+    ): Promise<InstallationTarget> {
+        // take the package's name and the release or tag asked for
+        const { name: packageName, release: asked } = specifier;
+
+        // resolve the release at the package's forge
+        const { client, home } = await context.registry(packageName);
+        const found = await client.package.resolve({ spaceId: home, name: packageName });
+        const resolved = await client.release
+            .resolve({ spaceId: home, parentId: found.id, release: asked })
+            .catch((error: unknown) => {
+                // name the package the person asked for, as the forge names it by its id
+                if (ForgeError.is(error, "RELEASE_NOT_FOUND")) {
+                    throw CliError.of(
+                        "RELEASE_NOT_FOUND",
+                        `release '${asked}' of '${packageName}' not found`,
+                        { cause: error },
+                    );
+                }
+                throw error;
+            });
+        const released = resolved.version;
+
+        // pin the release for a version, else run the tag
+        const isPinned = Version.safeParse(asked).success;
+        const version = isPinned
+            ? release.reference(resolved.scope, resolved.id)
+            : await taggedRow(client, home, found.id, asked);
+        const tagged = isPinned ? null : asked;
+        const updates = tagged === null ? "pinned" : `${tagged}, updates automatically`;
+
+        return new InstallationTarget({
+            packageId: found.id,
+            version,
+            directory: null,
+            fallback: PackageName.split(packageName).local,
+            output: { package: packageName, version: released, tag: tagged },
+            detail: `${packageName} ${released} · ${updates}`,
+        });
+    }
+
+    /** Resolve the package at a repository branch's directory, which updates on each push. */
+    static async branch(
+        specifier: Extract<PackageSpecifier, { readonly kind: "branch" }>,
+        context: CommandContext,
+    ): Promise<InstallationTarget> {
+        // find the repository at its account's forge
+        const { repository: named, directory, branch } = specifier;
+        const { client, home, accountId } = await context.registry(named);
+        const local = PackageName.split(named).local;
+        const repositories = await client.repository.list({
+            spaceId: home,
+            where: { accountId, name: local },
+            limit: 1,
+        });
+        const [found] = repositories.items;
+        if (found === undefined) {
+            throw CliError.of("REPOSITORY_NOT_FOUND", `repository '${named}' not found`);
+        }
+
+        // find the branch's reference
+        const references = await client.reference.list({
+            spaceId: home,
+            where: {
+                parentId: found.id,
+                name: GitReference.branch(branch),
+                deletedAt: { isNull: true },
+            },
+            limit: 1,
+        });
+        const [row] = references.items;
+        if (row === undefined) {
+            throw CliError.of("BRANCH_NOT_FOUND", `branch '${branch}' of '${named}' not found`);
+        }
+
+        // read the package at the branch through a read lease
+        const lease = await client.repository.pull({ spaceId: home, id: found.id });
+        const read = (path: string) =>
+            readAtBranch(lease, branch, join(directory, path), context.environment);
+        const definition = PackageDefinition.read(await read("destack.json"));
+        const manifest = schema.looseObject({ name: PackageName });
+        const packageName = manifest.parse(JSON.parse(await read("package.json"))).name;
+
+        return new InstallationTarget({
+            packageId: definition.id,
+            version: reference.reference(row.scope, row.id),
+            directory,
+            fallback: PackageName.split(packageName).local,
+            output: { package: packageName, repository: named, branch, directory },
+            detail: `${packageName} from ${named}#${branch} · updates on push`,
+        });
+    }
+
+    /** Create the package's installation under a name, or change its installed one's version. */
+    async install(
+        asked: string | undefined,
+        stack: InstallationStack | undefined,
+        context: CommandContext,
+    ): Promise<{ readonly id: Identifier<"installation">; readonly name: string }> {
+        // read the package's installation, of which a space has one, and the one of that name
+        const { environment } = await context.native();
+        const space = await context.requireSpace();
+        const stacks = await context.package(stackPackage, await context.locate());
+        const find = async (where: { readonly packageId: PackageId } | { readonly name: string }) =>
+            (await stacks.installation.list({ scope: space, where, limit: 1 })).items[0];
+        const { packageId, version, directory } = this;
+        const installed = await find({ packageId });
+        const name = asked ?? installed?.name ?? this.fallback;
+
+        // create it, refusing a name another package's installation has
+        if (installed === undefined) {
+            if ((await find({ name })) !== undefined) {
                 throw CliError.of(
-                    "RELEASE_NOT_FOUND",
-                    `release '${asked}' of '${packageName}' not found`,
-                    { cause: error },
+                    "INSTALLATION_NAME_EXISTS",
+                    `installation '${name}' already exists: it installs another package, so choose another name with --name`,
                 );
             }
-            throw error;
-        });
-    const released = resolved.version;
+            const created = await stacks.installation.create({
+                scope: space,
+                requestId: RequestId.create(environment),
+                packageId,
+                ...ObjectReference.columns("version", version),
+                ...(directory === null ? {} : { directory }),
+                ...stack,
+                name,
+            });
 
-    // pin the release for a version, else run the tag
-    const isPinned = Version.safeParse(asked).success;
-    const version = isPinned
-        ? release.reference(resolved.scope, resolved.id)
-        : await taggedRow(client, home, found.id, asked);
-    const tagged = isPinned ? null : asked;
-    const updates = tagged === null ? "pinned" : `${tagged}, updates automatically`;
+            return { id: created.id, name };
+        }
+        // refuse another name for the package's one installation
+        else if (installed.name !== name) {
+            throw CliError.of(
+                "INSTALLATION_NAME_EXISTS",
+                `installation '${installed.name}' already exists: it is the package's one installation in the space, so leave --name out`,
+            );
+        }
+        // change the version it runs
+        else {
+            await stacks.installation.update({
+                scope: space,
+                id: installed.id,
+                requestId: RequestId.create(environment),
+                revision: installed.revision,
+                ...ObjectReference.columns("version", version),
+                directory,
+                ...stack,
+            });
 
-    return {
-        packageId: found.id,
-        version,
-        directory: null,
-        fallback: PackageName.split(packageName).local,
-        output: { package: packageName, version: released, tag: tagged },
-        detail: `${packageName} ${released} · ${updates}`,
-    };
-}
-
-/** Resolve the package at a repository branch's directory, which updates on each push. */
-async function branchTarget(
-    specifier: Extract<PackageSpecifier, { readonly kind: "branch" }>,
-    context: CommandContext,
-): Promise<InstallTarget> {
-    // find the repository at its account's forge
-    const { repository: named, directory, branch } = specifier;
-    const { client, home, accountId } = await context.registry(named);
-    const local = PackageName.split(named).local;
-    const repositories = await client.repository.list({
-        spaceId: home,
-        where: { accountId, name: local },
-        limit: 1,
-    });
-    const [found] = repositories.items;
-    if (found === undefined) {
-        throw CliError.of("REPOSITORY_NOT_FOUND", `repository '${named}' not found`);
+            return { id: installed.id, name };
+        }
     }
-
-    // find the branch's reference
-    const references = await client.reference.list({
-        spaceId: home,
-        where: {
-            parentId: found.id,
-            name: `${BRANCH_PREFIX}${branch}`,
-            deletedAt: { isNull: true },
-        },
-        limit: 1,
-    });
-    const [row] = references.items;
-    if (row === undefined) {
-        throw CliError.of("BRANCH_NOT_FOUND", `branch '${branch}' of '${named}' not found`);
-    }
-
-    // read the package at the branch through a read lease
-    const lease = await client.repository.pull({ spaceId: home, id: found.id });
-    const read = (path: string) =>
-        readAtBranch(lease, branch, join(directory, path), context.environment);
-    const definition = PackageDefinition.read(await read("destack.json"));
-    const manifest = schema.looseObject({ name: PackageName });
-    const packageName = manifest.parse(JSON.parse(await read("package.json"))).name;
-
-    return {
-        packageId: definition.id,
-        version: reference.reference(row.scope, row.id),
-        directory,
-        fallback: PackageName.split(packageName).local,
-        output: { package: packageName, repository: named, branch, directory },
-        detail: `${packageName} from ${named}#${branch} · updates on push`,
-    };
 }
 
 /** Read a file at a branch's head through a read lease, fetching that commit alone. */
@@ -445,61 +549,4 @@ async function taggedRow(
     }
 
     return tag.reference(tagged.scope, tagged.id);
-}
-
-/** Create a package's installation under a name, or change the version its installed one runs. */
-async function upsert(
-    context: CommandContext,
-    target: InstallTarget,
-    asked: string | undefined,
-): Promise<{ readonly id: Identifier<"installation">; readonly name: string }> {
-    // read the package's installation, of which a space has one, and the one of that name
-    const { environment } = await context.native();
-    const space = await context.requireSpace();
-    const stack = await context.package(stackPackage, await context.locate());
-    const find = async (where: { readonly packageId: PackageId } | { readonly name: string }) =>
-        (await stack.installation.list({ scope: space, where, limit: 1 })).items[0];
-    const { packageId, version, directory } = target;
-    const installed = await find({ packageId });
-    const name = asked ?? installed?.name ?? target.fallback;
-
-    // create it, refusing a name another package's installation has
-    if (installed === undefined) {
-        if ((await find({ name })) !== undefined) {
-            throw CliError.of(
-                "INSTALLATION_NAME_EXISTS",
-                `installation '${name}' already exists: it installs another package, so choose another name with --name`,
-            );
-        }
-        const created = await stack.installation.create({
-            scope: space,
-            requestId: RequestId.create(environment),
-            packageId,
-            ...ObjectReference.columns("version", version),
-            ...(directory === null ? {} : { directory }),
-            name,
-        });
-
-        return { id: created.id, name };
-    }
-    // refuse another name for the package's one installation
-    else if (installed.name !== name) {
-        throw CliError.of(
-            "INSTALLATION_NAME_EXISTS",
-            `installation '${installed.name}' already exists: it is the package's one installation in the space, so leave --name out`,
-        );
-    }
-    // change the version it runs
-    else {
-        await stack.installation.update({
-            scope: space,
-            id: installed.id,
-            requestId: RequestId.create(environment),
-            revision: installed.revision,
-            ...ObjectReference.columns("version", version),
-            directory,
-        });
-
-        return { id: installed.id, name };
-    }
 }

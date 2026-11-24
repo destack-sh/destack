@@ -274,7 +274,7 @@ test("print help for a command line without words as destack help does, and a no
             "  build     new  dev  check  fix  test  build  publish  tag  git",
             "  settings  setting  settings",
             "  objects   computers  machine:visits  sign-ins  windows  distributions",
-            "            checkouts  previews  users  account:sessions  user-logins  passkeys",
+            "            checkouts  users  account:sessions  user-logins  passkeys",
         ],
         card: `Get, create and change cards (work)
 

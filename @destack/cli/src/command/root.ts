@@ -113,7 +113,7 @@ const COMMANDS = {
             (await context.module(() => import("../checkout/new.ts"))).newCommand,
     },
     dev: {
-        description: "Preview a checkout's package live against the space",
+        description: "Install a checkout's package in the space and push it on each change",
         load: async (context) =>
             (await context.module(() => import("../checkout/dev.ts"))).devCommand,
     },

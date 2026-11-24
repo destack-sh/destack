@@ -2,12 +2,13 @@ import { outputsOf } from "@destack/build";
 import { readPackageJson } from "@destack/build/local";
 import { type PackageJson, PackageName } from "@destack/package";
 import { type Identifier, present, type Version } from "@destack/schema";
-import { RequestId } from "@destack/sync";
 import * as stackObject from "@destack/stack/object";
 import { CommandOption, type CommandCall, type CommandBody } from "../command/command.ts";
 import type { CommandContext } from "../command/context.ts";
 
-import { preview } from "@destack/machine/checkout";
+import { RequestId } from "@destack/sync";
+import { LocalCheckout } from "./checkout.ts";
+import { InstallationStatus } from "../catalog/status.ts";
 import stackPackage from "@destack/stack/package";
 import type {} from "@destack/package/import-meta";
 import { CliError } from "../error/index.ts";
@@ -23,12 +24,46 @@ const OUTPUTS_OPTION = {
     },
 } as const;
 
-/** Preview a checkout's package live against the space. */
+/** Install a checkout's package in the space and push its working tree on each change. */
 export const devCommand: CommandBody = {
     arguments: [{ name: "package", default: ".", isDirectory: true }],
     isJson: true,
     async run({ arguments: { package: directory }, isJson: json }, context) {
-        await previewCheckout(context, present(directory, "the package argument"), json);
+        // install the checkout's package, or switch its installation to the checkout
+        const checkout = await LocalCheckout.open(
+            present(directory, "the package argument"),
+            context,
+        );
+        const target = await checkout.target(context);
+        const { id, name } = await target.install(undefined, undefined, context);
+        const { terminal } = context;
+        await terminal.print(
+            json
+                ? JSON.stringify({ id, name, ...target.output })
+                : terminal.event("Developing", "running", `installation '${name}'`, target.detail),
+        );
+
+        // show the installation at each change, failures included, while pushing each change, until interrupted
+        using interrupt = new Interrupt(context.environment.process);
+        const showing = (async () => {
+            for await (const status of InstallationStatus.follow(id, context, interrupt.signal)) {
+                await terminal.print(status.show(json, context));
+            }
+        })();
+        await checkout.watch(context, interrupt.signal, async (commit) => {
+            await terminal.print(
+                json
+                    ? JSON.stringify({ id, name, commit })
+                    : terminal.event(
+                          "Pushed",
+                          "done",
+                          `commit '${commit}'`,
+                          `installation '${name}'`,
+                      ),
+            );
+        });
+        await showing;
+        interrupt.require();
     },
 };
 
@@ -130,8 +165,11 @@ async function build(
     const { environment } = await context.native();
     const space = await context.requireSpace();
 
-    // find the package directory in its checkout, the space and the outputs
-    const registered = await context.registerCheckout(directory);
+    // push the checkout's working tree, or its HEAD for a release, which refuses uncommitted changes
+    const checkout = await LocalCheckout.open(directory, context);
+    const { commit } = await checkout.push(context, version === "release" ? "head" : "tree");
+
+    // read the space and the outputs
     const location = await context.locate();
     const stack = await context.package(stackPackage, location);
     const named = CommandOption.string(values["outputs"], "outputs");
@@ -142,15 +180,15 @@ async function build(
     const implied = outputsOf(read);
     const outputs = named?.split(",") ?? Object.keys(implied);
 
-    // create the build, which the checkout's environment runs
+    // create the build of the pushed commit, which the space's runner compiles
     const created = await stack.build.create({
         spaceId: space,
         requestId: RequestId.create(environment),
         source: {
-            kind: "checkout",
-            machine: registered.checkout.scope,
-            checkout: registered.checkout.id,
-            directory: registered.path,
+            kind: "commit",
+            repository: checkout.repository,
+            commit,
+            directory: checkout.path,
         },
         outputs,
         ...(version === "release"
@@ -169,34 +207,19 @@ async function build(
     };
 }
 
-/** Show each phase of a space's build until it finishes, cancelling it on an interrupt. */
+/** Show each state of a space's build until it finishes, leaving it running on an interrupt. */
 async function follow(
     context: CommandContext,
     id: Identifier<"build">,
     json: boolean,
 ): Promise<stackObject.Build> {
-    // open the space's builds
+    // copy the space's builds until an interrupt, which leaves the build running for whoever shares it
     const space = await context.requireSpace();
-    const location = await context.locate();
-    const stack = await context.package(stackPackage, location);
-
-    // copy the space's builds, cancelling the build on an interrupt
     const client = await context.native();
     const launcher = await context.launcher();
     await using opened = new AsyncDisposableStack();
     const builds = await client.open(launcher, { space }, { build: stackObject.build }, opened);
     using interrupt = new Interrupt(context.environment.process);
-    const cancelled = new Promise<unknown>((resolve) => {
-        interrupt.signal.addEventListener("abort", () => {
-            resolve(
-                stack.build.cancel({
-                    spaceId: space,
-                    id,
-                    requestId: RequestId.create(client.environment),
-                }),
-            );
-        });
-    });
 
     // show each phase until the build finishes
     const live = context.terminal.live(json);
@@ -213,13 +236,8 @@ async function follow(
         }
     }
 
-    // cancel an interrupted build, waiting for the cancel until a second interrupt
-    if (interrupt.signal.aborted) {
-        await Promise.race([cancelled, interrupt.again]);
-        interrupt.require();
-    }
-
-    // refuse a build followed no longer
+    // end as interrupted, else refuse a build followed no longer
+    interrupt.require();
     throw CliError.of(
         "FOLLOW_UNAVAILABLE",
         `build '${id}' is unavailable: following stopped before it finished`,
@@ -236,64 +254,4 @@ function render(current: stackObject.Build): string {
     else {
         return `Build ${current.state}`;
     }
-}
-
-/** Start previewing a checkout's package live against a space, as the person signed in. */
-async function previewCheckout(
-    context: CommandContext,
-    directory: string,
-    json: boolean,
-): Promise<void> {
-    // find the checkout, the package directory in it, and the space
-    const registered = await context.registerCheckout(directory);
-    const space = await context.requireSpace();
-
-    // start the preview, which its controller builds and runs
-    const client = await context.native();
-    const created = await client.machine().preview.create({
-        machineId: registered.checkout.scope,
-        requestId: RequestId.create(client.environment),
-        checkoutId: registered.checkout.id,
-        package: registered.path,
-        space,
-        login: (await context.signedIn()).row.id,
-    });
-
-    // follow the preview until the machine ran its generation or failed to
-    await using opened = new AsyncDisposableStack();
-    const previews = await client.follow({ preview }, opened);
-    using interrupt = new Interrupt(context.environment.process);
-    for await (const row of previews.query.preview
-        .findFirst({ where: { id: created.id } })
-        .watch(interrupt.signal)) {
-        // wait for the machine to observe the generation
-        const ready = row?.conditions["Ready"];
-        if (row === undefined || ready?.observedGeneration !== row.generation) {
-            continue;
-        }
-
-        // refuse a preview the machine failed to build or run, with its reason
-        if (ready.status !== "true") {
-            throw CliError.of(
-                "PREVIEW_BROKEN",
-                `preview of '${directory}' is broken: ${ready.message}`,
-            );
-        }
-        const views = Object.keys(row.views);
-        const { terminal } = context;
-        const lines = [
-            terminal.event("Previewing", "running", `'${directory}'`, row.id),
-            ...(views.length === 0 ? [] : [terminal.hint("views", views.join(" · "))]),
-        ];
-        await terminal.print(json ? JSON.stringify(row) : lines.join("\n"));
-
-        return;
-    }
-    interrupt.require();
-
-    // refuse a preview followed no longer
-    throw CliError.of(
-        "FOLLOW_UNAVAILABLE",
-        `preview '${created.id}' is unavailable: following stopped before it ran`,
-    );
 }

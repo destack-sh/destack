@@ -1,4 +1,5 @@
 import { Installation, installation, bucket, database } from "@destack/stack/object";
+import { GitReference } from "@destack/git";
 import { RelationalQuery } from "@destack/object/client";
 import { principal } from "@destack/access";
 import { approval, Observation, type Progress, type Resource } from "@destack/object";
@@ -104,6 +105,7 @@ export class InstallationStatus {
     static async *follow(
         id: Identifier<"installation">,
         context: CommandContext,
+        signal?: AbortSignal,
     ): AsyncGenerator<InstallationStatus> {
         // open the space's installations and resources as the person until the follow ends
         const space = await context.requireSpace();
@@ -140,7 +142,7 @@ export class InstallationStatus {
                 buckets: query.bucket.findMany(owned),
                 vaults: query.vault.findMany(owned),
             },
-            watching.signal,
+            signal === undefined ? watching.signal : AbortSignal.any([watching.signal, signal]),
         );
         let described: { readonly id: string | null; readonly version: string } | undefined;
         for await (const { installed, databases, buckets, vaults } of status) {
@@ -407,11 +409,9 @@ async function describeVersion(
     if (installed.versionId === null) {
         return "shipped with Destack · updates with it";
     }
-    // describe a checkout as live, and a build by its identifier
+    // describe a build by its identifier
     else if (!isForged) {
-        return installed.versionType === "checkout"
-            ? `checkout ${installed.versionId}${at} · live`
-            : `build ${installed.versionId}${at} · pinned`;
+        return `build ${installed.versionId}${at} · pinned`;
     }
 
     // read the tag, release or reference at its home's forge
@@ -443,7 +443,7 @@ async function describeVersion(
             id: schema.identifier("reference").parse(row.id),
         });
         const repository = await forge.repository.get({ ...read, id: referenced.parentId });
-        const branch = referenced.name.replace(/^refs\/(heads|tags)\//u, "");
+        const branch = GitReference.short(referenced.name);
 
         return `${repository.name}#${branch}${at} · updates on push`;
     }
