@@ -1,6 +1,7 @@
 import {
     Action,
     type ActionInput,
+    ActionKeybinding,
     type MethodKind,
     type ObjectType,
     type ObjectView,
@@ -162,10 +163,10 @@ export class Pager {
         const targets = this.#targets(page);
         const { type } = this;
         const actions = type.actions(targets, this.declared, moment);
-        const bound = actions.find(
-            (action) =>
-                action.keybinding !== undefined &&
-                Shortcut.matches(action.keybinding, event, false),
+        const bound = actions.find((action) =>
+            ActionKeybinding.on(action.keybinding, false, undefined).some((shortcut) =>
+                Shortcut.matches(shortcut, event, false),
+            ),
         );
         if (bound !== undefined) {
             return this.#chosen(bound, targets);
