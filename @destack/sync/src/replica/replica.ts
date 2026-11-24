@@ -1060,6 +1060,7 @@ export class Replica {
         let lapses = 0;
         let refusals = 0;
         let losses = 0;
+        let changes = 0;
         try {
             while (!signal.aborted) {
                 let isReceived = false;
@@ -1086,13 +1087,21 @@ export class Replica {
                 silence();
                 try {
                     for await (const page of this.apply(database, pages, opened)) {
-                        // report the replica synced at its first complete page
+                        // count the rows the stream brings until the replica synced
                         isReceived = true;
                         silence();
                         await options.received?.(page);
+                        changes += page.changes.length;
+
+                        // report the replica synced at its first complete page, logging the rows it took
                         if (page.complete && !isSynced) {
                             isSynced = true;
                             options.synced();
+                            this.#scope(database).log.info("destack.replica.synced", {
+                                "destack.replica.name": this.name,
+                                "destack.replica.scope": this.scope,
+                                "destack.replica.changes": changes,
+                            });
                         }
                     }
                 } catch (error) {

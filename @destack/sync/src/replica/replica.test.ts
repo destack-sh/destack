@@ -1409,6 +1409,7 @@ test("wait out a follower its issuer refuses, backing off and logging until it f
         ["n1"],
         [
             ["destack.replica.refused", "notes"],
+            ["destack.replica.synced", "notes"],
             ["destack.replica.restored", "notes"],
         ],
     ]);
@@ -1465,6 +1466,7 @@ test("log a lost source and its restore", async () => {
                 "notes",
                 "connection is unavailable: the socket closed with '1006'",
             ],
+            ["destack.replica.synced", "notes", undefined],
             ["destack.replica.restored", "notes", undefined],
         ],
     ]);
@@ -2103,11 +2105,13 @@ test("keep a replica live while its pages arrive within the lag, and end a strea
     await simulation.sleep(30_000);
     controller.abort();
     await simulation.wait(following);
-    const warned = simulation.telemetry.logs.map((record) => [
-        record.eventName,
-        record.attributes["destack.replica.name"],
-        record.attributes["destack.replica.received"],
-    ]);
+    const warned = simulation.telemetry.logs
+        .filter((record) => record.severityText === "WARN")
+        .map((record) => [
+            record.eventName,
+            record.attributes["destack.replica.name"],
+            record.attributes["destack.replica.received"],
+        ]);
     expect({ live, beaten, silent, kept, streams, stopped: isLive(), warned }).toEqual({
         live: true,
         beaten: true,
