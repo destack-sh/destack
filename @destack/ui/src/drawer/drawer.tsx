@@ -21,6 +21,7 @@ import {
     type DialogProperties,
 } from "../dialog/index.ts";
 import { scrim } from "../dialog/scrim.stylex.ts";
+import { OpenChange } from "../layer/index.ts";
 import {
     Sheet,
     SheetClose,
@@ -266,7 +267,10 @@ export function DrawerContent(properties: DrawerContentProperties): JSX.Element 
     const swipe = new Swipe(
         {
             side: () => drawer.direction(),
-            onSwipeEnd: (event) => drawer.settle(event, viewportOf(drawer), () => dialog.close()),
+            onSwipeEnd: (event) =>
+                drawer.settle(event, viewportOf(drawer), () =>
+                    dialog.close(new OpenChange("swipe")),
+                ),
             canStart: (event) => canSwipe(drawer, event),
             flickSpeed: FLICK_SPEED,
             isElastic: true,

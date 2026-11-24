@@ -7,7 +7,6 @@ import { text } from "@destack/theme/text";
 import {
     type Accessor,
     createContext,
-    createControllableSignal,
     createEffect,
     For,
     type JSX,
@@ -22,7 +21,7 @@ import { AutocompleteContext, AutocompleteControl } from "../autocomplete/index.
 import { badgeVariants } from "../badge/index.ts";
 import { CollectionBuilder } from "../collection/index.ts";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "../input-group/index.ts";
-import { TopLayer } from "../layer/index.ts";
+import { OpenChange, type OpenProperties, OpenState, TopLayer } from "../layer/index.ts";
 import {
     ListBox,
     ListBoxContext,
@@ -91,8 +90,8 @@ export class ComboboxControl {
     readonly items: CollectionBuilder<string>;
     /** The text of each value chosen here, which the chips show. */
     readonly #labels: Map<string, string>;
-    /** Replace whether the list is open and tell the change handler. */
-    readonly #setOpen: (isOpen: boolean) => void;
+    /** The open state. */
+    readonly #state: OpenState;
     /** The input. */
     #input: HTMLInputElement | undefined;
     /** The frame around the input, which anchors the list. */
@@ -105,12 +104,7 @@ export class ComboboxControl {
     /** Create a combobox whose list chooses its values, open when its properties ask for it. */
     constructor(properties: ComboboxProperties) {
         // follow the chosen values, the open state and the typed text
-        const [isOpen, setOpen] = createControllableSignal({
-            isControlled: () => properties.open !== undefined,
-            value: () => properties.open === true,
-            defaultValue: properties.defaultOpen === true,
-            onChange: (isNext) => properties.onOpenChange?.(isNext),
-        });
+        this.#state = new OpenState(properties);
         this.autocomplete = new AutocompleteControl({
             get filter() {
                 return properties.filter;
@@ -131,10 +125,9 @@ export class ComboboxControl {
         });
         this.selection = new Selection(properties);
         this.properties = properties;
-        this.isOpen = isOpen;
+        this.isOpen = this.#state.isOpen;
         this.items = new CollectionBuilder();
         this.#labels = new Map();
-        this.#setOpen = setOpen;
         this.#input = undefined;
         this.#anchor = undefined;
         this.#content = undefined;
@@ -164,17 +157,17 @@ export class ComboboxControl {
         this.#content = element;
     }
 
-    /** Open or close the list and tell the root's change handler. */
-    open(isOpen: boolean): void {
+    /** Open or close the list, unless its handler cancels it. */
+    open(isOpen: boolean, change = new OpenChange()): void {
         if (isOpen !== this.isOpen()) {
-            this.#setOpen(isOpen);
+            this.#state.set(isOpen, change);
         }
     }
 
     /** Open or close the list from its button, focusing the input. */
-    toggle(): void {
+    toggle(event: PointerEvent): void {
         this.#input?.focus();
-        this.open(!this.isOpen());
+        this.open(!this.isOpen(), new OpenChange("trigger-press", event));
     }
 
     /** Show or hide the list element below the input. */
@@ -216,7 +209,7 @@ export class ComboboxControl {
         // set a single combobox's value and close the list on its text
         this.selection.add(value);
         this.autocomplete.type(label);
-        this.open(false);
+        this.open(false, new OpenChange("item-press"));
     }
 
     /** Report whether no item stands for a text, ignoring case, so an option can create it. */
@@ -229,12 +222,6 @@ export class ComboboxControl {
 
 /** The properties of a combobox root. */
 export type ComboboxProperties = {
-    /** Whether the list is open, which makes the open state controlled. */
-    readonly open?: boolean;
-    /** Whether the list starts open when its state is uncontrolled. */
-    readonly defaultOpen?: boolean;
-    /** Handle the list opening or closing. */
-    readonly onOpenChange?: (open: boolean) => void;
     /** The text in the input, which makes it controlled. */
     readonly inputValue?: string;
     /** The text in the input at first while uncontrolled, empty by default. */
@@ -249,7 +236,8 @@ export type ComboboxProperties = {
     readonly onCreate?: (text: string) => void;
     /** The input and list. */
     readonly children?: JSX.Element;
-} & SelectionProperties;
+} & OpenProperties &
+    SelectionProperties;
 
 /** Read the combobox of the nearest combobox root, refusing elements outside one. */
 export function useCombobox(): ComboboxControl {
@@ -316,10 +304,10 @@ export function ComboboxInput(
                 onInput={(event) => {
                     // filter by the typed text and show the matches
                     control.autocomplete.type(event.currentTarget.value);
-                    control.open(true);
+                    control.open(true, new OpenChange("input", event));
                 }}
                 onKeyDown={(event) => steer(event, control, locale.direction)}
-                onBlur={() => control.open(false)}
+                onBlur={(event) => control.open(false, new OpenChange("focus-out", event))}
             />
             <InputGroupAddon align="inline-end">
                 <ComboboxTrigger disabled={properties.disabled === true} />
@@ -345,7 +333,7 @@ function ComboboxTrigger(properties: { readonly disabled: boolean }): JSX.Elemen
             onPointerDown={(event) => {
                 // open from the input, which takes the focus and the keys
                 event.preventDefault();
-                control.toggle();
+                control.toggle(event);
             }}
             {...style.attrs(styles.trigger)}
         >
@@ -473,7 +461,7 @@ function steer(event: KeyboardEvent, control: ComboboxControl, direction: Direct
     const isVertical = event.key === "ArrowDown" || event.key === "ArrowUp";
     if (isVertical && !control.isOpen()) {
         event.preventDefault();
-        control.open(true);
+        control.open(true, new OpenChange("trigger-press", event));
     } else if ((isVertical || event.key === "Enter") && control.isOpen()) {
         control.autocomplete.steer(event, direction);
     }
@@ -481,7 +469,7 @@ function steer(event: KeyboardEvent, control: ComboboxControl, direction: Direct
     else if (event.key === "Escape") {
         event.preventDefault();
         if (control.isOpen()) {
-            control.open(false);
+            control.open(false, new OpenChange("escape-key", event));
         } else {
             control.autocomplete.type("");
         }

@@ -26,6 +26,7 @@ import {
 } from "../calendar/index.ts";
 import { DateField } from "../date-field/index.ts";
 import { FieldContext, useFieldControl } from "../field/control.ts";
+import type { OpenProperties } from "../layer/index.ts";
 import { Popover, PopoverContent, PopoverTrigger, usePopover } from "../popover/index.ts";
 import { bareDateSegmentStyle, dateSegmentBoxStyle } from "../date-segment/index.ts";
 
@@ -87,7 +88,7 @@ export type DatePickerProperties = {
     /** Whether the calendar starts open while the open state is uncontrolled. */
     readonly defaultOpen?: boolean | undefined;
     /** Handle the calendar opening or closing. */
-    readonly onOpenChange?: ((open: boolean) => void) | undefined;
+    readonly onOpenChange?: OpenProperties["onOpenChange"];
 } & DatePickerSelection;
 
 /** A choice a date picker offers beside its calendar. */

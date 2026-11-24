@@ -7,6 +7,7 @@ import { createContext, type JSX, onCleanup, useContext, useLocale } from "@dest
 import { Hover } from "../interaction/index.ts";
 import { ListState } from "../focus/index.ts";
 import type { Direction } from "@destack/locale";
+import { OpenChange } from "../layer/index.ts";
 import {
     Menu,
     MenuCheckboxItem,
@@ -199,7 +200,7 @@ export function MenubarTrigger(
             if (bar.isOpen() && !menu.isOpen()) {
                 bar.closeAll();
                 event.target.focus();
-                menu.open("none");
+                menu.open("none", new OpenChange("trigger-hover"));
             }
         },
     }).attributes();
@@ -237,7 +238,7 @@ export function MenubarTrigger(
                 // open on the down arrow key, focusing the first item
                 if (event.key === "ArrowDown") {
                     event.preventDefault();
-                    menu.open("first");
+                    menu.open("first", new OpenChange("trigger-press", event));
                 }
             },
             onFocus: () => bar.list.focus.focusIn(menu.id),

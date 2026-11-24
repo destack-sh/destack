@@ -1,4 +1,5 @@
 import { type JSX, omit } from "@destack/view";
+import { OpenChange } from "../layer/index.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
 import {
     Menu,
@@ -61,7 +62,8 @@ export function DropdownMenuTrigger(properties: DropdownMenuTriggerProperties): 
             const isArrow = event.key === "ArrowDown" || event.key === "ArrowUp";
             if (properties.isOpenedByArrows !== false && isArrow) {
                 event.preventDefault();
-                control.open(event.key === "ArrowDown" ? "first" : "last");
+                const focus = event.key === "ArrowDown" ? "first" : "last";
+                control.open(focus, new OpenChange("trigger-press", event));
             }
         },
     });

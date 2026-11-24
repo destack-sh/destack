@@ -21,7 +21,6 @@ import {
     useActions,
     type Accessor,
     createContext,
-    createControllableSignal,
     createEffect,
     createSignal,
     createUniqueId,
@@ -55,7 +54,7 @@ import type { IconBodies } from "@destack/icon";
 import { useCommandPlatform } from "../kbd/index.ts";
 import { ListState } from "../focus/index.ts";
 import { type Align, type Point, Position, type Side } from "../position/index.ts";
-import { TopLayer } from "../layer/index.ts";
+import { Dismissal, OpenChange, type OpenProperties, OpenState, TopLayer } from "../layer/index.ts";
 
 /** The wait before a hovered trigger opens its submenu, in milliseconds. */
 const SUBMENU_DELAY = 100;
@@ -204,7 +203,7 @@ export class MenuRelease {
 
         // open it and wait for the pointer
         this.#isClickSwallowed = true;
-        this.#control.open("first");
+        this.#control.open("first", new OpenChange("trigger-press", event));
         this.await(event);
     }
 
@@ -220,10 +219,11 @@ export class MenuRelease {
         }
 
         // open or close the menu
+        const change = new OpenChange("trigger-press", event);
         if (untrack(this.#control.isOpen)) {
-            this.#control.close(true);
+            this.#control.close(true, change);
         } else {
-            this.#control.open("first");
+            this.#control.open("first", change);
         }
     }
 
@@ -255,7 +255,7 @@ export class MenuRelease {
             } else if (isWithin) {
                 this.#keep();
             } else {
-                this.#control.close(true);
+                this.#control.close(true, new OpenChange("outside-press", released));
             }
         };
         document?.addEventListener("pointerup", up, true);
@@ -312,20 +312,18 @@ export class MenuControl {
     readonly #timer: Timeout;
     /** The open submenus. */
     readonly #children: Set<MenuControl>;
-    /** Replace whether the menu is open and tell the change handler. */
-    readonly #setOpen: (isOpen: boolean) => void;
+    /** The open state. */
+    readonly #state: OpenState;
+    /** Why the platform closes the menu. */
+    readonly #dismissal: Dismissal;
     /** Replace the point a context menu opens at. */
     readonly #setPoint: Setter<Point | undefined>;
 
     /** Create a closed menu, a submenu when it has a parent. */
     constructor(parent: MenuControl | null, properties: MenuRootProperties = {}) {
         // follow the controlled state, else the menu's own, without elements yet
-        const [isOpen, setOpen] = createControllableSignal({
-            isControlled: () => properties.open !== undefined,
-            value: () => properties.open === true,
-            defaultValue: properties.defaultOpen === true,
-            onChange: (isNext) => properties.onOpenChange?.(isNext),
-        });
+        this.#state = new OpenState(properties);
+        this.#dismissal = new Dismissal();
         const [point, setPoint] = createSignal<Point | undefined>(undefined);
         const [origin, setOrigin] = createSignal<HTMLElement | undefined>(undefined, {
             ownedWrite: true,
@@ -335,7 +333,7 @@ export class MenuControl {
         this.id = createUniqueId();
         this.triggerId = `${this.id}-trigger`;
         this.parent = parent;
-        this.isOpen = isOpen;
+        this.isOpen = this.#state.isOpen;
         this.point = point;
         this.list = new ListState({ orientation: "vertical", isLooping: true, isTypeahead: true });
         this.onCross = undefined;
@@ -348,11 +346,13 @@ export class MenuControl {
         this.polygon = new SafePolygon();
         this.release = new MenuRelease(this);
         this.#timer = new Timeout();
-        this.#setOpen = setOpen;
         this.#setPoint = setPoint;
 
         // stop placing the overlay and drop its anchor once its owner goes away
-        onCleanup(() => this.#unplace());
+        onCleanup(() => {
+            this.#dismissal.stop();
+            this.#unplace();
+        });
     }
 
     /** Set the element that opens the menu and anchors it. */
@@ -387,8 +387,10 @@ export class MenuControl {
                 unplace();
                 unfit();
             };
+            this.#dismissal.start(content);
             untrack(() => this.#focusItem(content));
         } else {
+            this.#dismissal.stop();
             this.#unplace();
             content.hidePopover();
             if (this.#isReturningFocus) {
@@ -429,7 +431,7 @@ export class MenuControl {
     }
 
     /** Open the menu beside its trigger, or at a point for a context menu, focusing an item. */
-    open(focus: MenuFocus, point?: Point): void {
+    open(focus: MenuFocus, change = new OpenChange(), point?: Point): void {
         // remember what to focus before opening and joining the parent's open submenus
         this.#focus = focus;
         this.#setOrigin(this.#trigger);
@@ -437,14 +439,14 @@ export class MenuControl {
 
         // render the items for where it opens, so it measures and focuses those, then show it
         flush();
-        this.#setOpen(true);
+        this.#state.set(true, change);
         if (this.parent !== null) {
             this.parent.#children.add(this);
         }
     }
 
     /** Close the menu and its submenus. */
-    close(isReturningFocus: boolean): void {
+    close(isReturningFocus: boolean, change = new OpenChange()): void {
         // close the submenus first
         this.closeSubmenus();
 
@@ -452,7 +454,7 @@ export class MenuControl {
         this.#timer.clear();
         this.polygon.stop();
         this.#isReturningFocus = isReturningFocus;
-        this.#setOpen(false);
+        this.#state.set(false, change);
         if (this.parent !== null) {
             this.parent.#children.delete(this);
         }
@@ -502,12 +504,21 @@ export class MenuControl {
 
     /** Follow the platform closing the menu, such as on a click outside. */
     follow(event: ToggleEvent): void {
-        if (event.newState === "closed" && this.isOpen()) {
-            if (this.release.isKeeping()) {
-                this.keep();
-            } else {
-                this.close(false);
-            }
+        // leave a menu its state closed, and keep one that opened during a press
+        const content = this.#content;
+        if (event.newState !== "closed" || content === undefined || !untrack(this.isOpen)) {
+            return;
+        }
+        const change = this.#dismissal.change(content, this.#trigger);
+        const isKeeping = this.release.isKeeping();
+        if (!isKeeping) {
+            this.close(false, change);
+            flush();
+        }
+
+        // show it again where it stays open
+        if (isKeeping || change.isCancelable) {
+            this.keep();
         }
     }
 
@@ -544,13 +555,7 @@ export interface MenuItemJoin extends Record<"ref", (element: HTMLElement) => vo
 }
 
 /** The properties of a top menu's root. */
-export interface MenuRootProperties {
-    /** Whether the menu is open, which makes the open state controlled. */
-    readonly open?: boolean;
-    /** Whether the menu starts open when its state is uncontrolled. */
-    readonly defaultOpen?: boolean;
-    /** Handle the menu opening or closing. */
-    readonly onOpenChange?: (open: boolean) => void;
+export interface MenuRootProperties extends OpenProperties {
     /** The trigger and content. */
     readonly children?: JSX.Element;
 }
@@ -999,9 +1004,9 @@ function navigate(
     if (event.key === "Escape" || (event.key === back && control.parent !== null)) {
         event.preventDefault();
         event.stopPropagation();
-        control.close(true);
+        control.close(true, new OpenChange(event.key === "Escape" ? "escape-key" : "none", event));
     } else if (event.key === "Tab") {
-        control.root().close(false);
+        control.root().close(false, new OpenChange("focus-out", event));
     }
     // hand left and right in a top menu to its menubar
     else if ((event.key === "ArrowLeft" || event.key === "ArrowRight") && control.parent === null) {
@@ -1035,7 +1040,7 @@ function choose(
     // run the action before closing the chain of menus and returning the focus to its trigger
     properties.onSelect?.(event);
     if (!event.defaultPrevented) {
-        control.root().close(true);
+        control.root().close(true, new OpenChange("item-press", event));
     }
 }
 

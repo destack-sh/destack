@@ -1,5 +1,6 @@
 import { LayerStack } from "../layer/index.ts";
-import { expect, test } from "@destack/test";
+import type { OpenChange } from "../layer/index.ts";
+import { expect, onTestFinished, test } from "@destack/test";
 import {
     Popover,
     PopoverAnchor,
@@ -181,4 +182,103 @@ test("place a modal popover beside its anchor, name it by its title, and close i
         [`--${id}`, `${id}-title`, `${id}-description`],
         false,
     ]);
+});
+
+/** Let elements show as popovers for a test, and collect the ids of those that do. */
+function showPopovers(): string[] {
+    const shown: string[] = [];
+    Object.defineProperty(HTMLElement.prototype, "showPopover", {
+        configurable: true,
+        value(this: HTMLElement) {
+            shown.push(this.id);
+        },
+    });
+    onTestFinished(() => void Reflect.deleteProperty(HTMLElement.prototype, "showPopover"));
+
+    return shown;
+}
+
+test("keep a popover open or closed as its owner cancels, with the focus where it was", () => {
+    // refuse the platform opening one popover and closing another, which the page shows itself
+    const shown = showPopovers();
+    const asked: unknown[] = [];
+    const ask = (open: boolean, change: OpenChange) => {
+        asked.push([open, change.reason]);
+        change.cancel();
+    };
+    const { container } = render(() => (
+        <>
+            <Popover onOpenChange={ask}>
+                <PopoverContent id="shut">Shut</PopoverContent>
+            </Popover>
+            <Popover defaultOpen onOpenChange={ask}>
+                <PopoverContent id="open">
+                    <button type="button">First</button>
+                    <button type="button">Second</button>
+                </PopoverContent>
+            </Popover>
+        </>
+    ));
+    flush();
+    const toggle = (id: string, type: string, newState: string) => {
+        const element = container.ownerDocument.getElementById(id);
+        const event = Object.assign(new Event(type, { cancelable: true }), { newState });
+        const isTaken = element?.dispatchEvent(event);
+        flush();
+
+        return isTaken;
+    };
+    const isOpenTaken = toggle("shut", "beforetoggle", "open");
+    toggle("open", "toggle", "open");
+    container.querySelector<HTMLElement>("#open button:last-child")?.focus();
+    document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    toggle("open", "beforetoggle", "closed");
+    document.body.focus();
+    toggle("open", "toggle", "closed");
+    container.querySelector<HTMLElement>("#open button:last-child")?.blur();
+    toggle("open", "toggle", "open");
+
+    expect({
+        shown,
+        asked,
+        isOpenTaken,
+        state: container.querySelector("#open")?.hasAttribute("data-open"),
+        focused: document.activeElement?.textContent,
+    }).toEqual({
+        shown: ["open", "open"],
+        asked: [
+            [true, "trigger-press"],
+            [false, "escape-key"],
+        ],
+        isOpenTaken: false,
+        state: true,
+        focused: "Second",
+    });
+});
+
+test("close a popover another takes the place of, as no press or key lets its owner cancel", () => {
+    showPopovers();
+    const asked: unknown[] = [];
+    const { container } = render(() => (
+        <Popover
+            defaultOpen
+            onOpenChange={(open, change) => {
+                change.cancel();
+                asked.push([open, change.reason, change.isCancelable, change.isCanceled]);
+            }}
+        >
+            <PopoverContent>Draft</PopoverContent>
+        </Popover>
+    ));
+    flush();
+    const content = container.querySelector("[data-slot=popover-content]");
+    for (const newState of ["open", "closed"]) {
+        content?.dispatchEvent(Object.assign(new Event("toggle"), { newState }));
+        flush();
+    }
+
+    expect({ asked, isOpen: content?.hasAttribute("data-open") }).toEqual({
+        asked: [[false, "none", false, false]],
+        isOpen: false,
+    });
 });

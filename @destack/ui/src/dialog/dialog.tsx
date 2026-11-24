@@ -7,7 +7,6 @@ import { text } from "@destack/theme/text";
 import {
     type Accessor,
     createContext,
-    createControllableSignal,
     createEffect,
     createUniqueId,
     type JSX,
@@ -19,7 +18,14 @@ import {
     useLocale,
 } from "@destack/view";
 import { Button } from "../button/index.ts";
-import { LayerStack, TopLayer } from "../layer/index.ts";
+import {
+    Dismissal,
+    LayerStack,
+    OpenChange,
+    type OpenProperties,
+    OpenState,
+    TopLayer,
+} from "../layer/index.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
 import { CollectionBuilder } from "../collection/index.ts";
 import { scrim } from "./scrim.stylex.ts";
@@ -105,38 +111,81 @@ export class DialogControl {
     readonly isDescribed: Accessor<boolean>;
     /** Whether the page behind the open dialog is inert. */
     readonly isModal: Accessor<boolean>;
-    /** Replace the open state and tell the change handler. */
-    readonly #setOpen: (isOpen: boolean) => void;
+    /** The open state. */
+    readonly #state: OpenState;
+    /** Why the platform closes the dialog. */
+    readonly #dismissal: Dismissal;
     /** The descriptions on screen. */
     readonly #descriptions: CollectionBuilder<string>;
 
     /** Create the state of a dialog root, open when its properties ask for it. */
     constructor(properties: DialogProperties) {
         // follow the controlled state, else the dialog's own
-        const [isOpen, setOpen] = createControllableSignal({
-            isControlled: () => properties.open !== undefined,
-            value: () => properties.open === true,
-            defaultValue: untrack(() => properties.defaultOpen === true),
-            onChange: (isNext) => properties.onOpenChange?.(isNext),
-        });
+        this.#state = new OpenState(properties);
+        this.#dismissal = new Dismissal();
         this.id = createUniqueId();
         this.titleId = createUniqueId();
         this.descriptionId = createUniqueId();
-        this.isOpen = isOpen;
+        this.isOpen = this.#state.isOpen;
         this.isDescribed = () => this.#descriptions.size() > 0;
         this.isModal = () => properties.modal !== false;
-        this.#setOpen = setOpen;
         this.#descriptions = new CollectionBuilder();
     }
 
-    /** Open the dialog and tell the root's change handler. */
-    open(): void {
-        this.#setOpen(true);
+    /** Open the dialog, unless its handler cancels it. */
+    open(change = new OpenChange()): void {
+        this.#state.set(true, change);
     }
 
-    /** Close the dialog and tell the root's change handler. */
-    close(): void {
-        this.#setOpen(false);
+    /** Close the dialog, unless its handler cancels it. */
+    close(change = new OpenChange()): void {
+        this.#state.set(false, change);
+    }
+
+    /** Show or close the dialog element for the open state. */
+    sync(element: HTMLDialogElement): void {
+        // open it modally on top of the document's stack
+        const isOpen = untrack(this.isOpen);
+        if (isOpen && !element.open && untrack(this.isModal)) {
+            element.showModal();
+            LayerStack.of(element).open(element);
+            this.#dismissal.start(element);
+        }
+        // open it beside the page
+        else if (isOpen && !element.open) {
+            element.show();
+            this.#dismissal.start(element);
+        }
+        // close it
+        else if (!isOpen && element.open) {
+            element.close();
+        }
+    }
+
+    /** Close the dialog as the platform asks for, such as on Escape or a press outside. */
+    request(event: Event & { readonly currentTarget: HTMLDialogElement }): void {
+        // close by the state, as the owner may refuse
+        const change = this.#dismissal.request(event);
+        if (change !== undefined) {
+            this.close(change);
+        }
+    }
+
+    /** Follow the platform closing the dialog, showing it again where its owner refuses. */
+    follow(element: HTMLDialogElement): void {
+        // leave the stack
+        LayerStack.of(element).close(element);
+        const change = this.#dismissal.change(element, undefined);
+        this.#dismissal.stop();
+        if (untrack(this.isOpen) && !this.#state.follow(false, change)) {
+            this.sync(element);
+        }
+    }
+
+    /** Forget an element that unmounts. */
+    detach(element: HTMLDialogElement): void {
+        this.#dismissal.stop();
+        LayerStack.of(element).close(element);
     }
 
     /** Describe the dialog by its description until the description unmounts. */
@@ -146,13 +195,7 @@ export class DialogControl {
 }
 
 /** The properties of a dialog root. */
-export interface DialogProperties {
-    /** Whether the dialog is open, which makes the open state controlled. */
-    readonly open?: boolean;
-    /** Whether the dialog starts open when its state is uncontrolled. */
-    readonly defaultOpen?: boolean;
-    /** Handle the dialog opening or closing. */
-    readonly onOpenChange?: (open: boolean) => void;
+export interface DialogProperties extends OpenProperties {
     /** Whether the page behind the open dialog is inert, true by default. */
     readonly modal?: boolean;
     /** The trigger and content. */
@@ -166,7 +209,7 @@ export type DialogButtonProperties = ElementPartProperties &
 /** The properties of a dialog's content, the native dialog's attributes included. */
 export interface DialogContentProperties extends Omit<
     JSX.DialogHtmlAttributes<HTMLDialogElement>,
-    "class" | "ref" | "onClose"
+    "class" | "ref" | "onCancel" | "onClose"
 > {
     /** Whether to show a close button in the top corner, true by default. */
     readonly showCloseButton?: boolean;
@@ -209,7 +252,7 @@ export function DialogTrigger(properties: DialogButtonProperties): JSX.Element {
             return control.isOpen() ? "true" : "false";
         },
         "aria-controls": control.id,
-        onClick: () => control.open(),
+        onClick: (event: MouseEvent) => control.open(new OpenChange("trigger-press", event)),
     });
 }
 
@@ -219,7 +262,7 @@ export function DialogClose(properties: DialogButtonProperties): JSX.Element {
 
     return renderPart("button", "dialog-close", properties, [], {
         type: "button",
-        onClick: () => control.close(),
+        onClick: (event: MouseEvent) => control.close(new OpenChange("close-press", event)),
     });
 }
 
@@ -233,34 +276,19 @@ export function DialogContent(properties: DialogContentProperties): JSX.Element 
     onCleanup(() => {
         // leave the stack when the dialog unmounts open
         if (element !== undefined) {
-            LayerStack.of(element).close(element);
+            control.detach(element);
         }
     });
 
     // show or close the dialog element as the state changes
     createEffect(
         () => ({ isOpen: control.isOpen(), isModal: control.isModal() }),
-        ({ isOpen, isModal }) =>
-            untrack(() => {
-                // wait for the dialog element to mount
-                if (element === undefined) {
-                    return;
-                }
-
-                // open it modally on top of the document's stack
-                if (isOpen && !element.open && isModal) {
-                    element.showModal();
-                    LayerStack.of(element).open(element);
-                }
-                // open it beside the page
-                else if (isOpen && !element.open) {
-                    element.show();
-                }
-                // close it
-                else if (!isOpen && element.open) {
-                    element.close();
-                }
-            }),
+        () => {
+            // wait for the dialog element to mount
+            if (element !== undefined) {
+                control.sync(element);
+            }
+        },
     );
 
     return (
@@ -275,13 +303,8 @@ export function DialogContent(properties: DialogContentProperties): JSX.Element 
                 aria-describedby={control.isDescribed() ? control.descriptionId : undefined}
                 {...rest}
                 ref={(dialog) => (element = dialog)}
-                onClose={(event) => {
-                    // follow the platform closing the dialog, such as on Escape, leaving the stack
-                    LayerStack.of(event.currentTarget).close(event.currentTarget);
-                    if (control.isOpen()) {
-                        control.close();
-                    }
-                }}
+                onCancel={(event) => control.request(event)}
+                onClose={(event) => control.follow(event.currentTarget)}
                 {...style.attributes(
                     [styles.content, transition.dialog, properties.xstyle],
                     properties.style,
@@ -294,7 +317,7 @@ export function DialogContent(properties: DialogContentProperties): JSX.Element 
                         size="icon"
                         data-slot="dialog-close"
                         aria-label={locale.render(t`Close`)}
-                        onClick={() => control.close()}
+                        onClick={(event) => control.close(new OpenChange("close-press", event))}
                         xstyle={styles.close}
                     >
                         <Icon name="x" />

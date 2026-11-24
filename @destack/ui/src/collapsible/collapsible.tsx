@@ -1,13 +1,7 @@
 import * as style from "@destack/style";
-import {
-    type Accessor,
-    createContext,
-    createControllableSignal,
-    type JSX,
-    omit,
-    useContext,
-} from "@destack/view";
+import { type Accessor, createContext, type JSX, omit, useContext } from "@destack/view";
 import { followToggle, refuseDisabled } from "../disclosure/index.ts";
+import { OpenChange, type OpenProperties, OpenState } from "../layer/index.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
 
 /** The nearest collapsible, null outside one. */
@@ -47,16 +41,11 @@ export type CollapsibleElementProperties<Attributes> = Omit<Attributes, "class">
 /** The properties of a collapsible, the native disclosure's attributes included. */
 export type CollapsibleProperties = CollapsibleElementProperties<
     Omit<JSX.DetailsHtmlAttributes<HTMLDetailsElement>, "open" | "onToggle">
-> & {
-    /** Whether the content shows, which makes the state controlled. */
-    readonly open?: boolean | undefined;
-    /** Whether the content shows at first while uncontrolled. */
-    readonly defaultOpen?: boolean;
-    /** Handle the person showing or hiding the content. */
-    readonly onOpenChange?: (open: boolean) => void;
-    /** Whether the trigger ignores the person. */
-    readonly disabled?: boolean;
-};
+> &
+    OpenProperties & {
+        /** Whether the trigger ignores the person. */
+        readonly disabled?: boolean;
+    };
 
 /** Render a native disclosure that shows and hides its content. */
 export function Collapsible(properties: CollapsibleProperties): JSX.Element {
@@ -70,12 +59,8 @@ export function Collapsible(properties: CollapsibleProperties): JSX.Element {
         "xstyle",
         "style",
     );
-    const [isOpen, setOpen] = createControllableSignal({
-        isControlled: () => properties.open !== undefined,
-        value: () => properties.open === true,
-        defaultValue: properties.defaultOpen === true,
-        onChange: (open) => properties.onOpenChange?.(open),
-    });
+    const collapsible = new OpenState(properties);
+    const { isOpen } = collapsible;
 
     return (
         <CollapsibleContext value={{ isOpen, isDisabled: () => properties.disabled === true }}>
@@ -87,7 +72,12 @@ export function Collapsible(properties: CollapsibleProperties): JSX.Element {
                 open={isOpen()}
                 {...rest}
                 onToggle={(event) =>
-                    followToggle(event, isOpen, setOpen, properties.open !== undefined)
+                    followToggle(
+                        event,
+                        isOpen,
+                        (open) => collapsible.follow(open, new OpenChange("trigger-press", event)),
+                        true,
+                    )
                 }
                 {...style.attributes([properties.xstyle], properties.style)}
             />

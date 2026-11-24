@@ -1,5 +1,6 @@
 import type { JSX } from "@destack/view";
 import { Button, type ButtonProperties } from "../button/index.ts";
+import { OpenChange } from "../layer/index.ts";
 import { mergeProperties } from "../part/index.ts";
 import {
     Dialog,
@@ -76,7 +77,13 @@ export function AlertDialogAction(properties: ButtonProperties): JSX.Element {
     return (
         <Button
             data-slot="alert-dialog-action"
-            {...mergeProperties({ onClick: () => control.close() }, properties)}
+            {...mergeProperties(
+                {
+                    onClick: (event: MouseEvent) =>
+                        control.close(new OpenChange("close-press", event)),
+                },
+                properties,
+            )}
         />
     );
 }
@@ -90,7 +97,13 @@ export function AlertDialogCancel(properties: ButtonProperties): JSX.Element {
             data-slot="alert-dialog-cancel"
             variant="outline"
             autofocus
-            {...mergeProperties({ onClick: () => control.close() }, properties)}
+            {...mergeProperties(
+                {
+                    onClick: (event: MouseEvent) =>
+                        control.close(new OpenChange("close-press", event)),
+                },
+                properties,
+            )}
         />
     );
 }

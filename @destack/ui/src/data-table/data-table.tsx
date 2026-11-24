@@ -654,7 +654,7 @@ export function DataTable<Features extends TableFeatures, Row extends RowData>(
             return false;
         }
         menu.setTrigger(cell);
-        menu.open("first", point);
+        menu.open("first", undefined, point);
 
         return true;
     };

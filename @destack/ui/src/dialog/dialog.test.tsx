@@ -30,6 +30,11 @@ function dialogOf(container: Element): HTMLDialogElement {
     return dialog;
 }
 
+/** Ask an element to cancel as the platform does, reporting whether nothing prevented it. */
+function cancel(target: EventTarget, isCancelable = true): boolean {
+    return target.dispatchEvent(new Event("cancel", { bubbles: true, cancelable: isCancelable }));
+}
+
 /** The close button every dialog shows by default, its icon body left out. */
 const CLOSE_BUTTON =
     '<button data-slot="dialog-close" data-variant="ghost" data-size="icon" aria-label="Close">' +
@@ -171,4 +176,68 @@ test("open a non-modal dialog beside the page, and a modal one over it", () => {
     ));
     flush();
     expect(opened).toEqual(["Find beside the page", "Rename note over the page"]);
+});
+
+test("keep a dialog whose owner cancels its close open, telling why it would close", () => {
+    // cancel every close, asked for by Escape, a press outside, a button and the platform itself
+    const asked: unknown[] = [];
+    const { container } = render(() => (
+        <Dialog
+            defaultOpen
+            onOpenChange={(open, change) => {
+                asked.push([open, change.reason, change.event?.type]);
+                change.cancel();
+            }}
+        >
+            <DialogContent showCloseButton={false}>
+                <DialogTitle>Draft</DialogTitle>
+                <DialogClose>Done</DialogClose>
+                <input type="file" />
+            </DialogContent>
+        </Dialog>
+    ));
+    const dialog = dialogOf(container);
+    document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    const isEscapeTaken = cancel(dialog);
+    document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    cancel(dialog);
+    find(container, "[data-slot=dialog-close]").click();
+    document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    const isForcedTaken = cancel(dialog, false);
+    dialog.close();
+    flush();
+
+    // leave a file picker's own cancel alone, and show the dialog again after the platform closed it
+    const isPickerTaken = cancel(find(container, "input"));
+    expect({ asked, isEscapeTaken, isForcedTaken, isPickerTaken, isOpen: dialog.open }).toEqual({
+        asked: [
+            [false, "escape-key", "keydown"],
+            [false, "outside-press", "pointerdown"],
+            [false, "close-press", "click"],
+            [false, "escape-key", "keydown"],
+        ],
+        isEscapeTaken: false,
+        isForcedTaken: true,
+        isPickerTaken: true,
+        isOpen: true,
+    });
+});
+
+test("show a controlled dialog for as long as its owner has it open", () => {
+    const [isOpen, setOpen] = createSignal(true);
+    const { container } = render(() => (
+        <Dialog open={isOpen()} onOpenChange={() => {}}>
+            <DialogContent>
+                <DialogTitle>Draft</DialogTitle>
+            </DialogContent>
+        </Dialog>
+    ));
+    const dialog = dialogOf(container);
+    dialog.close();
+    flush();
+    const isLeft = dialog.open;
+    setOpen(false);
+    flush();
+
+    expect([isLeft, dialog.open]).toEqual([true, false]);
 });

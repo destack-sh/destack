@@ -1,6 +1,7 @@
 import * as style from "@destack/style";
 import { type JSX } from "@destack/view";
 import { Timeout } from "@destack/view/primitives/timer";
+import { OpenChange } from "../layer/index.ts";
 import {
     Menu,
     MenuCheckboxItem,
@@ -61,7 +62,8 @@ export function ContextMenuTrigger(
         onContextMenu: (event) => {
             // open at the pointer, wait for one still down, and focus the first item
             event.preventDefault();
-            control.open("first", { x: event.clientX, y: event.clientY });
+            const point = { x: event.clientX, y: event.clientY };
+            control.open("first", new OpenChange("trigger-press", event), point);
             if (event.buttons !== 0) {
                 control.release.await(event);
             }
@@ -71,7 +73,7 @@ export function ContextMenuTrigger(
             if (event.pointerType === "touch") {
                 const point = { x: event.clientX, y: event.clientY };
                 timer.set(() => {
-                    control.open("first", point);
+                    control.open("first", new OpenChange("trigger-press", event), point);
                     control.release.await(event);
                 }, LONG_PRESS);
             }

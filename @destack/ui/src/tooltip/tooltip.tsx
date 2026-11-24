@@ -19,7 +19,7 @@ import { Hover } from "../interaction/index.ts";
 import { type ElementPartProperties, renderPart, mergeProperties } from "../part/index.ts";
 import { HoverPopover, type HoverPopoverProperties } from "../popover/index.ts";
 import { type Align, Position, type Side } from "../position/index.ts";
-import { TopLayer } from "../layer/index.ts";
+import { OpenChange, TopLayer } from "../layer/index.ts";
 
 /** The wait before a resting pointer shows a tooltip, in milliseconds. */
 const DELAY = 700;
@@ -66,17 +66,17 @@ export class TooltipControl extends HoverPopover {
     }
 
     /** Open after the delay, at once and without motion while the group is warm. */
-    override openLater(): void {
+    override openLater(change?: OpenChange): void {
         this.#setInstant(this.#group.isWarm(this.#clock.now()));
-        super.openLater();
+        super.openLater(change);
     }
 
     /** Open now, without motion where asked, as when the keyboard reaches the trigger. */
-    override open(options?: { readonly isImmediate?: boolean }): void {
-        if (options?.isImmediate === true) {
+    override open(change?: OpenChange, isImmediate = false): void {
+        if (isImmediate) {
             this.#setInstant(true);
         }
-        super.open();
+        super.open(change);
     }
 }
 
@@ -235,7 +235,7 @@ export function TooltipTrigger(properties: TooltipTriggerProperties): JSX.Elemen
     const tooltip = useTooltip();
     let isPressed = false;
     const hover = new Hover({
-        onHoverStart: () => tooltip.openLater(),
+        onHoverStart: () => tooltip.openLater(new OpenChange("trigger-hover")),
         onHoverEnd: (event) => {
             isPressed = false;
             tooltip.leave(event);
@@ -257,20 +257,21 @@ export function TooltipTrigger(properties: TooltipTriggerProperties): JSX.Elemen
             onFocus: (event: FocusEvent & { readonly currentTarget: HTMLElement }) => {
                 // show a tooltip the keyboard reaches at once and without motion, none for a press
                 if (!isPressed) {
-                    tooltip.open({ isImmediate: event.currentTarget.matches(":focus-visible") });
+                    const isImmediate = event.currentTarget.matches(":focus-visible");
+                    tooltip.open(new OpenChange("trigger-focus", event), isImmediate);
                 }
             },
-            onPointerDown: () => {
+            onPointerDown: (event: PointerEvent) => {
                 isPressed = true;
-                tooltip.close();
+                tooltip.close(new OpenChange("trigger-press", event));
             },
             onPointerUp: () => (isPressed = false),
             onPointerCancel: () => (isPressed = false),
-            onBlur: () => tooltip.close(),
+            onBlur: (event: FocusEvent) => tooltip.close(new OpenChange("focus-out", event)),
             onKeyDown: (event: KeyboardEvent) => {
                 // dismiss the tooltip on Escape
                 if (event.key === "Escape") {
-                    tooltip.close();
+                    tooltip.close(new OpenChange("escape-key", event));
                 }
             },
         }),
@@ -291,7 +292,7 @@ export function TooltipContent(properties: TooltipContentProperties): JSX.Elemen
     // leave the tooltip open while a pointer rests on it
     const hover = new Hover({
         onHoverStart: () => tooltip.open(),
-        onHoverEnd: () => tooltip.closeLater(),
+        onHoverEnd: () => tooltip.closeLater(new OpenChange("trigger-hover")),
     });
 
     return (

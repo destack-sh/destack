@@ -1230,7 +1230,7 @@ export class BoardControl {
 
         // open the menu at the pointer, its focus returning to the card
         this.menu.setTrigger(element);
-        this.menu.open("first", { x, y });
+        this.menu.open("first", undefined, { x, y });
 
         return true;
     }

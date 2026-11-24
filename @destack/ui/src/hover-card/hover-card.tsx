@@ -13,7 +13,7 @@ import {
 import { Hover } from "../interaction/index.ts";
 import { HoverPopover, type HoverPopoverProperties } from "../popover/index.ts";
 import { type Align, Position, type Side } from "../position/index.ts";
-import { TopLayer } from "../layer/index.ts";
+import { OpenChange, TopLayer } from "../layer/index.ts";
 
 /** The wait before a resting pointer opens a hover card, in milliseconds. */
 const DELAY = 700;
@@ -103,7 +103,7 @@ export function HoverCard(properties: HoverCardProperties): JSX.Element {
 export function HoverCardTrigger(properties: HoverCardTriggerProperties): JSX.Element {
     const card = useHoverCard();
     const hover = new Hover({
-        onHoverStart: () => card.openLater(),
+        onHoverStart: () => card.openLater(new OpenChange("trigger-hover")),
         onHoverEnd: (event) => card.leave(event),
     });
 
@@ -117,8 +117,8 @@ export function HoverCardTrigger(properties: HoverCardTriggerProperties): JSX.El
                 return card.isOpen() ? "" : undefined;
             },
             ref: (element: HTMLElement) => card.setTrigger(element),
-            onFocus: () => card.openLater(),
-            onBlur: () => card.closeLater(),
+            onFocus: (event: FocusEvent) => card.openLater(new OpenChange("trigger-focus", event)),
+            onBlur: (event: FocusEvent) => card.closeLater(new OpenChange("focus-out", event)),
         }),
     );
 }
@@ -136,7 +136,7 @@ export function HoverCardContent(properties: HoverCardContentProperties): JSX.El
     // leave the card open while a pointer rests on it
     const hover = new Hover({
         onHoverStart: () => card.open(),
-        onHoverEnd: () => card.closeLater(),
+        onHoverEnd: () => card.closeLater(new OpenChange("trigger-hover")),
     });
 
     return (
