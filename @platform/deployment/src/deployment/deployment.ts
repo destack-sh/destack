@@ -82,6 +82,8 @@ export interface LocalPorts {
     readonly machines: Readonly<Record<ResidencyCode, number>>;
     /** The port wrangler serves the universe's Worker on under workerd. */
     readonly worker: number;
+    /** The port the local release client's OIDC issuer answers on. */
+    readonly publisher: number;
 }
 
 /** The loopback ports of local universes. */
@@ -95,7 +97,10 @@ export const LocalPorts = {
             ...others.map((residency, index) => [residency.code, universe + 2 + index] as const),
         ]);
 
-        return { universe, machine: universe + 1, machines, worker: universe + 2 + others.length };
+        // put the Worker after the residencies, and the release client's issuer after it
+        const worker = universe + 2 + others.length;
+
+        return { universe, machine: universe + 1, machines, worker, publisher: worker + 1 };
     },
 };
 
