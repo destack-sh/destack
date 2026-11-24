@@ -105,6 +105,7 @@
         "./stack": "./src/stack/index.ts",
         "./stack.css": "./src/stack/stack.css",
         "./cluster": "./src/cluster/index.ts",
+        "./form": "./src/form/index.ts",
         "./gallery": "./src/gallery/index.ts",
         "./grid": "./src/grid/index.ts",
         "./center": "./src/center/index.ts",

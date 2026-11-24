@@ -52,16 +52,16 @@ export const Save = () => {
 
 Each entry is `@destack/ui/<entry>`.
 
-| Group                  | Entries                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Forms                  | `autocomplete`, `button`, `button-group`, `calendar`, `checkbox`, `color-swatch-picker`, `combobox`, `copy-button`, `date-field`, `date-picker`, `date-time-field`, `dropzone`, `emoji-picker`, `field`, `icon-picker`, `input`, `input-group`, `label`, `number-field`, `otp-field`, `password-field`, `radio-group`, `search-field`, `select`, `slider`, `switch`, `textarea`, `time-field`, `toggle`, `toggle-group`, `value-field` |
-| Overlays               | `alert-dialog`, `context-menu`, `dialog`, `drawer`, `dropdown-menu`, `hover-card`, `menubar`, `popover`, `sheet`, `toast`, `tooltip`                                                                                                                                                                                                                                                                                                   |
-| Navigation             | `breadcrumb`, `command`, `navigation-menu`, `pagination`, `palette`, `sidebar`, `tabs`, `toolbar`                                                                                                                                                                                                                                                                                                                                      |
-| Data                   | `avatar`, `badge`, `card`, `carousel`, `chart`, `code-block`, `data-list`, `data-table`, `diff`, `feed`, `file-item`, `gallery`, `grid-list`, `item`, `kbd`, `list-box`, `load-more`, `object`, `player`, `table`, `tree`, `viewer`, `virtual-list`                                                                                                                                                                                    |
-| Views                  | `board`, `event-calendar`, `timeline`                                                                                                                                                                                                                                                                                                                                                                                                  |
-| Feedback and structure | `accordion`, `alert`, `aspect-ratio`, `collapsible`, `empty`, `progress`, `prose`, `resizable`, `scroll-area`, `separator`, `skeleton`, `spinner`, `visually-hidden`                                                                                                                                                                                                                                                                   |
-| Layout                 | `stack`, `cluster`, `grid`, `center`, `switcher`, `cover`, `content`                                                                                                                                                                                                                                                                                                                                                                   |
-| Building blocks        | `action`, `part`, `collection`, `focus`, `layer`, `position`, `selection`, `interaction`, `drag`, `sortable`, `toggle-state`, `virtualizer`, `glyph`                                                                                                                                                                                                                                                                                   |
+| Group                  | Entries                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Forms                  | `autocomplete`, `button`, `button-group`, `calendar`, `checkbox`, `color-swatch-picker`, `combobox`, `copy-button`, `date-field`, `date-picker`, `date-time-field`, `dropzone`, `emoji-picker`, `field`, `form`, `icon-picker`, `input`, `input-group`, `label`, `number-field`, `otp-field`, `password-field`, `radio-group`, `search-field`, `select`, `slider`, `switch`, `textarea`, `time-field`, `toggle`, `toggle-group`, `value-field` |
+| Overlays               | `alert-dialog`, `context-menu`, `dialog`, `drawer`, `dropdown-menu`, `hover-card`, `menubar`, `popover`, `sheet`, `toast`, `tooltip`                                                                                                                                                                                                                                                                                                           |
+| Navigation             | `breadcrumb`, `command`, `navigation-menu`, `pagination`, `palette`, `sidebar`, `tabs`, `toolbar`                                                                                                                                                                                                                                                                                                                                              |
+| Data                   | `avatar`, `badge`, `card`, `carousel`, `chart`, `code-block`, `data-list`, `data-table`, `diff`, `feed`, `file-item`, `gallery`, `grid-list`, `item`, `kbd`, `list-box`, `load-more`, `object`, `player`, `table`, `tree`, `viewer`, `virtual-list`                                                                                                                                                                                            |
+| Views                  | `board`, `event-calendar`, `timeline`                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Feedback and structure | `accordion`, `alert`, `aspect-ratio`, `collapsible`, `empty`, `progress`, `prose`, `resizable`, `scroll-area`, `separator`, `skeleton`, `spinner`, `visually-hidden`                                                                                                                                                                                                                                                                           |
+| Layout                 | `stack`, `cluster`, `grid`, `center`, `switcher`, `cover`, `content`                                                                                                                                                                                                                                                                                                                                                                           |
+| Building blocks        | `action`, `part`, `collection`, `focus`, `layer`, `position`, `selection`, `interaction`, `drag`, `sortable`, `toggle-state`, `virtualizer`, `glyph`                                                                                                                                                                                                                                                                                           |
 
 ### Parts
 
@@ -569,6 +569,66 @@ export function Song(properties: { readonly source: string; readonly onNext: () 
                 <Left />
             </Player>
         </>
+    );
+}
+```
+
+### Edit values with a form
+
+`Form` shows a draft from `useForm`, and each `Field` edits one of its values.
+Problems show as a person leaves a field and go as they fix it, and a submit focuses the first.
+
+```tsx
+import { schema } from "@destack/schema";
+import { Field, FieldConflict, FieldError, FieldLabel } from "@destack/ui/field";
+import { Form, FormError, FormGuard, FormStatus, FormSubmit } from "@destack/ui/form";
+import { Input } from "@destack/ui/input";
+import { NumberField } from "@destack/ui/number-field";
+import { useForm } from "@destack/view";
+import { useBlocker } from "@destack/view/router";
+
+/** A trip. */
+const Trip = schema.object({
+    title: schema.string().min(1).max(40),
+    guests: schema.int().min(1).max(8),
+});
+
+/** A trip. */
+type Trip = schema.Infer<typeof Trip>;
+
+/** Edit a trip, keeping the edits past a reload and asking before they are left. */
+export function EditTrip(properties: {
+    readonly trip: Trip;
+    readonly save: (trip: Trip) => Promise<void>;
+}) {
+    const form = useForm({
+        values: () => properties.trip,
+        schema: Trip,
+        submit: (trip) => properties.save(trip),
+        draft: {
+            name: "trip",
+            schema: schema.object({ title: schema.string().exactOptional() }),
+        },
+    });
+
+    return (
+        <Form form={form}>
+            <Field field={form.field("title")}>
+                <FieldLabel>Title</FieldLabel>
+                <Input />
+                <FieldConflict />
+                <FieldError />
+            </Field>
+            <Field field={form.field("guests")}>
+                <FieldLabel>Guests</FieldLabel>
+                <NumberField min={1} max={8} />
+                <FieldError />
+            </Field>
+            <FormError />
+            <FormSubmit>Save trip</FormSubmit>
+            <FormStatus />
+            <FormGuard blocker={useBlocker(() => form.isEdited())} />
+        </Form>
     );
 }
 ```
