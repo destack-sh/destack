@@ -16,7 +16,7 @@ import type { Space } from "../space/space.ts";
 import { Failure } from "@destack/error";
 import { DeclarationReference } from "@destack/package/declare";
 import { installableBuilds, MAIN_DATABASE, StackDefinition } from "@destack/stack/declare";
-import { TABLE, DatabaseState, TableState } from "@destack/db";
+import { TABLE, DatabaseState, Table, TableState } from "@destack/db";
 import type { BlobStore, DatabaseConnection, Snapshot } from "@destack/db/database";
 import {
     InstallationBindingSpec,
@@ -38,7 +38,7 @@ import {
     schema,
     Version,
 } from "@destack/schema";
-import { ObjectReference } from "@destack/sync";
+import { ObjectReference, ObjectTypeReference } from "@destack/sync";
 import { Setting } from "@destack/setting";
 import { SettingValue } from "@destack/setting/object";
 import { followedReference, followedVersion } from "./follow.ts";
@@ -829,39 +829,50 @@ const ListedTables = schema.object({
     postgresql: schema.array(TableState).default([]),
 });
 
-/** Read the tables a build's types keep in the space's main database, none without types. */
+/** Read the tables a build keeps in the space's main database, followed ones included. */
 async function mainState(
     reader: BuildReader,
     options: Pick<RevisionOptions, "space" | "known">,
 ): Promise<DatabaseState | undefined> {
-    // read the tables its build lists of its own package, none for a package declaring no object types
-    const packageId = PackageManifest.package(reader.manifest).id;
+    // read the tables its build lists of its own package
+    const released = PackageManifest.package(reader.manifest);
     const listed = ListedTables.parse(await reader.tables());
-    const isOwn = (state: TableState) => state.package.id === packageId;
+    const isOwn = (state: TableState) => state.package.id === released.id;
     const own = {
         sqlite: listed.sqlite.filter(isOwn),
         postgresql: listed.postgresql.filter(isOwn),
     };
-    if (own.sqlite.length === 0 && own.postgresql.length === 0) {
-        return undefined;
-    }
 
-    // take the tables of the protocols it implements as this machine knows their types
-    const protocols = (await PackageDescription.of(reader))?.protocols ?? [];
-    const implemented = new Set(
+    // take the tables of the protocols it implements, for a package with tables of its own
+    const description = await PackageDescription.of(reader);
+    const protocols = description?.protocols ?? [];
+    const isOwning = own.sqlite.length > 0 || own.postgresql.length > 0;
+    const implemented = Table.closure(
         options.known
-            .filter((type) => protocols.includes(type.package.id))
+            .filter((type) => isOwning && protocols.includes(type.package.id))
             .filter((type) => type.storage === "durable" || type.storage === "events")
             .flatMap((type) => type.tables),
     );
-    for (const table of implemented) {
-        for (const dependent of table[TABLE].dependents) {
-            implemented.add(dependent.from());
-        }
-    }
-    const described = DatabaseState.of([...implemented], { packages: protocols }).tables;
 
-    // own those a space replicates otherwise, beside its own
+    // take the tables of the types it follows, refusing a type this machine does not know
+    const followed = (description?.follows ?? []).map((followedType) => {
+        // find the type among those this machine knows
+        const key = ObjectTypeReference.key(followedType);
+        const type = options.known.find(
+            (each) => ObjectTypeReference.key(each.typeReference) === key,
+        );
+        if (type === undefined) {
+            throw StackError.of(
+                "PACKAGE_INVALID",
+                `package '${released.name}' is invalid: it follows ${followedType.type} objects of '${followedType.packageId}', which this machine does not know`,
+            );
+        }
+
+        return type;
+    });
+    const followedTables = Table.closure(followed.flatMap((type) => type.tables));
+
+    // read the tables the space replicates already
     const { volumes } = options.space.machine;
     const replicated = new Set([
         ...volumes.replicated.map((table) => table[TABLE].sqlName),
@@ -869,12 +880,27 @@ async function mainState(
     ]);
     const isReplicated = (state: TableState) => replicated.has(state.table.name);
 
-    return {
-        tables: {
-            sqlite: [...own.sqlite, ...described.sqlite.filter(isReplicated)],
-            postgresql: [...own.postgresql, ...described.postgresql.filter(isReplicated)],
-        },
+    // own the protocols' replicated tables, and replicate the followed tables the space lacks
+    const described = DatabaseState.of([...implemented], { packages: protocols }).tables;
+    const added = [...followedTables].filter((table) => !replicated.has(table[TABLE].sqlName));
+    const replicas = DatabaseState.of(added, {
+        replicated: new Set(added.map((table) => table[TABLE].sqlName)),
+        packages: [...new Set(followed.map((type) => type.package.id))],
+    }).tables;
+
+    // list them beside its own, none for a build without tables
+    const state = {
+        sqlite: [...own.sqlite, ...described.sqlite.filter(isReplicated), ...replicas.sqlite],
+        postgresql: [
+            ...own.postgresql,
+            ...described.postgresql.filter(isReplicated),
+            ...replicas.postgresql,
+        ],
     };
+
+    return state.sqlite.length === 0 && state.postgresql.length === 0
+        ? undefined
+        : { tables: state };
 }
 
 /** Describe the state each resource declaration of a build requires of its target, by name. */

@@ -24,6 +24,7 @@ const DESCRIPTION: PackageDescription = {
     protocols: [],
     mounts: {},
     views: [],
+    follows: [],
     permissions: {
         space: {
             space: [
