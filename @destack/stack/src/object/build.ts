@@ -4,7 +4,15 @@ import type { DatabaseConnection, Snapshot } from "@destack/db/database";
 import { none, through } from "@destack/access";
 import { PackageId, PackageRelease } from "@destack/package";
 import type { Call } from "@destack/sync";
-import { Commit, Digest, type Identifier, present, schema, Version } from "@destack/schema";
+import {
+    canonicalize,
+    Commit,
+    Digest,
+    type Identifier,
+    present,
+    schema,
+    Version,
+} from "@destack/schema";
 import { space } from "@destack/account/object";
 import { Failure } from "@destack/error";
 import { installationRevision } from "./revision.ts";
@@ -19,23 +27,8 @@ export const BUILD_STATES = ["running", "succeeded", "failed", "cancelled"] as c
 /** The states of a build that ended. */
 export const FINISHED_BUILD_STATES = ["succeeded", "failed", "cancelled"] as const;
 
-/** A working directory registered on a machine, built in place by that machine alone. */
-export const CheckoutSource = schema.object({
-    /** A working directory registered on a machine. */
-    kind: schema.literal("checkout"),
-    /** The machine administering the checkout, which runs the build. */
-    machine: schema.identifier("machine"),
-    /** The checkout registered on that machine. */
-    checkout: schema.identifier("checkout"),
-    /** The package directory within the checkout. */
-    directory: PackageDirectory,
-});
-/** A working directory registered on a machine. */
-export type CheckoutSource = schema.Infer<typeof CheckoutSource>;
-
-/** The source a build has: a checkout with unpublished changes, a commit, or a release. */
+/** The source a build has: a commit or a release. */
 export const BuildSource = schema.discriminatedUnion("kind", [
-    CheckoutSource,
     schema.object({
         /** Committed repository history. */
         kind: schema.literal("commit"),
@@ -66,8 +59,6 @@ export const CompileOutput = schema.object({
     image: Digest,
     /** The outputs compiled. */
     outputs: schema.array(schema.string().min(1)).min(1),
-    /** The commit a clean checkout was at, absent for a dirty one or a commit's own. */
-    commit: Commit.exactOptional(),
 });
 /** What a build's compile answers. */
 export type CompileOutput = schema.Infer<typeof CompileOutput>;
@@ -91,10 +82,10 @@ export const build = defineObject(
             state: field.enum(BUILD_STATES),
             /** The version the build releases its package at, absent for a development build. */
             version: field.string(Version).optional(),
-            /** The commit built: a commit build's own, or a clean checkout's when built. */
+            /** The canonical form of the source, outputs and version, one live build's each. */
+            key: field.string(),
+            /** The commit of a commit build, which the followers of its references join on. */
             commit: field.string(Commit).optional(),
-            /** The repository, directory and commit of a commit build, absent for a release. */
-            checkout: field.string().optional(),
             /** The stored build's image once succeeded, kept until retention expires it. */
             image: field.blob({ while: { expiredAt: { isNull: true } } }).optional(),
             /** Why the build failed, once failed. */
@@ -109,16 +100,12 @@ export const build = defineObject(
         constraints: {
             state: { kind: "index", on: ["state"] },
             live: { kind: "index", on: ["scope", "expiredAt", "state"] },
-            // build each checkout of a space once while its build lives
-            liveCheckout: {
+            // build each source of a space once while its build lives
+            source: {
                 kind: "index",
-                on: ["scope", "checkout"],
+                on: ["scope", "key"],
                 unique: true,
-                where: {
-                    checkout: { isNotNull: true },
-                    state: { ne: "cancelled" },
-                    expiredAt: { isNull: true },
-                },
+                where: { state: { ne: "cancelled" }, expiredAt: { isNull: true } },
             },
             image: {
                 kind: "check",
@@ -182,6 +169,7 @@ export const build = defineObject(
     (method) => ({
         create: method.create("create", {
             fields: ["source", "outputs", "version"],
+            onConflict: { key: "source" },
         }),
         cancel: method.update("cancel", { fields: [] }),
         update: method.update("record", { visibility: "package" }),
@@ -212,6 +200,16 @@ export const build = defineObject(
     }),
 );
 
+/** What a build is keyed by: its source, its outputs and its version. */
+export interface BuildKey {
+    /** The source compiled. */
+    readonly source: BuildSource;
+    /** The outputs compiled, null for every one. */
+    readonly outputs: readonly string[] | null;
+    /** The version released, null for a development build. */
+    readonly version: string | null;
+}
+
 /** A build's state with the image and failure the table's checks require of it. */
 export type BuildState =
     | { readonly state: "succeeded"; readonly image: Digest; readonly failure: null }
@@ -236,7 +234,7 @@ export interface BuildRetention {
     }[];
 }
 
-/** The builds a space has: compiled from a checkout or a commit, or pulled as a release. */
+/** The builds a space has: compiled from a commit, or pulled as a release. */
 export const Build = {
     /** Narrow a build row by its state, failing on a row the table's checks refuse. */
     of<Row extends Pick<Select<typeof build.table>, "id" | keyof BuildState>>(
@@ -274,13 +272,6 @@ export const Build = {
         return FINISHED_BUILD_STATES.some((state) => state === entry.state);
     },
 
-    /** Read the commit a build compiled: its source's, else a clean checkout's, absent if dirty. */
-    commit(entry: Pick<Select<typeof build.table>, "source" | "commit">): string | undefined {
-        const { source } = entry;
-
-        return source.kind === "commit" ? source.commit : (entry.commit ?? undefined);
-    },
-
     /** Read a build's image. */
     image(entry: Pick<Select<typeof build.table>, "id" | "expiredAt" | keyof BuildState>): Digest {
         // read a succeeded build's image until retention removes its files
@@ -305,17 +296,16 @@ export const Build = {
         }
     },
 
-    /** Find the one live build of a repository commit's package directory in a space. */
+    /** Find the live build of a source, its outputs and version in a space. */
     async find(
         snapshot: Pick<Snapshot, "read">,
         spaceId: Identifier<"space">,
-        source: Extract<BuildSource, { readonly kind: "commit" }>,
+        keyed: BuildKey,
     ): Promise<Build | undefined> {
-        // read the space's live build of the checkout
         const found = await snapshot.read(build.table).findFirst({
             where: {
                 scope: spaceId,
-                checkout: Build.checkout(source),
+                key: Build.key(keyed),
                 state: { ne: "cancelled" },
                 expiredAt: { isNull: true },
             },
@@ -324,9 +314,11 @@ export const Build = {
         return found === undefined ? undefined : Build.of(found);
     },
 
-    /** Key a commit build's checkout: its repository, directory and commit. */
-    checkout(source: Extract<BuildSource, { readonly kind: "commit" }>): string {
-        return JSON.stringify([source.repository, source.directory, source.commit]);
+    /** Write the canonical form of a source, its outputs and version, the key of its live build. */
+    key(keyed: BuildKey): string {
+        const { source, outputs, version } = keyed;
+
+        return canonicalize({ source, outputs, version });
     },
 
     /** Require a space's build with its image, as a revision evaluates it. */
@@ -336,6 +328,17 @@ export const Build = {
         buildId: Identifier<"build">,
     ): Promise<Select<typeof build.table> & { readonly image: Digest }> {
         // require the space's build, refusing one without its files
+        const found = await Build.get(snapshot, spaceId, buildId);
+
+        return { ...found, image: Build.image(found) };
+    },
+
+    /** Read a space's build in any state, refusing one the space does not have. */
+    async get(
+        snapshot: Pick<Snapshot, "read">,
+        spaceId: Identifier<"space">,
+        buildId: Identifier<"build">,
+    ): Promise<Build> {
         const [found] = await snapshot
             .read(build.table)
             .findMany({ where: { scope: spaceId, id: buildId } });
@@ -343,10 +346,10 @@ export const Build = {
             throw StackError.of("BUILD_NOT_FOUND", `build '${buildId}' not found`);
         }
 
-        return { ...found, image: Build.image(found) };
+        return Build.of(found);
     },
 
-    /** Read a space's build of a release, creating it pulled and born succeeded the first time. */
+    /** Read a space's build of a release, created pulled and born succeeded the first time. */
     async release(
         reader: Pick<Snapshot, "read">,
         mutate: <const Calls extends readonly Call[]>(calls: Calls) => Promise<ResultsOf<Calls>>,
@@ -357,17 +360,11 @@ export const Build = {
             readonly image: Digest;
         },
     ): Promise<{ readonly id: Identifier<"build">; readonly image: Digest }> {
-        // take the space's live build of the release's image
-        const [found] = await reader.read(build.table).findMany({
-            where: { scope: spaceId, image: release.image, expiredAt: { isNull: true } },
-        });
-
-        // create it pulled from the registry the first time
+        // create it pulled from the registry the first time, else take its live build
         const { package: packageId, version, image } = release;
         const source = { kind: "release" as const, package: packageId, version, image };
-        const id =
-            found?.id ??
-            (await mutate([build.call("create", { ...build.in(spaceId), source })]))[0].id;
+        const [created] = await mutate([build.call("create", { ...build.in(spaceId), source })]);
+        const { id } = created;
 
         return Build.require(reader, spaceId, id);
     },
@@ -426,14 +423,10 @@ export const Build = {
     },
 };
 
-/** Read the package a build source has: a checkout or repository directory, or a release. */
+/** Read the package a build source has: a repository's directory, or a release. */
 function sourcePackage(source: BuildSource): readonly string[] {
-    // group a checkout's builds by its directory
-    if (source.kind === "checkout") {
-        return [source.kind, source.machine, source.checkout, source.directory];
-    }
     // group a repository's builds by its directory
-    else if (source.kind === "commit") {
+    if (source.kind === "commit") {
         return [source.kind, source.repository, source.directory];
     }
     // group a release's builds by its package

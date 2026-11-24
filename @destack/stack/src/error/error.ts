@@ -26,7 +26,6 @@ export const StackError = defineErrorFamily({
         VIEW_NOT_FOUND: {},
 
         // exists
-        BUILD_EXISTS: {},
         INSTALLATION_EXISTS: {},
 
         // conflict

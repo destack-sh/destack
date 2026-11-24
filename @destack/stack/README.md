@@ -16,7 +16,7 @@ Spaces apply them:
 - `installation`: a package installed in a space.
 - `installation-revision`: one applied release of an installation.
 - `deployment`: the revisions a space serves, switched together.
-- `build`: a package compiled from a checkout, stored by its image.
+- `build`: a package compiled from a commit or pulled as a release, stored by its image.
 - `route`: a path under a domain, served by an installation.
 
 Declare a stack that provisions a bucket and installs a package with it:
@@ -118,29 +118,29 @@ export async function approvePlan(
 }
 ```
 
-### Build a checkout
+### Build a commit
 
-The checkout's machine compiles the package, and `push` sends its image to its account's forge.
+The space's runner compiles the package at the commit, and `push` sends its image to its account's forge.
 
 ```ts
 import type { ClientOf } from "@destack/object/client";
-import type { Identifier } from "@destack/schema";
+import type { Commit, Identifier } from "@destack/schema";
 import type stackPackage from "@destack/stack/package";
 
-/** Build a checkout's package for Bun, and push its image to its account's forge. */
-export async function buildCheckout(
+/** Build a commit's package for Bun, and push its image to its account's forge. */
+export async function buildCommit(
     client: ClientOf<typeof stackPackage>,
     spaceId: Identifier<"space">,
-    machine: Identifier<"machine">,
-    checkout: Identifier<"checkout">,
+    repository: Identifier<"repository">,
+    commit: Commit,
     account: Identifier<"account">,
     requestId: string,
 ): Promise<void> {
-    // compile on the checkout's machine
+    // compile on the space's runner, or answer the live build of the same commit
     const build = await client.build.create({
         spaceId,
         requestId,
-        source: { kind: "checkout", machine, checkout, directory: "." },
+        source: { kind: "commit", repository, commit, directory: "." },
         outputs: ["bun"],
     });
 
