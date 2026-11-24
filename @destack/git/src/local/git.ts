@@ -12,6 +12,8 @@ export interface GitOptions {
     readonly input?: string;
     /** The signal that stops git. */
     readonly signal?: AbortSignal;
+    /** The values git's messages must not show, such as a lease's address. */
+    readonly masked?: readonly string[];
 }
 
 /** The null device of each operating system, git's global configuration file. */
@@ -71,9 +73,13 @@ export const Git = {
         // fail with why the signal aborted, or with git's message
         options.signal?.throwIfAborted();
         if (code !== 0) {
+            const message = (options.masked ?? []).reduce(
+                (text, value) => text.replaceAll(value, "***"),
+                decoder.decode(stderr).trim(),
+            );
             throw GitError.of(
                 "COMMAND_BROKEN",
-                `git '${command[0]}' exited with status ${code}: '${decoder.decode(stderr).trim()}'`,
+                `git '${command[0]}' exited with status ${code}: ${message}`,
             );
         }
 

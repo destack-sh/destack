@@ -1,6 +1,6 @@
 import type { Lease } from "@destack/resource";
 import type { GitAuthor } from "../storage/index.ts";
-import { Git, type GitSetting } from "./git.ts";
+import { Git, type GitOptions, type GitSetting } from "./git.ts";
 import type { LocalGitEnvironment } from "./storage.ts";
 
 /** The commits fetched from a leased repository: one commit, without its history. */
@@ -25,7 +25,7 @@ export const GitLease = {
             directory,
             ["fetch", "--quiet", `--depth=${FETCH_DEPTH}`, lease.url, commit],
             environment,
-            { configuration: GitLease.headers(lease), signal },
+            GitLease.options(lease, signal),
         );
 
         // check the fetched commit out
@@ -62,7 +62,7 @@ export const GitLease = {
             directory,
             ["ls-remote", lease.url, `refs/heads/${branch}`],
             environment,
-            { configuration: GitLease.headers(lease), signal },
+            GitLease.options(lease, signal),
         );
         const [commit] = listed.trim().split("\t");
 
@@ -106,17 +106,19 @@ export const GitLease = {
                 `HEAD:${reference}`,
             ],
             environment,
-            { configuration: GitLease.headers(lease), signal },
+            GitLease.options(lease, signal),
         );
 
         return (await Git.run(directory, ["rev-parse", "HEAD"], environment, { signal })).trim();
     },
 
-    /** Read a lease's headers as the settings git sends them with. */
-    headers(lease: Lease): readonly GitSetting[] {
-        return Object.entries(lease.headers).map(([name, value]): GitSetting => [
+    /** Read the options git reaches a leased repository with: its headers, its address masked. */
+    options(lease: Lease, signal: AbortSignal): GitOptions {
+        const configuration = Object.entries(lease.headers).map(([name, value]): GitSetting => [
             "http.extraHeader",
             `${name}: ${value}`,
         ]);
+
+        return { configuration, masked: [lease.url], signal };
     },
 };
