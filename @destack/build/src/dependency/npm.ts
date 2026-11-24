@@ -384,7 +384,7 @@ export class NpmUnit {
                       this.peers,
                       runtime,
                       this.#environment,
-                  ).convert(files);
+                  ).convert(this.directory, files);
         await Promise.all(
             [...converted.files].map(([path, bytes]) => writer.write(`${runtime}/${path}`, bytes)),
         );

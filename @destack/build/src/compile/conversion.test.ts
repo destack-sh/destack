@@ -1,10 +1,28 @@
-import { expect, test } from "@destack/test";
+import { expect, onTestFinished, test } from "@destack/test";
+import type { Environment } from "@destack/environment";
+import { dirname, join } from "node:path";
 import { testSimulation } from "../test/world.ts";
 import { NpmConversion } from "./conversion.ts";
 
 /** Encode a file's text. */
 function encode(text: string): Uint8Array<ArrayBuffer> {
     return new TextEncoder().encode(text);
+}
+
+/** Install a package's files in a new directory, as Bun's store lays out an installed copy. */
+async function install(
+    files: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,
+    environment: Pick<Environment<"files">, "files">,
+): Promise<string> {
+    // write each file below a new directory, removed after the test
+    const directory = await environment.files.makeTemporaryDirectory("destack-installed-");
+    onTestFinished(() => environment.files.remove(directory, { recursive: true, force: true }));
+    for (const [path, bytes] of files) {
+        await environment.files.mkdir(dirname(join(directory, path)), { recursive: true });
+        await environment.files.writeFile(join(directory, path), bytes);
+    }
+
+    return directory;
 }
 
 test("convert a CommonJS package to ESM for workerd while the world's time stands still", async () => {
@@ -26,6 +44,7 @@ test("convert a CommonJS package to ESM for workerd while the world's time stand
         ["index.js", encode("module.exports = { answer: 42 };")],
     ]);
     const converted = await new NpmConversion("answer", [], [], "workerd", environment).convert(
+        await install(files, environment),
         files,
     );
 
@@ -74,7 +93,7 @@ test("convert a package to the same files wherever its copy is converted, bundli
             [],
             "browser",
             environment,
-        ).convert(files);
+        ).convert(await install(files, environment), files);
 
         return [...converted.files].map(([path, bytes]) => [path, new TextDecoder().decode(bytes)]);
     };
@@ -112,6 +131,7 @@ test("keep the converted modules with the files they load and the license, leavi
         ["unused.js", encode("export const unused = true;")],
     ]);
     const converted = await new NpmConversion("engine", [], [], "browser", environment).convert(
+        await install(files, environment),
         files,
     );
 

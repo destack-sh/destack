@@ -122,7 +122,7 @@ export async function loadExtensions(
 
 /** Load the dependency closure extensions' module transforms for development. */
 export async function loadTransforms(
-    context: Omit<TransformContext, "dependencies">,
+    context: Omit<TransformContext, "dependencies" | "mode">,
 ): Promise<PluginOption[]> {
     // develop from the sources, where no dependency's build is materialized
     const { files } = context.environment;
@@ -132,7 +132,7 @@ export async function loadTransforms(
 
     return transformPlugins(
         loaded.map((entry) => entry.extension),
-        { ...context, dependencies: tree.builds },
+        { ...context, mode: "development", dependencies: tree.builds },
     );
 }
 

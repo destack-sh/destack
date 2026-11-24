@@ -543,6 +543,8 @@ async function entryOptions(
             directory: project.directory,
             runtime: HOST_RUNTIME,
             server: true,
+            // evaluate as a development build, as the host only reads the declarations
+            mode: "development",
             dependencies: project.tree.builds,
             environment: project.environment,
         },

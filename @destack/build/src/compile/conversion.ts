@@ -104,50 +104,43 @@ export class NpmConversion {
         this.#environment = environment;
     }
 
-    /** Convert an installed copy's exported modules, answering its files, exports and imports. */
+    /** Convert an installed copy's exported modules in place: its files, exports and imports. */
     async convert(
+        directory: string,
         installed: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,
     ): Promise<ConvertedPackage> {
-        // copy the package where rolldown keys its modules plainly
+        // read the installed copy where it lies, keying its modules by their paths below it
         const { files, scheduler } = this.#environment;
-        const root = await files.realPath(await files.makeTemporaryDirectory("destack-npm-"));
-        try {
-            for (const [path, bytes] of installed) {
-                await files.mkdir(dirname(join(root, path)), { recursive: true });
-                await files.writeFile(join(root, path), bytes);
-            }
+        const root = await files.realPath(directory);
 
-            // convert every module its exports import, noting the files they import that JavaScript does not load
-            const exports = this.#exports(installed);
-            const targets = [...new Set(exports.values())].toSorted();
-            const modules = targets.filter((path) => MODULE_PATTERN.test(path));
-            const imported = new Set<string>();
-            const foreign = new Set<string>();
-            const converted = new Map<string, Uint8Array<ArrayBuffer>>();
-            if (modules.length > 0) {
-                // bundle as a long operation, as its plugin reads the world's files
-                const bundled = scheduler.waitUntil(
-                    lexer
-                        .init()
-                        .then(() => this.#rolldown(root, modules, installed, imported, foreign)),
-                );
-                for (const { path, bytes } of await bundled) {
-                    converted.set(path, bytes);
-                }
+        // convert every module its exports import, noting the files they import that JavaScript does not load
+        const exports = this.#exports(installed);
+        const targets = [...new Set(exports.values())].toSorted();
+        const modules = targets.filter((path) => MODULE_PATTERN.test(path));
+        const imported = new Set<string>();
+        const foreign = new Set<string>();
+        const converted = new Map<string, Uint8Array<ArrayBuffer>>();
+        if (modules.length > 0) {
+            // bundle as a long operation, as its plugin reads the world's files
+            const bundled = scheduler.waitUntil(
+                lexer
+                    .init()
+                    .then(() => this.#rolldown(root, modules, installed, imported, foreign)),
+            );
+            for (const { path, bytes } of await bundled) {
+                converted.set(path, bytes);
             }
-
-            // keep exported data, referenced files and licenses
-            const data = targets.filter((path) => !MODULE_PATTERN.test(path));
-            const licenses = [...installed.keys()].filter((path) => LICENSE_PATTERN.test(path));
-            for (const path of [...data, ...foreign, ...licenses]) {
-                converted.set(path, present(installed.get(path), `${this.name}'s ${path}`));
-            }
-            NpmConversion.#keepReferenced(converted, installed);
-
-            return { files: converted, exports: Object.fromEntries(exports), imported };
-        } finally {
-            await files.remove(root, { recursive: true });
         }
+
+        // keep exported data, referenced files and licenses
+        const data = targets.filter((path) => !MODULE_PATTERN.test(path));
+        const licenses = [...installed.keys()].filter((path) => LICENSE_PATTERN.test(path));
+        for (const path of [...data, ...foreign, ...licenses]) {
+            converted.set(path, present(installed.get(path), `${this.name}'s ${path}`));
+        }
+        NpmConversion.#keepReferenced(converted, installed);
+
+        return { files: converted, exports: Object.fromEntries(exports), imported };
     }
 
     /** Keep each installed file a kept module loads by its URL, and those its files load. */
@@ -197,6 +190,13 @@ export class NpmConversion {
                         foreign.add(relative(root, join(dirname(importer), specifier)));
                     }
 
+                    return { id: specifier, external: true };
+                }
+                // keep a stand-in's import of the package it requires external, as the installed copy's neighbors would resolve it
+                else if (
+                    importer?.startsWith(REQUIRE_PREFIX) === true &&
+                    BARE_PATTERN.test(specifier)
+                ) {
                     return { id: specifier, external: true };
                 }
                 // leave relative, package-internal and stand-in modules, and rolldown's helpers' imports, to rolldown

@@ -546,6 +546,7 @@ export class ModuleOutput implements Compilation {
             runtime: this.runtime,
             // render components on the server runtimes, which run them without a document
             server: this.runtime !== "browser",
+            mode: this.mode,
             dependencies: this.project.tree.builds,
             cache: this.cache,
             environment: this.project.environment,
