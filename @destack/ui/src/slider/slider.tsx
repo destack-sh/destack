@@ -56,6 +56,7 @@ const THUMB = {
     cursor: "pointer",
     transitionProperty: "box-shadow",
     transitionDuration: motion.durationShort,
+    transitionTimingFunction: motion.easingStandard,
 } as const;
 
 /** The styles of a slider, its track, range, thumbs and marks. */

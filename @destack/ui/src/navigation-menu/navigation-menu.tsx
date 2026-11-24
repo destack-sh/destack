@@ -93,6 +93,7 @@ const styles = style.create({
         cursor: "pointer",
         transitionProperty: "color, background-color",
         transitionDuration: motion.durationShort,
+        transitionTimingFunction: motion.easingStandard,
     },
     turned: {
         transform: "rotate(180deg)",
@@ -102,6 +103,7 @@ const styles = style.create({
         transform: "none",
         transitionProperty: "transform",
         transitionDuration: motion.durationShort,
+        transitionTimingFunction: motion.easingStandard,
     },
     menuScope: {
         anchorScope: ACTIVE_ANCHOR,

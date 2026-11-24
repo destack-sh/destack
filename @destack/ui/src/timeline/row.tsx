@@ -65,6 +65,7 @@ const styles = style.create({
         color: color.mutedForeground,
         transitionProperty: "transform",
         transitionDuration: motion.durationShort,
+        transitionTimingFunction: motion.easingStandard,
     },
     unfolded: {
         transform: "rotate(90deg)",

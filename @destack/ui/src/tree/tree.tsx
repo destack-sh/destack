@@ -66,6 +66,7 @@ const styles = style.create({
         flexShrink: 0,
         transitionProperty: "transform",
         transitionDuration: motion.durationShort,
+        transitionTimingFunction: motion.easingStandard,
     },
     expanded: {
         transform: "rotate(90deg)",

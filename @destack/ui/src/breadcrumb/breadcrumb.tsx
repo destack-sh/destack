@@ -30,6 +30,7 @@ const styles = style.create({
         color: { default: "inherit", ":hover": { default: null, [media.hover]: color.foreground } },
         transitionProperty: "color",
         transitionDuration: motion.durationShort,
+        transitionTimingFunction: motion.easingStandard,
     },
     page: {
         color: color.foreground,

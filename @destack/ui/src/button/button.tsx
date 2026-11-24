@@ -86,6 +86,7 @@ const styles = style.create({
         gap: "inherit",
         transitionProperty: "opacity",
         transitionDuration: motion.durationShort,
+        transitionTimingFunction: motion.easingStandard,
     },
     hidden: {
         opacity: 0,

@@ -145,6 +145,7 @@ const styles = style.create({
         paddingInlineStart: space[4],
         transitionProperty: "opacity",
         transitionDuration: motion.durationShort,
+        transitionTimingFunction: motion.easingStandard,
     },
     behind: {
         opacity: 0,
