@@ -1,8 +1,9 @@
-import { unplugin } from "@stylexjs/unplugin";
+import * as stylex from "@stylexswc/rs-compiler";
+import { transform } from "lightningcss";
 import type { Environment } from "@destack/environment";
-import type { Rollup, ViteDevServer } from "vite";
+import type { Rollup } from "vite";
 import { basename, join, relative } from "node:path";
-import { type BuildExtension, LIGHT_DARK_FEATURE, type Plugin } from "@destack/package/build";
+import { type BuildExtension, type Plugin, runtimeCss } from "@destack/package/build";
 import { Digest, schema } from "@destack/schema";
 import type { TransformCache } from "@destack/package/build";
 import { BuildListCache, BuildReader } from "@destack/package/manifest";
@@ -13,16 +14,10 @@ const SHEET_ID = "virtual:stylex.css";
 /** The stylesheet module's resolved identifier, prefixed as Vite marks virtual modules. */
 const RESOLVED_SHEET_ID = `\0${SHEET_ID}`;
 
-/** The milliseconds a sheet reload waits for further transforms, StyleX's polling interval. */
-const SHEET_SETTLE = 150;
-
 /** The file a build keeps its StyleX rules in, beside each output's modules. */
 const RULES_FILE = "stylex.json";
 
-/** The constant a rule stands under in place of a media query, before StyleX fills it in. */
-const PRELUDE_CONSTANT = /var\(--([\w-]+)\)\s*\{/gu;
-
-/** One StyleX rule, as its babel plugin's `Rule` type has it. */
+/** One StyleX rule: its class name, its left-to-right and right-to-left text, and its priority. */
 const Rule = schema.tuple([
     schema.string().min(1),
     schema.object({
@@ -33,6 +28,8 @@ const Rule = schema.tuple([
     }),
     schema.number(),
 ]);
+/** One StyleX rule. */
+type Rule = schema.Infer<typeof Rule>;
 
 /** The rules file a build keeps for the builds depending on it, by module path in its package. */
 const RuleFile = schema.array(schema.tuple([schema.string().min(1), schema.array(Rule)]));
@@ -46,17 +43,15 @@ const IMPORT_SOURCES = ["@stylexjs/stylex", STYLE_PACKAGE];
 /**
  * The pattern of code that imports from StyleX or `@destack/style`.
  *
- * The bundler matches it natively before StyleX checks each module.
+ * The bundler matches it natively before StyleX reads each module.
  */
 const IMPORT_SOURCE_PATTERN = /@stylexjs\/stylex|@destack\/style/u;
 
-/** The StyleX plugin with the rule collection it attaches without a type. */
-interface StylexPlugin extends Plugin {
-    /** Write every rule collected so far as one stylesheet. */
-    readonly __stylexCollectCss: () => string;
-    /** Read the rule store the plugin keeps on `globalThis` for the whole process. */
-    readonly __stylexGetSharedStore: () => { readonly rulesById: Map<string, unknown> };
-}
+/** The modules StyleX compiles: JavaScript and TypeScript, with or without JSX. */
+const MODULE_PATTERN = /\.[cm]?[jt]sx?(?:\?|$)/u;
+
+/** The layers StyleX's rules come after: the base layer of the preflight and the themes. */
+const LAYERS = { before: ["base"] };
 
 /**
  * The rules each dependency build keeps, read once per process by its directory.
@@ -68,183 +63,92 @@ const RULES = new Map<string, Promise<schema.Infer<typeof RuleFile>>>();
 /** The directory a dependency's modules lie below in its build's tree. */
 const NODE_MODULES = "/node_modules/";
 
-/** The code of StyleX's plugin and of lightningcss, read once for the sheet's cache key. */
+/** The code of StyleX's compiler and of Lightning CSS, read once for the sheet's cache key. */
 let SHEET_IDENTITY: Promise<readonly string[]> | undefined;
 
 /** Compile StyleX styles in builds of packages that depend on `@destack/style`. */
 export const styleExtension = {
-    transform: ({ directory, dependencies, environment, cache }) => {
-        // read the plugin StyleX declares without a type, with the base layer before its own
-        const sheet: SheetTarget = { file: undefined };
-        const plugin: unknown = unplugin.vite({
-            importSources: IMPORT_SOURCES,
-            useCSSLayers: { before: ["base"] },
-            // keep light-dark() native, as the theme's own tokens need it and lowering it needs CSS-declared color schemes
-            lightningcssOptions: { exclude: LIGHT_DARK_FEATURE },
-            unstable_moduleResolution: { rootDir: directory, type: "commonJS" },
-            cssInjectionTarget: (path) => path === sheet.file,
-            devMode: "css-only",
-        });
-        if (!isStylexPlugin(plugin) || typeof plugin.transform !== "function") {
-            throw new TypeError("stylex returned no vite plugin");
-        }
-
-        // drop the server hook serving the sheet a second way and polling it, as the sheet module does both, and the
-        //  write hook, which collects the whole sheet again for a build without one
-        const {
-            configureServer: _polling,
-            writeBundle: _written,
-            generateBundle: _generated,
-            ...compiler
-        } = plugin;
-
-        // let the bundler skip each module without an import source before StyleX reads it
-        const filtered: Plugin = {
-            ...compiler,
-            transform: { filter: { code: IMPORT_SOURCE_PATTERN }, handler: plugin.transform },
-            // inject the rules only into a sheet, as a build without one keeps them for its dependents
-            async generateBundle(_options, bundle) {
-                // leave a build without a sheet
-                if (sheet.file === undefined) {
-                    return;
-                }
-
-                // append the sheet its rules make, read from the cache by their digest
-                const css = await cachedSheet(plugin, cache, environment);
-                injectSheet(bundle, sheet.file, css);
-            },
-        };
-
-        // collect the dependencies' rules into the sheet beside the compiler
-        const built = Object.values(dependencies);
-
-        return [filtered, sheetPlugin(plugin, sheet, directory, built, environment)];
-    },
+    transform: ({ directory, dependencies, environment, cache }) => [
+        stylePlugin(directory, Object.values(dependencies), environment, cache),
+    ],
 } satisfies BuildExtension;
 
-/** The stylesheet a build appends the StyleX rules to, set before StyleX writes them. */
-interface SheetTarget {
-    /** The stylesheet of the chunk that imports the sheet module. */
-    file: string | undefined;
-}
-
-/** Collect the dependencies' StyleX rules into the stylesheet, and keep the build's own. */
-function sheetPlugin(
-    stylex: StylexPlugin,
-    sheet: SheetTarget,
+/** Compile each module's styles, keep the build's rules, and append every rule to the sheet. */
+function stylePlugin(
     directory: string,
     dependencies: readonly string[],
     environment: Environment<"files">,
+    cache: TransformCache | undefined,
 ): Plugin {
-    // the server, the sheet last served with its class names, and the queued reload
-    let server: ViteDevServer | undefined;
-    let css = "";
-    let served = new Set<string>();
-    let isReloadQueued = false;
+    // compile as a production build resolves, each module's rules by its identifier
+    const options: stylex.StyleXOptions = {
+        importSources: IMPORT_SOURCES,
+        treeshakeCompensation: true,
+        runtimeInjection: false,
+        dev: false,
+        unstable_moduleResolution: { type: "commonJS", rootDir: directory },
+    };
+    const own = new Map<string, Rule[]>();
+    const depended = new Map<string, Rule[]>();
 
     return {
-        name: "destack:style-sheet",
-        config: () => ({
-            // include the runtime compiled modules import, as the scan reads their source
-            optimizeDeps: { include: [`${STYLE_PACKAGE} > @stylexjs/stylex`] },
-        }),
-        configureServer: (devServer) => {
-            server = devServer;
-        },
+        name: "destack:style",
+        enforce: "pre",
         buildStart: async () => {
-            // forget the rules earlier builds of this process collected, as StyleX keeps them for the whole process
-            const rules = stylex.__stylexGetSharedStore().rulesById;
-            rules.clear();
-
-            // add the rules each dependency's build keeps under its modules, ordered with this build's own
+            // forget earlier builds' rules, then add the rules each dependency's build keeps under its modules
+            own.clear();
+            depended.clear();
             for (const dependency of dependencies) {
                 let read = RULES.get(dependency);
                 if (read === undefined) {
                     read = readRules(dependency, environment);
                     RULES.set(dependency, read);
                 }
-                for (const [module, rule] of await read) {
-                    rules.set(join(dependency, module), rule);
+                for (const [module, rules] of await read) {
+                    depended.set(join(dependency, module), rules);
                 }
             }
         },
         resolveId: (id) => (withoutQuery(id) === SHEET_ID ? RESOLVED_SHEET_ID : undefined),
-        load: (id) => {
-            // serve the rules in development, and nothing in builds, where StyleX appends them to this module's stylesheet
-            if (withoutQuery(id) !== RESOLVED_SHEET_ID) {
-                return undefined;
-            }
-            if (server === undefined) {
-                return "";
-            }
-
-            // serve the last sheet while a rule stands under a constant not compiled yet, whose compiling reloads it
-            const rules = [...stylex.__stylexGetSharedStore().rulesById.values()].flatMap((rule) =>
-                schema.array(Rule).parse(rule),
-            );
-            const constants = new Set(rules.flatMap(([, { constKey }]) => constKey ?? []));
-            const isWhole = rules.every(([, { ltr, rtl }]) =>
-                [...`${ltr}${rtl ?? ""}`.matchAll(PRELUDE_CONSTANT)].every(([, constant = ""]) =>
-                    constants.has(constant),
-                ),
-            );
-            if (isWhole) {
-                served = new Set(rules.map(([name]) => name));
-                css = stylex.__stylexCollectCss();
-            }
-
-            return css;
-        },
-        generateBundle: {
-            order: "pre",
-            handler(_options, bundle) {
-                // aim StyleX at the stylesheet of the chunk importing the sheet module
-                const chunks = Object.values(bundle).filter((output) => output.type === "chunk");
-                const holder = chunks.find((chunk) => chunk.moduleIds.includes(RESOLVED_SHEET_ID));
-                sheet.file = holder?.viteMetadata?.importedCss.values().next().value;
-
-                // keep the build's own rules for the builds depending on it, sorted by module path in the package
-                const rules = [...stylex.__stylexGetSharedStore().rulesById]
-                    .map(([module, rule]) => [relative(directory, module), rule] as const)
-                    .filter(([module]) => !module.startsWith(".."))
-                    .toSorted(([left], [right]) => (left < right ? -1 : Number(left > right)));
+        // load the sheet module empty, as the bundle appends the rules to its stylesheet
+        load: (id) => (withoutQuery(id) === RESOLVED_SHEET_ID ? "" : undefined),
+        transform: {
+            filter: { id: MODULE_PATTERN, code: IMPORT_SOURCE_PATTERN },
+            handler(code, id) {
+                // compile the module's styles, keeping its rules
+                const compiled = stylex.transform(withoutQuery(id), code, options);
+                const rules = schema.array(Rule).parse(compiled.metadata.stylex);
                 if (rules.length > 0) {
-                    this.emitFile({
-                        type: "asset",
-                        fileName: RULES_FILE,
-                        source: JSON.stringify(rules),
-                    });
+                    own.set(id, rules);
+                } else {
+                    own.delete(id);
                 }
+
+                return { code: compiled.code, map: compiled.map ?? null };
             },
         },
-        transform: (_code, id) => {
-            // leave a transform that adds no rule the served sheet lacks, or one a queued reload covers
-            const running = server;
-            const rules = stylex.__stylexGetSharedStore().rulesById.get(id);
-            if (running === undefined || isReloadQueued || rules === undefined) {
-                return undefined;
-            }
-            const names = schema
-                .array(Rule)
-                .parse(rules)
-                .map(([name]) => name);
-            if (names.every((name) => served.has(name))) {
-                return undefined;
+        async generateBundle(_options, bundle) {
+            // keep the build's own rules for the builds depending on it, sorted by module path in the package
+            const kept = [...own]
+                .map(([module, rules]) => [relative(directory, module), rules] as const)
+                .filter(([module]) => !module.startsWith(".."))
+                .toSorted(([left], [right]) => (left < right ? -1 : Number(left > right)));
+            if (kept.length > 0) {
+                this.emitFile({
+                    type: "asset",
+                    fileName: RULES_FILE,
+                    source: JSON.stringify(kept),
+                });
             }
 
-            // send the browser the sheet with the new rules once the burst of transforms settles
-            isReloadQueued = true;
-            void environment.clock.sleep(SHEET_SETTLE).then(() => {
-                // reload the sheet module the browser imported, if it has
-                isReloadQueued = false;
-                const client = running.environments.client;
-                const module = client.moduleGraph.getModuleById(RESOLVED_SHEET_ID);
-                if (module !== undefined) {
-                    void client.reloadModule(module);
-                }
-            });
-
-            return undefined;
+            // append every rule to the stylesheet of the chunk importing the sheet module, leaving a build without one
+            const chunks = Object.values(bundle).filter((output) => output.type === "chunk");
+            const holder = chunks.find((chunk) => chunk.moduleIds.includes(RESOLVED_SHEET_ID));
+            const file = holder?.viteMetadata?.importedCss.values().next().value;
+            if (file !== undefined) {
+                const css = await cachedSheet([...depended, ...own], cache, environment);
+                injectSheet(bundle, file, css);
+            }
         },
     };
 }
@@ -272,35 +176,54 @@ async function readRules(
     return rules.flat();
 }
 
-/** Read the sheet a build's rules make from the cache by their digest, else collect and keep it. */
+/** Read the sheet a build's rules make from the cache by their digest, else make and keep it. */
 async function cachedSheet(
-    plugin: StylexPlugin,
+    modules: readonly (readonly [string, readonly Rule[]])[],
     cache: TransformCache | undefined,
     environment: Pick<Environment<"files">, "files" | "crypto">,
 ): Promise<string> {
-    // key the sheet by StyleX's and lightningcss's code and the rules, in module order
+    // key the sheet by StyleX's and Lightning CSS's code and the rules, in module order
     SHEET_IDENTITY ??= Promise.all(
-        [import.meta.resolve("@stylexjs/unplugin"), import.meta.resolve("lightningcss")].map(
+        [import.meta.resolve("@stylexswc/rs-compiler"), import.meta.resolve("lightningcss")].map(
             (url) => environment.files.readTextFile(new URL(url).pathname),
         ),
     );
-    const rules = [...plugin.__stylexGetSharedStore().rulesById]
-        .map(([id, rule]) => [packagePath(id), rule] as const)
+    const ordered = modules
+        .map(([id, rules]) => [packagePath(id), rules] as const)
         .toSorted(([left], [right]) => (left < right ? -1 : Number(left > right)));
     const key = await Digest.of(
-        [...(await SHEET_IDENTITY), JSON.stringify(rules)].join("\0"),
+        [...(await SHEET_IDENTITY), JSON.stringify(ordered)].join("\0"),
         environment.crypto,
     );
 
-    // take the kept sheet, else collect it and keep it for later builds
+    // take the kept sheet, else make it and keep it for later builds
     const kept = await cache?.read(key);
     if (kept !== undefined) {
         return new TextDecoder().decode(kept);
     }
-    const css = plugin.__stylexCollectCss();
+    const css = sheetOf(ordered.flatMap(([, rules]) => rules));
     await cache?.write(key, new TextEncoder().encode(css));
 
     return css;
+}
+
+/** Write rules as one stylesheet after the base layer, lowered to the baseline browsers. */
+function sheetOf(rules: readonly Rule[]): string {
+    // leave a sheet without rules empty
+    if (rules.length === 0) {
+        return "";
+    }
+
+    // order the rules into layers, then lower them as every browser stylesheet is
+    const collected = stylex.processStylexRules(rules, { useLayers: LAYERS });
+    const { lightningcss } = runtimeCss("browser");
+    const { code } = transform({
+        ...lightningcss,
+        filename: "stylex.css",
+        code: new TextEncoder().encode(collected),
+    });
+
+    return new TextDecoder().decode(code);
 }
 
 /** Append the StyleX rules to the build's stylesheet in place. */
@@ -325,18 +248,4 @@ function packagePath(id: string): string {
 /** Remove a module identifier's query, such as the `?direct` of a stylesheet's text. */
 function withoutQuery(id: string): string {
     return id.replace(/\?.*$/su, "");
-}
-
-/** Check that a value is the StyleX Vite plugin with its rule collection. */
-function isStylexPlugin(value: unknown): value is StylexPlugin {
-    return (
-        typeof value === "object" &&
-        value !== null &&
-        "name" in value &&
-        typeof value.name === "string" &&
-        "__stylexCollectCss" in value &&
-        typeof value.__stylexCollectCss === "function" &&
-        "__stylexGetSharedStore" in value &&
-        typeof value.__stylexGetSharedStore === "function"
-    );
 }

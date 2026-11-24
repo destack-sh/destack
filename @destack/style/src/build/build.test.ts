@@ -1,12 +1,12 @@
 import { testSimulation } from "@destack/test/world";
 import type { Environment } from "@destack/environment";
 import { PackageVersion } from "@destack/package";
-import { present, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { BuildWriter } from "@destack/package/manifest";
-import { afterEach, expect, test, vi } from "@destack/test";
+import { expect, test } from "@destack/test";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { build, createServer, type Plugin, type Rolldown, type ViteDevServer } from "vite";
+import { build, type Plugin, type Rolldown } from "vite";
 import { styleExtension } from "./build.ts";
 
 /** The dependency whose build keeps plum's rules. */
@@ -18,13 +18,6 @@ const DEPENDENCY = PackageVersion.parse({
 
 /** The package directory, where the fixture modules resolve `@destack/style`. */
 const ROOT = fileURLToPath(new URL("../..", import.meta.url));
-
-/** The development servers to close after each test. */
-const servers: ViteDevServer[] = [];
-
-afterEach(async () => {
-    await Promise.all(servers.splice(0).map((server) => server.close()));
-});
 
 /** Serve modules by name: an entry, a lazy page with a stylesheet, and one-color StyleX styles. */
 function fixtures(): Plugin {
@@ -98,41 +91,6 @@ async function bundle(
     });
 }
 
-/** The milliseconds a sheet reload waits for further transforms, as the plugin sets it. */
-const SHEET_SETTLE = 150;
-
-/** Wait for the reloads queued so far, moving the world's time past their settling. */
-async function flushPending(simulation: {
-    readonly sleep: (milliseconds: number) => Promise<void>;
-}): Promise<void> {
-    await simulation.sleep(SHEET_SETTLE);
-}
-
-/** Start a development server compiling styles as a package that uses `@destack/style` does. */
-async function serve(environment: Environment<"files">): Promise<ViteDevServer> {
-    const server = await createServer({
-        root: ROOT,
-        configFile: false,
-        logLevel: "silent",
-        appType: "custom",
-        server: { middlewareMode: true, hmr: false, ws: false, preTransformRequests: false },
-        optimizeDeps: { noDiscovery: true },
-        plugins: [
-            fixtures(),
-            styleExtension.transform({
-                directory: ROOT,
-                dependencies: {},
-                runtime: "browser",
-                server: false,
-                environment,
-            }),
-        ],
-    });
-    servers.push(server);
-
-    return server;
-}
-
 /** Build entries and read each stylesheet by the names of the chunks that load it. */
 async function stylesheets(
     environment: Environment<"files">,
@@ -156,96 +114,6 @@ async function stylesheets(
             .map((file): [string, string] => [file.names.join(", "), String(file.source)]),
     );
 }
-
-test("serve the collected rules as a stylesheet module, reloading it when transforms add rules", async () => {
-    // compile one style, request the sheet and read its rules, then compile the style again
-    await using simulation = testSimulation();
-    const environment = simulation.environment("test");
-    const server = await serve(environment);
-    const client = server.environments.client;
-    await client.transformRequest("/fixture/teal");
-    await flushPending(simulation);
-    await client.transformRequest("virtual:stylex.css");
-    const sheet = await client.pluginContainer.load("\0virtual:stylex.css");
-    const reload = vi.spyOn(client, "reloadModule").mockResolvedValue();
-    await client.transformRequest("/fixture/teal");
-    await flushPending(simulation);
-    const unchanged = reload.mock.calls.length;
-
-    // compile a style with a new rule
-    await client.transformRequest("/fixture/plum");
-    await flushPending(simulation);
-
-    expect({ sheet, unchanged, grown: reload.mock.calls.length }).toEqual({
-        sheet: "@layer base;\n\n@layer priority1 {\n  .xy1w8w {\n    color: teal;\n  }\n}\n",
-        unchanged: 0,
-        grown: 1,
-    });
-});
-
-test("serve the last sheet until the constants its styles stand under are compiled", async () => {
-    // serve the sheet with the style alone, then with the constant
-    await using simulation = testSimulation();
-    const environment = simulation.environment("test");
-    const server = await serve(environment);
-    const client = server.environments.client;
-    await client.transformRequest("/fixture/hover");
-    const reload = vi.spyOn(client, "reloadModule").mockResolvedValue();
-    await client.transformRequest("virtual:stylex.css");
-    const without = await client.pluginContainer.load("\0virtual:stylex.css");
-    await client.transformRequest("/src/style/media.stylex.ts");
-    await flushPending(simulation);
-
-    expect({
-        without,
-        reloads: reload.mock.calls.length,
-        with: await client.pluginContainer.load("\0virtual:stylex.css"),
-    }).toEqual({
-        without: "",
-        reloads: 1,
-        with: "@layer base;\n\n@layer priority1 {\n  .xy1w8w {\n    color: teal;\n  }\n}\n\n@layer priority2 {\n  @media (hover: hover) {\n    .xaomgs3.xaomgs3:hover {\n      color: plum;\n    }\n  }\n}\n",
-    });
-});
-
-test("reload the sheet once for a burst of new rules, never for a transform repeating served ones", async () => {
-    // compile one style and serve the sheet with its rule
-    await using simulation = testSimulation();
-    const environment = simulation.environment("test");
-    const server = await serve(environment);
-    const client = server.environments.client;
-    await client.transformRequest("/fixture/teal");
-    await flushPending(simulation);
-    await client.transformRequest("virtual:stylex.css");
-    const reload = vi.spyOn(client, "reloadModule").mockResolvedValue();
-
-    // compile the served style again, as a second environment or an edit keeping its rules does
-    const teal = present(await client.moduleGraph.getModuleByUrl("/fixture/teal"), "teal module");
-    client.moduleGraph.invalidateModule(teal);
-    await client.transformRequest("/fixture/teal");
-    await flushPending(simulation);
-    const repeated = reload.mock.calls.length;
-
-    // compile two styles with new rules in one burst
-    await Promise.all(
-        ["/fixture/plum", "/fixture/coral"].map((url) => client.transformRequest(url)),
-    );
-    await flushPending(simulation);
-
-    expect({ repeated, burst: reload.mock.calls.length }).toEqual({ repeated: 0, burst: 1 });
-});
-
-test("serve the sheet without the StyleX plugin's timer polling its rule version", async () => {
-    // record every interval a development server starts
-    await using simulation = testSimulation();
-    const environment = simulation.environment("test");
-    const intervals = vi.spyOn(globalThis, "setInterval");
-    await serve(environment);
-    const delays = intervals.mock.calls.map(([, delay]) => delay);
-    intervals.mockRestore();
-
-    // start no interval at StyleX's 150 ms polling delay
-    expect(delays.filter((delay) => delay === 150)).toEqual([]);
-});
 
 test("append every rule to the entry's stylesheet, leaving lazy pages' stylesheets", async () => {
     await using simulation = testSimulation();
