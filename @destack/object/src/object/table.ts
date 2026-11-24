@@ -42,7 +42,7 @@ type FieldBuilderMap<Fields extends Readonly<Record<string, Field>>> = {
         ? ColumnBuilder<
               FieldColumn<
                   Configuration["value"],
-                  [Configuration["guarded"]] extends [true] ? false : Configuration["required"],
+                  Configuration["required"],
                   Configuration["default"],
                   Configuration["sensitive"]
               >
