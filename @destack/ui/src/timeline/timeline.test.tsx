@@ -2,7 +2,7 @@ import { nth, type ScheduleLink, type TickUnit, type TimeScale } from "@destack/
 import { expect, onTestFinished, test } from "@destack/test";
 import { space } from "@destack/theme/tokens.stylex";
 import { Locale, Localization, Shortcut } from "@destack/locale";
-import { Errored, flush, type JSX, LocaleContext } from "@destack/view";
+import { createSignal, Errored, flush, type JSX, LocaleContext } from "@destack/view";
 import { render, stubPopovers } from "@destack/view/test";
 import { layOutElements } from "../virtualizer/test/layout.ts";
 import {
@@ -983,6 +983,29 @@ test("draw no link the caller refuses, the arrows stepping past its edges to the
     }
 
     expect(links).toEqual([{ from: "design", to: "launch", type: "finish-to-start", lag: 0 }]);
+});
+
+test("draw a link again once the item it lost comes back", () => {
+    // leave out the item a link goes to, as a filter does, then show it again
+    measureElements();
+    const [items, setItems] = createSignal(PLAN, { ownedWrite: true });
+    const { container } = render(() => (
+        <Plan
+            items={items()}
+            timeZone="UTC"
+            links={[{ from: "design", to: "build", type: "finish-to-start", lag: 0 }]}
+        />
+    ));
+    flush();
+    const count = () => container.querySelectorAll("[data-slot=timeline-link]").length;
+    const before = count();
+    setItems(PLAN.filter((item) => item.key !== "build"));
+    flush();
+    const without = count();
+    setItems(PLAN);
+    flush();
+
+    expect([before, without, count()]).toEqual([1, 0, 1]);
 });
 
 test("highlight a focused link and its bars, remove it with Delete, and draw each type from its edges", () => {

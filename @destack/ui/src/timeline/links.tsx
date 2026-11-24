@@ -74,11 +74,10 @@ export function TimelineLinkLayer(properties: {
         from: { readonly key: string; readonly edge: ScheduleEdge },
         to: { readonly key: string; readonly edge: ScheduleEdge },
     ): string | undefined => {
-        // find both bars' rows and lanes, leaving out items without dates and rows a fold hides
+        // find both bars' rows and lanes, leaving out items gone or undated and rows a fold hides
         const width = control.window.width();
-        const isDrawn =
-            TimelineItem.isDated(control.tree.item(from.key)) &&
-            TimelineItem.isDated(control.tree.item(to.key));
+        const ends = [from, to].map((end) => control.tree.items().get(end.key));
+        const isDrawn = ends.every((item) => item !== undefined && TimelineItem.isDated(item));
         const [source, target] = isDrawn
             ? [control.tree.where(from.key), control.tree.where(to.key)]
             : [undefined, undefined];
