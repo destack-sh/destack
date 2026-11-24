@@ -37,7 +37,6 @@ import {
     invitation,
     defineObject,
     field,
-    type FileBucket,
     ObjectDescription,
     ObjectType,
     ObjectTypePool,
@@ -53,22 +52,11 @@ import { expect, test } from "@destack/test";
 import { TABLE, declareState } from "@destack/db";
 import { principal, through } from "@destack/access";
 import { argument, plural, t } from "@destack/locale";
-import { ResourceDeclaration } from "@destack/resource";
 import { canonicalize, nth, schema, toJsonSchema } from "@destack/schema";
 import { Chunk } from "../src/text/index.ts";
 import { space } from "../src/test/space.ts";
 import { comment, folder, label, note, task, taskCopy, taskVersion, team, user } from "./schema.ts";
 import { defineKind } from "@destack/package";
-
-/** The bucket the sample's file field stores its files in. */
-const files: FileBucket = new ResourceDeclaration(
-    note.package,
-    defineKind({ name: "bucket", provisioned: { spec: schema.object({}) } }),
-    {
-        name: "files",
-        spec: {},
-    },
-);
 
 /** Boxes a provider provisions. */
 const BoxKind = defineKind({ name: "box", provisioned: { spec: schema.object({}) } });
@@ -102,7 +90,7 @@ const sample = defineObject(
             kind: field.enum(["draft", "final"]).guardWrite("edit"),
             meta: field.json(schema.object({ weight: schema.number() })),
             heading: field.message(),
-            attachment: field.file(files),
+            attachment: field.file({ accept: ["image/*"], size: 1024 }),
             author: field.reference(principal.user).caller().relate("author"),
             member: field.subject(principal.user, principal.installation),
             status: field.state({
@@ -317,7 +305,7 @@ test("describe fields and methods as the calls written, types by reference, kind
             $field: [
                 {
                     builder: "file",
-                    arguments: [{ $resource: files.toJSON() }],
+                    arguments: [{ accept: ["image/*"], size: 1024 }],
                 },
             ],
         },

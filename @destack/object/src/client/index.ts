@@ -10,3 +10,13 @@ export * from "./description.ts";
 export { ObjectRemote, type Push } from "../replica/remote.ts";
 export * from "../replica/connection.ts";
 export * from "../replica/frame.ts";
+export {
+    ObjectFileClient,
+    type ObjectFileClientOptions,
+    type Endpoint,
+    Upload,
+    type UploadInput,
+    type UploadReason,
+    type UploadSource,
+    type UploadStatus,
+} from "../file/client.ts";

@@ -5,7 +5,6 @@ import {
     type VALUE_KINDS,
 } from "../declare/input.ts";
 import { PackageId } from "@destack/package";
-import { DeclarationReference } from "@destack/package/declare";
 import {
     bigint,
     binary,
@@ -37,7 +36,7 @@ import type { ObjectConstraint } from "../object/constraint.ts";
 import type { IdentityOf, ObjectStorage, ObjectType } from "../object/object.ts";
 import { Policy } from "@destack/access";
 import { FractionalIndex } from "./fractional-index.ts";
-import { type FileBucket, ObjectFile } from "./file.ts";
+import { type ObjectFileLimits, ObjectFile } from "../file/file.ts";
 import type { MethodVisibility } from "../method/method.ts";
 import { ChoiceDefinition, type ChoiceDefinitions, type FieldChoice } from "./choice.ts";
 
@@ -47,6 +46,12 @@ import {
     TextSchema,
     type TextSpan,
 } from "../sequence/index.ts";
+/** The fields of a structured value. */
+const STRUCTURE = schema.looseObject({});
+
+/** The path to the digests of a file's parts in it. */
+const PARTS = "parts";
+
 /** The meanings of fields beyond their stored values. */
 export const FIELD_TYPES = [
     "string",
@@ -207,8 +212,11 @@ export type FieldSource =
               choices?: ChoiceDefinitions,
           ];
       }
-    | { readonly builder: "json"; readonly arguments: readonly [schema.Schema] }
-    | { readonly builder: "file"; readonly arguments: readonly [FileBucket] }
+    | {
+          readonly builder: "json";
+          readonly arguments: readonly [schema.Schema] | readonly [schema.Schema, JsonOptions];
+      }
+    | { readonly builder: "file"; readonly arguments: readonly [ObjectFileLimits] }
     | {
           readonly builder: "text";
           readonly arguments: readonly [] | readonly [readonly (TextMarkType | TextNodeType)[]];
@@ -366,6 +374,14 @@ type FlagConfiguration<Configuration extends FieldConfiguration, Flags extends F
     readonly reference: Flags["reference"];
     readonly open: Configuration["open"];
 };
+
+/** What a structured value keeps alive. */
+export interface JsonOptions {
+    /** The dotted path to the digests of blobs, such as `file.parts`. */
+    readonly blobs: string;
+    /** The media types and sizes of the file whose parts they are. */
+    readonly limits: ObjectFileLimits;
+}
 
 /** How a field refers to another object: not, by identifier, or by object reference. */
 export type ReferenceKind = "none" | "identifier" | "object";
@@ -599,11 +615,32 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
         return this.source.builder === "state" ? this.source.arguments[0] : undefined;
     }
 
-    /** The bucket a file field stores its files in, by its declaring package and name. */
-    get bucket(): DeclarationReference | undefined {
-        return this.source.builder === "file"
-            ? DeclarationReference.of(this.source.arguments[0])
-            : undefined;
+    /** The media types and sizes a file field takes, absent for another field. */
+    get limits(): ObjectFileLimits | undefined {
+        return this.source.builder === "file" ? this.source.arguments[0] : undefined;
+    }
+
+    /** Find the file in a value of the field, with the limits it keeps to. */
+    file(
+        value: unknown,
+    ): { readonly file: ObjectFile; readonly limits: ObjectFileLimits } | undefined {
+        // read a file field's value, else the file whose parts a structured value's path leads to
+        const { source } = this;
+        const options =
+            source.builder === "file"
+                ? { blobs: PARTS, limits: source.arguments[0] }
+                : source.builder === "json"
+                  ? source.arguments[1]
+                  : undefined;
+        const steps = options?.blobs.split(".").slice(0, -1) ?? [];
+        const found = steps.reduce<unknown>(
+            (each, name) => STRUCTURE.safeParse(each).data?.[name],
+            value,
+        );
+
+        return options === undefined || found === undefined || found === null
+            ? undefined
+            : { file: ObjectFile.parse(found), limits: options.limits };
     }
 
     /** Create the column storing the field, its definition following the field's flags. */
@@ -1341,11 +1378,15 @@ export const field = {
         return new StateField(machine);
     },
 
-    /** A structured value validated by a schema. */
-    json<Value extends JsonValue>(validator: schema.Schema<Value>) {
-        return Field.required({ builder: "json", arguments: [validator] }, (name) =>
-            json(name, validator),
-        );
+    /** A structured value validated by a schema, keeping alive the blobs at a path in it. */
+    json<Value extends JsonValue>(validator: schema.Schema<Value>, options?: JsonOptions) {
+        return options === undefined
+            ? Field.required({ builder: "json", arguments: [validator] }, (name) =>
+                  json(name, validator),
+              )
+            : Field.required({ builder: "json", arguments: [validator, options] }, (name) =>
+                  json(name, validator, { blobs: options.blobs }),
+              );
     },
 
     /** A message the declaring package's catalogs translate, with its identifier and source. */
@@ -1353,11 +1394,11 @@ export const field = {
         return Field.required({ builder: "message", arguments: [] }, (name) => json(name, Message));
     },
 
-    /** A file stored in a bucket the package declares, by its key. */
-    file(bucket: FileBucket): FieldOf<{ value: ObjectFile }> {
+    /** A file of given media types and sizes, its bytes kept alive by the row. */
+    file(limits: ObjectFileLimits = {}): FieldOf<{ value: ObjectFile }> {
         return new Field<FieldConfigurationOf<{ value: ObjectFile }>>({
-            source: { builder: "file", arguments: [bucket] },
-            build: (name) => json(name, ObjectFile),
+            source: { builder: "file", arguments: [limits] },
+            build: (name) => json(name, ObjectFile, { blobs: PARTS }),
             ...WRITTEN,
         });
     },

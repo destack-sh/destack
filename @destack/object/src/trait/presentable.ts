@@ -1,13 +1,12 @@
 import { callableTrait } from "./trait.ts";
 import { IconName } from "@destack/icon";
-import { DeclarationReference } from "@destack/package/declare";
 import { Hue, HUES } from "@destack/color";
 import { type JsonValue, schema } from "@destack/schema";
 import { type Localization, Message } from "@destack/locale";
 import { field, type Field } from "../field/field.ts";
 import type { ObjectDefinition } from "../object/object.ts";
 import type { Erasure } from "./trait.ts";
-import { type FileBucket, ObjectFile } from "../field/file.ts";
+import { ObjectFileLimits, ObjectFile } from "../file/file.ts";
 import { Condition, type OpenCondition } from "@destack/db";
 import { ObjectView } from "../presentation/view.ts";
 
@@ -41,7 +40,7 @@ const ChosenIcon = [
     }),
 ] as const;
 
-/** An object's icon: an emoji, an icon set's icon, or an image in the bucket its type sets. */
+/** An object's icon: an emoji, an icon set's icon, or an image. */
 export const Icon = schema.union([
     ...ChosenIcon,
     schema.object({
@@ -52,7 +51,7 @@ export const Icon = schema.union([
 /** An object's icon. */
 export type Icon = schema.Infer<typeof Icon>;
 
-/** An object's cover: an image in its type's bucket, and the banner's vertical centre. */
+/** An object's cover: an image, and the banner's vertical centre. */
 export const Cover = schema.object({
     /** The image. */
     file: ObjectFile,
@@ -68,12 +67,12 @@ export interface PresentableOptions {
     readonly title?: string;
     /** The field shown under the title. */
     readonly subtitle?: string;
-    /** Each object's icon: chosen images in a bucket, one fixed icon set name, or none. */
-    readonly icon?: boolean | string | FileBucket;
+    /** Each object's icon: chosen, with images of given limits, one icon set name, or none. */
+    readonly icon?: boolean | string | ObjectFileLimits;
     /** Each object's color: stored, none, or by conditions, the first met winning. */
     readonly color?: boolean | readonly { readonly where: OpenCondition; readonly swatch: Hue }[];
-    /** The bucket storing each object's cover image, none when absent. */
-    readonly cover?: FileBucket;
+    /** The limits of each object's cover image, none when absent. */
+    readonly cover?: ObjectFileLimits;
     /** The views its fields and traits cannot derive, such as a waterfall of spans. */
     readonly views?: readonly (Omit<ObjectView, "where"> & { readonly where?: OpenCondition })[];
     /** The fields a card shows beside the chip. */
@@ -107,7 +106,7 @@ export type PresentationFieldsOf<Presenting> = Presenting extends PresentableDef
                     /** The object's color. */
                     readonly color: ReturnType<typeof Presentable.colorField>;
                 }) &
-          (Presenting extends { readonly cover: FileBucket }
+          (Presenting extends { readonly cover: ObjectFileLimits }
               ? {
                     /** The object's cover image. */
                     readonly cover: ReturnType<typeof Presentable.coverField>;
@@ -121,12 +120,12 @@ const PresentationSchema = schema.object({
     title: schema.string().min(1).exactOptional(),
     /** The field shown under the title. */
     subtitle: schema.string().min(1).exactOptional(),
-    /** The icon field and uploaded icon bucket, or the icon of every object. */
+    /** The icon field and the limits of its images, or the icon of every object. */
     icon: schema
         .union([
             schema.object({
                 field: schema.string().min(1),
-                bucket: DeclarationReference.exactOptional(),
+                limits: ObjectFileLimits.exactOptional(),
             }),
             schema.object({ fixed: IconName }),
         ])
@@ -140,9 +139,9 @@ const PresentationSchema = schema.object({
             }),
         ])
         .exactOptional(),
-    /** The field storing each object's cover, and its bucket. */
+    /** The field storing each object's cover, and the limits of its image. */
     cover: schema
-        .object({ field: schema.string().min(1), bucket: DeclarationReference })
+        .object({ field: schema.string().min(1), limits: ObjectFileLimits })
         .exactOptional(),
     /** The views the type declares beside the derived ones. */
     views: schema.array(ObjectView).exactOptional(),
@@ -209,12 +208,14 @@ export const Presentable = {
                       icon:
                           options.icon === true
                               ? Presentable.chosenIconField()
-                              : Presentable.iconField(),
+                              : Presentable.iconField(options.icon),
                   }),
             ...(options.color === false || typeof options.color === "object"
                 ? {}
                 : { color: Presentable.colorField() }),
-            ...(options.cover === undefined ? {} : { cover: Presentable.coverField() }),
+            ...(options.cover === undefined
+                ? {}
+                : { cover: Presentable.coverField(options.cover) }),
         };
         const declared = definition.fields ?? {};
         const taken = Object.keys(added).find((name) => Object.hasOwn(declared, name));
@@ -252,7 +253,7 @@ export const Presentable = {
                   : {
                         icon: {
                             field: "icon",
-                            ...(icon === true ? {} : { bucket: DeclarationReference.of(icon) }),
+                            ...(icon === true ? {} : { limits: icon }),
                         },
                     }),
             ...(options.color === false
@@ -269,7 +270,7 @@ export const Presentable = {
                   : { color: { field: "color" } }),
             ...(options.cover === undefined
                 ? {}
-                : { cover: { field: "cover", bucket: DeclarationReference.of(options.cover) } }),
+                : { cover: { field: "cover", limits: options.cover } }),
             ...(options.views === undefined
                 ? {}
                 : {
@@ -312,9 +313,9 @@ export const Presentable = {
         return type === "string" || type === "text" || type === "enum" || type === "message";
     },
 
-    /** The field storing an object's icon: an emoji, an icon set's icon or an image. */
-    iconField() {
-        return field.json(Icon).optional();
+    /** The field storing an object's icon: an emoji, a set's icon or an image within limits. */
+    iconField(limits: ObjectFileLimits) {
+        return field.json<Icon>(Icon, { blobs: "file.parts", limits }).optional();
     },
 
     /** The field storing an object's icon chosen from an emoji or an icon set, without images. */
@@ -327,9 +328,9 @@ export const Presentable = {
         return field.enum(HUES).optional();
     },
 
-    /** The field storing an object's cover. */
-    coverField() {
-        return field.json(Cover).optional();
+    /** The field storing an object's cover, an image within limits. */
+    coverField(limits: ObjectFileLimits) {
+        return field.json(Cover, { blobs: "file.parts", limits }).optional();
     },
 };
 

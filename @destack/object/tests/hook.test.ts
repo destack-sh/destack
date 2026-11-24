@@ -6,7 +6,6 @@ import {
     CallSite,
     defineObject,
     field,
-    type FileBucket,
     HandlerAnswer,
     HandlerRequest,
     Isolate,
@@ -20,7 +19,6 @@ import { expect, onTestFinished, test } from "@destack/test";
 import type { Call } from "@destack/sync";
 import { principal, relation } from "@destack/access";
 import { TestDatabase } from "@destack/db/test";
-import { ResourceDeclaration } from "@destack/resource";
 import { type Identifier, schema, present, type JsonValue } from "@destack/schema";
 import { graph, PackageVersion } from "@destack/package";
 import {
@@ -47,7 +45,6 @@ import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
 import { controlled } from "../src/index.ts";
-import { defineKind } from "@destack/package";
 import { argument, plural, t } from "@destack/locale";
 
 /** Cards their owner remarks on. */
@@ -93,23 +90,16 @@ const note = defineObject(
     (method) => ({ create: method.create("write") }),
 );
 
-/** The bucket the platform's photos store their images in. */
-const images: FileBucket = new ResourceDeclaration(
-    card.package,
-    defineKind({ name: "bucket", provisioned: { spec: schema.object({}) } }),
-    {
-        name: "images",
-        spec: {},
-    },
-);
-
 /** Photos of the platform, each image stored as a file. */
 const photo = defineObject({
     name: "photo",
     plural: "photos",
     title: t`${plural(argument("count"), { one: "Photo", other: "Photos" })}`,
     scope: space,
-    fields: { owner: field.reference(principal.user).caller(), image: field.file(images) },
+    fields: {
+        owner: field.reference(principal.user).caller(),
+        image: field.file({ accept: ["image/*"] }),
+    },
     access: {
         permissions: { read: relation("owner"), write: relation("owner") },
     },
@@ -917,7 +907,7 @@ test("describe the platform's and an installed package's types from one store, d
         isolates: [isolate],
     });
 
-    // declare every type the store describes, the photo's image stored in the platform's bucket
+    // declare every type the store describes, the photo's image with its limits
     const types = ObjectTypePool.of([]).declare(store.describe());
     const described = present(
         types.find((type) => type.name === "photo"),
@@ -925,14 +915,14 @@ test("describe the platform's and an installed package's types from one store, d
     );
     expect({
         types: types.map((type) => [type.package.id, type.name]),
-        bucket: described.fields["image"]?.bucket,
+        limits: described.fields["image"]?.limits,
     }).toEqual({
         types: [
             [OTHER_PACKAGE, "card"],
             [space.package.id, "space"],
             [card.package.id, "photo"],
         ],
-        bucket: { packageId: card.package.id, name: "images" },
+        limits: { accept: ["image/*"] },
     });
 });
 

@@ -114,18 +114,19 @@ export async function finishTask(
 
 ### field
 
-| Kind                                               | What it stores                                     |
-| -------------------------------------------------- | -------------------------------------------------- |
-| `string`, `integer`, `bigint`, `number`, `boolean` | a scalar                                           |
-| `time`                                             | an instant in epoch milliseconds                   |
-| `enum`, `state`                                    | one of some values, or a state machine's state     |
-| `json`                                             | a JSON value checked by a schema                   |
-| `message`                                          | a translatable `@destack/locale` message           |
-| `text`                                             | a collaborative text, changed by edits             |
-| `binary`, `blob`, `blobs`, `blobMap`, `file`       | bytes, content-addressed blobs, or a bucket's file |
-| `subject`, `object`, `reference`                   | a principal, or another object, by reference       |
-| `count`, `sum`, `min`, `max`                       | an aggregate over objects belonging to this one    |
-| `fractionalIndex`                                  | a position among siblings                          |
+| Kind                                               | What it stores                                  |
+| -------------------------------------------------- | ----------------------------------------------- |
+| `string`, `integer`, `bigint`, `number`, `boolean` | a scalar                                        |
+| `time`                                             | an instant in epoch milliseconds                |
+| `enum`, `state`                                    | one of some values, or a state machine's state  |
+| `json`                                             | a JSON value checked by a schema                |
+| `message`                                          | a translatable `@destack/locale` message        |
+| `text`                                             | a collaborative text, changed by edits          |
+| `file`                                             | a file people send                              |
+| `binary`, `blob`, `blobs`, `blobMap`               | bytes, or content-addressed blobs               |
+| `subject`, `object`, `reference`                   | a principal, or another object, by reference    |
+| `count`, `sum`, `min`, `max`                       | an aggregate over objects belonging to this one |
+| `fractionalIndex`                                  | a position among siblings                       |
 
 | Modifier                                  | What it does                                             |
 | ----------------------------------------- | -------------------------------------------------------- |
@@ -173,6 +174,29 @@ export async function write(client: ObjectClient<{ readonly page: typeof page }>
 }
 // body: [{ text: "Ship", marks: { bold: true } }, { text: " the release" }]
 ```
+
+### Files
+
+`field.file(limits)` stores a file people send, of the media types and size the limits take.
+Its value is an `ObjectFile`, and its bytes live in the store's blobs for as long as a row, its history or undo has it.
+
+| `ObjectFile`   | What it has                                             |
+| -------------- | ------------------------------------------------------- |
+| `parts`        | the digests of its parts, 8 MiB each but the last       |
+| `name`, `type` | its name and media type                                 |
+| `size`         | its bytes                                               |
+| `picture`      | a picture's width and height, upright, null for another |
+| `signature`    | the store's own, which no caller can write              |
+
+| HTTP below the package's mount                | What it does                              |
+| --------------------------------------------- | ----------------------------------------- |
+| `PUT /store/file/<digest>`                    | take a part, and answer it signed         |
+| `POST /store/file`                            | make a file of parts                      |
+| `GET /store/file/<scope>/<type>/<id>/<field>` | answer an object's file, whole or a range |
+
+Any signed-in caller sends parts, within a rate, and writing a file to a field takes the field's own permission.
+A row keeps a file it has already, and takes another only as the store signed it.
+Several files are several objects, such as ones attached to a message, each with its own author and order.
 
 ### Traits
 
@@ -903,6 +927,49 @@ export async function starAndUndo(
     // star a note, shown at once, then undo it
     await client.mutate(note).update({ id, starred: true }).predicted;
     await client.undoStack.undo().confirmed;
+}
+```
+
+### Send and show a file
+
+An `ObjectFileClient` sends a file in parts, each again until it arrives, and a write then stores it in its field.
+
+```ts
+import { argument, plural, t } from "@destack/locale";
+import { defineObject, field } from "@destack/object";
+import type { ObjectFileClient, ObjectClient } from "@destack/object/client";
+import type { ObjectReference } from "@destack/sync";
+
+// declare photos of at most 20 MB
+export const photo = defineObject(
+    {
+        name: "photo",
+        plural: "photos",
+        title: t`${plural(argument("count"), { one: "Photo", other: "Photos" })}`,
+        container: "scope",
+        fields: { image: field.file({ accept: ["image/*"], size: 20_000_000 }) },
+        access: { permissions: ["read", "write"] },
+    },
+    (method) => ({ get: method.get("read"), create: method.create("write") }),
+);
+
+/** Send a chosen file, printing how far it is, and create a photo of it. */
+export async function add(
+    client: ObjectClient<{ readonly photo: typeof photo }>,
+    files: ObjectFileClient,
+    chosen: File,
+) {
+    // send the file
+    const upload = files.upload(chosen, { name: chosen.name, type: chosen.type });
+    upload.watch(() => console.log(upload.status, upload.loaded / upload.size));
+    const image = await upload.done;
+
+    return await client.mutate(photo).create({ image }).predicted;
+}
+
+/** Show a photo, streamed and by range as the browser asks. */
+export function show(files: ObjectFileClient, shown: ObjectReference, image: HTMLImageElement) {
+    image.src = files.address(shown, "image");
 }
 ```
 

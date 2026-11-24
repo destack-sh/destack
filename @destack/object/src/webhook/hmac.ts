@@ -1,14 +1,14 @@
 import type { Crypto } from "@destack/environment";
 
-/** An HMAC-SHA256 key that signs and verifies webhook content. */
+/** An HMAC-SHA256 key that signs and verifies content, such as a webhook's. */
 export class HmacKey {
     /** The imported key. */
     readonly #key: CryptoKey;
     /** The WebCrypto the key signs and verifies on. */
     readonly #crypto: Crypto;
 
-    /** Wrap an imported key with its WebCrypto. */
-    private constructor(key: CryptoKey, crypto: Crypto) {
+    /** Wrap an imported key, which signs and verifies, with its WebCrypto. */
+    constructor(key: CryptoKey, crypto: Crypto) {
         this.#key = key;
         this.#crypto = crypto;
     }

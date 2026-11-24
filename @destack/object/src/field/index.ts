@@ -13,4 +13,11 @@ export {
 } from "./field.ts";
 export { ChoiceDefinition, type ChoiceDefinitions, FieldChoice } from "./choice.ts";
 export { FractionalIndex } from "./fractional-index.ts";
-export { type FileBucket, ObjectFile } from "./file.ts";
+export {
+    FILE_PATH,
+    ObjectFileLimits,
+    isAccepted,
+    ObjectFile,
+    PART_BYTES,
+    ObjectFilePart,
+} from "../file/file.ts";

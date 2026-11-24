@@ -1,12 +1,11 @@
 import { testSimulation } from "../src/test/index.ts";
-import { defineObject, field, type FileBucket, ObjectDescription } from "../src/index.ts";
+import { defineObject, field, ObjectDescription, ObjectFile } from "../src/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { principal, relation } from "@destack/access";
 import { defineDatabase, TABLE } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { ResourceDeclaration } from "@destack/resource";
 import { schema } from "@destack/schema";
 import { RequestId, Scope } from "@destack/sync";
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
@@ -15,21 +14,10 @@ import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
 import { presentable, searchable } from "../src/index.ts";
-import { defineKind } from "@destack/package";
 import { argument, plural, t } from "@destack/locale";
 
 /** The space containing the boards. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000c1");
-
-/** The bucket storing the boards' covers. */
-const media: FileBucket = new ResourceDeclaration(
-    space.package,
-    defineKind({ name: "bucket", provisioned: { spec: schema.object({}) } }),
-    {
-        name: "media",
-        spec: {},
-    },
-);
 
 /** Boards presented by name, icon, color and cover, found by name and ordered by rank. */
 const board = defineObject(
@@ -48,7 +36,7 @@ const board = defineObject(
             permissions: { read: relation("owner"), write: relation("owner") },
         },
         traits: [
-            presentable({ subtitle: "excerpt", cover: media }),
+            presentable({ subtitle: "excerpt", cover: { accept: ["image/*"] } }),
             searchable({ text: ["name", "excerpt"], filter: ["ownerId"], sort: ["rank"] }),
         ],
     },
@@ -85,6 +73,10 @@ test("present an object by its name, subtitle, chosen icon, color and cover, des
         events: await testEvents(storage.database, world),
         origin: { package: board.package },
     });
+    const file = await ObjectFile.sign(
+        { parts: [], size: 0, name: "roadmap.png", type: "image/png", picture: null },
+        await store.fileKey(),
+    );
     const created = await store
         .mutate(userContext(users.frank, spaceId, { environment: world }).access(), {
             id: RequestId.create(world),
@@ -94,7 +86,7 @@ test("present an object by its name, subtitle, chosen icon, color and cover, des
                     name: "Roadmap",
                     icon: { emoji: "🗺️" },
                     color: "cyan",
-                    cover: { file: { key: "covers/roadmap.png" }, focus: 0.4 },
+                    cover: { file, focus: 0.4 },
                 }),
             ],
         })
@@ -109,18 +101,13 @@ test("present an object by its name, subtitle, chosen icon, color and cover, des
             .flatMap((constraint) => (constraint.kind === "index" ? [constraint.name] : []))
             .toSorted(),
     }).toEqual({
-        stored: [
-            "Roadmap",
-            { emoji: "🗺️" },
-            "cyan",
-            { file: { key: "covers/roadmap.png" }, focus: 0.4 },
-        ],
+        stored: ["Roadmap", { emoji: "🗺️" }, "cyan", { file, focus: 0.4 }],
         presentation: {
             title: "name",
             subtitle: "excerpt",
             icon: { field: "icon" },
             color: { field: "color" },
-            cover: { field: "cover", bucket: { packageId: space.package.id, name: "media" } },
+            cover: { field: "cover", limits: { accept: ["image/*"] } },
         },
         search: { text: ["name", "excerpt"], filter: ["ownerId"], sort: ["rank"] },
         indexes: ["board_manager", "board_ownerId", "board_rank"],

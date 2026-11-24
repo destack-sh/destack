@@ -42,6 +42,7 @@ import {
     storeProcedures,
     type StoreProcedures,
 } from "./replica.ts";
+import { ObjectFileClient } from "../file/client.ts";
 
 /** The path of a store's connection, below the package serving the store. */
 export const CONNECTION_PATH = "/store/connect";
@@ -174,6 +175,23 @@ export class ObjectConnection implements ObjectRemote {
     /** The URL the connection opens at, absent for one located at each opening. */
     get url(): string | undefined {
         return "url" in this.#options ? this.#options.url : undefined;
+    }
+
+    /** Open the client of the store's files, which sends as the caller. */
+    async files(): Promise<ObjectFileClient> {
+        // find where the store is mounted
+        const { authorize, environment } = this.#options;
+        const url = new URL((await this.#socket.locate()).replace(/^ws/u, "http"));
+        url.pathname = url.pathname.slice(0, -CONNECTION_PATH.length);
+
+        return new ObjectFileClient({
+            url: url.href,
+            environment,
+            fetch: async (request) =>
+                environment.network.fetch(
+                    authorize === undefined ? request : await authorize(request),
+                ),
+        });
     }
 
     /** Open connections to stores mounted at URLs under bearer secrets, one per URL and secret. */
@@ -655,6 +673,11 @@ class StoreSocket {
                 },
             ],
         });
+    }
+
+    /** Read where the socket opens. */
+    locate(): Promise<string> {
+        return this.#locate();
     }
 
     /** Read the caller's bearer token for a call at a URL, none for a caller without one. */

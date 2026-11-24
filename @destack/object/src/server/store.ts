@@ -155,6 +155,9 @@ import type { Execution, StoreExecution } from "../method/execution.ts";
 import type { Isolate } from "../hook/isolate.ts";
 import type { MountFetch, PackageImplementation } from "./implementation.ts";
 import { RecordExecution } from "./record.ts";
+import { FILE_PATH, ObjectFile } from "../file/file.ts";
+import { ObjectFileServer } from "../file/server.ts";
+import { HmacKey } from "../webhook/hmac.ts";
 
 /** How long a scope's access rows stay followed after their last follower: five minutes. */
 const ACCESS_TTL = { minutes: 5 } as const;
@@ -486,6 +489,10 @@ export class ObjectStore {
         | undefined;
     /** The partition's blobs, kept alive by its rows' blob columns. */
     readonly blobs: BlobStore;
+    /** Read the key files are signed with, absent for a store serving no methods. */
+    readonly #callKey: CallKey | undefined;
+    /** The key files are signed with, once it was read. */
+    #fileKey: Promise<HmacKey> | undefined;
     /** The principal of the store's work: controllers, settlements and in-process changes. */
     readonly principal: Subject;
     /** The partitions the store serves, its own first, none for its principal's scope alone. */
@@ -614,6 +621,7 @@ export class ObjectStore {
 
         // store the stores, machines, releases and settings the store runs with
         this.release = given.release;
+        this.#callKey = given.callKey;
         this.database = given.database;
         this.environment = given.environment;
         this.claims = given.claims;
@@ -2450,10 +2458,27 @@ export class ObjectStore {
         return executed;
     }
 
-    /** Enlist the written objects' former keys and names in a transaction's commit. */
+    /** Read the key the store signs files with, refusing a store serving no methods. */
+    fileKey(): Promise<HmacKey> {
+        // read it once
+        this.#fileKey ??= (async () => {
+            const read = present(this.#callKey, "the key of a store whose rows have files");
+
+            return new HmacKey(await read(this.environment.crypto), this.environment.crypto);
+        })();
+
+        return this.#fileKey;
+    }
+
+    /** Enlist the written objects' former keys, names and files in a transaction's commit. */
     #enlist(transaction: Transaction): void {
         FormerKey.enlist(transaction, this);
         Reservation.enlist(transaction, this);
+
+        // leave the files of a replica's predictions to their home
+        if (this.outbox === undefined) {
+            ObjectFile.enlist(transaction, this);
+        }
     }
 
     /** Record a mutation's failed call for audit and retries, leaving denials to procedures. */
@@ -4442,8 +4467,22 @@ export class ObjectStore {
         const { mounts = {}, access, responseHeaders } = entry.definition;
         const implemented = this.implement(entry.package, entry.objects);
 
-        // answer the package's mounts below its path, and the routes of each protocol it implements
-        const fetch = ObjectStore.#mountFetch(entry.package, mounts, this);
+        // answer the package's mounts below its path
+        const mounted = ObjectStore.#mountFetch(entry.package, mounts, this);
+
+        // answer the files of the package's objects before its mounts
+        const files = new ObjectFileServer({
+            blobs: this.blobs,
+            database: this.database,
+            environment: this.environment,
+            key: () => this.fileKey(),
+            types: entry.objects,
+            read: (type, name, input, context) => this.#answer(type, name, input, context),
+        });
+        const fetch: PackageHandler["fetch"] = async (request, context) =>
+            (await files.fetch(request, context)) ?? (await mounted?.(request, context));
+
+        // route each protocol it implements
         const protocols = new Map(
             entry.package.protocols.map((protocol) => [
                 protocol.id,
@@ -4455,7 +4494,7 @@ export class ObjectStore {
             ...implemented,
             ...(access === undefined ? {} : { access }),
             ...(responseHeaders === undefined ? {} : { responseHeaders }),
-            ...(fetch === undefined ? {} : { fetch }),
+            fetch,
             protocols,
         };
     }
@@ -4489,6 +4528,7 @@ export class ObjectStore {
             ...types.map((type) => `${type.route.prefix}/${Casing.kebab(type.plural)}`),
             ...mounts.map((mount) => mount.path),
             CONNECTION_PATH,
+            FILE_PATH,
         ]);
     }
 
