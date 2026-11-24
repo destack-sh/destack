@@ -111,7 +111,7 @@ export const styleExtension = {
 
                 // append the sheet its rules make, read from the cache by their digest
                 const css = await cachedSheet(plugin, cache, environment);
-                injectSheet(this, bundle, sheet.file, css);
+                injectSheet(bundle, sheet.file, css);
             },
         };
 
@@ -303,68 +303,16 @@ async function cachedSheet(
     return css;
 }
 
-/** Append CSS to a stylesheet under a name its content hashes to, renamed where it is named. */
-function injectSheet(
-    context: Pick<Rollup.PluginContext, "emitFile" | "getFileName">,
-    bundle: Rollup.OutputBundle,
-    file: string,
-    css: string,
-): void {
-    // emit the stylesheet with the CSS appended, under the name its content hashes to
+/** Append the StyleX rules to the build's stylesheet in place. */
+function injectSheet(bundle: Rollup.OutputBundle, file: string, css: string): void {
+    // append the rules to the stylesheet's source
     const asset = bundle[file];
     if (asset?.type !== "asset") {
         throw new TypeError(`stylesheet '${file}' is not an asset of the bundle`);
     }
     const current =
         typeof asset.source === "string" ? asset.source : new TextDecoder().decode(asset.source);
-    const source = current === "" ? css : `${current}\n${css}`;
-    const renamed = context.getFileName(
-        context.emitFile({ type: "asset", name: asset.names[0] ?? basename(file), source }),
-    );
-    if (renamed === file) {
-        asset.source = source;
-
-        return;
-    }
-
-    // find the chunks importing it, and those reaching them by static imports, whose loads preload it
-    const chunks = Object.values(bundle).filter((output) => output.type === "chunk");
-    const holders = new Set(
-        chunks
-            .filter((chunk) => chunk.viteMetadata?.importedCss.has(file) === true)
-            .map((chunk) => chunk.fileName),
-    );
-    const reaching = new Set(holders);
-    for (let size = 0; size !== reaching.size;) {
-        size = reaching.size;
-        for (const chunk of chunks) {
-            if (chunk.imports.some((imported) => reaching.has(imported))) {
-                reaching.add(chunk.fileName);
-            }
-        }
-    }
-
-    // rename it in the chunks importing it and in those preloading them, reading no other chunk's code
-    for (const chunk of chunks) {
-        const isNaming =
-            holders.has(chunk.fileName) ||
-            chunk.dynamicImports.some((imported) => reaching.has(imported));
-        if (isNaming) {
-            chunk.code = chunk.code.replaceAll(file, renamed);
-            chunk.viteMetadata?.importedCss.delete(file);
-            if (holders.has(chunk.fileName)) {
-                chunk.viteMetadata?.importedCss.add(renamed);
-            }
-        }
-    }
-
-    // rename it in the text assets, such as a manifest, and drop the old one
-    for (const output of Object.values(bundle)) {
-        if (output.type === "asset" && typeof output.source === "string") {
-            output.source = output.source.replaceAll(file, renamed);
-        }
-    }
-    Reflect.deleteProperty(bundle, file);
+    asset.source = current === "" ? css : `${current}\n${css}`;
 }
 
 /** Read a module's path within its package, a dependency's below its build's digest-named tree. */
