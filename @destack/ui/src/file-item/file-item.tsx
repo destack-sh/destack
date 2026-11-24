@@ -697,7 +697,12 @@ export function FileItemGroup(properties: FileItemGroupProperties): JSX.Element 
                             event.target instanceof Element &&
                             event.target.matches("[data-slot=file-item]");
                         if (isItem && !event.defaultPrevented) {
-                            list.focus.move(event, locale.direction);
+                            // move by rows among cards, and in order along a list
+                            if (properties.layout === "card") {
+                                list.moveAcross(event, locale.direction);
+                            } else {
+                                list.focus.move(event, locale.direction);
+                            }
                         }
                     },
                     onFocusOut: (event: FocusEvent & { readonly currentTarget: Element }) =>

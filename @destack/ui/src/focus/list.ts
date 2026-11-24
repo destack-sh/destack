@@ -1,3 +1,4 @@
+import { nearestAcross } from "./nearest.ts";
 import type { Axis } from "../position/index.ts";
 import type { Direction } from "@destack/locale";
 import type { Accessor } from "@destack/view";
@@ -203,6 +204,29 @@ export class ListState {
             mode: options.mode ?? "roving",
             initial: () => options.initial?.(this.collection),
         });
+    }
+
+    /** Move the focus on a key press, up and down by where the items are on screen. */
+    moveAcross(event: KeyboardEvent, direction: Direction): void {
+        // move along the order with other keys
+        const step = event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : undefined;
+        const from = this.focus.current();
+        const items = this.items.items();
+        const current = items.find(({ key }) => key === from)?.element();
+        if (step === undefined || current === undefined) {
+            this.focus.move(event, direction);
+
+            return;
+        }
+
+        // take the nearest item above or below
+        event.preventDefault();
+        const elements = items.flatMap((item) => (item.isDisabled() ? [] : (item.element() ?? [])));
+        const nearest = nearestAcross(elements, current, step);
+        const target = items.find((item) => item.element() === nearest);
+        if (nearest !== undefined && target !== undefined) {
+            this.focus.enter(target.key);
+        }
     }
 
     /** Add an item until the component adding it unmounts. */
