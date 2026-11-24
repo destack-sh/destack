@@ -1,6 +1,6 @@
 import { dirname, join } from "node:path";
 import type { Environment, FileSystem } from "@destack/environment";
-import type { PackageFile } from "@destack/package/file";
+import { MediaType, type PackageFile } from "@destack/package/file";
 import { type BuildContent, BuildWriter, type PackageManifest } from "@destack/package/manifest";
 import { BuildError } from "../error/index.ts";
 import { Digest, Text } from "@destack/schema";
@@ -83,7 +83,7 @@ export class BuildDirectory {
     /** Record a file a compiler wrote, hashing it without reading it whole into memory. */
     async record(path: string): Promise<void> {
         const { digest, size } = await digestFile(join(this.directory, path), this.environment);
-        this.#writer.add({ path, digest, size, mediaType: BuildWriter.mediaType(path) });
+        this.#writer.add({ path, digest, size, mediaType: MediaType.of(path) });
     }
 
     /** Read the description of a written file. */
