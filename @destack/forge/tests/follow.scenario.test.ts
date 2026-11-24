@@ -87,7 +87,7 @@ async function serveCommits() {
             scope: ids.space,
             requestId: RequestId.create(environment),
             packageId,
-            ...ObjectReference.columns("follows", await follows(followed)),
+            ...ObjectReference.columns("version", await follows(followed)),
             directory: ".",
             name,
         });
@@ -212,7 +212,7 @@ test("refuse an installation following another account's reference", async () =>
             scope: ids.space,
             requestId: RequestId.create(environment),
             packageId: ids.package,
-            ...ObjectReference.columns("follows", followed),
+            ...ObjectReference.columns("version", followed),
             directory: ".",
             name: "foreign",
         });
@@ -225,7 +225,7 @@ test("refuse an installation following another account's reference", async () =>
         id: installed.id,
         requestId: RequestId.create(environment),
         revision: installed.revision,
-        ...ObjectReference.columns("follows", foreign),
+        ...ObjectReference.columns("version", foreign),
     });
     expect(await refusal(update)).toEqual(unreadable(foreign.id));
 });
