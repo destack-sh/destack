@@ -91,6 +91,7 @@
         "destack/style-attribute": "error",
         "destack/style-focus": "error",
         "destack/style-hover": "error",
+        "destack/style-motion": "error",
         "destack/style-shorthand": "error",
         "destack/style-tokens": "error",
         "destack/style-xstyle-last": "error",

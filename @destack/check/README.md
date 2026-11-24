@@ -111,6 +111,7 @@ Every rule is an error, beside Oxlint's own rules.
 | `style-attribute`         | StyleX styles passed as `xstyle`, inline styles as `style`                      |
 | `style-focus`             | focus rings drawn with the theme's shared focus style                           |
 | `style-hover`             | hover styles only where the pointer hovers                                      |
+| `style-motion`            | transitions and animations with a curve                                         |
 | `style-shorthand`         | one value per longhand property                                                 |
 | `style-tokens`            | styles from the theme's tokens                                                  |
 | `style-xstyle-last`       | a caller's `xstyle` merged after a component's styles                           |

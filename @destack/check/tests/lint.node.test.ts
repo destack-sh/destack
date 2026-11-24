@@ -1210,6 +1210,28 @@ tester.run("style-focus", rules["style-focus"], {
     ],
 });
 
+tester.run("style-motion", rules["style-motion"], {
+    valid: [
+        'const styles = style.create({ link: { transitionProperty: "opacity", transitionDuration: "1s", transitionTimingFunction: "ease" } });',
+        'const styles = style.create({ link: { transitionDuration: "0s" } });',
+        'const styles = style.create({ link: { transitionProperty: "none" } });',
+    ],
+    invalid: [
+        {
+            code: 'const styles = style.create({ link: { transitionProperty: "opacity", transitionDuration: "1s" } });',
+            errors: [{ messageId: "curve" }],
+        },
+        {
+            code: 'const styles = style.create({ link: { "::after": { animationName: spin, animationDuration: "1s" } } });',
+            errors: [{ messageId: "curve" }],
+        },
+        {
+            code: 'const styles = style.create({ link: (x) => ({ transitionProperty: "opacity", transitionDuration: x }) });',
+            errors: [{ messageId: "curve" }],
+        },
+    ],
+});
+
 tester.run("style-hover", rules["style-hover"], {
     valid: [
         'const styles = style.create({ link: { color: { default: "inherit", ":hover": { default: null, [media.hover]: "red" } } } });',

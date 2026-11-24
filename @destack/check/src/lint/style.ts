@@ -67,3 +67,33 @@ export function eachCreatedProperty(
         }
     }
 }
+
+/** Visit every object of every style a `create` call defines, nested ones included. */
+export function eachCreatedObject(
+    node: ESTree.CallExpression,
+    visit: (object: ESTree.ObjectExpression) => void,
+): void {
+    const [styles] = node.arguments;
+    if (styles?.type === "ObjectExpression") {
+        for (const entry of styles.properties) {
+            if (entry.type === "Property") {
+                eachObject(entry.value, visit);
+            }
+        }
+    }
+}
+
+/** Visit a style's object and those nested in it, a dynamic style's returned one included. */
+function eachObject(node: ESTree.Node, visit: (object: ESTree.ObjectExpression) => void): void {
+    // step into a dynamic style's returned object
+    if (node.type === "ArrowFunctionExpression") {
+        eachObject(node.body, visit);
+    } else if (node.type === "ObjectExpression") {
+        visit(node);
+        for (const property of node.properties) {
+            if (property.type === "Property") {
+                eachObject(property.value, visit);
+            }
+        }
+    }
+}

@@ -25,6 +25,7 @@ import { requireJsdoc } from "./require-jsdoc.ts";
 import { styleAttribute } from "./style-attribute.ts";
 import { styleFocus } from "./style-focus.ts";
 import { styleHover } from "./style-hover.ts";
+import { styleMotion } from "./style-motion.ts";
 import { styleShorthand } from "./style-shorthand.ts";
 import { styleTokens } from "./style-tokens.ts";
 import { styleXstyleLast } from "./style-xstyle-last.ts";
@@ -70,6 +71,7 @@ export const rules = {
     "style-attribute": styleAttribute,
     "style-focus": styleFocus,
     "style-hover": styleHover,
+    "style-motion": styleMotion,
     "style-shorthand": styleShorthand,
     "style-tokens": styleTokens,
     "style-xstyle-last": styleXstyleLast,
