@@ -139,7 +139,7 @@ test("resolve each kind of address a workload calls", async () => {
         return "fetch" in route ? { ...route, fetch: typeof route.fetch } : route;
     };
 
-    // refuse every address the workload is not bound to
+    // refuse every address the workload is not bound to, other than its own installation's
     const now = fixture.machine.clock.now();
     const exampleAt = new URL((await fixture.machine.directory.locate(example, now)).url).origin;
     const spaceAt = new URL((await fixture.machine.directory.locate(ids.space, now)).url).origin;
@@ -168,7 +168,13 @@ test("resolve each kind of address a workload calls", async () => {
             audience: ids.package,
             path: `${notesMount}${CONNECTION_PATH}`,
         },
-        "FORBIDDEN: INSTALLATION_DENIED: installation 'notes' is forbidden: this installation does not bind it",
+        {
+            kind: "installation",
+            scope: ids.space,
+            installationId: notes,
+            audience: ids.package,
+            path: `${notesMount}/notes/list`,
+        },
         {
             kind: "remote",
             scope: example,
