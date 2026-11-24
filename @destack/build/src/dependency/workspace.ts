@@ -665,9 +665,10 @@ export class WorkspacePackage {
         });
 
         // let every build, npm unit and image settle before refusing a failure
-        const [images] = await Promise.all([settleAll(imaged), installed]);
+        const images = settleAll(imaged);
+        await settleAll<unknown>([images, installed]);
 
-        return new Map(images);
+        return new Map(await images);
     }
 
     /** Store every npm unit the workspace's units install, each once, letting every one settle. */
