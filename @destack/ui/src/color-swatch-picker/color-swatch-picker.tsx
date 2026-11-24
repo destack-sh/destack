@@ -1,4 +1,5 @@
 import * as style from "@destack/style";
+import { media } from "@destack/style/media.stylex";
 import { HUES, type Hue } from "@destack/color";
 import { color, radius, size, space, stroke, swatch } from "@destack/theme/tokens.stylex";
 import { For, type JSX, omit, Show } from "@destack/view";
@@ -45,6 +46,10 @@ const styles = style.create({
         gap: space[1],
     },
     swatch: {
+        forcedColorAdjust: { default: null, [media.forcedColors]: "none" },
+        borderWidth: { default: null, [media.forcedColors]: "1px" },
+        borderStyle: { default: null, [media.forcedColors]: "solid" },
+        borderColor: { default: null, [media.forcedColors]: "CanvasText" },
         width: `calc(${size[1]} * 0.75)`,
         height: `calc(${size[1]} * 0.75)`,
         minHeight: 0,
@@ -54,7 +59,10 @@ const styles = style.create({
         cursor: "pointer",
         boxShadow: {
             default: null,
-            ":is([aria-selected=true])": `0 0 0 ${stroke.ring} ${color.background}, 0 0 0 calc(${stroke.ring} * 2) ${color.ring}`,
+            ":is([aria-selected=true])": {
+                default: `0 0 0 ${stroke.ring} ${color.background}, 0 0 0 calc(${stroke.ring} * 2) ${color.ring}`,
+                [media.forcedColors]: `0 0 0 ${stroke.ring} Canvas, 0 0 0 calc(${stroke.ring} * 2) Highlight`,
+            },
         },
     },
 });

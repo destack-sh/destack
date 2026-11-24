@@ -4,7 +4,7 @@ import caretRight from "@destack/icon/phosphor/caret-right";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
-import { size, space } from "@destack/theme/tokens.stylex";
+import { color, size, space } from "@destack/theme/tokens.stylex";
 import { createControllableSignal, For, type JSX, merge, omit, useLocale } from "@destack/view";
 import {
     type ElementPartProperties,
@@ -36,6 +36,15 @@ const styles = style.create({
     label: {
         // show only the arrow on a narrow page
         display: { default: "inline", [media.maxSm]: "none" },
+    },
+    current: {
+        backgroundColor: {
+            default: "transparent",
+            ":hover": { default: null, [media.hover]: color.hover },
+            [media.forcedColors]: "Highlight",
+        },
+        color: { default: color.foreground, [media.forcedColors]: "HighlightText" },
+        forcedColorAdjust: { default: null, [media.forcedColors]: "none" },
     },
     ellipsis: {
         display: "inline-flex",
@@ -109,6 +118,7 @@ export function PaginationLink(properties: PaginationLinkProperties): JSX.Elemen
                         variant: properties.active === true ? "outline" : "ghost",
                         size: properties.size ?? "icon",
                     }),
+                    properties.active === true && styles.current,
                     properties.xstyle,
                 ],
                 properties.style,

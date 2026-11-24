@@ -1,6 +1,7 @@
 import { state } from "@destack/theme/state";
 import type { Axis } from "../position/index.ts";
 import * as style from "@destack/style";
+import { media } from "@destack/style/media.stylex";
 import { color, motion, radius, space, stroke, swatch } from "@destack/theme/tokens.stylex";
 import {
     type Accessor,
@@ -72,7 +73,7 @@ const styles = style.create({
         width: "50%",
         height: "50%",
         borderRadius: radius.full,
-        backgroundColor: swatch.accentSolid,
+        backgroundColor: { default: swatch.accentSolid, [media.forcedColors]: "Highlight" },
         pointerEvents: "none",
     },
 });

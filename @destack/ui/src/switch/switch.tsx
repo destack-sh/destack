@@ -1,5 +1,6 @@
 import { state } from "@destack/theme/state";
 import * as style from "@destack/style";
+import { media } from "@destack/style/media.stylex";
 import {
     color,
     motion,
@@ -42,6 +43,7 @@ const TRAVEL = `calc(${size[2]} - 2 * ${stroke.border} - ${space[4]})`;
 /** The styles of a switch and its thumb. */
 const styles = style.create({
     switch: {
+        forcedColorAdjust: { default: null, [media.forcedColors]: "none" },
         display: "inline-flex",
         alignItems: "center",
         flexShrink: 0,
@@ -49,16 +51,16 @@ const styles = style.create({
         width: `calc(${size[2]} - 2 * ${stroke.border})`,
         height: space[4],
         borderWidth: stroke.border,
-        borderColor: "transparent",
+        borderColor: { default: "transparent", [media.forcedColors]: "ButtonBorder" },
         borderRadius: radius.full,
-        backgroundColor: color.input,
+        backgroundColor: { default: color.input, [media.forcedColors]: "ButtonFace" },
         cursor: { default: "pointer", ":disabled": "not-allowed" },
         transitionProperty: "background-color, outline-color",
         transitionDuration: motion.durationShort,
         transitionTimingFunction: motion.easingStandard,
     },
     checked: {
-        backgroundColor: swatch.accentSolid,
+        backgroundColor: { default: swatch.accentSolid, [media.forcedColors]: "Highlight" },
     },
     thumb: {
         display: "block",
@@ -66,7 +68,7 @@ const styles = style.create({
         width: space[4],
         height: space[4],
         borderRadius: radius.full,
-        backgroundColor: "white",
+        backgroundColor: { default: "white", [media.forcedColors]: "ButtonText" },
         boxShadow: shadow.raised,
         pointerEvents: "none",
         transform: "none",
@@ -75,9 +77,11 @@ const styles = style.create({
         transitionTimingFunction: motion.easingStandard,
     },
     thumbChecked: {
+        backgroundColor: { default: "white", [media.forcedColors]: "HighlightText" },
         transform: `translateX(${TRAVEL})`,
     },
     thumbCheckedReversed: {
+        backgroundColor: { default: "white", [media.forcedColors]: "HighlightText" },
         transform: `translateX(calc(-1 * ${TRAVEL}))`,
     },
 });

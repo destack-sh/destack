@@ -10,6 +10,7 @@ import {
     TimeZone,
 } from "@destack/schema";
 import * as style from "@destack/style";
+import { media } from "@destack/style/media.stylex";
 import {
     color,
     radius,
@@ -254,11 +255,15 @@ const styles = style.create({
         },
     },
     nowLabel: {
+        outlineStyle: { default: null, [media.forcedColors]: "solid" },
+        outlineWidth: { default: null, [media.forcedColors]: "1px" },
+        marginInlineEnd: `calc(-1 * ${space[1]})`,
         paddingInline: space[1],
         borderRadius: radius[1],
-        backgroundColor: swatch.destructiveMark,
+        backgroundColor: swatch.destructiveSolid,
         color: swatch.destructiveLabel,
         fontWeight: weight.medium,
+        whiteSpace: "nowrap",
     },
     covered: {
         visibility: "hidden",
@@ -805,14 +810,17 @@ export function EventCalendarTimeAxis(properties: EventCalendarPartProperties): 
             ? control.now()
             : undefined;
     const marked = () => control.hovered() ?? now();
-    const isCovered = (at: number): boolean => {
-        const current = marked();
 
-        return current !== undefined && Math.abs(current - at) < NOW_LABEL_REACH;
-    };
-
-    // place an instant at its wall time on the first shown day
+    // place an instant at its wall time, whichever day it is on
     const shareOf = (at: number) => control.wallShare(control.dayOf(at), at);
+    const shareOfTick = (at: number) => control.wallShare(nth(control.days(), 0), at);
+    const isCovered = (at: number): boolean => {
+        // compare how far down both are
+        const current = marked();
+        const reach = shareOfTick(at) - shareOfTick(at - NOW_LABEL_REACH);
+
+        return current !== undefined && Math.abs(shareOf(current) - shareOfTick(at)) < reach;
+    };
 
     return (
         <div
@@ -835,9 +843,7 @@ export function EventCalendarTimeAxis(properties: EventCalendarPartProperties): 
                                         text.xs,
                                         styles.hour,
                                         isCovered(tick.at) && styles.covered,
-                                        places.at(
-                                            control.wallShare(nth(control.days(), 0), tick.at),
-                                        ),
+                                        places.at(shareOfTick(tick.at)),
                                     )}
                                 >
                                     {format(tick.at, zone.zone, false)}

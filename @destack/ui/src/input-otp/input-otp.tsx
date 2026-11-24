@@ -1,6 +1,7 @@
 import { state } from "@destack/theme/state";
 import { Icon } from "@destack/ui/icon";
 import * as style from "@destack/style";
+import { media } from "@destack/style/media.stylex";
 import { inputMarker } from "./marker.stylex.ts";
 import { text } from "@destack/theme/text";
 import { color, motion, radius, size, space, stroke } from "@destack/theme/tokens.stylex";
@@ -85,7 +86,7 @@ const styles = style.create({
     caret: {
         width: stroke.border,
         height: "1em",
-        backgroundColor: color.foreground,
+        backgroundColor: { default: color.foreground, [media.forcedColors]: "CanvasText" },
         animationName: blink,
         animationDuration: `calc(4 * ${motion.durationLong})`,
         animationIterationCount: "infinite",

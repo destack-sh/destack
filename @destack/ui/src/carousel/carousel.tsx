@@ -9,6 +9,7 @@ import pause from "@destack/icon/phosphor/pause";
 import play from "@destack/icon/phosphor/play";
 import { t, type Direction } from "@destack/locale";
 import * as style from "@destack/style";
+import { media } from "@destack/style/media.stylex";
 import { color, radius, space, swatch } from "@destack/theme/tokens.stylex";
 import {
     type Accessor,
@@ -53,12 +54,12 @@ const styles = style.create({
         height: space[4],
         padding: space[1],
         borderRadius: radius.full,
-        backgroundColor: color.border,
+        backgroundColor: { default: color.border, [media.forcedColors]: "CanvasText" },
         backgroundClip: "content-box",
         cursor: "pointer",
     },
     current: {
-        backgroundColor: swatch.accentMark,
+        backgroundColor: { default: swatch.accentMark, [media.forcedColors]: "Highlight" },
     },
     viewport: {
         position: "relative",

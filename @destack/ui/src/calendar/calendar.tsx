@@ -4,6 +4,7 @@ import caretLeft from "@destack/icon/phosphor/caret-left";
 import caretRight from "@destack/icon/phosphor/caret-right";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
+import { media } from "@destack/style/media.stylex";
 import { color, size, space, swatch, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import {
@@ -115,7 +116,7 @@ const styles = style.create({
     },
     middle: {
         borderRadius: 0,
-        backgroundColor: color.selected,
+        backgroundColor: { default: color.selected, [media.forcedColors]: "Highlight" },
         color: color.foreground,
     },
 });

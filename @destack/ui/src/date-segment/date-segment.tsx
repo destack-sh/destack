@@ -2,6 +2,7 @@ import { state } from "@destack/theme/state";
 import type { Environment } from "@destack/environment";
 import { type Localization, t } from "@destack/locale";
 import * as style from "@destack/style";
+import { media } from "@destack/style/media.stylex";
 import { color, motion, radius, size, space, stroke } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import { For, type JSX, omit, Show, untrack, useEnvironment, useLocale } from "@destack/view";
@@ -53,7 +54,10 @@ const styles = style.create({
         borderRadius: radius[1],
         caretColor: "transparent",
         outlineStyle: "none",
-        backgroundColor: { default: "transparent", ":focus": color.selected },
+        backgroundColor: {
+            default: "transparent",
+            ":focus": { default: color.selected, [media.forcedColors]: "Highlight" },
+        },
         color: { default: "inherit", ":focus": color.foreground },
     },
     placeholder: {

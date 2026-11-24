@@ -1,6 +1,7 @@
 import { state } from "@destack/theme/state";
 import { Icon } from "@destack/ui/icon";
 import * as style from "@destack/style";
+import { media } from "@destack/style/media.stylex";
 import { color, motion, radius, space, stroke, swatch } from "@destack/theme/tokens.stylex";
 import {
     type Accessor,
@@ -44,8 +45,10 @@ const styles = style.create({
         transitionTimingFunction: motion.easingStandard,
     },
     checked: {
-        borderColor: swatch.accentSolid,
-        backgroundColor: swatch.accentSolid,
+        color: { default: swatch.accentLabel, [media.forcedColors]: "HighlightText" },
+        forcedColorAdjust: { default: null, [media.forcedColors]: "none" },
+        borderColor: { default: swatch.accentSolid, [media.forcedColors]: "Highlight" },
+        backgroundColor: { default: swatch.accentSolid, [media.forcedColors]: "Highlight" },
     },
     indicator: {
         display: "flex",

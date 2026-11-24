@@ -1,6 +1,7 @@
 import type { Axis } from "../position/index.ts";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
+import { media } from "@destack/style/media.stylex";
 import {
     color,
     motion,
@@ -43,9 +44,13 @@ const THUMB = {
     height: space[4],
     borderStyle: "solid",
     borderWidth: stroke.border,
-    borderColor: swatch.accentMark,
+    borderColor: { default: swatch.accentMark, [media.forcedColors]: "Highlight" },
     borderRadius: radius.full,
-    backgroundColor: "white",
+    backgroundColor: {
+        default: "white",
+        [media.forcedColors]: { default: "Highlight", ":focus-visible": "CanvasText" },
+    },
+    forcedColorAdjust: { default: null, [media.forcedColors]: "none" },
     pointerEvents: "auto",
     cursor: "pointer",
     transitionProperty: "box-shadow",
@@ -75,7 +80,7 @@ const styles = style.create({
         height: space[1],
         overflow: "hidden",
         borderRadius: radius.full,
-        backgroundColor: color.border,
+        backgroundColor: { default: color.border, [media.forcedColors]: "CanvasText" },
     },
     verticalTrack: {
         width: space[1],
@@ -83,7 +88,7 @@ const styles = style.create({
     },
     range: {
         position: "absolute",
-        backgroundColor: swatch.accentMark,
+        backgroundColor: { default: swatch.accentMark, [media.forcedColors]: "Highlight" },
     },
     span: (from: string, to: string) => ({
         insetBlock: 0,
@@ -133,7 +138,7 @@ const styles = style.create({
         width: space[1],
         height: space[1],
         borderRadius: radius.full,
-        backgroundColor: color.mutedForeground,
+        backgroundColor: { default: color.mutedForeground, [media.forcedColors]: "CanvasText" },
         marginInlineStart: `calc(${space[1]} / -2)`,
         marginBlockStart: `calc(${space[1]} / -2)`,
     },

@@ -2,6 +2,7 @@ import { state } from "@destack/theme/state";
 import type { Hue } from "@destack/color";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
+import { media } from "@destack/style/media.stylex";
 import type { IconBodies } from "@destack/icon";
 import arrowSquareOut from "@destack/icon/phosphor/arrow-square-out";
 import calendarBlank from "@destack/icon/phosphor/calendar-blank";
@@ -109,6 +110,8 @@ const styles = style.create({
         outlineOffset: stroke.ring,
     },
     event: {
+        borderWidth: { default: null, [media.forcedColors]: "1px" },
+        borderStyle: { default: null, [media.forcedColors]: "solid" },
         display: "flex",
         gap: space[1],
         minWidth: 0,

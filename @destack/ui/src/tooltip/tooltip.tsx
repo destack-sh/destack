@@ -1,6 +1,7 @@
 import type { Clock } from "@destack/environment";
 import * as style from "@destack/style";
-import { color, radius, space } from "@destack/theme/tokens.stylex";
+import { media } from "@destack/style/media.stylex";
+import { color, radius, space, stroke } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import {
     type Accessor,
@@ -157,6 +158,8 @@ export function TooltipProvider(properties: TooltipProviderProperties): JSX.Elem
 /** The styles of a tooltip. */
 const styles = style.create({
     content: {
+        outlineStyle: { default: "none", [media.forcedColors]: "solid" },
+        outlineWidth: stroke.border,
         width: "fit-content",
         maxWidth: `min(${WIDTH}, 100vw - 2 * ${space[1]})`,
         inset: "auto",

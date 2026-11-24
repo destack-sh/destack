@@ -3,6 +3,7 @@ import { Icon } from "@destack/ui/icon";
 import caretLeft from "@destack/icon/phosphor/caret-left";
 import caretRight from "@destack/icon/phosphor/caret-right";
 import * as style from "@destack/style";
+import { media } from "@destack/style/media.stylex";
 import {
     color,
     radius,
@@ -112,13 +113,16 @@ const styles = style.create({
         paddingInline: space[2],
         borderRadius: radius[2],
         outlineStyle: "none",
-        backgroundColor: { default: "transparent", ":focus": color.selected },
+        backgroundColor: {
+            default: "transparent",
+            ":focus": { default: color.selected, [media.forcedColors]: "Highlight" },
+        },
         color: { default: "inherit", ":focus": color.foreground },
         cursor: "default",
         userSelect: "none",
     },
     open: {
-        backgroundColor: color.selected,
+        backgroundColor: { default: color.selected, [media.forcedColors]: "Highlight" },
     },
     destructive: {
         color: { default: swatch.destructiveText, ":focus": swatch.destructiveText },

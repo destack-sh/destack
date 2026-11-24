@@ -272,6 +272,8 @@ const styles = style.create({
         gap: space[3],
     },
     item: {
+        borderWidth: { default: null, [media.forcedColors]: "1px" },
+        borderStyle: { default: null, [media.forcedColors]: "solid" },
         paddingBlock: space[2],
         paddingInline: space[3],
         borderRadius: radius[3],
@@ -308,7 +310,7 @@ const styles = style.create({
         fieldSizing: "content",
         paddingBlock: space[2],
         paddingInline: space[3],
-        borderWidth: 0,
+        borderWidth: { default: 0, [media.forcedColors]: "1px" },
         borderRadius: radius[3],
         outlineStyle: "none",
         backgroundColor: color.card,

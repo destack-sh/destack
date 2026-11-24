@@ -70,7 +70,7 @@ const styles = style.create({
     sweep: {
         position: "absolute",
         insetBlock: 0,
-        backgroundColor: swatch.accentTint,
+        backgroundColor: { default: swatch.accentTint, [media.forcedColors]: "Highlight" },
         pointerEvents: "none",
     },
     axisRow: {

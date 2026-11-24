@@ -1,5 +1,6 @@
 import type { Hue } from "@destack/color";
 import * as style from "@destack/style";
+import { media } from "@destack/style/media.stylex";
 import { color, radius, space, stroke, swatch } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import { For, type JSX, omit, Show } from "@destack/view";
@@ -20,13 +21,13 @@ const styles = style.create({
         position: "absolute",
         insetBlock: 0,
         width: stroke.border,
-        backgroundColor: color.foreground,
+        backgroundColor: { default: color.foreground, [media.forcedColors]: "CanvasText" },
         color: color.background,
         pointerEvents: "none",
     },
     now: {
         width: stroke.ring,
-        backgroundColor: swatch.accentSolid,
+        backgroundColor: { default: swatch.accentSolid, [media.forcedColors]: "Highlight" },
         color: swatch.accentLabel,
     },
     markerLabel: {
@@ -52,6 +53,8 @@ const styles = style.create({
         pointerEvents: "none",
     },
     range: {
+        borderInlineWidth: { default: null, [media.forcedColors]: "1px" },
+        borderInlineStyle: { default: null, [media.forcedColors]: "dashed" },
         position: "absolute",
         insetBlock: 0,
         opacity: 0.6,

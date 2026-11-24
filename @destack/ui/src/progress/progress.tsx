@@ -1,5 +1,6 @@
 import * as style from "@destack/style";
-import { motion, radius, space, swatch } from "@destack/theme/tokens.stylex";
+import { media } from "@destack/style/media.stylex";
+import { motion, radius, space, stroke, swatch } from "@destack/theme/tokens.stylex";
 import { type Accessor, createContext, type JSX, omit, useContext } from "@destack/view";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
 
@@ -15,6 +16,9 @@ const sweep = style.keyframes({
 /** The styles of a progress bar and its indicator. */
 const styles = style.create({
     progress: {
+        outlineStyle: { default: "none", [media.forcedColors]: "solid" },
+        outlineWidth: stroke.border,
+        outlineOffset: `calc(-1 * ${stroke.border})`,
         position: "relative",
         display: "block",
         width: "100%",
@@ -27,7 +31,7 @@ const styles = style.create({
         display: "block",
         width: "100%",
         height: "100%",
-        backgroundColor: swatch.accentMark,
+        backgroundColor: { default: swatch.accentMark, [media.forcedColors]: "Highlight" },
         transitionProperty: "transform",
         transitionDuration: motion.durationShort,
         transitionTimingFunction: motion.easingStandard,

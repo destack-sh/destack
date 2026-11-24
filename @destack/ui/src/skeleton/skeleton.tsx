@@ -1,4 +1,5 @@
 import * as style from "@destack/style";
+import { media } from "@destack/style/media.stylex";
 import { color, motion, radius } from "@destack/theme/tokens.stylex";
 import { type JSX } from "@destack/view";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
@@ -12,6 +13,8 @@ const pulse = style.keyframes({
 /** The styles of a skeleton. */
 const styles = style.create({
     skeleton: {
+        borderWidth: { default: null, [media.forcedColors]: "1px" },
+        borderStyle: { default: null, [media.forcedColors]: "dashed" },
         borderRadius: radius[3],
         backgroundColor: `color-mix(in oklab, ${color.foreground} 10%, transparent)`,
         animationName: pulse,

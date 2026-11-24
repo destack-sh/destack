@@ -1,5 +1,6 @@
 import { state } from "@destack/theme/state";
 import * as style from "@destack/style";
+import { media } from "@destack/style/media.stylex";
 import {
     color,
     motion,
@@ -75,7 +76,8 @@ const styles = style.create({
         transitionTimingFunction: motion.easingStandard,
     },
     selected: {
-        color: color.foreground,
+        forcedColorAdjust: { default: null, [media.forcedColors]: "none" },
+        color: { default: color.foreground, [media.forcedColors]: "HighlightText" },
     },
     content: {
         flex: 1,
@@ -97,10 +99,11 @@ const variants = style.create({
 /** The mark of each variant's selected tab: a raised ground, or a line along the list. */
 const marks = style.create({
     default: {
-        backgroundColor: color.card,
+        backgroundColor: { default: color.card, [media.forcedColors]: "Highlight" },
         boxShadow: shadow.raised,
     },
     line: {
+        backgroundColor: { default: null, [media.forcedColors]: "Highlight" },
         borderRadius: 0,
         boxShadow: {
             default: `inset 0 calc(-1 * ${stroke.ring}) 0 ${color.foreground}`,
