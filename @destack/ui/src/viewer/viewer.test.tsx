@@ -1,4 +1,4 @@
-import { expect, test } from "@destack/test";
+import { expect, test, vi } from "@destack/test";
 import { present } from "@destack/schema";
 import { ActionRegistry, createSignal, flush } from "@destack/view";
 import { render } from "@destack/view/test";
@@ -245,4 +245,34 @@ test("leave the item alone until the pointer moves or Tab", () => {
     step(() => press("Tab"));
 
     expect(alone).toEqual([false, true, false, true, true, false]);
+});
+
+test("pause what plays in the item before", async () => {
+    const viewer = new ViewerControl<string>({
+        items: () => ["Film", "Lake"],
+        key: (name) => name,
+    });
+    const { container } = render(() => (
+        <Viewer control={viewer}>
+            {() => <ViewerStage control={viewer}>{(name) => <video title={name()} />}</ViewerStage>}
+        </Viewer>
+    ));
+    viewer.open("Film");
+    flush();
+    await Promise.resolve();
+    const films = new Map(
+        [...container.querySelectorAll("video")].map((film) => [
+            film.title,
+            vi.spyOn(film, "pause").mockImplementation(() => {}),
+        ]),
+    );
+    viewer.step(1);
+    flush();
+
+    await Promise.resolve();
+
+    expect([...films].map(([name, pause]) => [name, pause.mock.calls.length])).toEqual([
+        ["Film", 1],
+        ["Lake", 0],
+    ]);
 });

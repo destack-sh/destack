@@ -62,6 +62,7 @@
         "./navigation-menu": "./src/navigation-menu/index.ts",
         "./pagination": "./src/pagination/index.ts",
         "./part": "./src/part/index.ts",
+        "./player": "./src/player/index.ts",
         "./popover": "./src/popover/index.ts",
         "./position": "./src/position/index.ts",
         "./progress": "./src/progress/index.ts",

@@ -57,7 +57,7 @@ Each entry is `@destack/ui/<entry>`.
 | Forms                  | `autocomplete`, `button`, `button-group`, `calendar`, `checkbox`, `color-swatch-picker`, `combobox`, `copy-button`, `date-field`, `date-picker`, `dropzone`, `emoji-picker`, `field`, `icon-picker`, `input`, `input-group`, `input-otp`, `label`, `radio-group`, `select`, `slider`, `switch`, `textarea`, `time-field`, `toggle`, `toggle-group` |
 | Overlays               | `alert-dialog`, `context-menu`, `dialog`, `drawer`, `dropdown-menu`, `hover-card`, `menubar`, `popover`, `sheet`, `toast`, `tooltip`                                                                                                                                                                                                               |
 | Navigation             | `breadcrumb`, `command`, `navigation-menu`, `pagination`, `palette`, `sidebar`, `tabs`                                                                                                                                                                                                                                                             |
-| Data                   | `avatar`, `badge`, `card`, `carousel`, `chart`, `code-block`, `data-list`, `data-table`, `diff`, `feed`, `file-item`, `gallery`, `grid-list`, `item`, `kbd`, `list-box`, `load-more`, `object`, `table`, `tree`, `viewer`, `virtual-list`                                                                                                          |
+| Data                   | `avatar`, `badge`, `card`, `carousel`, `chart`, `code-block`, `data-list`, `data-table`, `diff`, `feed`, `file-item`, `gallery`, `grid-list`, `item`, `kbd`, `list-box`, `load-more`, `object`, `player`, `table`, `tree`, `viewer`, `virtual-list`                                                                                                |
 | Views                  | `board`, `event-calendar`, `timeline`                                                                                                                                                                                                                                                                                                              |
 | Feedback and structure | `accordion`, `alert`, `aspect-ratio`, `collapsible`, `empty`, `progress`, `prose`, `resizable`, `scroll-area`, `separator`, `skeleton`, `spinner`, `visually-hidden`                                                                                                                                                                               |
 | Layout                 | `stack`, `cluster`, `grid`, `center`, `switcher`, `cover`, `content`                                                                                                                                                                                                                                                                               |
@@ -495,6 +495,81 @@ function DateHeading() {
     const { day } = useEventCalendarDay();
 
     return <strong>{day}</strong>;
+}
+```
+
+### Play a film and a sound
+
+A player is built from parts, which an app arranges, drops or replaces.
+
+```tsx
+import {
+    AudioPlayer,
+    Player,
+    PlayerAudio,
+    PlayerBar,
+    PlayerControl,
+    PlayerCaptions,
+    PlayerPlayButton,
+    PlayerSeekBar,
+    PlayerTitle,
+    usePlayer,
+    VideoPlayer,
+} from "@destack/ui/player";
+
+/** Show a film with fewer parts over it, which a button outside moves. */
+export function Film(properties: { readonly source: string; readonly captions: string }) {
+    const control = new PlayerControl();
+
+    return (
+        <>
+            <VideoPlayer
+                source={properties.source}
+                title="The pass"
+                captions={[{ source: properties.captions, language: "en", label: "English" }]}
+                control={control}
+            >
+                <PlayerCaptions />
+                <PlayerBar>
+                    <PlayerSeekBar />
+                    <PlayerPlayButton />
+                </PlayerBar>
+            </VideoPlayer>
+            <button type="button" onClick={() => control.seek(80)}>
+                Go to 1:20
+            </button>
+        </>
+    );
+}
+
+/** Tell how much of a sound is left, as a part of its own. */
+function Left() {
+    const player = usePlayer();
+    const left = () => Math.ceil((player.length() ?? 0) - player.time());
+
+    return <small>{left()} s left</small>;
+}
+
+/** Show a song with the usual parts, then with a part of its own. */
+export function Song(properties: { readonly source: string; readonly onNext: () => void }) {
+    return (
+        <>
+            <AudioPlayer
+                source={properties.source}
+                title="First Tram"
+                artist="The Hill"
+                onNext={properties.onNext}
+                onEnded={properties.onNext}
+            />
+            <Player source={properties.source} title="First Tram">
+                <PlayerAudio />
+                <PlayerTitle />
+                <PlayerSeekBar />
+                <PlayerPlayButton />
+                <Left />
+            </Player>
+        </>
+    );
 }
 ```
 

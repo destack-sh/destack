@@ -2,10 +2,12 @@ import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { Match, Show, Switch } from "@destack/view";
 import fileIcon from "@destack/icon/phosphor/file-zip";
+import { FILM, sound } from "../example/media.ts";
 import { landscape } from "../example/picture.ts";
 import { FileItem } from "../file-item/index.ts";
 import { Gallery, galleryContentStyle, GalleryItem, GridLayout } from "../gallery/index.ts";
 import { Icon } from "../icon/index.ts";
+import { AudioPlayer, VideoPlayer } from "../player/index.ts";
 import { ViewerControl } from "./control.ts";
 import {
     Viewer,
@@ -28,6 +30,12 @@ const styles = style.create({
     card: {
         height: "100%",
     },
+    film: {
+        width: "min(100cqw, 100cqh * 16 / 9)",
+    },
+    sound: {
+        width: "min(90cqw, 32rem)",
+    },
 });
 
 /** A file of a trip. */
@@ -42,7 +50,7 @@ interface TripFile {
     readonly source: string;
 }
 
-/** The files of a trip: eight photos, and a timetable no browser shows here. */
+/** The files of a trip: eight photos, a film, a sound, and a timetable no browser shows here. */
 const FILES: readonly TripFile[] = [
     ...Array.from({ length: 8 }, (_photo, i) => {
         const ratio = [1.5, 0.75, 1, 16 / 9][i % 4] ?? 1;
@@ -54,6 +62,8 @@ const FILES: readonly TripFile[] = [
             source: landscape(i + 30, ratio),
         };
     }),
+    { name: "Pass.mp4", type: "video/mp4", ratio: 16 / 9, source: FILM },
+    { name: "Bells.wav", type: "audio/wav", ratio: 1, source: sound([262, 330, 392], 8) },
     { name: "Timetable.zip", type: "application/zip", ratio: 1, source: "data:application/zip," },
 ];
 
@@ -114,6 +124,20 @@ export const viewerTrip = defineExample({
                                     <Switch
                                         fallback={<FileItem file={{ ...shown(), size: 1200 }} />}
                                     >
+                                        <Match when={shown().type.startsWith("video/")}>
+                                            <VideoPlayer
+                                                source={shown().source}
+                                                title={shown().name}
+                                                xstyle={styles.film}
+                                            />
+                                        </Match>
+                                        <Match when={shown().type.startsWith("audio/")}>
+                                            <AudioPlayer
+                                                source={shown().source}
+                                                title={shown().name}
+                                                xstyle={styles.sound}
+                                            />
+                                        </Match>
                                         <Match when={shown().type.startsWith("image/")}>
                                             <ViewerZoom ratio={shown().ratio}>
                                                 <img

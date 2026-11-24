@@ -28,6 +28,7 @@ import {
     useLocale,
 } from "@destack/view";
 import { isMotionReduced } from "@destack/view/motion";
+import { createIdleTimer } from "@destack/view/primitives/idle";
 import {
     ActionButton,
     type ActionButtonProperties,
@@ -80,7 +81,7 @@ const PULL_SHRINK = 0.35;
 const KEY_SCALE = 1.5;
 
 /** How long the buttons stay once the pointer stands still, in milliseconds, as PhotoSwipe's. */
-const STILL = 4000;
+const IDLE = 4000;
 
 /** The room around an item: black with a little of the theme. */
 const ROOM = `color-mix(in oklab, ${color.background} 22%, black)`;
@@ -101,10 +102,12 @@ const THUMBNAIL_WIDTH = "2rem";
 const CURRENT_WIDTH = "4.5rem";
 
 /** What takes the pointer and the keys itself, such as a video's controls. */
-const OWN = "a, button, input, select, textarea, video, audio, iframe, [contenteditable]";
+const OWN =
+    "a, button, input, select, textarea, video, audio, iframe, [contenteditable], [data-slot=video-player], [data-slot=audio-player]";
 
 /** What takes the keys itself. */
-const OWN_KEYS = "input, select, textarea, video, audio, [contenteditable]";
+const OWN_KEYS =
+    "input, select, textarea, video, audio, [contenteditable], [data-slot=video-player], [data-slot=video-player] *, [data-slot=audio-player], [data-slot=audio-player] *";
 
 /** The styles of a viewer and its parts. */
 const styles = style.create({
@@ -313,22 +316,25 @@ export function Viewer<Item>(properties: ViewerProperties<Item>): JSX.Element {
     // read the control once
     const control = untrack(() => properties.control);
     const locale = useLocale();
-    const { clock } = useEnvironment();
     let element: HTMLElement | undefined;
 
     // leave the item alone once the pointer stands still
-    let timer: ReturnType<typeof clock.setTimeout> | undefined;
-    const settle = (): void => {
-        clock.clearTimeout(timer);
-        timer = clock.setTimeout(() => control.setAlone(true), STILL);
+    const idle = createIdleTimer({
+        events: [],
+        idleTimeout: IDLE,
+        startManually: true,
+        onIdle: () => control.setAlone(true),
+    });
+    const wake = (): void => {
+        control.setAlone(false);
+        idle.start();
     };
 
     // move, scale and close by keys
     const press = (event: KeyboardEvent): void => {
         // bring the buttons back for the focus to move to
         if (event.key === "Tab") {
-            control.setAlone(false);
-            settle();
+            wake();
         }
 
         // leave keys something inside takes itself
@@ -356,10 +362,9 @@ export function Viewer<Item>(properties: ViewerProperties<Item>): JSX.Element {
     ];
 
     // bring the rest back as the pointer moves
-    const wake = (event: PointerEvent): void => {
+    const move = (event: PointerEvent): void => {
         if (event.pointerType !== "touch") {
-            control.setAlone(false);
-            settle();
+            wake();
         }
     };
     createEffect(control.dialog.isOpen, (isOpen) => {
@@ -368,7 +373,7 @@ export function Viewer<Item>(properties: ViewerProperties<Item>): JSX.Element {
         }
         control.setAlone(false);
 
-        return () => clock.clearTimeout(timer);
+        return () => idle.stop();
     });
 
     // grow from what stands for the item on the page, and shrink back to it
@@ -399,7 +404,7 @@ export function Viewer<Item>(properties: ViewerProperties<Item>): JSX.Element {
                     ]}
                     ref={handlers}
                     onKeyDown={press}
-                    onPointerMove={wake}
+                    onPointerMove={move}
                 >
                     <div ref={(created) => (element = created)} {...style.attrs(styles.items)}>
                         <Show when={control.item()}>{(item) => properties.children(item)}</Show>
@@ -715,14 +720,21 @@ export function ViewerStage<Item>(properties: ViewerStageProperties<Item>): JSX.
         },
     );
 
-    // take the focus back where what had it goes away with its item
+    // settle what the item before leaves: its focus, which goes away with it, and what it plays
     let element: HTMLElement | undefined;
     createEffect(
         () => viewer.key(),
         () => {
             queueMicrotask(() => {
+                // take the focus back
                 if (viewer.dialog.isOpen() && document.activeElement === document.body) {
                     element?.focus({ preventScroll: true });
+                }
+
+                // pause what plays beside it
+                const beside = "[data-slot=viewer-pane]:not([data-current]) :is(video, audio)";
+                for (const each of element?.querySelectorAll<HTMLMediaElement>(beside) ?? []) {
+                    each.pause();
                 }
             });
         },
