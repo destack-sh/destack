@@ -1,10 +1,9 @@
 import type { Axis } from "../position/index.ts";
 import * as style from "@destack/style";
-import { groupMarker } from "./marker.stylex.ts";
 import { color, radius, space, stroke, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import { type JSX, merge, omit } from "@destack/view";
-import { JoinContext, useJoin } from "../join/index.ts";
+import { type JSX, merge, omit, untrack } from "@destack/view";
+import { DivideContext, JoinContext, useJoin } from "../join/index.ts";
 import { Separator, type SeparatorProperties } from "../separator/index.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
 
@@ -19,7 +18,7 @@ const styles = style.create({
         display: "flex",
         alignItems: "stretch",
         width: "fit-content",
-        gap: { default: 0, [style.when.descendant("[data-slot]", groupMarker)]: space[2] },
+        gap: { default: 0, ":has(> [data-slot=button-group])": space[2] },
     },
     text: {
         display: "flex",
@@ -57,25 +56,29 @@ export type ButtonGroupElementProperties = Omit<JSX.HTMLAttributes<HTMLDivElemen
 export interface ButtonGroupProperties extends ButtonGroupElementProperties {
     /** The direction, horizontal by default. */
     readonly orientation?: Axis;
+    /** Whether a line sets filled controls apart, false by default. */
+    readonly divided?: boolean;
 }
 
 /** Render buttons, inputs and selects joined into one control, or groups of them spaced apart. */
 export function ButtonGroup(properties: ButtonGroupProperties): JSX.Element {
     const group = merge(DEFAULTS, properties);
-    const rest = omit(group, "orientation", "xstyle", "style");
+    const rest = omit(group, "orientation", "divided", "xstyle", "style");
 
     return (
         <JoinContext value={() => group.orientation}>
-            <div
-                data-slot="button-group"
-                data-orientation={group.orientation}
-                role="group"
-                {...rest}
-                {...style.attributes(
-                    [styles.group, orientations[group.orientation], groupMarker, group.xstyle],
-                    group.style,
-                )}
-            />
+            <DivideContext value={untrack(() => group.divided === true)}>
+                <div
+                    data-slot="button-group"
+                    data-orientation={group.orientation}
+                    role="group"
+                    {...rest}
+                    {...style.attributes(
+                        [styles.group, orientations[group.orientation], group.xstyle],
+                        group.style,
+                    )}
+                />
+            </DivideContext>
         </JoinContext>
     );
 }
