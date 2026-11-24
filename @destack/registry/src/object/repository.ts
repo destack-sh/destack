@@ -2,7 +2,7 @@ import { permission, principal, relation, through, union, universe } from "@dest
 import { account, space } from "@destack/account/object";
 import type { Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
-import { Lease, LeaseMode } from "@destack/resource";
+import { Lease } from "@destack/resource";
 import { schema, present } from "@destack/schema";
 import { GitListing } from "@destack/git";
 import type {} from "@destack/package/import-meta";
@@ -294,11 +294,18 @@ export const repository = defineObject(
             }),
             prepared: OriginColumns,
         }),
-        /** Lease a checkout short-lived, direct access to read or write the repository. */
-        open: method.query({
-            title: t`Open`,
+        /** Lease short-lived, direct access to read the repository, as a fetch takes it. */
+        pull: method.query({
+            title: t`Pull`,
             permission: "pull",
-            input: schema.object({ mode: LeaseMode }),
+            output: Lease,
+            prepared: Lease,
+            isAudited: true,
+        }),
+        /** Lease short-lived, direct access to write the repository, as a push takes it. */
+        push: method.query({
+            title: t`Push`,
+            permission: "push",
             output: Lease,
             prepared: Lease,
             isAudited: true,
