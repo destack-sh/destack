@@ -43,7 +43,10 @@ export const BunNetwork: Network & {
         });
     },
     connect: connectSocket,
-    websocket: Network.system.websocket,
+    websocket: (url, protocols) =>
+        openWebSocket(url, {
+            protocols: typeof protocols === "string" ? [protocols] : [...(protocols ?? [])],
+        }),
     forward: (upgrade, url) => {
         // offer the upgrade's subprotocols, and send its other headers as Bun's client allows
         const forwarded = WebSocketUpgrade.of(upgrade);
@@ -51,19 +54,54 @@ export const BunNetwork: Network & {
             throw new TypeError("a forwarded socket opens for a WebSocket upgrade alone");
         }
 
-        // construct with Bun's options form, which the web's WebSocket type leaves out
-        const opened: unknown = Reflect.construct(WebSocket, [
-            url,
-            {
-                protocols: forwarded.protocols,
-                headers: Object.fromEntries(forwarded.forwarded()),
-            },
-        ]);
-        if (!(opened instanceof WebSocket)) {
-            throw new TypeError("Bun's WebSocket constructor returned no WebSocket");
-        }
-
-        return new SystemSocket(opened);
+        return openWebSocket(url, {
+            protocols: forwarded.protocols,
+            headers: Object.fromEntries(forwarded.forwarded()),
+        });
     },
     resolve: resolveHostname,
 };
+
+/** Open a WebSocket through the proxy the environment gives its URL, as Bun's fetch does. */
+function openWebSocket(
+    url: string,
+    options: { readonly protocols: readonly string[]; readonly headers?: Record<string, string> },
+): ClientSocket {
+    // construct with Bun's options form, which the web's WebSocket type leaves out
+    const proxy = proxyOf(new URL(url), process.env);
+    const opened: unknown = Reflect.construct(WebSocket, [
+        url,
+        {
+            protocols: [...options.protocols],
+            ...(options.headers === undefined ? {} : { headers: options.headers }),
+            ...(proxy === undefined ? {} : { proxy }),
+        },
+    ]);
+    if (!(opened instanceof WebSocket)) {
+        throw new TypeError("Bun's WebSocket constructor returned no WebSocket");
+    }
+
+    return new SystemSocket(opened);
+}
+
+/** Read a URL's proxy: `HTTP_PROXY` for `ws:`, `HTTPS_PROXY` for `wss:`, minus `NO_PROXY`. */
+function proxyOf(url: URL, variables: Record<string, string | undefined>): string | undefined {
+    // read the variable of the URL's scheme, either case
+    const name = url.protocol === "wss:" ? "https_proxy" : "http_proxy";
+    const proxy = variables[name] ?? variables[name.toUpperCase()];
+    if (proxy === undefined || proxy === "") {
+        return undefined;
+    }
+
+    // leave a host that `NO_PROXY` lists, by exact name or domain suffix, or every host for `*`
+    const excluded = (variables["no_proxy"] ?? variables["NO_PROXY"] ?? "")
+        .split(",")
+        .map((entry) => entry.trim().replace(/^\./u, "").toLowerCase())
+        .filter((entry) => entry !== "");
+    const host = url.hostname.toLowerCase();
+    const isExcluded = excluded.some(
+        (entry) => entry === "*" || host === entry || host.endsWith(`.${entry}`),
+    );
+
+    return isExcluded ? undefined : proxy;
+}
