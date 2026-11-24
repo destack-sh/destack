@@ -2,6 +2,9 @@ import { BasicCredential } from "@destack/environment";
 import type { Lease, LeaseMode } from "@destack/resource";
 import { Instant, schema } from "@destack/schema";
 
+/** The domain of commit authors' addresses, which receives no mail. */
+const AUTHOR_DOMAIN = "users.noreply.destack.app";
+
 /** A Git object name: 40 hexadecimal digits for SHA-1, 64 for SHA-256. */
 const ObjectName = schema.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u);
 
@@ -72,15 +75,22 @@ export const GitListing = schema.object({
 /** Every branch, tag and checkout of a repository, and the existing branch of its HEAD. */
 export type GitListing = schema.Infer<typeof GitListing>;
 
-/** The person a commit names as its author. */
-export const GitAuthor = schema.object({
+/** The author of a commit: a name and an email address. */
+const author = schema.object({
     /** The author's name. */
     name: schema.string().min(1),
     /** The author's email address. */
     email: schema.string().min(1),
 });
-/** The person a commit names as its author. */
-export type GitAuthor = schema.Infer<typeof GitAuthor>;
+/** The author of a commit: a name and an email address. */
+export const GitAuthor = Object.assign(author, {
+    /** Make an account's author: its name, and its handle at the noreply domain. */
+    of(account: { readonly name: string; readonly handle: string }): GitAuthor {
+        return { name: account.name, email: `${account.handle}@${AUTHOR_DOMAIN}` };
+    },
+});
+/** The author of a commit. */
+export type GitAuthor = schema.Infer<typeof author>;
 
 /** A short-lived HTTP basic credential for Git over HTTPS. */
 const credential = schema.object({
