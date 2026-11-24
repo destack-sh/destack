@@ -56,6 +56,8 @@ export interface TransformContext {
     readonly runtime: Runtime;
     /** Whether a server renders the modules' pages before the browser hydrates them. */
     readonly server: boolean;
+    /** How the build bundles: a release, or a development build without release-only work. */
+    readonly mode: "release" | "development";
     /** The build's content-addressed cache of derived files, absent where builds keep none. */
     readonly cache?: TransformCache;
     /** The directory of each Destack dependency's build, by package name. */
