@@ -7,6 +7,7 @@ import {
     PermissionReference,
     principal,
     self,
+    through,
     type GrantDeclaration,
     type GrantContext,
     PermissionSet,
@@ -117,11 +118,11 @@ export const installation = defineObject(
             /** The package directory within a followed repository or checkout. */
             directory: field.string(PackageDirectory).optional(),
             /** The targets it selects for its package's declarations. */
-            bindings: field.json(InstallationBindings).default({}),
+            bindings: field.json(InstallationBindings).default({}).guard({ read: "update" }),
             /** The stack its package exports for its space, absent for an application. */
             export: field.string().optional(),
             /** The arguments of the exported stack, absent for an application. */
-            parameters: field.json(schema.jsonObject()).optional(),
+            parameters: field.json(schema.jsonObject()).optional().guard({ read: "update" }),
             /** The space-local address. */
             name: field.string(InstallationName),
             /** Whether the installation should serve requests. */
@@ -133,7 +134,10 @@ export const installation = defineObject(
             /** The optional capabilities allowed at the installation's request, once approved. */
             allowed: field.json(schema.array(DeclarationName)).default([]),
             /** The directories granted to the package's `files` ability, each with its access. */
-            directories: field.json(schema.array(DirectoryGrant)).default([]),
+            directories: field
+                .json(schema.array(DirectoryGrant))
+                .default([])
+                .guard({ read: "update" }),
             /** How its server is isolated: a sandbox, or the machine's own process once trusted. */
             isolation: field.enum(["sandbox", "host"]).default("sandbox"),
 
@@ -208,8 +212,9 @@ export const installation = defineObject(
             // let permissions read the scope an installation lives in
             attributes: { scope: "string" },
             permissions: {
-                read: none(),
-                list: none(),
+                // let the space's readers see its apps
+                read: through("scope", "read"),
+                list: through("scope", "read"),
                 install: none(),
                 update: none(),
                 delete: none(),
@@ -610,7 +615,16 @@ export const Installation = {
             };
             const isRecorded =
                 row.servedRevisionId === served && Observation.isRecorded(row, report);
-            if (!isRecorded && refusal !== undefined) {
+
+            // answer a refusal once Serving changes to it
+            const before = row.conditions["Serving"];
+            const after =
+                outcome === undefined
+                    ? undefined
+                    : Installation.serving(outcome).conditions["Serving"];
+            const isReported =
+                before?.reason === after?.reason && before?.message === after?.message;
+            if (refusal !== undefined && !isReported) {
                 refusals.set(row.id, refusal);
             }
 
