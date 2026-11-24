@@ -98,7 +98,6 @@ async function serveInstallation() {
                 parameters: {
                     scopes: [ids.space],
                     local: [],
-                    replicas: [],
                     replicated: [{ scope, types: type === undefined ? [] : [{ ...type }] }],
                     via: [],
                     between: [],
