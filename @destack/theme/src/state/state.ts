@@ -53,25 +53,27 @@ export const state = style.create({
     },
     /** An item highlighted, open or selected among others, or today beside a chosen date. */
     selected: {
-        backgroundColor: color.selected,
+        backgroundColor: { default: color.selected, [media.forcedColors]: "Highlight" },
     },
     /** A toggle that is on, such as a chosen view or a bold button. */
     on: {
-        backgroundColor: swatch.accentTint,
-        color: swatch.accentTintText,
+        backgroundColor: { default: swatch.accentTint, [media.forcedColors]: "Highlight" },
+        color: { default: swatch.accentTintText, [media.forcedColors]: "HighlightText" },
+        forcedColorAdjust: { default: null, [media.forcedColors]: "none" },
     },
     /** A place a dragged item would land on. */
     target: {
-        backgroundColor: swatch.accentTint,
+        backgroundColor: { default: swatch.accentTint, [media.forcedColors]: "Highlight" },
     },
     /** A control that is checked, a chosen date, or today where no date is chosen. */
     checked: {
-        backgroundColor: swatch.accentSolid,
-        color: swatch.accentLabel,
+        backgroundColor: { default: swatch.accentSolid, [media.forcedColors]: "Highlight" },
+        color: { default: swatch.accentLabel, [media.forcedColors]: "HighlightText" },
+        forcedColorAdjust: { default: null, [media.forcedColors]: "none" },
     },
     /** The page or item the person is on, among its siblings. */
     current: {
-        backgroundColor: color.selected,
+        backgroundColor: { default: color.selected, [media.forcedColors]: "Highlight" },
         fontWeight: weight.medium,
     },
 });
