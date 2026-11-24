@@ -168,13 +168,13 @@ export const Claim = Object.assign(claim, {
         values: readonly unknown[],
         scope?: string,
     ): Promise<ClaimHolder | undefined> {
-        const [found] = await Claim.holders(type, claims, name, [values], scope);
+        const [found] = await Claim.matching(type, claims, name, [values], scope);
 
         return found;
     },
 
-    /** List the objects claiming candidate values in an index, in candidate order. */
-    async holders(
+    /** List the claims matching candidate values in an index, in candidate order. */
+    async matching(
         type: ObjectType,
         claims: ClaimLookup,
         name: string,

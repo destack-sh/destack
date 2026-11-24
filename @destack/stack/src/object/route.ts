@@ -193,11 +193,11 @@ export const Route = {
         const candidates = Route.hostnames(host).flatMap((name) =>
             Route.paths(path).map(([candidate, match]) => [name, candidate, match]),
         );
-        const holders = await Claim.holders(route, claims, "path", candidates);
+        const matched = await Claim.matching(route, claims, "path", candidates);
 
         // take the first a served space owns
-        const served = await Promise.all(holders.map((holder) => serves(holder.scope)));
-        const found = holders.find((_, index) => served[index] === true);
+        const served = await Promise.all(matched.map((claimed) => serves(claimed.scope)));
+        const found = matched.find((_, index) => served[index] === true);
 
         return found === undefined
             ? undefined
