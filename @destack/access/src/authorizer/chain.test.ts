@@ -6,7 +6,7 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { asc, eq } from "@destack/db";
 import type { DatabaseConnection } from "@destack/db/database";
 import {
-    type ObjectTypeReference,
+    ObjectTypeReference,
     Scope,
     type Subject,
     ObjectReference,
@@ -42,7 +42,7 @@ import {
 } from "../test/fixture.ts";
 import { TestAccess } from "../test/access.ts";
 import { homePositions, openDatabase, openFixture, userSubject } from "../test/database.ts";
-import { Identifier, type JsonObject, nth } from "@destack/schema";
+import { Identifier, type JsonObject, nth, schema } from "@destack/schema";
 
 /** The people of the fixed world, each a machine of both regions and a member. */
 const PEOPLE = ["ada", "bea", "cyd", "dov"].map((id) => userSubject(id));
@@ -81,7 +81,7 @@ const CHAIN = [SPACE, "account-0", Scope.universe.id];
 /** The outside scopes of a target's chain: none. */
 const OWN = { via: [], between: [] } as const;
 
-test("replicate a space's chain up to the universe in one replica, with the policies each scope propagates, and follow a grant", async () => {
+test("replicate a space's chain in one replica", async () => {
     // insert an account and its space, both of alice, in the home database
     const home = await openDatabase();
     const app = await openFixture();
@@ -162,7 +162,7 @@ test("replicate a space's chain up to the universe in one replica, with the poli
     expect(await replicated(app.database)).toEqual(await replicated(home.database));
 });
 
-test("replicate at the universe the relationships of the chain's objects alone, and the grants to the target from every scope", () => {
+test("replicate a chain's relationships and grants", () => {
     // build the universe's chain replica of a space and of an outside follower
     const authorizer = new Authorizer(policies, homeMappings);
     const scoped = authorizer.replicateChain(
@@ -170,6 +170,7 @@ test("replicate at the universe the relationships of the chain's objects alone, 
         {
             scopes: ["personal", "account-1", "universe"],
             local: [],
+            replicas: [],
             replicated: [{ scope: Scope.universe.id, types: [] }],
             ...OWN,
         },
@@ -183,6 +184,7 @@ test("replicate at the universe the relationships of the chain's objects alone, 
         {
             scopes: [],
             local: [],
+            replicas: [],
             replicated: [{ scope: Scope.universe.id, types: [] }],
             via: ["account-1"],
             between: [],
@@ -220,7 +222,36 @@ test("replicate at the universe the relationships of the chain's objects alone, 
     ]);
 });
 
-test("replicate the chains of the accounts a follower outside them replicates in one replica at the universe, and let go of an account it stops replicating", async () => {
+test("replicate role permissions on replicas", () => {
+    // build a space's chain replica at the universe, with the given replicas
+    const authorizer = new Authorizer(policies, homeMappings);
+    const permitted = (replicas: readonly ObjectTypeReference[]) => {
+        const chain = authorizer.replicateChain(
+            { name: `${CHAIN_PUBLICATION}:personal`, scope: Scope.universe.id, target: "personal" },
+            {
+                scopes: ["personal", "account-1", "universe"],
+                local: [node.typeReference],
+                replicas,
+                replicated: [{ scope: Scope.universe.id, types: [] }],
+                ...OWN,
+            },
+        );
+        const condition = schema
+            .object({ OR: schema.array(ObjectTypeReference) })
+            .parse(chain.where.get(accessRolePermission));
+
+        return condition.OR.map((type) => type.type);
+    };
+
+    // read the role permissions on cells once the space replicates cells
+    const decided = ["universe", "machine", "device", "space", "account", "space", "user"];
+    expect([permitted([]), permitted([cell.typeReference])]).toEqual([
+        ["node", ...decided],
+        ["node", "cell", ...decided],
+    ]);
+});
+
+test("replicate outside chains and drop one", async () => {
     // open the home and app databases
     const home = await openDatabase();
     const app = await openFixture();
@@ -291,7 +322,7 @@ test("replicate the chains of the accounts a follower outside them replicates in
     ]);
 });
 
-test("replicate a scope object's row from wherever it lives, and only from a source storing its type", () => {
+test("replicate a scope object's row from its source", () => {
     // build the account's chain replica of its type and policies, at every source
     const storing = new Authorizer(policies, homeMappings);
     const relating = new Authorizer(policies, homeMappings, {
@@ -310,7 +341,7 @@ test("replicate a scope object's row from wherever it lives, and only from a sou
     ]).toEqual([{ id: { in: ["account-1"] } }, true, true, false]);
 });
 
-test("read one table of several types once in a chain replica, in the scopes of every type", () => {
+test("read a shared table once", () => {
     // replicate node and cell rows, which share one table, via two outside scopes
     const authorizer = new Authorizer(policies, homeMappings, { replicated: new Set([item]) });
     const outside = authorizer.replicateChain(
@@ -322,6 +353,7 @@ test("read one table of several types once in a chain replica, in the scopes of 
         {
             scopes: [],
             local: [],
+            replicas: [],
             replicated: [
                 { scope: Scope.universe.id, types: [node.typeReference, cell.typeReference] },
             ],
@@ -369,6 +401,7 @@ function chainOf(
     const parameters = {
         scopes,
         local: [],
+        replicas: [],
         replicated: replicating.map((each) => ({ scope: each, types })),
         ...outside,
     };
@@ -383,6 +416,7 @@ function chainOf(
             parameters: {
                 scopes: [...scopes],
                 local: [],
+                replicas: [],
                 replicated: parameters.replicated.map((each) => ({
                     scope: each.scope,
                     types: each.types.map((type) => ({ ...type })),
@@ -402,6 +436,7 @@ function accountChainOf(authorizer: Authorizer, type: ObjectTypeReference) {
         {
             scopes: ["personal", "account-1", "universe"],
             local: [],
+            replicas: [],
             replicated: [{ scope: "account-1", types: [type] }],
             ...OWN,
         },
@@ -472,7 +507,7 @@ async function replicated(database: DatabaseConnection) {
     };
 }
 
-test("decide who serves the account above a space at the home and in its replica as a region's machine or home it resides in, for every role, residence and membership", async () => {
+test("decide who serves an account", async () => {
     // decide every person of the matrix in each residence at the home and in the space's replica
     const refuted: unknown[] = [];
     for (const residence of RESIDENCES) {
@@ -495,7 +530,7 @@ test("decide who serves the account above a space at the home and in its replica
     expect(refuted).toEqual([]);
 });
 
-test("revoke a region's server from the account it resides in at once in the space's replica, through the included relationship", async () => {
+test("revoke a server in the replica", async () => {
     // let ada serve the first account as the server of the region it resides in
     const world = await openWorld(FIXED);
     const ada = nth(PEOPLE, 0);
@@ -518,7 +553,7 @@ test("revoke a region's server from the account it resides in at once in the spa
     ]).toEqual([true, false, []]);
 });
 
-test("replicate the universe's relationships of a space's chain alone, beside thousands of other regions and accounts", async () => {
+test("replicate one chain among thousands", async () => {
     // store 2,000 other regions with a server and 2,000 other accounts with a member at the home
     const world = await openWorld(FIXED, async (fixture) => {
         const now = TEST_START;

@@ -126,6 +126,8 @@ export const ChainParameters = schema.object({
     scopes: schema.array(schema.string().min(1)).readonly(),
     /** The object types the target homes and decides, left out of its own scope's rows. */
     local: schema.array(ObjectTypeReference).readonly(),
+    /** The object types the target replicates and serves its followers, decided by their roles. */
+    replicas: schema.array(ObjectTypeReference).readonly(),
     /** The scopes the replica reads, each with the object types it propagates. */
     replicated: schema
         .array(
@@ -189,7 +191,7 @@ export class Authorizer {
     /** The relations arrows follow, by permission key of their type and name. */
     readonly #arrows = new Set<string>();
     /** The types each type's arrows lead to, by the type's key. */
-    readonly #reached = new Map<string, ObjectTypeReference[]>();
+    readonly #targets = new Map<string, ObjectTypeReference[]>();
     /** The one partition whose scopes' access this database stores, none when absent. */
     readonly partition: string | undefined;
     /** The package serving each type, by type key. */
@@ -1127,7 +1129,7 @@ export class Authorizer {
     ): Replica {
         // read the replicated scope, and the outside scopes and those between for a follower
         const { name, scope, target } = request;
-        const { local, via, between } = parameters;
+        const { local, replicas, via, between } = parameters;
         const scopes = [scope, ...between, ...via];
         const isGranting = scope === Scope.universe.id && via.length === 0;
         const where = new Map<Table, Condition>();
@@ -1145,8 +1147,8 @@ export class Authorizer {
         const isHomed = !isUniverse && scope === target && local.length > 0;
         where.set(accessRelationship, isHomed ? { AND: [followed, homed] } : followed);
 
-        // read the role permissions on the types the target decides: its own, those propagated, scopes, and those their arrows reach
-        const decided = this.#reaching([...local, ...types, ...this.#scopeTypes()]);
+        // read the role permissions on the types the target decides, closed over their arrows' targets
+        const decided = this.#closure([...local, ...replicas, ...types, ...this.#scopeTypes()]);
         where.set(accessRolePermission, {
             OR: decided.map(({ packageId, type }) => ({ packageId, type })),
         });
@@ -1213,18 +1215,18 @@ export class Authorizer {
             .map((policy) => policy.typeReference);
     }
 
-    /** List some types with every type their arrows lead to, transitively, each once. */
-    #reaching(types: readonly ObjectTypeReference[]): ObjectTypeReference[] {
-        const reached = new Map(types.map((type) => [Authorizer.#typeKey(type), type]));
-        for (const type of reached.values()) {
-            for (const next of this.#reached.get(Authorizer.#typeKey(type)) ?? []) {
-                if (!reached.has(Authorizer.#typeKey(next))) {
-                    reached.set(Authorizer.#typeKey(next), next);
+    /** Close types over the types their arrows lead to, transitively, each once. */
+    #closure(types: readonly ObjectTypeReference[]): ObjectTypeReference[] {
+        const closed = new Map(types.map((type) => [Authorizer.#typeKey(type), type]));
+        for (const type of closed.values()) {
+            for (const next of this.#targets.get(Authorizer.#typeKey(type)) ?? []) {
+                if (!closed.has(Authorizer.#typeKey(next))) {
+                    closed.set(Authorizer.#typeKey(next), next);
                 }
             }
         }
 
-        return [...reached.values()];
+        return [...closed.values()];
     }
 
     /** Key an object type by its package and name. */
@@ -2573,9 +2575,9 @@ export class Authorizer {
         for (const subject of this.scopeTypes(type, expression.relation, expression.permission)) {
             // record the type the arrow leads to
             const key = Authorizer.#typeKey(type.typeReference);
-            const reached = this.#reached.get(key) ?? [];
-            this.#reached.set(key, [
-                ...reached,
+            const targets = this.#targets.get(key) ?? [];
+            this.#targets.set(key, [
+                ...targets,
                 { packageId: subject.packageId, type: subject.type },
             ]);
 
