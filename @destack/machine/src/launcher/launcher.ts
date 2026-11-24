@@ -814,7 +814,10 @@ export class Launcher {
     static #isDecided(
         requested: {
             readonly place: PlacementEndpoint;
-            readonly installation: Installation;
+            readonly installation: Pick<
+                Installation,
+                "createdByPackageId" | "createdByType" | "createdByScope" | "createdById"
+            >;
             readonly home: Identifier<"space">;
             readonly permissions: readonly GrantPermission[];
         },

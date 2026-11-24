@@ -19,6 +19,7 @@ import {
     defineObject,
     definePackage,
     field,
+    type InstanceOf,
     PACKAGE_KIND,
     PACKAGE_EXPORT,
     Package,
@@ -280,7 +281,7 @@ test("roll an installation back by following an earlier revision's build, each t
     await fixture.serve();
     const owner = fixture.as(fixture.owner.subject).client(stackPackage);
     const installer = fixture.as(fixture.owner.subject).client(stackPackage);
-    let installed: Installation | undefined;
+    let installed: InstanceOf<typeof object.installation> | undefined;
     const install = async (version: string) => {
         // release the version and follow it
         await fixture.publish(await fixtureBuild(ids.package, version, fixture.environment.crypto));
