@@ -60,6 +60,7 @@ const styles = style.create({
         // take the focus without a ring where nothing inside takes it
         outlineStyle: "none",
         // fade the backdrop with the dialog, which a drag may fade further
+        [scrim.fade]: { default: SCRIM_FADE, ":is([data-instant])": "0s" },
         [scrim.opacity]: {
             default: "0",
             ":modal": { default: "1", ":is(:modal *)": NESTED_SCRIM },
@@ -68,7 +69,8 @@ const styles = style.create({
             backgroundColor: color.scrim,
             opacity: { default: `calc(${scrim.opacity} * ${scrim.share})`, "@starting-style": 0 },
             transitionProperty: "opacity, display, overlay",
-            transitionDuration: SCRIM_FADE,
+            transitionDuration: scrim.fade,
+            transitionTimingFunction: motion.easingStandard,
             transitionBehavior: "allow-discrete",
         },
     },
@@ -160,6 +162,7 @@ export class DialogControl<Payload = unknown> {
     sync(element: HTMLDialogElement): void {
         // open it modally on top of the document's stack
         const isOpen = untrack(this.isOpen);
+        this.state.mark(element);
         if (isOpen && !element.open && untrack(this.isModal)) {
             element.showModal();
             LayerStack.of(element).open(element);

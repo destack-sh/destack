@@ -58,6 +58,9 @@ const styles = style.create({
         flexWrap: "wrap",
         gap: space[1],
     },
+    chip: {
+        overflow: { default: "hidden", [media.pointerCoarse]: "visible" },
+    },
     remove: {
         display: "inline-flex",
         padding: { default: 0, [media.pointerCoarse]: space[2] },
@@ -241,6 +244,7 @@ export class ComboboxControl {
             return;
         }
         // attach the list to its frame before showing, and place by script once it has a size
+        this.#state.mark(this.#content);
         if (isOpen) {
             const detach = Position.attach(this.#content, this.#anchor, this.list.id);
             this.#content.showPopover({ source: this.#input });
@@ -603,7 +607,7 @@ export function ComboboxChip(properties: ComboboxChipProperties): JSX.Element {
                 data-slot="combobox-chip"
                 {...rest}
                 {...style.attributes(
-                    [badgeVariants({ variant: "secondary" }), properties.xstyle],
+                    [badgeVariants({ variant: "secondary" }), styles.chip, properties.xstyle],
                     properties.style,
                 )}
             >

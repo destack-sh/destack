@@ -6,4 +6,6 @@ export const scrim = style.defineVars({
     opacity: "0",
     /** The share of its opacity a drag of the dialog leaves. */
     share: "1",
+    /** How long it fades for. */
+    fade: "0s",
 });

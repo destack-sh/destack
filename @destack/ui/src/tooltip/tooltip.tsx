@@ -81,6 +81,9 @@ export class TooltipControl<Payload = unknown> extends HoverPopover<Payload> {
         );
     }
 
+    /** Leave the content to the group, which says whether a tooltip moves. */
+    override mark(): void {}
+
     /** Open after the delay, at once and without motion while the group is warm. */
     override openLater(change?: OpenChange<Payload>): void {
         this.#setInstant(this.#group.isWarm(this.#clock.now()));

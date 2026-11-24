@@ -383,6 +383,7 @@ export class MenuControl<Payload = unknown> {
         }
 
         // show it beside its trigger, or at its point, and focus the item asked for
+        this.state.mark(content);
         if (isOpen) {
             const trigger = untrack(this.state.trigger)?.element;
             const point = untrack(this.point);

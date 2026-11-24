@@ -199,6 +199,7 @@ const styles = style.create({
         whiteSpace: "nowrap",
         transitionProperty: "opacity",
         transitionDuration: motion.durationMedium,
+        transitionTimingFunction: motion.easingStandard,
     },
     fade: { opacity: 0 },
     groupAction: { position: "absolute", top: space[3], right: space[3] },
@@ -317,6 +318,10 @@ export class SidebarControl {
     readonly isResizing: Accessor<boolean>;
     /** Replace the dragged width. */
     readonly #setWidth: Setter<number | undefined>;
+    /** Whether the keyboard toggled it last, which no motion follows. */
+    readonly isInstant: Accessor<boolean>;
+    /** Set whether the keyboard did. */
+    readonly #setInstant: Setter<boolean>;
     /** Replace whether the sidebar follows a drag. */
     readonly #setResizing: Setter<boolean>;
     /** The width the viewer left the sidebar at. */
@@ -336,9 +341,12 @@ export class SidebarControl {
             ownedWrite: true,
         });
         const [isResizing, setResizing] = createSignal(false, { ownedWrite: true });
+        const [isInstant, setInstant] = createSignal(false, { ownedWrite: true });
 
         // store the state
         this.id = createUniqueId();
+        this.isInstant = isInstant;
+        this.#setInstant = setInstant;
         this.tooltip = new TooltipControl({ delay: 0 });
         this.isOpen = isOpen;
         this.isMobile = isMobile;
@@ -427,8 +435,10 @@ export class SidebarControl {
         return this.#properties.minWidth ?? MIN_WIDTH;
     }
 
-    /** Toggle the sheet on narrow screens and the sidebar on wide ones. */
-    toggle(): void {
+    /** Toggle the sheet on narrow screens and the sidebar on wide ones, at once by the keyboard. */
+    toggle(change: OpenChange = new OpenChange()): void {
+        // leave out the motion people would wait for each time
+        this.#setInstant(change.isByKeyboard);
         if (this.isMobile()) {
             this.#setMobileOpen(!this.isMobileOpen());
         } else {
@@ -535,7 +545,7 @@ export function SidebarProvider(properties: SidebarProviderProperties): JSX.Elem
         const toggle = (event: KeyboardEvent) => {
             if (event.key === "b" && (event.metaKey || event.ctrlKey)) {
                 event.preventDefault();
-                control.toggle();
+                control.toggle(new OpenChange("none", event));
             }
         };
         document.addEventListener("keydown", toggle);
@@ -617,7 +627,7 @@ export function Sidebar(properties: SidebarProperties): JSX.Element {
                         styles[sidebar.side],
                         sidebar.variant === "sidebar" ? null : styles.floating,
                         sizing(),
-                        control.isResizing() && styles.resizing,
+                        (control.isResizing() || control.isInstant()) && styles.resizing,
                         sidebar.xstyle,
                     ],
                     sidebar.style,
@@ -644,8 +654,13 @@ export function SidebarTrigger(properties: Omit<ButtonProperties, "onClick">): J
                 (control.isMobile() ? control.isMobileOpen() : control.isOpen()) ? "true" : "false"
             }
             data-slot="sidebar-trigger"
-            {...properties}
-            onClick={() => control.toggle()}
+            {...mergeProperties(
+                {
+                    onClick: (event: MouseEvent) =>
+                        control.toggle(new OpenChange("trigger-press", event)),
+                },
+                properties,
+            )}
         >
             <Icon name="sidebar-simple" />
         </Button>
@@ -782,6 +797,7 @@ export function SidebarGroupLabel(
         text.xs,
         styles.groupLabel,
         !control.isOpen() && !control.isMobile() && styles.fade,
+        control.isInstant() && styles.resizing,
     ]);
 }
 

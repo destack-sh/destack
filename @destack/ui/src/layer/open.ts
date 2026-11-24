@@ -14,6 +14,13 @@ export type OpenReason =
     | "swipe"
     | "none";
 
+/** The reasons only the keyboard has. */
+const KEYBOARD: ReadonlySet<OpenReason> = new Set<OpenReason>([
+    "escape-key",
+    "input",
+    "trigger-focus",
+]);
+
 /** An element that opens an overlay, with what the overlay shows for it. */
 export interface OpenTrigger<Payload = unknown> {
     /** The element, which the overlay is placed beside and hands the focus back to. */
@@ -55,6 +62,14 @@ export class OpenChange<Payload = unknown> {
         return this.#isCanceled;
     }
 
+    /** Whether the keyboard asks for it: by a key, by typing, by the focus or by a press. */
+    get isByKeyboard(): boolean {
+        const { event, reason } = this;
+        const isPress = event instanceof MouseEvent && event.type === "click" && event.detail === 0;
+
+        return KEYBOARD.has(reason) || event instanceof KeyboardEvent || isPress;
+    }
+
     /** Leave the overlay as it is, where it may be. */
     cancel(): void {
         this.#isCanceled = this.isCancelable;
@@ -90,6 +105,8 @@ export class OpenState<Payload = unknown> {
     readonly isOpen: Accessor<boolean>;
     /** The trigger it last opened from, a root's own one until then. */
     readonly trigger: Accessor<OpenTrigger<Payload> | undefined>;
+    /** Whether the keyboard opened or closed it last, which no motion follows. */
+    #isInstant: boolean;
     /** Replace the overlay's own state. */
     readonly #setOwn: (isOpen: boolean) => void;
     /** The properties of its root. */
@@ -112,6 +129,7 @@ export class OpenState<Payload = unknown> {
         this.#count = 0;
         const [own, setOwn] = createSignal(untrack(() => properties.defaultOpen === true));
         const [turns, setTurns] = createSignal(0, { ownedWrite: true });
+        this.#isInstant = false;
         this.#turn = () => setTurns((count) => count + 1);
         this.#last = undefined;
         this.#root = undefined;
@@ -131,6 +149,11 @@ export class OpenState<Payload = unknown> {
 
     /** What the overlay shows for the trigger it last opened from. */
     readonly payload = (): Payload | undefined => this.trigger()?.payload;
+
+    /** Mark an overlay's element as it shows or hides, where the keyboard asked for it. */
+    mark(element: HTMLElement): void {
+        element.toggleAttribute("data-instant", this.#isInstant);
+    }
 
     /** Give a trigger an id, which labels the overlay while it is open from it. */
     triggerId(): string {
@@ -190,6 +213,7 @@ export class OpenState<Payload = unknown> {
     /** Ask the owner for a change, taking its trigger unless the owner cancels it. */
     ask(isOpen: boolean, change: OpenChange<Payload>): boolean {
         // show the trigger's payload until the overlay opens from another
+        this.#isInstant = change.isByKeyboard;
         this.#properties.onOpenChange?.(isOpen, change);
         if (!change.isCanceled && isOpen && change.trigger !== undefined) {
             this.#last = change.trigger;

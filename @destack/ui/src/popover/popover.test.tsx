@@ -148,7 +148,7 @@ test("open a modal popover as a modal dialog anchored by name on top of the stac
             true,
             true,
             '<button data-slot="popover-trigger" type="button" id="id-1-trigger" aria-haspopup="dialog" aria-expanded="true" aria-controls="id-1" data-popup-open="" data-anchor-name="--id-1">Share</button>' +
-                '<dialog id="id-1" closedby="any" aria-labelledby="id-1-trigger" data-slot="popover-content" data-side="bottom" data-align="start" data-open="" open="" data-position-anchor="--id-1"><button type="button">Copy link</button></dialog>',
+                '<dialog id="id-1" closedby="any" aria-labelledby="id-1-trigger" data-slot="popover-content" data-side="bottom" data-align="start" data-open="" data-instant="" open="" data-position-anchor="--id-1"><button type="button">Copy link</button></dialog>',
         ],
         false,
         undefined,

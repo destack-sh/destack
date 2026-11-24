@@ -4,6 +4,7 @@ import * as style from "@destack/style";
 import { state } from "@destack/theme/state";
 import { media } from "@destack/style/media.stylex";
 import { color, radius, size, space, stroke } from "@destack/theme/tokens.stylex";
+import { transition } from "@destack/theme/motion";
 import { text } from "@destack/theme/text";
 import {
     type Accessor,
@@ -680,7 +681,11 @@ export function CommandDialog(properties: CommandDialogProperties): JSX.Element 
             <DialogContent
                 data-slot="command-dialog"
                 showCloseButton={false}
-                xstyle={[styles.dialog, properties.size === "sm" && styles.small]}
+                xstyle={[
+                    styles.dialog,
+                    properties.size === "sm" && styles.small,
+                    transition.instant,
+                ]}
             >
                 <DialogTitle xstyle={visuallyHiddenStyle()}>
                     {properties.title ?? locale.render(t`Command palette`)}

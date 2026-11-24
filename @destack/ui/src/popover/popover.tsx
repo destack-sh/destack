@@ -410,6 +410,11 @@ export class PopoverControl<Payload = unknown> {
         }
     }
 
+    /** Mark the content as it shows or hides, where the keyboard asked for it. */
+    mark(content: HTMLElement): void {
+        this.state.mark(content);
+    }
+
     /** Show the popover element anchored to its trigger, or hide it. */
     sync(isOpen: boolean): void {
         if (this.#content === undefined || isOpen === this.#isShown) {
@@ -418,6 +423,7 @@ export class PopoverControl<Payload = unknown> {
 
         // show a dialog element modally and lock the page behind it, else as a popover
         const content = this.#content;
+        this.mark(content);
         if (isOpen && content instanceof HTMLDialogElement) {
             content.showModal();
             LayerStack.of(content).open(content);

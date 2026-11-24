@@ -2,7 +2,7 @@ import { expect, test } from "@destack/test";
 import { render } from "@destack/view/test";
 import { FieldContext, FieldControl, useFieldControl } from "../field/control.ts";
 import { JoinContext, useJoin } from "../join/index.ts";
-import { TopLayer } from "./index.ts";
+import { OpenChange, TopLayer } from "./index.ts";
 
 test("render an overlay's content apart from the field and the joining group around its trigger", () => {
     // read the field and the joining styles beside the trigger and inside the top layer
@@ -35,4 +35,26 @@ test("render an overlay's content apart from the field and the joining group aro
         trigger: [read["trigger"]?.[0], read["trigger"]?.[1] === null],
         content: read["content"],
     }).toEqual({ trigger: [true, false], content: [false, null] });
+});
+
+test("tell a change the keyboard asks for from one a pointer does", () => {
+    const changes = [
+        new OpenChange("escape-key"),
+        new OpenChange("input"),
+        new OpenChange("trigger-focus"),
+        new OpenChange("trigger-press", new KeyboardEvent("keydown", { key: "ArrowDown" })),
+        new OpenChange("trigger-press", new MouseEvent("click", { detail: 0 })),
+        new OpenChange("trigger-press", new MouseEvent("click", { detail: 1 })),
+        new OpenChange("outside-press"),
+    ];
+
+    expect(changes.map((change) => change.isByKeyboard)).toEqual([
+        true,
+        true,
+        true,
+        true,
+        true,
+        false,
+        false,
+    ]);
 });
