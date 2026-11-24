@@ -167,14 +167,6 @@ export class Workspace {
         this.#selection = options.selection ?? "all";
     }
 
-    /** Report whether a host's builtin version meets a range, unreleased code meeting any. */
-    static meets(version: string, range: string): boolean {
-        return (
-            !Version.isRelease(version) ||
-            (range !== Version.development && Bun.semver.satisfies(version, range))
-        );
-    }
-
     /** Read a checkout's workspace once: its members, files, npm installation and toolchain. */
     static open(
         directory: string,
@@ -508,7 +500,7 @@ export class WorkspacePackage {
             for (const release of unit.releases) {
                 const version = versions.get(release.name);
                 const range = ranges[release.name] ?? "*";
-                if (version !== undefined && !Workspace.meets(version, range)) {
+                if (version !== undefined && !Version.meets(version, range)) {
                     throw BuildError.of(
                         "DEPENDENCY_INVALID",
                         `dependency '${release.name}' of '${unit.name}' is invalid: it requires '${range}' and the host provides '${version}'`,
