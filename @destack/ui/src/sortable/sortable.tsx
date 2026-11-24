@@ -1093,6 +1093,7 @@ export function SortableHandle(properties: SortableHandleProperties): JSX.Elemen
             {...style.attributes(
                 [
                     state.focus,
+                    state.touch,
                     state.disabled,
                     styles.handle,
                     isDragging() && styles.grabbing,

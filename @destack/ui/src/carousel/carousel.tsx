@@ -508,6 +508,7 @@ export function CarouselDots(
                                 data-slot="carousel-dot"
                                 onClick={() => control.go(index)}
                                 {...style.attrs(
+                                    state.touch,
                                     styles.dot,
                                     control.index() === index && styles.current,
                                 )}
