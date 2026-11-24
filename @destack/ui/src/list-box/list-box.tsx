@@ -641,7 +641,7 @@ function sectioned(
         if (
             autocomplete !== undefined &&
             !option.isForced() &&
-            !autocomplete.matches(option.value(), option.keywords())
+            !autocomplete.matches(option.value(), [option.text(), ...option.keywords()])
         ) {
             continue;
         }

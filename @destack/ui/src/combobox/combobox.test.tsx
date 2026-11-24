@@ -106,3 +106,46 @@ test("check the chosen item's indicator and move it as the person chooses anothe
 
     expect([before, checked()]).toEqual([["Work"], ["Trips"]]);
 });
+
+test("show the chosen value's text, filter by what is typed, and show it again when left", () => {
+    const chosen: unknown[] = [];
+    const { container } = render(() => (
+        <Combobox defaultValue="id-work" onValueChange={(value) => void chosen.push(value)}>
+            <ComboboxInput aria-label="Notebook" />
+            <ComboboxItem value="id-trips">Trips</ComboboxItem>
+            <ComboboxItem value="id-work">Work</ComboboxItem>
+        </Combobox>
+    ));
+    flush();
+    const input = container.querySelector("input");
+    const read = () => [
+        input?.value,
+        ...[...container.querySelectorAll("[role=option]:not([hidden])")].map(
+            (option) => option.textContent,
+        ),
+    ];
+    const type = (text: string) => {
+        if (input !== null) {
+            input.value = text;
+            input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+        }
+        flush();
+
+        return read();
+    };
+    const leave = () => {
+        input?.dispatchEvent(new FocusEvent("blur"));
+        flush();
+
+        return read();
+    };
+
+    expect([read(), type("tri"), leave(), type(""), leave(), chosen]).toEqual([
+        ["Work", "Trips", "Work"],
+        ["tri", "Trips"],
+        ["Work", "Trips", "Work"],
+        ["", "Trips", "Work"],
+        ["", "Trips", "Work"],
+        [undefined],
+    ]);
+});

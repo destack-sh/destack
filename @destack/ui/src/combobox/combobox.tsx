@@ -9,10 +9,13 @@ import {
     createContext,
     createUniqueId,
     createEffect,
+    createSignal,
+    flush,
     For,
     type JSX,
     omit,
     onCleanup,
+    type Setter,
     Show,
     untrack,
     useContext,
@@ -91,6 +94,10 @@ export class ComboboxControl {
     readonly items: CollectionBuilder<string>;
     /** The text of each value chosen here, which the chips show. */
     readonly #labels: Map<string, string>;
+    /** What a person types, undefined while the chosen value shows. */
+    readonly #typed: Accessor<string | undefined>;
+    /** Replace what a person types. */
+    readonly #setTyped: Setter<string | undefined>;
     /** The open state. */
     readonly #state: OpenState;
     /** The input. */
@@ -106,17 +113,24 @@ export class ComboboxControl {
     constructor(properties: ComboboxProperties) {
         // follow the chosen values, the open state and the typed text
         this.#state = new OpenState(properties, createUniqueId());
+        this.selection = new Selection(properties);
+        const [typed, setTyped] = createSignal(
+            untrack(() => properties.defaultInputValue),
+            { ownedWrite: true },
+        );
+        this.#typed = typed;
+        this.#setTyped = setTyped;
+        const shown = (): string => this.#shown();
         this.autocomplete = new AutocompleteControl({
             get filter() {
-                return properties.filter;
+                return typed() === undefined && properties.inputValue === undefined
+                    ? null
+                    : properties.filter;
             },
             get value() {
-                return properties.inputValue;
+                return shown();
             },
-            get defaultValue() {
-                return properties.defaultInputValue;
-            },
-            onValueChange: (typed) => properties.onInputValueChange?.(typed),
+            onValueChange: (next) => this.#type(next),
         });
 
         // choose an option's value with its text from the list box
@@ -124,7 +138,6 @@ export class ComboboxControl {
             autocomplete: this.autocomplete,
             onAction: (option) => this.choose(option.value(), option.text()),
         });
-        this.selection = new Selection(properties);
         this.properties = properties;
         this.isOpen = this.#state.isOpen;
         this.items = new CollectionBuilder();
@@ -138,9 +151,50 @@ export class ComboboxControl {
         onCleanup(() => this.#unplace());
     }
 
-    /** Return the text of a chosen value, the value itself when it was chosen elsewhere. */
+    /** Return the text of a chosen value, its option's, else the value itself. */
     labelOf(value: string): string {
-        return this.#labels.get(value) ?? value;
+        const option = this.list.options.items().find((each) => each.value() === value);
+
+        return this.#labels.get(value) ?? option?.text() ?? value;
+    }
+
+    /** Leave the search, showing the text of the chosen value again. */
+    leave(): void {
+        // forget the text typed, which chose nothing
+        const before = this.autocomplete.value();
+        this.#setTyped(undefined);
+        flush();
+        const after = this.#label();
+        if (before !== after) {
+            this.properties.onInputValueChange?.(after);
+        }
+    }
+
+    /** Read the text of the input: the owner's, what a person types, else the chosen value's. */
+    #shown(): string {
+        return this.properties.inputValue ?? this.#typed() ?? this.#label();
+    }
+
+    /** Read the text of the chosen value, none in a multiple combobox, whose chips show theirs. */
+    #label(): string {
+        const [chosen] = this.selection.values();
+
+        return this.properties.multiple === true || chosen === undefined
+            ? ""
+            : this.labelOf(chosen);
+    }
+
+    /** Take the text a person types, choosing nothing by an empty one. */
+    #type(typed: string): void {
+        // show it and tell the owner
+        this.#setTyped(typed);
+        this.properties.onInputValueChange?.(typed);
+
+        // choose none by an empty text
+        const isChosen = this.selection.values().length > 0;
+        if (typed === "" && isChosen && this.properties.multiple !== true) {
+            this.selection.clear();
+        }
     }
 
     /** Set the input. */
@@ -209,7 +263,8 @@ export class ComboboxControl {
 
         // set a single combobox's value and close the list on its text
         this.selection.add(value);
-        this.autocomplete.type(label);
+        this.properties.onInputValueChange?.(label);
+        this.#setTyped(undefined);
         this.open(false, new OpenChange("item-press"));
     }
 
@@ -225,7 +280,7 @@ export class ComboboxControl {
 export type ComboboxProperties = {
     /** The text in the input, which makes it controlled. */
     readonly inputValue?: string;
-    /** The text in the input at first while uncontrolled, empty by default. */
+    /** The text in the input at first while uncontrolled, the chosen value's by default. */
     readonly defaultInputValue?: string;
     /** Report whether an option matches the typed text, null where the owner filters. */
     readonly filter?:
@@ -308,7 +363,10 @@ export function ComboboxInput(
                     control.open(true, new OpenChange("input", event));
                 }}
                 onKeyDown={(event) => steer(event, control, locale.direction)}
-                onBlur={(event) => control.open(false, new OpenChange("focus-out", event))}
+                onBlur={(event) => {
+                    control.open(false, new OpenChange("focus-out", event));
+                    control.leave();
+                }}
             />
             <InputGroupAddon align="inline-end">
                 <ComboboxTrigger disabled={properties.disabled === true} />
