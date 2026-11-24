@@ -29,6 +29,9 @@ import type { Scheduler } from "../scheduler/scheduler.ts";
 import type { SimulationEvent } from "../simulation/simulation.ts";
 import { WebSocketClosure, MemoryWebSocket } from "./websocket.ts";
 
+/** The host's own network, reaching host processes through Unix sockets, which need no proxy. */
+const HOST_NETWORK = new BunNetwork({});
+
 /** The prefix of a Unix socket's key, which every node sharing the host's files reaches. */
 const UNIX_KEY = "unix:";
 
@@ -323,7 +326,7 @@ export class SimulatedNetwork {
             fetch: async (request, options) => {
                 // send through a Unix socket on the host to a host process, which may call back in
                 if (options?.unix !== undefined) {
-                    return this.#scheduler.waitUntil(BunNetwork.fetch(request, options));
+                    return this.#scheduler.waitUntil(HOST_NETWORK.fetch(request, options));
                 }
 
                 // refuse a private host by its name, the simulated network routing by name

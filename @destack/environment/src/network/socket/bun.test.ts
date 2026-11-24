@@ -7,6 +7,9 @@ import { TLSSocket } from "node:tls";
 import { BunNetwork } from "../bun.ts";
 import { BunServer } from "../../server/bun.ts";
 
+/** The host's network, with no proxy variables. */
+const NETWORK = new BunNetwork({});
+
 /** The encoder of the tests' lines. */
 const ENCODER = new TextEncoder();
 /** The decoder of the tests' lines. */
@@ -47,7 +50,7 @@ test("echo bytes over a system TCP connection on the loopback, and end it from t
     });
 
     // connect it, write a line, read it back and close
-    const socket = BunNetwork.connect(listener.address);
+    const socket = NETWORK.connect(listener.address);
     await socket.opened;
     const writer = socket.writable.getWriter();
     await writer.write(ENCODER.encode("hello\r\n"));
@@ -69,7 +72,7 @@ test("echo bytes over a Unix socket, refusing TLS on one and a path nothing list
 
     // connect it, write a line and read it back, then refuse a TLS connection at the path
     try {
-        const socket = BunNetwork.connect({ unix });
+        const socket = NETWORK.connect({ unix });
         await socket.opened;
         const writer = socket.writable.getWriter();
         await writer.write(ENCODER.encode("hello\n"));
@@ -77,12 +80,12 @@ test("echo bytes over a Unix socket, refusing TLS on one and a path nothing list
         await socket.close();
         const refusal = (() => {
             try {
-                return BunNetwork.connect({ unix }, { secureTransport: "on" });
+                return NETWORK.connect({ unix }, { secureTransport: "on" });
             } catch (error) {
                 return error;
             }
         })();
-        const unserved = await BunNetwork.connect({
+        const unserved = await NETWORK.connect({
             unix: join(directory, "missing.sock"),
         }).opened.catch((error: Error) => ("code" in error ? error.code : error));
 
@@ -124,7 +127,7 @@ test("start TLS over a plain system connection once the server agrees, trusting 
     });
 
     // read the greeting in plain text and ask for TLS
-    const plain = BunNetwork.connect(
+    const plain = NETWORK.connect(
         { hostname: "localhost", port: portOf(server) },
         { secureTransport: "starttls", certificateAuthorities: [pem.cert] },
     );

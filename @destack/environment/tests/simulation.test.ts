@@ -1346,9 +1346,9 @@ test("publish a node's listener at a world address for nodes and a host address 
 
     // call it from the host at its host address, and from another node at its world address
     const fromHost = await simulation.scheduler.waitUntil(
-        BunNetwork.fetch(new Request(new URL("/host", published.hostUrl))).then((response) =>
-            response.text(),
-        ),
+        new BunNetwork({})
+            .fetch(new Request(new URL("/host", published.hostUrl)))
+            .then((response) => response.text()),
     );
     const { network } = simulation.environment("client");
     const fromNode = await network

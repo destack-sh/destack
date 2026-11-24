@@ -38,7 +38,7 @@ function buildSystem() {
     const environment = {
         ...Environment.system,
         crypto: BunCrypto,
-        network: BunNetwork,
+        network: new BunNetwork(process.variables),
         telemetry,
         files: new BunFileSystem(),
         process,

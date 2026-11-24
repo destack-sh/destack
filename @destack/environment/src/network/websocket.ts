@@ -84,6 +84,19 @@ export const BearerProtocol = {
             return undefined;
         }
     },
+
+    /** Remove the bearer subprotocols from headers, keeping the others the client offers. */
+    remove(headers: Headers): void {
+        // keep the subprotocols other than bearer tokens, dropping the header once none remain
+        const kept = offered(headers).filter(
+            (protocol) => !protocol.startsWith(BEARER_PROTOCOL_PREFIX),
+        );
+        if (kept.length === 0) {
+            headers.delete("sec-websocket-protocol");
+        } else {
+            headers.set("sec-websocket-protocol", kept.join(", "));
+        }
+    },
 };
 
 /** A request's WebSocket upgrade (RFC 6455 4.1): the request and the subprotocols it offers. */
