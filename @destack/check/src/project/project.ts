@@ -187,12 +187,13 @@ export class Project {
             return 0;
         }
 
-        // run the missing files, then record the ones that passed
+        // run the missing files, then record them once the whole run passed, as unhandled errors belong to no file
         const directory = await this.environment.files.makeTemporaryDirectory("destack-test-");
         try {
             const code = await this.#run({ ...options, files: missing }, hasNode, directory);
-            const durations = await this.#passes(directory);
-            await store.pass(this.directory, member, closure, durations);
+            if (code === 0) {
+                await store.pass(this.directory, member, closure, await this.#passes(directory));
+            }
 
             return code;
         } finally {
@@ -293,7 +294,7 @@ export class Project {
         return bun !== 0 ? bun : node;
     }
 
-    /** Read the files that passed in every project and runtime, with their summed durations. */
+    /** Read the files a passing run ran in every project and runtime, with their durations. */
     async #passes(directory: string): Promise<Map<string, number>> {
         // sum each file's durations and note any failure, over both runtimes' results
         const { files } = this.environment;
