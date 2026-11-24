@@ -355,7 +355,7 @@ function isViewTestKit(module: unknown): module is ViewTestKit {
 interface BuildKit {
     /** Load the transforms of a package's own build extension and its dependencies'. */
     readonly loadTransforms: (
-        context: Omit<TransformContext, "dependencies">,
+        context: Omit<TransformContext, "dependencies" | "mode">,
     ) => Promise<PluginOption[]>;
 }
 
