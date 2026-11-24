@@ -93,7 +93,7 @@ export function tablesOf(store: {
     const types = store.packages
         .flatMap((handle) => Object.values(handle.objects))
         .filter((declared) => declared instanceof ObjectType);
-    const local = Table.closure([
+    const local = Table.affected([
         ...SYSTEM_TABLES,
         ...types
             .filter((type) => type.storage === "durable" || type.storage === "events")

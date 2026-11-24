@@ -334,7 +334,7 @@ export const ObjectDescription = Object.assign(objectDescription, {
     ): DatabaseState {
         // declare the types against each other and the known ones, and take the durable and events tables
         const declared = ObjectTypePool.of(known).declare(descriptions);
-        const tables = Table.closure(
+        const tables = Table.affected(
             declared
                 .filter((type) => type.storage === "durable" || type.storage === "events")
                 .flatMap((type) => type.tables),

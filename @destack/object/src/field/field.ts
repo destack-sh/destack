@@ -1,6 +1,6 @@
 import {
     ActionInput,
-    type ActionNeed,
+    type InputPresence,
     type ActionValue,
     type VALUE_KINDS,
 } from "../declare/input.ts";
@@ -550,7 +550,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
     }
 
     /** Build the action input the field takes: an object, a choice, or a value of its kind. */
-    actionInput(name: string, need?: ActionNeed): ActionInput {
+    actionInput(name: string, presence?: InputPresence): ActionInput {
         // take an object of a reference's type, a choice of an enum's, or a value
         const type = this.type === "reference" ? this.target?.() : undefined;
         const { source } = this;
@@ -567,7 +567,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
                     };
         const declared = this.isDefault ? "default" : this.required ? "required" : "optional";
 
-        return new ActionInput({ name, label: this.label, need: need ?? declared, value });
+        return new ActionInput({ name, label: this.label, presence: presence ?? declared, value });
     }
 
     /** The aggregate function maintaining the value. */

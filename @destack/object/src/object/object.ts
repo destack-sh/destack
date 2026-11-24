@@ -1461,13 +1461,13 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             .map((name) => {
                 // take what the field it writes takes, else what its schema does
                 const field = fields[name];
-                const need = required.includes(name) ? "required" : "optional";
+                const presence = required.includes(name) ? "required" : "optional";
                 if (field === undefined) {
-                    return ActionInput.ofSchema(name, properties[name] ?? {}, need);
+                    return ActionInput.ofSchema(name, properties[name] ?? {}, presence);
                 }
                 const property = field.type === "subject" ? (field.relation ?? name) : name;
 
-                return field.actionInput(property, need);
+                return field.actionInput(property, presence);
             });
     }
 

@@ -139,7 +139,7 @@ export class ActionCall {
         const target = new ActionInput({
             name: TARGET_INPUT,
             label: undefined,
-            need: "required",
+            presence: "required",
             value: { kind: "object", type: object, source: "selected", where: undefined },
         });
         const isTargeted = object.method(method).target !== "scope";
@@ -225,7 +225,7 @@ export class ActionCall {
         const { object, method } = this;
         for (const input of this.inputs) {
             const value = values[input.name];
-            if (value === undefined && input.need === "required") {
+            if (value === undefined && input.presence === "required") {
                 throw ObjectError.of(
                     "CALL_BLOCKED",
                     `cannot call '${object.name}.${method}': input '${input.name}' is missing`,

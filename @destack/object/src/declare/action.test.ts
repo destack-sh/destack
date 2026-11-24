@@ -188,7 +188,7 @@ test("describe actions by their keys, inputs and template, and read them back fr
                     inputs: [
                         {
                             name: "notes",
-                            need: "required",
+                            presence: "required",
                             kind: "object",
                             type: note.typeReference,
                             source: "selected",
@@ -207,7 +207,9 @@ test("describe actions by their keys, inputs and template, and read them back fr
                     ...called,
                     method: "create",
                     input: { title: { placeholder: "title" } },
-                    inputs: [{ name: "title", label: t`Title`, need: "required", kind: "text" }],
+                    inputs: [
+                        { name: "title", label: t`Title`, presence: "required", kind: "text" },
+                    ],
                 },
             },
             { package: notes, name: "pin", title: t`Pin`, keybinding: "mod+p", focus: "any" },
@@ -1009,7 +1011,7 @@ test("read what a schema takes, its choices, and whether it must be given", () =
         { package: notes },
     );
 
-    expect(group.inputs.map(({ name, need, value }) => [name, need, value])).toEqual([
+    expect(group.inputs.map(({ name, presence, value }) => [name, presence, value])).toEqual([
         [
             "field",
             "required",
@@ -1070,7 +1072,7 @@ test("read a declared variable the nearest place gives, the space, and refuse on
             {
                 name: "week",
                 label: t`Week`,
-                need: "required",
+                presence: "required",
                 kind: "json",
                 variable: visibleWeek.key,
             },

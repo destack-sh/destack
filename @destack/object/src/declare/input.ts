@@ -23,8 +23,8 @@ const VALUE_TYPES = {
     time: "number",
 } as const;
 
-/** What a schema that wraps another says of the need for a value, by its type. */
-const NEEDS: Readonly<Partial<Record<string, ActionNeed>>> = {
+/** What a schema that wraps another says of a value's presence, by its type. */
+const PRESENCES: Readonly<Partial<Record<string, InputPresence>>> = {
     optional: "optional",
     default: "default",
     prefault: "default",
@@ -51,7 +51,7 @@ const PROPERTY = schema.looseObject({
 });
 
 /** Whether a person must give an input, may, or leaves it to its default. */
-export type ActionNeed = "required" | "optional" | "default";
+export type InputPresence = "required" | "optional" | "default";
 
 /** What an input takes: a value, one of some choices, or objects from a source. */
 export type ActionValue =
@@ -74,7 +74,7 @@ export class ActionInput {
     /** The input's name as people read it, absent to read it from its name. */
     readonly label: Message | undefined;
     /** Whether the person must give it, may, or leaves it to its default. */
-    readonly need: ActionNeed;
+    readonly presence: InputPresence;
     /** What it takes. */
     readonly value: ActionValue;
     /** The key of the variable places give it by, absent for any other input. */
@@ -82,13 +82,13 @@ export class ActionInput {
 
     /** Create an input. */
     constructor(
-        definition: Pick<ActionInput, "name" | "label" | "need" | "value"> &
+        definition: Pick<ActionInput, "name" | "label" | "presence" | "value"> &
             Partial<Pick<ActionInput, "variable">>,
     ) {
-        // take the name, the label, the need and the value
+        // take the name, the label, the presence and the value
         this.name = definition.name;
         this.label = definition.label;
-        this.need = definition.need;
+        this.presence = definition.presence;
         this.value = definition.value;
         this.variable = definition.variable;
     }
@@ -102,7 +102,7 @@ export class ActionInput {
             return new ActionInput({
                 name,
                 label: undefined,
-                need: isOptional ? "default" : "required",
+                presence: isOptional ? "default" : "required",
                 value: {
                     kind: "object",
                     type,
@@ -112,17 +112,17 @@ export class ActionInput {
             });
         } else if (definition instanceof ContextVariable) {
             const { label, key: variable } = definition;
-            const { need, value } = ActionInput.of(name, definition.value);
+            const { presence, value } = ActionInput.of(name, definition.value);
 
-            return new ActionInput({ name, label, need, value, variable });
+            return new ActionInput({ name, label, presence, value, variable });
         } else if ("actionInput" in definition) {
             return definition.actionInput(name);
         }
 
         // read an optional or defaulted schema as what it wraps
         const outer = SCHEMA.parse(definition);
-        const need = NEEDS[outer.type] ?? "required";
-        const inner = need === "required" ? outer : SCHEMA.parse(outer.def.innerType);
+        const presence = PRESENCES[outer.type] ?? "required";
+        const inner = presence === "required" ? outer : SCHEMA.parse(outer.def.innerType);
         const value: ActionValue =
             inner.type === "enum"
                 ? {
@@ -131,7 +131,7 @@ export class ActionInput {
                   }
                 : { kind: SCHEMA_KINDS[inner.type] ?? "json" };
 
-        return new ActionInput({ name, label: undefined, need, value });
+        return new ActionInput({ name, label: undefined, presence, value });
     }
 
     /** The objects the input takes, absent for a value or a choice. */
@@ -167,9 +167,9 @@ export class ActionInput {
     /** List the inputs of some a person still gives: those needed, and those they may give. */
     static asked(inputs: readonly ActionInput[], values: JsonObject): ActionInput[] {
         return inputs.filter(
-            ({ name, need, value }) =>
+            ({ name, presence, value }) =>
                 values[name] === undefined &&
-                (need === "required" || (need === "optional" && value.kind !== "json")),
+                (presence === "required" || (presence === "optional" && value.kind !== "json")),
         );
     }
 
@@ -193,14 +193,14 @@ export class ActionInput {
         return taken.kind === "json" || typeof value === VALUE_TYPES[taken.kind];
     }
 
-    /** Describe the input by its name, its label, its need and what it takes. */
+    /** Describe the input by its name, its label, its presence and what it takes. */
     describe(): ActionInputDescription {
         // describe its choices, or its objects
-        const { name, label, need, value, variable } = this;
+        const { name, label, presence, value, variable } = this;
         const shared = {
             name,
             ...(label === undefined ? {} : { label }),
-            need,
+            presence,
             kind: value.kind,
             ...(variable === undefined ? {} : { variable }),
         };
@@ -224,7 +224,7 @@ export class ActionInput {
         typeOf: (reference: ObjectTypeReference) => ObjectType,
     ): ActionInput {
         // read its choices, or its objects
-        const { name, label, need, kind } = description;
+        const { name, label, presence, kind } = description;
         const value: ActionValue =
             kind === "choice"
                 ? { kind, choices: description.choices ?? [] }
@@ -237,11 +237,11 @@ export class ActionInput {
                     }
                   : { kind };
 
-        return new ActionInput({ name, label, need, value, variable: description.variable });
+        return new ActionInput({ name, label, presence, value, variable: description.variable });
     }
 
     /** Read an input a JSON Schema takes. */
-    static ofSchema(name: string, value: JsonValue, need: ActionNeed): ActionInput {
+    static ofSchema(name: string, value: JsonValue, presence: InputPresence): ActionInput {
         // take one of its choices, or a value of its type
         const { type, enum: choices } = PROPERTY.parse(value);
         const taken: ActionValue =
@@ -253,7 +253,7 @@ export class ActionInput {
                     ? { kind: "boolean" }
                     : { kind: type === "string" ? "text" : "json" };
 
-        return new ActionInput({ name, label: undefined, need, value: taken });
+        return new ActionInput({ name, label: undefined, presence, value: taken });
     }
 }
 
@@ -264,7 +264,7 @@ export const ActionInputDescription = schema.object({
     /** The input's name as people read it, absent to read it from its name. */
     label: Message.exactOptional(),
     /** Whether the person must give it, may, or leaves it to its default. */
-    need: schema.enum(["required", "optional", "default"]),
+    presence: schema.enum(["required", "optional", "default"]),
     /** What it takes. */
     kind: schema.enum([...VALUE_KINDS, "choice", "object"]),
     /** The key of the variable places give it by. */
