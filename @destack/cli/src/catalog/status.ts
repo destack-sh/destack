@@ -79,8 +79,8 @@ export class InstallationStatus {
         | "appliedRevisionId"
         | "servedRevisionId"
     >;
-    /** What the installation follows, in words. */
-    readonly follows: string;
+    /** The version the installation runs, in words. */
+    readonly version: string;
     /** The resources the installation manages or owns. */
     readonly resources: readonly Pick<Resource, "name" | "conditions" | "generation">[];
     /** The plan the installation waits on with its digest, absent unless it awaits approval. */
@@ -89,13 +89,13 @@ export class InstallationStatus {
     /** Take an installation, its resources and waiting plan. */
     constructor(fields: {
         readonly installation: InstallationStatus["installation"];
-        readonly follows: string;
+        readonly version: string;
         readonly resources: InstallationStatus["resources"];
         readonly waiting?: Waiting;
     }) {
-        // set the installation, what it follows, the resources and the waiting plan
+        // set the installation, its version, the resources and the waiting plan
         this.installation = fields.installation;
-        this.follows = fields.follows;
+        this.version = fields.version;
         this.resources = fields.resources;
         this.waiting = fields.waiting;
     }
@@ -142,7 +142,7 @@ export class InstallationStatus {
             },
             watching.signal,
         );
-        let described: { readonly id: string | null; readonly follows: string } | undefined;
+        let described: { readonly id: string | null; readonly version: string } | undefined;
         for await (const { installed, databases, buckets, vaults } of status) {
             // refuse more resources than the status shows, and an installation gone
             const resources = [...databases, ...buckets, ...vaults];
@@ -167,16 +167,16 @@ export class InstallationStatus {
                 planned === undefined || planned.approval === null
                     ? undefined
                     : { ...planned, approval: planned.approval };
-            // describe what it follows once per followed row
-            if (described?.id !== installed.followsId) {
+            // describe its version once per version row
+            if (described?.id !== installed.versionId) {
                 described = {
-                    id: installed.followsId,
-                    follows: await describeFollows(installed, context),
+                    id: installed.versionId,
+                    version: await describeVersion(installed, context),
                 };
             }
             yield new InstallationStatus({
                 installation: installed,
-                follows: described.follows,
+                version: described.version,
                 resources,
                 ...(waiting === undefined ? {} : { waiting }),
             });
@@ -283,14 +283,14 @@ export class InstallationStatus {
 
     /** Render the installation's progress, its resources' readiness and the plan it waits on. */
     render(terminal: Terminal): string {
-        // say where the installation stands, what it follows, and its failure or wait
+        // say where the installation stands, its version, and its failure or wait
         const { resources, waiting, installation: installed, progress, message } = this;
         const [word, state] = PROGRESS_EVENTS[progress];
         const named = `installation '${installed.name ?? installed.scope}'`;
         const said = message === "" ? named : `${named}: ${message}`;
         const lines = [
             terminal.event(word, state, said, Observation.condition(installed)?.reason),
-            `  ${terminal.style("dim", "follows ")}  ${this.follows}`,
+            `  ${terminal.style("dim", "version ")}  ${this.version}`,
             `  ${terminal.style("dim", "revision")}  ${this.installation.appliedRevisionId ?? "-"}`,
         ];
 
@@ -387,62 +387,64 @@ export class InstallationStatus {
     }
 }
 
-/** Describe the row an installation follows at its home, else the host's release. */
-async function describeFollows(
+/** Describe the row of an installation's version at its home, else the host's release. */
+async function describeVersion(
     installed: Pick<
         Installation,
-        "followsPackageId" | "followsType" | "followsScope" | "followsId" | "directory"
+        "versionPackageId" | "versionType" | "versionScope" | "versionId" | "directory"
     >,
     context: CommandContext,
 ): Promise<string> {
-    // describe the directory within a followed repository or checkout
+    // describe the directory within a repository or checkout
     const at =
         installed.directory === null || installed.directory === "."
             ? ""
             : ` at ${installed.directory}`;
     const forged: readonly string[] = [tag.name, release.name, reference.name];
-    const isForged = installed.followsType !== null && forged.includes(installed.followsType);
+    const isForged = installed.versionType !== null && forged.includes(installed.versionType);
 
-    // describe the host's release without a followed row
-    if (installed.followsId === null) {
-        return "the host's release";
+    // describe the host's release without a version row
+    if (installed.versionId === null) {
+        return "shipped with Destack · updates with it";
     }
-    // describe a checkout or a build by its identifier
+    // describe a checkout as live, and a build by its identifier
     else if (!isForged) {
-        return `${installed.followsType} ${installed.followsId}${at}`;
+        return installed.versionType === "checkout"
+            ? `checkout ${installed.versionId}${at} · live`
+            : `build ${installed.versionId}${at} · pinned`;
     }
 
     // read the tag, release or reference at its home's forge
-    const followed = ObjectReference.at("follows", installed);
-    const home = schema.identifier("space").parse(followed.scope);
+    const row = ObjectReference.at("version", installed);
+    const home = schema.identifier("space").parse(row.scope);
     const launcher = await context.launcher();
     const endpoint = await launcher.package(home, registryPackage.id);
     const forge = createClient(registryPackage, endpoint, (await context.native()).environment);
     const read = { spaceId: home };
 
     // describe a tag, a release or a reference
-    if (followed.type === tag.name) {
-        const row = await forge.tag.get({
+    if (row.type === tag.name) {
+        const tagged = await forge.tag.get({
             ...read,
-            id: schema.identifier("tag").parse(followed.id),
+            id: schema.identifier("tag").parse(row.id),
         });
 
-        return `tag ${row.name}`;
-    } else if (followed.type === release.name) {
-        const row = await forge.release.get({
+        return `${tagged.name} · updates automatically`;
+    } else if (row.type === release.name) {
+        const released = await forge.release.get({
             ...read,
-            id: schema.identifier("release").parse(followed.id),
+            id: schema.identifier("release").parse(row.id),
         });
 
-        return `release ${row.version}`;
+        return `${released.version} · pinned`;
     } else {
-        const row = await forge.reference.get({
+        const referenced = await forge.reference.get({
             ...read,
-            id: schema.identifier("reference").parse(followed.id),
+            id: schema.identifier("reference").parse(row.id),
         });
-        const repository = await forge.repository.get({ ...read, id: row.parentId });
-        const branch = row.name.replace(/^refs\/(heads|tags)\//u, "");
+        const repository = await forge.repository.get({ ...read, id: referenced.parentId });
+        const branch = referenced.name.replace(/^refs\/(heads|tags)\//u, "");
 
-        return `${branch} of ${repository.name}${at}`;
+        return `${repository.name}#${branch}${at} · updates on push`;
     }
 }

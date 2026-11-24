@@ -129,14 +129,14 @@ test("render a stack's readiness with aligned resources and the plan it waits on
     expect(
         new InstallationStatus({
             installation: stack,
-            follows: "release 2026.10.0",
+            version: "2026.10.0 · pinned",
             resources,
             waiting: { plan: waiting, digest, approval: APPROVAL },
         }).render(TerminalFixture.terminal(TerminalSize.VT100)),
     ).toBe(
         [
             "   Pending  installation 'stack' WaitingForResources",
-            "  follows   release 2026.10.0",
+            "  version   2026.10.0 · pinned",
             "  revision  -",
             "",
             "  ● main         Applied",
@@ -187,7 +187,7 @@ test("render an application waiting to be granted more access, approved by its n
                 Synced: { ...condition("true", "ReconcileSuccess"), observedGeneration: 2 },
             },
         },
-        follows: "tag latest",
+        version: "latest · updates automatically",
         resources: [],
         waiting: { plan: waiting, digest, approval: APPROVAL },
     });
@@ -200,7 +200,7 @@ test("render an application waiting to be granted more access, approved by its n
         progress: "approval",
         rendered: [
             `   Pending  installation 'notes': waiting for approval of plan '${digest}' AwaitingApproval`,
-            "  follows   tag latest",
+            "  version   latest · updates automatically",
             `  revision  ${revisionId}`,
             "",
             "  ! installation/notes/access/space/package-01996ab0-0000-7000-8000-000000000005/space/read  privileged            request read on space",

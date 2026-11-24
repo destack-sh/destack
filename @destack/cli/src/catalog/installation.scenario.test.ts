@@ -18,7 +18,7 @@ const Installed = schema.object({
 /** The printed statuses of an installation, as far as the scenario reads them. */
 const Statuses = schema.array(
     schema.looseObject({
-        follows: schema.string(),
+        version: schema.string(),
         installation: schema.looseObject({ servedRevisionId: schema.string().nullable() }),
     }),
 );
@@ -74,7 +74,7 @@ test("install a published app, returning once the space serves its revision", as
         installing: [installing.code, installing.error],
         followed: [
             installed.tag,
-            statuses.at(-1)?.follows,
+            statuses.at(-1)?.version,
             statuses.at(-1)?.installation.servedRevisionId,
         ],
         served: served.servedRevisionId,

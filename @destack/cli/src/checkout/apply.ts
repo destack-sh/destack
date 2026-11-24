@@ -85,7 +85,7 @@ async function submitStack(
     });
     const [existing] = items;
     const followed = {
-        ...ObjectReference.columns("follows", submission.follows),
+        ...ObjectReference.columns("version", submission.version),
         directory: submission.directory ?? null,
         export: submission.stack.export,
         parameters: submission.stack.parameters,

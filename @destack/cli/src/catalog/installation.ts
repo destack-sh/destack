@@ -104,7 +104,7 @@ export const PackageSpecifier = {
     },
 };
 
-/** Install a package or change what it follows, and follow it until its space serves it. */
+/** Install a package or change its version, and follow it until its space serves it. */
 export const installCommand: CommandBody = {
     arguments: [
         {
@@ -135,7 +135,7 @@ export const installCommand: CommandBody = {
         const { id, name } = await upsert(context, target, named);
         await InstallationStatus.drive(id, options["yes"] === true, json, context);
 
-        // report what it runs and what it follows
+        // report what it runs and its version
         await context.terminal.print(
             json
                 ? JSON.stringify({ id, name, ...target.output })
@@ -295,12 +295,12 @@ async function packageOf(name: string, context: CommandContext): Promise<Package
     return (await client.package.resolve({ spaceId: home, name })).id;
 }
 
-/** What an installation follows: the package, the row it follows there, and what to report. */
+/** The version an installation runs: the package, its version's row there, and what to report. */
 interface InstallTarget {
     /** The installed package. */
     readonly packageId: PackageId;
-    /** The release, tag or branch reference it follows. */
-    readonly follows: ObjectReference;
+    /** The release, tag or branch reference it runs. */
+    readonly version: ObjectReference;
     /** The package's directory in a followed repository, absent for a release. */
     readonly directory: string | null;
     /** The installation's name unless one is asked for. */
@@ -311,7 +311,7 @@ interface InstallTarget {
     readonly detail: string;
 }
 
-/** Resolve a package's release or tag, following the release for a version and else the tag. */
+/** Resolve a package's release or tag: a version pins its release, else the tag updates it. */
 async function releaseTarget(
     specifier: Extract<PackageSpecifier, { readonly kind: "release" }>,
     context: CommandContext,
@@ -335,27 +335,27 @@ async function releaseTarget(
             }
             throw error;
         });
-    const { version } = resolved;
+    const released = resolved.version;
 
-    // follow the release for a version, else the tag
+    // pin the release for a version, else run the tag
     const isPinned = Version.safeParse(asked).success;
-    const follows = isPinned
+    const version = isPinned
         ? release.reference(resolved.scope, resolved.id)
-        : await followedTag(client, home, found.id, asked);
+        : await taggedRow(client, home, found.id, asked);
     const tagged = isPinned ? null : asked;
-    const followed = tagged === null ? "staying on it" : `following ${tagged}`;
+    const updates = tagged === null ? "pinned" : `${tagged}, updates automatically`;
 
     return {
         packageId: found.id,
-        follows,
+        version,
         directory: null,
         fallback: PackageName.split(packageName).local,
-        output: { package: packageName, version, tag: tagged },
-        detail: `${packageName}@${version}, ${followed}`,
+        output: { package: packageName, version: released, tag: tagged },
+        detail: `${packageName} ${released} · ${updates}`,
     };
 }
 
-/** Resolve the package at a repository branch's directory, following the branch's reference. */
+/** Resolve the package at a repository branch's directory, which updates on each push. */
 async function branchTarget(
     specifier: Extract<PackageSpecifier, { readonly kind: "branch" }>,
     context: CommandContext,
@@ -399,11 +399,11 @@ async function branchTarget(
 
     return {
         packageId: definition.id,
-        follows: reference.reference(row.scope, row.id),
+        version: reference.reference(row.scope, row.id),
         directory,
         fallback: PackageName.split(packageName).local,
         output: { package: packageName, repository: named, branch, directory },
-        detail: `${packageName} from ${named}#${branch}, following it`,
+        detail: `${packageName} from ${named}#${branch} · updates on push`,
     };
 }
 
@@ -453,8 +453,8 @@ async function readAtBranch(
     }
 }
 
-/** Read the tag of a package an installation follows, refusing a tag the package lacks. */
-async function followedTag(
+/** Read the tag of a package an installation runs, refusing a tag the package lacks. */
+async function taggedRow(
     client: Awaited<ReturnType<CommandContext["registry"]>>["client"],
     home: string,
     packageId: PackageId,
@@ -474,7 +474,7 @@ async function followedTag(
     return tag.reference(tagged.scope, tagged.id);
 }
 
-/** Create a package's installation under a name, or change what its installed one follows. */
+/** Create a package's installation under a name, or change the version its installed one runs. */
 async function upsert(
     context: CommandContext,
     target: InstallTarget,
@@ -486,7 +486,7 @@ async function upsert(
     const stack = await context.package(stackPackage, await context.locate());
     const find = async (where: { readonly packageId: PackageId } | { readonly name: string }) =>
         (await stack.installation.list({ scope: space, where, limit: 1 })).items[0];
-    const { packageId, follows, directory } = target;
+    const { packageId, version, directory } = target;
     const installed = await find({ packageId });
     const name = asked ?? installed?.name ?? target.fallback;
 
@@ -502,7 +502,7 @@ async function upsert(
             scope: space,
             requestId: RequestId.create(environment),
             packageId,
-            ...ObjectReference.columns("follows", follows),
+            ...ObjectReference.columns("version", version),
             ...(directory === null ? {} : { directory }),
             name,
         });
@@ -516,14 +516,14 @@ async function upsert(
             `installation '${installed.name}' already exists: it is the package's one installation in the space, so leave --name out`,
         );
     }
-    // change what it follows
+    // change the version it runs
     else {
         await stack.installation.update({
             scope: space,
             id: installed.id,
             requestId: RequestId.create(environment),
             revision: installed.revision,
-            ...ObjectReference.columns("follows", follows),
+            ...ObjectReference.columns("version", version),
             directory,
         });
 

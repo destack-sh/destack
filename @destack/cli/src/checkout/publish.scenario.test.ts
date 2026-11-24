@@ -135,12 +135,12 @@ async function notebooksCheckout(state: "committed" | "uncommitted"): Promise<st
     return directory;
 }
 
-/** Read an installation's name, what it follows and its readiness, without its change time. */
+/** Read an installation's name, its version and its readiness, without its change time. */
 function readiness(target: Installation) {
-    const { name, followsType, conditions } = target;
+    const { name, versionType, conditions } = target;
     const { lastTransitionAt: _changed, ...ready } = present(conditions["Ready"], "a Ready");
 
-    return { name, followsType, ready };
+    return { name, versionType, ready };
 }
 
 /** Report whether an installation is current with its latest change. */
@@ -173,19 +173,19 @@ test("follow a published release's tag, then pin the installation to the release
     await json(terminal, ["install", specifier, "--name", "notebooks"]);
     const settled = await terminal.installed(
         following.id,
-        (target) => isReady(target) && target.followsType === "release",
+        (target) => isReady(target) && target.versionType === "release",
     );
 
     // run the one release, following stable and then pinned, on the build publishing made
     const builds = [await build(terminal, converged), await build(terminal, settled)];
-    const followed = present(builds[0], "the followed build").source;
+    const built = present(builds[0], "the version's build").source;
     const machine = terminal.computer.machine.id;
     const source = {
         kind: "checkout",
-        checkout: followed["checkout"],
+        checkout: built["checkout"],
         directory: "notebooks",
         machine,
-        commit: followed["commit"],
+        commit: built["commit"],
     };
     const ready = {
         status: "true",
@@ -202,10 +202,10 @@ test("follow a published release's tag, then pin the installation to the release
         tagged: [0, `Tagged  release '${PACKAGE.name}@${version}' stable\n`, ""],
         version: NEXT_RELEASE,
         installations: [
-            { name: "notebooks", followsType: "tag", ready },
+            { name: "notebooks", versionType: "tag", ready },
             {
                 name: "notebooks",
-                followsType: "release",
+                versionType: "release",
                 ready: { ...ready, observedGeneration: 2 },
             },
         ],

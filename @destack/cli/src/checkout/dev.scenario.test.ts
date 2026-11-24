@@ -105,14 +105,14 @@ test("have a preview take over the package's installation, and an install take i
         terminal.printed(["--space", "home", ...words], stdin === undefined ? {} : { stdin });
     const installed = await run(["install", "@example/notebooks", "--json"]);
 
-    // preview the checkout, then install the release again, reading what the installation follows
-    const follows = async () => {
+    // preview the checkout, then install the release again, reading the version the installation runs
+    const versions = async () => {
         const listed = await run(["installations", "--json"]);
         const rows = schema
             .array(
                 schema.looseObject({
                     name: schema.string(),
-                    followsType: schema.string().nullable(),
+                    versionType: schema.string().nullable(),
                     directory: schema.string().nullable(),
                 }),
             )
@@ -120,18 +120,18 @@ test("have a preview take over the package's installation, and an install take i
 
         return rows
             .filter((row) => row.name === "notebooks")
-            .map((row) => [row.followsType, row.directory]);
+            .map((row) => [row.versionType, row.directory]);
     };
-    const released = await follows();
+    const released = await versions();
     const previewed = await run(["dev", NOTEBOOKS, "--json"]);
-    const previewing = await follows();
+    const previewing = await versions();
     const reinstalled = await run(["install", "@example/notebooks", "--json"]);
     expect({
         codes: [installed.code, previewed.code, previewed.error, reinstalled.code],
-        follows: [released, previewing, await follows()],
+        versions: [released, previewing, await versions()],
     }).toEqual({
         codes: [0, 0, "", 0],
-        follows: [
+        versions: [
             [["tag", null]],
             [["checkout", "@destack/cli/tests/fixture/notebooks"]],
             [["tag", null]],
