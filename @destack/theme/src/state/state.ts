@@ -84,9 +84,24 @@ export const state = style.create({
             ":hover": { default: null, [media.hover]: color.hover },
         },
     },
+    /** A control among many whose frame high contrast leaves out, such as a day or a row. */
+    unframed: {
+        borderColor: { default: "transparent", [media.forcedColors]: "Canvas" },
+    },
+    /** A surface told apart by its fill alone, which high contrast draws a frame around. */
+    framed: {
+        outlineStyle: { default: null, [media.forcedColors]: "solid" },
+        outlineWidth: { default: null, [media.forcedColors]: stroke.border },
+        outlineOffset: { default: null, [media.forcedColors]: `calc(-1 * ${stroke.border})` },
+        outlineColor: { default: null, [media.forcedColors]: "CanvasText" },
+    },
     /** An item highlighted, open or selected among others, or today beside a chosen date. */
     selected: {
         backgroundColor: { default: color.selected, [media.forcedColors]: "Highlight" },
+        color: { default: color.foreground, [media.forcedColors]: "HighlightText" },
+        forcedColorAdjust: { default: null, [media.forcedColors]: "none" },
+        [color.foreground]: { default: null, [media.forcedColors]: "HighlightText" },
+        [color.mutedForeground]: { default: null, [media.forcedColors]: "HighlightText" },
     },
     /** A toggle that is on, such as a chosen view or a bold button. */
     on: {
@@ -107,6 +122,10 @@ export const state = style.create({
     /** The page or item the person is on, among its siblings. */
     current: {
         backgroundColor: { default: color.selected, [media.forcedColors]: "Highlight" },
+        color: { default: color.foreground, [media.forcedColors]: "HighlightText" },
+        forcedColorAdjust: { default: null, [media.forcedColors]: "none" },
+        [color.foreground]: { default: null, [media.forcedColors]: "HighlightText" },
+        [color.mutedForeground]: { default: null, [media.forcedColors]: "HighlightText" },
         fontWeight: weight.medium,
     },
 });
