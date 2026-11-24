@@ -23,6 +23,7 @@ import {
     controlOf,
     OpenChange,
     type OpenProperties,
+    OpenContext,
     OpenState,
     type OpenChildren,
     type OpenTrigger,
@@ -584,7 +585,11 @@ export function Popover<Payload = unknown>(properties: PopoverProperties<Payload
     const control = controlOf(properties, () => new PopoverControl<Payload>(properties));
 
     return (
-        <PopoverContext value={control}>{control.state.render(properties.children)}</PopoverContext>
+        <PopoverContext value={control}>
+            <OpenContext value={control.isOpen}>
+                {control.state.render(properties.children)}
+            </OpenContext>
+        </PopoverContext>
     );
 }
 

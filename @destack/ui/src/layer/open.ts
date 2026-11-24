@@ -1,4 +1,11 @@
-import { type Accessor, createSignal, flush, type JSX, untrack } from "@destack/view";
+import {
+    type Accessor,
+    createContext,
+    createSignal,
+    flush,
+    type JSX,
+    untrack,
+} from "@destack/view";
 
 /** Why an overlay opens or closes. */
 export type OpenReason =
@@ -20,6 +27,9 @@ const KEYBOARD: ReadonlySet<OpenReason> = new Set<OpenReason>([
     "input",
     "trigger-focus",
 ]);
+
+/** Whether the overlay around is open, always outside one. */
+export const OpenContext = createContext<Accessor<boolean>>(() => true);
 
 /** An element that opens an overlay, with what the overlay shows for it. */
 export interface OpenTrigger<Payload = unknown> {

@@ -25,6 +25,7 @@ import {
     OpenChange,
     type OpenChildren,
     type OpenProperties,
+    OpenContext,
     OpenState,
     TopLayer,
     type TriggerProperties,
@@ -267,7 +268,11 @@ export function Dialog<Payload = unknown>(properties: DialogProperties<Payload>)
     const control = controlOf(properties, () => new DialogControl<Payload>(properties));
 
     return (
-        <DialogContext value={control}>{control.state.render(properties.children)}</DialogContext>
+        <DialogContext value={control}>
+            <OpenContext value={control.isOpen}>
+                {control.state.render(properties.children)}
+            </OpenContext>
+        </DialogContext>
     );
 }
 

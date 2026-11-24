@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { createSignal, flush } from "@destack/view";
-import { render } from "@destack/view/test";
+import { render, stubPopovers } from "@destack/view/test";
 import { commandNoteCommands } from "./command.example.tsx";
 import {
     Command,
@@ -10,6 +10,7 @@ import {
     CommandItem,
     CommandList,
 } from "./index.ts";
+import { Popover, PopoverContent } from "../popover/index.ts";
 
 /** Find the element of a container's first match, refusing none. */
 function find<Target extends HTMLElement>(
@@ -129,5 +130,36 @@ test("start on the default highlight, jump to the ends with Home and End, and wr
         "One",
         "One",
         heading?.id,
+    ]);
+});
+
+test("start over each time the overlay around opens again", () => {
+    stubPopovers();
+    const [isOpen, setOpen] = createSignal(true);
+    const { container } = render(() => (
+        <Popover open={isOpen()}>
+            <PopoverContent>
+                <Command>
+                    <CommandInput />
+                    <CommandList>
+                        <CommandItem value="one">One</CommandItem>
+                        <CommandItem value="two">Two</CommandItem>
+                    </CommandList>
+                </Command>
+            </PopoverContent>
+        </Popover>
+    ));
+    flush();
+    typeInto(find(container, "input", HTMLInputElement), "tw");
+    const before = shown(container);
+    setOpen(false);
+    flush();
+    setOpen(true);
+    flush();
+
+    expect([before, shown(container), find(container, "input", HTMLInputElement).value]).toEqual([
+        ["[Two]"],
+        ["[One]", "Two"],
+        "",
     ]);
 });

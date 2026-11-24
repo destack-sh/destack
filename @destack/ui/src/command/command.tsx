@@ -9,6 +9,7 @@ import { text } from "@destack/theme/text";
 import {
     type Accessor,
     createContext,
+    createEffect,
     createSignal,
     For,
     type JSX,
@@ -48,6 +49,7 @@ import {
 } from "../list-box/index.ts";
 import { visuallyHiddenStyle } from "../visually-hidden/index.ts";
 import { KbdShortcut } from "../kbd/index.ts";
+import { OpenContext } from "../layer/index.ts";
 import { mergeProperties, renderPart } from "../part/index.ts";
 
 /** The distance of a command dialog from the viewport's top. */
@@ -318,6 +320,12 @@ export class CommandControl {
         this.search.type("");
     }
 
+    /** Start over on the root, with an empty search. */
+    restart(): void {
+        this.#setPages([]);
+        this.search.type("");
+    }
+
     /** Go back on Escape or on Backspace in an empty search, reporting whether it went back. */
     back(event: KeyboardEvent): boolean {
         const isBack =
@@ -408,6 +416,13 @@ export function Command(properties: CommandProperties): JSX.Element {
         },
     });
     const command = new CommandControl(autocomplete);
+    const isOpen = useContext(OpenContext);
+    createEffect(isOpen, (isShown, wasShown) => {
+        // start over each time the overlay around opens again
+        if (isShown && wasShown === false) {
+            untrack(() => command.restart());
+        }
+    });
     const isDialog = useContext(CommandDialogContext);
     const list = new ListBoxControl({
         autocomplete,
