@@ -366,9 +366,10 @@ export class Outbox {
         return results;
     }
 
-    /** Close the outbox, failing the outcome waits. */
-    close(): void {
+    /** Close the outbox, failing the outcome waits, once it reads no more. */
+    async close(): Promise<void> {
         this.#closing.abort();
+        await this.#settling;
     }
 
     /** Predict a queued mutation again, leaving one its home refuses for good. */
@@ -574,7 +575,10 @@ export class Outbox {
                 return this.#waiting.size === 0;
             }, this.#closing.signal);
             if (!isSettled) {
-                failure = new Error("the outbox closed before its mutations settled");
+                failure = new DOMException(
+                    "the outbox closed before its mutations settled",
+                    "AbortError",
+                );
             }
         } catch (error) {
             failure = error instanceof Error ? error : new Error(String(error));

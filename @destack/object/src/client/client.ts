@@ -1056,7 +1056,10 @@ export class ObjectClient<
     /** Close the client and fail unsettled mutations. */
     async close(): Promise<void> {
         this.#closing.abort();
-        await Promise.all([...this.#subscriptions].map((subscribed) => subscribed.done));
+        await Promise.all([
+            this.#outbox.close(),
+            ...[...this.#subscriptions].map((subscribed) => subscribed.done),
+        ]);
     }
 
     /** Send an unstored event to an object's readers. */
