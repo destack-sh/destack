@@ -1,11 +1,15 @@
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { Match, Show, Switch } from "@destack/view";
+import fileIcon from "@destack/icon/phosphor/file-zip";
+import { landscape } from "../example/picture.ts";
 import { FileItem } from "../file-item/index.ts";
 import { Gallery, galleryContentStyle, GalleryItem, GridLayout } from "../gallery/index.ts";
+import { Icon } from "../icon/index.ts";
 import { ViewerControl } from "./control.ts";
 import {
     Viewer,
+    ViewerActions,
     ViewerClose,
     ViewerCount,
     ViewerDownload,
@@ -13,6 +17,7 @@ import {
     ViewerNext,
     ViewerPrevious,
     ViewerStage,
+    ViewerStrip,
     ViewerTitle,
     ViewerZoom,
     ViewerZoomToggle,
@@ -40,17 +45,13 @@ interface TripFile {
 /** The files of a trip: eight photos, and a timetable no browser shows here. */
 const FILES: readonly TripFile[] = [
     ...Array.from({ length: 8 }, (_photo, i) => {
-        // draw a ridge in the colors of its hour
         const ratio = [1.5, 0.75, 1, 16 / 9][i % 4] ?? 1;
-        const width = Math.round(800 * ratio);
-        const hue = String((200 + i * 47) % 360);
-        const picture = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${String(width)} 800" width="${String(width)}" height="800"><rect width="100%" height="100%" fill="hsl(${hue} 55% 80%)"/><path d="M0 640 L${String(width * 0.3)} 380 L${String(width * 0.55)} 560 L${String(width * 0.8)} 320 L${String(width)} 520 V800 H0Z" fill="hsl(${hue} 30% 45%)"/><text x="50%" y="30%" font-size="120" text-anchor="middle" fill="hsl(${hue} 40% 30%)">${String(i + 1)}</text></svg>`;
 
         return {
             name: `Photo ${String(i + 1)}.svg`,
             type: "image/svg+xml",
             ratio,
-            source: `data:image/svg+xml,${encodeURIComponent(picture)}`,
+            source: landscape(i + 30, ratio),
         };
     }),
     { name: "Timetable.zip", type: "application/zip", ratio: 1, source: "data:application/zip," },
@@ -102,9 +103,11 @@ export const viewerTrip = defineExample({
                             <ViewerHeader>
                                 <ViewerTitle>{file().name}</ViewerTitle>
                                 <ViewerCount />
-                                <ViewerZoomToggle />
-                                <ViewerDownload href={file().source} name={file().name} />
-                                <ViewerClose />
+                                <ViewerActions>
+                                    <ViewerZoomToggle />
+                                    <ViewerDownload href={file().source} name={file().name} />
+                                    <ViewerClose />
+                                </ViewerActions>
                             </ViewerHeader>
                             <ViewerStage control={viewer}>
                                 {(shown) => (
@@ -123,6 +126,20 @@ export const viewerTrip = defineExample({
                                     </Switch>
                                 )}
                             </ViewerStage>
+                            <ViewerStrip control={viewer} label={(each) => each.name}>
+                                {(each) => (
+                                    <Show
+                                        when={each().type.startsWith("image/")}
+                                        fallback={<Icon icon={fileIcon} />}
+                                    >
+                                        <img
+                                            alt=""
+                                            src={each().source}
+                                            {...style.attributes([galleryContentStyle()])}
+                                        />
+                                    </Show>
+                                )}
+                            </ViewerStrip>
                             <ViewerPrevious />
                             <ViewerNext />
                         </>

@@ -2,6 +2,7 @@ import { defineExample } from "@destack/package/declare";
 import { createSignal } from "@destack/view";
 import {
     Viewer,
+    ViewerActions,
     ViewerClose,
     ViewerControl,
     ViewerCount,
@@ -9,10 +10,12 @@ import {
     ViewerNext,
     ViewerPrevious,
     ViewerStage,
+    ViewerStrip,
     ViewerTitle,
     ViewerZoom,
     ViewerZoomToggle,
 } from "../viewer/index.ts";
+import { landscape } from "../example/picture.ts";
 import { Gallery, galleryContentStyle, GalleryItem } from "./gallery.tsx";
 import { CollageLayout, GridLayout, type Layout, MasonryLayout, RowLayout } from "./layout.ts";
 import * as style from "@destack/style";
@@ -33,19 +36,14 @@ const TITLES = ["Lake", "Pass", "Tram", "Hut", "Village", "Glacier", "Station"];
 /** The ratios of the photos, as a camera, a phone and a panorama take them. */
 const RATIOS = [1.5, 4 / 3, 0.75, 1, 16 / 9, 9 / 16, 2.4, 1.5, 0.8];
 
-/** The photos of a trip: a sky over two ridges, drawn in the colors of its hour. */
+/** The photos of a trip, each at its hour. */
 const PHOTOS: readonly Photo[] = Array.from({ length: 23 }, (_photo, i) => {
-    // draw each in the colors of its hour
     const ratio = RATIOS[(i * 5) % RATIOS.length] ?? 1;
-    const [width, hue] = [Math.round(400 * ratio), (200 + i * 37) % 360];
-    const ridge = (top: number, light: number): string =>
-        `<path d="M0 ${String(top)} L${String(width * 0.3)} ${String(top - 90)} L${String(width * 0.55)} ${String(top - 20)} L${String(width * 0.8)} ${String(top - 120)} L${String(width)} ${String(top - 40)} V400 H0Z" fill="hsl(${String(hue)} 30% ${String(light)}%)"/>`;
-    const picture = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${String(width)} 400" width="${String(width)}" height="400"><rect width="100%" height="100%" fill="hsl(${String(hue)} 55% 80%)"/><circle cx="${String(width * 0.7)}" cy="90" r="34" fill="hsl(${String((hue + 180) % 360)} 70% 88%)"/>${ridge(290, 52)}${ridge(370, 34)}</svg>`;
 
     return {
         title: `${TITLES[i % TITLES.length] ?? ""} ${String(i + 1)}`,
         ratio,
-        source: `data:image/svg+xml,${encodeURIComponent(picture)}`,
+        source: landscape(i, ratio),
     };
 });
 
@@ -87,8 +85,10 @@ function Photos(properties: {
                         <ViewerHeader>
                             <ViewerTitle>{photo().title}</ViewerTitle>
                             <ViewerCount />
-                            <ViewerZoomToggle />
-                            <ViewerClose />
+                            <ViewerActions>
+                                <ViewerZoomToggle />
+                                <ViewerClose />
+                            </ViewerActions>
                         </ViewerHeader>
                         <ViewerStage control={viewer}>
                             {(shown) => (
@@ -101,6 +101,15 @@ function Photos(properties: {
                                 </ViewerZoom>
                             )}
                         </ViewerStage>
+                        <ViewerStrip control={viewer} label={(each) => each.title}>
+                            {(each) => (
+                                <img
+                                    alt=""
+                                    src={each().source}
+                                    {...style.attributes([galleryContentStyle()])}
+                                />
+                            )}
+                        </ViewerStrip>
                         <ViewerPrevious />
                         <ViewerNext />
                     </>

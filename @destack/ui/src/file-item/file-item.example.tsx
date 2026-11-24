@@ -22,6 +22,7 @@ import {
 } from "./file-item.tsx";
 import {
     Viewer,
+    ViewerActions,
     ViewerClose,
     ViewerControl,
     ViewerDownload,
@@ -136,8 +137,10 @@ export const fileItemCards = defineExample({
                         <>
                             <ViewerHeader>
                                 <ViewerTitle>{photo().name}</ViewerTitle>
-                                <ViewerDownload href={photo().source} name={photo().name} />
-                                <ViewerClose />
+                                <ViewerActions>
+                                    <ViewerDownload href={photo().source} name={photo().name} />
+                                    <ViewerClose />
+                                </ViewerActions>
                             </ViewerHeader>
                             <ViewerStage control={viewer}>
                                 {(shown) => (

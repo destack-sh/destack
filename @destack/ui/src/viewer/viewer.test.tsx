@@ -13,6 +13,7 @@ import {
     ViewerNext,
     ViewerPrevious,
     ViewerStage,
+    ViewerStrip,
     ViewerTitle,
 } from "./index.ts";
 
@@ -50,6 +51,9 @@ function draw(isLooping = false) {
                                 <ViewerStage control={viewer}>
                                     {(shown) => <p>{shown()}</p>}
                                 </ViewerStage>
+                                <ViewerStrip control={viewer} label={(each) => each}>
+                                    {(each) => <b>{each()}</b>}
+                                </ViewerStrip>
                                 <ViewerPrevious />
                                 <ViewerNext />
                             </>
@@ -185,4 +189,60 @@ test("render the items beside the one shown", () => {
             ["Lake", false, "true"],
         ],
     ]);
+});
+
+test("show the item of a thumbnail", () => {
+    const { container, shown } = draw();
+    const thumbnails = () =>
+        [...container.querySelectorAll<HTMLElement>("[data-slot=viewer-thumbnail]")].map((each) => [
+            each.getAttribute("aria-label"),
+            each.getAttribute("aria-current"),
+            each.tabIndex,
+        ]);
+    const before = thumbnails();
+    container.querySelector<HTMLElement>("[data-slot=viewer-thumbnail]")?.click();
+    flush();
+
+    expect([before, shown(), thumbnails()]).toEqual([
+        [
+            ["Lake", null, -1],
+            ["Pass", "true", 0],
+            ["Tram", null, -1],
+        ],
+        ["Lake", "1 of 3"],
+        [
+            ["Lake", "true", 0],
+            ["Pass", null, -1],
+            ["Tram", null, -1],
+        ],
+    ]);
+});
+
+test("keep the thumbnails as the item is left alone", () => {
+    const { container, viewer, press } = draw();
+    const thumbnails = () => [...container.querySelectorAll("[data-slot=viewer-thumbnail]")];
+    const before = thumbnails();
+    viewer.setAlone(true);
+    flush();
+    press("ArrowRight");
+
+    expect(thumbnails().map((each, i) => each === before[i])).toEqual([true, true, true]);
+});
+
+test("leave the item alone until the pointer moves or Tab", () => {
+    const { container, viewer, press } = draw();
+    const dialog = present(container.querySelector("dialog"), "the dialog");
+    const alone = [viewer.isAlone()];
+    const step = (run: () => void) => {
+        run();
+        flush();
+        alone.push(viewer.isAlone());
+    };
+    step(() => viewer.setAlone(true));
+    step(() => dialog.dispatchEvent(new PointerEvent("pointermove", { bubbles: true })));
+    step(() => viewer.setAlone(true));
+    step(() => press("ArrowRight"));
+    step(() => press("Tab"));
+
+    expect(alone).toEqual([false, true, false, true, true, false]);
 });

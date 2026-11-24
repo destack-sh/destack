@@ -7,8 +7,9 @@ import xIcon from "@destack/icon/phosphor/x";
 import { t } from "@destack/locale";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
+import { state } from "@destack/theme/state";
 import { text } from "@destack/theme/text";
-import { color, motion, space, weight } from "@destack/theme/tokens.stylex";
+import { color, motion, radius, size, space, weight } from "@destack/theme/tokens.stylex";
 import {
     type Accessor,
     createContext,
@@ -19,6 +20,7 @@ import {
     handleAction,
     type JSX,
     omit,
+    onCleanup,
     Show,
     untrack,
     useContext,
@@ -44,6 +46,7 @@ import {
     type DialogElementProperties,
     DialogTitle,
 } from "../dialog/index.ts";
+import { scrim } from "../dialog/scrim.stylex.ts";
 import { Icon } from "../icon/index.ts";
 import { Move, Zoom } from "../interaction/index.ts";
 import { OpenChange } from "../layer/index.ts";
@@ -67,11 +70,35 @@ const TAP_DISTANCE = 24;
 /** The share of its way an item gives a finger past the last. */
 const RESISTANCE = 0.3;
 
-/** The distance over which an item a finger takes down fades to half, in pixels. */
+/** The distance over which the room fades as a finger takes the item down, in pixels. */
 const FADE_DISTANCE = 600;
+
+/** The share of its size an item loses as a finger takes it down. */
+const PULL_SHRINK = 0.35;
 
 /** How far a key scales the picture. */
 const KEY_SCALE = 1.5;
+
+/** How long the buttons stay once the pointer stands still, in milliseconds, as PhotoSwipe's. */
+const STILL = 4000;
+
+/** The room around an item: black with a little of the theme. */
+const ROOM = `color-mix(in oklab, ${color.background} 22%, black)`;
+
+/** The shade behind what floats over an item. */
+const SHADE = "color-mix(in oklab, black 50%, transparent)";
+
+/** The shade behind a button under the pointer. */
+const SHADE_HOVER = "color-mix(in oklab, black 70%, transparent)";
+
+/** The height of a thumbnail in a strip. */
+const THUMBNAIL_HEIGHT = "3rem";
+
+/** The width of a thumbnail in a strip: narrow, so many are there. */
+const THUMBNAIL_WIDTH = "2rem";
+
+/** The width of the thumbnail of the item shown. */
+const CURRENT_WIDTH = "4.5rem";
 
 /** What takes the pointer and the keys itself, such as a video's controls. */
 const OWN = "a, button, input, select, textarea, video, audio, iframe, [contenteditable]";
@@ -96,23 +123,36 @@ const styles = style.create({
         backgroundColor: "transparent",
         boxShadow: "none",
         overflow: "hidden",
+        color: color.foreground,
+        colorScheme: "dark",
         "::backdrop": {
-            backgroundColor: color.background,
+            backgroundColor: ROOM,
+            colorScheme: "dark",
         },
     },
+    pulled: (share: string) => ({
+        [scrim.share]: share,
+        "::backdrop": { transitionDuration: "0s" },
+    }),
     items: {
         display: "contents",
     },
     header: {
-        zIndex: 1,
+        position: "absolute",
+        zIndex: 2,
+        insetBlockStart: 0,
+        insetInline: 0,
         display: "flex",
         alignItems: "center",
-        gap: space[2],
-        padding: space[3],
-        backgroundColor: color.background,
+        gap: space[3],
+        paddingBlockStart: space[2],
+        paddingBlockEnd: space[7],
+        paddingInlineStart: space[4],
+        paddingInlineEnd: space[2],
+        backgroundImage: `linear-gradient(${SHADE}, transparent)`,
+        pointerEvents: "none",
     },
     title: {
-        flex: 1,
         minWidth: 0,
         overflow: "hidden",
         whiteSpace: "nowrap",
@@ -120,8 +160,32 @@ const styles = style.create({
         fontWeight: weight.medium,
     },
     count: {
+        flexShrink: 0,
         color: color.mutedForeground,
         fontVariantNumeric: "tabular-nums",
+    },
+    actions: {
+        display: "flex",
+        flexShrink: 0,
+        gap: space[1],
+        marginInlineStart: "auto",
+        pointerEvents: "auto",
+    },
+    action: {
+        borderRadius: radius.full,
+        fontSize: "1.25rem",
+    },
+    chrome: {
+        transitionProperty: "opacity",
+        transitionDuration: motion.durationMedium,
+        transitionTimingFunction: motion.easingStandard,
+    },
+    alone: {
+        opacity: { default: 0, ":is(:focus-visible, :has(:focus-visible))": 1 },
+        pointerEvents: {
+            default: "none",
+            ":is(:focus-visible, :has(:focus-visible))": "auto",
+        },
     },
     stage: {
         position: "relative",
@@ -138,20 +202,20 @@ const styles = style.create({
         inset: 0,
         display: "grid",
         placeItems: "center",
-        padding: space[3],
-        paddingBlockStart: 0,
+    },
+    still: {
+        cursor: "none",
     },
     shown: {
         zIndex: 1,
     },
     sliding: {
-        transitionProperty: "transform, opacity",
+        transitionProperty: "transform",
         transitionDuration: motion.durationMedium,
         transitionTimingFunction: motion.easingStandard,
     },
-    moved: (x: string, y: string, opacity: number) => ({
-        transform: `translate(${x}, ${y})`,
-        opacity,
+    moved: (x: string, y: string, scale: number) => ({
+        transform: `translate(${x}, ${y}) scale(${scale})`,
     }),
     picture: {
         cursor: { default: "zoom-in", ":is([data-closer])": "grab" },
@@ -160,25 +224,79 @@ const styles = style.create({
     },
     fit: (ratio: number) => ({
         aspectRatio: ratio,
-        width: `min(100cqw - 2 * ${space[3]}, (100cqh - ${space[3]}) * ${ratio})`,
+        width: `min(100cqw, 100cqh * ${ratio})`,
     }),
     placed: (x: string, y: string, scale: number) => ({
         transform: `translate(${x}, ${y}) scale(${scale})`,
     }),
     step: {
         position: "absolute",
-        zIndex: 1,
-        top: `calc(50% - ${space[4]})`,
+        zIndex: 2,
+        top: `calc(50% - ${size[4]} / 2)`,
+        width: size[4],
+        height: size[4],
+        borderRadius: radius.full,
+        borderColor: `color-mix(in oklab, ${color.foreground} 16%, transparent)`,
         backgroundColor: {
-            default: color.card,
-            ":hover": { default: color.card, [media.hover]: color.muted },
+            default: SHADE,
+            ":hover": { default: null, [media.hover]: SHADE_HOVER },
+        },
+        backdropFilter: "blur(16px)",
+        color: color.foreground,
+        fontSize: "1.375rem",
+        // reach past its circle, as the edge is where a person aims
+        "::before": {
+            content: '""',
+            position: "absolute",
+            insetBlock: `calc(-1 * ${space[7]})`,
+            insetInline: `calc(-1 * ${space[4]})`,
         },
     },
+    swiped: {
+        opacity: { default: null, [media.pointerCoarse]: 0 },
+        pointerEvents: { default: null, [media.pointerCoarse]: "none" },
+    },
     previous: {
-        insetInlineStart: space[3],
+        insetInlineStart: space[4],
     },
     next: {
-        insetInlineEnd: space[3],
+        insetInlineEnd: space[4],
+    },
+    strip: {
+        zIndex: 2,
+        display: "flex",
+        flexShrink: 0,
+        gap: space[1],
+        paddingBlock: space[3],
+        paddingInline: "50%",
+        overflowX: "auto",
+        overscrollBehaviorX: "contain",
+        scrollbarWidth: "none",
+        touchAction: "pan-x",
+    },
+    thumbnail: {
+        display: "grid",
+        gridTemplate: "100% / 100%",
+        placeItems: "center",
+        flexShrink: 0,
+        width: THUMBNAIL_WIDTH,
+        height: THUMBNAIL_HEIGHT,
+        padding: 0,
+        borderWidth: 0,
+        borderRadius: radius[2],
+        overflow: "hidden",
+        backgroundColor: color.muted,
+        color: color.foreground,
+        opacity: { default: 0.6, ":hover": { default: null, [media.hover]: 0.9 } },
+        cursor: "pointer",
+        transitionProperty: "opacity",
+        transitionDuration: motion.durationMedium,
+        transitionTimingFunction: motion.easingStandard,
+    },
+    current: {
+        width: CURRENT_WIDTH,
+        marginInline: space[1],
+        opacity: 1,
     },
 });
 
@@ -192,11 +310,27 @@ export interface ViewerProperties<Item> {
 
 /** Render a viewer over the page, showing one item at a time. */
 export function Viewer<Item>(properties: ViewerProperties<Item>): JSX.Element {
-    // move, scale and close by keys
+    // read the control once
     const control = untrack(() => properties.control);
     const locale = useLocale();
+    const { clock } = useEnvironment();
     let element: HTMLElement | undefined;
+
+    // leave the item alone once the pointer stands still
+    let timer: ReturnType<typeof clock.setTimeout> | undefined;
+    const settle = (): void => {
+        clock.clearTimeout(timer);
+        timer = clock.setTimeout(() => control.setAlone(true), STILL);
+    };
+
+    // move, scale and close by keys
     const press = (event: KeyboardEvent): void => {
+        // bring the buttons back for the focus to move to
+        if (event.key === "Tab") {
+            control.setAlone(false);
+            settle();
+        }
+
         // leave keys something inside takes itself
         const isOwn = event.target instanceof Element && event.target.matches(OWN_KEYS);
         const isPlain = !event.altKey && !event.ctrlKey && !event.metaKey;
@@ -221,6 +355,22 @@ export function Viewer<Item>(properties: ViewerProperties<Item>): JSX.Element {
         handle(zoomToFit, { isEnabled: isCloser, run: () => scale.reset() }),
     ];
 
+    // bring the rest back as the pointer moves
+    const wake = (event: PointerEvent): void => {
+        if (event.pointerType !== "touch") {
+            control.setAlone(false);
+            settle();
+        }
+    };
+    createEffect(control.dialog.isOpen, (isOpen) => {
+        if (!isOpen) {
+            return undefined;
+        }
+        control.setAlone(false);
+
+        return () => clock.clearTimeout(timer);
+    });
+
     // grow from what stands for the item on the page, and shrink back to it
     createEffect(control.dialog.isOpen, (isOpen, wasOpen) => {
         if (isOpen && element !== undefined) {
@@ -243,9 +393,13 @@ export function Viewer<Item>(properties: ViewerProperties<Item>): JSX.Element {
                 <DialogContent
                     data-slot="viewer"
                     showCloseButton={false}
-                    xstyle={styles.dialog}
+                    xstyle={[
+                        styles.dialog,
+                        control.pull() > 0 && styles.pulled(String(1 - control.pull())),
+                    ]}
                     ref={handlers}
                     onKeyDown={press}
+                    onPointerMove={wake}
                 >
                     <div ref={(created) => (element = created)} {...style.attrs(styles.items)}>
                         <Show when={control.item()}>{(item) => properties.children(item)}</Show>
@@ -258,7 +412,19 @@ export function Viewer<Item>(properties: ViewerProperties<Item>): JSX.Element {
 
 /** Render the row over a viewer's item, such as its title and buttons. */
 export function ViewerHeader(properties: DialogElementProperties<HTMLDivElement>): JSX.Element {
-    return renderPart("div", "viewer-header", properties, [text.sm, styles.header]);
+    const viewer = useViewer();
+
+    return renderPart("div", "viewer-header", properties, () => [
+        text.sm,
+        styles.header,
+        styles.chrome,
+        isBare(viewer) && styles.alone,
+    ]);
+}
+
+/** Render the buttons of a viewer's header, at its end. */
+export function ViewerActions(properties: DialogElementProperties<HTMLDivElement>): JSX.Element {
+    return renderPart("div", "viewer-actions", properties, styles.actions);
 }
 
 /** Render the title of a viewer's item, which labels it. */
@@ -296,15 +462,16 @@ export function ViewerClose(properties: ButtonProperties): JSX.Element {
         <Button
             data-slot="viewer-close"
             variant="ghost"
-            size="icon"
+            size="icon-lg"
             aria-label={locale.render(t`Close`)}
             {...mergeProperties(
                 {
                     onClick: (event: MouseEvent) =>
                         viewer.dialog.close(new OpenChange("close-press", event)),
                 },
-                omit(properties, "children"),
+                omit(properties, "children", "xstyle"),
             )}
+            xstyle={[styles.action, properties.xstyle]}
         >
             {properties.children ?? <Icon icon={xIcon} />}
         </Button>
@@ -323,10 +490,11 @@ export function ViewerZoomToggle(properties: ViewerButtonProperties): JSX.Elemen
             <ActionButton
                 data-slot="viewer-zoom-toggle"
                 variant="ghost"
-                size="icon"
+                size="icon-lg"
                 icon={viewer.scale.isCloser() ? zoomOutIcon : zoomInIcon}
-                {...properties}
+                {...omit(properties, "xstyle")}
                 action={toggleZoom}
+                xstyle={[styles.action, properties.xstyle]}
             />
         </Show>
     );
@@ -347,7 +515,7 @@ export interface ViewerDownloadProperties extends Omit<
 export function ViewerDownload(properties: ViewerDownloadProperties): JSX.Element {
     // save the item from anywhere while the viewer is open
     const viewer = useViewer();
-    const rest = omit(properties, "href", "name");
+    const rest = omit(properties, "href", "name", "xstyle");
     handleAction(downloadItem, {
         isEnabled: () => viewer.dialog.isOpen(),
         run: () => {
@@ -365,9 +533,10 @@ export function ViewerDownload(properties: ViewerDownloadProperties): JSX.Elemen
         <ActionButton
             data-slot="viewer-download"
             variant="ghost"
-            size="icon"
+            size="icon-lg"
             icon={downloadIcon}
             {...rest}
+            xstyle={[styles.action, properties.xstyle]}
             href={properties.href}
             download={properties.name ?? ""}
             action={downloadItem}
@@ -403,11 +572,19 @@ function ViewerStep(
             <ActionButton
                 data-slot={isNext() ? "viewer-next" : "viewer-previous"}
                 variant="outline"
-                size="icon"
+                size="icon-lg"
                 icon={icon()}
+                weight="bold"
                 {...omit(properties, "step", "xstyle")}
                 action={isNext() ? nextItem : previousItem}
-                xstyle={[styles.step, isNext() ? styles.next : styles.previous, properties.xstyle]}
+                xstyle={[
+                    styles.step,
+                    styles.chrome,
+                    isNext() ? styles.next : styles.previous,
+                    styles.swiped,
+                    isBare(viewer) && styles.alone,
+                    properties.xstyle,
+                ]}
             />
         </Show>
     );
@@ -435,7 +612,16 @@ export function ViewerStage<Item>(properties: ViewerStageProperties<Item>): JSX.
     const locale = useLocale();
     const { clock } = useEnvironment();
     const [offset, setOffset] = createSignal<Point>({ x: 0, y: 0 }, { ownedWrite: true });
-    let tap: { readonly time: number; readonly at: Point } | undefined;
+    let tap:
+        | {
+              readonly time: number;
+              readonly at: Point;
+              readonly timer: ReturnType<typeof clock.setTimeout>;
+          }
+        | undefined;
+    let hasMoved = false;
+    let pointer = "";
+    onCleanup(() => clock.clearTimeout(tap?.timer));
     const stepOf = (x: number): 1 | -1 => (x < 0 === (locale.direction === "ltr") ? 1 : -1);
     const zoom = new Zoom({
         onZoom: ({ scale, clientX, clientY, panX, panY }) => {
@@ -457,10 +643,12 @@ export function ViewerStage<Item>(properties: ViewerStageProperties<Item>): JSX.
                 } else if (event.pointerType === "touch") {
                     const { x, y } = alongOne(event.offsetX, event.offsetY);
                     setOffset({ x: viewer.has(stepOf(x)) ? x : x * RESISTANCE, y });
+                    viewer.setPull(Math.min(y / FADE_DISTANCE, 1));
                 }
             },
             onMoveEnd: (event) => {
                 // leave the item where the finger took it far or fast enough
+                hasMoved = true;
                 const moved = untrack(offset);
                 const { width, height } = event.target.getBoundingClientRect();
                 const isAcross = isLeaving(moved.x, width, event.velocityX);
@@ -475,25 +663,42 @@ export function ViewerStage<Item>(properties: ViewerStageProperties<Item>): JSX.
                 if (!isDown) {
                     setSliding(true);
                     setOffset({ x: 0, y: 0 });
+                    viewer.setPull(0);
                 }
             },
         },
         clock,
     );
     const click = (event: MouseEvent & { readonly currentTarget: HTMLElement }): void => {
-        // close beside the item, and show it closer on a double tap
+        // leave the click a drag ends with
+        if (hasMoved) {
+            return;
+        }
+
+        // close beside the item
         const at = { x: event.clientX, y: event.clientY };
-        const isOn = isWithin(itemOf(event.currentTarget), at);
+        const isTouch = pointer === "touch";
         const isSecond =
             tap !== undefined &&
             event.timeStamp - tap.time < DOUBLE_TAP &&
             Math.hypot(at.x - tap.at.x, at.y - tap.at.y) < TAP_DISTANCE;
-        if (isOn && isSecond) {
-            viewer.scale.toggle(at);
-        } else if (!isOn) {
+        if (!isWithin(itemOf(event.currentTarget), at)) {
             viewer.dialog.close(new OpenChange("outside-press", event));
         }
-        tap = isOn && !isSecond ? { time: event.timeStamp, at } : undefined;
+        // show it closer on a click or a double tap, once for a double click
+        else if (isTouch ? isSecond : event.detail < 2) {
+            clock.clearTimeout(tap?.timer);
+            viewer.scale.toggle(at);
+            tap = undefined;
+        }
+        // hide or show the rest on a tap no other follows
+        else if (isTouch) {
+            const timer = clock.setTimeout(
+                () => viewer.setAlone(!untrack(viewer.isAlone)),
+                DOUBLE_TAP,
+            );
+            tap = { time: event.timeStamp, at, timer };
+        }
     };
     const rest = omit(properties, "control", "children");
 
@@ -505,6 +710,7 @@ export function ViewerStage<Item>(properties: ViewerStageProperties<Item>): JSX.
             setSliding(isOpen && before?.isOpen === true);
             if (isOpen && before?.isOpen !== true) {
                 setOffset({ x: 0, y: 0 });
+                viewer.setPull(0);
             }
         },
     );
@@ -526,11 +732,15 @@ export function ViewerStage<Item>(properties: ViewerStageProperties<Item>): JSX.
         "div",
         "viewer-stage",
         rest,
-        styles.stage,
+        () => [styles.stage, viewer.isAlone() && styles.still],
         mergeProperties(mergeProperties(zoom.attributes(), move.attributes()), {
             tabindex: -1,
             autofocus: true,
             ref: (target: HTMLElement) => (element = target),
+            onPointerDown: (event: PointerEvent) => {
+                hasMoved = false;
+                pointer = event.pointerType;
+            },
             onClick: click,
             // leave the pointer to the stage, as browsers drag pictures
             onDragStart: (event: DragEvent) => event.preventDefault(),
@@ -568,12 +778,12 @@ export function ViewerStage<Item>(properties: ViewerStageProperties<Item>): JSX.
 
 /** Return the styles of where an item stands, moved as far as a finger moves it. */
 function paneAt(place: number, { x, y }: Point, direction: "ltr" | "rtl"): style.Styles {
-    // fade the one a finger takes down, beside which the others stay
+    // shrink the one a finger takes down, beside which the others stay
     const across = place * (direction === "ltr" ? 1 : -1) * 100;
     const down = place === 0 ? y : 0;
-    const opacity = 1 - Math.min(down / FADE_DISTANCE, 0.5);
+    const scale = 1 - Math.min(down / FADE_DISTANCE, 1) * PULL_SHRINK;
 
-    return styles.moved(`calc(${String(across)}% + ${String(x)}px)`, `${String(down)}px`, opacity);
+    return styles.moved(`calc(${String(across)}% + ${String(x)}px)`, `${String(down)}px`, scale);
 }
 
 /** The properties of a picture a viewer scales, with its element's attributes. */
@@ -617,6 +827,7 @@ export function ViewerZoom(properties: ViewerZoomProperties): JSX.Element {
             styles.picture,
             styles.fit(properties.ratio),
             styles.placed(`${String(place().x)}px`, `${String(place().y)}px`, place().scale),
+            viewer.isAlone() && styles.still,
         ],
         {
             ref: (target: HTMLElement) => (element = target),
@@ -625,6 +836,100 @@ export function ViewerZoom(properties: ViewerZoomProperties): JSX.Element {
             },
         },
     );
+}
+
+/** The properties of a viewer's strip, with its element's attributes. */
+export type ViewerStripProperties<Item> = Omit<ViewerElementProperties, "children"> & {
+    /** The viewer. */
+    readonly control: ViewerControl<Item>;
+    /** Read what an item is called. */
+    readonly label: (item: Item) => string;
+    /** Render an item's thumbnail. */
+    readonly children: (item: Accessor<Item>) => JSX.Element;
+};
+
+/** Render a viewer's items as a strip of thumbnails, nothing for a lone item. */
+export function ViewerStrip<Item>(properties: ViewerStripProperties<Item>): JSX.Element {
+    return (
+        <Show when={properties.control.count() > 1}>
+            <Thumbnails {...properties} />
+        </Show>
+    );
+}
+
+/** Render a viewer's thumbnails, that of the item shown in the middle. */
+function Thumbnails<Item>(properties: ViewerStripProperties<Item>): JSX.Element {
+    // keep it in the middle, at once as the viewer opens
+    const viewer = untrack(() => properties.control);
+    const rest = omit(properties, "control", "label", "children");
+    let strip: HTMLElement | undefined;
+    createEffect(
+        () => ({ isOpen: viewer.dialog.isOpen(), key: viewer.key() }),
+        ({ isOpen }, before) => {
+            const isFirst = before?.isOpen !== true;
+            queueMicrotask(() => {
+                if (isOpen && strip !== undefined) {
+                    center(strip, isFirst || isMotionReduced(strip));
+                }
+            });
+        },
+    );
+
+    return renderPart(
+        "div",
+        "viewer-strip",
+        rest,
+        () => [styles.strip, styles.chrome, isBare(viewer) && styles.alone],
+        {
+            role: "group",
+            tabindex: -1,
+            ref: (element: HTMLElement) => (strip = element),
+            get children() {
+                return (
+                    <For each={viewer.items} keyed={(item) => viewer.keyOf(item)}>
+                        {(item) => {
+                            const isShown = (): boolean => viewer.key() === viewer.keyOf(item());
+
+                            return (
+                                <button
+                                    type="button"
+                                    data-slot="viewer-thumbnail"
+                                    aria-label={properties.label(item())}
+                                    aria-current={isShown() ? "true" : undefined}
+                                    tabindex={isShown() ? 0 : -1}
+                                    onClick={() => viewer.show(item())}
+                                    {...style.attrs(
+                                        state.focusInset,
+                                        styles.thumbnail,
+                                        isShown() && styles.current,
+                                    )}
+                                >
+                                    {properties.children(item)}
+                                </button>
+                            );
+                        }}
+                    </For>
+                );
+            },
+        },
+    );
+}
+
+/** Report whether what floats over the item is hidden, as while a finger takes it down. */
+function isBare(viewer: ViewerState): boolean {
+    return viewer.isAlone() || viewer.pull() > 0;
+}
+
+/** Scroll a strip so the thumbnail of the item shown stands in its middle. */
+function center(strip: HTMLElement, isInstant: boolean): void {
+    const current = strip.querySelector("[aria-current]");
+    if (current instanceof HTMLElement) {
+        current.scrollIntoView({
+            block: "nearest",
+            inline: "center",
+            behavior: isInstant ? "instant" : "smooth",
+        });
+    }
 }
 
 /** Move between items by the arrow keys, Home and End, or leave the key alone. */

@@ -2,6 +2,8 @@ import { argument, plural, t } from "@destack/locale";
 import { defineAction, field } from "@destack/object";
 import { schema } from "@destack/schema";
 import { expect, onTestFinished, test, vi } from "@destack/test";
+import { present } from "@destack/schema";
+import { Button } from "../button/index.ts";
 import { ActionRegistry, createSignal, flush, handle, handleAction, Show } from "@destack/view";
 import { render, stubPopovers, wait } from "@destack/view/test";
 import { Toaster } from "../toast/index.ts";
@@ -334,4 +336,19 @@ test("follow a link in place of its action", () => {
         followed: [true, false],
         ran: [],
     });
+});
+
+test("style a button under its tooltip as any button", () => {
+    const { container } = render(
+        () => (
+            <>
+                <Button />
+                <ActionButton action={archive} />
+            </>
+        ),
+        { actions: new ActionRegistry() },
+    );
+    const [plain, action] = container.querySelectorAll("button");
+
+    expect(action?.className).toBe(present(plain, "the plain button").className);
 });

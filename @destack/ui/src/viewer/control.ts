@@ -1,4 +1,12 @@
-import { type Accessor, createContext, onCleanup, untrack, useContext } from "@destack/view";
+import {
+    type Accessor,
+    createContext,
+    createSignal,
+    onCleanup,
+    type Setter,
+    untrack,
+    useContext,
+} from "@destack/view";
 import { DialogControl } from "../dialog/index.ts";
 import { tabbablesIn } from "../focus/index.ts";
 import { OpenChange } from "../layer/index.ts";
@@ -30,6 +38,14 @@ export class ViewerControl<Item> {
     readonly dialog: DialogControl<string>;
     /** How the picture shown is scaled. */
     readonly scale: Scale;
+    /** Whether the buttons and the strip are hidden, so the item stands alone. */
+    readonly isAlone: Accessor<boolean>;
+    /** Set whether the item stands alone. */
+    readonly setAlone: Setter<boolean>;
+    /** How far a finger takes the item down, from none to closing. */
+    readonly pull: Accessor<number>;
+    /** Set how far a finger takes the item down. */
+    readonly setPull: Setter<number>;
     /** The options. */
     readonly #options: ViewerOptions<Item>;
     /** The element that stands for each item on the page, by its key. */
@@ -40,6 +56,12 @@ export class ViewerControl<Item> {
         // show nothing in a dialog of its own
         this.dialog = new DialogControl<string>();
         this.scale = new Scale();
+        const [isAlone, setAlone] = createSignal(false, { ownedWrite: true });
+        const [pull, setPull] = createSignal(0, { ownedWrite: true });
+        this.isAlone = isAlone;
+        this.setAlone = setAlone;
+        this.pull = pull;
+        this.setPull = setPull;
         this.#options = options;
         this.#thumbnails = new Map();
     }
@@ -64,6 +86,11 @@ export class ViewerControl<Item> {
     /** Read the key of the item shown, undefined before one is. */
     key(): string | undefined {
         return this.dialog.state.payload();
+    }
+
+    /** Read an item's key. */
+    keyOf(item: Item): string {
+        return this.#options.key(item);
     }
 
     /** Read the item shown, undefined before one is or once it is gone. */
@@ -110,11 +137,20 @@ export class ViewerControl<Item> {
         return this.#at(step) !== undefined;
     }
 
+    /** Show an item in the open viewer. */
+    show(item: Item): void {
+        // fit it, keeping where the viewer opened from
+        this.scale.reset();
+        const element = untrack(this.dialog.state.trigger)?.element ?? document.body;
+        const trigger = { element, payload: this.#options.key(item) };
+        this.dialog.open(new OpenChange("none", undefined, trigger));
+    }
+
     /** Show the item a step away, if there is one. */
     step(step: 1 | -1): void {
         const item = untrack(() => this.#at(step));
         if (item !== undefined) {
-            this.#show(item);
+            this.show(item);
         }
     }
 
@@ -123,7 +159,7 @@ export class ViewerControl<Item> {
         const items = untrack(() => this.items);
         const item = end === "first" ? items[0] : items.at(-1);
         if (item !== undefined) {
-            this.#show(item);
+            this.show(item);
         }
     }
 
@@ -155,15 +191,6 @@ export class ViewerControl<Item> {
         );
     }
 
-    /** Show an item in the open viewer. */
-    #show(item: Item): void {
-        // fit it, keeping where the viewer opened from
-        this.scale.reset();
-        const element = untrack(this.dialog.state.trigger)?.element ?? document.body;
-        const trigger = { element, payload: this.#options.key(item) };
-        this.dialog.open(new OpenChange("none", undefined, trigger));
-    }
-
     /** Read the item a step from the one shown. */
     #at(step: 1 | -1): Item | undefined {
         // find the one shown among several
@@ -183,7 +210,20 @@ export class ViewerControl<Item> {
 /** A viewer as its parts read it, whatever it shows. */
 export type ViewerState = Pick<
     ViewerControl<never>,
-    "dialog" | "scale" | "count" | "index" | "key" | "has" | "step" | "end" | "shown" | "restore"
+    | "dialog"
+    | "scale"
+    | "isAlone"
+    | "setAlone"
+    | "pull"
+    | "setPull"
+    | "count"
+    | "index"
+    | "key"
+    | "has"
+    | "step"
+    | "end"
+    | "shown"
+    | "restore"
 >;
 
 /** The nearest viewer, null outside one. */

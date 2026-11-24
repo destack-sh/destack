@@ -2,7 +2,7 @@ import * as style from "@destack/style";
 import { space } from "@destack/theme/tokens.stylex";
 import { type Action, type ActionInputs, type ValuesOf } from "@destack/object";
 import { Icon } from "@destack/ui/icon";
-import type { IconBodies } from "@destack/icon";
+import type { IconBodies, IconWeight } from "@destack/icon";
 import { Shortcut } from "@destack/locale";
 import {
     createMemo,
@@ -40,6 +40,8 @@ export interface ActionButtonProperties<Inputs extends ActionInputs = ActionInpu
     readonly element?: Element | null;
     /** The icon, beside the title or alone in an icon size. */
     readonly icon?: IconBodies;
+    /** The weight the icon is drawn in, regular by default. */
+    readonly weight?: IconWeight;
     /** The address a press follows as a link, doing what the action does. */
     readonly href?: string;
     /** The name a press saves the address under, followed instead by default. */
@@ -60,6 +62,7 @@ export function ActionButton<Inputs extends ActionInputs>(
         "given",
         "element",
         "icon",
+        "weight",
         "href",
         "download",
         "variant",
@@ -67,7 +70,7 @@ export function ActionButton<Inputs extends ActionInputs>(
     );
     const title = () => locale.render(properties.action.title);
     const keys = () => actions.keybindings(properties.action, isCommand())[0];
-    const isAlone = () => properties.size === "icon" || properties.size === "icon-sm";
+    const isAlone = () => properties.size?.startsWith("icon") === true;
     const [button, setButton] = createSignal<Element | undefined>(undefined, { ownedWrite: true });
     const place = () => {
         // find where a press would run it
@@ -140,7 +143,9 @@ export function ActionButton<Inputs extends ActionInputs>(
                     />
                 )}
             >
-                <Show when={properties.icon}>{(icon) => <Icon icon={icon()} />}</Show>
+                <Show when={properties.icon}>
+                    {(icon) => <Icon icon={icon()} weight={properties.weight ?? "regular"} />}
+                </Show>
                 <Show when={!isAlone()}>{properties.children ?? title()}</Show>
             </TooltipTrigger>
             <TooltipContent>
