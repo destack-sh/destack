@@ -1,4 +1,5 @@
 import { Digest, present, schema } from "@destack/schema";
+import { TelemetryScope } from "@destack/telemetry";
 import type { Program } from "@destack/package/bun";
 import { FileSystemError } from "@destack/environment";
 import { dirname, join, relative, sep } from "node:path";
@@ -151,21 +152,31 @@ export const Evaluation = {
             throw BuildError.of("INVARIANT_BROKEN", "an evaluation needs a project");
         }
         const listed: { key: string; kind: CatalogedKind }[] = [];
-        const directories = [
-            first.directory,
-            ...Object.values(first.tree.directories),
-            ...(await installedDirectories(first)),
-        ];
-        for (const directory of new Set(directories)) {
-            const location = await catalog.locate(directory);
-            for (const [name, inspected] of await catalog.inspected(location)) {
-                for (const kind of inspected.kinds) {
-                    listed.push({
-                        key: `${location.name}#${name}`,
-                        kind: { ...kind, index: listed.length },
-                    });
+        const scope = TelemetryScope.of(import.meta.destack.package, first.environment.telemetry);
+        await scope.span("destack.evaluate.kinds", {}, async (span) => {
+            // read the kinds each directory of the closure declares
+            const directories = [
+                first.directory,
+                ...Object.values(first.tree.directories),
+                ...(await installedDirectories(first)),
+            ];
+            for (const directory of new Set(directories)) {
+                const location = await catalog.locate(directory);
+                for (const [name, inspected] of await catalog.inspected(location)) {
+                    for (const kind of inspected.kinds) {
+                        listed.push({
+                            key: `${location.name}#${name}`,
+                            kind: { ...kind, index: listed.length },
+                        });
+                    }
                 }
             }
+            span.setAttribute("destack.evaluate.kinds", listed.length);
+        });
+
+        // declare nothing without a kind in the closure, as only a kind's constructor declares
+        if (listed.length === 0) {
+            return { declarations: [] };
         }
         const kinds = Map.groupBy(listed, (entry) => entry.key);
 
@@ -271,6 +282,7 @@ async function evaluateProject(
         listed,
     );
     const evaluated = EvaluatedEntry.parse(await evaluateEntry(source, project, options));
+    const scope = TelemetryScope.of(import.meta.destack.package, project.environment.telemetry);
 
     // find each exported value a constructor made, once, at its first export
     const sites = new Map<unknown, DeclarationSite>(
@@ -303,7 +315,9 @@ async function evaluateProject(
             requireDeclaringPackage(value, owner, name);
             for (const { kind } of constructorKinds(kinds, site)) {
                 const located = { owner, name, site, kind };
-                const description = await describeDeclaration(value, located, evaluated, project);
+                const description = await scope.span("destack.evaluate.describe", {}, () =>
+                    describeDeclaration(value, located, evaluated, project),
+                );
                 if (description !== undefined) {
                     declarations.push({ description, file, export: name });
                 }
@@ -474,10 +488,16 @@ async function bundleAndEvaluate(
     options: EvaluationOptions,
 ): Promise<unknown> {
     // bundle the entry once, or on its warm bundle while the package develops
-    const generated =
+    const scope = TelemetryScope.of(import.meta.destack.package, project.environment.telemetry);
+    const generated = await scope.span("destack.evaluate.bundle", {}, async () =>
         options.bundles === undefined
-            ? await bundleOnce(await entryOptions(source, project, options.transformer))
-            : await bundleWarm(source, project, options.transformer, options.bundles);
+            ? await bundleOnce(
+                  await scope.span("destack.evaluate.prepare", {}, () =>
+                      entryOptions(source, project, options.transformer),
+                  ),
+              )
+            : await bundleWarm(source, project, options.transformer, options.bundles),
+    );
     const chunks = generated.filter((file) => file.type === "chunk");
     const [chunk] = chunks;
     if (chunks.length !== 1 || chunk === undefined) {
@@ -489,8 +509,10 @@ async function bundleAndEvaluate(
 
     // evaluate the entry, linking its externals as the host loads them
     const module = new SourceTextModule(chunk.code);
-    await module.link(async (specifier) => linkHost(specifier, project.program));
-    await module.evaluate();
+    await scope.span("destack.evaluate.link", {}, () =>
+        module.link(async (specifier) => linkHost(specifier, project.program)),
+    );
+    await scope.span("destack.evaluate.run", {}, () => module.evaluate());
 
     return module.namespace;
 }

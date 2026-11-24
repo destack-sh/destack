@@ -433,6 +433,7 @@ test("trace each unit's build: a compile on a miss, the cache on a hit", async (
             "destack.compiler.evaluate": 2,
             "destack.compiler.start": 2,
             "destack.dependency.install": 2,
+            "destack.evaluate.kinds": 2,
             "destack.workspace.build[hit]": 2,
             "destack.workspace.build[miss]": 2,
             "destack.workspace.open": 2,
