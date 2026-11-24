@@ -101,13 +101,14 @@ Its keys run it outside form fields, unless its `focus` is `"any"`.
 
 `useActions()` answers the page's actions, which menus, buttons, keys and the palette run.
 
-| Method                           | What it does                                                            |
-| -------------------------------- | ----------------------------------------------------------------------- |
-| `run(action, element, given?)`   | runs it at an element, asking what neither places nor `given` answer    |
-| `start(action, element, given?)` | runs it as a person does, telling them where it fails                   |
-| `at(element)`                    | lists every action at an element, each titled method of the objects too |
-| `has(reference, element)`        | reports whether it runs there now                                       |
-| `keybinding(action)`             | reads the person's keys for it, else its own                            |
+| Method                                    | What it does                                                            |
+| ----------------------------------------- | ----------------------------------------------------------------------- |
+| `run(action, element, given?)`            | runs it at an element, asking what neither places nor `given` answer    |
+| `start(action, element, given?)`          | runs it as a person does, telling them where it fails                   |
+| `at(element)`                             | lists every action at an element, each titled method of the objects too |
+| `has(reference, element)`                 | reports whether it runs there now                                       |
+| `sentence(action, element, localization)` | writes what it does there, by its `summary`                             |
+| `keybinding(action)`                      | reads the person's keys for it, else its own                            |
 
 `provide(variable, value)` gives the actions in the element it is the `ref` of a variable's value, such as the sprint a section shows, and `provideVariable` the whole page's.
 `handleFailing(fail)` tells the person which action failed and why, as `Toaster` of `@destack/ui` does.
@@ -123,6 +124,7 @@ An action bubbles as a DOM event does: from the focus through the elements aroun
 | `run`       | runs the action, with its inputs' `values` and the `element` it runs at         |
 | `choices`   | lists the values a person picks an input from                                   |
 | `isEnabled` | a Solid accessor: false leaves the keys to the page and hides it in the palette |
+| `isOn`      | whether what it turns on is on, which menus check and buttons press             |
 
 ### Standard actions
 

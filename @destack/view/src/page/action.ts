@@ -75,6 +75,8 @@ export interface ActionHandler<Inputs extends ActionInputs = ActionInputs> {
     readonly choices?: (input: string, element: Element | null) => readonly Choice[];
     /** Report whether the handler runs where the person is, read reactively, as menus validate. */
     readonly isEnabled?: (element: Element | null) => boolean;
+    /** Report whether what it turns on is on, absent for what turns nothing on. */
+    readonly isOn?: (element: Element | null) => boolean;
 }
 
 /** A handler with the element it handles actions in, absent for the whole page. */
@@ -254,6 +256,70 @@ export class ActionRegistry {
         );
 
         return [...others, ...lists];
+    }
+
+    /** Report whether what an action turns on is on at an element, absent for nothing. */
+    isOn(action: Action, element: Element | null): boolean | undefined {
+        const key = DeclarationReference.key(action.reference);
+
+        return this.#chosen(key, element)?.handler.isOn?.(element);
+    }
+
+    /** List the inputs an action still asks for at an element, beside those given. */
+    asked<Inputs extends ActionInputs>(
+        action: Action<Inputs>,
+        element: Element | null,
+        given: Partial<ValuesOf<Inputs>> = {},
+    ): readonly ActionInput[] {
+        return this.#resolve(action, element, JsonValue.object(given)).asked;
+    }
+
+    /** Write what an action does at an element: its sentence, its title while an input is asked. */
+    sentence<Inputs extends ActionInputs>(
+        action: Action<Inputs>,
+        element: Element | null,
+        localization: Localization,
+        given: Partial<ValuesOf<Inputs>> = {},
+    ): string {
+        // write the title without a sentence, or while an input is missing
+        const { values, asked } = this.#resolve(action, element, JsonValue.object(given));
+        if (action.summary === undefined || asked.some(({ need }) => need === "required")) {
+            return localization.render(action.title);
+        }
+
+        // count objects, title a choice, and write any other value as it is
+        const written = action.inputs.map((input): [string, string | number] => {
+            const value = values[input.name];
+            if (input.value.kind === "object") {
+                return [input.name, Array.isArray(value) ? value.length : 1];
+            } else if (input.value.kind === "choice") {
+                const choice = input.value.choices.find((each) => each.value === value);
+
+                return [
+                    input.name,
+                    choice === undefined ? "" : Choice.of(choice, localization).title,
+                ];
+            }
+
+            return [
+                input.name,
+                typeof value === "string" || typeof value === "number" ? value : "",
+            ];
+        });
+
+        return localization.render(action.summary, Object.fromEntries(written));
+    }
+
+    /** Report whether a person picks an input from a list at an element. */
+    isListed(action: Action, input: ActionInput, element: Element | null): boolean {
+        const key = DeclarationReference.key(action.reference);
+        const { kind } = input.value;
+
+        return (
+            kind === "object" ||
+            kind === "choice" ||
+            this.#chosen(key, element)?.handler.choices !== undefined
+        );
     }
 
     /** List the values a person picks an input from. */
@@ -462,18 +528,13 @@ export class ActionRegistry {
         const handler = this.#chosen(key, element)?.handler;
         const { call } = action;
         const client = call === undefined ? undefined : this.#client(call);
-        const places = this.places(element);
         if (handler === undefined && (call === undefined || client === undefined)) {
             throw new TypeError(`the page runs no action '${key}' now`);
         }
 
         // resolve the inputs, and ask for those left and before removing anything for good
-        const resolve = (values: ActionValues) =>
-            call === undefined
-                ? resolveInputs(action.inputs, places, values)
-                : call.resolve({ places }, values);
         const own = JsonValue.object(given);
-        const first = resolve(own);
+        const first = this.#resolve(action, element, own);
         const answers =
             first.asked.length > 0 || call?.isDestructive === true
                 ? await this.#answers({ action, values: first.values, asked: first.asked, element })
@@ -481,7 +542,7 @@ export class ActionRegistry {
         if (answers === undefined) {
             return undefined;
         }
-        const resolved = resolve({ ...own, ...answers });
+        const resolved = this.#resolve(action, element, { ...own, ...answers });
 
         // call its method in the space of each target, or hand the handler what its inputs take
         if (call !== undefined && client !== undefined && handler === undefined) {
@@ -498,6 +559,15 @@ export class ActionRegistry {
         await handler?.run({ element, values: resolved.values });
 
         return [];
+    }
+
+    /** Resolve an action's inputs at an element from what is given and the places around. */
+    #resolve(action: Action, element: Element | null, given: ActionValues): ActionResolution {
+        const places = this.places(element);
+
+        return action.call === undefined
+            ? resolveInputs(action.inputs, places, given)
+            : action.call.resolve({ places }, given);
     }
 
     /** Ask the person through the page, refusing to run without a part that asks. */
