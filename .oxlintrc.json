@@ -484,7 +484,7 @@
                 {
                     "directory": "@destack/theme",
                     "name": "@destack/theme",
-                    "description": "Theme views with an accent, a base and roles solved for contrast, in light and dark."
+                    "description": "Theme views with a page, an accent and ten hues, solved for contrast in light and dark."
                 },
                 {
                     "directory": "@destack/tunnel",
@@ -539,7 +539,7 @@
                 {
                     "directory": "@platform/site",
                     "name": "@platform/site",
-                    "description": "Read about Destack on its website, documentation and blog."
+                    "description": "Read about Destack on its website, documentation and blog at destack.sh."
                 },
                 {
                     "directory": "@platform/stack",
@@ -635,7 +635,6 @@
                 "@platform/distribution/src/key/tests/bitwarden.ts",
                 "@platform/pricing/scripts/refresh.ts",
                 "@platform/site/build/main.ts",
-                "@platform/site/scripts/test-highlighting.ts",
                 "@platform/site/scripts/test-markdown.ts",
                 "@platform/site/scripts/generate-pricing.ts",
                 "@platform/site/scripts/generate-headword.ts",

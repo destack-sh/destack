@@ -9,7 +9,6 @@ import {
     CodeBlock,
     CodeBlockContent,
     CodeBlockHeader,
-    CodeBlockLine,
     CodeBlockTitle,
 } from "@destack/ui/code-block";
 import {
@@ -18,6 +17,7 @@ import {
     type ContentElementProperties,
 } from "@destack/ui/content";
 import Copy from "../islands/copy";
+import { grammarOf } from "./grammar.ts";
 import AnimationIsland from "../islands/animation";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@destack/ui/table";
 
@@ -84,15 +84,11 @@ function Listing(properties: ContentElementProperties) {
                 </CodeBlockHeader>
             )}
             <CodeBlockContent
+                code={source}
+                grammar={language === undefined ? undefined : grammarOf(language)}
                 isNumbered={language !== "diagram"}
                 label={title ?? language ?? "Code"}
-            >
-                {code.children.map((line) => (
-                    <CodeBlockLine>
-                        <Content tree={rootOf(line.type === "element" ? line.children : [line])} />
-                    </CodeBlockLine>
-                ))}
-            </CodeBlockContent>
+            />
         </CodeBlock>
     );
 }

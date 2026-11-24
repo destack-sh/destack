@@ -55,7 +55,7 @@ assert.deepEqual(element(0), {
     children: [{ type: "text", value: "Setup" }],
 });
 
-// carry the fence's title, format and language on the listing, its code highlighted one span per line
+// keep the fence's title, format, language and code on the listing
 assert.deepEqual(element(1), {
     type: "element",
     tagName: "pre",
@@ -65,29 +65,7 @@ assert.deepEqual(element(1), {
             type: "element",
             tagName: "code",
             properties: { className: ["language-ts"] },
-            children: [
-                {
-                    type: "element",
-                    tagName: "span",
-                    properties: {},
-                    children: [
-                        {
-                            type: "element",
-                            tagName: "span",
-                            properties: { className: ["hljs-keyword"] },
-                            children: [{ type: "text", value: "const" }],
-                        },
-                        { type: "text", value: " port = " },
-                        {
-                            type: "element",
-                            tagName: "span",
-                            properties: { className: ["hljs-number"] },
-                            children: [{ type: "text", value: "1" }],
-                        },
-                        { type: "text", value: ";" },
-                    ],
-                },
-            ],
+            children: [{ type: "text", value: "const port = 1;\n" }],
         },
     ],
 });

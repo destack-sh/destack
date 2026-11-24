@@ -5,7 +5,6 @@ import remarkParse from "remark-parse";
 import remarkRehype from "remark-rehype";
 import { unified } from "unified";
 import { captured, parseAttributes } from "./attributes.ts";
-import { highlightCode } from "./highlight.ts";
 import { searchTextFor } from "./text.ts";
 
 /** File extensions shown for fence languages whose name differs from their extension. */
@@ -397,8 +396,7 @@ function shapeHtml(
                 throw new Error(`a listing in '${context.slug}' has no language`);
             }
 
-            // highlight the code, or keep a diagram's source
-            const source = textOf(code);
+            // number a diagram
             if (language === "diagram") {
                 counters.figure += 1;
                 const caption = node.properties["dataTitle"] ?? "diagram";
@@ -416,15 +414,6 @@ function shapeHtml(
                         node,
                     ],
                 };
-            } else if (language !== "mermaid") {
-                code.children = splitLines(highlightCode(source.replace(/\n$/u, ""), language)).map(
-                    (line): Element => ({
-                        type: "element",
-                        tagName: "span",
-                        properties: {},
-                        children: line,
-                    }),
-                );
             }
             continue;
         }
@@ -436,39 +425,6 @@ function shapeHtml(
 
         shapeHtml(node, context, counters);
     }
-}
-
-/** Split highlighted code into lines, carrying each span that crosses a break into both. */
-function splitLines(nodes: readonly ElementContent[]): ElementContent[][] {
-    // start the first line, and add each piece to the line being written
-    const lines: ElementContent[][] = [[]];
-    const append = (node: ElementContent) => lines.at(-1)?.push(node);
-    for (const node of nodes) {
-        // break text at its line breaks
-        if (node.type === "text") {
-            node.value.split("\n").forEach((part, index) => {
-                if (index > 0) {
-                    lines.push([]);
-                }
-                if (part !== "") {
-                    append({ type: "text", value: part });
-                }
-            });
-        }
-        // carry a span into every line its children reach
-        else if (node.type === "element") {
-            splitLines(node.children).forEach((part, index) => {
-                if (index > 0) {
-                    lines.push([]);
-                }
-                if (part.length > 0) {
-                    append({ ...node, children: part });
-                }
-            });
-        }
-    }
-
-    return lines;
 }
 
 /** Label each body cell of a table with the text of its column's header. */

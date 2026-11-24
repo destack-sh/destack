@@ -3,7 +3,7 @@
     "private": true,
     "license": "Apache-2.0",
     "type": "module",
-    "description": "Read about Destack on its website, documentation and blog.",
+    "description": "Read about Destack on its website, documentation and blog at destack.sh.",
     "exports": {
         "./view": "./src/view/view.ts",
         "./package": "./src/package.ts"
@@ -15,7 +15,7 @@
         "format": "destack-check format src build scripts content.ts",
         "format-check": "destack-check format-check src build scripts content.ts",
         "lint": "destack-check check src build scripts content.ts",
-        "test": "bun run scripts/test-highlighting.ts && bun run scripts/test-markdown.ts",
+        "test": "bun run scripts/test-markdown.ts",
         "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p build/tsconfig.json --noEmit",
         "generate": "bun run scripts/generate-pricing.ts && bun run scripts/generate-headword.ts",
         "generate-icons": "bun run scripts/generate-icons.ts",
@@ -24,6 +24,7 @@
         "generate-check": "bun run scripts/generate-pricing.ts --check && bun run scripts/generate-headword.ts --check"
     },
     "dependencies": {
+        "@destack/code": "workspace:*",
         "@destack/color": "workspace:*",
         "@destack/environment": "workspace:*",
         "@destack/icon": "workspace:*",
@@ -40,8 +41,6 @@
         "@platform/brand": "workspace:*",
         "@types/hast": "3.0.5",
         "@types/mdast": "4.0.4",
-        "highlight.js": "11.11.1",
-        "lowlight": "3.3.0",
         "mermaid": "12.0.0",
         "remark-directive": "4.0.0",
         "remark-gfm": "4.0.1",
