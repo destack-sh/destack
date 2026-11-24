@@ -26,6 +26,8 @@ export class Bundle implements AsyncDisposable {
     readonly #files: FileSystem;
     /** The bytes of each package file when the bundle last loaded it, by path. */
     readonly #read: ReadonlyMap<string, Uint8Array>;
+    /** The number of outputs the engine produced, a full build or a rebuild each. */
+    #builds = 0;
     /** The newest output or failure, with the modules of the graph its build left. */
     #output:
         | { readonly result: RolldownOutput | Error; readonly modules: readonly string[] }
@@ -87,6 +89,11 @@ export class Bundle implements AsyncDisposable {
         return bundle;
     }
 
+    /** The number of outputs the engine produced, a full build or a rebuild each. */
+    get builds(): number {
+        return this.#builds;
+    }
+
     /** Take the newest output once it reflects the disk's bytes of every file it read. */
     async latest(): Promise<BundleOutput> {
         // wait for the build running now
@@ -117,6 +124,8 @@ export class Bundle implements AsyncDisposable {
 
     /** Keep an output with its graph's modules, and wake the waits for it. */
     #take(result: RolldownOutput | Error): void {
+        // count the output, keep it with its modules, and wake the waits
+        this.#builds += 1;
         this.#output = { result, modules: this.#engine.moduleGraph.getModuleIds() };
         this.#next.resolve();
         this.#next = Promise.withResolvers<void>();

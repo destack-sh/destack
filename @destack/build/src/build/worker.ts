@@ -634,7 +634,11 @@ export class CompilerWorker {
         output: ModuleOptions,
         context: CompileContext,
     ): Promise<Pick<OutputBuild, "output" | "inspection" | "npm" | "sourceMaps">> {
-        const attributes = { "destack.compiler.output": name, "destack.runtime": output.runtime };
+        const attributes = {
+            "destack.package.directory": context.options.directory,
+            "destack.compiler.output": name,
+            "destack.runtime": output.runtime,
+        };
 
         return this.#scope.span("destack.compiler.compile", attributes, () =>
             this.#compileModule(name, output, context),

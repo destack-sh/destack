@@ -1,3 +1,4 @@
+import { TelemetryScope } from "@destack/telemetry";
 import { isAbsolute, posix, resolve } from "node:path";
 import { build, type InlineConfig, type Plugin, type PluginOption } from "vite";
 import { rolldown } from "rolldown";
@@ -157,6 +158,8 @@ export class ModuleOutput implements Compilation {
     readonly #hosts: HostModuleResolver;
     /** The output's warm bundle in development, once its first build starts it. */
     #session: Session | undefined;
+    /** The spans and records of the output's bundles. */
+    readonly #scope: TelemetryScope;
 
     /** Create the compilation of one output from its settings, package and inspection. */
     constructor(
@@ -185,6 +188,7 @@ export class ModuleOutput implements Compilation {
         this.cache = cache;
         this.#transformer = transformer;
         this.#hosts = new HostModuleResolver(project.runtime, project.environment.files);
+        this.#scope = TelemetryScope.of(import.meta.destack.package, project.environment.telemetry);
     }
 
     /** The package the build compiles. */
@@ -289,9 +293,22 @@ export class ModuleOutput implements Compilation {
         entries: readonly string[],
     ): Promise<OutputBuild> {
         // take the newest output of the warm bundle, started once
-        this.#session ??= await this.#startSession(dependencies, entries);
+        this.#session ??= await this.#scope.span("destack.bundle.start", {}, () =>
+            this.#startSession(dependencies, entries),
+        );
         const session = this.#session;
-        const { generated, modules } = session.first ?? (await session.bundle.latest());
+        const { generated, modules } = await this.#scope.span(
+            "destack.bundle.latest",
+            {},
+            async (span) => {
+                // take the output, recording how many builds it took
+                const before = session.bundle.builds;
+                const output = session.first ?? (await session.bundle.latest());
+                span.setAttribute("destack.bundle.builds", session.bundle.builds - before);
+
+                return output;
+            },
+        );
         session.first = undefined;
 
         // keep the files of the modules still in the graph, the sources retained and the assets copied
@@ -698,9 +715,10 @@ export class ModuleOutput implements Compilation {
                 input.entries.map((entry) => [entryName(project.directory, entry), entry]),
             ),
             preserveEntrySignatures: "strict",
-            // ignore bundler timings
-            checks: { bundlerTimings: false },
-            onLog: failOnWarning,
+            // record Rolldown's report of slow plugins on the compile's span
+            onLog: (level, log, handler) => {
+                failOnWarning(level, log, handler, this.#scope);
+            },
             external: (specifier, importer) =>
                 this.#isExternal(specifier, importer, input.dependencies, compiled),
             output: {
@@ -1213,17 +1231,25 @@ function wrapHook<Handler extends (...parameters: never[]) => unknown, Meta>(
     return typeof hook === "object" ? { ...hook, handler: wrap(hook.handler) } : wrap(hook);
 }
 
-/** Fail on Rolldown warnings other than timings, and pass other logs on. */
-function failOnWarning(level: LogLevel, log: RolldownLog, handler: LogOrStringHandler): void {
-    // NOTE #Suspicious: Rolldown 1.2.19 still reports timings on Vite's path with the check off, so drop that report
+/** Fail on Rolldown warnings other than timings, recording timings on the active span. */
+function failOnWarning(
+    level: LogLevel,
+    log: RolldownLog,
+    handler: LogOrStringHandler,
+    scope: TelemetryScope,
+): void {
+    // record the plugin timings on the compile's span
     if (log.code === PLUGIN_TIMINGS) {
-        return;
+        scope.span.current()?.setAttribute("destack.bundle.plugins", log.message);
     }
     // fail on any other warning
     else if (level === "warn") {
         throw BuildError.of("BUNDLE_INVALID", log.message);
     }
-    handler(level, log);
+    // pass other logs on
+    else {
+        handler(level, log);
+    }
 }
 
 /** Ask an extension to describe a compiled output, reporting its failure as a build failure. */
