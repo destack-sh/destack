@@ -1,6 +1,6 @@
+import prohibit from "@destack/icon/phosphor/prohibit";
 import uploadSimple from "@destack/icon/phosphor/upload-simple";
 import { type Localization, t } from "@destack/locale";
-import type { ObjectFileLimits } from "@destack/object";
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
 import { state } from "@destack/theme/state";
@@ -16,21 +16,45 @@ import {
     weight,
 } from "@destack/theme/tokens.stylex";
 import { Icon } from "@destack/ui/icon";
-import { For, type JSX, merge, omit, Show, useLocale } from "@destack/view";
+import {
+    createEffect,
+    createSignal,
+    For,
+    type JSX,
+    merge,
+    omit,
+    Show,
+    untrack,
+    useLocale,
+} from "@destack/view";
 import { createDropzone } from "@destack/view/primitives/upload";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
-import { DropzoneContext, DropzoneControl, useDropzone } from "./control.ts";
-import { describeLimits, describeRefusal, type Refusal } from "../file-item/index.ts";
+import { useFieldControl } from "../field/control.ts";
+import {
+    describeLimits,
+    describeRefusal,
+    type FileLimits,
+    type Refusal,
+} from "../file-item/index.ts";
+import { visuallyHiddenStyle } from "../visually-hidden/index.ts";
+import {
+    DropzoneContext,
+    DropzoneControl,
+    type DropzoneOptions,
+    fileOf,
+    useDropzone,
+} from "./control.ts";
 
 /** What a zone that sets nothing takes, and how it looks. */
 const DEFAULTS: Required<
-    Pick<DropzoneProperties, "limits" | "variant" | "size" | "multiple" | "disabled">
+    Pick<DropzoneProperties, "limits" | "variant" | "size" | "multiple" | "disabled" | "target">
 > = {
     limits: {},
     variant: "outline",
     size: "default",
     multiple: false,
     disabled: false,
+    target: "zone",
 };
 
 /** The styles of a zone and its elements. */
@@ -72,7 +96,12 @@ const styles = style.create({
     dragging: {
         borderColor: { default: swatch.accentMark, [media.forcedColors]: "Highlight" },
         borderStyle: "solid",
-        backgroundColor: swatch.accentTint,
+        backgroundColor: `color-mix(in oklab, ${swatch.accentMark} 8%, ${color.background})`,
+    },
+    rejecting: {
+        borderColor: { default: swatch.destructiveMark, [media.forcedColors]: "CanvasText" },
+        backgroundColor: "transparent",
+        color: swatch.destructiveText,
     },
     disabled: {
         opacity: 0.5,
@@ -96,10 +125,24 @@ const styles = style.create({
         borderWidth: stroke.border,
         borderStyle: "dashed",
         borderColor: { default: swatch.accentMark, [media.forcedColors]: "Highlight" },
-        borderRadius: "inherit",
-        backgroundColor: `color-mix(in oklab, ${swatch.accentTint} 92%, transparent)`,
+        borderRadius: radius[3],
+        backgroundColor: `color-mix(in oklab, ${swatch.accentMark} 8%, ${color.background})`,
         fontWeight: weight.medium,
         pointerEvents: "none",
+    },
+    overlayPage: {
+        position: "fixed",
+        zIndex: 50,
+        inset: space[3],
+        gap: space[3],
+        borderWidth: stroke.ring,
+        borderRadius: radius[5],
+        boxShadow: `0 0 0 ${space[3]} ${color.background}`,
+    },
+    overlayReject: {
+        borderColor: { default: swatch.destructiveMark, [media.forcedColors]: "Highlight" },
+        backgroundColor: `color-mix(in oklab, ${color.background} 92%, transparent)`,
+        color: swatch.destructiveText,
     },
     frame: {
         display: "flex",
@@ -140,6 +183,9 @@ export type DropzoneVariant = "outline" | "plain";
 /** The size of a zone: the default, or small in one row. */
 export type DropzoneSize = "default" | "sm";
 
+/** Where files may be dropped and pasted: on the zone, or anywhere on the page. */
+export type DropzoneTarget = "zone" | "page";
+
 /** The properties of an element of a zone, with its own attributes. */
 export type DropzoneElementProperties<Element extends HTMLElement = HTMLDivElement> = Omit<
     JSX.HTMLAttributes<Element>,
@@ -148,15 +194,26 @@ export type DropzoneElementProperties<Element extends HTMLElement = HTMLDivEleme
     ElementPartProperties;
 
 /** The properties of a zone, with its element's attributes. */
-export interface DropzoneProperties extends DropzoneElementProperties {
-    /** Take the files dropped, pasted or chosen, those that fit the limits alone. */
-    readonly onFiles: (files: readonly File[]) => void;
-    /** Hear of the files that do not fit, which it tells by default too. */
-    readonly onRefuse?: (refusals: readonly Refusal[]) => void;
-    /** The media types and sizes it takes, such as a file field's own, every file by default. */
-    readonly limits?: ObjectFileLimits;
+export interface DropzoneProperties
+    extends
+        Omit<DropzoneElementProperties, "onError" | "onReset">,
+        Omit<DropzoneOptions, "limits" | "multiple" | "disabled"> {
+    /** The media types, sizes and number of files it takes, every file by default. */
+    readonly limits?: FileLimits;
     /** Whether it takes several files, one by default. */
     readonly multiple?: boolean;
+    /** Whether its form submits only with a file. */
+    readonly required?: boolean;
+    /** The id of the form that submits its files, the one around it by default. */
+    readonly form?: string;
+    /** Whether a person chooses and drops folders, whose files it takes. */
+    readonly directory?: boolean;
+    /** The camera a phone takes a picture with, in place of choosing a file. */
+    readonly capture?: "user" | "environment";
+    /** Handle dropped folders that cannot be read, or have more than 10,000 files. */
+    readonly onError?: (error: unknown) => void;
+    /** Where files may be dropped and pasted, on the zone by default. */
+    readonly target?: DropzoneTarget;
     /** Its look, a dashed box by default. */
     readonly variant?: DropzoneVariant;
     /** The size of its box, default by default. */
@@ -170,30 +227,92 @@ export interface DropzoneProperties extends DropzoneElementProperties {
 /** Render a zone that takes files dropped, pasted or chosen, and says why it refuses one. */
 export function Dropzone(properties: DropzoneProperties): JSX.Element {
     // take every file, one at a time, unless it sets otherwise
-    const zone = merge(DEFAULTS, properties);
+    const field = useFieldControl();
+    const given = merge(DEFAULTS, properties);
+    const zone = merge(given, {
+        get disabled() {
+            return given.disabled || field?.isDisabled() === true;
+        },
+    });
     const rest = omit(
         zone,
         "onFiles",
         "onRefuse",
+        "onError",
+        "onReset",
+        "validate",
+        "files",
         "limits",
         "multiple",
+        "name",
+        "required",
+        "form",
+        "directory",
+        "capture",
+        "target",
         "variant",
         "size",
         "disabled",
         "children",
     );
     const dropzone = createDropzone({
-        onDrop: (dropped) => control.take(dropped.map(({ file }) => file)),
+        isReadingFolders: () => zone.directory === true,
+        onDrop: (dropped) => control.take(dropped),
+        onError: (error) => zone.onError?.(error),
     });
-    const control = new DropzoneControl(zone, dropzone.isDragging);
+    const control = new DropzoneControl(zone, dropzone.isDragging, dropzone.offered);
     const paste = (event: ClipboardEvent): void => {
+        // leave what a zone or a field inside took
         const pasted = [...(event.clipboardData?.files ?? [])];
-        if (pasted.length > 0) {
+        if (pasted.length > 0 && !event.defaultPrevented) {
             event.preventDefault();
-            control.take(pasted);
+            control.take(pasted.map((file) => fileOf(file)));
         }
     };
+    const reset = (): void => control.reset();
     const isOutline = (): boolean => zone.variant === "outline";
+    const isPage = (): boolean => zone.target === "page";
+
+    // take files dropped and pasted anywhere on the page
+    createEffect(isPage, (isWhole) => {
+        if (!isWhole) {
+            return undefined;
+        }
+        dropzone.ref(document.documentElement);
+        document.addEventListener("paste", paste);
+
+        return () => document.removeEventListener("paste", paste);
+    });
+
+    // submit the files there are, and forget them as the form resets
+    createEffect(
+        () => ({ files: control.files, name: zone.name }),
+        ({ files, name }) => (name === undefined ? undefined : control.submit(files)),
+    );
+    createEffect(
+        () => ({ name: zone.name, form: zone.form }),
+        ({ name }) => {
+            // listen to the form of a zone with a name
+            const form = name === undefined ? null : (input?.form ?? null);
+            form?.addEventListener("reset", reset);
+
+            return () => form?.removeEventListener("reset", reset);
+        },
+    );
+
+    // tell the files added and removed
+    const locale = useLocale();
+    const [announcement, setAnnouncement] = createSignal("", { ownedWrite: true });
+    let known = untrack(() => control.files);
+    createEffect(
+        () => control.files,
+        (files) => {
+            // compare with the files before
+            setAnnouncement(changeOf(files, known, locale));
+            known = files;
+        },
+    );
+    let input: HTMLInputElement | undefined;
 
     return renderPart(
         "div",
@@ -206,10 +325,11 @@ export function Dropzone(properties: DropzoneProperties): JSX.Element {
             isOutline() && (zone.size === "sm" ? styles.row : styles.tall),
             isOutline() && !zone.disabled && styles.opens,
             isOutline() && control.isDragging && styles.dragging,
+            isOutline() && control.drag === "reject" && styles.rejecting,
             zone.disabled && styles.disabled,
         ],
         {
-            ref: dropzone.ref,
+            ref: (element: HTMLElement) => (isPage() ? undefined : dropzone.ref(element)),
             get "data-variant"() {
                 return zone.variant;
             },
@@ -219,18 +339,38 @@ export function Dropzone(properties: DropzoneProperties): JSX.Element {
             get "data-dragging"() {
                 return control.isDragging ? "" : undefined;
             },
-            onPaste: paste,
+            get "data-drag"() {
+                return control.drag;
+            },
+            onPaste: (event: ClipboardEvent) => (isPage() ? undefined : paste(event)),
             get children() {
                 return (
                     <>
                         <input
-                            ref={(element) => control.attach(element)}
+                            ref={(element) => {
+                                input = element;
+                                control.attach(element);
+                            }}
                             type="file"
-                            hidden
+                            tabindex={-1}
+                            aria-hidden={zone.required === true ? undefined : "true"}
+                            aria-label={
+                                zone.required === true ? titleOf(control, locale) : undefined
+                            }
                             accept={zone.limits.accept?.join(",") ?? ""}
                             multiple={zone.multiple}
+                            name={zone.name}
+                            form={zone.form}
+                            required={zone.required === true}
+                            disabled={zone.disabled}
+                            capture={zone.capture}
+                            webkitdirectory={zone.directory === true}
                             onChange={() => control.read()}
+                            {...style.attrs(visuallyHiddenStyle())}
                         />
+                        <span role="status" {...style.attrs(visuallyHiddenStyle())}>
+                            {announcement()}
+                        </span>
                         <DropzoneContext value={control}>
                             <Show when={!("children" in properties)} fallback={properties.children}>
                                 <DropzoneOpen />
@@ -256,9 +396,22 @@ export function DropzoneOpen(
     // label it by what the zone asks for and takes
     const zone = useDropzone();
     const locale = useLocale();
+    const field = useFieldControl();
 
     return renderPart("button", "dropzone-open", properties, [state.focus, styles.open], {
         type: "button",
+        get id() {
+            return field?.id;
+        },
+        get "aria-labelledby"() {
+            return field === null ? undefined : `${field.labelId} ${field.id}`;
+        },
+        get "aria-describedby"() {
+            return field?.attributes()["aria-describedby"];
+        },
+        get "aria-invalid"() {
+            return field?.attributes()["aria-invalid"];
+        },
         get "aria-label"() {
             return [titleOf(zone, locale), describeLimits(zone.limits, locale)]
                 .filter((each) => each !== "")
@@ -288,9 +441,15 @@ export function DropzoneTrigger(
 
 /** Render the frame of a zone's icon. */
 export function DropzoneMedia(properties: DropzoneElementProperties): JSX.Element {
+    const zone = useDropzone();
+
     return renderPart("div", "dropzone-media", properties, styles.frame, {
         get children() {
-            return properties.children ?? <Icon icon={uploadSimple} />;
+            return (
+                properties.children ?? (
+                    <Icon icon={zone.drag === "reject" ? prohibit : uploadSimple} />
+                )
+            );
         },
     });
 }
@@ -307,7 +466,12 @@ export function DropzoneTitle(properties: DropzoneElementProperties<HTMLSpanElem
 
     return renderPart("span", "dropzone-title", properties, styles.title, {
         get children() {
-            return properties.children ?? titleOf(zone, locale);
+            return (
+                properties.children ??
+                (zone.drag === "reject"
+                    ? locale.render(t`These files do not fit`)
+                    : titleOf(zone, locale))
+            );
         },
     });
 }
@@ -363,27 +527,61 @@ export function DropzoneRefusal(properties: DropzoneRefusalProperties): JSX.Elem
     );
 }
 
-/** Render what stands over a zone while files are dragged over it. */
-export function DropzoneOverlay(properties: DropzoneElementProperties): JSX.Element {
+/** The properties of what stands over a zone, with its element's attributes. */
+export interface DropzoneOverlayProperties extends DropzoneElementProperties {
+    /** What it stands over, the zone by default. */
+    readonly target?: DropzoneTarget;
+}
+
+/** Render what stands over a zone or the page while files are dragged over it. */
+export function DropzoneOverlay(properties: DropzoneOverlayProperties): JSX.Element {
+    // tell by the drag whether the files fit
     const zone = useDropzone();
     const locale = useLocale();
+    const isRejecting = (): boolean => zone.drag === "reject";
 
     return (
         <Show when={zone.isDragging}>
-            {renderPart("div", "dropzone-overlay", properties, [text.sm, styles.overlay], {
-                get children() {
-                    return (
-                        properties.children ?? (
-                            <>
-                                <Icon icon={uploadSimple} />
-                                {locale.render(t`Drop to add`)}
-                            </>
-                        )
-                    );
+            {renderPart(
+                "div",
+                "dropzone-overlay",
+                omit(properties, "target"),
+                () => [
+                    properties.target === "page" ? text.lg : text.sm,
+                    styles.overlay,
+                    properties.target === "page" && styles.overlayPage,
+                    isRejecting() && styles.overlayReject,
+                ],
+                {
+                    get children() {
+                        return (
+                            properties.children ?? (
+                                <>
+                                    <Icon icon={isRejecting() ? prohibit : uploadSimple} />
+                                    {locale.render(
+                                        isRejecting() ? t`These files do not fit` : t`Drop to add`,
+                                    )}
+                                </>
+                            )
+                        );
+                    },
                 },
-            })}
+            )}
         </Show>
     );
+}
+
+/** Write which files were added, else removed, empty for no change. */
+function changeOf(files: readonly File[], before: readonly File[], locale: Localization): string {
+    // compare the files
+    const added = files.filter((file) => !before.includes(file));
+    const removed = before.filter((file) => !files.includes(file));
+    const names = (changed: readonly File[]) => locale.list(changed.map(({ name }) => name));
+    if (added.length > 0) {
+        return locale.render(t`Added ${names(added)}`);
+    }
+
+    return removed.length > 0 ? locale.render(t`Removed ${names(removed)}`) : "";
 }
 
 /** Write what a zone asks for. */

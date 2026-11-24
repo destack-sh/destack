@@ -51,9 +51,14 @@ export class FileItemControl {
     /** How far its upload is, absent without one. */
     readonly #progress: ReturnType<typeof createProgress>;
 
+    /** Whether its buttons are Tab stops, as those of a group's one focused file are. */
+    readonly #isActive: Accessor<boolean>;
+
     /** Follow a file and its upload. */
-    constructor(options: FileItemOptions) {
+    constructor(options: FileItemOptions, isActive: Accessor<boolean> = () => true) {
+        // follow its options and Tab stop
         this.#options = options;
+        this.#isActive = isActive;
         this.source = createAddress(() => options.source);
         this.#progress = createProgress(() => options.upload);
     }
@@ -123,6 +128,11 @@ export class FileItemControl {
     /** Whether a person can remove it. */
     get isRemovable(): boolean {
         return this.#options.onRemove !== undefined;
+    }
+
+    /** Whether its buttons are Tab stops, as those of a group's one focused file are. */
+    get isActive(): boolean {
+        return this.#isActive();
     }
 
     /** Open it in place, leaving a click that asks for a new tab or window to the browser. */

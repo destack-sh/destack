@@ -29,6 +29,7 @@ import { Icon, type IconProperties } from "@destack/ui/icon";
 import {
     createContext,
     createSignal,
+    createUniqueId,
     type JSX,
     merge,
     omit,
@@ -37,6 +38,7 @@ import {
     useLocale,
 } from "@destack/view";
 import { Button, type ButtonProperties } from "../button/index.ts";
+import { ListState } from "../focus/index.ts";
 import { type ElementPartProperties, mergeProperties, renderPart } from "../part/index.ts";
 import {
     FileItemContext,
@@ -254,8 +256,8 @@ const arcs = style.create({
     arc: (share: number) => ({ strokeDashoffset: `calc(1 - ${share})` }),
 });
 
-/** Whether a file sits in a group, listed as one of its entries. */
-const FileItemGroupContext = createContext(false);
+/** The files of a group and the one of them with its Tab stop, null outside a group. */
+const FileItemGroupContext = createContext<ListState | null>(null);
 
 /** The properties of an element of a file, with its own attributes. */
 export type FileItemElementProperties<Element extends HTMLElement = HTMLDivElement> = Omit<
@@ -277,9 +279,18 @@ export interface FileItemProperties
 /** Render a file of its parts: its picture or kind, name and size, and how far it is sent. */
 export function FileItem(properties: FileItemProperties): JSX.Element {
     // follow the file, listed in its group
-    const isGrouped = useContext(FileItemGroupContext);
+    const group = useContext(FileItemGroupContext);
+    const isGrouped = group !== null;
+    const key = createUniqueId();
+    let element: HTMLElement | undefined;
+    group?.add({
+        key,
+        text: () => properties.file.name,
+        isDisabled: () => false,
+        element: () => element,
+    });
     const item = merge(DEFAULTS, properties);
-    const control = new FileItemControl(item);
+    const control = new FileItemControl(item, () => group === null || group.focus.isActive(key));
     const rest = omit(
         item,
         "file",
@@ -308,8 +319,19 @@ export function FileItem(properties: FileItemProperties): JSX.Element {
             isSmallRow() && styles.rowSmall,
             control.isOpenable && styles.opens,
             control.isFailed && styles.failed,
+            isGrouped && state.focus,
         ],
         {
+            ref: (target: HTMLElement) => (element = target),
+            get tabindex() {
+                return group === null ? undefined : group.focus.isActive(key) ? 0 : -1;
+            },
+            onFocus: () => group?.focus.focusIn(key),
+            onKeyDown: (event: KeyboardEvent & { readonly currentTarget: Element }) => {
+                if (isGrouped && event.target === event.currentTarget) {
+                    steer(event, control);
+                }
+            },
             get "data-layout"() {
                 return control.layout;
             },
@@ -350,7 +372,8 @@ export function FileItemOpen(properties: {
     /** The StyleX styles applied after its own. */
     readonly xstyle?: style.Styles;
 }): JSX.Element {
-    // label it by the file
+    // label it by the file, and leave the Tab stop of a group's file to the file
+    const group = useContext(FileItemGroupContext);
     const item = useFileItem();
     const locale = useLocale();
     const part = {
@@ -360,6 +383,9 @@ export function FileItemOpen(properties: {
         },
         get "aria-label"() {
             return properties["aria-label"] ?? locale.render(t`Open ${item.file.name}`);
+        },
+        get tabindex() {
+            return group === null ? undefined : -1;
         },
         onClick: (event: MouseEvent) => item.open(event),
     };
@@ -580,6 +606,7 @@ export function FileItemAction(properties: ButtonProperties): JSX.Element {
     return (
         <Button
             data-slot="file-item-action"
+            tabindex={item.isActive ? undefined : -1}
             {...rest}
             variant={properties.variant ?? "ghost"}
             size={properties.size ?? "icon-sm"}
@@ -651,17 +678,54 @@ export interface FileItemGroupProperties extends FileItemElementProperties {
 
 /** Render files as a list, in rows or as a grid of cards. */
 export function FileItemGroup(properties: FileItemGroupProperties): JSX.Element {
+    // move one Tab stop through the files with the arrow keys
+    const locale = useLocale();
+    const list = new ListState({ orientation: "both", isLooping: false, isTypeahead: true });
+
     return (
-        <FileItemGroupContext value={true}>
+        <FileItemGroupContext value={list}>
             {renderPart(
                 "div",
                 "file-item-group",
                 omit(properties, "layout"),
                 () => [styles.group, properties.layout === "card" && styles.cards],
-                { role: "list" },
+                {
+                    role: "list",
+                    onKeyDown: (event: KeyboardEvent) => {
+                        // leave keys a file's own buttons take
+                        const isItem =
+                            event.target instanceof Element &&
+                            event.target.matches("[data-slot=file-item]");
+                        if (isItem && !event.defaultPrevented) {
+                            list.focus.move(event, locale.direction);
+                        }
+                    },
+                    onFocusOut: (event: FocusEvent & { readonly currentTarget: Element }) =>
+                        list.focus.focusOut(event),
+                },
             )}
         </FileItemGroupContext>
     );
+}
+
+/** Open a focused file on Enter or Space, and remove it on Delete or Backspace. */
+function steer(
+    event: KeyboardEvent & { readonly currentTarget: Element },
+    item: FileItemControl,
+): void {
+    // click what opens it, as a link opens with the browser's own ways
+    if (event.key === "Enter" || event.key === " ") {
+        const open = event.currentTarget.querySelector<HTMLElement>("[data-slot=file-item-open]");
+        if (open !== null) {
+            event.preventDefault();
+            open.click();
+        }
+    }
+    // remove it, the focus moving to the file that takes its place
+    else if ((event.key === "Delete" || event.key === "Backspace") && item.isRemovable) {
+        event.preventDefault();
+        item.remove();
+    }
 }
 
 /** Write why a file could not be sent: in the app's words, as a refusal, or as its upload ended. */

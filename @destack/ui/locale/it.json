@@ -193,7 +193,6 @@
         "2tpqcj8fbe98n": "Invio in corso",
         "1vn6gkg41jd9d": "Altro tipo di file",
         "2u507gay3xurl": "Supera {$p0}",
-        "vrw6xjult7ec": "Scegli un solo file",
         "2hpe0xjbkcc21": "{$p0} è di un altro tipo di file",
         "1o6pdeuzb5fwk": "{$p0} supera {$p1}",
         "30cjmcsf7gij5": "Fino a {$p0}",
@@ -272,6 +271,14 @@
         "gebe22wsqi7m": ".input {$p0 :number}\n.match $p0\none {{{$p0} data}}\n* {{{$p0} date}}",
         "e1aic4opfvhe": ".input {$count :number}\n.match $count\none {{{$count} riga invariata}}\n* {{{$count} righe invariate}}",
         "2arkd89zvacxh": ".input {$p0 :number}\n.match $p0\none {{+{$p0} altro}}\n* {{+{$p0} altri}}",
-        "32f40gjfz7hv8": ".input {$p1 :number}\n.match $p1\none {{{$p0}, {$p1} evento}}\n* {{{$p0}, {$p1} eventi}}"
+        "32f40gjfz7hv8": ".input {$p1 :number}\n.match $p1\none {{{$p0}, {$p1} evento}}\n* {{{$p0}, {$p1} eventi}}",
+        "kw80l0yyi94c": "Questi file non vanno bene",
+        "3r8nhf5h55r3t": "Aggiunto: {$p0}",
+        "13j9sr620l0e7": "Rimosso: {$p0}",
+        "24sylz9u8vyyi": "Meno di {$p0}",
+        "22km7rpz6ljz3": "{$p0} è più piccolo di {$p1}",
+        "2sp2mpg6mvchm": ".input {$p0 :number}\n.match $p0\none {{Scegli un solo file}}\n* {{Scegli fino a {$p0} file}}",
+        "3h8g0swru27j2": "Una cartella",
+        "3t92w8t3e7k1i": "{$p0} è una cartella"
     }
 }

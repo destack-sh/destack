@@ -75,6 +75,15 @@ function labelled(label: string): HTMLElement {
     return present(found, `the element '${label}'`);
 }
 
+/** Press a key on the focused file, and read the name of the file focused after. */
+function pressFocused(key: string): string | undefined {
+    const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
+    document.activeElement?.dispatchEvent(event);
+    flush();
+
+    return document.activeElement?.querySelector("[data-slot=file-item-title]")?.textContent;
+}
+
 /** Read a file's state, its description and how far it is sent. */
 function shown() {
     const item = document.querySelector("[data-slot=file-item]");
@@ -281,4 +290,47 @@ test("tell why a file was refused beside its name", () => {
     });
 
     expect(told).toEqual(["Another kind of file", "Larger than 1 MB", "Choose one file"]);
+});
+
+test("move one Tab stop through a group's files, opening and removing by keys", () => {
+    const [names, setNames] = createSignal(["a.txt", "b.txt", "c.txt"]);
+    const opened: string[] = [];
+    const { container } = render(() => (
+        <FileItemGroup aria-label="Files">
+            <For each={names()}>
+                {(name) => (
+                    <FileItem
+                        file={{ name, size: 1, type: "text/plain" }}
+                        onOpen={() => void opened.push(name)}
+                        onRemove={() => setNames((left) => left.filter((each) => each !== name))}
+                    />
+                )}
+            </For>
+        </FileItemGroup>
+    ));
+    flush();
+    const items = () => [...container.querySelectorAll<HTMLElement>("[role=listitem]")];
+    const stops = () =>
+        items().map((item) =>
+            [item, ...item.querySelectorAll<HTMLElement>("button")].map(({ tabIndex }) => tabIndex),
+        );
+    const first = stops();
+    items()[0]?.focus();
+    flush();
+    const steps = ["ArrowDown", "End", "Home", "c", "ArrowUp", "Enter", "Delete"].map(pressFocused);
+
+    // one file and its buttons take the Tab key, and the file after a removed one the focus
+    expect({ first, steps, opened, last: stops() }).toEqual({
+        first: [
+            [0, -1, 0],
+            [-1, -1, -1],
+            [-1, -1, -1],
+        ],
+        steps: ["b.txt", "c.txt", "a.txt", "c.txt", "b.txt", "b.txt", "c.txt"],
+        opened: ["b.txt"],
+        last: [
+            [-1, -1, -1],
+            [0, -1, 0],
+        ],
+    });
 });

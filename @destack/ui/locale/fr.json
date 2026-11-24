@@ -193,7 +193,6 @@
         "2tpqcj8fbe98n": "Envoi en cours",
         "1vn6gkg41jd9d": "Autre type de fichier",
         "2u507gay3xurl": "Dépasse {$p0}",
-        "vrw6xjult7ec": "Choisissez un seul fichier",
         "2hpe0xjbkcc21": "{$p0} est d’un autre type de fichier",
         "1o6pdeuzb5fwk": "{$p0} dépasse {$p1}",
         "30cjmcsf7gij5": "Jusqu’à {$p0}",
@@ -272,6 +271,14 @@
         "gebe22wsqi7m": ".input {$p0 :number}\n.match $p0\none {{{$p0} date}}\n* {{{$p0} dates}}",
         "e1aic4opfvhe": ".input {$count :number}\n.match $count\none {{{$count} ligne inchangée}}\n* {{{$count} lignes inchangées}}",
         "2arkd89zvacxh": ".input {$p0 :number}\n.match $p0\none {{+{$p0} autre}}\n* {{+{$p0} autres}}",
-        "32f40gjfz7hv8": ".input {$p1 :number}\n.match $p1\none {{{$p0}, {$p1} événement}}\n* {{{$p0}, {$p1} événements}}"
+        "32f40gjfz7hv8": ".input {$p1 :number}\n.match $p1\none {{{$p0}, {$p1} événement}}\n* {{{$p0}, {$p1} événements}}",
+        "kw80l0yyi94c": "Ces fichiers ne conviennent pas",
+        "3r8nhf5h55r3t": "Ajouté : {$p0}",
+        "13j9sr620l0e7": "Retiré : {$p0}",
+        "24sylz9u8vyyi": "Moins de {$p0}",
+        "22km7rpz6ljz3": "{$p0} fait moins de {$p1}",
+        "2sp2mpg6mvchm": ".input {$p0 :number}\n.match $p0\none {{Choisissez un seul fichier}}\n* {{Choisissez jusqu’à {$p0} fichiers}}",
+        "3h8g0swru27j2": "Un dossier",
+        "3t92w8t3e7k1i": "{$p0} est un dossier"
     }
 }

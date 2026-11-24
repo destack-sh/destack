@@ -1,55 +1,95 @@
-import { type Localization, t } from "@destack/locale";
+import { type Localization, plural, t } from "@destack/locale";
 import { type ObjectFileLimits, isAccepted } from "@destack/object";
 
 import { FileSize } from "./size.ts";
 
-/** A file that does not fit, and why: its media type, its size, or too many at once. */
+/** What a place takes: the media types and sizes of a file field, and how many files. */
+export interface FileLimits extends ObjectFileLimits {
+    /** The fewest bytes of a file. */
+    readonly minimum?: number;
+    /** The most files, any number when absent. */
+    readonly count?: number;
+}
+
+/** Why a file does not fit: its type, a folder, its size, too many, or the app's own reason. */
+export type RefusalReason = "type" | "folder" | "size" | "minimum" | "count" | "custom";
+
+/** A file that does not fit, and why. */
 export interface Refusal {
     /** The file. */
     readonly file: File;
     /** Why it was refused. */
-    readonly reason: "type" | "size" | "count";
+    readonly reason: RefusalReason;
     /** The limits it did not fit. */
-    readonly limits: ObjectFileLimits;
+    readonly limits: FileLimits;
+    /** Why in the app's own words, for its own reason. */
+    readonly message?: string;
 }
 
 /** Report why a file does not fit limits, absent for one that does. */
-export function refusalOf(file: File, limits: ObjectFileLimits): Refusal | undefined {
+export function refusalOf(file: File, limits: FileLimits): Refusal | undefined {
     if (!isAccepted(file.type, limits)) {
         return { file, reason: "type", limits };
     } else if (limits.size !== undefined && file.size > limits.size) {
         return { file, reason: "size", limits };
+    } else if (limits.minimum !== undefined && file.size < limits.minimum) {
+        return { file, reason: "minimum", limits };
     }
 
     return undefined;
 }
 
 /** Write why a file was refused, beside its name. */
-export function describeReason({ reason, limits }: Refusal, locale: Localization): string {
-    // write the kind, the most bytes, or that one was asked for
-    if (reason === "type") {
+export function describeReason(refusal: Refusal, locale: Localization): string {
+    // write the app's own words, the kind, the most or fewest bytes, or how many it takes
+    const { reason, limits, message } = refusal;
+    if (message !== undefined) {
+        return message;
+    } else if (reason === "type") {
         return locale.render(t`Another kind of file`);
+    } else if (reason === "folder") {
+        return locale.render(t`A folder`);
     } else if (reason === "size") {
         const most = FileSize.write(limits.size ?? 0, locale.number);
 
         return locale.render(t`Larger than ${most}`);
+    } else if (reason === "minimum") {
+        const least = FileSize.write(limits.minimum ?? 0, locale.number);
+
+        return locale.render(t`Smaller than ${least}`);
     }
 
-    return locale.render(t`Choose one file`);
+    return describeCount(limits.count ?? 1, locale);
 }
 
 /** Write why a file was refused, with its name. */
-export function describeRefusal({ file, reason, limits }: Refusal, locale: Localization): string {
-    // write the file's kind, the most bytes, or that one was asked for
-    if (reason === "type") {
+export function describeRefusal(refusal: Refusal, locale: Localization): string {
+    // write the app's own words, the kind, the most or fewest bytes, or how many it takes
+    const { file, reason, limits, message } = refusal;
+    if (message !== undefined) {
+        return message;
+    } else if (reason === "type") {
         return locale.render(t`${file.name} is another kind of file`);
+    } else if (reason === "folder") {
+        return locale.render(t`${file.name} is a folder`);
     } else if (reason === "size") {
         const most = FileSize.write(limits.size ?? 0, locale.number);
 
         return locale.render(t`${file.name} is larger than ${most}`);
+    } else if (reason === "minimum") {
+        const least = FileSize.write(limits.minimum ?? 0, locale.number);
+
+        return locale.render(t`${file.name} is smaller than ${least}`);
     }
 
-    return locale.render(t`Choose one file`);
+    return describeCount(limits.count ?? 1, locale);
+}
+
+/** Write how many files a place takes. */
+function describeCount(count: number, locale: Localization): string {
+    return locale.render(
+        t`${plural(count, { one: "Choose one file", other: "Choose up to # files" })}`,
+    );
 }
 
 /** Write what limits take, such as images or PDF, up to 20 MB, empty for anything. */

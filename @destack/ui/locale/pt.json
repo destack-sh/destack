@@ -193,7 +193,6 @@
         "2tpqcj8fbe98n": "Enviando",
         "1vn6gkg41jd9d": "Outro tipo de arquivo",
         "2u507gay3xurl": "Maior que {$p0}",
-        "vrw6xjult7ec": "Escolha um único arquivo",
         "2hpe0xjbkcc21": "{$p0} é de outro tipo de arquivo",
         "1o6pdeuzb5fwk": "{$p0} é maior que {$p1}",
         "30cjmcsf7gij5": "Até {$p0}",
@@ -272,6 +271,14 @@
         "gebe22wsqi7m": ".input {$p0 :number}\n.match $p0\none {{{$p0} data}}\n* {{{$p0} datas}}",
         "e1aic4opfvhe": ".input {$count :number}\n.match $count\none {{{$count} linha inalterada}}\n* {{{$count} linhas inalteradas}}",
         "2arkd89zvacxh": ".input {$p0 :number}\n.match $p0\none {{+{$p0} mais}}\n* {{+{$p0} mais}}",
-        "32f40gjfz7hv8": ".input {$p1 :number}\n.match $p1\none {{{$p0}, {$p1} evento}}\n* {{{$p0}, {$p1} eventos}}"
+        "32f40gjfz7hv8": ".input {$p1 :number}\n.match $p1\none {{{$p0}, {$p1} evento}}\n* {{{$p0}, {$p1} eventos}}",
+        "kw80l0yyi94c": "Estes arquivos não são aceitos",
+        "3r8nhf5h55r3t": "Adicionado: {$p0}",
+        "13j9sr620l0e7": "Removido: {$p0}",
+        "24sylz9u8vyyi": "Menor que {$p0}",
+        "22km7rpz6ljz3": "{$p0} é menor que {$p1}",
+        "2sp2mpg6mvchm": ".input {$p0 :number}\n.match $p0\none {{Escolha um único arquivo}}\n* {{Escolha até {$p0} arquivos}}",
+        "3h8g0swru27j2": "Uma pasta",
+        "3t92w8t3e7k1i": "{$p0} é uma pasta"
     }
 }

@@ -193,7 +193,6 @@
         "2tpqcj8fbe98n": "Verzenden",
         "1vn6gkg41jd9d": "Ander bestandstype",
         "2u507gay3xurl": "Groter dan {$p0}",
-        "vrw6xjult7ec": "Kies één bestand",
         "2hpe0xjbkcc21": "{$p0} is een ander bestandstype",
         "1o6pdeuzb5fwk": "{$p0} is groter dan {$p1}",
         "30cjmcsf7gij5": "Maximaal {$p0}",
@@ -272,6 +271,14 @@
         "gebe22wsqi7m": ".input {$p0 :number}\n.match $p0\none {{{$p0} datum}}\n* {{{$p0} datums}}",
         "e1aic4opfvhe": ".input {$count :number}\n.match $count\none {{{$count} ongewijzigde regel}}\n* {{{$count} ongewijzigde regels}}",
         "2arkd89zvacxh": ".input {$p0 :number}\n.match $p0\none {{+{$p0} meer}}\n* {{+{$p0} meer}}",
-        "32f40gjfz7hv8": ".input {$p1 :number}\n.match $p1\none {{{$p0}, {$p1} afspraak}}\n* {{{$p0}, {$p1} afspraken}}"
+        "32f40gjfz7hv8": ".input {$p1 :number}\n.match $p1\none {{{$p0}, {$p1} afspraak}}\n* {{{$p0}, {$p1} afspraken}}",
+        "kw80l0yyi94c": "Deze bestanden passen niet",
+        "3r8nhf5h55r3t": "{$p0} toegevoegd",
+        "13j9sr620l0e7": "{$p0} verwijderd",
+        "24sylz9u8vyyi": "Kleiner dan {$p0}",
+        "22km7rpz6ljz3": "{$p0} is kleiner dan {$p1}",
+        "2sp2mpg6mvchm": ".input {$p0 :number}\n.match $p0\none {{Kies één bestand}}\n* {{Kies hooguit {$p0} bestanden}}",
+        "3h8g0swru27j2": "Een map",
+        "3t92w8t3e7k1i": "{$p0} is een map"
     }
 }

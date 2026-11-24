@@ -193,7 +193,6 @@
         "2tpqcj8fbe98n": "Enviando",
         "1vn6gkg41jd9d": "Otro tipo de archivo",
         "2u507gay3xurl": "Supera {$p0}",
-        "vrw6xjult7ec": "Elige un solo archivo",
         "2hpe0xjbkcc21": "{$p0} es de otro tipo de archivo",
         "1o6pdeuzb5fwk": "{$p0} supera {$p1}",
         "30cjmcsf7gij5": "Hasta {$p0}",
@@ -272,6 +271,14 @@
         "gebe22wsqi7m": ".input {$p0 :number}\n.match $p0\none {{{$p0} fecha}}\n* {{{$p0} fechas}}",
         "e1aic4opfvhe": ".input {$count :number}\n.match $count\none {{{$count} línea sin cambios}}\n* {{{$count} líneas sin cambios}}",
         "2arkd89zvacxh": ".input {$p0 :number}\n.match $p0\none {{+{$p0} más}}\n* {{+{$p0} más}}",
-        "32f40gjfz7hv8": ".input {$p1 :number}\n.match $p1\none {{{$p0}, {$p1} evento}}\n* {{{$p0}, {$p1} eventos}}"
+        "32f40gjfz7hv8": ".input {$p1 :number}\n.match $p1\none {{{$p0}, {$p1} evento}}\n* {{{$p0}, {$p1} eventos}}",
+        "kw80l0yyi94c": "Estos archivos no se admiten",
+        "3r8nhf5h55r3t": "Se añadió {$p0}",
+        "13j9sr620l0e7": "Se quitó {$p0}",
+        "24sylz9u8vyyi": "Menos de {$p0}",
+        "22km7rpz6ljz3": "{$p0} pesa menos de {$p1}",
+        "2sp2mpg6mvchm": ".input {$p0 :number}\n.match $p0\none {{Elige un solo archivo}}\n* {{Elige hasta {$p0} archivos}}",
+        "3h8g0swru27j2": "Una carpeta",
+        "3t92w8t3e7k1i": "{$p0} es una carpeta"
     }
 }
