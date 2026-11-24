@@ -5,7 +5,7 @@ import { type Plugin } from "vite";
 import { type DependencyRelease, type DependencyResolution } from "@destack/package";
 import { comparePath } from "../build/serialization.ts";
 import { BuildError } from "../error/index.ts";
-import { type PackageSource } from "../source/index.ts";
+import { type Project } from "../source/index.ts";
 import { PackageFile } from "@destack/package/file";
 import {
     DependencyName,
@@ -108,7 +108,7 @@ class DependencyResolver {
 /** The packages, sources and assets one compilation reads, recorded into its description. */
 class DependencyRecorder {
     /** The compiled package. */
-    readonly project: PackageSource;
+    readonly project: Project;
     /** The dependency releases the build resolves against. */
     readonly resolutions: Readonly<Record<string, DependencyRelease>>;
     /** The description the compilation fills. */
@@ -126,7 +126,7 @@ class DependencyRecorder {
 
     /** Record into a compilation's description. */
     constructor(
-        project: PackageSource,
+        project: Project,
         resolutions: Readonly<Record<string, DependencyRelease>>,
         description: BuildDescription,
         locations: Map<string, ModuleSource>,
@@ -480,7 +480,7 @@ function addFile(snapshot: SourceSnapshot, file: PackageFile): void {
 
 /** Record registry releases and local sources consumed by the bundler. */
 export function dependencyPlugin(
-    project: PackageSource,
+    project: Project,
     resolutions: Readonly<Record<string, DependencyRelease>>,
     description: BuildDescription,
     files: Map<string, Uint8Array<ArrayBuffer>>,
@@ -582,7 +582,7 @@ async function readPackageDefinition(
 
 /** Resolve installed dependencies under the same rules for builds and previews. */
 export function resolutionPlugin(
-    source: PackageSource,
+    source: Project,
     dependencies: Readonly<Record<string, DependencyRelease>>,
     runtime?: Runtime,
     runtimes = new Map<string, Runtime[]>(),
@@ -671,12 +671,7 @@ function requireRuntime(
 }
 
 /** Require an authored import to be the package itself or a declared dependency. */
-function requireDeclared(
-    source: PackageSource,
-    importer: string,
-    name: string,
-    isShared: boolean,
-): void {
+function requireDeclared(source: Project, importer: string, name: string, isShared: boolean): void {
     // leave imports of dependency modules to the dependencies' manifests
     const local = relativePath(source.directory, importer);
     const isAuthored =
@@ -711,7 +706,7 @@ function requireDeclared(
 
 /** Require an installed Destack dependency to be the build the host selected. */
 function requireSelected(
-    source: PackageSource,
+    source: Project,
     dependencies: Readonly<Record<string, DependencyRelease>>,
     owner: PackageLocation,
     isDestack: boolean,

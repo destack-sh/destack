@@ -42,7 +42,7 @@ import { type SourceMapReference } from "@destack/package/source";
 import { baselinePlugin, modulePlugin } from "@destack/package/vite";
 import type { ModuleTransformer } from "@destack/package/transform";
 import { type Runtime } from "@destack/package/runtime";
-import { type PackageSource } from "../source/index.ts";
+import { type Project } from "../source/index.ts";
 import { relativePath } from "../source/dependency.ts";
 import type { EvaluatedDeclaration } from "../declaration/index.ts";
 import type { BuildDirectory } from "../build/directory.ts";
@@ -140,7 +140,7 @@ export class ModuleOutput implements Compilation {
     /** How the output bundles. */
     readonly mode: BundleMode;
     /** The opened package source. */
-    readonly project: PackageSource;
+    readonly project: Project;
     /** The package's declarations. */
     readonly declarations: readonly DeclarationDescription[];
     /** The module and export of each declaration, by its description. */
@@ -163,7 +163,7 @@ export class ModuleOutput implements Compilation {
         name: string,
         options: ModuleOptions,
         mode: BundleMode,
-        project: PackageSource,
+        project: Project,
         declarations: readonly EvaluatedDeclaration[],
         extensions: readonly BuildExtension[],
         cache: TransformCache,
@@ -200,6 +200,11 @@ export class ModuleOutput implements Compilation {
     /** The absolute source modules the output compiles, by export path. */
     get exports(): Readonly<Record<string, string>> {
         return this.project.exports;
+    }
+
+    /** The names of the packages the package requires at run time. */
+    get requires(): ReadonlySet<string> {
+        return new Set(PackageJson.runtimeDependencies(this.project.packageJson));
     }
 
     /** The runtime the output runs on. */
@@ -1079,7 +1084,7 @@ function entryName(directory: string, entry: string): string {
 
 /** Retain each HTML entry's authored bytes under its package path. */
 async function retainPages(
-    project: PackageSource,
+    project: Project,
     entries: readonly string[],
     files: Map<string, Uint8Array<ArrayBuffer>>,
 ): Promise<void> {
@@ -1234,10 +1239,18 @@ function describe(
     }
 }
 
-/** Add an extension's workloads and views to an output, refusing a name described twice. */
+/** Add an extension's workloads, views and frame to an output, refusing one described twice. */
 function merge(output: OutputContent, described: OutputDescription): void {
+    // add the workloads and the views
     mergeSection("workloads", output.workloads, described.workloads);
     mergeSection("views", output.views, described.views);
+
+    // add the frame, refusing a second
+    if (described.frame !== undefined && output.frame !== undefined) {
+        throw BuildError.of("ENTRY_INVALID", "'frame' entry is invalid: it is a duplicate");
+    } else if (described.frame !== undefined) {
+        output.frame = described.frame;
+    }
 }
 
 /** Add an extension's entries of one section to an output's, refusing a name described twice. */

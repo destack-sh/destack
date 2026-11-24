@@ -1,4 +1,5 @@
 import { dirname, join, relative } from "node:path";
+import { Project } from "../source/index.ts";
 import { ResolverFactory } from "rolldown/experimental";
 import { type ESTree, parseSync } from "rolldown/utils";
 import type { Environment } from "@destack/environment";
@@ -24,17 +25,8 @@ const EXTENSION_ALIASES = {
     ".cjs": [".cts", ".d.cts", ".cjs"],
 };
 
-/** The directories of a package that hold its modules and tests. */
-const MODULE_DIRECTORIES = ["src", "test", "tests"];
-
-/** The module extensions a package's own sources use. */
-const SOURCE_EXTENSION = /\.(?:[cm]?ts|tsx)$/u;
-
 /** The extensions of script modules, which hold code that runs. */
 const SCRIPT_EXTENSION = /\.[cm]?[jt]sx?$/u;
-
-/** The extensions of declaration files, which describe modules other files implement. */
-const DECLARATION_EXTENSION = /\.d\.[cm]?ts$/u;
 
 /** The conditions a module specifier resolves under, types before code. */
 const CONDITIONS = ["types", "import", "bun", "default"];
@@ -249,30 +241,6 @@ export class Outliner {
         this.#kept = kept;
     }
 
-    /** List a package's own modules, leaving out declarations, dependencies and nested packages. */
-    async files(directory: string): Promise<string[]> {
-        // walk its module directories, entering no dependency, nested package or link
-        const { files } = this.#environment;
-        const listed: string[] = [];
-        const pending = MODULE_DIRECTORIES.map((name) => join(directory, name));
-        for (let path = pending.pop(); path !== undefined; path = pending.pop()) {
-            const isNested = path !== directory && (await files.exists(join(path, "package.json")));
-            if (!(await files.exists(path)) || isNested) {
-                continue;
-            }
-            for (const entry of await files.readDirectory(path)) {
-                const child = join(path, entry.name);
-                if (entry.kind === "directory" && entry.name !== "node_modules") {
-                    pending.push(child);
-                } else if (entry.kind === "file" && isSource(child)) {
-                    listed.push(child);
-                }
-            }
-        }
-
-        return listed.toSorted();
-    }
-
     /** List a package's own script modules its entries import, directly or through each other. */
     async modules(directory: string, entries: readonly string[]): Promise<string[]> {
         // follow each specifier into a module of the package, each module once
@@ -289,7 +257,7 @@ export class Outliner {
                     target.startsWith(`${directory}/`) &&
                     !target.includes("/node_modules/") &&
                     SCRIPT_EXTENSION.test(target) &&
-                    !DECLARATION_EXTENSION.test(target);
+                    !Project.isDeclaration(target);
                 if (isOwn) {
                     pending.push(target);
                 }
@@ -1203,9 +1171,4 @@ function cycleOf(cycle: readonly string[]): string {
 /** Name the export a statement gives: its exported name, or the default for an `export =`. */
 function nameOf(each: Exclude<Export, { readonly kind: "all" }>): string {
     return each.kind === "assigned" ? "default" : each.name;
-}
-
-/** Report whether a file is a package's own source module, no declaration file. */
-function isSource(file: string): boolean {
-    return SOURCE_EXTENSION.test(file) && !DECLARATION_EXTENSION.test(file);
 }

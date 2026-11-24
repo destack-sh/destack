@@ -24,7 +24,7 @@ import { ConstructorCatalog, Evaluation, type EvaluatedDeclaration } from "../de
 import { DeclarationGraph } from "../graph/declaration.ts";
 import {
     exportedDeclarations,
-    PackageSource,
+    Project,
     readPackageJson,
     type SourceOptions,
 } from "../source/index.ts";
@@ -80,7 +80,7 @@ interface CompileContext {
     /** The requested build. */
     readonly options: RequestedBuild;
     /** Each output's opened project, by output name. */
-    readonly projects: ReadonlyMap<string, PackageSource>;
+    readonly projects: ReadonlyMap<string, Project>;
     /** The package's evaluated declarations. */
     readonly declarations: readonly EvaluatedDeclaration[];
     /** The extensions of the package's dependency closure. */
@@ -204,13 +204,13 @@ export class CompilerWorker {
         declared: IndexedDeclarations,
     ): Promise<graph.Module[]> {
         // open the package, its declarations and relationships read from its build
-        const project = await PackageSource.open(options, this.environment, this.#program);
+        const project = await Project.open(options, this.environment, this.#program);
         const transformer = this.#transformer(options, project.packageJson);
         const graphed = DeclarationGraph.read(declared.declarations, declared.relationships);
 
         // outline each of its modules from their syntax
         const outliner = new Outliner(this.environment, this.#modules);
-        const files = await outliner.files(project.directory);
+        const files = await Project.files(project.directory, this.environment);
         const outlines = [];
         for (const file of files) {
             outlines.push(await outliner.outline(file));
@@ -249,7 +249,7 @@ export class CompilerWorker {
         options: SourceOptions & Pick<RequestedBuild, "tree">,
     ): Promise<DeclarationDescription[]> {
         // open the package's source and evaluate its export entries
-        const project = await PackageSource.open(options, this.environment, this.#program);
+        const project = await Project.open(options, this.environment, this.#program);
         const catalog = new ConstructorCatalog(options.versions ?? {}, this.environment.files);
         const transformer = this.#transformer(options, project.packageJson);
         const evaluation = await Evaluation.evaluate([project], catalog, { transformer });
@@ -491,8 +491,8 @@ export class CompilerWorker {
         readonly declarations: readonly DeclarationDescription[];
         readonly isPrerenderOutput: boolean;
         readonly planned: ReadonlyMap<string, ModuleOptions>;
-        readonly projects: ReadonlyMap<string, PackageSource>;
-        readonly primary: PackageSource;
+        readonly projects: ReadonlyMap<string, Project>;
+        readonly primary: Project;
         readonly transformer: ModuleTransformer;
     }> {
         // plan the outputs with the extensions of the package's dependency closure
@@ -514,7 +514,7 @@ export class CompilerWorker {
         const planned = plan(options.outputs, isPrerenderOutput ? modules : undefined);
 
         // open each output's project
-        const projects = new Map<string, PackageSource>();
+        const projects = new Map<string, Project>();
         for (const [name, output] of planned) {
             const isPrerender = isPrerenderOutput && name === PRERENDER_OUTPUT;
             projects.set(name, await this.#project(options, output, isPrerender));
@@ -557,8 +557,8 @@ export class CompilerWorker {
         options: RequestedBuild,
         output: ModuleOptions,
         isPrerender = false,
-    ): Promise<PackageSource> {
-        return PackageSource.open(
+    ): Promise<Project> {
+        return Project.open(
             {
                 directory: options.directory,
                 ...(options.configuration === undefined
@@ -591,7 +591,7 @@ export class CompilerWorker {
     async #compile(
         options: RequestedBuild,
         planned: ReadonlyMap<string, ModuleOptions>,
-        projects: ReadonlyMap<string, PackageSource>,
+        projects: ReadonlyMap<string, Project>,
         declarations: readonly EvaluatedDeclaration[],
         extensions: readonly BuildExtension[],
         files: BuildDirectory,
@@ -666,7 +666,7 @@ export class CompilerWorker {
     /** Render the extensions' pages from the compiled outputs, their dependency builds linked. */
     async #prerender(
         opened: {
-            readonly primary: PackageSource;
+            readonly primary: Project;
             readonly rendering: readonly BuildExtension[];
             readonly declarations: readonly DeclarationDescription[];
         },
@@ -689,7 +689,7 @@ export class CompilerWorker {
     /** Link the dependency builds and npm packages, then write each extension's pages. */
     async #render(
         opened: {
-            readonly primary: PackageSource;
+            readonly primary: Project;
             readonly rendering: readonly BuildExtension[];
             readonly declarations: readonly DeclarationDescription[];
         },
@@ -791,7 +791,7 @@ export class CompilerWorker {
 }
 
 /** Read a source's package.json as released: at its version, without the test layer. */
-async function releasedManifest(project: PackageSource): Promise<Uint8Array<ArrayBuffer>> {
+async function releasedManifest(project: Project): Promise<Uint8Array<ArrayBuffer>> {
     // read the authored manifest and its exports
     const path = resolve(project.directory, "package.json");
     const authored = await project.environment.files.readTextFile(path);
@@ -877,7 +877,7 @@ function createOutput(name: string, output: ModuleOptions, context: CompileConte
 }
 
 /** Retain the package's template assets, manifests and catalogs before compiling. */
-async function retain(project: PackageSource, files: BuildDirectory): Promise<void> {
+async function retain(project: Project, files: BuildDirectory): Promise<void> {
     // retain template assets, leaving package.json to its release's copy below
     if (project.packageJson.definition.template) {
         const template = await Template.read(project.directory, project.environment.files);

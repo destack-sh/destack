@@ -101,9 +101,7 @@ test.concurrent("ship a package's catalogs in its build, refusing a misnamed one
     expect(shipped).toEqual([german]);
 });
 
-test.concurrent("keep the compiler's version with the output it compiles, so changed output needs a bump", async ({
-    expect,
-}) => {
+test.concurrent("pin the compiler's version to the output it compiles", async ({ expect }) => {
     // build the library and digest its manifest, which has the digest of every file it outputs
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -113,7 +111,7 @@ test.concurrent("keep the compiler's version with the output it compiles, so cha
 
     // pair the version with its output: changed output takes a new COMPILER_VERSION and this digest
     expect({ version: COMPILER_VERSION, output }).toEqual({
-        version: 3,
+        version: 6,
         output: "8a59e112a6bed0a47ad446de4c20df00edf872007a2f130dad520e46292aad8d",
     });
 });

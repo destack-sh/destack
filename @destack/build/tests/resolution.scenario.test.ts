@@ -7,7 +7,7 @@ import { DependencyRelease } from "@destack/package";
 import { expect, refusal, test } from "@destack/test";
 import { Compiler, Workspace, CompilerPool } from "../src/index.ts";
 import { resolutionPlugin } from "../src/compile/dependency.ts";
-import { PackageSource } from "../src/source/index.ts";
+import { Project } from "../src/source/index.ts";
 import { LocalBuildStore } from "../src/store/local.ts";
 import { Toolchain } from "@destack/check/toolchain";
 
@@ -83,7 +83,7 @@ async function writeApplication(files: FileSystem): Promise<string> {
     return root;
 }
 
-test("refuse an undeclared, differently selected or unsupported dependency in the development server", async () => {
+test("refuse an undeclared, differently selected or unsupported dependency", async () => {
     // serve the application with the host selecting another release of one dependency
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -98,7 +98,7 @@ test("refuse an undeclared, differently selected or unsupported dependency in th
         },
         manifest: "0".repeat(64),
     });
-    const source = await PackageSource.open(
+    const source = await Project.open(
         { directory: join(root, "application"), runtime: "browser", tree: {} },
         environment,
         Program.of({}, environment.process.loader),
@@ -130,7 +130,7 @@ test("refuse an undeclared, differently selected or unsupported dependency in th
     }
 });
 
-test("refuse an unsupported dependency in a build as the development server does", async () => {
+test("refuse an unsupported dependency in a build", async () => {
     // let the dependencies beside the application be the members of one checkout
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -184,7 +184,7 @@ test("refuse an unsupported dependency in a build as the development server does
     ]);
 });
 
-test("build a browser-safe export whose entry re-exports a sibling of a package that runs in Bun alone", async () => {
+test("build a browser export re-exporting a sibling of a Bun-only package", async () => {
     // write a Bun package with a browser export that re-exports a sibling module
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -263,7 +263,7 @@ test("build a browser-safe export whose entry re-exports a sibling of a package 
     }).toEqual({ outputs: ["browser"], library: "2026.9.0" });
 });
 
-test("refuse indexing star exports that lead back into a module, listing the cycle", async () => {
+test("refuse a cycle of star exports, listing it", async () => {
     // write a package whose modules star-export each other
     await using simulation = testSimulation();
     const environment = simulation.environment("test");

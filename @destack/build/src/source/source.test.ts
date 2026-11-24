@@ -3,7 +3,7 @@ import { Program } from "@destack/package/bun";
 import type { FileSystem } from "@destack/environment";
 import { join } from "node:path";
 import { expect, refusal, test } from "@destack/test";
-import { PackageSource, readPackageJson } from "./source.ts";
+import { Project, readPackageJson } from "./source.ts";
 
 /** Write a package whose destack.json overrides the runtimes of some exports. */
 async function writePackage(overrides: readonly string[], files: FileSystem): Promise<string> {
@@ -31,7 +31,7 @@ async function writePackage(overrides: readonly string[], files: FileSystem): Pr
     return directory;
 }
 
-test("read runtime overrides of a package's exports, and refuse one of an export package.json lacks", async () => {
+test("override an export per runtime, refusing an export package.json lacks", async () => {
     // read an override of an export, and refuse one of a missing export
     await using simulation = testSimulation();
     const { files } = simulation.environment("test");
@@ -45,7 +45,7 @@ test("read runtime overrides of a package's exports, and refuse one of an export
     expect(read.definition.exports).toEqual({ "./server": { runtimes: ["workerd"] } });
 });
 
-test("expand a pattern export into the modules its target matches, nested ones included", async () => {
+test("expand a pattern export into the modules it matches", async () => {
     // write a package exporting its icons by a pattern, beside a file the pattern leaves out
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -66,7 +66,7 @@ test("expand a pattern export into the modules its target matches, nested ones i
 
     // open it, keying each matched module by the text the wildcard stands for
     const program = Program.of({}, environment.process.loader);
-    const source = await PackageSource.open(
+    const source = await Project.open(
         { directory, runtime: "bun", tree: {} },
         environment,
         program,

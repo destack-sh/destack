@@ -25,7 +25,7 @@ import { DECLARED_MODULE } from "@destack/package/transform";
 import type { FunctionExport } from "./declaration.ts";
 import type { ExampleDeclaration } from "../graph/example.ts";
 import type { ConstructorCatalog, ConstructorKind } from "./catalog.ts";
-import type { PackageSource } from "../source/index.ts";
+import type { Project } from "../source/index.ts";
 import { modulePlugin } from "@destack/package/vite";
 import type { ModuleTransformer } from "@destack/package/transform";
 import { BuildError } from "../error/index.ts";
@@ -141,7 +141,7 @@ interface CatalogedKind extends ConstructorKind {
 export const Evaluation = {
     /** Evaluate a package's exports, describing each declaration its constructors made. */
     async evaluate(
-        projects: readonly PackageSource[],
+        projects: readonly Project[],
         catalog: ConstructorCatalog,
         options: EvaluationOptions,
     ): Promise<Evaluation> {
@@ -224,7 +224,7 @@ export const Evaluation = {
 
     /** Evaluate the properties each of a package's examples renders with. */
     async examples(
-        project: PackageSource,
+        project: Project,
         examples: readonly Omit<ExampleDeclaration, "properties">[],
         transformer: ModuleTransformer,
     ): Promise<ExampleDeclaration[]> {
@@ -252,7 +252,7 @@ export const Evaluation = {
 
 /** Evaluate one output project's exports, describing each declaration its constructors made. */
 async function evaluateProject(
-    project: PackageSource,
+    project: Project,
     entries: readonly (readonly [string, string])[],
     listed: readonly CatalogedKind[],
     kinds: ReadonlyMap<string, readonly { readonly kind: CatalogedKind }[]>,
@@ -359,7 +359,7 @@ function siteKey(site: DeclarationSite): string {
 }
 
 /** List the installed Destack packages a project depends on, outside its dependencies' builds. */
-async function installedDirectories(project: PackageSource): Promise<string[]> {
+async function installedDirectories(project: Project): Promise<string[]> {
     // find each runtime dependency without a build in the nearest node_modules above the project
     const { files } = project.environment;
     const directories: string[] = [];
@@ -451,7 +451,7 @@ function locateFunction(
 /** Evaluate a generated entry, refusing a failed evaluation as an inspection failure. */
 async function evaluateEntry(
     source: string,
-    project: PackageSource,
+    project: Project,
     options: EvaluationOptions,
 ): Promise<unknown> {
     return await bundleAndEvaluate(source, project, options).catch((cause: unknown) => {
@@ -470,7 +470,7 @@ async function evaluateEntry(
 /** Bundle a generated entry with the modules it imports, then evaluate it as one module. */
 async function bundleAndEvaluate(
     source: string,
-    project: PackageSource,
+    project: Project,
     options: EvaluationOptions,
 ): Promise<unknown> {
     // bundle the entry once, or on its warm bundle while the package develops
@@ -508,7 +508,7 @@ async function bundleOnce(input: InputOptions): Promise<readonly (OutputChunk | 
 /** Bundle an entry on its warm bundle, starting the bundle on the entry's first evaluation. */
 async function bundleWarm(
     source: string,
-    project: PackageSource,
+    project: Project,
     transformer: ModuleTransformer,
     bundles: Map<string, Bundle>,
 ): Promise<readonly (OutputChunk | OutputAsset)[]> {
@@ -527,7 +527,7 @@ async function bundleWarm(
 /** Configure the bundle of a generated entry with the modules it imports. */
 async function entryOptions(
     source: string,
-    project: PackageSource,
+    project: Project,
     transformer: ModuleTransformer,
 ): Promise<InputOptions> {
     // load the package's extensions, whose transforms its modules need on the host
@@ -619,7 +619,7 @@ async function describeDeclaration(
         readonly kind: CatalogedKind;
     },
     evaluated: EvaluatedEntry,
-    project: PackageSource,
+    project: Project,
 ): Promise<DeclarationDescription | undefined> {
     // read the kind's value of the declaration and describe it, refusing a failure as the declaration's
     const { owner, name, site, kind } = located;
@@ -724,7 +724,7 @@ function requireDeclaringPackage(value: unknown, owner: PackageVersion, name: st
 }
 
 /** Mark dependencies external: Destack ones at builds, shared ones by name, npm ones at files. */
-function treePlugin(project: PackageSource, program: Program): Plugin {
+function treePlugin(project: Project, program: Program): Plugin {
     const { tree, runtime, environment } = project;
 
     return {

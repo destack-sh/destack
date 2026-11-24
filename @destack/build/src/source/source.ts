@@ -11,8 +11,17 @@ import { type Runtime } from "@destack/package/runtime";
 import { PackageLocator } from "@destack/package/locator";
 import { BuildTree } from "../dependency/tree.ts";
 
+/** The directories of a package that hold its modules and tests. */
+const MODULE_DIRECTORIES = ["src", "test", "tests"];
+
+/** The module extensions a package's own sources use. */
+const SOURCE_EXTENSION = /\.(?:[cm]?ts|tsx)$/u;
+
+/** The extensions of declaration files, which describe modules other files implement. */
+const DECLARATION_EXTENSION = /\.d\.[cm]?ts$/u;
+
 /** Source manifests and selected runtime exports for a package build. */
-export interface PackageSource {
+export interface Project {
     /** The authored compiler configuration's real path, absent without one. */
     configuration: string | undefined;
     /** The absolute package directory. */
@@ -54,7 +63,7 @@ export interface SourceOptions {
 }
 
 /** A package's inputs opened for evaluation, indexing and compilation. */
-export const PackageSource = {
+export const Project = {
     /** Open package inputs and prepare one compiler configuration. */
     async open(
         options: SourceOptions & {
@@ -69,7 +78,7 @@ export const PackageSource = {
         },
         environment: Environment<"files" | "process">,
         program: Program,
-    ): Promise<PackageSource> {
+    ): Promise<Project> {
         // read the package.json and destack.json and select the runtime's exports
         const { files } = environment;
         const definition = await readPackageSource(
@@ -114,7 +123,41 @@ export const PackageSource = {
             program,
         };
     },
+
+    /** List a package's own modules, leaving out declarations, dependencies and nested packages. */
+    async files(directory: string, environment: Environment<"files">): Promise<string[]> {
+        // walk its module directories, entering no dependency, nested package or link
+        const { files } = environment;
+        const listed: string[] = [];
+        const pending = MODULE_DIRECTORIES.map((name) => join(directory, name));
+        for (let path = pending.pop(); path !== undefined; path = pending.pop()) {
+            const isNested = path !== directory && (await files.exists(join(path, "package.json")));
+            if (!(await files.exists(path)) || isNested) {
+                continue;
+            }
+            for (const entry of await files.readDirectory(path)) {
+                const child = join(path, entry.name);
+                if (entry.kind === "directory" && entry.name !== "node_modules") {
+                    pending.push(child);
+                } else if (entry.kind === "file" && isModule(child)) {
+                    listed.push(child);
+                }
+            }
+        }
+
+        return listed.toSorted();
+    },
+
+    /** Report whether a file declares types for a module another file implements. */
+    isDeclaration(file: string): boolean {
+        return DECLARATION_EXTENSION.test(file);
+    },
 };
+
+/** Report whether a file is a module of the package's own sources, not a declaration. */
+function isModule(file: string): boolean {
+    return SOURCE_EXTENSION.test(file) && !DECLARATION_EXTENSION.test(file);
+}
 
 /** Read a package at the versions a build releases, selecting its exports for one runtime. */
 async function readPackageSource(
@@ -124,7 +167,7 @@ async function readPackageSource(
     versions: Readonly<Record<string, Version>>,
     files: FileSystem,
     isPrerender: boolean,
-): Promise<Omit<PackageSource, "configuration" | "entries" | "tree" | "environment" | "program">> {
+): Promise<Omit<Project, "configuration" | "entries" | "tree" | "environment" | "program">> {
     // read the package.json and destack.json
     directory = await files.realPath(directory);
     const packageJson = await readPackageJson(directory, files, versions);

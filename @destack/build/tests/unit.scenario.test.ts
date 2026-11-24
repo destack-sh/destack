@@ -101,7 +101,7 @@ function isGreeter(value: unknown): value is () => unknown {
     return typeof value === "function";
 }
 
-test("keep the compiler's version with the workspace image it compiles, so changed output needs a bump", async () => {
+test("pin the compiler's version to the workspace image it compiles", async () => {
     // build the application with its library unit and its npm release, then make an image of them
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -114,12 +114,12 @@ test("keep the compiler's version with the workspace image it compiles, so chang
 
     // pair the version with its image: changed output takes a new COMPILER_VERSION and this digest
     expect({ version: COMPILER_VERSION, image }).toEqual({
-        version: 3,
+        version: 6,
         image: "b89509560dd878efae12e02a35c5f57208bf386d92ea1af5fee9b78d53ae11e9",
     });
 });
 
-test("build a workspace's units once, keep the application's build on a library edit, and make an image of the edited library", async () => {
+test("build each unit once, rebuilding only an edited library", async () => {
     // lay out a workspace whose application links its library unit
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -198,7 +198,7 @@ test("build a workspace's units once, keep the application's build on a library 
     });
 });
 
-test("refuse to cache a unit whose committed sources changed after listing, building it anew next time", async () => {
+test("refuse to cache a unit whose sources changed while it built", async () => {
     // commit the workspace, open it, then edit a committed library file
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -250,7 +250,7 @@ test("refuse to cache a unit whose committed sources changed after listing, buil
     });
 });
 
-test("build and make an image of a package against a release from outside its workspace, refusing it without a resolver", async () => {
+test("build a package against an outside release, refusing it without a resolver", async () => {
     // build the library as a release in a workspace of its own
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -324,7 +324,7 @@ async function declareBuiltin(unit: string, files: FileSystem): Promise<void> {
     );
 }
 
-test("declare a builtin release in a build's requirements, leaving it out of its image", async () => {
+test("require a builtin release, leaving it out of the image", async () => {
     // build the library as a builtin release in a workspace of its own
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -368,7 +368,7 @@ test("declare a builtin release in a build's requirements, leaving it out of its
     });
 });
 
-test("declare a builtin workspace member in a build's requirements, leaving it out of its image", async () => {
+test("require a builtin member, leaving it out of the image", async () => {
     // lay out a workspace whose application links its builtin library unit from source
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -390,7 +390,7 @@ test("declare a builtin workspace member in a build's requirements, leaving it o
     });
 });
 
-test("trace a workspace's unit builds: compile each unit on a miss, take each from the cache on a hit", async () => {
+test("trace each unit's build: a compile on a miss, the cache on a hit", async () => {
     // lay out a workspace, then build its application twice
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -451,7 +451,7 @@ test("trace a workspace's unit builds: compile each unit on a miss, take each fr
     });
 });
 
-test("materialize a library's tree once per checkout, each linking the npm package its own checkout installed", async () => {
+test("materialize a library's tree once per checkout, linking that checkout's npm packages", async () => {
     // lay out two checkouts of one workspace, each installing the library's npm package
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
