@@ -2,6 +2,12 @@ import { isServer } from "@solidjs/web";
 import { type Accessor, createEffect, createSignal, onCleanup } from "solid-js";
 import { TRANSPARENT } from "./utils.ts";
 
+/** The most files read of dropped folders, more than a project and fewer than a disk. */
+const FOLDER_FILES = 10_000;
+
+/** The file systems' own files a folder is read without. */
+const SYSTEM_FILES: ReadonlySet<string> = new Set([".DS_Store", "Thumbs.db", "desktop.ini"]);
+
 /** A chosen file, with an object URL that shows it. */
 export type UploadFile = {
     /** An object URL of the file. */
@@ -10,6 +16,10 @@ export type UploadFile = {
     readonly name: string;
     /** The file's size in bytes. */
     readonly size: number;
+    /** The file's path in the folder it was chosen with, its name without one. */
+    readonly path: string;
+    /** Whether it stands for a folder, whose bytes cannot be read. */
+    readonly isFolder: boolean;
     /** The file. */
     readonly file: File;
 };
@@ -66,6 +76,8 @@ export interface Dropzone<Target extends HTMLElement = HTMLElement> {
     readonly isLoading: Accessor<boolean>;
     /** Whether a drag is over the zone. */
     readonly isDragging: Accessor<boolean>;
+    /** The media types of the files dragged over the zone, empty where the browser hides them. */
+    readonly offered: Accessor<readonly string[]>;
     /** Drop a file by name. */
     readonly removeFile: (fileName: string) => void;
     /** Drop every file. */
@@ -76,6 +88,10 @@ export interface Dropzone<Target extends HTMLElement = HTMLElement> {
 export interface DropzoneOptions {
     /** Handle the dropped files. */
     readonly onDrop?: UserCallback;
+    /** Report whether to read the files of dropped folders, which come as folders otherwise. */
+    readonly isReadingFolders?: () => boolean;
+    /** Handle dropped folders that cannot be read, or have too many files. */
+    readonly onError?: (error: unknown) => void;
     /** Handle a drag entering the zone. */
     readonly onDragEnter?: DragEventCallback;
     /** Handle a drag leaving the zone. */
@@ -141,6 +157,7 @@ export function createDropzone<Target extends HTMLElement = HTMLElement>(
             error: () => null,
             isLoading: () => false,
             isDragging: () => false,
+            offered: () => [],
             removeFile: () => {},
             clearFiles: () => {},
         };
@@ -149,6 +166,7 @@ export function createDropzone<Target extends HTMLElement = HTMLElement>(
     const [error, setError] = createSignal<unknown>(null, { ownedWrite: true });
     const [isLoading, setIsLoading] = createSignal(false, { ownedWrite: true });
     const [isDragging, setIsDragging] = createSignal(false, { ownedWrite: true });
+    const [offered, setOffered] = createSignal<readonly string[]>([], { ownedWrite: true });
     const [zone, setZone] = createSignal<Target | undefined>(undefined, { ownedWrite: true });
 
     // allow drops over the zone
@@ -176,6 +194,7 @@ export function createDropzone<Target extends HTMLElement = HTMLElement>(
                 }
                 depth++;
                 if (depth === 1) {
+                    setOffered(typesOf(event));
                     setIsDragging(true);
                     void options.onDragEnter?.(event);
                 }
@@ -197,13 +216,33 @@ export function createDropzone<Target extends HTMLElement = HTMLElement>(
                     return;
                 }
 
-                // stop the drag
+                // stop the drag, and leave files a zone inside took
+                const isTaken = event.defaultPrevented;
                 event.preventDefault();
                 depth = 0;
                 setIsDragging(false);
-                const dropped = readUploadFiles(event.dataTransfer?.files ?? null);
-                setFiles(dropped);
-                void run(options.onDrop, dropped, setError, setIsLoading);
+                if (isTaken) {
+                    return;
+                }
+
+                // read the files at once, or those of folders as the browser lists them
+                const take = (dropped: UploadFile[]): void => {
+                    setFiles(dropped);
+                    void run(options.onDrop, dropped, setError, setIsLoading);
+                };
+                const entries = entriesOf(event);
+                const isFolder = entries.some((entry) => entry.isDirectory);
+                if (isFolder && options.isReadingFolders?.() === true) {
+                    setIsLoading(true);
+                    void readEntries(entries).then(take, (failure: unknown) => {
+                        // tell a folder the browser cannot read, or one with too many files
+                        setIsLoading(false);
+                        setError(failure);
+                        options.onError?.(failure);
+                    });
+                } else {
+                    take(readUploadFiles(event.dataTransfer?.files ?? null, entries));
+                }
             };
             element.addEventListener("dragenter", enter);
             element.addEventListener("dragleave", leave);
@@ -227,6 +266,7 @@ export function createDropzone<Target extends HTMLElement = HTMLElement>(
         error,
         isLoading,
         isDragging,
+        offered,
         removeFile,
         clearFiles,
     };
@@ -316,14 +356,96 @@ function createFileList(): {
     };
 }
 
-/** Wrap a file list's files, each with an object URL. */
-function readUploadFiles(list: FileList | null): UploadFile[] {
-    return [...(list ?? [])].map((file) => ({
+/** Wrap a file list's files, each with an object URL, beside the dropped entries they are of. */
+function readUploadFiles(
+    list: FileList | null,
+    entries: readonly FileSystemEntry[] = [],
+): UploadFile[] {
+    return [...(list ?? [])].map((file, i) =>
+        uploadFile(file, file.webkitRelativePath, entries[i]?.isDirectory === true),
+    );
+}
+
+/** Wrap a file with an object URL. */
+function uploadFile(file: File, path: string, isFolder: boolean): UploadFile {
+    return {
         source: URL.createObjectURL(file),
         name: file.name,
         size: file.size,
+        path: path === "" ? file.name : path,
+        isFolder,
         file,
-    }));
+    };
+}
+
+/** Read the media types of dragged files, which the browser may hide until they are dropped. */
+function typesOf(event: DragEvent): readonly string[] {
+    return [...(event.dataTransfer?.items ?? [])]
+        .filter(({ kind }) => kind === "file")
+        .map(({ type }) => type);
+}
+
+/** Read the files and folders a drop has, none where the browser lists none. */
+function entriesOf(event: DragEvent): FileSystemEntry[] {
+    return [...(event.dataTransfer?.items ?? [])]
+        .filter(({ kind }) => kind === "file")
+        .map((item) => item.webkitGetAsEntry())
+        .filter((entry) => entry !== null);
+}
+
+/** Read the files of entries and of the folders among them, breadth first. */
+async function readEntries(entries: readonly FileSystemEntry[]): Promise<UploadFile[]> {
+    // walk the folders, giving each file an object URL once all are read
+    const queue = [...entries];
+    const files: { readonly entry: FileSystemEntry; readonly file: File }[] = [];
+    for (let entry = queue.shift(); entry !== undefined; entry = queue.shift()) {
+        if (isDirectoryEntry(entry)) {
+            queue.push(...(await listEntries(entry)));
+        } else if (isFileEntry(entry) && !SYSTEM_FILES.has(entry.name)) {
+            files.push({ entry, file: await fileOf(entry) });
+        }
+
+        // end a whole disk dropped by mistake
+        if (files.length > FOLDER_FILES) {
+            throw new RangeError(`dropped folders have more than '${String(FOLDER_FILES)}' files`);
+        }
+    }
+
+    return files.map(({ entry, file }) =>
+        uploadFile(file, entry.fullPath.replace(/^\//u, ""), false),
+    );
+}
+
+/** Report whether an entry is a folder. */
+function isDirectoryEntry(entry: FileSystemEntry): entry is FileSystemDirectoryEntry {
+    return entry.isDirectory;
+}
+
+/** Report whether an entry is a file. */
+function isFileEntry(entry: FileSystemEntry): entry is FileSystemFileEntry {
+    return entry.isFile;
+}
+
+/** Read the file of an entry. */
+async function fileOf(entry: FileSystemFileEntry): Promise<File> {
+    return new Promise((resolve, reject) => {
+        entry.file(resolve, reject);
+    });
+}
+
+/** List a folder, which the browser reads in batches until an empty one. */
+async function listEntries(folder: FileSystemDirectoryEntry): Promise<FileSystemEntry[]> {
+    const reader = folder.createReader();
+    const listed: FileSystemEntry[] = [];
+    for (;;) {
+        const batch = await new Promise<FileSystemEntry[]>((resolve, reject) => {
+            reader.readEntries(resolve, reject);
+        });
+        if (batch.length === 0) {
+            return listed;
+        }
+        listed.push(...batch);
+    }
 }
 
 /** Run a callback with files, recording whether it runs and its failure. */

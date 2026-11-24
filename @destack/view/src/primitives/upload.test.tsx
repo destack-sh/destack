@@ -299,3 +299,60 @@ test("hand the files chosen in an input to a callback, clearing it, and report f
         value: "",
     });
 });
+
+/** Make a file or a folder as a drop lists it. */
+function entry(path: string, inside?: readonly object[]): object {
+    const name = path.slice(path.lastIndexOf("/") + 1);
+    const batches = [[...(inside ?? [])], []];
+
+    return {
+        name,
+        fullPath: path,
+        isFile: inside === undefined,
+        isDirectory: inside !== undefined,
+        file: (take: (read: File) => void) => take(file(name)),
+        createReader: () => ({
+            readEntries: (take: (batch: object[]) => void) => take(batches.shift() ?? []),
+        }),
+    };
+}
+
+/** Drop a folder with a folder inside on a zone, and read what it takes. */
+async function dropFolder(isReadingFolders: boolean): Promise<unknown[]> {
+    // drop on a zone that reads folders or does not
+    const element = document.createElement("div");
+    const zone = createRoot((disposeRoot) => {
+        const state = createDropzone({ isReadingFolders: () => isReadingFolders });
+        state.ref(element);
+
+        return { ...state, dispose: disposeRoot };
+    });
+    flush();
+    const photos = entry("/trip", [
+        entry("/trip/tram.png"),
+        entry("/trip/.DS_Store"),
+        entry("/trip/day", [entry("/trip/day/lake.png")]),
+    ]);
+    const event = new DragEvent("drop", { bubbles: true, cancelable: true });
+    const folder = Object.assign(file("trip"), { webkitRelativePath: "" });
+    const items = [{ kind: "file", type: "", webkitGetAsEntry: () => photos }];
+    const value = { files: fileList(folder), types: ["Files"], items };
+    Object.defineProperty(event, "dataTransfer", { value });
+    element.dispatchEvent(event);
+    await wait(5);
+    flush();
+    const read = zone.files().map(({ path, isFolder }) => [path, isFolder]);
+    zone.dispose();
+
+    return read;
+}
+
+test("read the files of dropped folders with their paths, or leave the folders as they are", async () => {
+    expect([await dropFolder(true), await dropFolder(false)]).toEqual([
+        [
+            ["trip/tram.png", false],
+            ["trip/day/lake.png", false],
+        ],
+        [["trip", true]],
+    ]);
+});
