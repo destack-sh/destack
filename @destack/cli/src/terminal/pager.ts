@@ -443,7 +443,7 @@ function answerOf(question: Question, text: string): Typed {
     if (question === "confirmation") {
         return text === CONFIRMATION ? { value: undefined } : "invalid";
     } else if (text === "") {
-        return question.need === "required" ? "invalid" : { value: undefined };
+        return question.presence === "required" ? "invalid" : { value: undefined };
     }
 
     // read a number or a time, a boolean, a choice or text by the input's kind

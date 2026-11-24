@@ -671,7 +671,7 @@ function actionCommand(noun: CatalogType, action: Action, id: string | undefined
                 ...(target === undefined ? {} : targetOf(call, remote, target)),
             };
             const missing = call.inputs.find(
-                (each) => each.need === "required" && !(each.name in values),
+                (each) => each.presence === "required" && !(each.name in values),
             );
             if (missing !== undefined) {
                 throw CliError.of(
