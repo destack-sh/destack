@@ -666,6 +666,7 @@ export class ObjectSource {
         // compile a request's queries over the scope's chain now, noting whether it left some out
         let isPartial = false;
         const compile = (parameters: JsonObject) => {
+            // keep the asked queries the store serves here
             const asked = QueriesParameters.parse(parameters).queries;
             const served = this.#served(asked, isHome);
             isPartial ||= Object.keys(served ?? {}).length < Object.keys(asked ?? {}).length;

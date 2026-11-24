@@ -901,6 +901,11 @@ export class ObjectStore {
         return this.#catalog.replicated;
     }
 
+    /** The types this database replicates from their home: authorized and followed. */
+    get #replicating(): readonly ObjectType[] {
+        return [...this.#catalog.replicated, ...this.#catalog.replicas];
+    }
+
     /** The scope's branch types, absent for a store without branches. */
     get branch(): BranchType | undefined {
         return this.#catalog.branch;
@@ -1730,8 +1735,13 @@ export class ObjectStore {
                     this.requireProtocolType(context, call.type);
                 }
 
-                // enter the pushed scope as the request's caller, and run the mutations as it
-                await this.enter(context, input.scope, true);
+                // enter the pushed scope as the caller, leaving rows forwarded to their home for it to decide
+                const isForwarded = input.mutations.every((mutation) =>
+                    this.#isForwarded(mutation),
+                );
+                if (!isForwarded) {
+                    await this.enter(context, input.scope, true);
+                }
 
                 return this.#pushAs(input.scope, input.mutations, context.access(input.scope), {
                     ...(input.writerId === undefined ? {} : { writerId: input.writerId }),
@@ -2232,7 +2242,7 @@ export class ObjectStore {
 
         // resolve the call, refusing external work and other storages, except events beside durable rows
         const { object, name, input } = ObjectType.resolve(
-            this.#callable(placed, mutates, [...this.replicated, ...this.replicas]),
+            this.#callable(placed, mutates, this.#replicating),
             placed,
             mutates,
             site,
@@ -2648,7 +2658,7 @@ export class ObjectStore {
             return;
         }
         const object = present(
-            ObjectType.find(this.replicated, call),
+            ObjectType.find(this.#replicating, call),
             `the type of ${call.method}`,
         );
         const scope = object.readScope(call.method, call.input);
@@ -2706,7 +2716,7 @@ export class ObjectStore {
 
     /** Report whether a call's type's rows replicate from their home instead of living here. */
     #isUplinked(call: sync.Call): boolean {
-        const object = ObjectType.find(this.replicated, call);
+        const object = ObjectType.find(this.#replicating, call);
 
         return object !== undefined && !this.objects.some((served) => served.same(object));
     }
@@ -2714,7 +2724,7 @@ export class ObjectStore {
     /** Find the remote taking a change of replicated rows, else the store's remote. */
     async remoteOf(call: sync.Call): Promise<ObjectRemote | undefined> {
         // find the replica of the call's table in its scope
-        const object = ObjectType.find(this.replicated, call);
+        const object = ObjectType.find(this.#replicating, call);
         const scope = object?.readScope(call.method, call.input);
         const entries = await this.sink.followed();
         const home = entries.find(({ subscription, publisher }) => {
@@ -2745,7 +2755,7 @@ export class ObjectStore {
         const routed = await Promise.all(
             mutation.calls.map(async (call) => {
                 // read the call's replicated type and scope, a home only for rows replicated here
-                const object = ObjectType.find(this.replicated, call);
+                const object = ObjectType.find(this.#replicating, call);
                 const scope = object?.readScope(call.method, call.input);
                 const isReplica =
                     object !== undefined &&

@@ -51,6 +51,9 @@ import { spaceId } from "./fixture/device.ts";
 import { openSpace, space, spacePrincipal } from "../src/test/space.ts";
 import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
 import { tablesOf } from "../src/stack/db.ts";
+import { TestRemote } from "../src/test/publisher.ts";
+import type { ObjectRemote } from "../src/client/index.ts";
+import type { Environment } from "@destack/environment";
 import objectPackage from "../src/package.ts";
 import { argument, plural, t } from "@destack/locale";
 
@@ -643,104 +646,9 @@ test("end a stream that left out an unserved type once the store serves it", asy
 });
 
 test("answer a replicated type's query over its replica rows, and refuse its mutations", async () => {
-    // run in a world of its own
+    // store a realm's row as a replica of a home it has no route to
     const world = testSimulation().environment("test");
-
-    // store a realm's row as a replica of its home, enclosing the notes the store serves
-    const realm = defineObject(
-        {
-            name: "realm",
-            plural: "realms",
-            title: t`${plural(argument("count"), { one: "Realm", other: "Realms" })}`,
-            scope: "universe",
-            fields: { title: field.string() },
-            container: "partition",
-            access: {
-                permissions: { read: none(), write: none() },
-            },
-        },
-        (method) => ({
-            rename: method.update("write", { fields: ["title"] }),
-            update: false,
-            /** Read the realm's title. */
-            describe: method.query({
-                title: t`Describe`,
-                permission: "read",
-                output: schema.object({ title: schema.string() }),
-            }),
-        }),
-    ).implement({
-        methods: { describe: async (call) => ({ title: call.target.title }) },
-    });
-    const note = defineObject(
-        {
-            name: "note",
-            plural: "notes",
-            title: t`${plural(argument("count"), { one: "Note", other: "Notes" })}`,
-            scope: realm,
-            fields: { text: field.string() },
-            access: {
-                permissions: { read: none(), write: none() },
-            },
-        },
-        (method) => ({ create: method.create("write") }),
-    );
-    const storage = await TestDatabase.create(
-        defineDatabase({
-            name: "main",
-            ...tablesOf({
-                packages: [objectPackage, { objects: { note }, tables: [] }],
-                // replicate the realms, which their home serves
-                follows: [
-                    defineShape({
-                        name: "realms",
-                        parameters: schema.object({}),
-                        objects: [realm],
-                        queries: () => [realm.query({})],
-                    }).at(),
-                ],
-                tables: [],
-            }),
-        }),
-        { environment: world, isMigrated: true },
-    );
-    onTestFinished(() => storage.close());
-    const { database } = storage;
-    const realmId = Identifier.create("realm", world);
-    const owner = principal.user.reference(Scope.universe.id, users.owner);
-    const access = new TestAccess(database, world);
-    await access.replicateScope(realm.reference(Scope.universe.id, realmId), realm.policy);
-    await access.replicateOwner(realm.reference(Scope.universe.id, realmId), owner);
-    await database.transaction(
-        async (transaction) =>
-            await transaction.insert(realm.table).values({
-                id: realmId,
-                scope: Scope.universe.id,
-                title: "Atlas",
-                createdAt: 1,
-                updatedAt: 1,
-            }),
-    );
-
-    // serve the notes, which make the enclosing realm known
-    const store = TestObjectStore.of({
-        servers: [
-            implementPackage(
-                definePackage({
-                    ...testIdentity,
-                    objects: [note],
-                }),
-                {},
-            ),
-        ],
-        chain: async () => undefined,
-        environment: world,
-        principal: spacePrincipal(realmId),
-        database,
-        callKey: testCallKey,
-        events: await testEvents(database, world),
-        origin: { package: note.package },
-    });
+    const { store, realm, realmId, owner } = await openRealms(world);
 
     // answer the realm's query as its owner, and refuse renaming it, which its home does
     const caller = subjectContext(owner, realmId, { environment: world }).access();
@@ -760,6 +668,58 @@ test("answer a replicated type's query over its replica rows, and refuse its mut
             "cannot change 'realm' rows: they are replicas here, so send changes to their home",
         ],
     });
+});
+
+test("send a change of a replicated type's row to its home, which decides it", async () => {
+    // store a realm's row as a replica of a home it reaches, which records the pushes and refuses them
+    const world = testSimulation().environment("test");
+    const pushed: unknown[] = [];
+    const refused = {
+        code: "FORBIDDEN" as const,
+        reason: "PERMISSION_DENIED",
+        domain: "@destack/access",
+        message: "permission 'write' is forbidden: it is not granted",
+    };
+    const silent = { [Symbol.asyncIterator]: () => ({ next: () => new Promise<never>(() => {}) }) };
+    const home = TestRemote.of(
+        { stream: () => silent, request: async () => {} },
+        {
+            push: async (scope, push) => {
+                const methods = push.mutations.flatMap((mutation) =>
+                    mutation.calls.map((call) => call.method),
+                );
+                pushed.push([scope, methods]);
+                const outcomes = push.mutations.map((mutation) => ({
+                    id: mutation.id,
+                    outcome: { error: refused },
+                }));
+                const watermark = {
+                    scope,
+                    log: "home",
+                    epoch: "01996ab0-0000-7000-8000-000000000001",
+                    sequence: 1,
+                };
+
+                return { outcomes, queued: [], watermark };
+            },
+        },
+    );
+    const { store, realm, realmId, owner } = await openRealms(world, home);
+
+    // rename the realm as its owner
+    const caller = subjectContext(owner, realmId, { environment: world }).access();
+    const renamed = await refusal(
+        store.mutate(caller, {
+            id: RequestId.create(world),
+            calls: [realm.call("rename", { id: realmId, title: "Globe" })],
+        }),
+    );
+
+    // send the rename to the realm's home, answering its refusal
+    expect([pushed, renamed]).toEqual([
+        [[Scope.universe.id, ["rename"]]],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'write' is forbidden: it is not granted"],
+    ]);
 });
 
 test("list and replicate only the rows a query's permission allows, drop a row once the follower loses it, and refuse an undeclared permission", async () => {
@@ -1043,3 +1003,105 @@ test("answer a query follow of a type the store does not serve with a complete p
         first.done === true ? "ended" : [first.value.complete, first.value.changes.length],
     ).toEqual([true, 0]);
 });
+
+/** Store a realm's row as a replica of its home, reached through a remote when given. */
+async function openRealms(world: Environment, remote?: ObjectRemote) {
+    // store a realm's row as a replica of its home, enclosing the notes the store serves
+    const realm = defineObject(
+        {
+            name: "realm",
+            plural: "realms",
+            title: t`${plural(argument("count"), { one: "Realm", other: "Realms" })}`,
+            scope: "universe",
+            fields: { title: field.string() },
+            container: "partition",
+            access: {
+                permissions: { read: none(), write: none() },
+            },
+        },
+        (method) => ({
+            rename: method.update("write", { fields: ["title"] }),
+            update: false,
+            /** Read the realm's title. */
+            describe: method.query({
+                title: t`Describe`,
+                permission: "read",
+                output: schema.object({ title: schema.string() }),
+            }),
+        }),
+    ).implement({
+        methods: { describe: async (call) => ({ title: call.target.title }) },
+    });
+    const note = defineObject(
+        {
+            name: "note",
+            plural: "notes",
+            title: t`${plural(argument("count"), { one: "Note", other: "Notes" })}`,
+            scope: realm,
+            fields: { text: field.string() },
+            access: {
+                permissions: { read: none(), write: none() },
+            },
+        },
+        (method) => ({ create: method.create("write") }),
+    );
+    const storage = await TestDatabase.create(
+        defineDatabase({
+            name: "main",
+            ...tablesOf({
+                packages: [objectPackage, { objects: { note }, tables: [] }],
+                // replicate the realms, which their home serves
+                follows: [
+                    defineShape({
+                        name: "realms",
+                        parameters: schema.object({}),
+                        objects: [realm],
+                        queries: () => [realm.query({})],
+                    }).at(),
+                ],
+                tables: [],
+            }),
+        }),
+        { environment: world, isMigrated: true },
+    );
+    onTestFinished(() => storage.close());
+    const { database } = storage;
+    const realmId = Identifier.create("realm", world);
+    const owner = principal.user.reference(Scope.universe.id, users.owner);
+    const access = new TestAccess(database, world);
+    await access.replicateScope(realm.reference(Scope.universe.id, realmId), realm.policy);
+    await access.replicateOwner(realm.reference(Scope.universe.id, realmId), owner);
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(realm.table).values({
+                id: realmId,
+                scope: Scope.universe.id,
+                title: "Atlas",
+                createdAt: 1,
+                updatedAt: 1,
+            }),
+    );
+
+    // serve the notes, which make the enclosing realm known
+    const store = TestObjectStore.of({
+        servers: [
+            implementPackage(
+                definePackage({
+                    ...testIdentity,
+                    objects: [note],
+                }),
+                {},
+            ),
+        ],
+        chain: async () => undefined,
+        environment: world,
+        principal: spacePrincipal(realmId),
+        database,
+        callKey: testCallKey,
+        events: await testEvents(database, world),
+        origin: { package: note.package },
+        ...(remote === undefined ? {} : { remote }),
+    });
+
+    return { store, realm, realmId, owner };
+}
