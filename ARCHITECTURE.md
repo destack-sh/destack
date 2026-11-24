@@ -63,7 +63,7 @@ What people see and touch.
 | Package | What it does | Prior art |
 |---|---|---|
 | [`@destack/style`](@destack/style) | Style components with StyleX, compiled into one stylesheet per build. | StyleX, Tailwind |
-| [`@destack/theme`](@destack/theme) | Theme views with an accent, a base and roles solved for contrast, in light and dark. | Radix Themes, shadcn/ui |
+| [`@destack/theme`](@destack/theme) | Theme views with a page, an accent and ten hues, solved for contrast in light and dark. | Radix Themes, shadcn/ui |
 | [`@destack/ui`](@destack/ui) | Build views from accessible Solid components styled with StyleX and themed by the person's theme. | shadcn/ui, Radix, Base UI |
 | [`@destack/view`](@destack/view) | Build a package's views with Solid, reading and changing its space's objects live. | Solid |
 | [`@destack/shader`](@destack/shader) | Draw fragment shader effects in views, colored by the theme. | Paper Shaders |

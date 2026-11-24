@@ -1,6 +1,6 @@
 {
     "name": "@destack/theme",
-    "description": "Theme views with an accent, a base and roles solved for contrast, in light and dark.",
+    "description": "Theme views with a page, an accent and ten hues, solved for contrast in light and dark.",
     "license": "Apache-2.0",
     "type": "module",
     "sideEffects": [
@@ -13,7 +13,7 @@
         "./motion": "./src/motion/index.ts",
         "./text": "./src/text/index.ts",
         "./state": "./src/state/index.ts",
-        "./code.css": "./src/code/code.css",
+        "./code": "./src/code/index.ts",
         "./theme.css": "./src/theme/theme.css",
         "./tokens.json": "./src/token/tokens.json",
         "./tokens.stylex": "./src/token/tokens.stylex.ts",
