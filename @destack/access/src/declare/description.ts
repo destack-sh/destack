@@ -69,13 +69,13 @@ export const PolicyDescription = schema.object({
         schema.object({
             /** The relation's declared subject types, beside an open relation's added ones. */
             subjects: schema.array(SubjectType),
-            /** The permission whose holders grant and revoke the relation. */
+            /** The permission a caller grants and revokes the relation with. */
             grantedBy: AccessName.exactOptional(),
             /** Whether other types contribute themselves as subject types. */
             open: schema.literal(true).exactOptional(),
             /** Whether the relation is to each object's scope, decided by the chain. */
             isScope: schema.literal(true).exactOptional(),
-            /** Whether relationships show only to holders of the granting permission. */
+            /** Whether relationships show only to callers with the granting permission. */
             concealed: schema.literal(true).exactOptional(),
             /** Whether each object keeps at least one relationship of the relation. */
             isRequired: schema.literal(true).exactOptional(),
@@ -83,7 +83,7 @@ export const PolicyDescription = schema.object({
             onDelete: schema.literal("cascade").exactOptional(),
         }),
     ),
-    /** The permission whose holders see the objects' relationships, `read` by default. */
+    /** The permission a caller sees the objects' relationships with, `read` by default. */
     relationships: schema.object({ read: AccessName }).exactOptional(),
     /** The open relations of other types this type's objects may be subjects of. */
     contributes: schema

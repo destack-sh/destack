@@ -363,7 +363,7 @@ export interface RelationInput {
     readonly open?: true;
     /** Whether the relation is to each object's containing scope, decided by the scope chain. */
     readonly isScope?: true;
-    /** Whether the relation's relationships show only to holders of the permission granting it. */
+    /** Whether the relation's relationships show only to callers with its granting permission. */
     readonly concealed?: true;
     /** Whether each object keeps at least one relationship of the relation, as its owners. */
     readonly isRequired?: true;
@@ -405,7 +405,7 @@ interface PolicyFields<Name extends string, Kind extends string> {
     readonly permissions: Readonly<Record<Name, AccessExpression>>;
     /** The permission to bind roles on an object and grant relations without a separate one. */
     readonly grantedBy?: NoInfer<Name>;
-    /** The permission whose holders see the objects' relationships, `read` by default. */
+    /** The permission a caller sees the objects' relationships with, `read` by default. */
     readonly relationships?: { readonly read: NoInfer<Name> };
     /** Permissions owner roles leave out, granted only by their expressions and listing roles. */
     readonly reserved?: readonly NoInfer<Name>[];
