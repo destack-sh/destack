@@ -1,3 +1,4 @@
+import type { SimulationOptions } from "@destack/environment/simulation";
 import { Digest, type JsonValue, present, schema } from "@destack/schema";
 import { Failure } from "@destack/error";
 import { dirname, join, relative } from "node:path";
@@ -99,8 +100,11 @@ export class TestImage<
     }
 
     /** Fork the image for a test: its world at the build's end, its databases copied, its value. */
-    fork(label: string): ReturnType<typeof TestDatabase.fork<Value, Databases>> {
-        return TestDatabase.fork(this.template, this.record, label);
+    fork(
+        label: string,
+        options: Pick<SimulationOptions, "isBridged"> = {},
+    ): ReturnType<typeof TestDatabase.fork<Value, Databases>> {
+        return TestDatabase.fork(this.template, this.record, label, options);
     }
 }
 

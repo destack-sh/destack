@@ -2,7 +2,7 @@ import type { Selector } from "@destack/package/declare";
 import { basename, join } from "node:path";
 import postgres from "postgres";
 import { testHost } from "@destack/test/host";
-import { Simulation } from "@destack/environment/simulation";
+import { Simulation, type SimulationOptions } from "@destack/environment/simulation";
 import type { DatabaseConnection, DatabaseEnvironment } from "../database/connection.ts";
 import type { Model } from "../query/model.ts";
 import { Dialect } from "../dialect/dialect.ts";
@@ -150,6 +150,7 @@ export class TestDatabase<
         template: TestTemplate<Value, Databases>,
         image: ImageRecord,
         label: string,
+        options: Pick<SimulationOptions, "isBridged"> = {},
     ): Promise<{
         readonly simulation: Simulation;
         readonly databases: TemplateStorage<Databases>;
@@ -158,7 +159,10 @@ export class TestDatabase<
     }> {
         // fork the template's world by the label, its databases running as the write's node
         const recorded = { seed: template.world.seed, start: image.end };
-        const simulation = Simulation.fork(recorded, label, { world: testWorldOptions() });
+        const simulation = Simulation.fork(recorded, label, {
+            ...options,
+            world: testWorldOptions(),
+        });
         onTestFinished(() => simulation[Symbol.asyncDispose]());
         const environment = simulation.environment(TEMPLATE_NODE);
 
