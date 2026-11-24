@@ -11,7 +11,7 @@ import { PackageFile } from "@destack/package/file";
 import {
     BuildReader,
     BuildWriter,
-    type OutputContent,
+    type PackageOutput,
     BuildImage,
     PackageManifest,
     BuildListCache,
@@ -76,7 +76,7 @@ const TINY: PackageManifest["package"] = {
 async function written(
     sources: Readonly<Record<string, string>>,
     crypto: Crypto,
-    outputs: Readonly<Record<string, OutputContent>> = {},
+    outputs: Readonly<Record<string, PackageOutput>> = {},
     built: PackageManifest["package"] = ANSWER,
 ): Promise<BuildReader> {
     // write each source file, then the lists and the manifest
@@ -107,7 +107,7 @@ async function written(
 function bunOutputs(
     imports: Readonly<Record<string, readonly string[]>>,
     entries: readonly string[] = [],
-): Readonly<Record<string, OutputContent>> {
+): Readonly<Record<string, PackageOutput>> {
     // export each subpath at a file of its own, and run each entry as a workload
     const exports = Object.fromEntries(
         Object.entries(imports).map(([subpath, specifiers]) => [

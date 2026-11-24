@@ -37,7 +37,7 @@ import {
 import type { BuildDescription } from "@destack/package/manifest";
 import { PackageJson, type Sandbox } from "@destack/package";
 import { PackagePath } from "@destack/package/file";
-import { type OutputContent, type OutputExport } from "@destack/package/manifest";
+import { type PackageOutput, type PackageChunk } from "@destack/package/manifest";
 import { type SourceMapReference } from "@destack/package/source";
 import { baselinePlugin, modulePlugin } from "@destack/package/vite";
 import type { ModuleTransformer } from "@destack/package/transform";
@@ -83,7 +83,7 @@ export interface OutputBuild {
     /** Dependencies, module imports, and generated file membership. */
     inspection: BuildDescription;
     /** The target output description. */
-    output: OutputContent;
+    output: PackageOutput;
     /** The emitted file of each package export, recorded with its imports at the end. */
     exported: Record<string, string>;
     /** The emitted file of each installed command, recorded with its imports at the end. */
@@ -451,7 +451,7 @@ export class ModuleOutput implements Compilation {
 
     /** Create the empty files and descriptions of the output under its output directory. */
     #createBuild(): OutputBuild {
-        const output: OutputContent = {
+        const output: PackageOutput = {
             runtime: this.project.runtime,
             emit: true,
             workloads: {},
@@ -501,7 +501,7 @@ export class ModuleOutput implements Compilation {
         }
 
         // record each command's emitted module with its imports, requiring it generated
-        const bins: Record<string, OutputExport> = {};
+        const bins: Record<string, PackageChunk> = {};
         for (const command of Object.keys(this.project.bins)) {
             const path = compiled.bins[command];
             if (path === undefined) {
@@ -1240,7 +1240,7 @@ function describe(
 }
 
 /** Add an extension's workloads, views and frame to an output, refusing one described twice. */
-function merge(output: OutputContent, described: OutputDescription): void {
+function merge(output: PackageOutput, described: OutputDescription): void {
     // add the workloads and the views
     mergeSection("workloads", output.workloads, described.workloads);
     mergeSection("views", output.views, described.views);

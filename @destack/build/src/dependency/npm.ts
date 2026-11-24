@@ -12,7 +12,7 @@ import {
     BuildListCache,
     BuildReader,
     BuildWriter,
-    type OutputContent,
+    type PackageOutput,
 } from "@destack/package/manifest";
 import { HOST_RUNTIME, Runtime } from "@destack/package/runtime";
 import { NpmConversion } from "../compile/conversion.ts";
@@ -318,7 +318,7 @@ export class NpmUnit {
             { write: async (path, bytes) => void written.set(path, bytes) },
             this.#environment.crypto,
         );
-        const outputs: Record<string, OutputContent> = {};
+        const outputs: Record<string, PackageOutput> = {};
         const required = new Map<string, NpmUnit>();
         for (const runtime of runtimes) {
             const { output, imported } = await this.#convert(files, runtime, writer);
@@ -357,7 +357,7 @@ export class NpmUnit {
         files: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,
         runtime: Runtime,
         writer: BuildWriter,
-    ): Promise<{ readonly output: OutputContent; readonly imported: [string, NpmUnit][] }> {
+    ): Promise<{ readonly output: PackageOutput; readonly imported: [string, NpmUnit][] }> {
         // keep the published files for the host, else convert them
         const converted =
             runtime === HOST_RUNTIME
@@ -379,7 +379,7 @@ export class NpmUnit {
 
         // describe its exports, each importing the packages its converted modules import
         const imports = [...converted.imported].toSorted();
-        const output: OutputContent = {
+        const output: PackageOutput = {
             runtime,
             emit: true,
             workloads: {},
