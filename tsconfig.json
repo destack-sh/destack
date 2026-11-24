@@ -45,6 +45,7 @@
         "@destack/build",
         "@destack/check",
         "@destack/cli",
+        "@destack/code",
         "@destack/color",
         "@destack/connection",
         "@destack/db",

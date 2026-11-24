@@ -312,6 +312,11 @@
                     "description": "Use Destack from the terminal: sign in, install packages and work with a space's objects."
                 },
                 {
+                    "directory": "@destack/code",
+                    "name": "@destack/code",
+                    "description": "Parse, compare, patch and merge source code in the browser, in Bun and in workers."
+                },
+                {
                     "directory": "@destack/color",
                     "name": "@destack/color",
                     "description": "Name the hues colors mean things in, which each theme fills in."
@@ -596,6 +601,7 @@
                 "@destack/build/src/main.ts",
                 "@destack/check/src/main.ts",
                 "@destack/cli/src/main.ts",
+                "@destack/code/src/grammar/javascript/generate.ts",
                 "@destack/db/src/cloudflare/durable.ts",
                 "@destack/db/src/cloudflare/test/scenario.ts",
                 "@destack/db/src/test/write.ts",
@@ -644,6 +650,7 @@
                 "@destack/build": "library",
                 "@destack/check": "library",
                 "@destack/cli": "library",
+                "@destack/code": "library",
                 "@destack/color": "builtin",
                 "@destack/connection": "builtin",
                 "@destack/db": "builtin",
