@@ -589,7 +589,7 @@ export class PlatformBuild implements AsyncDisposable {
 
         return {
             packageId: PackageManifest.package(stack.manifest).id,
-            selection: { kind: "host" },
+            version: { kind: "host" },
             export: exported,
             settings: {},
             routes: {},
@@ -607,7 +607,7 @@ export class PlatformBuild implements AsyncDisposable {
 
         return {
             packageId: id,
-            selection: { kind: "release", version },
+            version: { kind: "release", version },
             export: exported,
             settings: { ...placed.settings },
             routes: { ...placed.routes },
