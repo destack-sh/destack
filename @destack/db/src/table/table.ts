@@ -93,6 +93,23 @@ export class Table<
         );
     }
 
+    /** Close tables over those their aggregates write and their dependents keep. */
+    static closure(tables: Iterable<Table>): Set<Table> {
+        const closed = new Set(tables);
+        for (const table of closed) {
+            // add the table an aggregate counts into or from, and each dependent
+            const { aggregates, dependents } = table[TABLE];
+            for (const aggregate of aggregates) {
+                closed.add("into" in aggregate ? aggregate.into() : aggregate.from());
+            }
+            for (const dependent of dependents) {
+                closed.add(dependent.from());
+            }
+        }
+
+        return closed;
+    }
+
     /** Build the table a state describes, such as another host's. */
     static describe(state: TableState, properties: Readonly<Record<string, string>> = {}): Table {
         // read the logged columns

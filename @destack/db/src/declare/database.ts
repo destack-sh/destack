@@ -40,6 +40,11 @@ export interface DatabaseConnector {
     ) => Promise<DatabaseConnection<Models> & AsyncDisposable>;
 }
 
+/** The tables, replicated tables and relations a connection binds, as a database declares them. */
+export type DatabaseSchema<
+    Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
+> = Pick<Database<Models>, "tables" | "replicated" | "relations">;
+
 /** A database declaration. */
 export class Database<
     Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,

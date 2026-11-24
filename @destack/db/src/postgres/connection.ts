@@ -9,7 +9,7 @@ export async function connectPostgres<
     Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
 >(
     connection: string | PostgresPool,
-    tables: declaration.Database<Models> | readonly Table[],
+    tables: declaration.DatabaseSchema<Models> | readonly Table[],
     options: PostgresConnectOptions,
 ): Promise<PostgresDatabase<Models>> {
     // bind the tables to a caller's pool, which the caller closes
