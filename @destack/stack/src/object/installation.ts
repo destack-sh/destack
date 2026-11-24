@@ -209,7 +209,7 @@ export const installation = defineObject(
             // let permissions read the scope an installation lives in
             attributes: { scope: "string" },
             permissions: {
-                // let the space's readers see its installed apps, as members see a workspace's apps
+                // let the space's readers see its installed apps
                 read: through("scope", "read"),
                 list: through("scope", "read"),
                 install: none(),
@@ -613,7 +613,7 @@ export const Installation = {
             const isRecorded =
                 row.servedRevisionId === served && Observation.isRecorded(row, report);
 
-            // answer a refusal once its Serving, which only this records, changes to it
+            // answer a refusal once Serving changes to it
             const before = row.conditions["Serving"];
             const after =
                 outcome === undefined
