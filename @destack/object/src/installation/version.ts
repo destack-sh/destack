@@ -29,13 +29,13 @@ export const Host = schema.object({
     kind: schema.literal("host"),
 });
 
-/** A release an installation follows: by version, by a tag, or as its host provides it. */
-export const ReleaseSelection = schema.discriminatedUnion("kind", [Release, Tag, Host]);
-/** A release an installation follows. */
-export type ReleaseSelection = schema.Infer<typeof ReleaseSelection>;
+/** The release an installation runs: by version, by a tag, or as its host provides it. */
+export const ReleaseVersion = schema.discriminatedUnion("kind", [Release, Tag, Host]);
+/** The release an installation runs. */
+export type ReleaseVersion = schema.Infer<typeof ReleaseVersion>;
 
-/** The schema of what an installation follows. */
-const selections = schema.discriminatedUnion("kind", [
+/** The schema of the version an installation runs. */
+const versions = schema.discriminatedUnion("kind", [
     Release,
     Tag,
     Host,
@@ -60,19 +60,17 @@ const selections = schema.discriminatedUnion("kind", [
         directory: PackageDirectory,
     }),
 ]);
-/** The release, repository reference, checkout or host's release an installation follows. */
-export const InstallationSelection = Object.assign(selections, {
-    /** Report whether a selection resolves to a release: by version, by tag, or the host's. */
-    isRelease(selection: InstallationSelection): boolean {
-        return (
-            selection.kind === "release" || selection.kind === "tag" || selection.kind === "host"
-        );
+/** The version an installation runs: a release, a tag, the host's, a reference or a checkout. */
+export const InstallationVersion = Object.assign(versions, {
+    /** Report whether a version resolves to a release: by version, by tag, or the host's. */
+    isRelease(version: InstallationVersion): boolean {
+        return version.kind === "release" || version.kind === "tag" || version.kind === "host";
     },
 });
-/** The release, repository reference, checkout or host's release an installation follows. */
-export type InstallationSelection = schema.Infer<typeof selections>;
-/** An installation's selection of a repository reference. */
-export type RepositorySelection = Extract<InstallationSelection, { readonly kind: "repository" }>;
+/** The version an installation runs. */
+export type InstallationVersion = schema.Infer<typeof versions>;
+/** An installation's version at a repository reference. */
+export type RepositoryVersion = Extract<InstallationVersion, { readonly kind: "repository" }>;
 
 /** A bindable object a binding targets. */
 export const BindingTarget = schema.union([
