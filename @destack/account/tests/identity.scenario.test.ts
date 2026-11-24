@@ -1,6 +1,6 @@
 import { TokenResponse } from "../src/authentication/index.ts";
 import { Scope, RequestId } from "@destack/sync";
-import { principal } from "@destack/access";
+import { CONTAINED, principal } from "@destack/access";
 import { eq } from "@destack/db";
 import { PackageId } from "@destack/package";
 import {
@@ -12,7 +12,7 @@ import { expect, refusal, test } from "@destack/test";
 import { found, Identifier, present, schema } from "@destack/schema";
 import { MachineKey } from "../src/client/index.ts";
 import { TOKEN_PATH } from "../src/authentication/path.ts";
-import { Account, Identity, key, machine } from "../src/object/index.ts";
+import { Account, account, Identity, key, machine, residency } from "../src/object/index.ts";
 import { JWT_BEARER } from "../src/oauth/index.ts";
 import accountPackage from "../src/package.ts";
 import { MemoryKeychain } from "@destack/identity";
@@ -359,7 +359,7 @@ test("grant a cloud machine a token for a minute as itself alone, by its enrolle
     ]).toEqual([
         { kind: "machine-key", id: enrolled.thumbprint },
         principal.machine.reference(Scope.universe.id, identity.machineId),
-        [],
+        [await residentOf(accounts, identity.machineId)],
         TOKEN_LIFETIME_MILLISECONDS,
     ]);
 });
@@ -491,7 +491,7 @@ test("issue a machine's token at the store clock's time, verifiable after the cl
             jti: ANY_STRING,
             caller: {
                 subject,
-                groups: [],
+                groups: [await residentOf(fixture, identity.machineId)],
                 contacts: [],
                 credential: {
                     kind: "machine-key",
@@ -656,6 +656,24 @@ test("store one key when two processes generate a machine's first key at once, b
         { kty, crv, x, y },
     ]);
 });
+
+/** Read the residency containment a machine's tokens carry: its account's residency's. */
+async function residentOf(accounts: TestAccountStore, machineId: Identifier<"machine">) {
+    // read the machine's account and its residency
+    const snapshot = accounts.database.snapshot();
+    const row = present(
+        await snapshot.read(machine.table).findFirst({ where: { id: machineId } }),
+        "the machine",
+    );
+    const owner = present(
+        await snapshot
+            .read(account.table)
+            .findFirst({ where: { id: account.identifier(row.scope) } }),
+        "the machine's account",
+    );
+
+    return { ...residency.reference(Scope.universe.id, owner.residencyId), relation: CONTAINED };
+}
 
 /** Order public keys by their x coordinate. */
 function byX(left: { readonly x: string }, right: { readonly x: string }): number {

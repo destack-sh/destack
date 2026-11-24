@@ -12,6 +12,7 @@ import { Identity } from "../object/identity.ts";
 import { Machine, machine } from "../object/machine.ts";
 import { space } from "../object/space.ts";
 import { account } from "../object/account.ts";
+import { residency } from "../object/residency.ts";
 import { user } from "../object/user.ts";
 import accountPackage from "../package.ts";
 import { OAuthError, SECOND_MILLISECONDS } from "../authentication/token.ts";
@@ -142,7 +143,7 @@ export function bearerGrant(options: BearerOptions): GrantType {
             ...(partition === undefined ? {} : { scope: partition }),
         };
 
-        // add a space's containment to the caller's groups
+        // add a space's or a machine's containment to the caller's groups
         const groups = [...asserted.groups, ...(await containment(database, asserted.subject))];
         const authentication = { caller: { ...asserted, groups }, credential: scoped };
 
@@ -175,36 +176,54 @@ function assertionKey(
     return Promise.resolve(undefined);
 }
 
-/** Read a space principal's account and the people it is home to, as the sets it belongs to. */
+/** Read the sets a space or a machine belongs to: its account, residency and people. */
 async function containment(database: DatabaseConnection, subject: Subject): Promise<Subject[]> {
-    // take a space principal's account from the directory, none for another principal
-    if (!principal.space.is(subject)) {
+    // read the account a space or a machine lives in, none for another principal or a residency's machine
+    const snapshot = database.snapshot();
+    const isSpace = principal.space.is(subject);
+    if (!isSpace && !principal.machine.is(subject)) {
         return [];
     }
-    const snapshot = database.snapshot();
-    const row = await snapshot
-        .read(space.table)
-        .findFirst({ where: { id: space.identifier(subject.id) } });
+    const living = isSpace
+        ? await snapshot
+              .read(space.table)
+              .findFirst({ where: { id: space.identifier(subject.id) } })
+        : await snapshot
+              .read(machine.table)
+              .findFirst({ where: { id: machine.identifier(subject.id) } });
+    if (living !== undefined && living.scope === Scope.universe.id) {
+        return [];
+    }
     const owner =
-        row === undefined
+        living === undefined
             ? undefined
             : await snapshot
                   .read(account.table)
-                  .findFirst({ where: { id: account.identifier(row.scope) } });
-    if (row === undefined || owner === undefined) {
+                  .findFirst({ where: { id: account.identifier(living.scope) } });
+    if (owner === undefined) {
         throw OAuthError.of(
             "GRANT_INVALID",
-            `grant is invalid: the account of space '${subject.id}' is unknown`,
+            `grant is invalid: the account of '${subject.id}' is unknown`,
         );
     }
 
-    // state the people whose home the space is, as the universe stores them
-    const people = await snapshot
-        .read(user.table)
-        .findMany({ where: { homeId: space.identifier(subject.id) } });
+    // contain it in its account's residency, and a space in its account, as its chain places a machine there
+    const resident = {
+        ...residency.reference(Scope.universe.id, owner.residencyId),
+        relation: CONTAINED,
+    };
+    const inAccount = { ...account.reference(owner.scope, owner.id), relation: CONTAINED };
+    const contained = isSpace ? [inAccount, resident] : [resident];
+
+    // state the people whose home a space is, as the universe stores them
+    const people = isSpace
+        ? await snapshot
+              .read(user.table)
+              .findMany({ where: { homeId: space.identifier(subject.id) } })
+        : [];
 
     return [
-        { ...account.reference(owner.scope, owner.id), relation: CONTAINED },
+        ...contained,
         ...people.map((person) => ({
             ...principal.user.reference(Scope.universe.id, person.id),
             relation: "home",
