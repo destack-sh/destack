@@ -207,6 +207,9 @@ export class TestUniverse implements AsyncDisposable {
         { readonly type: ObjectType; readonly handle: (typeof UNIVERSE_PACKAGES)[number] }
     >;
 
+    /** The machine in front of the origin, as the platform's machine stands in production. */
+    readonly #front: UniverseFront;
+
     /** Keep a started universe and its stand-ins. */
     private constructor(
         universe: Universe,
@@ -217,9 +220,11 @@ export class TestUniverse implements AsyncDisposable {
         disposables: AsyncDisposableStack,
         world: Pick<UniverseWorld, "keyring" | "people" | "authenticators">,
         simulation: Simulation,
+        front: UniverseFront,
     ) {
         // keep the universe and the stand-ins for mail, storage and time
         this.universe = universe;
+        this.#front = front;
         this.storage = storage;
         this.mail = mail;
         this.environment = environment;
@@ -251,6 +256,17 @@ export class TestUniverse implements AsyncDisposable {
                 new TestPerson(this.#signIn(), signedIn),
             ]),
         );
+    }
+
+    /** Put a machine in front of the origin for the paths the universe leaves, until disposed. */
+    serve(fetch: (request: Request) => Promise<Response>): Disposable {
+        this.#front.machine = fetch;
+
+        return {
+            [Symbol.dispose]: () => {
+                this.#front.machine = undefined;
+            },
+        };
     }
 
     /** Start a universe over a database of the project's target, mail and storage in memory. */
@@ -351,11 +367,18 @@ export class TestUniverse implements AsyncDisposable {
             simulation.scheduler.failed,
         ]);
 
-        // answer at the origin on the simulation's network
+        // answer at the origin, handing the paths the universe leaves to the machine in front
+        const front: UniverseFront = { machine: undefined };
         const listener = simulation.network.server(UNIVERSE_NODE).http({
             hostname: new URL(TEST_ORIGIN).hostname,
             port: HTTPS_PORT,
-            ...universe.connections.listen((request) => universe.fetch(request)),
+            ...universe.connections.listen((request) => {
+                const isUniverse = TEST_UNIVERSE.serves(request.url) !== undefined;
+
+                return isUniverse || front.machine === undefined
+                    ? universe.fetch(request)
+                    : front.machine(request);
+            }),
         });
         opening.defer(() => listener.stop(true));
 
@@ -375,6 +398,7 @@ export class TestUniverse implements AsyncDisposable {
             opening.move(),
             world,
             simulation,
+            front,
         );
     }
 
@@ -824,4 +848,10 @@ export class TestUniverse implements AsyncDisposable {
         await this.#opened.disposeAsync();
         await this.#disposables.disposeAsync();
     }
+}
+
+/** The machine in front of a test universe's origin, absent until a platform machine starts. */
+interface UniverseFront {
+    /** Serve a request the universe does not. */
+    machine: ((request: Request) => Promise<Response>) | undefined;
 }
