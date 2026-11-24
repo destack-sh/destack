@@ -391,10 +391,10 @@ export class Platform {
     async bindRoles(now: number): Promise<void> {
         // bind the roles of the residencies' servers, of every machine and of every signed-in caller
         await this.#authorize(Scope.universe.id, now, async (authorization) => {
-            // bind the servers' role to each residency's machines and space
+            // bind the servers' role to each residency's machines, space and relay, which route names
             const residencies = await authorization.transaction.read(residency.table).findMany();
             const servers = residencies.flatMap((entry) =>
-                ["machine", "space"].map((relation) => ({
+                ["machine", "space", "relay"].map((relation) => ({
                     ...residency.reference(Scope.universe.id, entry.id),
                     relation,
                 })),
