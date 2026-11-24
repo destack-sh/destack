@@ -10,7 +10,7 @@ import {
     instance,
     Installation,
     type BuildSource,
-    type ResourceNeed,
+    type ResourceRequirement,
     type StackEvaluation,
     type DeploymentRuntime,
     PROCESS_RUNTIME,
@@ -69,9 +69,10 @@ import {
     Version,
     type VersionRange,
 } from "@destack/schema";
-import { RequestId, Scope } from "@destack/sync";
+import { ObjectReference, RequestId, Scope } from "@destack/sync";
 import type { FamilyError } from "@destack/error";
 import { StackError, type StackReason } from "@destack/stack/error";
+import { satisfies } from "semver";
 import { ResourceError, UnreachablePlan } from "@destack/resource/error";
 import type { Runtime } from "../runtime/runtime.ts";
 import type { Binder } from "../resource/binding.ts";
@@ -112,7 +113,7 @@ export interface ApplicationOptions {
     readonly known: readonly ObjectType[];
 }
 
-/** What a revision deploys: its build, workloads, replaced deployments and needs. */
+/** What a revision deploys: its build, workloads, replaced deployments and requirements. */
 interface DeploymentPlan {
     /** The revision's build. */
     readonly build: BuildReader;
@@ -123,7 +124,7 @@ interface DeploymentPlan {
     /** The active deployments the fresh ones replace. */
     readonly replaced: readonly Deployment[];
     /** The declarations the installation's workloads bind. */
-    readonly needs: readonly ResourceNeed[];
+    readonly requirements: readonly ResourceRequirement[];
     /** The package its build declares: requests and capabilities, absent for workloads alone. */
     readonly description: PackageDescription | undefined;
 }
@@ -442,7 +443,7 @@ export class ApplicationInstallation {
             readonly evaluation?: StackEvaluation | undefined;
         },
     ): Promise<InstallationRevision> {
-        // bind an application's needs, creating and following the installation's own resources
+        // bind an application's requirements, creating and following the installation's own resources
         const target = this.#target;
         const built = await Build.require(
             { read: (table) => call.read(table) },
@@ -458,18 +459,23 @@ export class ApplicationInstallation {
 
         // bind a stack's nothing, and a refused build's selected targets alone, as it creates nothing
         const { bindings: selected } = target;
-        const declared = await this.#readNeeds(reader, []);
+        const declared = await this.#readRequirements(reader, []);
         const unprovided = this.#options.binder.unprovided(declared);
-        const needs = declared.filter(
-            (need) =>
-                !this.#isUnaddressed(need) &&
-                !unprovided.includes(need.kind) &&
-                (!isRefused || selected[need.package.id]?.[need.name] !== undefined),
+        const requirements = declared.filter(
+            (requirement) =>
+                !this.#isUnaddressed(requirement) &&
+                !unprovided.includes(requirement.kind) &&
+                (!isRefused || selected[requirement.package.id]?.[requirement.name] !== undefined),
         );
         const bindings =
             target.export !== null
                 ? []
-                : await this.#options.binder.bind(call, target, needs, await this.#running(call));
+                : await this.#options.binder.bind(
+                      call,
+                      target,
+                      requirements,
+                      await this.#running(call),
+                  );
 
         // retain the revision once per digest
         const [revision] = await call.mutate(call.self, [
@@ -486,21 +492,24 @@ export class ApplicationInstallation {
         return revision;
     }
 
-    /** Declare the revision's needs with the live deployments' needs. */
+    /** Declare the revision's requirements with the live deployments' requirements. */
     async #redeclare(call: MethodContext, revision: InstallationRevision): Promise<void> {
         await this.#options.binder.declare(
             call,
             this.#target,
-            { needs: await this.#needs(call, revision), running: await this.#running(call) },
+            {
+                requirements: await this.#requirements(call, revision),
+                running: await this.#running(call),
+            },
             revision.bindings,
         );
     }
 
-    /** Read the resource needs of a revision's build. */
-    async #needs(
+    /** Read the resource requirements of a revision's build. */
+    async #requirements(
         call: MethodContext,
         revision: Pick<InstallationRevision, "buildId">,
-    ): Promise<ResourceNeed[]> {
+    ): Promise<ResourceRequirement[]> {
         const built = await Build.require(
             { read: (table) => call.read(table) },
             Installation.space(this.#target),
@@ -509,11 +518,11 @@ export class ApplicationInstallation {
 
         const { packageId } = this.#target;
 
-        return this.#readNeeds(await this.#options.space.root(packageId, built.image), []);
+        return this.#readRequirements(await this.#options.space.root(packageId, built.image), []);
     }
 
-    /** Read the needs of the revisions the installation's live deployments still run. */
-    async #running(call: MethodContext): Promise<ResourceNeed[]> {
+    /** Read the requirements of the revisions the installation's live deployments still run. */
+    async #running(call: MethodContext): Promise<ResourceRequirement[]> {
         // read the revisions the live deployments run
         const target = this.#target;
         const live = await call.read(deployment).findMany({
@@ -523,10 +532,12 @@ export class ApplicationInstallation {
             where: { id: { in: [...new Set(live.map((entry) => entry.revisionId))] } },
         });
 
-        // read each one's needs from its build
-        const needs = await Promise.all(running.map((revision) => this.#needs(call, revision)));
+        // read each one's requirements from its build
+        const requirements = await Promise.all(
+            running.map((revision) => this.#requirements(call, revision)),
+        );
 
-        return needs.flat();
+        return requirements.flat();
     }
 
     /** Deploy the revision of an enabled application, and drain a suspended one. */
@@ -549,11 +560,11 @@ export class ApplicationInstallation {
         // retire a deleted application's declarations, keeping it running until its own code finalized its records
         const isDeleted = target.deletedAt !== null;
         if (isDeleted && revision !== undefined) {
-            const needs = await this.#needs(call, revision);
+            const requirements = await this.#requirements(call, revision);
             await this.#options.binder.retire(
                 call,
                 target,
-                [...needs, ...(await this.#running(call))],
+                [...requirements, ...(await this.#running(call))],
                 revision.bindings,
             );
             if (await this.#options.binder.isFinalizing(call, target)) {
@@ -696,7 +707,7 @@ export class ApplicationInstallation {
                 this.#describeRefusal(built.image, build, stranded, description) ??
                 (await this.#describeOutdated(built.image)) ??
                 (await this.#describeUnentitled(call, description)) ??
-                (await this.#describeUninstalled(call, revision, description)) ??
+                (await this.#resolve(call, revision, description, build)) ??
                 (await this.#describeDatabases(build)),
         );
         if (refusal !== undefined) {
@@ -738,9 +749,11 @@ export class ApplicationInstallation {
             return;
         }
 
-        // refuse installation needs without a bound address
-        const needs = await this.#span("needs", () => this.#readNeeds(build, workloads));
-        const unbound = this.#describeUnboundInstallations(revision, needs);
+        // refuse installation requirements without a bound address
+        const requirements = await this.#span("requirements", () =>
+            this.#readRequirements(build, workloads),
+        );
+        const unbound = this.#describeUnboundInstallations(revision, requirements);
         if (unbound !== undefined) {
             throw unbound;
         }
@@ -751,12 +764,12 @@ export class ApplicationInstallation {
             workloads,
             fresh,
             replaced,
-            needs,
+            requirements,
             description,
         });
     }
 
-    /** Attach the application's needs, wait for its space, grant, drain and activate. */
+    /** Attach the application's requirements, wait for its space, grant, drain and activate. */
     async #deployPlan(
         call: MethodContextOf<typeof installation, "reconcile">,
         revision: InstallationRevision,
@@ -764,8 +777,8 @@ export class ApplicationInstallation {
     ): Promise<void> {
         // wait for a provider of each kind no provider here serves yet
         const target = this.#target;
-        const { build, workloads, fresh, replaced, needs, description } = plan;
-        const unprovided = this.#options.binder.unprovided(needs);
+        const { build, workloads, fresh, replaced, requirements, description } = plan;
+        const unprovided = this.#options.binder.unprovided(requirements);
         if (unprovided.length > 0) {
             // wait for the space to serve another installation, as one brings the provider
             const message = `waiting for a provider of ${unprovided.join(", ")} resources`;
@@ -783,7 +796,7 @@ export class ApplicationInstallation {
         // wait for the resources its revision binds
         const bindings = revision.bindings;
         const unready = await this.#span("ready", () =>
-            this.#options.binder.ready(call, target, bindings, needs),
+            this.#options.binder.ready(call, target, bindings, requirements),
         );
         if (unready !== undefined) {
             const message = `waiting for ${unready.object.name} ${unready.id} to be ready`;
@@ -844,7 +857,7 @@ export class ApplicationInstallation {
             }
         });
 
-        // declare again what the revision and the live deployments need, retiring what only drained ones did
+        // declare again what the revision and the live deployments require, retiring what only drained ones did
         await this.#span("declare", () => this.#redeclare(call, revision));
 
         // observe the revision applied
@@ -997,7 +1010,7 @@ export class ApplicationInstallation {
             return undefined;
         }
 
-        // list the features the enabled capabilities need
+        // list the features the enabled capabilities require
         const enabled = Installation.enabled(this.#target, description);
         const needed = enabled.flatMap((name) =>
             (description?.capabilities[name]?.features ?? []).map((feature) => ({ name, feature })),
@@ -1025,45 +1038,72 @@ export class ApplicationInstallation {
         return undefined;
     }
 
-    /** Describe a package the application needs that nothing in the space serves. */
-    async #describeUninstalled(
+    /** Resolve the space's installations: add the missing, drop the unrequired. */
+    async #resolve(
         call: MethodContextOf<typeof installation, "reconcile">,
         revision: InstallationRevision,
         description: PackageDescription | undefined,
+        build: BuildReader,
     ): Promise<Refusal | undefined> {
-        // read the space's own packages and the installations of the packages it needs, no others
+        // read the space's installations, what they require, and the releases they run
         const target = this.#target;
-        const needed = Installation.needed(target, revision, description);
-        const rows =
-            needed.length === 0
-                ? []
-                : await call.read(installation).findMany({
-                      where: {
-                          scope: target.scope,
-                          packageId: { in: needed.map((entry) => entry.package.id) },
-                      },
-                  });
-        const installed = new Set([
-            ...Object.values(BOOTSTRAP_PACKAGES).map((handle) => handle.id),
-            ...rows.map((row) => row.packageId),
-        ]);
-
-        // refuse the first needed package missing, naming the capability needing it
-        const missing = needed.find((entry) => !installed.has(entry.package.id));
-        if (missing === undefined) {
-            return undefined;
-        }
-        const { name } = missing.package;
-
-        return StackError.of(
-            "DEPENDENCY_BLOCKED",
-            missing.capability === undefined
-                ? `${target.name} needs ${name} installed`
-                : `capability ${missing.capability} needs ${name} installed`,
+        const { installed, requirements } = await InstallationTarget.requirements(
+            call,
+            target.scope,
+            this.#options,
         );
+        const resolved = Installation.resolve(installed, requirements);
+        const applied = installed.flatMap((row) =>
+            row.appliedRevisionId === null ? [] : [row.appliedRevisionId],
+        );
+        const revisions = await call
+            .read(installationRevision)
+            .findMany({ where: { id: { in: applied } } });
+
+        // refuse a package the application requires at a release outside its range
+        for (const entry of Installation.requires(target, revision, description)) {
+            const row = installed.find((each) => each.packageId === entry.package.id);
+            const release = revisions.find((each) => each.id === row?.appliedRevisionId)?.release;
+            const range = build.manifest.requires[entry.package.name];
+            if (release !== undefined && range !== undefined && !satisfies(release, range)) {
+                return StackError.of(
+                    "DEPENDENCY_BLOCKED",
+                    `cannot deploy installation '${target.name}': it needs '${entry.package.name}' at '${range}', but the space runs '${release}'`,
+                );
+            }
+        }
+
+        // install the missing at the requiring build's release, and remove the unrequired
+        const machine = this.#options.space.machine;
+        const installs = await Promise.all(
+            resolved.missing.map(async (requirement) => {
+                const { version } = await InstallationTarget.resolveDeclared(
+                    requirement.package.id,
+                    { kind: "release", version: requirement.package.version },
+                    machine,
+                );
+                const { name } = requirement.package;
+
+                return installation.call("create", {
+                    ...installation.in(target.scope),
+                    packageId: requirement.package.id,
+                    name: name.slice(name.lastIndexOf("/") + 1),
+                    ...ObjectReference.columns("version", version),
+                    isRoot: false,
+                });
+            }),
+        );
+        const removals = resolved.unrequired.map((row) =>
+            installation.call("delete", installation.target(row)),
+        );
+        if (installs.length + removals.length > 0) {
+            await call.mutate(call.self, [...installs, ...removals]);
+        }
+
+        return undefined;
     }
 
-    /** Wait while the space does not serve a package it needs or a type it is granted. */
+    /** Wait while the space does not serve a package it requires or a type it is granted. */
     async #waitForSpace(
         call: MethodContextOf<typeof installation, "reconcile">,
         description: PackageDescription | undefined,
@@ -1153,33 +1193,37 @@ export class ApplicationInstallation {
         return { fresh, replaced };
     }
 
-    /** Report whether a need calls an installation without an address of its own or a selection. */
-    #isUnaddressed(need: ResourceNeed): boolean {
+    /** Report whether a requirement calls an installation with no address or selection. */
+    #isUnaddressed(requirement: ResourceRequirement): boolean {
         return (
-            need.kind === InstallationKind.name &&
-            InstallationBindingSpec.parse(need.spec).address === undefined &&
-            this.#target.bindings[need.package.id]?.[need.name] === undefined
+            requirement.kind === InstallationKind.name &&
+            InstallationBindingSpec.parse(requirement.spec).address === undefined &&
+            this.#target.bindings[requirement.package.id]?.[requirement.name] === undefined
         );
     }
 
-    /** Describe the installation needs of the application without an address. */
+    /** Describe the installation requirements of the application without an address. */
     #describeUnboundInstallations(
         revision: InstallationRevision,
-        needs: readonly ResourceNeed[],
+        requirements: readonly ResourceRequirement[],
     ): Refusal | undefined {
-        // list the installation needs with no address of their own that the revision leaves unbound
+        // list the installation requirements with no address of their own that the revision leaves unbound
         const bound = revision.bindings;
-        const unbound = needs.filter(
-            (need) =>
-                this.#isUnaddressed(need) &&
+        const unbound = requirements.filter(
+            (requirement) =>
+                this.#isUnaddressed(requirement) &&
                 !bound.some(
-                    (entry) => entry.packageId === need.package.id && entry.name === need.name,
+                    (entry) =>
+                        entry.packageId === requirement.package.id &&
+                        entry.name === requirement.name,
                 ),
         );
         if (unbound.length === 0) {
             return undefined;
         }
-        const names = unbound.map((need) => `${need.package.id} ${need.name}`).join(", ");
+        const names = unbound
+            .map((requirement) => `${requirement.package.id} ${requirement.name}`)
+            .join(", ");
 
         return StackError.of(
             "BINDING_BLOCKED",
@@ -1524,11 +1568,11 @@ export class ApplicationInstallation {
         return undefined;
     }
 
-    /** Read the needs the binder binds: its objects' tables and its workloads' declarations. */
-    async #readNeeds(
+    /** Read what the binder binds: the objects' tables and the workloads' declarations. */
+    async #readRequirements(
         build: BuildReader,
         workloads: readonly BuildWorkload[],
-    ): Promise<ResourceNeed[]> {
+    ): Promise<ResourceRequirement[]> {
         // list the package's own resources and secrets the workloads use
         const packageId = this.#target.packageId;
         const declarations = await build.declarations();
@@ -1541,12 +1585,14 @@ export class ApplicationInstallation {
         );
 
         // describe each of its declarations the binder binds, which its servers and workloads open
-        const needs = declarations
+        const requirements = declarations
             .filter((declaration) => this.#options.binder.binds(declaration))
-            .map((declaration) => describeNeed(build, declaration));
+            .map((declaration) => describeRequirement(build, declaration));
 
         // require a description of every used declaration
-        const missing = [...used].filter((name) => !needs.some((entry) => entry.name === name));
+        const missing = [...used].filter(
+            (name) => !requirements.some((entry) => entry.name === name),
+        );
         if (missing.length > 0) {
             throw StackError.of(
                 "DEFINITION_INVALID",
@@ -1554,32 +1600,32 @@ export class ApplicationInstallation {
             );
         }
 
-        return needs;
+        return requirements;
     }
 }
 
-/** Describe what an installation's grant waits for: a package it needs, or a type it lists. */
+/** Describe what an installation's grant waits for: a package it requires, or a type it lists. */
 export async function describeUngranted(
     call: Pick<MethodContextOf<typeof installation, "reconcile">, "read" | "authorizer">,
     target: Installation,
     revision: InstallationRevision,
     description: PackageDescription | undefined,
 ): Promise<string | undefined> {
-    // wait for each package it needs that is neither the space's own nor installed at a build
+    // wait for each package it requires that is neither the space's own nor installed at a build
     const own = new Set(Object.values(BOOTSTRAP_PACKAGES).map((handle) => handle.id));
-    const needed = Installation.needed(target, revision, description);
+    const required = Installation.requires(target, revision, description);
     const rows =
-        needed.length === 0
+        required.length === 0
             ? []
             : await call.read(installation).findMany({
                   where: {
                       scope: target.scope,
-                      packageId: { in: needed.map((entry) => entry.package.id) },
+                      packageId: { in: required.map((entry) => entry.package.id) },
                   },
               });
     const isResolved = (row: (typeof rows)[number]) =>
         row.targetRevisionId !== null || InstallationTarget.isPinned(row);
-    const waiting = needed
+    const waiting = required
         .filter(
             (entry) =>
                 !own.has(entry.package.id) &&
@@ -1634,11 +1680,11 @@ async function servedRelease(build: BuildReader): Promise<{ release: Version; si
     return since === undefined ? { release } : { release, since };
 }
 
-/** Describe a declaration as a need. */
-function describeNeed(
+/** Describe a declaration as a requirement. */
+function describeRequirement(
     build: BuildReader,
     declaration: Awaited<ReturnType<BuildReader["declarations"]>>[number],
-): ResourceNeed {
+): ResourceRequirement {
     // split a resource's description into its kind and specification
     const owner = PackageManifest.package(build.manifest);
     if (declaration.provisioned === true) {

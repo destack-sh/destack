@@ -9,7 +9,7 @@ import {
     Installation,
     installationRevision,
     type InstallationRevision,
-    type ResourceNeed,
+    type ResourceRequirement,
 } from "@destack/stack/object";
 import { placement, Space, space } from "@destack/account/object";
 import { MAIN_DATABASE } from "@destack/stack/declare";
@@ -39,8 +39,8 @@ import { StackError } from "@destack/stack/error";
 export interface ResourceBindingKind extends BindingKind<ResourceType<typeof space>> {
     /** The resource kind the objects are. */
     readonly kind: Kind<schema.Schema, Provisioning>;
-    /** Read the record an installation's own need declares, as its type's stack declaration. */
-    readonly declare: (need: ResourceNeed, installation: string) => JsonObject;
+    /** Read the record an installation's own requirement declares, as its type's declaration. */
+    readonly declare: (requirement: ResourceRequirement, installation: string) => JsonObject;
 }
 
 /** Resource kinds as bindings target them. */
@@ -56,12 +56,12 @@ export const ResourceBindingKind = {
             used: [object],
             version: (target, pin) => pin ?? target.generation,
             uses: async (bound) => [object.reference(bound.scope, bound.target)],
-            declare: (need, installationName) => ({
-                name: `${installationName}.${need.name}`,
-                definitionPackageId: need.package.id,
-                definitionVersion: need.package.version,
-                definitionName: need.name,
-                spec: need.spec,
+            declare: (requirement, installationName) => ({
+                name: `${installationName}.${requirement.name}`,
+                definitionPackageId: requirement.package.id,
+                definitionVersion: requirement.package.version,
+                definitionName: requirement.name,
+                spec: requirement.spec,
             }),
         };
     },
@@ -196,49 +196,49 @@ export class Binder {
         }
     }
 
-    /** List the kinds of some needs no provider here serves yet, which wait until one does. */
-    unprovided(needs: readonly ResourceNeed[]): string[] {
-        const kinds = needs
+    /** List the kinds of requirements no provider here serves yet, which wait for one. */
+    unprovided(requirements: readonly ResourceRequirement[]): string[] {
+        const kinds = requirements
             .filter(
-                (need) =>
-                    !this.#resources.has(Binder.#key(need)) &&
-                    !this.#objects.has(Binder.#key(need)),
+                (requirement) =>
+                    !this.#resources.has(Binder.#key(requirement)) &&
+                    !this.#objects.has(Binder.#key(requirement)),
             )
-            .map((need) => need.kind);
+            .map((requirement) => requirement.kind);
 
         return [...new Set(kinds)];
     }
 
-    /** Bind each need to the target its installation selects, else to the record it declares. */
+    /** Bind each requirement to its installation's selected target, else to its declared record. */
     async bind(
         context: MethodContext,
         target: Installation,
-        needs: readonly ResourceNeed[],
-        running: readonly ResourceNeed[],
+        requirements: readonly ResourceRequirement[],
+        running: readonly ResourceRequirement[],
     ): Promise<Binding[]> {
-        // bind each need the installation selects a target for, at the target's version unless pinned
+        // bind each requirement the installation selects a target for, at the target's version unless pinned
         const bound: Binding[] = [];
-        const set = (need: ResourceNeed, selection: BindingSelection) => {
+        const set = (requirement: ResourceRequirement, selection: BindingSelection) => {
             const selected = selection.target;
             bound.push({
-                packageId: need.package.id,
-                name: need.name,
+                packageId: requirement.package.id,
+                name: requirement.name,
                 target: Binder.#targetOf(selected),
                 targetSpaceId: Binder.#spaceOf(selected),
                 version: selection.version ?? null,
             });
         };
-        for (const need of needs) {
-            const declared = target.bindings[need.package.id]?.[need.name];
+        for (const requirement of requirements) {
+            const declared = target.bindings[requirement.package.id]?.[requirement.name];
             if (declared !== undefined) {
-                set(need, await this.#select(context, target, need, declared));
+                set(requirement, await this.#select(context, target, requirement, declared));
             }
         }
 
-        // refuse an external kind's need nothing binds, as only the stack or the installing person supplies one
-        const isUnselected = (need: ResourceNeed) =>
-            target.bindings[need.package.id]?.[need.name] === undefined;
-        const unbound = needs.find(
+        // refuse an external kind's requirement nothing binds, as only the stack or the installing person supplies one
+        const isUnselected = (requirement: ResourceRequirement) =>
+            target.bindings[requirement.package.id]?.[requirement.name] === undefined;
+        const unbound = requirements.find(
             (each) =>
                 this.#resources.get(Binder.#key(each))?.kind.provisioned.management ===
                     "external" && isUnselected(each),
@@ -251,14 +251,14 @@ export class Binder {
         }
 
         // declare the installation's own targets, then bind each to its managed record at its version
-        await this.declare(context, target, { needs, running }, bound);
-        for (const need of needs.filter((each) => this.#isOwned(target, each))) {
-            const row = await this.#managed(context, target, need);
+        await this.declare(context, target, { requirements, running }, bound);
+        for (const requirement of requirements.filter((each) => this.#isOwned(target, each))) {
+            const row = await this.#managed(context, target, requirement);
             if (row !== undefined) {
                 const selection = {
-                    target: { type: need.kind, id: schema.anyIdentifier().parse(row.id) },
+                    target: { type: requirement.kind, id: schema.anyIdentifier().parse(row.id) },
                 };
-                set(need, await this.#select(context, target, need, selection));
+                set(requirement, await this.#select(context, target, requirement, selection));
             }
         }
 
@@ -268,11 +268,11 @@ export class Binder {
         );
     }
 
-    /** Resolve a need to the target its installation selects, at its version unless pinned. */
+    /** Resolve a requirement to its selected target, at that target's version unless pinned. */
     async #select(
         context: MethodContext,
         target: Installation,
-        need: ResourceNeed,
+        requirement: ResourceRequirement,
         declared: BindingSelection,
     ): Promise<BindingSelection> {
         // bind another space's installation by its name, unpinned
@@ -289,7 +289,7 @@ export class Binder {
             if (row === undefined) {
                 throw StackError.of(
                     "DEFINITION_INVALID",
-                    `binding '${need.name}' of '${target.name}' is invalid: it targets unknown ${kind.object.name} '${selected.id}'`,
+                    `binding '${requirement.name}' of '${target.name}' is invalid: it targets unknown ${kind.object.name} '${selected.id}'`,
                 );
             }
             const version = kind.version(row, declared.version ?? null);
@@ -298,7 +298,7 @@ export class Binder {
         }
         throw StackError.of(
             "DEFINITION_INVALID",
-            `binding '${need.name}' of '${target.name}' is invalid: it selects an unresolved target`,
+            `binding '${requirement.name}' of '${target.name}' is invalid: it selects an unresolved target`,
         );
     }
 
@@ -391,29 +391,35 @@ export class Binder {
         context: MethodContext,
         target: Installation,
         declared: {
-            readonly needs: readonly ResourceNeed[];
-            readonly running: readonly ResourceNeed[];
+            readonly requirements: readonly ResourceRequirement[];
+            readonly running: readonly ResourceRequirement[];
         },
         bindings: readonly Binding[],
     ): Promise<void> {
-        // keep what a live deployment still runs beside the build's own needs
-        const owned = declared.needs.filter((need) => this.#isOwned(target, need));
+        // keep what a live deployment still runs beside the build's own requirements
+        const owned = declared.requirements.filter((requirement) =>
+            this.#isOwned(target, requirement),
+        );
         const kept = declared.running.filter(
-            (need) =>
-                this.#isOwned(target, need) &&
+            (requirement) =>
+                this.#isOwned(target, requirement) &&
                 !owned.some(
-                    (each) => each.package.id === need.package.id && each.name === need.name,
+                    (each) =>
+                        each.package.id === requirement.package.id &&
+                        each.name === requirement.name,
                 ),
         );
         await this.#declare(context, target, [...owned, ...kept], bindings);
     }
 
-    /** Report whether a need is the installation's own: a declared kind no selection binds. */
-    #isOwned(target: Installation, need: ResourceNeed): boolean {
-        const isSelected = target.bindings[need.package.id]?.[need.name] !== undefined;
+    /** Report whether a requirement is the installation's own: a declared kind nothing binds. */
+    #isOwned(target: Installation, requirement: ResourceRequirement): boolean {
+        const isSelected =
+            target.bindings[requirement.package.id]?.[requirement.name] !== undefined;
 
         return (
-            (this.#resources.has(Binder.#key(need)) || this.#objects.has(Binder.#key(need))) &&
+            (this.#resources.has(Binder.#key(requirement)) ||
+                this.#objects.has(Binder.#key(requirement))) &&
             !isSelected
         );
     }
@@ -422,29 +428,30 @@ export class Binder {
     async retire(
         context: MethodContext,
         target: Installation,
-        kept: readonly ResourceNeed[],
+        kept: readonly ResourceRequirement[],
         bindings: readonly Binding[],
     ): Promise<void> {
-        // keep declaring the needs of other packages' kinds, which their consumers stop using first
+        // keep declaring the requirements of other packages' kinds, which their consumers stop using first
         const others = kept.filter(
-            (need) =>
-                this.#isOwned(target, need) &&
-                this.#bindingKind(need).object.package.id !== target.packageId,
+            (requirement) =>
+                this.#isOwned(target, requirement) &&
+                this.#bindingKind(requirement).object.package.id !== target.packageId,
         );
         await this.#declare(context, target, others, bindings);
     }
 
-    /** Read the bindable kind of a need's kind. */
-    #bindingKind(need: ResourceNeed): BindingKind {
+    /** Read the bindable kind of a requirement's kind. */
+    #bindingKind(requirement: ResourceRequirement): BindingKind {
         return present(
-            this.#resources.get(Binder.#key(need)) ?? this.#objects.get(Binder.#key(need)),
-            `the bindable kind ${need.kind}`,
+            this.#resources.get(Binder.#key(requirement)) ??
+                this.#objects.get(Binder.#key(requirement)),
+            `the bindable kind ${requirement.kind}`,
         );
     }
 
-    /** Read the key of a need's kind: its package and name. */
-    static #key(need: ResourceNeed): string {
-        return Kind.key(need.kindPackageId, need.kind);
+    /** Read the key of a requirement's kind: its package and name. */
+    static #key(requirement: ResourceRequirement): string {
+        return Kind.key(requirement.kindPackageId, requirement.kind);
     }
 
     /** Report whether a removed installation still manages records its own code finalizes. */
@@ -484,26 +491,31 @@ export class Binder {
     async #declare(
         context: MethodContext,
         target: Installation,
-        needs: readonly ResourceNeed[],
+        requirements: readonly ResourceRequirement[],
         bindings: readonly Binding[],
     ): Promise<void> {
-        // apply a document for each package declaring a need or managing a record
+        // apply a document for each package declaring a requirement or managing a record
         const packages = new Set([
-            ...needs.map((need) => need.package.id),
+            ...requirements.map((requirement) => requirement.package.id),
             ...(await this.#managers(context, target)),
         ]);
         for (const packageId of packages) {
-            // declare each need's record in its type's collection, adopting a retained one of the same declaration
+            // declare each requirement's record in its type's collection, adopting a retained one of the same declaration
             const document: Record<string, Record<string, JsonObject>> = {};
             const adopted: Record<string, string> = {};
-            for (const need of needs.filter((each) => each.package.id === packageId)) {
-                const declared = this.#declaration(need, target, bindings);
+            for (const requirement of requirements.filter(
+                (each) => each.package.id === packageId,
+            )) {
+                const declared = this.#declaration(requirement, target, bindings);
                 if (declared !== undefined) {
                     const { collection } = declared.object;
-                    document[collection] = { ...document[collection], [need.name]: declared.input };
-                    const retained = await this.#retained(context, target, need);
+                    document[collection] = {
+                        ...document[collection],
+                        [requirement.name]: declared.input,
+                    };
+                    const retained = await this.#retained(context, target, requirement);
                     if (retained !== undefined) {
-                        adopted[`${collection}/${need.name}`] = retained;
+                        adopted[`${collection}/${requirement.name}`] = retained;
                     }
                 }
             }
@@ -511,27 +523,27 @@ export class Binder {
         }
     }
 
-    /** Read the record a need declares and its type, none while a binding it needs is missing. */
+    /** Read the record a requirement declares and its type, none while a binding is missing. */
     #declaration(
-        need: ResourceNeed,
+        requirement: ResourceRequirement,
         target: Installation,
         bindings: readonly Binding[],
     ): { readonly object: ObjectType; readonly input: JsonObject } | undefined {
         // declare a resource under the installation's name
-        const resource = this.#resources.get(Binder.#key(need));
+        const resource = this.#resources.get(Binder.#key(requirement));
         if (resource !== undefined) {
             return {
                 object: resource.object,
-                input: resource.declare(need, target.name),
+                input: resource.declare(requirement, target.name),
             };
         }
 
         // declare another kind's record once the bindings it needs exist
         const bindable = present(
-            this.#objects.get(Binder.#key(need)),
-            `the object kind ${need.kind}`,
+            this.#objects.get(Binder.#key(requirement)),
+            `the object kind ${requirement.kind}`,
         );
-        const input = bindable.declare(need, bindings);
+        const input = bindable.declare(requirement, bindings);
 
         return input === undefined ? undefined : { object: bindable.object, input };
     }
@@ -575,33 +587,39 @@ export class Binder {
         return [...packages];
     }
 
-    /** Find the record an installation manages for a need, absent while it waits. */
+    /** Find the record an installation manages for a requirement, absent while it waits. */
     async #managed(
         context: MethodContext,
         target: Installation,
-        need: ResourceNeed,
+        requirement: ResourceRequirement,
     ): Promise<{ readonly id: string } | undefined> {
-        const kind = this.#bindingKind(need);
+        const kind = this.#bindingKind(requirement);
         const [row] = await context.read(Binder.#declarable(kind.object).table).findMany({
-            where: { ...Binder.#managedBy(target, need.package.id), managerName: need.name },
+            where: {
+                ...Binder.#managedBy(target, requirement.package.id),
+                managerName: requirement.name,
+            },
         });
 
         return row;
     }
 
-    /** Find a retained, unmanaged resource of a need's declaration, to adopt again. */
+    /** Find a retained, unmanaged resource of a requirement's declaration, to adopt again. */
     async #retained(
         context: MethodContext,
         target: Installation,
-        need: ResourceNeed,
+        requirement: ResourceRequirement,
     ): Promise<string | undefined> {
         // look for the retained resource of the installation's name only
-        const kind = this.#resources.get(Binder.#key(need));
+        const kind = this.#resources.get(Binder.#key(requirement));
         if (kind === undefined) {
             return undefined;
         }
         const [named] = await context.read(kind.object.table).findMany({
-            where: { scope: Installation.space(target), name: `${target.name}.${need.name}` },
+            where: {
+                scope: Installation.space(target),
+                name: `${target.name}.${requirement.name}`,
+            },
         });
 
         // adopt one of the same package's declaration, deleted with its content retained and unmanaged
@@ -610,8 +628,8 @@ export class Binder {
             named.deletedAt !== null &&
             named.retention !== "delete" &&
             named.managerInstallationId === null &&
-            named.definitionPackageId === need.package.id &&
-            named.definitionName === need.name;
+            named.definitionPackageId === requirement.package.id &&
+            named.definitionName === requirement.name;
 
         return isAdoptable ? named.id : undefined;
     }
@@ -654,32 +672,38 @@ export class Binder {
         return this.#resources.get(type)?.object ?? plan.object(type);
     }
 
-    /** Ready every bound target of an installation's needs, answering the first not ready yet. */
+    /** Ready the bound targets of an installation's requirements, answering the first not ready. */
     async ready(
         context: MethodContext,
         target: Installation,
         bindings: readonly Binding[],
-        needs: readonly ResourceNeed[],
+        requirements: readonly ResourceRequirement[],
     ): Promise<BoundTarget | undefined> {
-        // ready each bound need whose target is in the space and whose kind prepares its targets
+        // ready each bound requirement whose target is in the space and whose kind prepares its targets
         let unready: BoundTarget | undefined;
-        for (const need of needs) {
+        for (const requirement of requirements) {
             const bound = bindings.find(
                 (entry) =>
-                    entry.packageId === need.package.id &&
-                    entry.name === need.name &&
+                    entry.packageId === requirement.package.id &&
+                    entry.name === requirement.name &&
                     entry.targetSpaceId === null,
             );
-            // pass over an unbound need
+            // pass over an unbound requirement
             if (bound === undefined) {
                 continue;
             }
 
             // ready a target its object kind prepares once its row and its provisioned parent arrived
-            const bindable = this.#objects.get(Binder.#key(need));
+            const bindable = this.#objects.get(Binder.#key(requirement));
             if (bindable !== undefined) {
                 const declarer = Binder.#declarer(context, target, bindable.object);
-                unready ??= await Binder.#readyObject(context, bindable, declarer, bound, need);
+                unready ??= await Binder.#readyObject(
+                    context,
+                    bindable,
+                    declarer,
+                    bound,
+                    requirement,
+                );
             }
             // ready a resource once its provider provisioned it
             else {
@@ -701,7 +725,7 @@ export class Binder {
         bindable: ObjectBindingKind,
         declarer: AccessContext,
         bound: Binding,
-        need: ResourceNeed,
+        requirement: ResourceRequirement,
     ): Promise<BoundTarget | undefined> {
         // wait for the target's row
         const waited = { object: bindable.object, id: bound.target };
@@ -722,10 +746,10 @@ export class Binder {
         }
 
         // take a ready target, else prepare it and wait
-        if (await bindable.ready(context, bound, need)) {
+        if (await bindable.ready(context, bound, requirement)) {
             return undefined;
         }
-        await bindable.prepare(context, declarer, bound, need);
+        await bindable.prepare(context, declarer, bound, requirement);
 
         return waited;
     }
@@ -920,7 +944,7 @@ export class Binder {
             return;
         }
 
-        // write the states its consumers need and its space's approval threshold once they changed
+        // write the states its consumers requirement and its space's approval threshold once they changed
         const isMain = object === database && row.name === MAIN_DATABASE;
         const input = await this.#specification(
             connection.snapshot(),
@@ -1031,7 +1055,7 @@ export class Binder {
         row: Resource,
         approval: NonNullable<Resource["approval"]>,
     ) {
-        // read the states its consumers need by digest, and main's replicated tables beside them
+        // read the states its consumers requirement by digest, and main's replicated tables beside them
         const isMain = object === database && row.name === MAIN_DATABASE;
         const consumed = await consumedStates(reader, object, row, isMain);
         const desired = desiredStates(consumed);

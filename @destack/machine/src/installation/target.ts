@@ -9,13 +9,19 @@ import {
     InstallationRevision,
     installationRevision,
     type RevisionDescription,
+    type PackageRequirement,
 } from "@destack/stack/object";
 import type { Machine } from "../machine/machine.ts";
 import { callRegistry, findPublisherHome } from "../machine/registry.ts";
 import type { Space } from "../space/space.ts";
 import { Failure } from "@destack/error";
 import { DeclarationReference } from "@destack/package/declare";
-import { installableBuilds, MAIN_DATABASE, StackDefinition } from "@destack/stack/declare";
+import {
+    BOOTSTRAP_PACKAGES,
+    installableBuilds,
+    MAIN_DATABASE,
+    StackDefinition,
+} from "@destack/stack/declare";
 import { TABLE, DatabaseState, Table, TableState } from "@destack/db";
 import type { BlobStore, DatabaseConnection, Snapshot } from "@destack/db/database";
 import {
@@ -25,6 +31,7 @@ import {
     ObjectType,
     PackageDescription,
     type InstallationVersion,
+    type MethodContext,
 } from "@destack/object";
 import { type DependencyRelease, PackageId, PackageRelease } from "@destack/package";
 import { type BuildReader, BuildImage, PackageManifest } from "@destack/package/manifest";
@@ -163,6 +170,45 @@ export const InstallationTarget = {
         return columns.versionId === undefined || columns.versionId === null
             ? undefined
             : ObjectReference.at("version", columns);
+    },
+
+    /** Read a space's live installations and what each one's targeted revision requires. */
+    async requirements(
+        call: Pick<MethodContext, "read">,
+        scope: string,
+        options: Pick<RevisionOptions, "space">,
+    ): Promise<{
+        readonly installed: readonly Installation[];
+        readonly requirements: readonly PackageRequirement[];
+    }> {
+        // read the live installations, their targeted revisions and those revisions' builds
+        const rows = await call.read(installation.table).findMany({ where: { scope } });
+        const installed = rows.filter((row) => row.deletedAt === null);
+        const targeted = installed.flatMap((row) =>
+            row.targetRevisionId === null ? [] : [row.targetRevisionId],
+        );
+        const revisions = await call
+            .read(installationRevision.table)
+            .findMany({ where: { id: { in: targeted } } });
+        const builds = await call
+            .read(build.table)
+            .findMany({ where: { id: { in: revisions.map((each) => each.buildId) } } });
+
+        // list what each requires, by its package description, but the space's own packages
+        const own = new Set<PackageId>(Object.values(BOOTSTRAP_PACKAGES).map((each) => each.id));
+        const requirements: PackageRequirement[] = [];
+        for (const row of installed) {
+            const revision = revisions.find((each) => each.id === row.targetRevisionId);
+            const built = builds.find((each) => each.id === revision?.buildId);
+            if (revision !== undefined && built !== undefined) {
+                const reader = await options.space.root(row.packageId, Build.image(built));
+                const description = await PackageDescription.of(reader);
+                const required = Installation.requires(row, revision, description);
+                requirements.push(...required.filter((each) => !own.has(each.package.id)));
+            }
+        }
+
+        return { installed, requirements };
     },
 
     /** Resolve the row a declared version names, or the host's image for a shipped release. */
@@ -531,7 +577,6 @@ export const InstallationTarget = {
             releases,
             inputs.export,
             inputs,
-            (packageId, manifest) => options.space.read(packageId, manifest),
         );
 
         return { ...inputs, definition };
@@ -839,7 +884,7 @@ async function mainState(
     const description = await PackageDescription.of(reader);
     const protocols = description?.protocols ?? [];
     const isOwning = own.sqlite.length > 0 || own.postgresql.length > 0;
-    const implemented = Table.closure(
+    const implemented = Table.affected(
         options.known
             .filter((type) => isOwning && protocols.includes(type.package.id))
             .filter((type) => type.storage === "durable" || type.storage === "events")
@@ -862,7 +907,7 @@ async function mainState(
 
         return type;
     });
-    const followedTables = Table.closure(followed.flatMap((type) => type.tables));
+    const followedTables = Table.affected(followed.flatMap((type) => type.tables));
 
     // read the tables the space replicates already
     const { volumes } = options.space.machine;

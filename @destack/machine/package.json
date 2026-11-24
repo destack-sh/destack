@@ -49,9 +49,11 @@
         "@destack/tunnel": "workspace:*",
         "@destack/update": "workspace:*",
         "@destack/view": "workspace:*",
-        "@destack/workflow": "workspace:*"
+        "@destack/workflow": "workspace:*",
+        "semver": "7.8.5"
     },
     "devDependencies": {
+        "@types/semver": "7.8.0",
         "@cloudflare/workers-types": "5.20260917.1",
         "@destack/blank": "workspace:*",
         "@destack/finance": "workspace:*",

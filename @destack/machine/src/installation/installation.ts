@@ -115,10 +115,11 @@ export function implementInstallations(options: InstallationOptions) {
                 return await deployed(call, updated);
             },
             delete: async (call, next) => {
-                // refuse uninstalling one another installation needs, then drain it
-                await requireUnneeded(call, call.target, options);
+                // refuse uninstalling one another installation requires, then drain it and what only it required
+                await refuseDependents(call, call.target, options);
                 const deleted = await next(call);
                 await applyDirect(call, call.target);
+                await removeUnrequired(call, call.target.scope, options);
 
                 return deleted;
             },
@@ -390,55 +391,41 @@ async function resume(
     });
 }
 
-/** Refuse uninstalling an installation another live installation of its space needs. */
-async function requireUnneeded(
+/** Refuse uninstalling an installation another requires, unless its own stack retires both. */
+async function refuseDependents(
     call: MethodContext,
     target: Installation,
     options: Pick<InstallationOptions, "space">,
 ): Promise<void> {
-    // list the live installations outside the target's stack targeting a revision
-    const rows = await call.read(installation.table).findMany({ where: { scope: target.scope } });
-    const others = rows.filter(
-        (row) =>
-            row.id !== target.id &&
-            row.deletedAt === null &&
-            row.targetRevisionId !== null &&
-            (row.managerInstallationId === null ||
-                row.managerInstallationId !== target.managerInstallationId),
-    );
-
-    // read their revisions and builds, two reads for the space
-    const revisionIds = others.map((row) =>
-        present(row.targetRevisionId, `the revision of ${row.name}`),
-    );
-    const revisions = await call
-        .read(installationRevision.table)
-        .findMany({ where: { id: { in: revisionIds } } });
-    const built = await call
-        .read(build.table)
-        .findMany({ where: { id: { in: revisions.map((each) => each.buildId) } } });
-
-    // refuse removing a package one of them needs
-    for (const row of others) {
-        const revision = present(
-            revisions.find((each) => each.id === row.targetRevisionId),
-            `the revision of ${row.name}`,
+    const { requirements } = await InstallationTarget.requirements(call, target.scope, options);
+    const dependent = requirements.find(
+        (requirement) =>
+            requirement.package.id === target.packageId &&
+            requirement.by.id !== target.id &&
+            (requirement.by.managerInstallationId === null ||
+                requirement.by.managerInstallationId !== target.managerInstallationId),
+    )?.by;
+    if (dependent !== undefined) {
+        throw StackError.of(
+            "DEPENDENT_BLOCKED",
+            `cannot uninstall '${target.name}': '${dependent.name}' needs it`,
         );
-        const image = Build.image(
-            present(
-                built.find((each) => each.id === revision.buildId),
-                `the build of ${row.name}`,
-            ),
+    }
+}
+
+/** Uninstall the installations no one chose and nothing requires any more. */
+async function removeUnrequired(
+    call: MethodContext,
+    scope: string,
+    options: Pick<InstallationOptions, "space">,
+): Promise<void> {
+    const { installed, requirements } = await InstallationTarget.requirements(call, scope, options);
+    const unrequired = Installation.resolve(installed, requirements).unrequired;
+    if (unrequired.length > 0) {
+        await call.mutate(
+            call.self,
+            unrequired.map((row) => installation.call("delete", installation.target(row))),
         );
-        const reader = await options.space.root(row.packageId, image);
-        const description = await PackageDescription.of(reader);
-        const needed = Installation.needed(row, revision, description);
-        if (needed.some((entry) => entry.package.id === target.packageId)) {
-            throw StackError.of(
-                "DEPENDENT_BLOCKED",
-                `cannot uninstall '${target.name}': '${row.name}' needs it`,
-            );
-        }
     }
 }
 

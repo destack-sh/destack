@@ -44,7 +44,7 @@ import {
 } from "@destack/schema";
 import { type BuildReader, PackageManifest } from "@destack/package/manifest";
 import { describeObject, describePackage } from "@destack/object/inspect";
-import { type DependencyRelease, PackageVersion, PackageId } from "@destack/package";
+import { type DependencyRelease, PackageVersion } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
 import { defineBucket } from "@destack/bucket";
 import stackPackage from "@destack/stack/package";
@@ -904,8 +904,8 @@ test("install a package and declare records of its type in one approved plan, ap
     ]);
 });
 
-test("derive an installation of each installable dependency a stack does not declare, leaving libraries out and refusing a package outside the image or a taken name", async () => {
-    // publish an installable dependency and a library
+test("declare a stack's installations as its document lists them, the space deriving what they require, and refuse a package outside the stack's image", async () => {
+    // publish an installable dependency and a library, and two installable packages depending on them
     const world = new Simulation({
         world: testWorldOptions(),
         seed: 1,
@@ -913,8 +913,6 @@ test("derive an installation of each installable dependency a stack does not dec
     }).environment("test");
     const vault = await fixtureRelease("@example/vault", "2026.10.0", true, [], world);
     const library = await fixtureRelease("@example/library", "2026.10.0", false, [], world);
-
-    // publish two installable packages depending on them
     const notes = await fixtureRelease(
         "@example/notes",
         "2026.10.0",
@@ -923,57 +921,25 @@ test("derive an installation of each installable dependency a stack does not dec
         world,
     );
     const pages = await fixtureRelease("@example/pages", "2026.10.0", true, [vault], world);
-    const other = await fixtureRelease("@other/vault", "2026.10.0", true, [], world);
-    const builds = new Map(
-        [vault, library, notes, pages, other].map((each) => [each.manifest, each.build]),
-    );
-    const read = async (_packageId: PackageId, manifest: string) =>
-        present(builds.get(Digest.parse(manifest)), `the build ${manifest}`);
 
-    // declare notes alone, deriving the vault it requires, or both
-    const fixtures = [vault, library, notes, other];
+    // declare notes alone, then notes beside pages, whose build the stack's image lacks
     const declare = async (installed: readonly FixtureRelease[]) =>
         StackDefinition.declared(
             await installingStack(installed, world),
-            Object.values(entriesOf(fixtures)),
+            Object.values(entriesOf([vault, library, notes])),
             "space",
             { settings: {}, routes: {} },
-            read,
         );
-    const both = StackDefinition.collections(await declare([notes, vault]));
     const alone = StackDefinition.collections(await declare([notes]));
-    const outside = await refusal(declare([notes, vault, pages]));
-    const named = await refusal(declare([notes, other]));
-    expect([
-        Object.keys(both.installations).toSorted(),
-        Object.keys(alone.installations).toSorted(),
-        alone.installations["vault"],
-        outside,
-        named,
-    ]).toEqual([
-        ["notes", "vault"],
-        ["notes", "vault"],
-        {
-            packageId: vault.package.id,
-            version: { kind: "release", version: "2026.10.0" },
-            status: "enabled",
-            name: "vault",
-            bindings: {},
-            compute: {},
-            capabilities: [],
-            directories: [],
-            isolation: "sandbox",
-            tags: {},
-        },
+    const outside = await refusal(declare([notes, pages]));
+
+    // keep notes alone, leaving its vault for the space to resolve, and refuse pages
+    expect([Object.keys(alone.installations), outside]).toEqual([
+        ["notes"],
         [
             "BAD_REQUEST",
             "DEFINITION_INVALID",
             "installation 'pages' of 'space' is invalid: it installs a package without a build in the stack's image, so add the package to the stack's dependencies",
-        ],
-        [
-            "BAD_REQUEST",
-            "DEFINITION_INVALID",
-            "stack 'space' is invalid: it needs '@example/vault' as installation 'vault', which another package's installation is named, so declare it under another name",
         ],
     ]);
 });
@@ -987,21 +953,15 @@ test("keep a stack's installation pins as declared, and run an unpinned one at i
     }).environment("test");
     const vault = await fixtureRelease("@example/vault", "2026.10.0", true, [], world);
     const notes = await fixtureRelease("@example/notes", "2026.10.0", true, [vault], world);
-    const builds = new Map([vault, notes].map((each) => [each.manifest, each.build]));
-    const read = async (_packageId: PackageId, manifest: string) =>
-        present(builds.get(Digest.parse(manifest)), `the build ${manifest}`);
     const latest = { kind: "tag", tag: "latest" } as const;
     const stack = await installingStack([notes, vault], world, { notes: latest });
 
     // run the tag for notes, and vault at the release the stack's image has
     const { installations } = StackDefinition.collections(
-        await StackDefinition.declared(
-            stack,
-            Object.values(entriesOf([vault, notes])),
-            "space",
-            { settings: {}, routes: {} },
-            read,
-        ),
+        await StackDefinition.declared(stack, Object.values(entriesOf([vault, notes])), "space", {
+            settings: {},
+            routes: {},
+        }),
     );
     expect([installations["notes"]?.version, installations["vault"]?.version]).toEqual([
         latest,

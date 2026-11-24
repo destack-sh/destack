@@ -25,6 +25,7 @@ import {
     eq,
     Expression,
     isNotNull,
+    isNull,
     DatabaseState,
 } from "@destack/db";
 import {
@@ -490,6 +491,21 @@ async function revisionOf(database: DatabaseConnection, id: Identifier<"installa
         .where(eq(object.installationRevision.table.id, id));
 
     return present(revision, `revision ${id}`);
+}
+
+/** Read the space's live applications by name, with whether someone chose each. */
+async function applications(database: DatabaseConnection): Promise<(readonly [string, boolean])[]> {
+    return (await applicationRows(database)).map((row) => [row.name, row.isRoot] as const);
+}
+
+/** Read the space's live applications, its stacks left out, ordered by name. */
+async function applicationRows(database: DatabaseConnection) {
+    const rows = await database
+        .select()
+        .from(installation.table)
+        .where(and(isNull(installation.table.deletedAt), isNull(installation.table.export)));
+
+    return rows.toSorted((left, right) => left.name.localeCompare(right.name));
 }
 
 /** Read how far an installation is, with its failure or what its ready condition says. */
@@ -1943,11 +1959,12 @@ test("deploy a capability only once the account is entitled", async () => {
     });
 });
 
-test("deploy an application whose dependency its space installs", async () => {
-    // install notes depending on the setting package, one of the space's own packages
+test("deploy an application on its space's own package, and install a published package it requires", async () => {
+    // install notes requiring the setting package, one of the space's own packages
     const fixture = await TestSpace.open();
     const { database } = fixture;
     await serveControllers(fixture, {});
+    await fixture.publish(await MemoryBuild.of(VAULT, [], testHost().crypto));
     const notes = await installNotes(fixture);
     const { crypto } = fixture.environment;
     const depend = async (dependency: PackageVersion) =>
@@ -1955,29 +1972,72 @@ test("deploy an application whose dependency its space installs", async () => {
             await dependencyBuild(dependency, crypto),
         ]);
 
-    // depend on the setting package, then on the uninstalled vault
+    // require the setting package, then the vault the space lacks
     await depend(PackageVersion.of(settingPackage));
     await fixture.simulation.idle();
-    const deployed = await readiness(database, notes.id);
+    const own = await readiness(database, notes.id);
     await depend(VAULT);
     await fixture.simulation.idle();
-    fixture.expectRefusals([
-        ["PRECONDITION_FAILED", "DEPENDENCY_BLOCKED", "notes needs @example/vault installed"],
-    ]);
-    const refused = await readiness(database, notes.id);
 
-    // satisfy the space's own dependency, and refuse the one installed nowhere
-    expect({ deployed, refused }).toEqual({
+    // deploy on the space's own package, then install the vault, which no one chose, and deploy again
+    expect({
+        own,
+        installed: await applications(database),
+        deployed: await readiness(database, notes.id),
+    }).toEqual({
+        own: ["current", "1 workloads deployed"],
+        installed: [
+            ["notes", true],
+            ["vault", false],
+        ],
         deployed: ["current", "1 workloads deployed"],
-        refused: [
+    });
+});
+
+test("refuse deploying an application whose range excludes the release its space runs", async () => {
+    // install notes requiring the vault its space lacks, which installs vault 2026.9.0
+    const fixture = await TestSpace.open();
+    const { database } = fixture;
+    await serveControllers(fixture, {});
+    await fixture.publish(await MemoryBuild.of(VAULT, [], testHost().crypto));
+    const { crypto } = fixture.environment;
+    const notes = await installNotes(fixture, ids.notes, await notesBuild([main], crypto), [
+        await dependencyBuild(VAULT, crypto),
+    ]);
+    await fixture.simulation.idle();
+
+    // build notes requiring a newer vault than the space runs
+    const requiring = await notesBuild([main], crypto, {}, ["main"], {
+        [VAULT.name]: ">=2026.10.0",
+    });
+    await recordBuild(fixture, requiring, [await dependencyBuild(VAULT, crypto)]);
+    await fixture.simulation.idle();
+    fixture.expectRefusals([
+        [
+            "PRECONDITION_FAILED",
+            "DEPENDENCY_BLOCKED",
+            "cannot deploy installation 'notes': it needs '@example/vault' at '>=2026.10.0', but the space runs '2026.9.0'",
+        ],
+    ]);
+
+    // refuse naming both versions, keeping the vault as it is
+    expect({
+        ready: await readiness(database, notes.id),
+        installed: await applications(database),
+    }).toEqual({
+        ready: [
             "failed",
-            "@destack/stack DEPENDENCY_BLOCKED: notes needs @example/vault installed",
+            "@destack/stack DEPENDENCY_BLOCKED: cannot deploy installation 'notes': it needs '@example/vault' at '>=2026.10.0', but the space runs '2026.9.0'",
+        ],
+        installed: [
+            ["notes", true],
+            ["vault", false],
         ],
     });
 });
 
-test("refuse uninstalling a package an application needs", async () => {
-    // install notes depending on a vault package its space lacks, published at the registry
+test("refuse uninstalling a package an application requires, and uninstall it once nothing reaches it", async () => {
+    // install notes requiring a vault package its space lacks, published at the registry
     const fixture = await TestSpace.open();
     const { database } = fixture;
     const { uninstall } = await serveControllers(fixture, {});
@@ -1986,48 +2046,26 @@ test("refuse uninstalling a package an application needs", async () => {
     const notes = await installNotes(fixture, ids.notes, await notesBuild([main], crypto), [
         await dependencyBuild(VAULT, crypto),
     ]);
-
-    // deploy without the vault, then once installing it wakes notes through the controllers' watches
     await fixture.simulation.idle();
-    fixture.expectRefusals([
-        ["PRECONDITION_FAILED", "DEPENDENCY_BLOCKED", "notes needs @example/vault installed"],
-    ]);
-    const refused = await readiness(database, notes.id);
-    const now = fixture.machine.clock.now();
-    const installed = await insertInstallation(
-        database,
-        {
-            id: Identifier.create("installation", fixture.environment),
-            scope: ids.space,
-            packageId: VAULT.id,
-            name: "vault",
-            version: await fixture.releaseRow(VAULT.id, VAULT.version),
-            installer: fixture.owner.subject,
-        },
-        now,
-    );
+    const [, vault] = await applicationRows(database);
+
+    // uninstall the vault while notes requires it, then notes
+    const refused = await refusal(uninstall(present(vault, "the vault").id));
+    await uninstall(notes.id);
     await fixture.simulation.idle();
-    const deployed = await readiness(database, notes.id);
 
-    // uninstall the vault while notes needs it
-    const uninstalled = await refusal(uninstall(installed.id));
-
-    // refuse with the missing package's name, deploy once installed, and leave the vault installed
-    expect({ refused, deployed, uninstalled }).toEqual({
+    // refuse naming notes, then remove the vault with notes
+    expect({ refused, left: await applications(database) }).toEqual({
         refused: [
-            "failed",
-            "@destack/stack DEPENDENCY_BLOCKED: notes needs @example/vault installed",
-        ],
-        deployed: ["current", "1 workloads deployed"],
-        uninstalled: [
             "PRECONDITION_FAILED",
             "DEPENDENT_BLOCKED",
             "cannot uninstall 'vault': 'notes' needs it",
         ],
+        left: [],
     });
 });
 
-test("refuse an allowed capability until its package is installed", async () => {
+test("install the package an allowed capability requires once it is allowed", async () => {
     // install notes with an optional vault sync capability needing a vault package its space lacks
     const fixture = await TestSpace.open();
     const { database } = fixture;
@@ -2062,24 +2100,16 @@ test("refuse an allowed capability until its package is installed", async () => 
 
     // deploy without the capability, then with it allowed
     await fixture.simulation.idle();
-    const without = await readiness(database, notes.id);
+    const without = await applications(database);
     await changeInstallation(database, notes.id, { allowed: ["vault-sync"] });
     await fixture.simulation.idle();
-    fixture.expectRefusals([
-        [
-            "PRECONDITION_FAILED",
-            "DEPENDENCY_BLOCKED",
-            "capability vault-sync needs @example/vault installed",
-        ],
-    ]);
-    const allowed = await readiness(database, notes.id);
 
-    // deploy without the vault until the capability needs it
-    expect({ without, allowed }).toEqual({
-        without: ["current", "1 workloads deployed"],
+    // install the vault only once the capability requires it
+    expect({ without, allowed: await applications(database) }).toEqual({
+        without: [["notes", true]],
         allowed: [
-            "failed",
-            "@destack/stack DEPENDENCY_BLOCKED: capability vault-sync needs @example/vault installed",
+            ["notes", true],
+            ["vault", false],
         ],
     });
 });
