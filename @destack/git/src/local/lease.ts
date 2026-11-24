@@ -112,6 +112,23 @@ export const GitLease = {
         return (await Git.run(directory, ["rev-parse", "HEAD"], environment, { signal })).trim();
     },
 
+    /** Point a leased repository's reference at a local commit, replacing what it pointed at. */
+    async set(
+        lease: Lease,
+        directory: string,
+        reference: string,
+        commit: string,
+        environment: LocalGitEnvironment,
+        signal: AbortSignal,
+    ): Promise<void> {
+        await Git.run(
+            directory,
+            ["push", "--quiet", "--force", lease.url, `${commit}:${reference}`],
+            environment,
+            GitLease.options(lease, signal),
+        );
+    },
+
     /** Read the options git reaches a leased repository with: its headers, its address masked. */
     options(lease: Lease, signal: AbortSignal): GitOptions {
         const configuration = Object.entries(lease.headers).map(([name, value]): GitSetting => [

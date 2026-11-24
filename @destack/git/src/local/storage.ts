@@ -5,7 +5,7 @@ import { basename, dirname, join } from "node:path";
 import { type Environment, FileSystemError, Pipe } from "@destack/environment";
 import type { Connector, Lease, LeaseMode } from "@destack/resource";
 import { found, Uuid, zip } from "@destack/schema";
-import type { GitListing, GitReference, GitStorage } from "../storage/index.ts";
+import { type GitListing, GitReference, type GitStorage } from "../storage/index.ts";
 import { Git } from "./git.ts";
 import { GitError } from "../error/index.ts";
 
@@ -139,10 +139,10 @@ export class LocalGitStorage implements GitStorage {
         });
     }
 
-    /** List the branches and tags with HEAD. */
+    /** List the branches, tags and checkouts with HEAD. */
     references(id: string): Promise<GitListing> {
         return this.#span("destack.git.references", async () => {
-            // list the branches and tags beside HEAD's branch
+            // list the branches, tags and checkouts beside HEAD's branch
             const path = this.#path(id);
             const [listed, symbolic] = await Promise.all([
                 Git.run(
@@ -150,8 +150,7 @@ export class LocalGitStorage implements GitStorage {
                     [
                         "for-each-ref",
                         "--format=%(refname) %(objectname) %(objecttype) %(*objectname) %(*objecttype)",
-                        "refs/heads",
-                        "refs/tags",
+                        ...GitReference.namespaces,
                     ],
                     this.environment,
                 ),

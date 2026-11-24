@@ -1,7 +1,7 @@
 import { GitError } from "../error/index.ts";
 import type { Lease } from "@destack/resource";
 import type { Fetch } from "@destack/object";
-import type { GitListing, GitReference } from "./storage.ts";
+import { type GitListing, GitReference } from "./storage.ts";
 
 /** The content type of a smart HTTP upload-pack reference advertisement. */
 const ADVERTISEMENT_TYPE = "application/x-git-upload-pack-advertisement";
@@ -71,8 +71,8 @@ export const GitAdvertisement = {
             if (name.endsWith(PEELED_SUFFIX)) {
                 peeled.set(name.slice(0, -PEELED_SUFFIX.length), object);
             }
-            // take branches and tags
-            else if (name.startsWith("refs/heads/") || name.startsWith("refs/tags/")) {
+            // take branches, tags and checkouts
+            else if (GitReference.isListed(name)) {
                 objects.set(name, object);
             }
         }

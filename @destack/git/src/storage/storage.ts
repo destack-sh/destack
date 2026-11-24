@@ -5,29 +5,66 @@ import { Instant, schema } from "@destack/schema";
 /** A Git object name: 40 hexadecimal digits for SHA-1, 64 for SHA-256. */
 const ObjectName = schema.string().regex(/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u);
 
-/** A branch or tag as its origin lists it. */
-export const GitReference = schema.object({
-    /** The complete name, such as refs/heads/main or refs/tags/v1. */
-    name: schema.string().regex(/^refs\/(?:heads|tags)\/./u),
+/** The namespace of branches. */
+const BRANCH_NAMESPACE = "refs/heads/";
+
+/** The namespace of tags. */
+const TAG_NAMESPACE = "refs/tags/";
+
+/** The namespace of the references checkouts push their working trees to. */
+const CHECKOUT_NAMESPACE = "refs/checkouts/";
+
+/** The namespaces of the references a repository lists. */
+const NAMESPACES = [BRANCH_NAMESPACE, TAG_NAMESPACE, CHECKOUT_NAMESPACE] as const;
+
+/** The names a repository lists: a name inside one of its namespaces. */
+const LISTED = new RegExp(`^(?:${NAMESPACES.join("|")}).`, "u");
+
+/** A branch, tag or checkout's working tree as its origin lists it. */
+const reference = schema.object({
+    /** The complete name, such as refs/heads/main, refs/tags/v1 or refs/checkouts/<checkout>. */
+    name: schema.string().regex(LISTED),
     /** The object the reference points at directly: a commit, or an annotated tag's object. */
     object: ObjectName,
     /** The commit the reference resolves to, null when it resolves to no commit. */
     commit: ObjectName.nullable(),
 });
-/** A branch or tag as its origin lists it. */
-export type GitReference = schema.Infer<typeof GitReference>;
+/** A branch, tag or checkout's working tree as its origin lists it. */
+export const GitReference = Object.assign(reference, {
+    /** The namespaces of the references a repository lists. */
+    namespaces: NAMESPACES,
 
-/** Every branch and tag of a repository, and the existing branch of its HEAD. */
+    /** Report whether a repository lists a reference of a name. */
+    isListed(name: string): boolean {
+        return LISTED.test(name);
+    },
+
+    /** Read a reference's name below its namespace, such as `main` for `refs/heads/main`. */
+    short(name: string): string {
+        const namespace = NAMESPACES.find((each) => name.startsWith(each));
+
+        return namespace === undefined ? name : name.slice(namespace.length);
+    },
+
+    /** Write the name of the reference a checkout pushes its working tree to. */
+    checkout(checkout: string): string {
+        return `${CHECKOUT_NAMESPACE}${checkout}`;
+    },
+});
+/** A branch, tag or checkout's working tree as its origin lists it. */
+export type GitReference = schema.Infer<typeof reference>;
+
+/** Every branch, tag and checkout of a repository, and the existing branch of its HEAD. */
 export const GitListing = schema.object({
     /** The branch of HEAD, including refs/heads/, null when HEAD points at no existing branch. */
     defaultReference: schema
         .string()
         .regex(/^refs\/heads\/./u)
         .nullable(),
-    /** The branches and tags. */
+    /** The branches, tags and checkouts. */
     references: schema.array(GitReference),
 });
-/** Every branch and tag of a repository, and the existing branch of its HEAD. */
+/** Every branch, tag and checkout of a repository, and the existing branch of its HEAD. */
 export type GitListing = schema.Infer<typeof GitListing>;
 
 /** The person a commit names as its author. */

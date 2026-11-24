@@ -129,6 +129,26 @@ export async function checkOutSite(
 }
 ```
 
+### Push a working tree to its checkout's reference
+
+`GitLease.set` points a leased repository's reference, such as `GitReference.checkout(id)`, at a local commit.
+
+```ts
+import { GitReference } from "@destack/git";
+import { GitLease, type LocalGitEnvironment } from "@destack/git/local";
+import type { Lease } from "@destack/resource";
+
+export async function pushCheckout(
+    lease: Lease,
+    root: string,
+    commit: string,
+    environment: LocalGitEnvironment,
+    signal: AbortSignal,
+) {
+    await GitLease.set(lease, root, GitReference.checkout("checkout-1"), commit, environment, signal); // refs/checkouts/checkout-1
+}
+```
+
 ### Read a remote's branches
 
 `GitAdvertisement.read` lists any smart HTTP remote's branches and tags.

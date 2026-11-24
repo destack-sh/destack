@@ -13,7 +13,7 @@ import {
     artifactsProvider,
 } from "../cloudflare/index.ts";
 import { GitLease, LocalGitStorage } from "../local/index.ts";
-import { defineGitStorage, GitAdvertisement } from "./index.ts";
+import { defineGitStorage, GitAdvertisement, GitReference } from "./index.ts";
 import { advertise, git, History, temporary, Worktree } from "../test/index.ts";
 import { testWorldOptions } from "@destack/test/world";
 
@@ -280,6 +280,32 @@ test("check one commit of a leased repository out into a new working tree withou
         await git(directory, "rev-parse", "HEAD"),
         await git(directory, "rev-list", "--count", "HEAD"),
     ]).toEqual(["# Site\n", first, "1"]);
+});
+
+test("point a checkout's reference at a commit through a write lease, again at an earlier one, and list it beside the branch", async () => {
+    // push two commits on main into a local repository
+    const storage = new LocalGitStorage(await temporary("destack-storage-"), host);
+    await storage.create("repository-checkout");
+    const lease = await storage.open("repository-checkout", "write");
+    const worktree = await Worktree.open();
+    const first = await worktree.commit("README.md", "# Site\n");
+    const second = await worktree.commit("README.md", "# Site, again\n");
+    await worktree.push(lease.url, "main");
+
+    // point the checkout's reference at the second commit, then back at the first one
+    const reference = GitReference.checkout("checkout-1");
+    const signal = new AbortController().signal;
+    await GitLease.set(lease, worktree.directory, reference, second, host, signal);
+    await GitLease.set(lease, worktree.directory, reference, first, host, signal);
+
+    // list the checkout's reference at the first commit beside main at the second
+    expect(await storage.references("repository-checkout")).toEqual({
+        defaultReference: "refs/heads/main",
+        references: [
+            { name: "refs/checkouts/checkout-1", object: first, commit: first },
+            { name: "refs/heads/main", object: second, commit: second },
+        ],
+    });
 });
 
 /** Refuse a request, as these tests' storages create, list and delete without reaching Git. */
