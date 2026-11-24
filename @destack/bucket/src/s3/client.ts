@@ -215,6 +215,17 @@ export class S3Client implements Bucket {
                 : failure;
         }
 
+        // read the stored file from the answer, or with a HEAD where the answer has only the entity tag, as S3's does
+        // NOTE #Robustness: a concurrent write of the key between the two requests answers that write's file
+        if (answer.headers.get("last-modified") === null) {
+            const stored = await this.head(key);
+            if (stored === null) {
+                throw new TypeError(`the file '${key}' is missing right after its write`);
+            }
+
+            return stored;
+        }
+
         return written(key, sent.size(), headers, answer.headers);
     }
 

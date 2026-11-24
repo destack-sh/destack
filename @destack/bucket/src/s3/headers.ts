@@ -40,6 +40,9 @@ export const CHECKSUM_MODE_HEADER = "x-amz-checksum-mode";
 /** The header with the stored version of a file. */
 const VERSION_HEADER = "x-amz-version-id";
 
+/** The version id S3 gives every file of a bucket without versioning, as R2 over S3 has. */
+const UNVERSIONED = "null";
+
 /** The prefix of user metadata headers. */
 const METADATA_PREFIX = "x-amz-meta-";
 
@@ -97,13 +100,15 @@ function write(file: BucketFile, isChecksummed: boolean): Headers {
 
 /** Read the file a response describes, of a size the caller reads from the response. */
 function read(key: string, size: number, headers: Headers): BucketFile {
-    // require the version, entity tag and upload time every file answer has
-    const version = headers.get(VERSION_HEADER);
+    // require the entity tag and upload time every file answer has
     const etag = headers.get("etag");
     const modified = headers.get("last-modified");
-    if (version === null || etag === null || modified === null) {
-        throw new TypeError(`the response for '${key}' has no file version`);
+    if (etag === null || modified === null) {
+        throw new TypeError(`the response for '${key}' has no entity tag or upload time`);
     }
+
+    // read the version, which a bucket without versioning answers without: S3's null version
+    const version = headers.get(VERSION_HEADER) ?? UNVERSIONED;
     const unquoted = etag.replace(/^"(.*)"$/u, "$1");
 
     // read the stored metadata, lock and customer key digest
