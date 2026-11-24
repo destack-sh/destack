@@ -1415,7 +1415,7 @@ test("wait out a follower its issuer refuses, backing off and logging until it f
     ]);
 });
 
-test("log a lost source and its restore", async () => {
+test("retry a lost or unavailable source", async () => {
     await using simulation = new Simulation({
         world: testWorldOptions(),
         seed: 1,
@@ -1426,16 +1426,21 @@ test("log a lost source and its restore", async () => {
     const controller = new AbortController();
     const position = { log: LOG, epoch: "01996ab0-0000-7000-8000-000000000001", sequence: 1 };
 
-    // lose the source twice, then answer a snapshot
+    // lose the source, have it answer that it is still syncing, then answer a snapshot
     const requests: number[] = [];
     const following = notes.follow(
         local,
         async function* () {
             requests.push(simulation.clock.now());
-            if (requests.length <= 2) {
+            if (requests.length === 1) {
                 throw SyncError.of(
                     "CONNECTION_UNAVAILABLE",
                     "connection is unavailable: the socket closed with '1006'",
+                );
+            } else if (requests.length === 2) {
+                throw SyncError.of(
+                    "REPLICA_UNAVAILABLE",
+                    "replica 'notes' of 'inbox' is unavailable: it is still syncing",
                 );
             }
             yield { reset: true, complete: true, changes: [noteInsert("n1")], position };

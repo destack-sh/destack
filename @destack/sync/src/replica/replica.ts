@@ -1,3 +1,4 @@
+import { Failure } from "@destack/error";
 import { TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
 import {
@@ -1111,8 +1112,10 @@ export class Replica {
                     // wait out a follower its issuer no longer authenticates, as an operator may restore it
                     isRefused = SyncError.is(error, "FOLLOWER_UNAUTHENTICATED");
 
-                    // resume from the replica's position once the connection to the source dropped
-                    isLost = SyncError.is(error, "CONNECTION_UNAVAILABLE");
+                    // resume from the replica's position once the source dropped or answered it is unavailable for now
+                    isLost =
+                        SyncError.is(error, "CONNECTION_UNAVAILABLE") ||
+                        Failure.isTransient(Failure.of(error));
                     lost = isLost && error instanceof Error ? error.message : "";
 
                     // end quietly on this follow's own abort or a silent stream's, failing on anything else
