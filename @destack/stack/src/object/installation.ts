@@ -67,7 +67,7 @@ export const STACK_INSTALLATION = "stack";
 const NOT_SERVED_RETRY_MILLISECONDS = 1000;
 
 /** A resource declaration of an installation's package. */
-export const ResourceNeed = ResourceDescription.extend({
+export const ResourceRequirement = ResourceDescription.extend({
     /** The package declaring the resource. */
     package: PackageVersion,
     /** The resource's kind, such as database. */
@@ -76,7 +76,7 @@ export const ResourceNeed = ResourceDescription.extend({
     kindPackageId: PackageId,
 });
 /** A resource declaration of an installation's package. */
-export type ResourceNeed = schema.Infer<typeof ResourceNeed>;
+export type ResourceRequirement = schema.Infer<typeof ResourceRequirement>;
 
 /** A view of an installation's revision, as a client opens it. */
 export const InstallationView = schema.object({
@@ -140,6 +140,8 @@ export const installation = defineObject(
                 .guard({ read: "update" }),
             /** How its server is isolated: a sandbox, or the machine's own process once trusted. */
             isolation: field.enum(["sandbox", "host"]).default("sandbox"),
+            /** Whether someone chose it, as opposed to another installation's need keeping it. */
+            isRoot: field.boolean().default(true),
 
             /** The principal submitting the targeted revision, absent before the first one. */
             submittedBy: field.subject().optional(),
@@ -257,6 +259,7 @@ export const installation = defineObject(
                 "capabilities",
                 "directories",
                 "isolation",
+                "isRoot",
             ],
         }),
         update: method.update("update", {
@@ -274,6 +277,7 @@ export const installation = defineObject(
                 "capabilities",
                 "directories",
                 "isolation",
+                "isRoot",
             ],
         }),
         delete: method.delete("delete"),
@@ -397,6 +401,16 @@ export const WaitingReason = schema.enum([
 /** Why an installation is not ready yet. */
 export type WaitingReason = schema.Infer<typeof WaitingReason>;
 
+/** A package an installation requires, at the release its build has of it. */
+export interface PackageRequirement {
+    /** The installation requiring it. */
+    readonly by: Installation;
+    /** The required package at the release the requiring build has of it. */
+    readonly package: PackageVersion;
+    /** The capability requiring it, absent for a package the build always requires. */
+    readonly capability?: string;
+}
+
 /** The installations of a space: reads, access, relations and releases. */
 export const Installation = {
     /** Read which of some installations are applications: the ones without a stack's export. */
@@ -449,31 +463,73 @@ export const Installation = {
             .map(([name]) => name);
     },
 
-    /** List the packages an installation needs installed, its enabled capabilities' included. */
-    needed(
-        row: Pick<Installation, "name" | "capabilities" | "allowed">,
+    /** List the packages an installation requires installed, its enabled capabilities' included. */
+    requires(
+        row: Installation,
         revision: Pick<InstallationRevision, "dependencies">,
         description: PackageDescription | undefined,
-    ): { readonly package: PackageVersion; readonly capability?: string }[] {
-        // leave out the dependencies that only optional capabilities need
+    ): PackageRequirement[] {
+        // leave out the dependencies that only optional capabilities require
         const optional = new Set(PackageDescription.optionalPackages(description));
         const required = revision.dependencies
             .filter((dependency) => !optional.has(dependency.package.id))
-            .map((dependency) => ({ package: dependency.package }));
+            .map((dependency) => ({ by: row, package: dependency.package }));
 
-        // add the packages each enabled capability needs, which its build depends on
+        // add the packages each enabled capability requires, which its build depends on
         const enabled = Installation.enabled(row, description).flatMap((capability) =>
             (description?.capabilities[capability]?.packages ?? []).map((packageId) => {
                 const dependency = present(
                     revision.dependencies.find((each) => each.package.id === packageId),
-                    `${row.name}'s build dependency ${packageId}, which capability ${capability} needs`,
+                    `${row.name}'s build dependency ${packageId}, which capability ${capability} requires`,
                 );
 
-                return { package: dependency.package, capability };
+                return { by: row, package: dependency.package, capability };
             }),
         );
 
         return [...required, ...enabled];
+    },
+
+    /**
+     * Resolve a space's installations against what their roots require.
+     *
+     * Roots keep what they require, transitively, as a package manager resolves dependencies.
+     */
+    resolve<
+        Row extends Pick<Installation, "id" | "packageId" | "isRoot">,
+        Required extends Pick<PackageRequirement, "package"> & { readonly by: Pick<Row, "id"> },
+    >(
+        installed: readonly Row[],
+        requirements: readonly Required[],
+    ): {
+        readonly required: ReadonlyMap<PackageId, Required>;
+        readonly missing: readonly Required[];
+        readonly unrequired: readonly Row[];
+    } {
+        // walk from the roots through the installations of what they require, each package once
+        const required = new Map<PackageId, Required>();
+        const queue = installed.filter((row) => row.isRoot);
+        for (let row = queue.shift(); row !== undefined; row = queue.shift()) {
+            for (const requirement of requirements.filter((each) => each.by.id === row.id)) {
+                if (!required.has(requirement.package.id)) {
+                    required.set(requirement.package.id, requirement);
+                    const next = installed.find(
+                        (each) => each.packageId === requirement.package.id,
+                    );
+                    if (next !== undefined) {
+                        queue.push(next);
+                    }
+                }
+            }
+        }
+
+        // name the required packages without an installation, and the installations nothing chose or requires
+        const missing = [...required.values()].filter(
+            (requirement) => !installed.some((row) => row.packageId === requirement.package.id),
+        );
+        const unrequired = installed.filter((row) => !row.isRoot && !required.has(row.packageId));
+
+        return { required, missing, unrequired };
     },
 
     /** Order installations so each comes before the packages its revision depends on. */

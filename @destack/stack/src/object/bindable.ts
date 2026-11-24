@@ -9,7 +9,7 @@ import type { Provider } from "@destack/resource";
 import type { JsonObject, schema } from "@destack/schema";
 import { StackError } from "../error/index.ts";
 import type { Binding } from "./binding.ts";
-import type { Installation, ResourceNeed } from "./installation.ts";
+import type { Installation, ResourceRequirement } from "./installation.ts";
 
 /** A provider of a space's resources. */
 export type SpaceProvider = Provider<
@@ -52,20 +52,23 @@ export interface ObjectBindingKind<
     readonly provider: string;
     /** The address workloads call the package serving the bound objects at. */
     readonly reference: string;
-    /** Read the record an installation's own need declares, none while a binding it needs lacks. */
-    readonly declare: (need: ResourceNeed, bindings: readonly Binding[]) => JsonObject | undefined;
+    /** Read the record an installation's own requirement declares, none while a binding lacks. */
+    readonly declare: (
+        requirement: ResourceRequirement,
+        bindings: readonly Binding[],
+    ) => JsonObject | undefined;
     /** Report whether a bound target is ready to run with, reading it alone. */
     readonly ready: (
         context: MethodContext,
         bound: Binding,
-        need: ResourceNeed,
+        requirement: ResourceRequirement,
     ) => Promise<boolean>;
     /** Start making a bound target ready to capture once its parent is provisioned. */
     readonly prepare: (
         context: MethodContext,
         declarer: AccessContext,
         bound: Binding,
-        need: ResourceNeed,
+        requirement: ResourceRequirement,
     ) => Promise<void>;
     /** Connect an in-process installation to a binding's target at its bound version. */
     readonly connect: (

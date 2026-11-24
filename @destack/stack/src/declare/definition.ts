@@ -1,13 +1,12 @@
 import { defineKind } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
 import { type DependencyRelease, graph, type PackageBuild, type PackageId } from "@destack/package";
-import { type BuildReader, PackageManifest } from "@destack/package/manifest";
+import type { BuildReader } from "@destack/package/manifest";
 import { type Digest, type JsonObject, JsonValue, schema } from "@destack/schema";
 import { ObjectDescription, PackageDescription, SERVER_EXPORT } from "@destack/object";
 import type {} from "@destack/package/import-meta";
 import { StackError } from "../error/index.ts";
 import { InstallationDefinition } from "./installation.ts";
-import { BOOTSTRAP_PACKAGES } from "./bootstrap.ts";
 
 /** The database every space has, which no stack declares. */
 export const MAIN_DATABASE = "main";
@@ -43,7 +42,6 @@ export const StackDefinition = Object.assign(schema.jsonObject(), {
             readonly settings: Readonly<Record<string, JsonValue>>;
             readonly routes: Readonly<Record<string, JsonObject>>;
         },
-        read: (packageId: PackageId, manifest: Digest) => Promise<BuildReader>,
     ): Promise<JsonObject> {
         // require the package's stack declared at the export the name has
         const found = (await STACK_KIND.read(reader)).find(
@@ -78,87 +76,20 @@ export const StackDefinition = Object.assign(schema.jsonObject(), {
             }
             builds.set(entry.package.id, entry);
         }
-        const entries = Object.fromEntries(releases.map((entry) => [entry.package.name, entry]));
-        // read each installation's build in the stack's image, but for one the host provides
-        const declaredInstallations = Object.entries(document.installations).flatMap(
-            ([key, installed]) => {
-                if (installed.version?.kind === "host") {
-                    return [];
-                }
-                const built = builds.get(installed.packageId);
-                if (built === undefined) {
-                    throw StackError.of(
-                        "DEFINITION_INVALID",
-                        `installation '${key}' of '${name}' is invalid: it installs a package without a build in the stack's image, so add the package to the stack's dependencies`,
-                    );
-                }
 
-                return [{ key, installed, manifest: built.manifest }];
-            },
-        );
-
-        // derive an installation of each installable package its declared installations need
-        const own = new Set(Object.values(BOOTSTRAP_PACKAGES).map((handle) => handle.id));
-        const installations: Record<string, InstallationDefinition> = { ...document.installations };
-        const needs = async (build: BuildReader) => {
-            // read a build's required, non-optional dependencies in the image
-            const description = await PackageDescription.of(build);
-            const optional = new Set(PackageDescription.optionalPackages(description));
-            const required = Object.fromEntries(
-                Object.keys(build.manifest.requires).flatMap((each) => {
-                    const entry = entries[each];
-
-                    return entry === undefined ? [] : [[each, entry] as const];
-                }),
-            );
-            const root = PackageManifest.package(build.manifest).id;
-            const installable = await installableBuilds(required, root, read);
-
-            return installable.filter(
-                (built) => !optional.has(built.package.id) && !own.has(built.package.id),
-            );
-        };
-
-        // start from what each declared installation in the stack's image needs
-        const queue: PackageBuild[] = [];
-        for (const { installed, manifest } of declaredInstallations) {
-            queue.push(...(await needs(await read(installed.packageId, manifest))));
-        }
-
-        // declare each needed package once with defaults, unless declared, following what it needs in turn
-        for (let built = queue.shift(); built !== undefined; built = queue.shift()) {
-            const id = built.package.id;
-            const key = built.package.name.slice(built.package.name.lastIndexOf("/") + 1);
-            const isInstalled = Object.values(installations).some((each) => each.packageId === id);
-
-            // refuse a derived name another package's declaration has
-            if (!isInstalled && installations[key] !== undefined) {
+        // refuse an installation of a package without a build in the stack's image, but for one the host provides
+        for (const [key, installed] of Object.entries(document.installations)) {
+            if (installed.version?.kind !== "host" && !builds.has(installed.packageId)) {
                 throw StackError.of(
                     "DEFINITION_INVALID",
-                    `stack '${name}' is invalid: it needs '${built.package.name}' as installation '${key}', which another package's installation is named, so declare it under another name`,
+                    `installation '${key}' of '${name}' is invalid: it installs a package without a build in the stack's image, so add the package to the stack's dependencies`,
                 );
-            }
-            // derive it in a sandbox at the image's release
-            else if (!isInstalled) {
-                installations[key] = InstallationDefinition.parse({
-                    packageId: id,
-                    version: { kind: "release", version: built.package.version },
-                    status: "enabled",
-                    name: key,
-                    bindings: {},
-                    compute: {},
-                    capabilities: [],
-                    directories: [],
-                    isolation: "sandbox",
-                    tags: {},
-                });
-                queue.push(...(await needs(await read(id, built.manifest))));
             }
         }
 
         // run each installation without a version at the release of its build in the stack's image
         const versioned = Object.fromEntries(
-            Object.entries(installations).map(([key, installed]) => {
+            Object.entries(document.installations).map(([key, installed]) => {
                 const built = builds.get(installed.packageId);
                 const isImaged = installed.version === undefined && built !== undefined;
 
