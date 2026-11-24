@@ -23,6 +23,7 @@ import {
     createControllableSignal,
     createSignal,
     createUniqueId,
+    handleAction,
     type JSX,
     merge,
     omit,
@@ -46,6 +47,7 @@ import {
     renderPart,
 } from "../part/index.ts";
 import { Button, type ButtonProperties } from "../button/index.ts";
+import { toggleSidebar } from "./actions.ts";
 import { Input, type InputProperties } from "../input/index.ts";
 import { Sheet, SheetContent, SheetTitle } from "../sheet/index.ts";
 import { Skeleton } from "../skeleton/index.ts";
@@ -436,9 +438,9 @@ export class SidebarControl {
     }
 
     /** Toggle the sheet on narrow screens and the sidebar on wide ones, at once by the keyboard. */
-    toggle(change: OpenChange = new OpenChange()): void {
+    toggle(isInstant = false): void {
         // leave out the motion people would wait for each time
-        this.#setInstant(change.isByKeyboard);
+        this.#setInstant(isInstant);
         if (this.isMobile()) {
             this.#setMobileOpen(!this.isMobileOpen());
         } else {
@@ -536,25 +538,9 @@ export function SidebarProvider(properties: SidebarProviderProperties): JSX.Elem
         "style",
     );
 
-    // follow the browser once mounted, and toggle the sidebar from the keyboard
-    onSettled(() => {
-        // follow the remembered state and the viewport's width
-        const stop = control.follow();
-
-        // toggle on Ctrl or Command with B
-        const toggle = (event: KeyboardEvent) => {
-            if (event.key === "b" && (event.metaKey || event.ctrlKey)) {
-                event.preventDefault();
-                control.toggle(new OpenChange("none", event));
-            }
-        };
-        document.addEventListener("keydown", toggle);
-
-        return () => {
-            stop();
-            document.removeEventListener("keydown", toggle);
-        };
-    });
+    // follow the remembered state and the viewport's width once mounted, and the person's keys
+    onSettled(() => control.follow());
+    handleAction(toggleSidebar, { run: () => control.toggle(true) });
 
     return (
         <SidebarContext value={control}>
@@ -657,7 +643,7 @@ export function SidebarTrigger(properties: Omit<ButtonProperties, "onClick">): J
             {...mergeProperties(
                 {
                     onClick: (event: MouseEvent) =>
-                        control.toggle(new OpenChange("trigger-press", event)),
+                        control.toggle(new OpenChange("trigger-press", event).isByKeyboard),
                 },
                 properties,
             )}

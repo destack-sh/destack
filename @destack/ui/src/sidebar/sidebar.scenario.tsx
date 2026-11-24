@@ -8,7 +8,7 @@ export const sidebarToggleWithShortcut = defineScenario({
     of: Sidebar,
     interaction: viewInteraction,
     name: "toggle-with-shortcut",
-    description: "collapse and expand the sidebar with Control+B or Meta+B",
+    description: "collapse and expand the sidebar with its keys",
     given: { examples: [sidebarNotebooks] },
     parameters: {},
     when: [
@@ -26,7 +26,7 @@ export const sidebarToggleWithShortcut = defineScenario({
             ],
         },
         {
-            step: { action: "press", key: "Meta+b" },
+            step: { action: "press", key: "Control+b" },
             then: [
                 {
                     observe: {
