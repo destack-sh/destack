@@ -89,11 +89,7 @@ test("show a person another program signs in after the desktop started, once the
         actions,
         last: sent.at(-1),
     }).toEqual({
-        palette: [
-            "palette",
-            "Commands",
-            `https://start--home--${world.owner.handle}.destack.space/command`,
-        ],
+        palette: ["palette", "Commands", `https://${world.owner.handle}.destack.space/command`],
         tray: [
             { action: "tray.set", tooltip: "Destack: ⁨Serving 0 spaces⁩" },
             { action: "tray.set", tooltip: "Destack: ⁨Serving 0 spaces⁩" },
