@@ -99,6 +99,7 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
     SidebarProvider,
+    SidebarRail,
     SidebarTrigger,
 } from "../sidebar/index.ts";
 import { SortableMove } from "../sortable/index.ts";
@@ -526,6 +527,7 @@ export function App(properties: {
                         {PEOPLE.ada.name}
                     </Cluster>
                 </SidebarFooter>
+                <SidebarRail />
             </Sidebar>
             <SidebarInset>
                 <header {...style.attrs(text.sm, styles.bar)}>

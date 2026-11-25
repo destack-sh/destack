@@ -7,7 +7,7 @@ import userPlusIcon from "@destack/icon/phosphor/user-plus";
 import { defineExample } from "@destack/package/declare";
 import * as style from "@destack/style";
 import { text } from "@destack/theme/text";
-import { color, space, stroke } from "@destack/theme/tokens.stylex";
+import { color, space } from "@destack/theme/tokens.stylex";
 import { createSignal, For, type JSX, Show, useEnvironment, useLocale } from "@destack/view";
 import { Activity, ActivityBadge, ActivityBody, ActivityItem } from "../activity/index.ts";
 import { Badge } from "../badge/index.ts";
@@ -34,7 +34,6 @@ import {
     ItemContent,
     ItemDescription,
     ItemGroup,
-    ItemMedia,
     ItemTitle,
 } from "../item/index.ts";
 import { Marker, MarkerContent } from "../marker/index.ts";
@@ -55,10 +54,14 @@ import {
     MessageScrollerViewport,
 } from "../message-scroller/index.ts";
 import { Reaction, ReactionGroup } from "../reaction/index.ts";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "../resizable/index.ts";
 import { RelativeTime } from "../relative-time/index.ts";
 import { Spinner } from "../spinner/index.ts";
 import { ToolbarButton } from "../toolbar/index.ts";
 import { App, Face, PEOPLE } from "./app.example.tsx";
+
+/** The person who wrote to the inbox. */
+const MARTA = { name: "Marta Silva", initials: "MS" };
 
 /** The milliseconds of a minute. */
 const MINUTE = 60_000;
@@ -153,12 +156,9 @@ const styles = style.create({
         marginInline: "auto",
     },
     inbox: {
-        display: "grid",
-        gridTemplateColumns: {
-            default: "20rem minmax(0, 1fr)",
-            "@media (max-width: 60rem)": "minmax(0, 1fr)",
-        },
         flexGrow: 1,
+        width: "auto",
+        height: "auto",
         minHeight: 0,
         margin: `calc(-1 * ${space[5]})`,
     },
@@ -166,9 +166,9 @@ const styles = style.create({
         display: { default: "block", "@media (max-width: 60rem)": "none" },
         overflowY: "auto",
         padding: space[2],
-        borderInlineEndWidth: stroke.border,
-        borderInlineEndStyle: "solid",
-        borderInlineEndColor: color.border,
+    },
+    divider: {
+        display: { default: null, "@media (max-width: 60rem)": "none" },
     },
     reading: {
         display: "flex",
@@ -204,7 +204,11 @@ const styles = style.create({
 function PostActions(): JSX.Element {
     return (
         <MessageToolbar aria-label="Actions">
-            <EmojiButton label="Add reaction" onSelect={() => {}} />
+            <EmojiButton
+                label="Add reaction"
+                onSelect={() => {}}
+                render={(button) => <ToolbarButton {...button} />}
+            />
             <ToolbarButton variant="ghost" size="icon-sm" aria-label="Reply">
                 <Icon icon={arrowBendUpLeftIcon} />
             </ToolbarButton>
@@ -325,7 +329,7 @@ export const sceneChannel = defineExample({
                                 </For>
                                 <MessageScrollerItem xstyle={styles.first}>
                                     <Marker role="status">
-                                        <MarkerContent busy>Jonas is typing</MarkerContent>
+                                        <MarkerContent>Jonas is typing</MarkerContent>
                                     </Marker>
                                 </MessageScrollerItem>
                             </MessageScrollerContent>
@@ -579,8 +583,13 @@ export const sceneInbox = defineExample({
                     </Button>
                 }
             >
-                <div {...style.attrs(styles.inbox)}>
-                    <div {...style.attrs(styles.list)}>
+                <ResizablePanelGroup xstyle={styles.inbox}>
+                    <ResizablePanel
+                        defaultSize={32}
+                        minSize="220px"
+                        maxSize={50}
+                        xstyle={styles.list}
+                    >
                         <ItemGroup>
                             <For each={INBOX}>
                                 {([person, words, minutes, status], index) => (
@@ -599,17 +608,16 @@ export const sceneInbox = defineExample({
                                 )}
                             </For>
                         </ItemGroup>
-                    </div>
-                    <div {...style.attrs(styles.reading)}>
+                    </ResizablePanel>
+                    <ResizableHandle aria-label="Resize the list" xstyle={styles.divider} />
+                    <ResizablePanel minSize="320px" xstyle={styles.reading}>
                         <MessageScroller>
                             <MessageScrollerViewport>
                                 <MessageScrollerContent xstyle={styles.page}>
                                     <MessageScrollerItem messageId="m1" scrollAnchor>
                                         <Message>
                                             <MessageAvatar position="top">
-                                                <ItemMedia>
-                                                    <Icon name="envelope" />
-                                                </ItemMedia>
+                                                <Face person={MARTA} />
                                             </MessageAvatar>
                                             <MessageContent>
                                                 <MessageHeader>
@@ -617,7 +625,7 @@ export const sceneInbox = defineExample({
                                                     to support
                                                     <RelativeTime value={ago(52)} />
                                                 </MessageHeader>
-                                                <Card>
+                                                <Card size="sm">
                                                     <CardHeader>
                                                         <CardTitle>
                                                             Order 2041 arrived without the lid
@@ -702,8 +710,8 @@ export const sceneInbox = defineExample({
                                 </ComposerFrame>
                             </Composer>
                         </div>
-                    </div>
-                </div>
+                    </ResizablePanel>
+                </ResizablePanelGroup>
             </App>
         );
     },
