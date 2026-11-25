@@ -35,29 +35,7 @@ Show designs as code and diagrams:
 
 Trace callers and scenarios first:
 - **PT01** Designs SHOULD first write down what callers of the new code would write, where their inputs come from, and what limits, expectations and environment apply.
-  ```text
-  const user = service.signup(...); // user from API or wherever
-  // ... some more illustrative logic ...
-  ```
 - **PT02** Designs SHOULD trace each main scenario across real state and call flows as a tree.
-  ```text
-  UserService.signup(name: string, email: string, password: string, session, ...)
-   -> User.create(..., session) // create in DB
-     -> User.validate(...)      // validate inputs
-     -> User.save(...)          // save to DB
-     -> NotificationService.send()
-      -> Workflow::trigger()
-     -> Session.commit(...)
-  ```
-  ```text
-  provide_program_analysis(profile, target)
-   ├─ load each module's MirAnalyzed (per-module LinkGraph, cached, incremental)
-   ├─ roots = exported symbols of the target's root modules
-   ├─ LinkSupergraph::build(&link_graphs)        // transient: dense index + CSR
-   │   └─ live = supergraph.reachable(&roots)     // CSR BFS -> BitSet
-   │      (later: references, address_taken, internal — same walk)
-   └─ persist ProgramAnalysis { symbols, live }   // columns only, O(symbols) bits
-  ```
 
 ## Design (D)
 
@@ -556,6 +534,13 @@ Suppress lints on the impl:
 
 Land changes through branches and plain commits under the strict cooperation protocol.
 
+### Planning (SP)
+
+Ship forward only:
+- **SP01**: Commits SHOULD NOT be reverted, either directly or indirectly; forward deployment SHOULD be preferred, even for revert-like corrections and undos.
+- **SP02**: Migrations and cutovers SHOULD be planned incrementally with a combination of feature flags and graceful cutovers and depracations; relatedly, "big bang" cut overs SHOULD be avoided.
+- **SP03**: Corrolary to RR10, difficult deployments and migrations SHOULD be broken into smaller units to be more manageable and reduce risk in a forward-only manner. 
+
 ### Branching (SB)
 
 Work on branches off main:
@@ -575,15 +560,14 @@ Commit only on explicit instruction:
 Use conventional commit subjects:
 - **SC10** Commits MUST use conventional commits in present tense, Simplified Technical English and verb-first shape.
 - **SC11** Commit subjects MUST follow `type(scope): verb noun` with an imperative summary under 100 characters.
-- **SC12** Commit scopes MUST use the full, sometimes stylised, scope, such as `language/ast`, `language/compiler/analyze` or `library/ui`.
+- **SC12** Commit scopes MUST use the full pcakage name like `@destack/ui` (sometimes stylised with sub-directories or sub-scopes).
 - **SC13** Commits touching several scopes MUST use the highest scope or `all`, or split into smaller commits when large.
-- **SC14** Commits in large packages or crates MAY use subscopes such as `language/compiler/sema`.
 
 Pick the commit type:
 - **SC20** Commit types MUST be one of, from most to least coalescing:
   - `feat`: extend, generalise, or add non-trivial model changes
   - `refactor`: replace or reshape the model in some non-trivial way
-  - `fix`: correct the model in some non-trivial sense that did not require a refactor
+  - `fix`: correct the model in some non-trivial sense (that did not require a more general refactor)
   - `perf`: make the model faster without changing its (intended) behavior
   - `test`: extend, update, bless, or otherwise modify the tests
   - `chore`: modify or adapt in a semantically trivial way (format, trivial API adaptation, ..)
@@ -591,7 +575,7 @@ Pick the commit type:
   - `dev`: make some meta change about the dev setup
 
 Write boring, plain commit messages:
-- **SC30** Commit messages MUST be boring like boiled potatoes and dry bread: what changed, as plainly as possible, without a story.
+- **SC30** Commit messages MUST be boring like boiled potatoes and dry bread: what changed, as plainly as possible, without a story (I repeat: *zero* storytelling in commits).
 - **SC31** Commit messages MUST NOT mention meta context such as "part 1" or "landed feature X".
 - **SC32** Commit messages SHOULD use simple verbs (e.g., add, remove, rename X -> Y, reshape, move, update X -> Y) and specific code concepts (e.g., Player.move, CharacterController).
 - **SC33** Commit messages SHOULD name code concepts as proper nouns, not files: `add SiteTable, rename Foo -> Bar`.
