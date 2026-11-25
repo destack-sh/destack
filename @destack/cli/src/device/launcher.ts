@@ -15,9 +15,10 @@ export const Launcher = {
         }
 
         // read where this executable runs from and the current release
-        const { Setup } = await import("./setup.ts");
+        const { UniverseHome } = await import("@destack/machine/process");
         const { Release } = await import("@destack/update/release");
-        const installer = (await Setup.current(environment)).installer();
+        const home = UniverseHome.current(environment);
+        const installer = home.distribution(environment).distribution.installer();
         const inside = relative(installer.directory, resolve(environment.process.executable));
         const isRelease = !inside.startsWith("..") && !isAbsolute(inside);
         const [group, verb] = words;
