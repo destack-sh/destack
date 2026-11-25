@@ -3,7 +3,7 @@ import { testSimulation } from "@destack/test/world";
 import { Failure } from "@destack/error";
 import { type ClientSocket, type Environment, MemoryWebSocket } from "@destack/environment";
 import { MachineAddress } from "@destack/account/address";
-import { endpoint, type Endpoint, machine, type ResidencyCode } from "@destack/account/object";
+import { endpoint, type Endpoint, machine, type RegionCode } from "@destack/account/object";
 import { PackageMount } from "@destack/object";
 import accountPackage from "@destack/account/package";
 import type { TestPerson } from "@destack/account/test";
@@ -23,8 +23,8 @@ import {
 } from "@destack/tunnel";
 import { TestRelay } from "./relay.ts";
 
-/** The residencies of the universe, each with its cloud machine. */
-const RESIDENCIES: UniverseDefinition["residencies"] = [
+/** The regions of the universe, each with its managed machine. */
+const REGIONS: UniverseDefinition["regions"] = [
     { code: "eu", name: "Europe", relay: "https://relay-eu.machine.test", countries: ["DE"] },
     {
         code: "us",
@@ -74,8 +74,8 @@ export class TestTunnelMachine implements AsyncDisposable {
     readonly names: string[] = [];
     /** The telemetry recording the exceptions the relays, tunnels and computer captured. */
     readonly telemetry: TestTelemetry;
-    /** The cloud machine of each residency opened so far. */
-    readonly #hosts = new Map<ResidencyCode, TestMachine>();
+    /** The managed machine of each region opened so far. */
+    readonly #hosts = new Map<RegionCode, TestMachine>();
     /** The relays, tunnels and listeners started, stopped in reverse on disposal. */
     readonly #started = new AsyncDisposableStack();
     /** The relays started so far. */
@@ -107,28 +107,25 @@ export class TestTunnelMachine implements AsyncDisposable {
         this.spaceId = fields.spaceId;
     }
 
-    /** Enroll a computer of the example account in a residency, Europe by default. */
-    static async open(residency: ResidencyCode = "eu"): Promise<TestTunnelMachine> {
+    /** Enroll a computer of the example account in a region, Europe by default. */
+    static async open(region: RegionCode = "eu"): Promise<TestTunnelMachine> {
         // run the universe in a simulation, driving its opening
         const simulation = testSimulation();
 
-        return await TestTunnelMachine.#open(simulation, residency);
+        return await TestTunnelMachine.#open(simulation, region);
     }
 
     /** Open the universe on a simulation, granting relay tokens, and enroll the computer. */
-    static async #open(
-        simulation: Simulation,
-        residency: ResidencyCode,
-    ): Promise<TestTunnelMachine> {
+    static async #open(simulation: Simulation, region: RegionCode): Promise<TestTunnelMachine> {
         // open the universe, closed again should the enrollment fail
         await using opening = new AsyncDisposableStack();
         const universe = await TestUniverse.open({
-            residencies: RESIDENCIES,
+            regions: REGIONS,
             simulation,
         });
         opening.use(universe);
 
-        // create the example account in the residency as its owner
+        // create the example account in the region as its owner
         const owner = await universe.signIn("owner@example.test");
         const client = owner.client(accountPackage);
         const created = await client.account.create({
@@ -137,7 +134,7 @@ export class TestTunnelMachine implements AsyncDisposable {
             handle: HANDLE,
             name: "Example",
             kind: "shared",
-            residencyId: residency,
+            regionId: region,
         });
 
         // enroll the computer, and place the work space on it
@@ -174,7 +171,7 @@ export class TestTunnelMachine implements AsyncDisposable {
     /** Read the name of the computer itself. */
     async computer(): Promise<string> {
         const { name } = await this.accounts(this.machine).machine.get({
-            scope: this.accountId,
+            accountId: this.accountId,
             id: this.machine.id,
         });
 
@@ -187,30 +184,30 @@ export class TestTunnelMachine implements AsyncDisposable {
         await this.simulation.waitUntil(condition, deadline);
     }
 
-    /** Open a residency's cloud machine once, which hosts its relays and serves its spaces. */
-    async host(residency: ResidencyCode): Promise<TestMachine> {
-        const opened = this.#hosts.get(residency) ?? (await this.universe.machine(residency));
-        this.#hosts.set(residency, opened);
+    /** Open a region's managed machine once, which hosts its relays and serves its spaces. */
+    async host(region: RegionCode): Promise<TestMachine> {
+        const opened = this.#hosts.get(region) ?? (await this.universe.machine(region));
+        this.#hosts.set(region, opened);
 
         return opened;
     }
 
-    /** Start a relay installation in a residency's home, Europe by default. */
+    /** Start a relay installation in the platform's home of a region, Europe by default. */
     async relay(
         options: {
-            readonly residency?: ResidencyCode;
+            readonly region?: RegionCode;
             readonly hostname?: string;
             readonly installation?: Subject;
             readonly names?: readonly string[];
         } = {},
     ): Promise<TestRelay> {
-        // serve the relay as its residency's cloud machine hosts it, on a node of its own
-        const { residency = "eu", hostname = `${residency}.relay.test`, ...rest } = options;
+        // serve the relay as its region's managed machine hosts it, on a node of its own
+        const { region = "eu", hostname = `${region}.relay.test`, ...rest } = options;
         const relay = await TestRelay.open({
             ...rest,
             hostname,
             universe: this.universe,
-            host: await this.host(residency),
+            host: await this.host(region),
             environment: this.simulation.environment(`relay-${this.#relays}`),
         });
         this.#relays += 1;
@@ -280,7 +277,7 @@ export class TestTunnelMachine implements AsyncDisposable {
         relay: TestRelay,
         options: Partial<TunnelClientOptions> = {},
     ): Promise<TunnelClient> {
-        // record each renewal's name, unless the scenario renews itself
+        // record each renewal's name, unless the scenario renews itself, and publish the tunnel
         const {
             renewed = (renewal: Renewal) => void this.names.push(renewal.name),
             websocket = (upgrade: Request) => this.#greet(upgrade),
@@ -288,7 +285,15 @@ export class TestTunnelMachine implements AsyncDisposable {
         } = options;
         const first = Promise.withResolvers<void>();
         const renew = (renewal: Renewal) => {
-            Promise.resolve(renewed(renewal)).then(
+            // publish the tunnel as the machine, as a machine does on each renewal
+            const published = this.accounts(this.machine).machine.relay({
+                accountId: this.accountId,
+                id: this.machine.id,
+                requestId: RequestId.create(this.environment),
+                url: new URL(relay.url).origin,
+                lapsesAt: renewal.lapsesAt,
+            });
+            Promise.all([Promise.resolve(renewed(renewal)), published]).then(
                 () => first.resolve(),
                 (error: unknown) =>
                     TelemetryScope.of(
@@ -333,10 +338,10 @@ export class TestTunnelMachine implements AsyncDisposable {
         return client;
     }
 
-    /** Serve a residency's cloud machine at its declared origin, answering with a label. */
-    cloud(residency: ResidencyCode, label: string): void {
+    /** Serve a region's managed machine at its declared origin, answering with a label. */
+    managed(region: RegionCode, label: string): void {
         // listen at the origin, answering the label and the Forwarded header
-        const origin = new URL(this.universe.machineOrigin(residency));
+        const origin = new URL(this.universe.machineOrigin(region));
         const listener = this.simulation.network.server(`cloud-${label}`).http({
             hostname: origin.hostname,
             port: Number(origin.port || "443"),
@@ -345,7 +350,7 @@ export class TestTunnelMachine implements AsyncDisposable {
         this.#started.defer(() => listener.stop(true));
     }
 
-    /** Create a space of the account on the residency's cloud machine, as its owner. */
+    /** Create a space of the account on the region's managed machine, as its owner. */
     async place(name: string): Promise<Identifier<"space">> {
         const created = await this.owner.client(accountPackage).space.create({
             accountId: this.accountId,

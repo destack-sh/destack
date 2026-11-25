@@ -136,7 +136,7 @@ test("tell a machine its name as its tunnel opens, and again at once after its r
 
     // rename the machine as itself
     await computer.accounts().machine.rename({
-        scope: computer.accountId,
+        accountId: computer.accountId,
         id: computer.machine.id,
         requestId: RequestId.create(computer.environment),
         name: "renamed",
@@ -174,11 +174,11 @@ test("refuse names that lead nowhere, and a named machine that has no tunnel and
 test("refuse a forwarded request without its host, and one for a name another relay has no tunnel to", async () => {
     await using computer = await TestTunnelMachine.open();
     const relay = await computer.relay();
-    computer.cloud("eu", "cloud");
+    computer.managed("eu", "cloud");
     await computer.place("site");
     await computer.waitCaughtUp(relay);
 
-    // forward to the relay's own host with a Forwarded header lacking the host, then naming a cloud space
+    // forward to the relay's own host with a Forwarded header lacking the host, then naming a space on a managed machine
     const host = new URL(relay.origin).host;
     const site = "notes--site--example.destack.space";
     expect([
@@ -237,7 +237,7 @@ test("refuse a handshake with a person's token, of a machine left keyless, and o
         fetch: async () => new Response(null),
         synced: async () => {},
         environment: computer.environment,
-        residency: "eu",
+        region: "eu",
     });
     const offer = (token: string) =>
         WebSocketUpgrade.to(relay.url, TunnelProtocol.offer(token)).request;
@@ -260,7 +260,7 @@ test("refuse a handshake with a person's token, of a machine left keyless, and o
     }
     const keyless = await shake(machine);
     await accounts.machine.delete({
-        scope: computer.accountId,
+        accountId: computer.accountId,
         id: computer.machine.id,
         requestId: RequestId.create(computer.environment),
     });
@@ -294,10 +294,10 @@ test("publish a machine's tunnel as the relay accepting it, at the machine's nam
     ]);
 });
 
-test("refuse a machine's handshake at a relay of another residency than its account's", async () => {
+test("refuse a machine's handshake at a relay of another region than its account's", async () => {
     // offer the eu machine's token to the us relay
     await using computer = await TestTunnelMachine.open();
-    const us = await computer.relay({ residency: "us" });
+    const us = await computer.relay({ region: "us" });
     const host = await computer.host("us");
     const handshakes = new Relay({
         origin: us.origin,
@@ -307,15 +307,15 @@ test("refuse a machine's handshake at a relay of another residency than its acco
         fetch: async () => new Response(null),
         synced: async () => {},
         environment: computer.environment,
-        residency: "us",
+        region: "us",
     });
     const token = await computer.machine.token(relayPackage.id);
     const offer = WebSocketUpgrade.to(us.url, TunnelProtocol.offer(token)).request;
 
     expect(await refusal(handshakes.handshake(offer))).toEqual([
         "FORBIDDEN",
-        "RESIDENCY_DENIED",
-        `machine '${computer.machine.id}' is forbidden: it tunnels through the relay of its account's residency`,
+        "REGION_DENIED",
+        `machine '${computer.machine.id}' is forbidden: it tunnels through the relay of its account's region`,
     ]);
 });
 
@@ -331,7 +331,7 @@ test("leave a machine deleted elsewhere alone, starting no tunnel partition for 
         "https://other.test/",
     );
     await computer.owner.client(accountPackage).machine.delete({
-        scope: computer.accountId,
+        accountId: computer.accountId,
         id: other.id,
         requestId: RequestId.create(computer.environment),
     });
@@ -439,10 +439,10 @@ test("route a branch to its space's machine under the branch's name", async () =
     ]);
 });
 
-test("forward a name or an S3 origin a cloud machine serves to the machine's endpoint, preserving the host asked for", async () => {
+test("forward a name or an S3 origin a managed machine serves to the machine's endpoint, preserving the host asked for", async () => {
     await using computer = await TestTunnelMachine.open();
     const relay = await computer.relay();
-    computer.cloud("eu", "cloud");
+    computer.managed("eu", "cloud");
     const site = await computer.place("site");
     await computer.waitCaughtUp(relay);
 
@@ -454,11 +454,11 @@ test("forward a name or an S3 origin a cloud machine serves to the machine's end
     ]).toEqual([`cloud host=${name};proto=http`, `cloud host=${s3};proto=http`]);
 });
 
-test("route the name of a space whose account lives in another residency through the directory", async () => {
-    // place a space of a us account on the us cloud machine, and route its name from the eu relay
+test("route the name of a space whose account lives in another region through the directory", async () => {
+    // place a space of a us account on the us managed machine, and route its name from the eu relay
     await using computer = await TestTunnelMachine.open("us");
     const relay = await computer.relay();
-    computer.cloud("us", "us");
+    computer.managed("us", "us");
     await computer.place("site");
     await computer.waitCaughtUp(relay);
 
@@ -469,7 +469,7 @@ test("route the name of a space whose account lives in another residency through
 test("route a request from an eu relay to a space on a personal machine tunnelled to a us relay", async () => {
     // tunnel a us account's machine to the us relay, and start the eu relay
     await using computer = await TestTunnelMachine.open("us");
-    const us = await computer.relay({ residency: "us" });
+    const us = await computer.relay({ region: "us" });
     await computer.tunnel(us);
     const eu = await computer.relay();
 
@@ -480,10 +480,10 @@ test("route a request from an eu relay to a space on a personal machine tunnelle
     ]);
 });
 
-test("route a request from an eu relay to a machine's name in the us residency through the us relay, until its tunnel lapses", async () => {
+test("route a request from an eu relay to a machine's name in the us region through the us relay, until its tunnel lapses", async () => {
     // tunnel a us account's machine to the us relay, offering its first token alone, and start the eu relay
     await using computer = await TestTunnelMachine.open("us");
-    const us = await computer.relay({ residency: "us" });
+    const us = await computer.relay({ region: "us" });
     const first = await computer.machine.token(relayPackage.id, TUNNEL_TOKEN_LIFETIME_MILLISECONDS);
     await computer.tunnel(us, { token: async () => first, heartbeat: 60_000 });
     const eu = await computer.relay();
@@ -567,7 +567,7 @@ test("end a deleted machine's tunnel at once, refuse its names, and emit the ope
 
     // delete the machine as its owner, and wait for its tunnel to end
     await computer.owner.client(accountPackage).machine.delete({
-        scope: computer.accountId,
+        accountId: computer.accountId,
         id: computer.machine.id,
         requestId: RequestId.create(computer.environment),
     });
@@ -605,7 +605,7 @@ test("end a tunnel at once as its relay restarts, when its machine was deleted m
     let isRestarted = false;
     const restarting = relay.restart(async () => {
         await computer.owner.client(accountPackage).machine.delete({
-            scope: computer.accountId,
+            accountId: computer.accountId,
             id: computer.machine.id,
             requestId: RequestId.create(computer.environment),
         });
@@ -674,7 +674,7 @@ test("end a disabled machine's tunnel, and route to it again once it is enabled 
 
     // disable the machine as its owner, suspending its keys and ending its tunnel
     const accounts = computer.owner.client(accountPackage);
-    const target = { scope: computer.accountId, id: computer.machine.id };
+    const target = { accountId: computer.accountId, id: computer.machine.id };
     await accounts.machine.disable({
         ...target,
         requestId: RequestId.create(computer.environment),
@@ -734,7 +734,7 @@ test("end a machine's socket once its token lapses, and route to the machine aga
 });
 
 test("close a machine's tunnel as moved at a relay its endpoint no longer leads to", async () => {
-    // reconcile the machine as another relay of the residency, recording its calls
+    // reconcile the machine as another relay of the region, recording its calls
     await using computer = await TestTunnelMachine.open();
     const relay = await computer.relay();
     await computer.tunnel(relay);
@@ -758,7 +758,7 @@ test("close a machine's tunnel as moved at a relay its endpoint no longer leads 
         fetch: async () => new Response(null),
         synced: async () => {},
         environment: computer.environment,
-        residency: "eu",
+        region: "eu",
     });
     await elsewhere.reconcile(computer.machine.id);
 

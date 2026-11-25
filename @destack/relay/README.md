@@ -4,12 +4,12 @@ Relay HTTP requests for Destack names to the machines serving them.
 
 ## Overview
 
-`@destack/relay` is the edge of Destack's names, after Cloudflare Tunnel: name resolution, machine tunnels, and request forwarding per residency.
+`@destack/relay` is the edge of Destack's names, after Cloudflare Tunnel: name resolution, machine tunnels, and request forwarding per region.
 
-A residency's home installs it with three settings:
+The platform's home in each region installs it with three settings:
 
 - `origin`: the relay's own origin, where machines open their tunnels.
-- `residency`: the residency it serves.
+- `region`: the region it serves.
 - `universe`: the universe's address, whose issuer signs machines' tunnel tokens and whose domains its names answer below.
 
 Routing:
@@ -23,7 +23,7 @@ Tests:
 
 - `TestTunnelMachine`: a simulated machine with relays and tunnels.
 
-Install the relay in a residency's home, and route the spaces' and machines' names to it:
+Install the relay in the platform's home of a region, and route the spaces' and machines' names to it:
 
 ```ts
 import relayPackage from "@destack/relay/package";
@@ -31,7 +31,7 @@ import { defineStack } from "@destack/stack";
 import { install } from "@destack/stack/declare";
 
 // install the relay, and route both domains to it
-export const residency = defineStack({
+export const region = defineStack({
     types: [],
     installations: { relay: install(relayPackage, {}, { name: "relay" }) },
     routes: {
@@ -76,7 +76,7 @@ Each tunnel runs in its own partition, opened with a ten-minute token.
 | Verb                   | What it does                                                                 |
 | ---------------------- | ---------------------------------------------------------------------------- |
 | `fetch(request)`       | answers the tunnel's metadata, opens a machine's tunnel, or relays a request |
-| `handshake(request)`   | accepts a machine's WebSocket with a token of a standing, resident machine   |
+| `handshake(request)`   | accepts a machine's WebSocket with a token of a standing machine of the relay's region   |
 | `standing(machineId)`  | reads whether a machine stands, and its name                                 |
 | `machines(accountId)`  | lists an account's live machines                                             |
 | `tunnelled()`          | lists the machines whose endpoints lead to tunnels here                      |
@@ -113,7 +113,7 @@ Machines open outbound tunnels, as `cloudflared` does to Cloudflare's edge.
 
 | Cloudflare Tunnel       | `@destack/relay`                    | Difference                                                                      |
 | ----------------------- | ----------------------------------- | ------------------------------------------------------------------------------- |
-| Cloudflare's edge       | one `Relay` per residency           | Requests for a residency's accounts stay in the residency.                      |
+| Cloudflare's edge       | one `Relay` per region           | Requests for a region's accounts stay in the region.                      |
 | a tunnel token          | the machine's universe token        | Only an account's standing machines serve its names, renewed every ten minutes. |
 | public hostnames in DNS | names from the universe's directory | A space's name follows its placement to whichever machine serves it.            |
-| none                    | published endpoints                 | A cloud machine gets its requests directly, without a tunnel.                   |
+| none                    | published endpoints                 | A managed machine gets its requests directly, without a tunnel.                   |

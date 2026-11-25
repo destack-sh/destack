@@ -1,5 +1,5 @@
 import { UniverseOrigin } from "@destack/account/address";
-import { ResidencyCode } from "@destack/account/object";
+import { RegionCode } from "@destack/account/object";
 import { schema } from "@destack/schema";
 import { defineSetting } from "@destack/setting/declare";
 import { t } from "@destack/locale";
@@ -16,12 +16,12 @@ export const origin = defineSetting({
     required: true,
 });
 
-/** The residency a relay installation serves, whose accounts' machines alone tunnel to it. */
-export const residency = defineSetting({
-    name: "residency",
-    title: t`Residency`,
-    description: t`The residency whose accounts' machines open their tunnels at this relay.`,
-    schema: ResidencyCode,
+/** The region a relay installation serves, whose accounts' machines alone tunnel to it. */
+export const region = defineSetting({
+    name: "region",
+    title: t`Region`,
+    description: t`The region whose accounts' machines open their tunnels at this relay.`,
+    schema: RegionCode,
     scope: "space",
     overrides: ["installation"],
     apply: "restart",

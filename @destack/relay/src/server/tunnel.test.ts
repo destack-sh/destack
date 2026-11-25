@@ -25,9 +25,6 @@ const otherId = schema.identifier("machine").parse("machine-01996ab0-0000-7000-8
 /** The name the relay routes to the machine. */
 const NAME = "laptop--example.destack.computer";
 
-/** The account the machine is enrolled in. */
-const ACCOUNT = schema.identifier("account").parse("account-01996ab0-0000-7000-8000-0000000000d3");
-
 /** The relay's tunnel URL the machine dials. */
 const TUNNEL_URL = "https://relay.destack.space/tunnel";
 
@@ -81,10 +78,9 @@ function openTunnel() {
 
     // stand the machine with its key
     const standing: Standing = {
-        standing: async () => ({ name: NAME, account: ACCOUNT }),
+        standing: async () => ({ name: NAME }),
         keys: new Set([KID]),
     };
-    const published: [string, number][] = [];
     const options = {
         hibernation: {
             list: async () => [...attachments.keys()].map(socket),
@@ -105,9 +101,6 @@ function openTunnel() {
         tokens: testTokens(standing),
         synced: async () => {},
         standing: () => standing.standing(),
-        publish: async (account: string, lapsesAt: number) => {
-            published.push([account, lapsesAt]);
-        },
         environment: {
             clock: simulation.clock,
             random: simulation.random,
@@ -118,7 +111,7 @@ function openTunnel() {
 
     // accept a machine's socket, without its host delivering any event yet
     const accept = (lapsesAt: number): string => {
-        running.accept({ machineId, lapsesAt, kid: KID, name: NAME, account: ACCOUNT });
+        running.accept({ machineId, lapsesAt, kid: KID, name: NAME });
 
         return schema.string().parse([...attachments.keys()].at(-1));
     };
@@ -170,7 +163,6 @@ function openTunnel() {
         attachments,
         simulation,
         standing,
-        published,
         telemetry: TestTelemetry.of(simulation.telemetry),
     };
 }
@@ -291,14 +283,13 @@ test("run an accepted socket only once its host delivers its first event, and fo
     ]);
 });
 
-test("renew a socket's token through a stream the machine opens, answering its name and lapse and publishing the tunnel, and refuse other paths, other machines and lapsed tokens", async () => {
+test("renew a socket's token through a stream the machine opens, answering its name and lapse, and refuse other paths, other machines and lapsed tokens", async () => {
     const {
         tunnel: running,
         connect,
         machines,
         attachments,
         simulation,
-        published,
         telemetry: recorded,
     } = openTunnel();
     using telemetry = recorded;
@@ -321,7 +312,6 @@ test("renew a socket's token through a stream the machine opens, answering its n
         afterRefusal,
         await forward(running, "/a"),
         telemetry.records(),
-        published,
     ]).toEqual([
         [200, { name: NAME, lapsesAt: TEST_START + 5000 }],
         [
@@ -348,11 +338,6 @@ test("renew a socket's token through a stream the machine opens, answering its n
             "the machine is unavailable: it is disconnected",
         ],
         [event("destack.tunnel.opened"), event("destack.tunnel.closed", "lapsed")],
-        // publish the tunnel once it opened and once it renewed, never at a refused renewal
-        [
-            [ACCOUNT, TEST_START + 1000],
-            [ACCOUNT, TEST_START + 5000],
-        ],
     ]);
 });
 
@@ -370,7 +355,7 @@ test("refuse a renewal of a machine left keyless or missing from the directory m
 
     // renew each over a socket of its own once the machine no longer stands for a reason
     const renew = async (reason: "key-revoked" | "machine-unknown") => {
-        standing.standing = async () => ({ name: NAME, account: ACCOUNT });
+        standing.standing = async () => ({ name: NAME });
         const opened = await connect("host", simulation.clock.now() + 60_000);
         const machine = schema.instanceof(Session).parse(machines.get(opened.id));
         standing.standing = async () => ({ reason });
@@ -486,7 +471,7 @@ test("verify woken sockets once their standing reads, again after a failed read,
     const failed = await woken
         .fetch(new Request("https://notes--personal--example.destack.space/a"))
         .catch((error: unknown) => error);
-    standing.standing = async () => ({ name: NAME, account: ACCOUNT });
+    standing.standing = async () => ({ name: NAME });
     standing.keys.clear();
 
     // retry the read without poisoning the instance, then close the socket of the revoked key

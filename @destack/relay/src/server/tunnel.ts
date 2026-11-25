@@ -8,7 +8,7 @@ import { Bearer } from "@destack/access/token";
 import { refusal } from "@destack/object";
 import type { Hibernation, Socket, SocketHandler } from "@destack/object/workload";
 import type {} from "@destack/package/import-meta";
-import { Identifier, present, schema, Uuid } from "@destack/schema";
+import { Identifier, schema, Uuid } from "@destack/schema";
 import { TelemetryScope } from "@destack/telemetry";
 import { RelayError } from "../error/index.ts";
 import relayPackage from "../package.ts";
@@ -59,8 +59,6 @@ export const Handshake = schema.object({
     lapsesAt: schema.number(),
     /** The name the relay routes to the machine, such as `laptop--florian.destack.computer`. */
     name: schema.string().min(1),
-    /** The account the machine is enrolled in, which its endpoint lives in. */
-    account: schema.identifier("account"),
     /** The universe key that signed the machine's token. */
     kid: schema.string().min(1),
 });
@@ -109,8 +107,6 @@ export const TunnelStanding = schema.union([
     schema.object({
         /** The name the relay routes to the standing machine. */
         name: schema.string().min(1),
-        /** The account the machine is enrolled in, which its endpoint lives in. */
-        account: schema.identifier("account"),
     }),
     schema.object({
         /** Why the tunnel of a machine that no longer stands ends. */
@@ -148,12 +144,10 @@ export interface TunnelOptions {
     readonly url: string;
     /** The universe's tunnel tokens and keys, which machines renew their tunnels with. */
     readonly tokens: Pick<TunnelToken, "verify" | "isStanding">;
-    /** Wait until the replicas verifying the tokens, identities and residencies, synced. */
+    /** Wait until the replicas verifying the tokens, identities and regions, synced. */
     readonly synced: () => Promise<void>;
     /** Read from the relay's root whether the machine stands, and its name. */
     readonly standing: () => Promise<TunnelStanding>;
-    /** Publish the machine's tunnel here at the universe, lapsing with its token. */
-    readonly publish: (account: Identifier<"account">, lapsesAt: number) => Promise<void>;
     /** The clock, randomness and telemetry the tunnel's lapses, socket ids and records run on. */
     readonly environment: Pick<Environment, "clock" | "random" | "telemetry">;
 }
@@ -176,8 +170,6 @@ export class Tunnel implements SocketHandler {
     #listing: Promise<void> | undefined;
     /** The name the root last told the tunnel, absent since the instance started. */
     #name: string | undefined;
-    /** The account the machine is enrolled in, as its opening or its last renewal read it. */
-    #account: Identifier<"account"> | undefined;
 
     /** Run a machine's tunnel in its partition. */
     constructor(machineId: Identifier<"machine">, options: TunnelOptions) {
@@ -211,7 +203,6 @@ export class Tunnel implements SocketHandler {
             kid: handshake.kid,
         };
         this.#name = handshake.name;
-        this.#account = handshake.account;
         this.#accepted.set(id, attachment);
 
         return this.#options.hibernation.accept({
@@ -429,13 +420,12 @@ export class Tunnel implements SocketHandler {
             return running;
         }
 
-        // run the socket the host connected, publishing the tunnel
+        // run the socket the host connected
         this.#accepted.delete(socket.id);
         const added = this.#attach(socket, accepted, true);
         this.#instruments.log.info("destack.tunnel.opened", {
             "destack.machine.id": this.machineId,
         });
-        this.#publish(accepted.lapsesAt);
 
         return added;
     }
@@ -621,7 +611,6 @@ export class Tunnel implements SocketHandler {
             const attachment = await this.#verifyRenewal(request);
             const name = await this.#requireName();
             this.#relapse(renewing, attachment);
-            this.#publish(attachment.lapsesAt);
             response = Response.json({ name, lapsesAt: attachment.lapsesAt } satisfies Renewal);
         }
         // leave a renewal whose session closed meanwhile, else refuse it
@@ -655,18 +644,7 @@ export class Tunnel implements SocketHandler {
             throw RelayError.of(reason, `machine ${this.machineId} ${refused}`);
         }
 
-        // keep the machine's account, which its endpoint lives in
-        this.#account = standing.account;
-
         return standing.name;
-    }
-
-    /** Publish the machine's tunnel at the universe in the background, reporting a failure. */
-    #publish(lapsesAt: number): void {
-        const account = present(this.#account, `the account of machine ${this.machineId}`);
-        this.#options.publish(account, lapsesAt).catch((error: unknown) => {
-            this.#instruments.captureException(error);
-        });
     }
 
     /** Verify the machine's own renewed token in a request's bearer header. */

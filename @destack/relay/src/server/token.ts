@@ -1,6 +1,6 @@
 import { CONTAINED, principal } from "@destack/access";
 import { TokenVerifier } from "@destack/access/token";
-import { Identity, residency, type ResidencyCode } from "@destack/account/object";
+import { Identity, region, type RegionCode } from "@destack/account/object";
 import type { Snapshot } from "@destack/db/database";
 import type { Environment } from "@destack/environment";
 import { Jws } from "@destack/identity";
@@ -10,26 +10,26 @@ import { RelayError } from "../error/index.ts";
 import relayPackage from "../package.ts";
 import type { TunnelAttachment } from "./tunnel.ts";
 
-/** The universe's tunnel tokens, which a residency's machines open and renew their tunnels with. */
+/** The universe's tunnel tokens, which a region's machines open and renew their tunnels with. */
 export class TunnelToken {
     /** Verify the universe's tokens for the relay against the replicated keys. */
     readonly #verifier: TokenVerifier;
-    /** The residency whose accounts' machines tunnel to the relay. */
-    readonly #residency: ResidencyCode;
-    /** The replica of the universe's identities and residencies, whose keys sign the tokens. */
+    /** The region whose accounts' machines tunnel to the relay. */
+    readonly #region: RegionCode;
+    /** The replica of the universe's identities and regions, whose keys sign the tokens. */
     readonly #replica: Pick<Snapshot, "read">;
     /** The WebCrypto reading the universe's keys. */
     readonly #crypto: Environment["crypto"];
 
-    /** Verify the universe's tokens for a residency's relay by the replicated keys. */
+    /** Verify the universe's tokens for a region's relay by the replicated keys. */
     constructor(
         issuer: string,
-        code: ResidencyCode,
+        code: RegionCode,
         replica: Pick<Snapshot, "read">,
         environment: Pick<Environment, "clock" | "crypto" | "network" | "telemetry">,
     ) {
-        // take the residency, the replica and the WebCrypto
-        this.#residency = code;
+        // take the region, the replica and the WebCrypto
+        this.#region = code;
         this.#replica = replica;
         this.#crypto = environment.crypto;
 
@@ -56,19 +56,19 @@ export class TunnelToken {
             );
         }
 
-        // require the machine inside an account of the relay's residency, as the universe vouches
-        const resident = await this.#replica
-            .read(residency.table)
-            .findFirst({ where: { code: this.#residency } });
-        const contained = present(resident, `the residency '${this.#residency}'`);
+        // require the machine inside an account of the relay's region, as the universe vouches
+        const served = await this.#replica
+            .read(region.table)
+            .findFirst({ where: { code: this.#region } });
+        const contained = present(served, `the region '${this.#region}'`);
         const set = {
-            ...residency.reference(Scope.universe.id, contained.id),
+            ...region.reference(Scope.universe.id, contained.id),
             relation: CONTAINED,
         };
         if (!caller.groups.some((group) => Subject.key(group) === Subject.key(set))) {
             throw RelayError.of(
-                "RESIDENCY_DENIED",
-                `machine '${subject.id}' is forbidden: it tunnels through the relay of its account's residency`,
+                "REGION_DENIED",
+                `machine '${subject.id}' is forbidden: it tunnels through the relay of its account's region`,
             );
         }
 

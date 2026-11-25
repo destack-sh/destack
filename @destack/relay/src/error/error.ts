@@ -23,7 +23,7 @@ export const RelayError = defineErrorFamily({
 
         // denied
         MACHINE_DENIED: {},
-        RESIDENCY_DENIED: {},
+        REGION_DENIED: {},
         TUNNEL_DENIED: {},
 
         // moved

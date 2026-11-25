@@ -1,7 +1,7 @@
 import { ReplicaSet, Scope, type Subject } from "@destack/sync";
 import { Caller } from "@destack/access";
 import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
-import { machine, Residency } from "@destack/account/object";
+import { Account, machine, Region } from "@destack/account/object";
 import accountPackage from "@destack/account/package";
 import type { DatabaseConnection } from "@destack/db/database";
 import { connectBunSqlite } from "@destack/db/bun";
@@ -30,7 +30,7 @@ import type { TestMachine, TestUniverse } from "@destack/universe/test";
 import relayPackage from "../package.ts";
 import { origin, relayWorkload, TUNNELS_PATH } from "../server/index.ts";
 import * as setting from "../declare/setting.ts";
-import { residency } from "../declare/setting.ts";
+import { region } from "../declare/setting.ts";
 
 /** The port HTTPS names reach the relay at. */
 const HTTPS_PORT = 443;
@@ -38,7 +38,7 @@ const HTTPS_PORT = 443;
 /** The status of a call to an address the front door does not serve (RFC 9110 15.5.5). */
 const NOT_FOUND = 404;
 
-/** The name the relay installation has in its residency's home. */
+/** The name the relay installation has in the platform's home. */
 const NAME = "relay";
 
 /** One started instance of the relay's workload: the root, or a machine's partition. */
@@ -53,13 +53,13 @@ interface Instance {
 export interface TestRelayOptions {
     /** The universe whose names the relay routes. */
     readonly universe: TestUniverse;
-    /** The residency's cloud machine hosting the relay in the residency's home. */
+    /** The region's managed machine hosting the relay in the platform's home. */
     readonly host: TestMachine;
     /** The clock and server of the relay's node. */
     readonly environment: Environment<"server">;
     /** The host name the relay answers at, where machines open their tunnels. */
     readonly hostname: string;
-    /** The relay installation it serves as, a new one in the residency's home by default. */
+    /** The relay installation it serves as, a new one in the platform's home by default. */
     readonly installation?: Subject;
     /** The names DNS sends to the relay over HTTPS, such as `*.destack.computer`, or none. */
     readonly names?: readonly string[];
@@ -67,7 +67,7 @@ export interface TestRelayOptions {
 
 /** A relay installation's workload run in process behind its machine's front door. */
 export class TestRelay implements AsyncDisposable {
-    /** The relay installation in the residency's home space. */
+    /** The relay installation in the platform's home. */
     readonly installation: Subject;
     /** The origin the relay answers at. */
     readonly origin: string;
@@ -118,20 +118,17 @@ export class TestRelay implements AsyncDisposable {
         this.#accounts = running.accounts;
     }
 
-    /** Run a relay installation in its host's residency home, its universe rows from the host. */
+    /** Run a relay installation in its host's platform home, its universe rows from the host. */
     static async open(options: TestRelayOptions): Promise<TestRelay> {
-        // take the installation in the home of the host's residency
+        // take the installation in the home of the host machine's account
         const { universe, host, environment, hostname } = options;
         const directory = universe.storage.database.snapshot();
         const hosted = present(
             await directory.read(machine.table).findFirst({ where: { id: host.id } }),
             `the machine ${host.id}`,
         );
-        const { code } = await Residency.require(
-            directory,
-            present(hosted.residencyId, "a residency"),
-        );
-        const home = await Residency.space(directory, code);
+        const { code } = await Region.require(directory, present(hosted.regionId, "a region"));
+        const home = Account.home(hosted.scope);
         const installation = options.installation ?? (await universe.relay(code));
         const relayOrigin = `http://${hostname}`;
         const egress = `http://host.${hostname}${Egress.path}`;
@@ -198,7 +195,7 @@ export class TestRelay implements AsyncDisposable {
         const settings = {
             [DeclarationReference.key(origin.reference)]: relayOrigin,
             [DeclarationReference.key(setting.universe.reference)]: host.universe.toJSON(),
-            [DeclarationReference.key(residency.reference)]: code,
+            [DeclarationReference.key(region.reference)]: code,
         };
         const start = (partition: string | undefined): Promise<Instance> => {
             // take a started instance

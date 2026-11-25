@@ -6,18 +6,10 @@ import { copyRequest } from "@destack/environment";
 import { type DatabaseSchema, Relations, TABLE } from "@destack/db";
 import { MemoryBlobStorage } from "@destack/resource";
 import { UniverseOrigin } from "@destack/account/address";
-import {
-    directoryShape,
-    identityShape,
-    machine,
-    type ResidencyCode,
-    residencyShape,
-    residentsShape,
-} from "@destack/account/object";
+import { directoryShape, identityShape, regionShape } from "@destack/account/object";
 import { Egress, type Follow, PackageMount, tablesOf, VERSION_HEADER } from "@destack/object";
 import objectPackage from "@destack/object/package";
 import { implementPackage, ObjectStore } from "@destack/object/server";
-import { ObjectRemote } from "@destack/object/client";
 import {
     defineWorkload,
     ClientHead,
@@ -27,8 +19,8 @@ import {
 } from "@destack/object/workload";
 import { Failure } from "@destack/error";
 import { present, schema } from "@destack/schema";
-import { RequestId, Scope } from "@destack/sync";
-import { origin, residency, universe } from "../declare/setting.ts";
+import { Scope } from "@destack/sync";
+import { origin, region, universe } from "../declare/setting.ts";
 import { RelayError } from "../error/index.ts";
 import relayPackage from "../package.ts";
 import { Relay } from "./relay.ts";
@@ -48,18 +40,13 @@ const IDENTITY_FOLLOW = identityShape.at({ key: { scope: Scope.universe.id } });
 /** The universe's directory, which names resolve through. */
 const DIRECTORY_FOLLOW = directoryShape.at({ key: { scope: Scope.universe.id } });
 
-/** The universe's residencies, whose containment sets the machines' tunnel tokens carry. */
-const RESIDENCY_FOLLOW = residencyShape.at({ key: { scope: Scope.universe.id } });
-
-/** Follow the accounts of the residency a relay serves, whose handles name their machines. */
-function residentsFollow(code: ResidencyCode) {
-    return residentsShape.at({ key: { scope: Scope.universe.id, residency: code } });
-}
+/** The universe's regions, whose containment sets the machines' tunnel tokens carry. */
+const REGION_FOLLOW = regionShape.at({ key: { scope: Scope.universe.id } });
 
 /** The tables of a relay's memory replica: its own and the followed ones. */
 const REPLICA_TABLES = tablesOf({
     packages: [objectPackage],
-    follows: [DIRECTORY_FOLLOW, IDENTITY_FOLLOW, RESIDENCY_FOLLOW, residentsShape.at()],
+    follows: [DIRECTORY_FOLLOW, IDENTITY_FOLLOW, REGION_FOLLOW],
     tables: [],
 });
 
@@ -104,10 +91,9 @@ async function serveRoot(
     };
 
     // follow the directory and the identities into memory
-    const code = residency.read(server.settings);
+    const code = region.read(server.settings);
     const address = UniverseOrigin.of(universe.read(server.settings));
-    const residents = residentsFollow(code);
-    const follows = [DIRECTORY_FOLLOW, IDENTITY_FOLLOW, RESIDENCY_FOLLOW, residents];
+    const follows = [DIRECTORY_FOLLOW, IDENTITY_FOLLOW, REGION_FOLLOW];
     const names = (request: Request) =>
         relay.fetch(copyRequest(restore(request), { signal: request.signal }));
     const store = await openReplica(context, server, follows, answer, names);
@@ -118,18 +104,14 @@ async function serveRoot(
         view: store.database.snapshot(),
         fetch: (request) => server.fetch(request),
         environment: context.environment,
-        residency: code,
+        region: code,
         synced: async () => {
-            // wait until the directory's, the identities', the residencies' and the residents' replicas synced
+            // wait until the directory's, the identities' and the regions' replicas synced
             const isSynced = async () => {
                 const synced = await Promise.all([
                     DIRECTORY_FOLLOW.shape.isSynced(store.database, { scope: Scope.universe.id }),
                     IDENTITY_FOLLOW.shape.isSynced(store.database, { scope: Scope.universe.id }),
-                    RESIDENCY_FOLLOW.shape.isSynced(store.database, { scope: Scope.universe.id }),
-                    residents.shape.isSynced(store.database, {
-                        scope: Scope.universe.id,
-                        residency: code,
-                    }),
+                    REGION_FOLLOW.shape.isSynced(store.database, { scope: Scope.universe.id }),
                 ]);
 
                 return synced.every(Boolean);
@@ -153,8 +135,8 @@ async function servePartition(
     // answer the root's calls to the tunnel
     const answer = (request: Request) => tunnelCall(request, running);
 
-    // follow the identities and the residencies into memory, verifying the renewals by them
-    const follows = [IDENTITY_FOLLOW, RESIDENCY_FOLLOW];
+    // follow the identities and the regions into memory, verifying the renewals by them
+    const follows = [IDENTITY_FOLLOW, REGION_FOLLOW];
     const store = await openReplica(context, server, follows, answer, refuseNames);
     const root = itselfOf(server);
     const running: Tunnel = new Tunnel(Tunnel.machine(partition), {
@@ -162,12 +144,12 @@ async function servePartition(
         url: new URL(TUNNEL_PATH, origin.read(server.settings)).href,
         tokens: new TunnelToken(
             UniverseOrigin.of(universe.read(server.settings)).issuer,
-            residency.read(server.settings),
+            region.read(server.settings),
             store.database.snapshot(),
             context.environment,
         ),
         synced: async () => {
-            // wait until the replicas of the universe's identities and residencies synced
+            // wait until the replicas of the universe's identities and regions synced
             const isSynced = async () => {
                 const synced = await Promise.all(
                     follows.map((follow) =>
@@ -191,18 +173,6 @@ async function servePartition(
             }
 
             return TunnelStanding.parse(await response.json());
-        },
-        publish: async (account, lapsesAt) => {
-            // publish the tunnel at the universe as the relay installation, at the relay's origin
-            const relayed = machine.call("relay", {
-                ...machine.target({ scope: account, id: Tunnel.machine(partition) }),
-                url: new URL(origin.read(server.settings)).origin,
-                lapsesAt,
-            });
-            await ObjectRemote.mutate(server.remote, account, {
-                id: RequestId.create(context.environment),
-                calls: [relayed],
-            });
         },
         environment: context.environment,
     });

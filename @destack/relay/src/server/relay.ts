@@ -19,14 +19,14 @@ import {
     key,
     machine,
     Placement,
-    type ResidencyCode,
+    type RegionCode,
     space,
 } from "@destack/account/object";
 import type { Projection, Snapshot } from "@destack/db/database";
 import { type Clock, type Environment, Forwarded, WebSocketUpgrade } from "@destack/environment";
 import { Failure } from "@destack/error";
 import { type Identifier, schema } from "@destack/schema";
-import { type Fetch, PackageMount, refusal } from "@destack/object";
+import { Claim, claimTable, type Fetch, PackageMount, refusal } from "@destack/object";
 import { CLIENT_HEAD_HEADER, ClientHead, PARTITION_HEADER } from "@destack/object/workload";
 import { RelayError } from "../error/index.ts";
 import { PackageId } from "@destack/package";
@@ -51,16 +51,16 @@ export interface RelayOptions {
     readonly universe: UniverseOrigin;
     /** The relay installation itself, which calls each machine's tunnel in its partition. */
     readonly itself: { readonly url: string; readonly fetch: Fetch };
-    /** The replica of the universe's directory, identities and the relay's residency's accounts. */
+    /** The replica of the universe's directory, identities and regions. */
     readonly view: Snapshot;
-    /** Call cloud machines at their published endpoints. */
+    /** Call managed machines at their published endpoints. */
     readonly fetch: Fetch;
     /** The clock tokens and endpoints lapse on, and the WebCrypto verifying the tokens. */
     readonly environment: Pick<Environment, "clock" | "crypto" | "network" | "telemetry">;
-    /** Wait until the replicas of the directory, the identities and the residencies synced. */
+    /** Wait until the replicas of the directory, the identities and the regions synced. */
     readonly synced: () => Promise<void>;
-    /** The residency whose accounts' machines tunnel to the relay. */
-    readonly residency: ResidencyCode;
+    /** The region whose accounts' machines tunnel to the relay. */
+    readonly region: RegionCode;
 }
 
 /** Where the relay forwards a name's requests: a machine's tunnel, or a published endpoint. */
@@ -93,7 +93,7 @@ export class Relay {
     /** The relay's own origin. */
     readonly #origin: URL;
 
-    /** Call cloud machines. */
+    /** Call managed machines. */
     readonly #fetch: Fetch;
 
     /** The telemetry the relay's refused requests are captured on. */
@@ -108,10 +108,10 @@ export class Relay {
         this.#clock = options.environment.clock;
         this.#telemetry = options.environment.telemetry;
 
-        // set the token verifier and the calls to tunnels and cloud machines
+        // set the token verifier and the calls to tunnels and managed machines
         this.#tokens = new TunnelToken(
             options.universe.issuer,
-            options.residency,
+            options.region,
             this.#view,
             options.environment,
         );
@@ -172,7 +172,7 @@ export class Relay {
             );
         }
 
-        // verify the token for the relay's residency by the universe's keys once their replica synced
+        // verify the token for the relay's region by the universe's keys once their replica synced
         await this.#synced();
         const { machineId, lapsesAt, kid } = await this.#tokens.verify(token, this.#clock.now());
 
@@ -183,7 +183,7 @@ export class Relay {
             throw RelayError.of(reason, `machine ${machineId} ${refused}`);
         }
 
-        return { machineId, lapsesAt, kid, name: standing.name, account: standing.account };
+        return { machineId, lapsesAt, kid, name: standing.name };
     }
 
     /** Report whether an endpoint leads to a tunnel at this relay. */
@@ -202,7 +202,7 @@ export class Relay {
             return { reason: "key-revoked" };
         }
 
-        return { name: replicated.name, account: replicated.account };
+        return { name: replicated.name };
     }
 
     /** Bring a machine's tunnel here in line with its replica: its name, or its close. */
@@ -251,15 +251,16 @@ export class Relay {
                     where: { parentType: machine.name },
                     on: { parentId: "parentId" },
                 },
-                // take the machines of an account whose handle changed
+                // take the machines of an account whose handle claim changed
                 {
-                    table: account.table,
-                    fields: ["handle"],
+                    table: claimTable,
+                    fields: ["state"],
+                    where: { index: Claim.index(account, "handle") },
                     path: [
                         {
                             table: machine.table,
                             cardinality: "many",
-                            on: { kind: "key", column: "scope", parent: "id" },
+                            on: { kind: "key", column: "scope", parent: "objectId" },
                         },
                     ],
                     on: { parentId: "id" },
@@ -438,7 +439,7 @@ export class Relay {
         return this.#destination(placed.machine);
     }
 
-    /** Find a standing machine of any residency by its name within its account. */
+    /** Find a standing machine of any region by its name within its account. */
     async #locateMachine(name: string, handle: string, machineName: string): Promise<Destination> {
         // find the account by its handle, and its live machine by name
         const accountId = await this.#directory.account(handle);
