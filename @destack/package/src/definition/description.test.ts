@@ -24,11 +24,17 @@ test("list a package's runtime dependencies and peers, and decide which it runs 
     });
 });
 
-test("release a package file's workspace ranges from linked versions on, the dev tag for unreleased code and the default tag where none links", () => {
+test("release workspace ranges in each dependency field", () => {
     const authored = {
         name: "@example/notes",
         dependencies: { "@destack/object": "workspace:*", zod: "4.1.0" },
-        peerDependencies: { "@destack/view": "workspace:^" },
+        peerDependencies: {
+            "@destack/view": "workspace:^",
+            "@destack/style": "workspace:*",
+            "@destack/object": "workspace:*",
+        },
+        peerDependenciesMeta: { "@destack/style": { optional: true } },
+        optionalDependencies: { "@destack/sync": "workspace:*" },
         devDependencies: { "@destack/test": "workspace:*" },
     };
     expect(
@@ -36,7 +42,13 @@ test("release a package file's workspace ranges from linked versions on, the dev
     ).toEqual({
         name: "@example/notes",
         dependencies: { "@destack/object": ">=2026.11.2", zod: "4.1.0" },
-        peerDependencies: { "@destack/view": "dev" },
+        peerDependencies: {
+            "@destack/view": "*",
+            "@destack/style": "*",
+            "@destack/object": ">=2026.11.2",
+        },
+        peerDependenciesMeta: { "@destack/style": { optional: true } },
+        optionalDependencies: { "@destack/sync": "latest" },
         devDependencies: { "@destack/test": "latest" },
     });
 });
