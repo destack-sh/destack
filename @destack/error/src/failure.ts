@@ -58,12 +58,17 @@ const MAX_CAUSES = 8;
 export const Failure = Object.assign(failureSchema, {
     /** List a thrown error and the errors that caused it, nearest first. */
     causes(error: unknown): Error[] {
-        // follow the causes up to the bound
+        // follow the causes up to the bound, a suppression's original and then its later failure
         const causes: Error[] = [];
-        let each = error;
-        while (each instanceof Error && causes.length <= MAX_CAUSES) {
-            causes.push(each);
-            each = each.cause;
+        const pending: unknown[] = [error];
+        while (pending.length > 0 && causes.length <= MAX_CAUSES) {
+            const each = pending.shift();
+            if (each instanceof Error) {
+                causes.push(each);
+                const next: unknown[] =
+                    each instanceof SuppressedError ? [each.suppressed, each.error] : [each.cause];
+                pending.unshift(...next);
+            }
         }
 
         return causes;
@@ -71,8 +76,12 @@ export const Failure = Object.assign(failureSchema, {
 
     /** Read the failure a thrown value declares, absent for an undeclared one. */
     declared(error: unknown): Failure | undefined {
+        // read a failure another suppressed as the original's, whose callers never read the later one
+        if (error instanceof SuppressedError) {
+            return Failure.declared(error.suppressed);
+        }
         // read a domain error as the call error it converts to
-        if (DomainError.is(error)) {
+        else if (DomainError.is(error)) {
             return error.toCallError();
         }
         // read a call error by its code, reason and details
@@ -119,9 +128,7 @@ export const Failure = Object.assign(failureSchema, {
     /** Describe a thrown value as the failure its caller receives. */
     of(error: unknown): Failure {
         // read an undeclared value as an internal failure with its message
-        const message = error instanceof Error ? error.message : String(error);
-
-        return Failure.declared(error) ?? Failure.http("INTERNAL_SERVER_ERROR", message);
+        return Failure.declared(error) ?? Failure.http("INTERNAL_SERVER_ERROR", messageOf(error));
     },
 
     /** Report whether a thrown value declares a failure other than an internal one. */
@@ -210,3 +217,15 @@ export const Failure = Object.assign(failureSchema, {
             : { ...failure, reason, domain };
     },
 });
+
+/** Read a thrown value's message, a suppression's as its original's naming the later failure. */
+function messageOf(error: unknown): string {
+    // name the original, then the failure that suppressed it
+    if (error instanceof SuppressedError) {
+        return `${messageOf(error.suppressed)}, then '${messageOf(error.error)}'`;
+    }
+    // read an error's own message, and any other value as text
+    else {
+        return error instanceof Error ? error.message : String(error);
+    }
+}
