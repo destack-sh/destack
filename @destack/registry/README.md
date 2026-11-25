@@ -4,7 +4,7 @@ Publish and resolve packages, releases and tags, and push builds and Git, throug
 
 ## Overview
 
-`@destack/registry` is the npm registry's model as a protocol: object types and mounts that any package can implement, such as the forge in each residency's home.
+`@destack/registry` is the npm registry's model as a protocol: object types and mounts that any package can implement, such as the forge in every account's home.
 
 The registry protocol has object types:
 
@@ -13,7 +13,7 @@ The registry protocol has object types:
 - `release`: one published version of a package, by its image.
 - `tag`: a name such as `latest`, pointing at a version.
 
-Callers call the registry's objects with its object client, in the residency home of the account that claims the package or repository:
+Callers call the registry's objects with its object client, in the home of the account that claims the package or repository:
 
 ```ts
 import type { Directory } from "@destack/account/client";
@@ -33,7 +33,7 @@ export async function resolveImage(
     packageId: PackageId,
     release: string,
 ) {
-    // find the publisher's residency home, and call its registry
+    // find the publisher's home, and call its registry
     const account = await directory.owner(packageObject, packageId);
     if (account === undefined) {
         throw new Error(`publisher of '${packageId}' not found`);
@@ -137,7 +137,7 @@ Packages, versions and dist-tags follow the npm registry.
 | npm registry          | `@destack/registry`    | Difference                                                   |
 | --------------------- | ---------------------- | ------------------------------------------------------------ |
 | a tarball per version | a release by its image | Builds and images are pushed as an OCI client pushes images. |
-| one registry          | each publisher's       | Any package can implement it, in the publisher's residency.  |
+| one registry          | each publisher's       | Any package can implement it, in the publisher's home.    |
 | dist-tags             | `tag`                  | The same.                                                    |
 | `npm deprecate`       | `release.deprecate`    | Deprecated releases still resolve, with a message.           |
 | `npm install`         | the `npm` mount        | Read-only: a listing and each release's source tarball.      |

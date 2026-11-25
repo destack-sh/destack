@@ -12,19 +12,13 @@ import { recoverable } from "@destack/object";
 import { argument, plural, t } from "@destack/locale";
 
 /** Where a repository's authoritative history lives. */
-const HOSTINGS = ["platform", "github", "git", "machine"] as const;
+const HOSTINGS = ["platform", "git", "machine"] as const;
 
 /** The ways the platform authenticates to a Git remote. */
 const AUTHENTICATIONS = ["anonymous", "credential"] as const;
 
 /** The fields of a repository's origin, as callers write them. */
-export const ORIGIN_FIELDS = [
-    "hosting",
-    "machineId",
-    "remote",
-    "authentication",
-    "connectionId",
-] as const;
+export const ORIGIN_FIELDS = ["hosting", "machineId", "remote", "authentication"] as const;
 
 /** The origin fields of a call or a repository, before they are read as an origin. */
 type OriginFields = { readonly [Name in (typeof ORIGIN_FIELDS)[number]]?: unknown };
@@ -33,11 +27,6 @@ type OriginFields = { readonly [Name in (typeof ORIGIN_FIELDS)[number]]?: unknow
 const repositoryOrigin = schema.union([
     schema.object({ hosting: schema.literal("platform") }),
     schema.object({ hosting: schema.literal("machine"), machineId: schema.identifier("machine") }),
-    schema.object({
-        hosting: schema.literal("github"),
-        remote: schema.url(),
-        connectionId: schema.identifier("connection"),
-    }),
     schema.object({
         hosting: schema.literal("git"),
         remote: schema.url(),
@@ -66,7 +55,7 @@ export const RepositoryOrigin = Object.assign(repositoryOrigin, {
         if (!parsed.success) {
             throw RegistryError.of(
                 "ORIGIN_INVALID",
-                "repository origin is invalid: it must be a platform, github, git or machine origin",
+                "repository origin is invalid: it must be a platform, git or machine origin",
             );
         }
 
@@ -79,39 +68,33 @@ const MOVABLE_ORIGIN_FIELDS = ORIGIN_FIELDS.filter(
     (name): name is Exclude<(typeof ORIGIN_FIELDS)[number], "machineId"> => name !== "machineId",
 );
 
-/** The columns of a repository's origin, and its identity in storage or at GitHub. */
+/** The columns of a repository's origin. */
 const originColumns = schema.object({
     /** Where the repository is hosted. */
     hosting: schema.enum(HOSTINGS),
     /** The machine serving a machine repository. */
     machineId: schema.identifier("machine").nullable(),
-    /** The remote of a GitHub, Git or platform repository. */
+    /** The remote of a Git or platform repository. */
     remote: schema.string().nullable(),
     /** How a Git repository authenticates. */
     authentication: schema.enum(AUTHENTICATIONS).nullable(),
-    /** The connection opening a GitHub repository. */
-    connectionId: schema.identifier("connection").nullable(),
     /** The storage provider of a platform repository. */
     provider: schema.string().nullable(),
-    /** The repository's identity in storage or at GitHub. */
-    providerRepositoryId: schema.string().nullable(),
 });
-/** The columns of a repository's origin, and its identity in storage or at GitHub. */
+/** The columns of a repository's origin. */
 export type OriginColumns = schema.Infer<typeof originColumns>;
 
-/** The columns of a repository's origin, and its identity in storage or at GitHub. */
+/** The columns of a repository's origin. */
 export const OriginColumns = Object.assign(originColumns, {
     /** The origin columns of no origin, which the columns of each origin overwrite. */
     blank: {
         machineId: null,
         remote: null,
         authentication: null,
-        connectionId: null,
         provider: null,
-        providerRepositoryId: null,
     } as const satisfies Omit<OriginColumns, "hosting">,
 
-    /** Read a Git or GitHub repository's remote, which its origin constraint requires. */
+    /** Read a Git repository's remote, which its origin constraint requires. */
     requireRemote(row: Pick<OriginColumns, "remote">): string {
         return present(row.remote, "a remote repository's remote");
     },
@@ -123,9 +106,7 @@ export const OriginColumns = Object.assign(originColumns, {
             machineId: row.machineId,
             remote: row.remote,
             authentication: row.authentication,
-            connectionId: row.connectionId,
             provider: row.provider,
-            providerRepositoryId: row.providerRepositoryId,
         };
     },
 });
@@ -171,16 +152,12 @@ export const repository = defineObject(
             machine: field.reference(principal.machine).optional(),
             /** A platform repository's storage provider, such as local or cloudflare-artifacts. */
             provider: field.string().optional(),
-            /** The storage's or GitHub's stable identifier of the repository. */
-            providerRepositoryId: field.string().optional(),
             /** The credential-free clone URL. */
             remote: field.string().optional(),
             /** The branch of the origin's HEAD, including refs/heads/, as last observed. */
             defaultReference: field.string().optional(),
             /** How the platform authenticates to a Git remote. */
             authentication: field.enum(AUTHENTICATIONS).optional(),
-            /** The account's connection to the GitHub App installation opening the origin. */
-            connectionId: field.string(schema.identifier("connection")).optional(),
         },
         indexes: {
             name: {
@@ -192,7 +169,6 @@ export const repository = defineObject(
         },
         constraints: {
             scopeId: { kind: "unique", on: ["scope", "id"] },
-            providerRepository: { kind: "index", on: ["providerRepositoryId"] },
             origin: {
                 kind: "check",
                 condition: {
@@ -200,20 +176,12 @@ export const repository = defineObject(
                         {
                             hosting: "platform",
                             provider: { isNotNull: true },
-                            providerRepositoryId: { isNotNull: true },
-                            remote: { isNotNull: true },
-                            machineId: { isNull: true },
-                        },
-                        {
-                            hosting: "github",
-                            provider: { isNull: true },
                             remote: { isNotNull: true },
                             machineId: { isNull: true },
                         },
                         {
                             hosting: "git",
                             provider: { isNull: true },
-                            providerRepositoryId: { isNull: true },
                             remote: { isNotNull: true },
                             machineId: { isNull: true },
                         },
@@ -221,7 +189,6 @@ export const repository = defineObject(
                             hosting: "machine",
                             machineId: { isNotNull: true },
                             provider: { isNull: true },
-                            providerRepositoryId: { isNull: true },
                             remote: { isNull: true },
                         },
                     ],
@@ -234,18 +201,8 @@ export const repository = defineObject(
                         {
                             hosting: { in: ["platform", "machine"] },
                             authentication: { isNull: true },
-                            connectionId: { isNull: true },
                         },
-                        {
-                            hosting: "github",
-                            authentication: { isNull: true },
-                            connectionId: { isNotNull: true },
-                        },
-                        {
-                            hosting: "git",
-                            connectionId: { isNull: true },
-                            authentication: { in: ["anonymous", "credential"] },
-                        },
+                        { hosting: "git", authentication: { in: ["anonymous", "credential"] } },
                     ],
                 },
             },
@@ -265,7 +222,6 @@ export const repository = defineObject(
                 kind: "check",
                 condition: {
                     provider: { OR: [{ isNull: true }, { length: { gt: 0 } }] },
-                    providerRepositoryId: { OR: [{ isNull: true }, { length: { gt: 0 } }] },
                 },
             },
         },
@@ -274,7 +230,7 @@ export const repository = defineObject(
                 read: union(relation("machine"), through("account", "read")),
                 create: through("account", "manage"),
                 update: through("account", "manage"),
-                // the account's owners, and its servers on deliveries and identification
+                // the account's servers, observing the origin
                 refresh: through("account", "serve"),
                 report: relation("machine"),
                 record: union(permission("refresh"), permission("report")),
@@ -284,7 +240,14 @@ export const repository = defineObject(
             },
             reserved: ["report"],
         },
-        traits: [recoverable({ within: { days: 30 }, by: "delete", prepared: OriginColumns })],
+        traits: [
+            recoverable({
+                within: { days: 30 },
+                by: "delete",
+                // the origin a purge deletes from storage once it commits, by the repository's identifier
+                prepared: OriginColumns.extend({ id: schema.identifier("repository") }),
+            }),
+        ],
     },
     (method) => ({
         create: method.create("create", {
@@ -317,12 +280,6 @@ export const repository = defineObject(
             title: t`Refresh`,
             permission: "refresh",
             prepared: GitListing,
-        }),
-        /** Record GitHub's identifier of the repository. */
-        identify: method.mutation({
-            title: t`Identify`,
-            permission: "refresh",
-            prepared: schema.string().min(1),
         }),
         /** Record the references the repository's machine observed. */
         report: method.mutation({ title: t`Report`, permission: "report", input: GitListing }),

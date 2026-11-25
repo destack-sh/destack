@@ -78,7 +78,7 @@ export const reference = defineObject(
     }),
 );
 
-/** The shape replicating one reference of a repository, stored in the forge's residency home. */
+/** The shape replicating one reference of a repository, stored in its forge's home. */
 export const referenceShape = defineShape({
     name: "reference",
     parameters: schema.object({
