@@ -23,6 +23,11 @@ const styles = style.create({
         whiteSpace: "nowrap",
         cursor: { default: "pointer", ":disabled": "not-allowed" },
     },
+    sm: {
+        height: size[1],
+        paddingBlock: 0,
+        paddingInline: space[2],
+    },
     multiple: {
         appearance: "auto",
         height: "auto",
@@ -71,13 +76,18 @@ const styles = style.create({
     },
 });
 
+/** The height of a select. */
+export type SelectSize = "default" | "sm";
+
 /** The properties of a select, the native select's attributes included. */
 export type SelectProperties = Omit<
     JSX.SelectHTMLAttributes<HTMLSelectElement>,
-    "class" | "value" | "multiple" | "onChange"
+    "class" | "value" | "multiple" | "onChange" | "size"
 > & {
     /** The prompt a single select shows until an option is chosen. */
     readonly placeholder?: string;
+    /** The height, default by default. */
+    readonly size?: SelectSize;
     /** The StyleX styles applied after the select's styles. */
     readonly xstyle?: style.Styles;
 } & SelectionProperties;
@@ -102,6 +112,7 @@ export function Select(given: SelectProperties): JSX.Element {
         properties,
         ...SELECTION_OPTIONS,
         "placeholder",
+        "size",
         "children",
         "xstyle",
         "style",
@@ -149,6 +160,7 @@ export function Select(given: SelectProperties): JSX.Element {
                 [
                     inputStyle({ invalid: isInvalid() }),
                     styles.select,
+                    properties.size === "sm" && styles.sm,
                     properties.multiple === true && styles.multiple,
                     join(),
                     properties.xstyle,

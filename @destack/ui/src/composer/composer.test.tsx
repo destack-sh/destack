@@ -41,7 +41,7 @@ test("render a composer's header, addon, text and footer as a form", () => {
 
     expect(markup(container)).toBe(
         [
-            '<form data-slot="composer"><div data-slot="composer-frame" data-variant="raised">',
+            '<form data-slot="composer"><div data-slot="composer-frame" data-size="default" data-variant="raised">',
             '<div data-slot="composer-header">Files</div>',
             '<div data-slot="composer-addon" data-align="inline-end">Beside</div>',
             '<textarea data-slot="composer-input" rows="1" aria-label="Message" placeholder="Write"></textarea>',
@@ -155,4 +155,25 @@ test("send and stop from any element its text renders", () => {
     press("Escape");
 
     expect(given).toEqual(["send", "stop"]);
+});
+
+test("send nothing by Enter while its button is disabled", () => {
+    // press Enter with the button disabled, then enabled
+    let sent = 0;
+    const [isEmpty, setEmpty] = createSignal(true);
+    const { container } = render(() => (
+        <Composer onSubmit={() => (sent += 1)}>
+            <ComposerFrame>
+                <ComposerInput />
+                <ComposerSubmit disabled={isEmpty()} />
+            </ComposerFrame>
+        </Composer>
+    ));
+    enter(container);
+    const before = sent;
+    setEmpty(false);
+    flush();
+    enter(container);
+
+    expect({ before, after: sent }).toEqual({ before: 0, after: 1 });
 });

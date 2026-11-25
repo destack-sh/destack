@@ -15,6 +15,19 @@ export const inputSearch = defineExample({
     render: (properties) => <Input {...properties} />,
 });
 
+/** A title without a frame, as in a dialog it is the first line of. */
+export const inputPlain = defineExample({
+    of: Input,
+    name: "plain",
+    description: "a title without a frame, as in a dialog it is the first line of",
+    properties: {
+        variant: "plain",
+        placeholder: "Task title",
+        "aria-label": "Title",
+    },
+    render: (properties) => <Input {...properties} />,
+});
+
 /** The search box unavailable. */
 export const inputSearchDisabled = defineExample({
     of: Input,

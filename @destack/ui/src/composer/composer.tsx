@@ -34,14 +34,12 @@ const styles = style.create({
         gridTemplateAreas: '"header header header" "start text end" "footer footer footer"',
         alignItems: "end",
         minWidth: 0,
-        padding: space[2],
         borderWidth: stroke.border,
         borderStyle: "solid",
         borderColor: {
             default: color.border,
             ":has([data-slot=composer-input]:focus)": color.ring,
         },
-        borderRadius: CORNER,
         color: color.foreground,
         cursor: { default: "text", ":is([data-disabled])": "not-allowed" },
         opacity: { default: 1, ":is([data-disabled])": 0.5 },
@@ -59,15 +57,11 @@ const styles = style.create({
         maxHeight: TALLEST,
         paddingBlock: `calc((${size[2]} - 1lh) / 2)`,
         paddingInline: space[2],
-        borderWidth: 0,
-        outlineStyle: "none",
-        backgroundColor: "transparent",
-        boxShadow: "none",
         color: "inherit",
         fontFamily: "inherit",
+        // write in the frame's size where it is smaller
+        fontSize: { default: null, ":is([data-size=sm] > *)": "inherit" },
         overflowY: "auto",
-        resize: "none",
-        fieldSizing: "content",
     },
     header: {
         gridArea: "header",
@@ -105,6 +99,18 @@ const styles = style.create({
     },
 });
 
+/** The room and corners of each size. */
+const sizes = style.create({
+    default: {
+        padding: space[2],
+        borderRadius: CORNER,
+    },
+    sm: {
+        padding: space[1],
+        borderRadius: radius[4],
+    },
+});
+
 /** The surface of each frame. */
 const frames = style.create({
     raised: {
@@ -125,6 +131,9 @@ const frames = style.create({
 
 /** The surface of a composer's frame: raised from the page, filled, or drawn by its edge. */
 export type ComposerFrameVariant = keyof typeof frames;
+
+/** The size of a composer's frame: a chat's, or smaller for a comment's. */
+export type ComposerFrameSize = keyof typeof sizes;
 
 /** How a composer is sent by the keys: Enter, Enter with the command key, or not at all. */
 export type ComposerSubmitMode = "enter" | "ctrlEnter" | "none";
@@ -156,9 +165,12 @@ export class ComposerControl {
         return this.#properties.disabled === true;
     }
 
-    /** Send what is written. */
+    /** Send what is written, unless its button is disabled, as a form's own Enter does. */
     submit(): void {
-        this.form?.requestSubmit();
+        const button = this.form?.querySelector<HTMLButtonElement>("button[type=submit]");
+        if (button?.disabled !== true) {
+            this.form?.requestSubmit();
+        }
     }
 
     /** Stop the answer under way. */
@@ -250,21 +262,27 @@ export function Composer(properties: ComposerProperties): JSX.Element {
 export type ComposerFrameProperties = ComposerElementProperties & {
     /** The surface, raised from the page by default. */
     readonly variant?: ComposerFrameVariant;
+    /** The size, default by default. */
+    readonly size?: ComposerFrameSize;
 };
 
 /** Render the frame of a composer around its parts, whose free room goes to the text. */
 export function ComposerFrame(properties: ComposerFrameProperties): JSX.Element {
     // lay the parts out, and focus the text by a press between them
     const composer = useComposer();
-    const rest = omit(properties, "variant");
+    const rest = omit(properties, "variant", "size");
     const variant = (): ComposerFrameVariant => properties.variant ?? "raised";
+    const frameSize = (): ComposerFrameSize => properties.size ?? "default";
 
     return renderPart(
         "div",
         "composer-frame",
         rest,
-        () => [text.sm, styles.frame, frames[variant()]],
+        () => [text.sm, styles.frame, sizes[frameSize()], frames[variant()]],
         {
+            get "data-size"() {
+                return frameSize();
+            },
             get "data-variant"() {
                 return variant();
             },
@@ -294,6 +312,7 @@ export function ComposerInput(properties: TextareaProperties): JSX.Element {
 
     return (
         <Textarea
+            variant="plain"
             data-slot="composer-input"
             rows={1}
             aria-label={locale.render(t`Message`)}

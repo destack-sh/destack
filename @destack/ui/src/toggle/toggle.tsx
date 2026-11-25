@@ -24,6 +24,10 @@ const styles = style.create({
         transitionDuration: motion.durationShort,
         transitionTimingFunction: motion.easingStandard,
     },
+    // mute an outlined one that is off, which its fill alone hardly tells
+    off: {
+        color: color.mutedForeground,
+    },
 });
 
 /** The border of each variant. */
@@ -79,6 +83,7 @@ export function toggleVariants(options: ToggleVariantProperties): style.Styles {
         styles.toggle,
         variants[options.variant ?? "default"],
         sizes[options.size ?? "default"],
+        options.variant === "outline" && options.pressed !== true && styles.off,
         options.pressed === true && state.on,
     ];
 }

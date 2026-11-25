@@ -1,9 +1,9 @@
 import { Shortcut } from "@destack/locale";
 import * as style from "@destack/style";
 import { space } from "@destack/theme/tokens.stylex";
-import { type JSX, merge } from "@destack/view";
+import { type JSX, merge, omit } from "@destack/view";
 import { readText, takeText, useFieldControl, useFieldValue } from "../field/control.ts";
-import { inputStyle } from "../input/index.ts";
+import { inputStyle, type InputVariant } from "../input/index.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
 
 /** The styles of a textarea over an input's box. */
@@ -16,11 +16,19 @@ const styles = style.create({
         paddingBlock: space[2],
         cursor: { default: "text", ":disabled": "not-allowed" },
     },
+    plain: {
+        minHeight: "1lh",
+        paddingBlock: 0,
+        resize: "none",
+    },
 });
 
 /** The properties of a textarea, the native textarea's attributes included. */
 export type TextareaProperties = Omit<JSX.TextareaHTMLAttributes<HTMLTextAreaElement>, "class"> &
-    ElementPartProperties;
+    ElementPartProperties & {
+        /** The look, outline by default. */
+        readonly variant?: InputVariant;
+    };
 
 /** Render a native textarea that grows with its content, tied to its field. */
 export function Textarea(given: TextareaProperties): JSX.Element {
@@ -40,8 +48,12 @@ export function Textarea(given: TextareaProperties): JSX.Element {
     return renderPart(
         "textarea",
         "textarea",
-        properties,
-        () => [inputStyle({ invalid: isInvalid() }), styles.textarea],
+        omit(properties, "variant"),
+        () => [
+            inputStyle({ variant: properties.variant, invalid: isInvalid() }),
+            styles.textarea,
+            properties.variant === "plain" && styles.plain,
+        ],
         merge(field?.attributes() ?? {}, { onKeyDown: submit }),
     );
 }

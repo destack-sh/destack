@@ -82,14 +82,10 @@ const styles = style.create({
     control: {
         flex: 1,
         opacity: 1,
-        borderWidth: 0,
-        borderRadius: 0,
-        backgroundColor: "transparent",
-        boxShadow: "none",
-        outlineStyle: "none",
+        paddingInline: space[3],
     },
     textarea: {
-        resize: "none",
+        minHeight: space[9],
         paddingBlock: space[3],
     },
     addon: {
@@ -235,6 +231,7 @@ export function InputGroupText(
 export function InputGroupInput(properties: InputProperties): JSX.Element {
     return (
         <Input
+            variant="plain"
             data-slot="input-group-control"
             {...properties}
             xstyle={[styles.control, controlMarker, properties.xstyle]}
@@ -246,6 +243,7 @@ export function InputGroupInput(properties: InputProperties): JSX.Element {
 export function InputGroupTextarea(properties: TextareaProperties): JSX.Element {
     return (
         <Textarea
+            variant="plain"
             data-slot="input-group-control"
             {...properties}
             xstyle={[

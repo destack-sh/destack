@@ -76,6 +76,9 @@ const styles = style.create({
         color: foreground,
     }),
     body: {
+        // cover the line where nothing of it stands beside a badge
+        position: "relative",
+        zIndex: 1,
         display: "flex",
         flexDirection: "column",
         flexGrow: 1,

@@ -23,7 +23,7 @@ import {
     createControllableSignal,
     createSignal,
     createUniqueId,
-    handleAction,
+    handleOnPage,
     type JSX,
     merge,
     omit,
@@ -97,6 +97,11 @@ const styles = style.create({
         display: "flex",
         minHeight: VIEWPORT_HEIGHT,
         width: "100%",
+    },
+    // leave the scrolling to what is inside, as tall as the app
+    contained: {
+        height: VIEWPORT_HEIGHT,
+        overflow: "hidden",
     },
     sidebar: {
         position: "sticky",
@@ -475,6 +480,8 @@ export interface SidebarProviderProperties extends Omit<
     readonly minWidth?: number;
     /** The widest a dragged sidebar gets in pixels, 400 by default. */
     readonly maxWidth?: number;
+    /** What scrolls: the page by default, or what is inside an app as tall as its host. */
+    readonly scroll?: "page" | "inset";
     /** The StyleX styles applied after the wrapper's styles. */
     readonly xstyle?: style.Styles;
     /** Render another element with its attributes, its own by default. */
@@ -542,15 +549,26 @@ export function useSidebar(): SidebarControl {
 export function SidebarProvider(properties: SidebarProviderProperties): JSX.Element {
     // share one state with the sidebar
     const control = new SidebarControl(properties);
-    const rest = omit(properties, "open", "defaultOpen", "onOpenChange", "minWidth", "maxWidth");
+    const rest = omit(
+        properties,
+        "open",
+        "defaultOpen",
+        "onOpenChange",
+        "minWidth",
+        "maxWidth",
+        "scroll",
+    );
 
     // follow the remembered state and the viewport's width once mounted, and the person's keys
     onSettled(() => control.follow());
-    handleAction(toggleSidebar, { run: () => control.toggle(true) });
+    handleOnPage(toggleSidebar, { run: () => control.toggle(true) });
 
     return (
         <SidebarContext value={control}>
-            {renderPart("div", "sidebar-wrapper", rest, styles.wrapper)}
+            {renderPart("div", "sidebar-wrapper", rest, () => [
+                styles.wrapper,
+                properties.scroll === "inset" && styles.contained,
+            ])}
             <Tooltip control={control.tooltip}>
                 {(hint) => <TooltipContent side="right">{hint()}</TooltipContent>}
             </Tooltip>

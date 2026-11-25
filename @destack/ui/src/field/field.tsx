@@ -90,6 +90,8 @@ const styles = style.create({
     },
     label: {
         position: "relative",
+        // push a control after it to the end
+        flexGrow: { default: null, ":first-child": 1 },
         flexShrink: 0,
         maxWidth: `calc(100% - ${size[3]})`,
         "::after": {

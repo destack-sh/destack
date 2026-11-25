@@ -11,7 +11,7 @@ import {
     swatch,
 } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import { type JSX } from "@destack/view";
+import { type JSX, omit } from "@destack/view";
 import { readText, takeText, useFieldControl, useFieldValue } from "../field/control.ts";
 import { useJoin } from "../join/index.ts";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
@@ -30,6 +30,15 @@ const styles = style.create({
         transitionTimingFunction: motion.easingStandard,
         "::placeholder": { color: color.mutedForeground },
     },
+    // leave the frame to what is around it, or to the caret alone
+    plain: {
+        paddingInline: 0,
+        borderWidth: 0,
+        borderRadius: 0,
+        outlineStyle: "none",
+        backgroundColor: "transparent",
+        boxShadow: "none",
+    },
     input: {
         width: "100%",
         minWidth: 0,
@@ -46,8 +55,13 @@ const styles = style.create({
     },
 });
 
-/** The state of an input's styles. */
+/** The look of an input: its own frame, or none. */
+export type InputVariant = "outline" | "plain";
+
+/** The look and state of an input's styles. */
 export interface InputStyleOptions {
+    /** The look, outline by default. */
+    readonly variant?: InputVariant | undefined;
     /** Whether the value is refused, which marks the box destructive. */
     readonly invalid?: boolean;
 }
@@ -60,13 +74,17 @@ export function inputStyle(options: InputStyleOptions = {}): style.Styles {
         state.focus,
         state.disabled,
         styles.box,
+        options.variant === "plain" && styles.plain,
         options.invalid === true && state.invalid,
     ];
 }
 
 /** The properties of an input, the native input's attributes included. */
 export type InputProperties = Omit<JSX.InputHTMLAttributes<HTMLInputElement>, "class"> &
-    ElementPartProperties;
+    ElementPartProperties & {
+        /** The look, outline by default. */
+        readonly variant?: InputVariant;
+    };
 
 /** Render a native input, tied to the label, descriptions and state of its field. */
 export function Input(given: InputProperties): JSX.Element {
@@ -87,8 +105,12 @@ export function Input(given: InputProperties): JSX.Element {
     return renderPart(
         "input",
         "input",
-        properties,
-        () => [inputStyle({ invalid: isInvalid() }), styles.input, join()],
+        omit(properties, "variant"),
+        () => [
+            inputStyle({ variant: properties.variant, invalid: isInvalid() }),
+            styles.input,
+            join(),
+        ],
         field?.attributes(),
     );
 }

@@ -17,6 +17,8 @@ const VERTICAL = ":is([data-orientation=vertical] > *)";
 const styles = style.create({
     list: {
         display: "grid",
+        // leave free room below the items
+        alignContent: "start",
         margin: 0,
         rowGap: space[2],
     },
