@@ -12,6 +12,7 @@ const STATE = new Set([
     "drag",
     "focus",
     "interaction",
+    "markdown",
     "motion",
     "part",
     "position",

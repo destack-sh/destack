@@ -59,7 +59,7 @@ Each entry is `@destack/ui/<entry>`.
 | Overlays               | `alert-dialog`, `context-menu`, `dialog`, `drawer`, `dropdown-menu`, `floating-panel`, `hover-card`, `menubar`, `popover`, `sheet`, `toast`, `tooltip`                                                                                                                                                                                                                                                                                                                                             |
 | Navigation             | `breadcrumb`, `command`, `navigation-menu`, `overflow`, `pagination`, `palette`, `sidebar`, `tabs`, `toolbar`                                                                                                                                                                                                                                                                                                                                                                                      |
 | Data                   | `avatar`, `badge`, `card`, `carousel`, `chart`, `code-block`, `data-list`, `data-table`, `diff`, `feed`, `file-item`, `filter`, `gallery`, `grid-list`, `highlight`, `item`, `kbd`, `list-box`, `load-more`, `object`, `player`, `sort`, `table`, `tree`, `viewer`, `virtual-list`                                                                                                                                                                                                                 |
-| Conversations          | `activity`, `bubble`, `composer`, `marker`, `message`, `message-scroller`, `quote`, `reaction`                                                                                                                                                                                                                                                                                                                                                                                                     |
+| Conversations          | `activity`, `bubble`, `composer`, `markdown`, `marker`, `message`, `message-scroller`, `quote`, `reaction`, `rich-text`                                                                                                                                                                                                                                                                                                                                                                            |
 | Views                  | `board`, `event-calendar`, `timeline`                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | Feedback and structure | `accordion`, `alert`, `aspect-ratio`, `collapsible`, `empty`, `meter`, `pane`, `progress`, `prose`, `relative-time`, `resizable`, `scroll-area`, `separator`, `skeleton`, `spinner`, `visually-hidden`                                                                                                                                                                                                                                                                                             |
 | Layout                 | `stack`, `cluster`, `grid`, `center`, `switcher`, `cover`, `content`                                                                                                                                                                                                                                                                                                                                                                                                                               |
@@ -828,6 +828,27 @@ export function Palette(properties: {
             objects={{ types: properties.types, onOpen: properties.onOpen }}
         />
     );
+}
+```
+
+### Draw rich text and Markdown
+
+`RichText` draws the blocks of a field or of Markdown, and brings up text that is written line by line.
+
+```tsx
+import { useMarkdown } from "@destack/ui/markdown";
+import { RichText } from "@destack/ui/rich-text";
+
+/** Render an answer as an agent writes it. */
+export function Answer(properties: {
+    /** The Markdown so far. */
+    readonly text: string;
+    /** Whether it is still being written. */
+    readonly isWriting: boolean;
+}) {
+    const blocks = useMarkdown(() => properties.text, { isStreaming: () => properties.isWriting });
+
+    return <RichText blocks={blocks()} isStreaming={properties.isWriting} />;
 }
 ```
 
