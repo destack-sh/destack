@@ -1,3 +1,4 @@
+import type { ObjectReference } from "@destack/sync";
 import type { Localization } from "@destack/locale";
 import {
     type Accessor,
@@ -130,6 +131,8 @@ export interface PaneGroupOptions {
     readonly href?: (item: PaneItem) => string;
     /** Handle a move in place of making it, such as to refuse it. */
     readonly onMove?: (move: PaneMove) => void;
+    /** Read the object an item stands for, which actions on its type take, absent for none. */
+    readonly reference?: (item: string) => ObjectReference | undefined;
 }
 
 /** A pane in its group. */

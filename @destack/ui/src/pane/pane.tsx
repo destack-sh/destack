@@ -183,6 +183,7 @@ export function PaneGroup(properties: PaneGroupProperties): JSX.Element {
         "layout",
         "onLayoutChange",
         "onMove",
+        "reference",
         "content",
         "label",
         "href",
@@ -533,7 +534,11 @@ function PaneHost(properties: {
         id: group.contentId(id),
         ref: [
             (created: HTMLElement) => (element = created),
-            ...TabsControl.handlers(tabs, () => locale.direction),
+            ...TabsControl.handlers(
+                tabs,
+                () => locale.direction,
+                (item) => group.options.reference?.(item),
+            ),
         ],
         get "data-pane"() {
             return pane()?.id;

@@ -1,13 +1,7 @@
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
 import { color } from "@destack/theme/tokens.stylex";
-import { createContext, For, type JSX, omit, Show, untrack, useContext } from "@destack/view";
-import {
-    ContextMenuContent,
-    ContextMenuSeparator,
-    ContextMenuTrigger,
-} from "../context-menu/index.ts";
-import { Menu, MenuControl } from "../menu/index.ts";
+import { For, type JSX, omit, untrack } from "@destack/view";
 import { contentOr, mergeProperties, type PartAttributes } from "../part/index.ts";
 import { Overflow, OverflowMenu } from "../overflow/index.ts";
 import { SortableContainer, SortableItem } from "../sortable/index.ts";
@@ -15,7 +9,6 @@ import {
     Tabs,
     TabsClose,
     TabsItem,
-    TabsMenuItems,
     useTabs,
     type TabsItemProperties,
     TabsList,
@@ -28,7 +21,6 @@ import {
 import { usePane } from "./control.ts";
 import { PANE_TYPE, TAB_TYPE } from "./drag.ts";
 import { type PaneItem, PaneLayout } from "./layout.ts";
-import { PaneMenuItems } from "./menu.tsx";
 import { PaneBar } from "./pane.tsx";
 
 /** The styles of a pane's tabs. */
@@ -53,18 +45,13 @@ export type PaneTabsProperties = Omit<
         readonly children?: (item: () => PaneItem) => JSX.Element;
         /** What comes after the tabs, such as a button that opens another. */
         readonly end?: JSX.Element;
-        /** What the menu of a tab offers, the standard items by default and no menu for null. */
-        readonly menu?: JSX.Element;
     };
-
-/** The menu of the nearest pane's tabs, null without one. */
-const PaneMenuContext = createContext<MenuControl | null>(null);
 
 /** Render the items of a pane as tabs, which move within it and to others. */
 export function PaneTabs(properties: PaneTabsProperties): JSX.Element {
     // select and close in the layout
     const { pane, group } = usePane();
-    const rest = omit(properties, "children", "end", "menu", "variant", "sizing");
+    const rest = omit(properties, "children", "end", "variant", "sizing");
     const variant = (): TabsVariant => properties.variant ?? "card";
 
     // take what the pane takes among its tabs, besides panes
@@ -84,10 +71,6 @@ export function PaneTabs(properties: PaneTabsProperties): JSX.Element {
             : [];
     };
 
-    // share one menu among the tabs
-    const hasMenu = untrack(() => !("menu" in properties) || properties.menu !== null);
-    const menu = new MenuControl(null);
-
     return (
         <Tabs
             xstyle={styles.tabs}
@@ -95,6 +78,7 @@ export function PaneTabs(properties: PaneTabsProperties): JSX.Element {
             idPrefix={group.prefix}
             value={PaneLayout.selected(pane())?.id ?? ""}
             onValueChange={(item) => group.select(item)}
+            reference={(item) => group.options.reference?.(item)}
             onClose={(item) => group.close(item)}
             onMove={(item, index) =>
                 group.move({
@@ -108,54 +92,37 @@ export function PaneTabs(properties: PaneTabsProperties): JSX.Element {
             onReopen={group.closed().length === 0 ? undefined : () => group.reopen()}
         >
             <TabsBinding />
-            <PaneMenuContext value={hasMenu ? menu : null}>
-                <PaneBar
-                    render={(bar) => (
-                        <Overflow {...bar} xstyle={tabsListVariants({ variant: variant() })}>
-                            <SortableContainer
-                                id={untrack(() => pane().id)}
-                                orientation="horizontal"
-                                accepts={types()}
-                                height={group.placement(pane().id)?.height ?? 0}
-                                render={(list) => (
-                                    <TabsList
-                                        {...list}
-                                        variant={variant()}
-                                        sizing={properties.sizing ?? "shrink"}
-                                    />
-                                )}
-                            >
-                                <For each={items()} keyed={(item) => item.id}>
-                                    {(item) =>
-                                        properties.children === undefined ? (
-                                            <PaneTab item={item()} />
-                                        ) : (
-                                            properties.children(item)
-                                        )
-                                    }
-                                </For>
-                            </SortableContainer>
-                            <OverflowMenu />
-                            {properties.end}
-                        </Overflow>
-                    )}
-                />
-            </PaneMenuContext>
-            <Show when={hasMenu}>
-                <Menu control={menu}>
-                    <ContextMenuContent>
-                        {"menu" in properties ? (
-                            properties.menu
-                        ) : (
-                            <>
-                                <TabsMenuItems />
-                                <ContextMenuSeparator />
-                                <PaneMenuItems />
-                            </>
-                        )}
-                    </ContextMenuContent>
-                </Menu>
-            </Show>
+            <PaneBar
+                render={(bar) => (
+                    <Overflow {...bar} xstyle={tabsListVariants({ variant: variant() })}>
+                        <SortableContainer
+                            id={untrack(() => pane().id)}
+                            orientation="horizontal"
+                            accepts={types()}
+                            height={group.placement(pane().id)?.height ?? 0}
+                            render={(list) => (
+                                <TabsList
+                                    {...list}
+                                    variant={variant()}
+                                    sizing={properties.sizing ?? "shrink"}
+                                />
+                            )}
+                        >
+                            <For each={items()} keyed={(item) => item.id}>
+                                {(item) =>
+                                    properties.children === undefined ? (
+                                        <PaneTab item={item()} />
+                                    ) : (
+                                        properties.children(item)
+                                    )
+                                }
+                            </For>
+                        </SortableContainer>
+                        <OverflowMenu />
+                        {properties.end}
+                    </Overflow>
+                )}
+            />
         </Tabs>
     );
 }
@@ -180,10 +147,9 @@ export function PaneTab(properties: PaneTabProperties): JSX.Element {
     // drag the tab by itself
     const rest = omit(properties, "item", "children");
     const { pane, group } = usePane();
-    const menu = useContext(PaneMenuContext);
     const id = untrack(() => properties.item.id);
 
-    // step back as the selected tab while another pane is active, and open the pane's menu
+    // step back as the selected tab while another pane is active
     const isQuiet = (): boolean =>
         group.layout().active !== pane().id &&
         PaneLayout.panes(group.layout()).length > 1 &&
@@ -204,13 +170,7 @@ export function PaneTab(properties: PaneTabProperties): JSX.Element {
             disabled={group.isLocked()}
             activator="item"
             sensors={["pointer"]}
-            render={(part) =>
-                menu === null ? (
-                    item(part)
-                ) : (
-                    <ContextMenuTrigger {...part} control={menu} render={item} />
-                )
-            }
+            render={item}
         >
             {contentOr(properties, () => (
                 <>

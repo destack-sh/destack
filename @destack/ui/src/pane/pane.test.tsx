@@ -1,5 +1,5 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import { createSignal, Errored, flush, type JSX } from "@destack/view";
+import { ActionRegistry, createSignal, Errored, flush, type JSX } from "@destack/view";
 import { render, stubPopovers } from "@destack/view/test";
 import {
     Pane,
@@ -19,26 +19,30 @@ function renderGroup(start: PaneLayout, onMove?: (move: PaneMove) => void) {
     stubPopovers();
     const [layout, setLayout] = createSignal(start, { ownedWrite: true });
     const built: string[] = [];
-    const { container } = render(() => (
-        <PaneGroup
-            layout={layout()}
-            onLayoutChange={setLayout}
-            {...(onMove === undefined ? {} : { onMove })}
-            content={(item) => {
-                built.push(item().id);
+    const actions = new ActionRegistry();
+    const { container } = render(
+        () => (
+            <PaneGroup
+                layout={layout()}
+                onLayoutChange={setLayout}
+                {...(onMove === undefined ? {} : { onMove })}
+                content={(item) => {
+                    built.push(item().id);
 
-                return <input aria-label={item().value} />;
-            }}
-            fallback="nothing open"
-        />
-    ));
+                    return <input aria-label={item().value} />;
+                }}
+                fallback="nothing open"
+            />
+        ),
+        { actions },
+    );
     flush();
     const change = (verb: (all: PaneLayout) => PaneLayout): void => {
         setLayout(verb);
         flush();
     };
 
-    return { container, layout, change, built };
+    return { container, layout, change, built, actions };
 }
 
 /** Press a key on an element. */
@@ -378,10 +382,30 @@ test("tell items apart whose ids differ by a space", () => {
     expect(new Set(ids).size).toBe(2);
 });
 
-test("share one menu among a pane's tabs", () => {
-    const { container } = renderGroup(PaneLayout.of(["a", "b", "c"]));
+test("give a menu the actions on a tab, on a pane from its bar, and none in its content", () => {
+    const { container, actions } = renderGroup(PaneLayout.of(["a", "b"], ["c"]));
+    const names = (selector: string) =>
+        actions.actionsOn(container.querySelector(selector)).map(({ name }) => name);
 
-    expect(container.querySelectorAll("[data-slot=context-menu-content]").length).toBe(1);
+    expect({
+        tab: names("[role=tab]"),
+        bar: names("[data-slot=pane-bar]"),
+        content: names("input"),
+    }).toEqual({
+        tab: [
+            "tab.close",
+            "tab.closeOthers",
+            "tab.closeAfter",
+            "tab.closeAll",
+            "tab.moveRight",
+            "pane.splitRight",
+            "pane.splitDown",
+            "pane.moveTabTo",
+            "pane.floatTab",
+        ],
+        bar: ["pane.maximize", "pane.close", "pane.even"],
+        content: [],
+    });
 });
 
 test("refuse parts of a pane outside one", () => {

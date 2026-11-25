@@ -1,10 +1,9 @@
+import { ActionMenu } from "../action/index.ts";
 import * as style from "@destack/style";
-import { space } from "@destack/theme/tokens.stylex";
 import { defineExample } from "@destack/package/declare";
 import { createSignal, For, omit } from "@destack/view";
 import { present } from "@destack/schema";
 import { SortableMove } from "../sortable/index.ts";
-import { VirtualList } from "../virtual-list/index.ts";
 import {
     Board,
     BoardColumn,
@@ -18,7 +17,6 @@ import {
     BoardColumnHeader,
     BoardColumnList,
     BoardItem,
-    BoardItemMenu,
     BoardLane,
     BoardLaneCell,
     BoardLaneRow,
@@ -153,7 +151,7 @@ function LaunchBoard(properties: Pick<BoardProperties, "label"> & { readonly isF
                 </For>
                 <BoardHiddenList />
             </BoardColumnList>
-            <BoardItemMenu />
+            <ActionMenu />
         </Board>
     );
 }
@@ -225,7 +223,7 @@ function TeamBoard() {
                     </BoardLane>
                 )}
             </For>
-            <BoardItemMenu />
+            <ActionMenu />
         </Board>
     );
 }
@@ -286,16 +284,14 @@ function LongBoard() {
                         Backlog
                         <BoardColumnCount />
                     </BoardColumnHeader>
-                    <BoardColumnContent textOf={(card) => card}>
-                        <VirtualList
-                            each={cards()["backlog"] ?? []}
-                            estimateSize={() => CARD_HEIGHT}
-                            gap={space[2]}
-                            itemKey={(card) => card}
-                            xstyle={styles.long}
-                        >
-                            {(card) => <BoardItem id={card}>{card}</BoardItem>}
-                        </VirtualList>
+                    <BoardColumnContent
+                        each={cards()["backlog"] ?? []}
+                        estimateSize={() => CARD_HEIGHT}
+                        itemKey={(card) => card}
+                        textOf={(card) => card}
+                        xstyle={styles.long}
+                    >
+                        {(card) => <BoardItem id={card}>{card}</BoardItem>}
                     </BoardColumnContent>
                 </BoardColumn>
                 <BoardColumn id="next" label="Next">

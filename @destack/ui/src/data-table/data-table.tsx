@@ -79,10 +79,11 @@ import {
     DropdownMenuTrigger,
 } from "../dropdown-menu/index.ts";
 import type { Action } from "@destack/object";
-import { ActionButton, hideColumn } from "../action/index.ts";
+import type { ObjectReference } from "@destack/sync";
+import { ActionBar, ActionBarClear, ActionBarCount, ActionBarMenu } from "../action/index.ts";
+import { hideColumn, openMenu, provideItems } from "../action/index.ts";
 import {
     clearSort,
-    type DataTableRowAction,
     moveColumnLeft,
     moveColumnRight,
     pinToEnd,
@@ -91,9 +92,7 @@ import {
     sortDescending,
     unpin,
 } from "./actions.ts";
-import { OpenChange } from "../layer/index.ts";
-import { Menu, MenuAction, MenuControl } from "../menu/index.ts";
-import { ContextMenuContent } from "../context-menu/index.ts";
+import { MenuAction } from "../menu/index.ts";
 import { Input } from "../input/index.ts";
 import { Select, SelectItem } from "../select/index.ts";
 import {
@@ -273,12 +272,6 @@ const styles = style.create({
     resizing: {
         backgroundColor: swatch.accentMark,
     },
-    bulkBar: {
-        display: "flex",
-        alignItems: "center",
-        gap: space[2],
-        paddingBlock: space[2],
-    },
     sortable: {
         display: "contents",
     },
@@ -450,8 +443,8 @@ export interface DataTableProperties<
     readonly onCellsChange?: (changes: readonly DataTableCellChange[]) => void;
     /** Take a row a person moved between two rows, which lets rows move by their handles. */
     readonly onRowMove?: (move: DataTableRowMove) => void;
-    /** What the owner does with rows: in a row's menu and by its keys, read once. */
-    readonly rowActions?: readonly DataTableRowAction[];
+    /** Read the object a row stands for, which actions on its type take, absent for none. */
+    readonly reference?: (row: string) => ObjectReference | undefined;
     /** Where the row controls stand, in the margin by default where it has room. */
     readonly gutter?: DataTableGutter;
     /** The StyleX styles applied after the table's styles. */
@@ -473,7 +466,7 @@ export function DataTable<Features extends TableFeatures, Row extends RowData>(
         "isVirtual",
         "onCellsChange",
         "onRowMove",
-        "rowActions",
+        "reference",
         "gutter",
         "children",
     );
@@ -582,7 +575,6 @@ export function DataTable<Features extends TableFeatures, Row extends RowData>(
         rowSelection: createMemo(() => tracked().rowSelection),
         expanded: createMemo(() => tracked().expanded),
         isArranged: createMemo(() => isArranged(tracked())),
-        hasRowMenu: untrack(() => properties.rowActions !== undefined),
         changeColumn: (column, run) => control.changeColumn(column, run),
     };
 
@@ -603,10 +595,8 @@ export function DataTable<Features extends TableFeatures, Row extends RowData>(
         }
     };
 
-    // run the owner's actions on the selection a row is in, else on the row alone
-    const actions = useActions();
-    const rowActions = untrack(() => properties.rowActions ?? []);
-    const targetsAt = (element: Element | null) => {
+    // give the rows a person is on to the actions on them, a row's selection, else the selection
+    const targets = (element: Element | null): readonly string[] => {
         const id = element?.closest<HTMLElement>("tr[data-row]")?.dataset["row"];
         const selected = isSelectableTable(table)
             ? table.getSelectedRowModel().rows.map((row) => row.id)
@@ -614,23 +604,8 @@ export function DataTable<Features extends TableFeatures, Row extends RowData>(
 
         return id === undefined || selected.includes(id) ? selected : [id];
     };
-    const rowHandlers = handleRowActions(rowActions, targetsAt);
-
-    // open a menu of the owner's actions on a row, with its selection, from a cell at a point
-    const menu = new MenuControl(null);
-    const openRowMenu = (id: string, cell: HTMLElement, point: { x: number; y: number }) => {
-        // leave the browser's menu where no action runs
-        if (!rowActions.some(({ action }) => actions.has(action.reference, cell))) {
-            return false;
-        }
-        menu.open(
-            "first",
-            new OpenChange("trigger-press", undefined, { element: cell, payload: undefined }),
-            point,
-        );
-
-        return true;
-    };
+    const actions = useActions();
+    const giveRows = provideItems({ targets, reference: (row) => properties.reference?.(row) });
 
     // place each pinned column at its edge, once per change of the pinning or the sizes
     const pins = createMemo(
@@ -654,24 +629,18 @@ export function DataTable<Features extends TableFeatures, Row extends RowData>(
         {
             ref: (element) => {
                 setRoot(element);
-                rowHandlers.forEach((attach) => attach(element));
+                giveRows(element);
                 setScroller(isVirtual ? element : undefined);
             },
-            onKeyDown: (event) => keyDown(event, control, openRowMenu, locale.direction),
+            onKeyDown: (event) => keyDown(event, control, locale.direction),
             onClick: (event) => {
-                // open a row's menu under its grip on a click
+                // open what the page's menu offers on a row as its grip is clicked
                 const grip =
                     event.target instanceof Element
                         ? event.target.closest<HTMLElement>("[data-slot=data-table-row-handle]")
                         : null;
-                if (grip !== null) {
-                    const cell = present(grip.closest("td"), "the row grip's cell");
-                    const row = present(grip.closest("tr"), "the row grip's row").dataset["row"];
-                    const bounds = grip.getBoundingClientRect();
-                    openRowMenu(present(row, "the row grip's row id"), cell, {
-                        x: bounds.left,
-                        y: bounds.bottom,
-                    });
+                if (grip !== null && actions.has(openMenu.reference, grip)) {
+                    actions.start(openMenu, grip);
                 }
             },
             onCopy: (event) => control.copy(event),
@@ -692,140 +661,108 @@ export function DataTable<Features extends TableFeatures, Row extends RowData>(
                         {/* Row height */}
                         <Show when={isVirtual}>{rowLength.render()}</Show>
 
-                        <Menu control={menu}>
-                            <DataTableContext value={slices}>
-                                <Sortable onMove={onMove} xstyle={styles.sortable}>
-                                    <table
-                                        data-slot="table"
-                                        {...style.attrs(tableStyle())}
-                                        role={follow(properties.table.tracked, () =>
-                                            rows().some(isExpandableRow) ? "treegrid" : "grid",
-                                        )}
-                                        aria-multiselectable={
-                                            control.isSelecting() ? "true" : undefined
-                                        }
-                                        aria-rowcount={rows().length + headerGroups().length}
-                                    >
-                                        <TableHeader>
-                                            <For each={headerGroups()}>
-                                                {(group, row) => (
-                                                    <HeaderRow
-                                                        isOrdered={
-                                                            isColumnOrdered &&
-                                                            row() === headerGroups().length - 1
-                                                        }
-                                                        aria-rowindex={row() + 1}
-                                                    >
-                                                        <For each={group.headers}>
-                                                            {(header, column) => (
-                                                                <DataTableHeaderCell
-                                                                    control={control}
-                                                                    pins={pins}
-                                                                    header={header}
-                                                                    cell={{
-                                                                        kind: "head",
-                                                                        row: row(),
-                                                                        column: column(),
-                                                                    }}
-                                                                    isOrdered={
-                                                                        isColumnOrdered &&
-                                                                        row() ===
-                                                                            headerGroups().length -
-                                                                                1
-                                                                    }
-                                                                />
-                                                            )}
-                                                        </For>
-                                                    </HeaderRow>
-                                                )}
-                                            </For>
-                                        </TableHeader>
-                                        <BodyRows isOrdered={isRowOrdered}>
-                                            <SpacerRow height={spacers().before} width={width()} />
-                                            <For
-                                                each={shown()}
-                                                keyed={(entry) => entry.row.id}
-                                                fallback={
-                                                    <TableRow>
-                                                        <TableCell
-                                                            colspan={width()}
-                                                            xstyle={styles.empty}
-                                                        >
-                                                            {properties.empty ??
-                                                                locale.render(t`No results.`)}
-                                                        </TableCell>
-                                                    </TableRow>
-                                                }
-                                            >
-                                                {(entry) => (
-                                                    <BodyRow
-                                                        control={control}
-                                                        pins={pins}
-                                                        row={entry().row}
-                                                        index={
-                                                            headerGroups().length +
-                                                            entry().index +
-                                                            1
-                                                        }
-                                                        isOrdered={isRowOrdered}
-                                                        onContextMenu={(id, event) => {
-                                                            // open the row's menu at the pointer, from the cell it is on
-                                                            const cell =
-                                                                event.target instanceof Element
-                                                                    ? event.target.closest<HTMLElement>(
-                                                                          "td",
-                                                                      )
-                                                                    : null;
-                                                            const point = {
-                                                                x: event.clientX,
-                                                                y: event.clientY,
-                                                            };
-                                                            if (
-                                                                cell !== null &&
-                                                                openRowMenu(id, cell, point)
-                                                            ) {
-                                                                event.preventDefault();
-                                                            }
-                                                        }}
-                                                    />
-                                                )}
-                                            </For>
-                                            <SpacerRow height={spacers().after} width={width()} />
-                                        </BodyRows>
-                                        <Show
-                                            when={leafHeaders().some(
-                                                (header) =>
-                                                    metaOf(header.column).summary !== undefined,
-                                            )}
-                                        >
-                                            <TableFooter xstyle={styles.footer}>
-                                                <TableRow
-                                                    data-slot="data-table-summaries"
-                                                    xstyle={styles.row}
+                        <DataTableContext value={slices}>
+                            <Sortable onMove={onMove} xstyle={styles.sortable}>
+                                <table
+                                    data-slot="table"
+                                    {...style.attrs(tableStyle())}
+                                    role={follow(properties.table.tracked, () =>
+                                        rows().some(isExpandableRow) ? "treegrid" : "grid",
+                                    )}
+                                    aria-multiselectable={
+                                        control.isSelecting() ? "true" : undefined
+                                    }
+                                    aria-rowcount={rows().length + headerGroups().length}
+                                >
+                                    <TableHeader>
+                                        <For each={headerGroups()}>
+                                            {(group, row) => (
+                                                <HeaderRow
+                                                    isOrdered={
+                                                        isColumnOrdered &&
+                                                        row() === headerGroups().length - 1
+                                                    }
+                                                    aria-rowindex={row() + 1}
                                                 >
-                                                    <For each={leafHeaders()}>
-                                                        {(header) => (
-                                                            <DataTableSummaryCell
+                                                    <For each={group.headers}>
+                                                        {(header, column) => (
+                                                            <DataTableHeaderCell
+                                                                control={control}
                                                                 pins={pins}
-                                                                table={properties.table}
-                                                                column={header.column}
+                                                                header={header}
+                                                                cell={{
+                                                                    kind: "head",
+                                                                    row: row(),
+                                                                    column: column(),
+                                                                }}
+                                                                isOrdered={
+                                                                    isColumnOrdered &&
+                                                                    row() ===
+                                                                        headerGroups().length - 1
+                                                                }
                                                             />
                                                         )}
                                                     </For>
+                                                </HeaderRow>
+                                            )}
+                                        </For>
+                                    </TableHeader>
+                                    <BodyRows isOrdered={isRowOrdered}>
+                                        <SpacerRow height={spacers().before} width={width()} />
+                                        <For
+                                            each={shown()}
+                                            keyed={(entry) => entry.row.id}
+                                            fallback={
+                                                <TableRow>
+                                                    <TableCell
+                                                        colspan={width()}
+                                                        xstyle={styles.empty}
+                                                    >
+                                                        {properties.empty ??
+                                                            locale.render(t`No results.`)}
+                                                    </TableCell>
                                                 </TableRow>
-                                            </TableFooter>
-                                        </Show>
-                                    </table>
-                                </Sortable>
-                            </DataTableContext>
-                            <Show when={rowActions.length > 0}>
-                                <ContextMenuContent data-slot="data-table-row-menu">
-                                    <For each={rowActions}>
-                                        {({ action }) => <MenuAction action={action} />}
-                                    </For>
-                                </ContextMenuContent>
-                            </Show>
-                        </Menu>
+                                            }
+                                        >
+                                            {(entry) => (
+                                                <BodyRow
+                                                    control={control}
+                                                    pins={pins}
+                                                    row={entry().row}
+                                                    index={
+                                                        headerGroups().length + entry().index + 1
+                                                    }
+                                                    isOrdered={isRowOrdered}
+                                                />
+                                            )}
+                                        </For>
+                                        <SpacerRow height={spacers().after} width={width()} />
+                                    </BodyRows>
+                                    <Show
+                                        when={leafHeaders().some(
+                                            (header) => metaOf(header.column).summary !== undefined,
+                                        )}
+                                    >
+                                        <TableFooter xstyle={styles.footer}>
+                                            <TableRow
+                                                data-slot="data-table-summaries"
+                                                xstyle={styles.row}
+                                            >
+                                                <For each={leafHeaders()}>
+                                                    {(header) => (
+                                                        <DataTableSummaryCell
+                                                            pins={pins}
+                                                            table={properties.table}
+                                                            column={header.column}
+                                                        />
+                                                    )}
+                                                </For>
+                                            </TableRow>
+                                        </TableFooter>
+                                    </Show>
+                                </table>
+                            </Sortable>
+                        </DataTableContext>
                     </>
                 );
             },
@@ -919,8 +856,6 @@ function BodyRow<Features extends TableFeatures, Data extends RowData>(propertie
     readonly index: number;
     /** Whether the row moves among the rows by its handle. */
     readonly isOrdered: boolean;
-    /** Open the row's menu at a right click. */
-    readonly onContextMenu: (id: string, event: MouseEvent) => void;
 }): JSX.Element {
     // read the row's cells in the columns' order, its edited column, and its selected runs
     const control = properties.control;
@@ -942,7 +877,6 @@ function BodyRow<Features extends TableFeatures, Data extends RowData>(propertie
             xstyle={styles.row}
             aria-rowindex={properties.index}
             data-row={id}
-            onContextMenu={(event: MouseEvent) => properties.onContextMenu(id, event)}
             data-selected={follow(slices.rowSelection, () =>
                 isSelectedRow(properties.row) ? "" : undefined,
             )}
@@ -1324,8 +1258,6 @@ interface DataTableSlices {
     readonly expanded: Accessor<DataTableState["expanded"]>;
     /** Whether a sort or grouping sets the rows' order. */
     readonly isArranged: Accessor<boolean>;
-    /** Whether each row opens a menu of its actions. */
-    readonly hasRowMenu: boolean;
     /** Run a change to a column, then focus its header, else the header that takes its place. */
     readonly changeColumn: (column: string, run: () => void) => void;
 }
@@ -1524,23 +1456,6 @@ function handleColumnActions<Features extends TableFeatures, Row extends RowData
     );
 }
 
-/** List what handles the owner's actions on rows, for the `ref` of the element they are in. */
-function handleRowActions(
-    rowActions: readonly DataTableRowAction[],
-    targetsAt: (element: Element | null) => readonly string[],
-): ((element: Element) => void)[] {
-    return rowActions.map(({ action, isEnabled, run }) =>
-        handle(action, {
-            isEnabled: (element) => {
-                const targets = targetsAt(element);
-
-                return targets.length > 0 && (isEnabled?.(targets) ?? true);
-            },
-            run: ({ element }) => run(targetsAt(element)),
-        }),
-    );
-}
-
 /** Find a column's nearest movable, shown neighbour in a step's direction, none at the end. */
 function neighbourOf(table: OrderedTable, id: string, step: -1 | 1): string | undefined {
     // look along the row from the column, its way
@@ -1693,8 +1608,10 @@ export interface DataTableBulkBarProperties<Features extends TableFeatures, Row 
         /** The table's state, read to track it. */
         readonly tracked: Accessor<unknown>;
     };
-    /** What the owner does with the selected rows, read once. */
-    readonly actions: readonly DataTableRowAction[];
+    /** Read the object a row stands for, which actions on its type take, absent for none. */
+    readonly reference?: (row: string) => ObjectReference | undefined;
+    /** The actions on them, before the rest in a menu. */
+    readonly children?: JSX.Element;
 }
 
 /** Render the selected rows' count and actions while rows are selected. */
@@ -1707,41 +1624,25 @@ export function DataTableBulkBar<Features extends TableFeatures, Row extends Row
         follow(properties.table.tracked, () =>
             properties.table.getSelectedRowModel().rows.map((row) => row.id),
         );
-    const rowActions = untrack(() => properties.actions);
-    const handlers = handleRowActions(rowActions, () => rows());
 
     return (
-        <Show when={rows().length > 0}>
-            <div
-                ref={handlers}
-                role="group"
-                aria-label={locale.render(t`Selected rows`)}
-                data-slot="data-table-bulk-bar"
-                {...style.attrs(text.sm, styles.bulkBar)}
-            >
-                <span {...style.attrs(styles.count)}>
-                    {locale.render(
-                        t`${plural(rows().length, { one: "# row", other: "# rows" })} selected`,
-                    )}
-                </span>
-                <For each={rowActions}>
-                    {({ action }) => (
-                        <ActionButton
-                            action={action}
-                            variant={action.isDestructive ? "destructive" : "outline"}
-                            size="sm"
-                        />
-                    )}
-                </For>
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => properties.table.resetRowSelection()}
-                >
-                    {locale.render(t`Clear selection`)}
-                </Button>
-            </div>
-        </Show>
+        <ActionBar
+            items={rows()}
+            reference={(row) => properties.reference?.(row)}
+            onClear={() => properties.table.resetRowSelection()}
+            placement="inline"
+            aria-label={locale.render(t`Selected rows`)}
+            data-slot="data-table-bulk-bar"
+        >
+            <ActionBarCount xstyle={styles.count}>
+                {locale.render(
+                    t`${plural(rows().length, { one: "# row", other: "# rows" })} selected`,
+                )}
+            </ActionBarCount>
+            {properties.children}
+            <ActionBarMenu />
+            <ActionBarClear />
+        </ActionBar>
     );
 }
 
@@ -2296,15 +2197,16 @@ function isArranged(table: DataTableState): boolean {
     return (table.sorting ?? []).length > 0 || (table.grouping ?? []).length > 0;
 }
 
-/** Render a row's handle, which lists the key that opens the row's menu where rows have one. */
+/** Render a row's handle, which opens the page's menu where it has one. */
 function RowHandle(): JSX.Element {
-    const slices = useDataTableSlices();
+    const actions = useActions();
+    const hasMenu = (): boolean => actions.find(openMenu.reference) !== undefined;
 
     return (
         <SortableHandle
             data-slot="data-table-row-handle"
-            aria-haspopup={slices.hasRowMenu ? "menu" : undefined}
-            aria-keyshortcuts={slices.hasRowMenu ? "Shift+F10" : undefined}
+            aria-haspopup={hasMenu() ? "menu" : undefined}
+            aria-keyshortcuts={hasMenu() ? "Shift+F10" : undefined}
             xstyle={styles.rowControl}
         />
     );
@@ -2401,11 +2303,10 @@ function isEnd<Features extends TableFeatures, Data extends RowData, Value>(
     return (meta.align ?? (meta.editor?.kind === "number" ? "end" : "start")) === "end";
 }
 
-/** Take a key on a data table's grid: toggle, edit, clear, open a menu, or move and extend. */
+/** Take a key on a data table's grid: toggle, edit, clear, or move and extend. */
 function keyDown<Features extends TableFeatures, Data extends RowData>(
     event: KeyboardEvent,
     control: DataTableControl<Features, Data>,
-    openRowMenu: (id: string, cell: HTMLElement, point: { x: number; y: number }) => boolean,
     direction: Direction,
 ): void {
     // leave keys from outside the cells, a field's keys, and every key during an edit
@@ -2436,16 +2337,6 @@ function keyDown<Features extends TableFeatures, Data extends RowData>(
         if (menu !== null) {
             event.preventDefault();
             menu.click();
-        }
-    }
-    // open the row's menu with the menu key or Shift and F10, under the cell
-    else if (
-        cell !== undefined &&
-        (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10"))
-    ) {
-        const bounds = element.getBoundingClientRect();
-        if (openRowMenu(cell.row.id, element, { x: bounds.left, y: bounds.bottom })) {
-            event.preventDefault();
         }
     }
     // toggle a checkbox cell with Enter, as Space does

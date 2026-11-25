@@ -29,13 +29,13 @@ import {
     sortFn_basic,
     tableFeatures,
 } from "./index.ts";
-import { createMemo, createSignal, type JSX, useEnvironment } from "@destack/view";
+import { createMemo, createSignal, handleOnPage, type JSX, useEnvironment } from "@destack/view";
 import type { JsonCondition } from "@destack/db";
 import { present } from "@destack/schema";
 import { t } from "@destack/locale";
 import { defineAction } from "@destack/object";
-import { removeItems } from "../action/index.ts";
-import type { DataTableRowAction } from "./actions.ts";
+import { ActionButton, ActionMenu, items, removeItems } from "../action/index.ts";
+import type {} from "./actions.ts";
 import { Filter, type FilterFields, matchesFilter } from "../filter/index.ts";
 import { SearchField } from "../search-field/index.ts";
 import { SortableMove } from "../sortable/index.ts";
@@ -440,7 +440,11 @@ const PRIORITY_LABELS: Readonly<Record<LaunchTask["priority"], string>> = {
 };
 
 /** Archive the tasks. */
-const archive = defineAction({ name: "archive-tasks", title: t`Archive` });
+const archive = defineAction({
+    name: "archive-tasks",
+    title: t`Archive`,
+    input: { items },
+});
 
 /** Render the launch's tasks with a filter, editable titles and row actions. */
 function LaunchTasksTable(): JSX.Element {
@@ -485,10 +489,8 @@ function LaunchTasksTable(): JSX.Element {
     const remove = (ids: readonly string[]): void => {
         setTasks((current) => current.filter((task) => !ids.includes(task.id)));
     };
-    const rowActions: readonly DataTableRowAction[] = [
-        { action: archive, run: remove },
-        { action: removeItems, run: remove },
-    ];
+    handleOnPage(archive, { run: ({ values }) => remove(values.items) });
+    handleOnPage(removeItems, { run: ({ values }) => remove(values.items) });
     const columns = LAUNCH.columns([
         LAUNCH.display(orderColumn()),
         LAUNCH.display(selectionColumn()),
@@ -541,11 +543,13 @@ function LaunchTasksTable(): JSX.Element {
     return (
         <Stack xstyle={styles.margin}>
             <Filter fields={fields} value={where()} onValueChange={setWhere} />
-            <DataTableBulkBar table={table} actions={rowActions} />
+            <DataTableBulkBar table={table}>
+                <ActionButton action={archive} variant="outline" size="sm" />
+            </DataTableBulkBar>
+            <ActionMenu />
             <DataTable
                 table={table}
                 onCellsChange={change}
-                rowActions={rowActions}
                 onRowMove={(move) =>
                     setTasks((current) =>
                         SortableMove.place(

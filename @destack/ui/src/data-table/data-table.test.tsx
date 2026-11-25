@@ -1,6 +1,7 @@
 import { Locale, Localization } from "@destack/locale";
 import { t } from "@destack/locale";
 import { defineAction } from "@destack/object";
+import { ActionButton, ActionMenu, items } from "../action/index.ts";
 import { beforeEach, expect, onTestFinished, test } from "@destack/test";
 import {
     cellSelectionFeature,
@@ -21,7 +22,7 @@ import {
     sortFn_basic,
     tableFeatures,
 } from "./index.ts";
-import { createSignal, Errored, flush, type JSX } from "@destack/view";
+import { createSignal, handleOnPage, Errored, flush, type JSX } from "@destack/view";
 import { render, stubPopovers, wait } from "@destack/view/test";
 import { SearchField } from "../search-field/index.ts";
 import {
@@ -406,7 +407,7 @@ const PLANTS: Plant[] = [
 ];
 
 /** Water the plants. */
-const water = defineAction({ name: "water", title: t`Water` });
+const water = defineAction({ name: "water", title: t`Water`, input: { items } });
 
 /** Draw the plant sheet a page at a time, writing changes into its rows and recording them. */
 function drawSheet(options: { readonly pageSize?: number; readonly isReadOnly?: boolean } = {}): {
@@ -480,18 +481,18 @@ function drawSheet(options: { readonly pageSize?: number; readonly isReadOnly?: 
             enableRowSelection: true,
             initialState: { pagination: { pageIndex: 0, pageSize: options.pageSize ?? 10 } },
         });
-        const rowActions = [
-            { action: water, run: (rows: readonly string[]) => void acted.push(rows) },
-        ];
+        handleOnPage(water, { run: ({ values }) => void acted.push(values.items) });
 
         return (
             <>
-                <DataTableBulkBar table={table} actions={rowActions} />
+                <DataTableBulkBar table={table}>
+                    <ActionButton action={water} />
+                </DataTableBulkBar>
+                <ActionMenu />
                 <DataTable
                     table={table}
                     {...(options.isReadOnly === true ? {} : { onCellsChange: write })}
                     onRowMove={(move) => moves.push(move)}
-                    rowActions={rowActions}
                 />
             </>
         );
@@ -710,7 +711,7 @@ test("move a row by its handle with the keys, handing the owner the rows it land
     expect(sheet.moves).toEqual([{ id: "fern", previous: "rose", next: "mint" }]);
 });
 
-test("act on a right-clicked row with its selection, and on the selection from the bulk bar", () => {
+test("act on a right-clicked row with its selection, and on the selection from the bulk bar", async () => {
     // select Fern and Rose, right-click Rose and water, then water from the bar
     const sheet = drawSheet();
     for (const box of [
@@ -725,6 +726,8 @@ test("act on a right-clicked row with its selection, and on the selection from t
     rose?.dispatchEvent(
         new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 5, clientY: 5 }),
     );
+    flush();
+    await wait(0);
     flush();
     [...document.querySelectorAll<HTMLElement>("[role=menuitem]")]
         .find((item) => item.textContent === "Water")
@@ -1159,7 +1162,7 @@ test("clear the selected cells with Delete, each to its column's empty value", (
     ]);
 });
 
-test("open a column's menu with Alt and the down arrow, and a row's menu with Shift and F10", () => {
+test("open a column's menu with Alt and the down arrow, and a row's menu with Shift and F10", async () => {
     // open Count's menu from its header, then Rose's row menu from its name
     const sheet = drawSheet();
     const head = sheet.container.querySelector<HTMLElement>("th[data-column=count]");
@@ -1169,14 +1172,16 @@ test("open a column's menu with Alt and the down arrow, and a row's menu with Sh
     pressKey("Escape");
     focusCell(sheet.container, "rose", "name");
     pressKey("F10", { shiftKey: true });
-    const items = [
-        ...document.querySelectorAll("[data-slot=data-table-row-menu] [role=menuitem]"),
-    ].map((item) => item.textContent);
+    await wait(0);
+    flush();
+    const offered = [...document.querySelectorAll("[data-slot=action-menu] [role=menuitem]")].map(
+        (item) => item.textContent,
+    );
 
-    expect({ columnMenu, items }).toEqual({ columnMenu: "true", items: ["Water"] });
+    expect({ columnMenu, offered }).toEqual({ columnMenu: "true", offered: ["Water"] });
 });
 
-test("open a row's menu from its grip while a sort orders the rows, the grip refusing only the drag", () => {
+test("open a row's menu from its grip while a sort orders the rows, the grip refusing only the drag", async () => {
     // sort by Name, then click Rose's grip
     const sheet = drawSheet();
     sheet.container.querySelector<HTMLElement>("th[data-column=name] [data-slot=button]")?.click();
@@ -1186,13 +1191,15 @@ test("open a row's menu from its grip while a sort orders the rows, the grip ref
     );
     grip?.click();
     flush();
-    const items = [
-        ...document.querySelectorAll("[data-slot=data-table-row-menu] [role=menuitem]"),
-    ].map((item) => item.textContent);
+    await wait(0);
+    flush();
+    const offered = [...document.querySelectorAll("[data-slot=action-menu] [role=menuitem]")].map(
+        (item) => item.textContent,
+    );
 
-    expect({ disabled: grip?.getAttribute("aria-disabled"), items }).toEqual({
+    expect({ disabled: grip?.getAttribute("aria-disabled"), offered }).toEqual({
         disabled: "true",
-        items: ["Water"],
+        offered: ["Water"],
     });
 });
 

@@ -6,5 +6,4 @@ export {
     type TabsPlace,
     useTabs,
 } from "./control.ts";
-export * from "./menu.tsx";
 export * from "./tabs.tsx";

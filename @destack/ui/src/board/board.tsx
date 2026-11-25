@@ -19,6 +19,7 @@ import {
 } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
 import { present } from "@destack/schema";
+import type { ObjectReference } from "@destack/sync";
 import { type Direction, t } from "@destack/locale";
 import {
     isTextField,
@@ -47,25 +48,32 @@ import {
     clearSelection,
     createItem,
     hideColumn,
+    moveItemsDown,
+    moveItemsLeft,
+    moveItemsRight,
+    moveItemsTo,
+    moveItemsUp,
     openItem,
-    openMenu,
+    provideItems,
     removeItems,
     selectAll,
     toggleSelection,
 } from "../action/index.ts";
-import { moveCardDown, moveCardLeft, moveCardRight, moveCardTo, moveCardUp } from "./actions.ts";
 import { Icon } from "../icon/index.ts";
 import { Collection, CollectionBuilder } from "../collection/index.ts";
-import { ContextMenuContent } from "../context-menu/index.ts";
 import { Focus, type KeyboardDelegate } from "../focus/index.ts";
 import { useCommandPlatform } from "../kbd/index.ts";
 import { Press, type InteractionEvent } from "../interaction/index.ts";
-import { OpenChange } from "../layer/index.ts";
-import { Menu, MenuAction, MenuControl } from "../menu/index.ts";
+import { MenuAction } from "../menu/index.ts";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "../dropdown-menu/index.ts";
 import { contentOr, mergeProperties, renderPart } from "../part/index.ts";
 import { type MultipleSelection, Selection } from "../selection/index.ts";
-import { type VirtualHost, VirtualHostContext, type VirtualWindow } from "../virtual-list/index.ts";
+import {
+    type VirtualHost,
+    VirtualHostContext,
+    VirtualList,
+    type VirtualWindow,
+} from "../virtual-list/index.ts";
 import type { DragItem } from "../drag/index.ts";
 import {
     Sortable,
@@ -91,8 +99,8 @@ export const CARD_TYPE = "card";
 /** A card's edge inside its box, which no scrolling column clips, and its cast shadow below. */
 const CARD_SHADOW = `inset 0 0 0 ${stroke.border} ${shadow.edge}, 0 1px 2px ${shadow.cast}`;
 
-/** The actions a card's menu offers. */
-const MENU_ACTIONS = [openItem, moveCardTo, removeItems];
+/** The height of a card until it is measured, in pixels, two lines in its padding. */
+const CARD_HEIGHT = 64;
 
 /** The styles of a board and its parts. */
 const styles = style.create({
@@ -209,11 +217,16 @@ const styles = style.create({
     cards: {
         display: "flex",
         flexDirection: "column",
+        // leave the scrolling to a virtual list inside, as tall as its column
+        minHeight: { default: null, ":has(> [data-slot=virtual-list])": 0 },
         gap: space[2],
         margin: {
             default: 0,
             ":has(> [data-slot=virtual-list])": `calc(-1 * (${stroke.ring} + ${stroke.border}))`,
         },
+    },
+    virtual: {
+        minHeight: 0,
     },
     hidden: {
         display: "none",
@@ -456,7 +469,9 @@ export interface BoardProperties extends SortableElementProperties<
     readonly isAllowed?: (item: string, column: string) => boolean;
     /** Handle a person opening a card with a plain press or Enter. */
     readonly onAction?: (key: string) => void;
-    /** Handle a person removing cards with Delete or the card menu. */
+    /** Read the object a card stands for, which actions on its type take, absent for none. */
+    readonly reference?: (key: string) => ObjectReference | undefined;
+    /** Handle a person removing cards with Delete or a menu. */
     readonly onItemRemove?: (keys: readonly string[]) => void;
     /** Handle a person writing a new card into a cell's composer. */
     readonly onCreate?: (draft: BoardDraft) => void;
@@ -506,13 +521,38 @@ export interface BoardLaneProperties extends SortableElementProperties<
     readonly label: string;
 }
 
-/** The properties of a cell's cards, the native element's attributes included. */
-export interface BoardColumnContentProperties extends SortableElementProperties<
-    JSX.HTMLAttributes<HTMLDivElement>
-> {
-    /** Read a card's text by its id, which a virtual list's cards out of view need. */
-    readonly textOf?: (id: string) => string;
+/** The items of a cell, each drawn as a card, only those in view outside lanes. */
+export interface BoardItems<Item> {
+    /** The items in order. */
+    readonly each: readonly Item[];
+    /** Read the id of an item. */
+    readonly itemKey: (item: Item) => string;
+    /** Estimate the height of a card before it is measured, in pixels. */
+    readonly estimateSize?: (index: number) => number;
+    /** Render an item's card. */
+    readonly children: (item: Item) => JSX.Element;
 }
+
+/** The cards of a cell themselves, such as the few of a fixed board. */
+export interface BoardElements {
+    /** The items, absent for the cards themselves. */
+    readonly each?: undefined;
+    /** The id of an item, absent without items. */
+    readonly itemKey?: undefined;
+    /** The height of an item's card, absent without items. */
+    readonly estimateSize?: undefined;
+    /** The cards. */
+    readonly children?: JSX.Element;
+}
+
+/** The properties of a cell's cards, the native element's attributes included. */
+export type BoardColumnContentProperties<Item = unknown> = Omit<
+    SortableElementProperties<JSX.HTMLAttributes<HTMLDivElement>>,
+    "children"
+> & {
+    /** Read a card's text by its id, which cards out of view need. */
+    readonly textOf?: (id: string) => string;
+} & (BoardItems<Item> | BoardElements);
 
 /** The properties of a lane's cell, the native element's attributes included. */
 export interface BoardLaneCellProperties extends SortableElementProperties<
@@ -544,7 +584,7 @@ export interface BoardItemProperties extends SortableElementProperties<
     readonly activator?: SortableActivator;
 }
 
-/** The cards of a board by cell, the one focused card, the selection, composers and the menu. */
+/** The cards of a board by cell, the one focused card, the selection and composers. */
 export class BoardControl {
     /** The cards of cells without a virtual list, in document order. */
     readonly cards: CollectionBuilder<BoardCard>;
@@ -572,8 +612,6 @@ export class BoardControl {
     readonly composing: Accessor<BoardComposition | undefined>;
     /** Open a composer by its cell and position, or close it. */
     readonly setComposing: (composing: BoardComposition | undefined) => void;
-    /** The card menu a right click opens on a card. */
-    readonly menu: MenuControl<string>;
     /** The board's properties, read for its handlers. */
     readonly properties: BoardProperties;
     /** The board's id, which tells its containers from another board's. */
@@ -596,8 +634,6 @@ export class BoardControl {
     readonly #hiddenRows: CollectionBuilder<BoardHiddenRow>;
     /** The column menus mounted, whose Hide needs a hidden list. */
     readonly #columnMenus: CollectionBuilder<object>;
-    /** The number of mounted card menus, the board opening one only while one is mounted. */
-    #menus = 0;
     /** The locale the actions' titles are written in. */
     readonly #locale: ReturnType<typeof useLocale>;
     /** The page's actions, which the board handles its own among. */
@@ -693,7 +729,7 @@ export class BoardControl {
             untrack(() => properties.selection) ?? { multiple: true, behavior: "replace" },
         );
 
-        // open one composer at a time, and one card menu for every card
+        // open one composer at a time
         [this.composing, this.setComposing] = createSignal<BoardComposition | undefined>(undefined);
         this.#composers = new CollectionBuilder(undefined, (id) => id);
 
@@ -701,7 +737,6 @@ export class BoardControl {
         this.#hiddenLists = new CollectionBuilder();
         this.#hiddenRows = new CollectionBuilder(undefined, (row) => row.column);
         this.#columnMenus = new CollectionBuilder();
-        this.menu = new MenuControl<string>(null);
     }
 
     /** Read the id of the board's row of columns, unique among boards. */
@@ -858,14 +893,6 @@ export class BoardControl {
     /** Add a cell's composer at a position until it unmounts. */
     addComposer(cell: BoardCell, position: BoardPosition): void {
         this.#composers.add(this.composerId(cell, position));
-    }
-
-    /** Count a card menu until it unmounts, which lets a right click open it. */
-    addMenu(): void {
-        this.#menus += 1;
-        onCleanup(() => {
-            this.#menus -= 1;
-        });
     }
 
     /** Read the id of a cell's composer at a position. */
@@ -1054,11 +1081,20 @@ export class BoardControl {
         }
     }
 
-    /** List the cards an action on a card takes: the selection it is in, else the card. */
-    targetsOf(key: string): string[] {
-        return this.selection.isSelected(key)
+    /** List the cards a person is on at an element: a card's selection, else the selection. */
+    targets(element: Element | null): readonly string[] {
+        const key = this.keyAt(element);
+
+        return key === undefined || !this.collection.has(key)
             ? this.selection.values().filter((each) => this.isShown(each))
-            : [key];
+            : this.targetsOf(key);
+    }
+
+    /** List the cards an action on a card takes: its selection's shown ones, else it. */
+    targetsOf(key: string): readonly string[] {
+        return this.selection
+            .targets(key, this.collection)
+            .filter((each) => each === key || this.isShown(each));
     }
 
     /** Read the board's element, absent until it mounts. */
@@ -1069,11 +1105,6 @@ export class BoardControl {
     /** Set the board's element. */
     setRoot(element: HTMLElement): void {
         this.#root = element;
-    }
-
-    /** Find the shown element of a card, null while it shows nowhere. */
-    #elementOf(key: string): HTMLElement | null {
-        return this.#root?.querySelector<HTMLElement>(`[data-item="${CSS.escape(key)}"]`) ?? null;
     }
 
     /** Read the key of the card around an element, absent outside one. */
@@ -1104,9 +1135,17 @@ export class BoardControl {
         const composerOf = (key: string) => this.#composerIn(this.#cardOf(key).cell);
         const sign = () => (direction() === "rtl" ? -1 : 1);
         const isMoving = () => properties.onItemMove !== undefined;
-        const hasLanes = (key: string) => isMoving() && this.#cardOf(key).cell.lane !== undefined;
+        const canRank = (key: string) =>
+            isMoving() &&
+            (properties.order !== "sorted" || this.#cardOf(key).cell.lane !== undefined);
 
         return [
+            // give the cards to the actions on them
+            provideItems({
+                targets: (element) => this.targets(element),
+                reference: (key) => properties.reference?.(key),
+            }),
+
             // select all the shown cards, some of them, or none
             handle(selectAll, {
                 run: () =>
@@ -1127,16 +1166,6 @@ export class BoardControl {
                 openItem,
                 (key) => properties.onAction !== undefined && this.targetsOf(key).length === 1,
                 (key) => properties.onAction?.(key),
-            ),
-            onCard(
-                openMenu,
-                (key) => this.#menus > 0 && this.#elementOf(key) !== null,
-                (key) => {
-                    // open it under the card
-                    const element = present(this.#elementOf(key), "the card to open a menu on");
-                    const bounds = element.getBoundingClientRect();
-                    this.openMenu(key, element, bounds.left, bounds.bottom);
-                },
             ),
             onCard(
                 createItem,
@@ -1161,17 +1190,17 @@ export class BoardControl {
             ),
 
             // move the cards a column over, and a lane over on a board with lanes
-            onCard(moveCardLeft, isMoving, (key) =>
+            onCard(moveItemsLeft, isMoving, (key) =>
                 this.step(key, this.targetsOf(key), -sign(), 0),
             ),
-            onCard(moveCardRight, isMoving, (key) =>
+            onCard(moveItemsRight, isMoving, (key) =>
                 this.step(key, this.targetsOf(key), sign(), 0),
             ),
-            onCard(moveCardUp, hasLanes, (key) => this.step(key, this.targetsOf(key), 0, -1)),
-            onCard(moveCardDown, hasLanes, (key) => this.step(key, this.targetsOf(key), 0, 1)),
+            onCard(moveItemsUp, canRank, (key) => this.rank(key, -1)),
+            onCard(moveItemsDown, canRank, (key) => this.rank(key, 1)),
 
             // move the cards to a column that takes them all
-            handle(moveCardTo, {
+            handle(moveItemsTo, {
                 isEnabled: (element) => isMoving() && this.columnsFor(element).length > 0,
                 choices: (_input, element) =>
                     this.columnsFor(element).map((column) => ({
@@ -1182,7 +1211,7 @@ export class BoardControl {
                     // keep the cards in their lane
                     const key = present(this.keyAt(element), "the card an action runs on");
                     const { lane } = this.#cardOf(key).cell;
-                    this.place(this.targetsOf(key), { column: values.column, lane });
+                    this.place(this.targetsOf(key), { column: values.section, lane });
                     this.refocus(() => key);
                 },
             }),
@@ -1206,29 +1235,6 @@ export class BoardControl {
                     column.key !== from &&
                     targets.every((each) => this.isAllowed(each, column.key)),
             );
-    }
-
-    /** Open the card menu at a point for a card, selecting it alone unless it is selected. */
-    openMenu(key: string, element: HTMLElement, x: number, y: number): boolean {
-        // open nothing without a mounted menu or anything to offer, leaving the browser's menu
-        if (
-            this.#menus === 0 ||
-            !MENU_ACTIONS.some((each) => this.#actions.has(each.reference, element))
-        ) {
-            return false;
-        }
-
-        // act on the selection a selected card is in, else on the card alone
-        if (!this.selection.isSelected(key)) {
-            this.selection.replace([key]);
-        }
-        this.focus.focus(key);
-
-        // open the menu at the pointer, its focus returning to the card
-        const change = new OpenChange("trigger-press", undefined, { element, payload: key });
-        this.menu.open("first", change, { x, y });
-
-        return true;
     }
 
     /** Report whether the board lets a card into a column. */
@@ -1266,6 +1272,29 @@ export class BoardControl {
             return;
         }
         this.place(keys, { column, lane }, this.keysIn(from).indexOf(key));
+    }
+
+    /** Move a card and its selection past the next card of its cell, or into the lane beside it. */
+    rank(key: string, step: 1 | -1): void {
+        // read the cards of the cell ahead of the moving ones
+        const keys = this.targetsOf(key);
+        const moving = new Set(keys);
+        const { cell } = this.#cardOf(key);
+        const order = this.keysIn(cell);
+        const first = order.findIndex((each) => moving.has(each));
+        const last = order.findLastIndex((each) => moving.has(each));
+        const beside = step === 1 ? order[last + 1] : order[first - 1];
+
+        // step past the card beside, where a person orders them
+        if (beside !== undefined && this.properties.order !== "sorted") {
+            const others = order.filter((each) => !moving.has(each));
+            this.place(keys, cell, others.indexOf(beside) + (step === 1 ? 1 : 0));
+            this.refocus(() => key);
+        }
+        // else step into the lane beside
+        else {
+            this.step(key, keys, 0, step);
+        }
     }
 
     /** Move cards into a cell before a row, at its end without one, those it lets in. */
@@ -1587,6 +1616,7 @@ export function Board(properties: BoardProperties): JSX.Element {
         "onColumnMove",
         "onAction",
         "onItemRemove",
+        "reference",
         "onCreate",
         "dropTypes",
         "onReceive",
@@ -1606,17 +1636,15 @@ export function Board(properties: BoardProperties): JSX.Element {
 
     return (
         <BoardContext value={control}>
-            <Menu control={control.menu}>
-                <Sortable
-                    ref={[(element: HTMLElement) => control.setRoot(element), ...handlers]}
-                    data-slot="board"
-                    onMove={(move) => control.drop(move)}
-                    {...mergeProperties(keys, rest)}
-                    xstyle={[styles.board, properties.xstyle]}
-                >
-                    {properties.children}
-                </Sortable>
-            </Menu>
+            <Sortable
+                ref={[(element: HTMLElement) => control.setRoot(element), ...handlers]}
+                data-slot="board"
+                onMove={(move) => control.drop(move)}
+                {...mergeProperties(keys, rest)}
+                xstyle={[styles.board, properties.xstyle]}
+            >
+                {properties.children}
+            </Sortable>
         </BoardContext>
     );
 }
@@ -2051,7 +2079,9 @@ export function BoardLaneCell(properties: BoardLaneCellProperties): JSX.Element 
 }
 
 /** Render the cards of a cell, which take cards from every cell of the board. */
-export function BoardColumnContent(properties: BoardColumnContentProperties): JSX.Element {
+export function BoardColumnContent<Item>(
+    properties: BoardColumnContentProperties<Item>,
+): JSX.Element {
     // read the nearest cell, its column's or its lane's
     const control = useBoard();
     const cell = useBoardCell();
@@ -2085,7 +2115,16 @@ export function BoardColumnContent(properties: BoardColumnContentProperties): JS
                       : (control.properties.dropTypes ?? [])),
               ];
     const isHidden = () => control.isHidden(cell.column);
-    const rest = omit(properties, "id", "textOf", "xstyle", "children");
+    const rest = omit(
+        properties,
+        "id",
+        "each",
+        "itemKey",
+        "estimateSize",
+        "textOf",
+        "xstyle",
+        "children",
+    );
 
     return (
         <VirtualHostContext value={host}>
@@ -2110,11 +2149,49 @@ export function BoardColumnContent(properties: BoardColumnContentProperties): JS
                     data-slot="board-cards"
                     {...style.attrs(isHidden() ? styles.hidden : styles.cards)}
                 >
-                    {properties.children}
+                    {hasItems(properties) ? (
+                        <BoardCards items={properties} isVirtual={cell.lane === undefined} />
+                    ) : (
+                        properties.children
+                    )}
                 </div>
             </SortableContainer>
         </VirtualHostContext>
     );
+}
+
+/** Render the items of a cell as cards: those in view of a column's, every one of a lane's. */
+function BoardCards<Item>(properties: {
+    /** The items. */
+    readonly items: BoardItems<Item>;
+    /** Whether only the cards in view are drawn. */
+    readonly isVirtual: boolean;
+}): JSX.Element {
+    const { isVirtual, items } = untrack(() => ({ ...properties }));
+    const render = (item: Item): JSX.Element => items.children(item);
+
+    return isVirtual ? (
+        <VirtualList
+            each={items.each}
+            estimateSize={(index) => items.estimateSize?.(index) ?? CARD_HEIGHT}
+            gap={space[2]}
+            itemKey={(item) => items.itemKey(item)}
+            xstyle={styles.virtual}
+        >
+            {render}
+        </VirtualList>
+    ) : (
+        <For each={items.each} keyed={(item) => items.itemKey(item)}>
+            {(item) => render(item())}
+        </For>
+    );
+}
+
+/** Report whether a cell renders items, or the cards themselves. */
+function hasItems<Item>(
+    properties: BoardColumnContentProperties<Item>,
+): properties is BoardItems<Item> & BoardColumnContentProperties<Item> {
+    return properties.each !== undefined;
 }
 
 /** Render a cell's composer: a button that opens a field for a new card, beside the cards. */
@@ -2278,15 +2355,6 @@ export function BoardItem(properties: BoardItemProperties): JSX.Element {
             return isSelected() ? "" : undefined;
         },
         onFocus: () => control.focus.focusIn(key),
-        onContextMenu: (event: MouseEvent) => {
-            // open the board's card menu where the board has one, else leave the browser's
-            if (
-                element !== undefined &&
-                control.openMenu(key, element, event.clientX, event.clientY)
-            ) {
-                event.preventDefault();
-            }
-        },
         ref: (created: HTMLDivElement) => (element = created),
     };
 
@@ -2314,40 +2382,6 @@ export function BoardItem(properties: BoardItemProperties): JSX.Element {
 /** Render the button that lifts the nearest card, for cards with controls inside them. */
 export function BoardItemHandle(properties: SortableHandleProperties): JSX.Element {
     return <SortableHandle data-slot="board-item-handle" {...properties} />;
-}
-
-/** The properties of a board's card menu. */
-export interface BoardItemMenuProperties {
-    /** The owner's items, between the board's moves and its Delete. */
-    readonly children?: JSX.Element;
-}
-
-/** Render the card menu a right click opens: open, move to a column, the owner's, and delete. */
-export function BoardItemMenu(properties: BoardItemMenuProperties): JSX.Element {
-    // let right clicks open the menu, offering the columns the card's selection moves to
-    const control = useBoard();
-    const locale = useLocale();
-    control.addMenu();
-    const columns = () => {
-        const key = control.menu.state.payload();
-
-        return key === undefined ? [] : control.columnsFor(control.menu.origin());
-    };
-
-    return (
-        <ContextMenuContent data-slot="board-item-menu">
-            <MenuAction action={openItem} />
-            <For each={columns()} keyed={(column) => column.key}>
-                {(column) => (
-                    <MenuAction action={moveCardTo} given={{ column: column().key }}>
-                        {locale.render(t`Move to ${column().label()}`)}
-                    </MenuAction>
-                )}
-            </For>
-            {properties.children}
-            <MenuAction action={removeItems} />
-        </ContextMenuContent>
-    );
 }
 
 /** Read the nearest board, refusing a part outside one. */

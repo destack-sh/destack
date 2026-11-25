@@ -1,6 +1,7 @@
 import { t } from "@destack/locale";
 import { defineAction } from "@destack/object";
 import { schema } from "@destack/schema";
+import { items } from "../action/action.ts";
 
 /** Close a tab. */
 export const closeTab = defineAction({
@@ -8,6 +9,7 @@ export const closeTab = defineAction({
     title: t`Close`,
     category: t`Tabs`,
     keybinding: "mod+w",
+    input: { items: items.exactOptional() },
 });
 
 /** Close every tab but one. */
@@ -15,6 +17,7 @@ export const closeOtherTabs = defineAction({
     name: "tab.closeOthers",
     title: t`Close others`,
     category: t`Tabs`,
+    input: { items: items.exactOptional() },
 });
 
 /** Close every tab after one. */
@@ -22,6 +25,7 @@ export const closeTabsAfter = defineAction({
     name: "tab.closeAfter",
     title: t`Close those after`,
     category: t`Tabs`,
+    input: { items: items.exactOptional() },
 });
 
 /** Close every tab. */
@@ -29,6 +33,7 @@ export const closeAllTabs = defineAction({
     name: "tab.closeAll",
     title: t`Close all`,
     category: t`Tabs`,
+    input: { items: items.exactOptional() },
 });
 
 /** Open the tab closed last again. */
@@ -69,6 +74,7 @@ export const moveTabLeft = defineAction({
     title: t`Move left`,
     category: t`Tabs`,
     keybinding: "shift+alt+left",
+    input: { items: items.exactOptional() },
 });
 
 /** Move a tab one place right. */
@@ -77,4 +83,5 @@ export const moveTabRight = defineAction({
     title: t`Move right`,
     category: t`Tabs`,
     keybinding: "shift+alt+right",
+    input: { items: items.exactOptional() },
 });

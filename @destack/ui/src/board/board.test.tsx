@@ -1,10 +1,10 @@
+import { ActionMenu } from "../action/index.ts";
 import { present } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { Shortcut } from "@destack/locale";
 import { createSignal, Errored, flush, For, Show } from "@destack/view";
-import { render, stubPopovers } from "@destack/view/test";
+import { render, stubPopovers, wait } from "@destack/view/test";
 import { Draggable, DragProvider, useDragManager } from "../drag/index.ts";
-import { VirtualList } from "../virtual-list/index.ts";
 import { layOutElements } from "../virtualizer/test/layout.ts";
 import { type BoardColumnMove, type BoardDraft, BoardMove, type BoardOrder } from "./index.ts";
 import {
@@ -17,7 +17,6 @@ import {
     BoardHiddenList,
     BoardColumnCount,
     BoardColumnList,
-    BoardItemMenu,
     BoardLane,
     BoardLaneCell,
     BoardLaneRow,
@@ -498,7 +497,7 @@ function drawTeam(
                         </BoardLaneRow>
                     </BoardLane>
                 ))}
-                <BoardItemMenu />
+                <ActionMenu />
             </Board>
         </DragProvider>
     ));
@@ -548,28 +547,30 @@ test("move the focused card a column over with Shift+Alt and the arrows, at its 
     expect(board.moves.map(moveOf)).toEqual(["b → -/doing after c before d"]);
 });
 
-test("open a card's menu with a right click: open, move to each other column, and delete", () => {
+test("open a card's menu with a right click: open, move, and delete", async () => {
     // right-click c in Doing, then choose to move it to Done
     const board = drawTeam({ todo: ["a"], doing: ["c"] });
-    find(board.container, "board-item", "c").dispatchEvent(
-        new MouseEvent("contextmenu", {
-            bubbles: true,
-            cancelable: true,
-            clientX: 10,
-            clientY: 10,
-        }),
-    );
+    await choose(board.container, "c", "Move to…");
+    const titles = menuTitles();
+    const columns = [
+        ...document.querySelectorAll("[data-slot=action-menu] [role=menu] [role=menuitem]"),
+    ].map((item) => item.textContent);
+    [...document.querySelectorAll<HTMLElement>("[role=menuitem]")]
+        .find((item) => item.textContent === "done")
+        ?.click();
     flush();
-    const items = [
-        ...document.querySelectorAll<HTMLElement>("[data-slot=board-item-menu] [role=menuitem]"),
-    ];
-    const titles = items.map((item) => (item.textContent ?? "").replaceAll(ISOLATES, ""));
-    items.find((item) => item.textContent?.includes("done"))?.click();
-    flush();
-    document.querySelectorAll("[data-slot=board-item-menu]").forEach((menu) => menu.remove());
+    document.querySelectorAll("[data-slot=action-menu]").forEach((menu) => menu.remove());
 
-    expect({ titles, moves: board.moves.map(moveOf) }).toEqual({
-        titles: ["OpenEnter", "Move to todo", "Move to done", "DeleteDelete"],
+    expect({ titles, columns, moves: board.moves.map(moveOf) }).toEqual({
+        titles: ["OpenEnter", "Move to…", "Move", "DeleteDelete"],
+        columns: [
+            "todo",
+            "done",
+            "Move leftShift+Alt+←",
+            "Move rightShift+Alt+→",
+            "Move upShift+Alt+↑",
+            "Move downShift+Alt+↓",
+        ],
         moves: ["c → -/done after - before -"],
     });
 });
@@ -655,7 +656,7 @@ test("count each column's cards against its limit, and list a hidden column at t
     });
 });
 
-test("walk the focus down into the next lane's cell, and move a card a lane over by Shift+Alt", () => {
+test("walk the focus down into the next lane's cell, and move cards past the next and a lane over by Shift+Alt", () => {
     // two people's lanes, each with cards in To do
     const board = drawTeam(
         { "ada todo": ["a1", "a2"], "grace todo": ["g1"], "grace doing": ["g2"] },
@@ -665,13 +666,16 @@ test("walk the focus down into the next lane's cell, and move a card a lane over
     flush();
     press(board.container, "ArrowDown");
     const below = board.container.ownerDocument.activeElement?.textContent;
-    find(board.container, "board-item", "a1").focus();
-    flush();
-    chord(board.container, "ArrowDown", { shiftKey: true, altKey: true });
+    for (const card of ["a1", "a2"]) {
+        find(board.container, "board-item", card).focus();
+        flush();
+        chord(board.container, "ArrowDown", { shiftKey: true, altKey: true });
+    }
 
+    // a1 steps past a2, and a2 over the end of its lane
     expect({ below, moves: board.moves.map(moveOf) }).toEqual({
         below: "g1",
-        moves: ["a1 → grace/todo after - before g1"],
+        moves: ["a1 → ada/todo after a2 before -", "a2 → grace/todo after g1 before -"],
     });
 });
 
@@ -1112,7 +1116,7 @@ test("select every shown card with Mod+A and delete them, leaving a hidden colum
     expect(board.removed).toEqual([["a", "b"]]);
 });
 
-test("offer a selection's menu no Open, and only the columns that let every card in", () => {
+test("offer a selection's menu no Open, and only the columns that let every card in", async () => {
     // a and b selected, Done refusing a
     stubPopovers();
     const board = drawTeam(
@@ -1123,25 +1127,26 @@ test("offer a selection's menu no Open, and only the columns that let every card
     press(board.container, "x");
     find(board.container, "board-item", "b").focus();
     press(board.container, "x");
-    find(board.container, "board-item", "b").dispatchEvent(
-        new MouseEvent("contextmenu", {
-            bubbles: true,
-            cancelable: true,
-            clientX: 10,
-            clientY: 10,
-        }),
-    );
+    await choose(board.container, "b", "Move to…");
+    const titles = menuTitles();
+    const columns = [
+        ...document.querySelectorAll("[data-slot=action-menu] [role=menu] [role=menuitem]"),
+    ].map((item) => item.textContent);
+    [...document.querySelectorAll<HTMLElement>("[role=menuitem]")]
+        .find((item) => item.textContent === "doing")
+        ?.click();
     flush();
-    const items = [
-        ...document.querySelectorAll<HTMLElement>("[data-slot=board-item-menu] [role=menuitem]"),
-    ];
-    const titles = items.map((item) => (item.textContent ?? "").replaceAll(ISOLATES, ""));
-    items.find((item) => item.textContent?.includes("doing"))?.click();
-    flush();
-    document.querySelectorAll("[data-slot=board-item-menu]").forEach((menu) => menu.remove());
+    document.querySelectorAll("[data-slot=action-menu]").forEach((menu) => menu.remove());
 
-    expect({ titles, moves: board.moves.map(moveOf) }).toEqual({
-        titles: ["Move to doing", "DeleteDelete"],
+    expect({ titles, columns, moves: board.moves.map(moveOf) }).toEqual({
+        titles: ["Move to…", "Move", "DeleteDelete"],
+        columns: [
+            "doing",
+            "Move leftShift+Alt+←",
+            "Move rightShift+Alt+→",
+            "Move upShift+Alt+↑",
+            "Move downShift+Alt+↓",
+        ],
         moves: ["a → -/doing after - before -", "b → -/doing after a before -"],
     });
 });
@@ -1199,16 +1204,20 @@ function drawLive(
                     </BoardLaneRow>
                 </BoardLane>
             ))}
-            <BoardItemMenu />
+            <ActionMenu />
         </Board>
     ));
 
     return { container, cards };
 }
 
-/** Open a card's menu with a right click and choose an item by its text. */
-async function choose(container: HTMLElement, card: string, item: string): Promise<void> {
-    // right-click the card, then press the item and let the focus settle
+/** Open a card's menu with a right click and choose items by their text, one per submenu. */
+async function choose(
+    container: HTMLElement,
+    card: string,
+    ...path: readonly string[]
+): Promise<void> {
+    // right-click the card, then press each item and let the submenu or the focus settle
     find(container, "board-item", card).dispatchEvent(
         new MouseEvent("contextmenu", {
             bubbles: true,
@@ -1218,12 +1227,21 @@ async function choose(container: HTMLElement, card: string, item: string): Promi
         }),
     );
     flush();
-    [...document.querySelectorAll<HTMLElement>("[role=menuitem]")]
-        .find((each) => each.textContent?.includes(item))
-        ?.click();
-    flush();
-    await Promise.resolve();
-    flush();
+    for (const title of path) {
+        [...document.querySelectorAll<HTMLElement>("[role=menuitem]")]
+            .find((each) => each.textContent?.includes(title))
+            ?.click();
+        flush();
+        await wait(0);
+        flush();
+    }
+}
+
+/** Read the titles of the menu's items, without the isolates around their values. */
+function menuTitles(): string[] {
+    return [...document.querySelectorAll("[data-slot=action-menu] > [role=menuitem]")].map((item) =>
+        (item.textContent ?? "").replaceAll(ISOLATES, ""),
+    );
 }
 
 test("delete a card from its menu, the focus moving to the card after it, the menu closing cleanly", async () => {
@@ -1240,7 +1258,7 @@ test("delete a card from its menu, the focus moving to the card after it, the me
 test("move a card to another column from its menu, the focus following it there", async () => {
     // a moved to Done from its menu
     const board = drawLive({ todo: ["a"], done: ["d"] });
-    await choose(board.container, "a", "done");
+    await choose(board.container, "a", "Move to…", "done");
 
     expect({
         cards: board.cards(),
@@ -1260,14 +1278,16 @@ test("confine the arrow keys of an open card menu to the menu, away from the car
         }),
     );
     flush();
-    const item = document.querySelector<HTMLElement>("[role=menuitem]");
+    const item = [...document.querySelectorAll<HTMLElement>("[role=menuitem]")].find(
+        (each) => each.textContent === "DeleteDelete",
+    );
     item?.focus();
     item?.dispatchEvent(
         new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true }),
     );
     flush();
     const focused = board.container.ownerDocument.activeElement?.getAttribute("role");
-    document.querySelectorAll("[data-slot=board-item-menu]").forEach((menu) => menu.remove());
+    document.querySelectorAll("[data-slot=action-menu]").forEach((menu) => menu.remove());
 
     expect(focused).toBe("menuitem");
 });
@@ -1487,15 +1507,13 @@ function drawLongBoard(textOf?: (card: string) => string): HTMLElement {
             <Board label="Backlog" onItemMove={() => undefined}>
                 <BoardColumnList>
                     <BoardColumn id="backlog" label="Backlog">
-                        <BoardColumnContent {...(textOf === undefined ? {} : { textOf })}>
-                            <VirtualList
-                                each={cards}
-                                estimateSize={() => CARD}
-                                overscan={1}
-                                itemKey={(card) => card}
-                            >
-                                {(card) => <BoardItem id={card}>{card}</BoardItem>}
-                            </VirtualList>
+                        <BoardColumnContent
+                            each={cards}
+                            estimateSize={() => CARD}
+                            itemKey={(card) => card}
+                            {...(textOf === undefined ? {} : { textOf })}
+                        >
+                            {(card) => <BoardItem id={card}>{card}</BoardItem>}
                         </BoardColumnContent>
                     </BoardColumn>
                 </BoardColumnList>
@@ -1527,14 +1545,11 @@ test("mount a long column's cards in view, each placed among all its cards, and 
     flush();
 
     expect({ before, focused: document.activeElement?.textContent }).toEqual({
-        before: [
-            "Ticket 1 1/500",
-            "Ticket 2 2/500",
-            "Ticket 3 3/500",
-            "Ticket 4 4/500",
-            "Ticket 5 5/500",
-            "Ticket 6 6/500",
-        ],
+        // the cards in view, and the eight to spare after them
+        before: Array.from(
+            { length: 13 },
+            (_, index) => `Ticket ${String(index + 1)} ${String(index + 1)}/500`,
+        ),
         focused: "Ticket 500",
     });
 });

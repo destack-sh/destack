@@ -1,6 +1,7 @@
 import { type Direction, type Localization, t } from "@destack/locale";
 import type { Action } from "@destack/object";
-import { handle, untrack } from "@destack/view";
+import { handle, provide, untrack } from "@destack/view";
+import { Place } from "@destack/object";
 import {
     closePane,
     dockPane,
@@ -13,6 +14,7 @@ import {
     maximizePane,
     moveTabTo,
     openWindow,
+    currentPane,
     splitDown,
     splitRight,
 } from "./actions.ts";
@@ -131,6 +133,15 @@ export function handlePanes(
     };
 
     return [
+        // give the pane whose bar a person is on to the actions on it
+        provide((element) => {
+            const isOnBar = element?.closest("[data-slot=pane-bar], [data-slot=pane-tabs]") != null;
+            const pane = isOnBar ? group.paneAt(element) : undefined;
+
+            return pane === undefined ? new Place() : new Place().with(currentPane, pane);
+        }),
+
+        // split, move and cover panes
         onPane(splitRight, hasItem, (pane, element) => split(right())(pane, element)),
         onPane(splitDown, hasItem, split("bottom")),
         handle(moveTabTo, {

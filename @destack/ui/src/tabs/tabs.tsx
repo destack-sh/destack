@@ -1,3 +1,4 @@
+import type { ObjectReference } from "@destack/sync";
 import x from "@destack/icon/phosphor/x";
 import { t } from "@destack/locale";
 import { state } from "@destack/theme/state";
@@ -486,6 +487,8 @@ export interface TabsProperties extends Omit<
     readonly defaultValue?: string;
     /** Handle another tab being selected. */
     readonly onValueChange?: (value: string) => void;
+    /** Read the object a tab stands for, which actions on its type take, absent for none. */
+    readonly reference?: ((value: string) => ObjectReference | undefined) | undefined;
     /** Handle a person moving a tab to a place among the others by an action. */
     readonly onMove?: (value: string, index: number) => void;
     /** Handle a person opening the tab closed last again. */
@@ -525,6 +528,7 @@ export function Tabs(properties: TabsProperties): JSX.Element {
         "onValueChange",
         "onClose",
         "onMove",
+        "reference",
         "onReopen",
         "idPrefix",
         "orientation",
@@ -541,6 +545,7 @@ export function Tabs(properties: TabsProperties): JSX.Element {
                 ref: TabsControl.handlers(
                     () => control,
                     () => locale.direction,
+                    (value) => properties.reference?.(value),
                 ),
             })}
         </TabsContext>

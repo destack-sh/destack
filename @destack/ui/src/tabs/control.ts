@@ -1,3 +1,5 @@
+import type { ObjectReference } from "@destack/sync";
+import { provideItems } from "../action/place.ts";
 import {
     type Accessor,
     createContext,
@@ -145,6 +147,7 @@ export class TabsControl {
     static handlers(
         tabs: () => TabsControl | undefined,
         direction: () => Direction,
+        reference: (value: string) => ObjectReference | undefined,
     ): ((element: Element) => void)[] {
         // handle an action on the tab a person is on, or the selected one
         const onTab = (
@@ -190,6 +193,18 @@ export class TabsControl {
             );
 
         return [
+            // give the tab a person is on to the actions on it
+            provideItems({
+                targets: (element) => {
+                    const value = tabs()?.valueAt(element);
+                    const isOnTab = element?.closest("[role=tab], [data-tab]") != null;
+
+                    return isOnTab && value !== undefined ? [value] : [];
+                },
+                reference,
+            }),
+
+            // close, go to and move tabs
             onTab(
                 closeTab,
                 (control, value) => control.isClosable(value),

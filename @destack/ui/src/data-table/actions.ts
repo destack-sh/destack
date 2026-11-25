@@ -1,5 +1,5 @@
 import { t } from "@destack/locale";
-import { type Action, defineAction } from "@destack/object";
+import { defineAction } from "@destack/object";
 
 /** Sort the column from its lowest value. */
 export const sortAscending = defineAction({
@@ -52,13 +52,3 @@ export const moveColumnRight = defineAction({
     title: t`Move right`,
     category: t`Table`,
 });
-
-/** An action a table's owner runs on rows, in the row's menu, the bulk bar and by its keys. */
-export interface DataTableRowAction {
-    /** The action. */
-    readonly action: Action;
-    /** Report whether it runs on some rows, any by default. */
-    readonly isEnabled?: (rows: readonly string[]) => boolean;
-    /** Run it on some rows. */
-    readonly run: (rows: readonly string[]) => void;
-}
