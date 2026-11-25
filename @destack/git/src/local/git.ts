@@ -1,4 +1,4 @@
-import type { Environment } from "@destack/environment";
+import { type Environment, Telemetry } from "@destack/environment";
 import { GitError } from "../error/index.ts";
 
 /** A git configuration key and its value. */
@@ -59,11 +59,20 @@ export const Git = {
         environment: Environment<"process" | "host">,
         options: GitOptions = {},
     ): Promise<string> {
+        // send the caller's trace context with each request git makes, so a push joins its trace
+        const traced = new Headers();
+        Telemetry.inject(traced, environment.telemetry);
+        const trace = [...traced].map(([name, value]): GitSetting => [
+            "http.extraHeader",
+            `${name}: ${value}`,
+        ]);
+        const configuration = [...(options.configuration ?? []), ...trace];
+
         // run git to completion, or until the signal aborts
         const { code, stdout, stderr } = await environment.process.run(
             ["git", "-C", directory, ...command],
             {
-                variables: Git.variables(environment, options.configuration ?? []),
+                variables: Git.variables(environment, configuration),
                 input: options.input ?? "",
                 ...(options.signal === undefined ? {} : { signal: options.signal }),
             },
