@@ -87,6 +87,14 @@ export function renderExample<Properties extends object>(
     } else if (frame.example.layout === "centered") {
         container.style.display = "contents";
     }
+
+    // give an app the window's height, which it scrolls inside
+    if (frame.example.layout === "fullscreen") {
+        container.style.height = "100dvh";
+        container.style.overflow = "hidden";
+        container.style.display = "grid";
+        container.style.gridTemplateColumns = "minmax(0, 1fr)";
+    }
     element.append(container);
 
     // run the keys of the actions the example handles until it unmounts

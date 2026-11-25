@@ -23,6 +23,8 @@ export function viewPlugins(ssr: boolean): PluginOption[] {
         solid({
             ssr,
             serverFunctions: false,
+            // leave out the traces for Chrome's timeline, which take longer than most updates they time
+            performanceTracks: false,
             solid: { moduleName: RUNTIME_MODULE, hydratable: true },
         }),
     ];
