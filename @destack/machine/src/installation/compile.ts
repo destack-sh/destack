@@ -1,7 +1,8 @@
+import { principal } from "@destack/access";
 import { present, schema } from "@destack/schema";
 import { build, compile, CompileOutput } from "@destack/stack/object";
 import { StackError } from "@destack/stack/error";
-import { Subject } from "@destack/sync";
+import { Scope, Subject } from "@destack/sync";
 import { recorded } from "@destack/workflow";
 import { Failure } from "@destack/error";
 import type { Space } from "../space/index.ts";
@@ -27,9 +28,12 @@ export function implementCompile(space: Space) {
                     );
                     const { source } = row;
 
-                    // place a commit's compile on the space's runner, refusing a release
+                    // place a commit's compile on its runner, refusing a release
                     if (source.kind === "commit") {
-                        return space.runner();
+                        return principal.machine.reference(
+                            Scope.universe.id,
+                            present(row.runnerId, `the runner of build '${row.id}'`),
+                        );
                     } else {
                         throw StackError.of(
                             "RELEASE_BLOCKED",

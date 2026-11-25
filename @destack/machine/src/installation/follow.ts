@@ -127,14 +127,15 @@ export class CommitBuild {
             return;
         }
 
-        // create the commit's build once, and wait until it succeeded, leaving a managed installation's to its manager
+        // build the commit once on the machine its checkout reference names, else on the space's runner
         const source: CommitSource = {
             kind: "commit",
             repository: followed.repository,
             commit,
             directory,
         };
-        const built = await this.#create(reconciliation, source);
+        const runnerId = await this.#options.space.checkoutRunner(followed.name);
+        const built = await this.#create(reconciliation, source, runnerId);
 
         // fail the pass with the failed build's failure
         if (built.state === "failed") {
@@ -219,11 +220,17 @@ export class CommitBuild {
         }
     }
 
-    /** Create the build of a commit source, answered by its live build when one exists. */
-    async #create(reconciliation: ObjectReconciliation, source: CommitSource): Promise<Build> {
+    /** Create a commit source's build on a runner, answered by its live build when one exists. */
+    async #create(
+        reconciliation: ObjectReconciliation,
+        source: CommitSource,
+        runnerId: Identifier<"machine"> | undefined,
+    ): Promise<Build> {
+        // create it in the installation's space, on the runner when one is named
         const scope = Installation.space(this.#target);
+        const runner = runnerId === undefined ? {} : { runnerId };
         const [created] = await reconciliation.mutate([
-            build.call("create", { ...build.in(scope), source }),
+            build.call("create", { ...build.in(scope), source, ...runner }),
         ]);
 
         return Build.of(present(created, "the created build"));

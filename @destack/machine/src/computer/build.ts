@@ -146,9 +146,15 @@ export class Builder {
     async #open(input: BuildRow, signal: AbortSignal): Promise<SourceDirectory> {
         const { source } = input;
 
-        // build a commit in the mirror of a checkout of this machine that has it, else fetch it
+        // build a commit in the mirror of a checkout of this machine that has it, else fetch it on a runner
         if (source.kind === "commit") {
             const local = await this.#local(source, signal);
+            if (local === undefined && !this.#machine.isRunner) {
+                throw MachineError.of(
+                    "BUILD_BLOCKED",
+                    `cannot build commit '${source.commit}': no checkout of this machine has it, and it runs no space's work`,
+                );
+            }
 
             return local ?? (await this.#fetch(source, input.scope, signal));
         }

@@ -118,7 +118,7 @@ export class CheckoutServer {
                                 `cannot push the HEAD of '${root}': it has uncommitted changes, so commit them first`,
                             );
                         }
-                        const reference = GitReference.checkout(id);
+                        const reference = GitReference.checkout(this.machine.id, id);
 
                         // push the commit with the person's lease
                         const { lease } = context.input;

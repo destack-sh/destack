@@ -21,6 +21,7 @@ import {
 } from "@destack/stack/object";
 import { TelemetryScope } from "@destack/telemetry";
 import { reference, repository } from "@destack/registry/object";
+import { GitReference } from "@destack/git";
 import { referenceFollow, tagFollow } from "../installation/follow.ts";
 import { callRegistry, locateHome } from "../machine/registry.ts";
 import type * as packageRuntime from "@destack/package/runtime";
@@ -190,6 +191,13 @@ const ASSIGNMENT_PLACEMENT: Relation = {
     table: accountObject.placement.table,
     cardinality: "one",
     on: { kind: "key", column: "id", parent: "placementId" },
+};
+
+/** The installations following a reference, whose spaces its change touches. */
+const REFERENCE_FOLLOWERS: Relation = {
+    table: installation.table,
+    cardinality: "many",
+    on: { kind: "key", column: "versionId", parent: "id" },
 };
 
 /** The origin in-process installations call their space's stack service at, in process. */
@@ -2216,6 +2224,18 @@ export class Space {
                     on: { id: "scope" },
                 })),
                 { table: deployment.table, fields: ["status", "machineId"], on: { id: "scope" } },
+                // take the space of an installation following a machine's checkout, and of its reference once it arrives
+                {
+                    table: installation.table,
+                    fields: ["versionType", "versionId", "deletedAt"],
+                    on: { id: "scope" },
+                },
+                {
+                    table: reference.table,
+                    fields: ["name"],
+                    path: [REFERENCE_FOLLOWERS],
+                    on: { id: "scope" },
+                },
             ],
             project: async (key) => this.#assign(key, remote),
         };
@@ -2516,10 +2536,10 @@ export class Space {
         return rows.map((row) => row.machineId);
     }
 
-    /** List the machines working in a space: its steps' runners and deployments' machines. */
+    /** List the machines working in a space: runners, deployments and followed checkouts. */
     async #working(scope: Identifier<"space">): Promise<Identifier<"machine">[]> {
-        // read the runners of the steps open on them, and the machines of the live deployments
-        const [runners, deployments] = await Promise.all([
+        // read the open steps' runners, the live deployments' machines and the followed references
+        const [runners, deployments, followed] = await Promise.all([
             Promise.all(
                 Space.functions.map(({ workflow }) =>
                     this.database
@@ -2544,7 +2564,21 @@ export class Space {
                         isNotNull(deployment.table.machineId),
                     ),
                 ),
+            this.database
+                .select({ name: reference.table.name })
+                .from(installation.table)
+                .innerJoin(reference.table, eq(reference.table.id, installation.table.versionId))
+                .where(
+                    and(
+                        eq(installation.table.scope, scope),
+                        eq(installation.table.versionType, reference.name),
+                        isNull(installation.table.deletedAt),
+                    ),
+                ),
         ]);
+
+        // keep the machines whose checkouts the installations follow, which build their saves
+        const checkouts = await this.#checkoutMachines(followed.map((row) => row.name));
 
         return [
             ...runners
@@ -2555,6 +2589,7 @@ export class Space {
                         .parse(present(row.runnerId, "a placed step's runner")),
                 ),
             ...deployments.flatMap((row) => (row.machineId === null ? [] : [row.machineId])),
+            ...checkouts,
         ];
     }
 
@@ -3082,6 +3117,51 @@ export class Space {
         );
 
         return GitAuthor.of(personal);
+    }
+
+    /** Read the machine a checkout's reference names, refusing a malformed or a cloud machine's. */
+    async checkoutRunner(name: string): Promise<Identifier<"machine"> | undefined> {
+        // leave a branch or tag, which the space's runner builds
+        if (!GitReference.isCheckout(name)) {
+            return undefined;
+        }
+
+        // refuse a reference naming no machine, or a cloud one, as a repository writer names it
+        const [machineId] = await this.#checkoutMachines([name]);
+        if (machineId === undefined) {
+            throw StackError.of(
+                "RUNNER_BLOCKED",
+                `cannot build reference '${name}': it must name a personal machine, as refs/checkouts/<machine>/<checkout>`,
+            );
+        }
+
+        return machineId;
+    }
+
+    /** List the machines checkout references name, leaving malformed ones and cloud machines. */
+    async #checkoutMachines(names: readonly string[]): Promise<Identifier<"machine">[]> {
+        // read the named machines
+        const named = names.flatMap((name) => {
+            const machine = GitReference.machine(name);
+
+            return machine === undefined ? [] : [schema.identifier("machine").parse(machine)];
+        });
+
+        // leave the cloud machines, which build any commit, as a personal one builds only its own checkouts
+        // NOTE #Security: nothing binds refs/checkouts/<machine>/ to the machine pushing it, so a writer may name another account's personal machine, which then refuses the build
+        const clouds = await this.database
+            .snapshot()
+            .read(accountObject.machine.table)
+            .findMany({ where: { id: { in: named }, kind: "cloud" } });
+
+        return named.filter((machine) => !clouds.some((row) => row.id === machine));
+    }
+
+    /** Identify the machine running the space's work, refusing a space without a runner. */
+    runnerId(): Identifier<"machine"> {
+        this.runner();
+
+        return this.machine.id;
     }
 
     /** Read the machine running the space's work: its serving machine, when it runs work. */
