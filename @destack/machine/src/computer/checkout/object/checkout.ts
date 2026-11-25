@@ -12,7 +12,7 @@ import { argument, plural, t } from "@destack/locale";
 export const CheckoutPush = schema.object({
     /** The commit of the working tree as it was: HEAD itself while clean. */
     commit: Commit,
-    /** The reference pointed at the commit, refs/checkouts/<checkout>. */
+    /** The reference pointed at the commit, refs/checkouts/<machine>/<checkout>. */
     reference: schema.string().min(1),
 });
 /** A checkout's working tree pushed to its reference. */

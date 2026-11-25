@@ -77,6 +77,7 @@ import {
     type Identifier,
     present,
     schema,
+    Version,
     type VersionRange,
 } from "@destack/schema";
 import * as stackObject from "@destack/stack/object";
@@ -204,6 +205,8 @@ export class Machine {
     readonly homes = new Map<Identifier<"account">, Promise<Identifier<"space">>>();
     /** The pulls in flight, by root and runtimes, which a pull of the same joins. */
     readonly #pulling = new Map<string, Promise<void>>();
+    /** Each release version's image resolved so far, as the forge never moves a version's image. */
+    readonly #releases = new Map<string, Promise<Digest>>();
     /** Whether the machine builds the commits its spaces' installations select. */
     readonly isRunner: boolean;
     /** Whether the machine checks its spaces' use against their accounts' entitlements. */
@@ -417,7 +420,24 @@ export class Machine {
             return shipped.image;
         }
 
-        // resolve it at its publisher's forge, as the machine
+        // resolve a release version once, and a tag each time, as a tag moves
+        const isVersion = Version.safeParse(named).success && Version.isRelease(named);
+        const key = `${packageId}@${named}`;
+        const known = isVersion ? this.#releases.get(key) : undefined;
+        if (known !== undefined) {
+            return known;
+        }
+        const resolving = this.#resolveAtForge(packageId, named);
+        if (isVersion) {
+            this.#releases.set(key, resolving);
+            resolving.catch(() => this.#releases.delete(key));
+        }
+
+        return resolving;
+    }
+
+    /** Resolve a release's image at its publisher's forge, as the machine. */
+    async #resolveAtForge(packageId: PackageId, named: string): Promise<Digest> {
         const home = await findPublisherHome(this, packageObject, packageId);
         const found = await callRegistry(this, home).release.resolve({
             spaceId: home,

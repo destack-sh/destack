@@ -473,16 +473,16 @@ test("deploy each push of a checkout's working tree to the installation followin
         head: await git(site.worktree, "rev-parse", "HEAD"),
         status: await git(site.worktree, "status", "--porcelain"),
         version: await git(site.worktree, "show", `${second.commit}:src/version.ts`),
-        // fetch each commit on the space's runner, which has no checkout of it
+        // build each commit in the checkout's mirror on its machine, fetching none on the space's runner
         fetched: await files.exists(join(site.home.directory, "commits")),
     }).toEqual({
-        reference: `refs/checkouts/${opened.id}`,
+        reference: `refs/checkouts/${machineId}/${opened.id}`,
         same: true,
         parents: [head, head],
         head,
         status: "M src/version.ts",
         version: "/** The site's version. */\nexport const version = 3;",
-        fetched: true,
+        fetched: false,
     });
 });
 
@@ -526,6 +526,64 @@ test("fail the installation of a branch whose commit does not build, with the bu
         state: "failed",
         synced: `@destack/stack BUILD_BLOCKED: ${message}`,
         refused: [`PRECONDITION_FAILED | BUILD_BLOCKED | ${message}`],
+    });
+});
+
+test("refuse a checkout reference naming a cloud machine, building nothing", async () => {
+    // push the site's main to a checkout reference naming the universe's runner, and install it following that
+    const site = await pushHome();
+    const commit = await site.push(2);
+    const runner = site.home.machine.id;
+    const name = `refs/checkouts/${runner}/checkout-1`;
+    const remote = present(site.repository.remote, "the remote");
+    await git(site.worktree, "push", "--quiet", remote, `HEAD:${name}`);
+    await site.list();
+    const { items } = await site.owner.reference.list({
+        spaceId: site.residency,
+        where: { parentId: site.repository.id, name },
+        limit: 1,
+    });
+    const followed = present(items[0], "the checkout's reference");
+    const installed = await site.service.installation.create({
+        scope: site.space,
+        requestId: RequestId.create(site.home.environment),
+        packageId: SITE,
+        ...ObjectReference.columns("version", reference.reference(site.residency, followed.id)),
+        directory: ".",
+        name: "site",
+    });
+    const served = (await site.home.machine.space(site.space)).database;
+
+    // wait until its reconcile refuses the reference
+    const read = async () =>
+        present(
+            (
+                await served
+                    .select()
+                    .from(stackObject.installation.table)
+                    .where(eq(stackObject.installation.table.id, installed.id))
+            )[0],
+            "the installation",
+        );
+    const isFailing = async () => (await read()).conditions["Synced"]?.status === "false";
+    expect(
+        await site.home.world.simulation.wait(
+            served.log.waitUntil(isFailing, site.home.clock.timeout(DEPLOY_MILLISECONDS)),
+        ),
+    ).toBe(true);
+
+    // refuse the cloud machine before any build of the commit exists
+    const message = `cannot build reference '${name}': it must name a personal machine, as refs/checkouts/<machine>/<checkout>`;
+    const builds = await served.select().from(build.table);
+    const refused = site.home.takeRefusals().map((each) => each.join(" | "));
+    expect({
+        synced: (await read()).conditions["Synced"]?.message,
+        built: builds.filter((row) => row.commit === commit).length,
+        refused: [...new Set(refused)],
+    }).toEqual({
+        synced: `@destack/stack RUNNER_BLOCKED: ${message}`,
+        built: 0,
+        refused: [`PRECONDITION_FAILED | RUNNER_BLOCKED | ${message}`],
     });
 });
 
