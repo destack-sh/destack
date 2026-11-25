@@ -22,6 +22,9 @@ const TABBABLE = [
     "[tabindex]:not([tabindex='-1'])",
 ].join(", ");
 
+/** What takes the focus, by a key or by a press. */
+const FOCUSABLE = [TABBABLE, "[tabindex]"].join(", ");
+
 /** How a collection's keys lay out for the keyboard. */
 export interface KeyboardDelegate<Key> {
     /** Read the key a key press moves the focus to from a key. */
@@ -265,6 +268,13 @@ export function tabbablesIn(root: ParentNode): HTMLElement[] {
     return [...root.querySelectorAll<HTMLElement>(TABBABLE)].filter(
         (element) => element.tabIndex >= 0 && element.closest("[inert], [hidden]") === null,
     );
+}
+
+/** Find the nearest element around one that takes the focus, inside a root, else the root. */
+export function focusableAround(target: EventTarget | null, root: HTMLElement): HTMLElement {
+    const found = target instanceof Element ? target.closest<HTMLElement>(FOCUSABLE) : null;
+
+    return found !== null && root.contains(found) ? found : root;
 }
 
 /** Report whether a key types a letter that moves the focus by typeahead. */

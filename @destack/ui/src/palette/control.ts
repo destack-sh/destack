@@ -2,7 +2,14 @@ import type { Hue } from "@destack/color";
 import type { IconBodies } from "@destack/icon";
 import { schema } from "@destack/schema";
 import { TelemetryScope } from "@destack/telemetry";
-import { type Accessor, createSignal, type JSX, type Setter, useEnvironment } from "@destack/view";
+import {
+    type Accessor,
+    createMemo,
+    createSignal,
+    type JSX,
+    type Setter,
+    useEnvironment,
+} from "@destack/view";
 import { StoredItem } from "@destack/view/primitives/storage";
 import type { CommandControl } from "../command/index.ts";
 
@@ -11,6 +18,9 @@ const MATCHES = { start: 3, word: 2, inside: 1 } as const;
 
 /** The recent entries the root page lists while the search is empty. */
 const RECENT_SHOWN = 5;
+
+/** The best entries of a group a palette lists, as many as a person reads before they search. */
+const GROUP_SHOWN = 50;
 
 /** The uses a palette remembers, the least frecent dropping out past it. */
 const RECENT_KEPT = 50;
@@ -148,6 +158,8 @@ export class PaletteControl {
     readonly #stored: StoredItem;
     /** Read the time now, in milliseconds since the epoch. */
     readonly #now: () => number;
+    /** The shown page's groups with their entries, listed once per change to them. */
+    readonly #listed: Accessor<readonly PaletteResult[]>;
 
     /** Create a palette over a command and its root page, remembering uses under a key. */
     constructor(options: {
@@ -172,6 +184,12 @@ export class PaletteControl {
         this.#close = options.close;
         this.#stored = new StoredItem(`destack-palette:${options.key}`, environment, telemetry);
         this.#now = () => environment.clock.now();
+
+        // list the entries apart from the search, which ranks them on every key
+        this.#listed = createMemo(
+            () => this.page().groups.map((group) => ({ group, items: group.items() })),
+            { lazy: true },
+        );
     }
 
     /** Read the page shown: the newest opened, else the root. */
@@ -241,11 +259,9 @@ export class PaletteControl {
     results(): PaletteResults {
         // rank each group's matching entries, lifting the frecent ones
         const query = this.command.search.value().trim().toLowerCase();
-        const page = this.page();
-        const ranked = page.groups.map((group) => ({
+        const ranked = this.#listed().map(({ group, items }) => ({
             group,
-            items: group
-                .items()
+            items: items
                 .flatMap((item) => {
                     const match = matchOf(item, query);
 
@@ -256,12 +272,12 @@ export class PaletteControl {
         }));
 
         // put the recent entries first on the root while the search is empty
-        const recent = query === "" && this.command.pages().length === 0 ? this.#recent(page) : [];
+        const recent = query === "" && this.command.pages().length === 0 ? this.#recent() : [];
         const shown = new Set(recent.map((item) => item.id));
         const groups = ranked
             .map((result) => ({
                 group: result.group,
-                items: result.items.filter((item) => !shown.has(item.id)),
+                items: result.items.filter((item) => !shown.has(item.id)).slice(0, GROUP_SHOWN),
             }))
             .filter((result) => result.items.length > 0);
 
@@ -269,9 +285,11 @@ export class PaletteControl {
     }
 
     /** List the page's most frecent entries. */
-    #recent(page: PalettePage): PaletteItem[] {
+    #recent(): PaletteItem[] {
         const items = new Map(
-            page.groups.flatMap((group) => group.items()).map((item) => [item.id, item]),
+            this.#listed()
+                .flatMap((listed) => listed.items)
+                .map((item) => [item.id, item]),
         );
 
         return this.uses()

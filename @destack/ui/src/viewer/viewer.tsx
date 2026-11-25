@@ -17,7 +17,7 @@ import {
     createSignal,
     For,
     handle,
-    handleAction,
+    handleOnPage,
     type JSX,
     omit,
     onCleanup,
@@ -528,7 +528,7 @@ export function ViewerDownload(properties: ViewerDownloadProperties): JSX.Elemen
     // save the item from anywhere while the viewer is open
     const viewer = useViewer();
     const rest = omit(properties, "href", "name", "xstyle");
-    handleAction(downloadItem, {
+    handleOnPage(downloadItem, {
         isEnabled: () => viewer.dialog.isOpen(),
         run: () => {
             // follow a link of its own, as a browser saves by one

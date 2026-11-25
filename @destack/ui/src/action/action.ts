@@ -1,5 +1,9 @@
 import { t } from "@destack/locale";
-import { defineAction } from "@destack/object";
+import { defineAction, defineVariable } from "@destack/object";
+import { schema } from "@destack/schema";
+
+/** The items a person is on in a list: the selection the one they are at is in, else that one. */
+export const items = defineVariable({ name: "items", value: schema.array(schema.string()) });
 
 /** Select everything the list shows. */
 export const selectAll = defineAction({
@@ -31,6 +35,7 @@ export const openItem = defineAction({
     title: t`Open`,
     category: t`Edit`,
     keybinding: "enter",
+    input: { items },
 });
 
 /** Show the item after the one shown. */
@@ -49,11 +54,56 @@ export const previousItem = defineAction({
     keybinding: "k",
 });
 
+/** Move the items to a section of their list, such as a board's column. */
+export const moveItemsTo = defineAction({
+    name: "item.moveTo",
+    title: t`Move to…`,
+    category: t`Edit`,
+    input: { items, section: schema.string() },
+});
+
+/** Move the items to the section on the left. */
+export const moveItemsLeft = defineAction({
+    name: "item.moveLeft",
+    title: t`Move left`,
+    category: t`Edit`,
+    keybinding: "shift+alt+left",
+    input: { items },
+});
+
+/** Move the items to the section on the right. */
+export const moveItemsRight = defineAction({
+    name: "item.moveRight",
+    title: t`Move right`,
+    category: t`Edit`,
+    keybinding: "shift+alt+right",
+    input: { items },
+});
+
+/** Move the items up by one. */
+export const moveItemsUp = defineAction({
+    name: "item.moveUp",
+    title: t`Move up`,
+    category: t`Edit`,
+    keybinding: "shift+alt+up",
+    input: { items },
+});
+
+/** Move the items down by one. */
+export const moveItemsDown = defineAction({
+    name: "item.moveDown",
+    title: t`Move down`,
+    category: t`Edit`,
+    keybinding: "shift+alt+down",
+    input: { items },
+});
+
 /** Save the item as a file. */
 export const downloadItem = defineAction({
     name: "item.download",
     title: t`Download`,
     category: t`File`,
+    input: { items: items.exactOptional() },
 });
 
 /** Send the item again after it failed. */
@@ -61,6 +111,7 @@ export const retryItem = defineAction({
     name: "item.retry",
     title: t`Try again`,
     category: t`File`,
+    input: { items },
 });
 
 /** Choose files to add where the person is. */
@@ -116,6 +167,7 @@ export const duplicateItems = defineAction({
     title: t`Duplicate`,
     category: t`Edit`,
     keybinding: "mod+d",
+    input: { items },
 });
 
 /** Remove the selected items. */
@@ -125,6 +177,7 @@ export const removeItems = defineAction({
     category: t`Edit`,
     keybinding: { key: "delete", mac: ["backspace", "delete"] },
     isDestructive: true,
+    input: { items },
 });
 
 /** Open the menu of what the person is on, as the menu key does. */
@@ -133,6 +186,7 @@ export const openMenu = defineAction({
     title: t`Open menu`,
     category: t`Edit`,
     keybinding: "shift+f10",
+    input: { items },
 });
 
 /** Hide the column. */
@@ -140,4 +194,13 @@ export const hideColumn = defineAction({
     name: "column.hide",
     title: t`Hide`,
     category: t`View`,
+});
+
+/** Show what the keys do where the person is. */
+export const showShortcuts = defineAction({
+    name: "shortcuts.show",
+    title: t`Keyboard shortcuts`,
+    category: t`Help`,
+    keybinding: "mod+/",
+    focus: "any",
 });

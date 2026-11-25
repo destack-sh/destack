@@ -4,11 +4,11 @@ import { schema } from "@destack/schema";
 import { expect, onTestFinished, test, vi } from "@destack/test";
 import { present } from "@destack/schema";
 import { Button } from "../button/index.ts";
-import { ActionRegistry, createSignal, flush, handle, handleAction, Show } from "@destack/view";
+import { ActionRegistry, createSignal, flush, handle, handleOnPage, Show } from "@destack/view";
 import { render, stubPopovers, wait } from "@destack/view/test";
 import { Toaster } from "../toast/index.ts";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "../dropdown-menu/index.ts";
-import { ActionButton, ActionDialog, MenuAction } from "./index.ts";
+import { ActionButton, ActionDialog, ActionSelect, MenuAction } from "./index.ts";
 
 /** Archive the note. */
 const archive = defineAction({ name: "archive", title: t`Archive`, keybinding: "mod+e" });
@@ -38,12 +38,12 @@ function drawNote() {
     const actions = new ActionRegistry();
     const { container } = render(
         () => {
-            handleAction(archive, { run: () => void ran.push("archive") });
-            handleAction(share, {
+            handleOnPage(archive, { run: () => void ran.push("archive") });
+            handleOnPage(share, {
                 choices: () => ["Ada", "Grace"].map((name) => ({ value: name, title: name })),
                 run: ({ values }) => void ran.push(values),
             });
-            handleAction(rename, { run: ({ values }) => void ran.push(values) });
+            handleOnPage(rename, { run: ({ values }) => void ran.push(values) });
 
             return (
                 <>
@@ -93,7 +93,7 @@ test("list the choices of the one input left, and run with the one picked", asyn
     items[1]?.click();
     await wait(0);
 
-    expect({ titles, ran }).toEqual({ titles: ["Ada", "Grace"], ran: [{ person: "Grace" }] });
+    expect({ titles, ran }).toEqual({ titles: ["Ada1", "Grace2"], ran: [{ person: "Grace" }] });
 });
 
 test("ask for several inputs in a form, submitting once each required one is given", async () => {
@@ -135,7 +135,7 @@ test("show the person an action that failed in the page's toasts", async () => {
     onTestFinished(() => report.mockRestore());
     const broken = new TypeError("broken");
     const { container } = render(() => {
-        handleAction(archive, {
+        handleOnPage(archive, {
             run: () => {
                 throw broken;
             },
@@ -202,9 +202,9 @@ test("check what is on in a menu and on a button, open choices as a submenu, and
     const ran: unknown[] = [];
     const [isPinned, setPinned] = createSignal(false);
     const { container } = render(() => {
-        handleAction(pin, { isOn: isPinned, run: () => void setPinned((is) => !is) });
-        handleAction(paint, { run: ({ values }) => void ran.push(values) });
-        handleAction(postpone, { run: ({ values }) => void ran.push(values) });
+        handleOnPage(pin, { isOn: isPinned, run: () => void setPinned((is) => !is) });
+        handleOnPage(paint, { run: ({ values }) => void ran.push(values) });
+        handleOnPage(postpone, { run: ({ values }) => void ran.push(values) });
 
         return (
             <>
@@ -284,7 +284,7 @@ test("disable a button while its action does not run, the button staying in the 
     const [isEnabled, setEnabled] = createSignal(false, { ownedWrite: true });
     const { container } = render(
         () => {
-            handleAction(archive, { isEnabled, run: () => void ran.push("archive") });
+            handleOnPage(archive, { isEnabled, run: () => void ran.push("archive") });
 
             return <ActionButton action={archive} />;
         },
@@ -313,7 +313,7 @@ test("follow a link in place of its action", () => {
     const [isEnabled, setEnabled] = createSignal(true, { ownedWrite: true });
     const { container } = render(
         () => {
-            handleAction(archive, { isEnabled, run: () => void ran.push("archive") });
+            handleOnPage(archive, { isEnabled, run: () => void ran.push("archive") });
 
             return <ActionButton action={archive} href="#archive" download="archive.zip" />;
         },
@@ -351,4 +351,72 @@ test("style a button under its tooltip as any button", () => {
     const [plain, action] = container.querySelectorAll("button");
 
     expect(action?.className).toBe(present(plain, "the plain button").className);
+});
+
+/** Change the status of a task. */
+const changeStatus = defineAction({
+    name: "changeStatus",
+    title: t`Change status`,
+    input: { status: schema.string() },
+});
+
+/** Draw a task's status beside a button that changes it. */
+function drawTask() {
+    stubPopovers();
+    const [status, setStatus] = createSignal("todo");
+    const { container } = render(
+        () => {
+            handleOnPage(changeStatus, {
+                choices: () => [
+                    { value: "todo", title: "To do" },
+                    { value: "done", title: "Done" },
+                ],
+                chosen: () => [status()],
+                subject: () => "Pack",
+                run: ({ values }) => void setStatus(values.status),
+            });
+
+            return (
+                <>
+                    <ActionSelect action={changeStatus} />
+                    <ActionDialog />
+                </>
+            );
+        },
+        { actions: new ActionRegistry() },
+    );
+
+    return { container, status };
+}
+
+test("show the value an action sets, and pick another beside the button", async () => {
+    // read the value, open the choices and pick the second
+    const { container, status } = drawTask();
+    await wait(0);
+    flush();
+    const button = container.querySelector<HTMLElement>("[data-slot=action-select]");
+    const before = button?.textContent;
+    button?.click();
+    await wait(0);
+    flush();
+    const items = [...document.querySelectorAll<HTMLElement>("[data-slot=command-item]")];
+    const listed = items.map((item) => [
+        item.textContent,
+        item.querySelector("[role=img]")?.getAttribute("aria-label"),
+    ]);
+    const isBeside = document.querySelector("[data-slot=popover-content]") !== null;
+    items[1]?.click();
+    await wait(0);
+    flush();
+
+    expect({ before, listed, isBeside, status: status(), after: button?.textContent }).toEqual({
+        before: "To do",
+        listed: [
+            ["To do1", "Chosen"],
+            ["Done2", undefined],
+        ],
+        isBeside: true,
+        status: "done",
+        after: "Done",
+    });
 });

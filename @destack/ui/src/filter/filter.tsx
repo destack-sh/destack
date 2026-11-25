@@ -17,7 +17,7 @@ import {
     createSignal,
     flush,
     For,
-    handleAction,
+    handleOnPage,
     type JSX,
     omit,
     Show,
@@ -184,7 +184,7 @@ export function Filter(properties: FilterProperties): JSX.Element {
     const control = new FilterControl(properties);
     const locale = useLocale();
     const rest = omit(properties, "fields", "value", "defaultValue", "onValueChange", "children");
-    handleAction(clearFilter, {
+    handleOnPage(clearFilter, {
         isEnabled: () => control.root().items.length > 0,
         run: () => control.clear(),
     });
@@ -647,7 +647,7 @@ export function FilterAdd(properties: FilterAddProperties): JSX.Element {
     const label = (): string => locale.render(t`Filter`);
     let trigger: HTMLElement | undefined;
     if (set === null) {
-        handleAction(addFilter, { run: () => void setOpen(true) });
+        handleOnPage(addFilter, { run: () => void setOpen(true) });
     }
 
     // add to the set, and open what a condition without a value asks for

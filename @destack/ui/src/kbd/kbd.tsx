@@ -1,9 +1,18 @@
 import { state } from "@destack/theme/state";
 import * as style from "@destack/style";
-import { color, radius, space, weight } from "@destack/theme/tokens.stylex";
+import { color, font, radius, space, weight } from "@destack/theme/tokens.stylex";
 import { text } from "@destack/theme/text";
-import { Shortcut } from "@destack/locale";
-import { type Accessor, createSignal, For, type JSX, omit, onSettled } from "@destack/view";
+import { Shortcut, t } from "@destack/locale";
+import {
+    type Accessor,
+    createSignal,
+    For,
+    type JSX,
+    omit,
+    onSettled,
+    Show,
+    useLocale,
+} from "@destack/view";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
 
 /** The styles of keys and key groups. */
@@ -28,6 +37,11 @@ const styles = style.create({
         display: "inline-flex",
         alignItems: "center",
         gap: space[1],
+    },
+    then: {
+        fontFamily: font.text,
+        color: color.mutedForeground,
+        letterSpacing: "normal",
     },
 });
 
@@ -61,16 +75,26 @@ export type KbdShortcutProperties = KbdProperties & {
     readonly keys: string;
 };
 
-/** Render a key combination such as `mod+k`, a key each, as the viewer's platform labels them. */
+/** Render the keys of a shortcut such as `mod+k` or `g m`, as the viewer's platform labels them. */
 export function KbdShortcut(properties: KbdShortcutProperties): JSX.Element {
-    // label the keys for the viewer's platform
+    // label the keys of each stroke for the viewer's platform
     const isCommand = useCommandPlatform();
+    const locale = useLocale();
     const rest = omit(properties, "keys");
 
     return (
         <KbdGroup data-slot="kbd-shortcut" {...rest}>
-            <For each={Shortcut.labels(properties.keys, isCommand())}>
-                {(label) => <Kbd>{label}</Kbd>}
+            <For each={Shortcut.strokes(properties.keys)}>
+                {(stroke, index) => (
+                    <>
+                        <Show when={index() > 0}>
+                            <span {...style.attrs(styles.then)}>{locale.render(t`then`)}</span>
+                        </Show>
+                        <For each={Shortcut.labels(stroke, isCommand())}>
+                            {(label) => <Kbd>{label}</Kbd>}
+                        </For>
+                    </>
+                )}
             </For>
         </KbdGroup>
     );

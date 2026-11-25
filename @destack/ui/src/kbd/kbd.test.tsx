@@ -24,3 +24,12 @@ test("render a key combination a key each, as the platform labels them once the 
         '<kbd data-slot="kbd-shortcut"><kbd data-slot="kbd">Ctrl</kbd><kbd data-slot="kbd">Shift</kbd><kbd data-slot="kbd">Enter</kbd></kbd>',
     );
 });
+
+test("render the strokes of a sequence with what joins them", () => {
+    const { container } = render(() => <KbdShortcut keys="g i" />);
+    flush();
+
+    expect(markup(container)).toBe(
+        '<kbd data-slot="kbd-shortcut"><kbd data-slot="kbd">G</kbd><span>then</span><kbd data-slot="kbd">I</kbd></kbd>',
+    );
+});

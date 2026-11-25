@@ -265,3 +265,22 @@ test("leave the last selected value where the selection may not be empty, as a s
         multiple: ["italic"],
     });
 });
+
+test("target the selection an item is in, in the items' order, else the item alone", () => {
+    // select the first and last of three
+    const selection = createSelection({ multiple: true, defaultValue: ["c", "a"] });
+    const collection = createRoot((dispose) => {
+        onTestFinished(dispose);
+
+        return new Collection({
+            sections: () => [{ key: "letters", items: ["a", "b", "c"] }],
+            key: (letter) => letter,
+            text: (letter) => letter,
+        });
+    });
+
+    expect({
+        selected: selection.targets("c", collection),
+        other: selection.targets("b", collection),
+    }).toEqual({ selected: ["a", "c"], other: ["b"] });
+});

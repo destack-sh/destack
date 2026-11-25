@@ -5,7 +5,7 @@ import { argument, plural, t } from "@destack/locale";
 import { defineAction, field, ObjectError } from "@destack/object";
 import { defineExample } from "@destack/package/declare";
 import { schema } from "@destack/schema";
-import { createSignal, handleAction, type JSX } from "@destack/view";
+import { createSignal, handleOnPage, type JSX } from "@destack/view";
 import { Button } from "../button/index.ts";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "../dropdown-menu/index.ts";
 import { MenuAction } from "../menu/index.ts";
@@ -14,6 +14,7 @@ import { Stack } from "../stack/index.ts";
 import { Toaster } from "../toast/index.ts";
 import { ActionButton } from "./action-button.tsx";
 import { ActionDialog } from "./action-dialog.tsx";
+import { ActionSelect } from "./action-select.tsx";
 
 /** The people a task is assigned to. */
 const PEOPLE = [
@@ -82,32 +83,69 @@ const remove = defineAction({
     isDestructive: true,
 });
 
+/** Render a task's status and person, each picked beside its button. */
+function TaskProperties(): JSX.Element {
+    // keep the status and the person
+    const [status, setStatus] = createSignal("Doing");
+    const [person, setPerson] = createSignal<string | undefined>(undefined);
+    handleOnPage(changeStatus, {
+        choices: () => STATUSES,
+        chosen: () => [status()],
+        run: ({ values }) => void setStatus(values.status),
+    });
+    handleOnPage(assign, {
+        choices: () => PEOPLE.map(({ name, icon }) => ({ value: name, title: name, icon })),
+        chosen: () => {
+            const current = person();
+
+            return current === undefined ? [] : [current];
+        },
+        run: ({ values }) => void setPerson(values.person),
+    });
+
+    return (
+        <Cluster>
+            <ActionSelect action={changeStatus} />
+            <ActionSelect action={assign} variant="outline" placeholder="Assignee" />
+            <ActionDialog />
+        </Cluster>
+    );
+}
+
+/** A task's status and person, each shown on the button that picks another. */
+export const actionSelectTask = defineExample({
+    of: ActionSelect,
+    name: "select",
+    description: "a task's status and person, each shown on the button that picks another",
+    render: () => <TaskProperties />,
+});
+
 /** Render a task's actions as buttons, reporting what each did. */
 function TaskActions(): JSX.Element {
     // report what each action did
     const [done, setDone] = createSignal("Press a button, or its keys");
-    handleAction(assign, {
+    handleOnPage(assign, {
         choices: () => PEOPLE.map(({ name, icon }) => ({ value: name, title: name, icon })),
         run: ({ values }) => void setDone(`Assigned to ${values.person}`),
     });
-    handleAction(changeStatus, {
+    handleOnPage(changeStatus, {
         choices: () => STATUSES,
         run: ({ values }) => void setDone(`Moved to ${values.status}`),
     });
-    handleAction(plan, {
+    handleOnPage(plan, {
         run: ({ values }) => void setDone(`Planned ${values.title}, ${values.points} points`),
     });
     const [isStarred, setStarred] = createSignal(false);
-    handleAction(star, { isOn: isStarred, run: () => void setStarred((is) => !is) });
-    handleAction(postpone, {
+    handleOnPage(star, { isOn: isStarred, run: () => void setStarred((is) => !is) });
+    handleOnPage(postpone, {
         run: ({ values }) => void setDone(`Postponed by ${values.days} days`),
     });
-    handleAction(publish, {
+    handleOnPage(publish, {
         run: () => {
             throw ObjectError.of("CALL_BLOCKED", "cannot publish the task: its launch is over");
         },
     });
-    handleAction(remove, { run: () => void setDone("Deleted") });
+    handleOnPage(remove, { run: () => void setDone("Deleted") });
 
     return (
         <Stack>

@@ -1,4 +1,12 @@
 export * from "./action.ts";
+export * from "./action-bar.tsx";
 export * from "./action-button.tsx";
 export * from "./action-dialog.tsx";
+export * from "./action-menu.tsx";
+export * from "./action-palette.tsx";
+export * from "./action-select.tsx";
+export * from "./choice-icon.tsx";
+export * from "./place.ts";
+export * from "./shortcut-dialog.tsx";
+export * from "./shortcut-hint.tsx";
 export { MenuAction, type MenuActionProperties } from "../menu/index.ts";

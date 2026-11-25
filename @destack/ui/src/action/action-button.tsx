@@ -5,12 +5,12 @@ import { Icon } from "@destack/ui/icon";
 import type { IconBodies, IconWeight } from "@destack/icon";
 import { Shortcut } from "@destack/locale";
 import {
-    createMemo,
     createSignal,
     type JSX,
     omit,
     onSettled,
     Show,
+    useAction,
     useActions,
     useLocale,
 } from "@destack/view";
@@ -85,14 +85,16 @@ export function ActionButton<Inputs extends ActionInputs>(
         // look for what runs it once it is in the page
         setButton(created);
     });
-    const isOn = createMemo(() => actions.isOn(properties.action, place()));
-    const isDisabled = createMemo(
-        () =>
-            properties.disabled === true ||
-            (button() !== undefined && !actions.has(properties.action.reference, place())),
-    );
+    const own = useAction(() => ({
+        action: properties.action,
+        element: place(),
+        given: properties.given,
+        isFollowed: false,
+    }));
+    const isDisabled = () =>
+        properties.disabled === true || (button() !== undefined && !own.isEnabled());
     const pressed = () => {
-        const on = isOn();
+        const on = own.isOn();
 
         return on === undefined ? undefined : on ? "true" : "false";
     };
@@ -103,7 +105,7 @@ export function ActionButton<Inputs extends ActionInputs>(
         }
         // run it, where the browser follows no link
         else if (properties.href === undefined) {
-            actions.start(properties.action, place(), properties.given);
+            own.start();
         }
     };
 
@@ -132,7 +134,9 @@ export function ActionButton<Inputs extends ActionInputs>(
                         data-action={properties.action.name}
                         aria-label={isAlone() ? title() : undefined}
                         aria-pressed={pressed()}
-                        variant={isOn() === true ? "secondary" : (properties.variant ?? "default")}
+                        variant={
+                            own.isOn() === true ? "secondary" : (properties.variant ?? "default")
+                        }
                         aria-keyshortcuts={
                             keys() === undefined
                                 ? undefined

@@ -3,7 +3,16 @@ import caretRight from "@destack/icon/phosphor/caret-right";
 import { Shortcut, t } from "@destack/locale";
 import * as style from "@destack/style";
 import { color, radius, shadow, space, stroke, swatch, width } from "@destack/theme/tokens.stylex";
-import { createMemo, For, type JSX, onSettled, Show, useLocale } from "@destack/view";
+import {
+    createMemo,
+    For,
+    type JSX,
+    onSettled,
+    Show,
+    untrack,
+    useContext,
+    useLocale,
+} from "@destack/view";
 import {
     Command,
     CommandBody,
@@ -24,8 +33,14 @@ import {
 } from "../command/index.ts";
 import { Badge } from "../badge/index.ts";
 import { Icon } from "../icon/index.ts";
+import { OpenContext } from "../layer/index.ts";
 import { useListBox } from "../list-box/index.ts";
-import { type PaletteItem, PaletteControl, type PalettePage } from "./control.ts";
+import {
+    type PaletteItem,
+    PaletteControl,
+    type PalettePage,
+    type PaletteResults,
+} from "./control.ts";
 
 /** The styles of a palette's actions panel and its entries' marks. */
 const styles = style.create({
@@ -52,6 +67,9 @@ const styles = style.create({
         color: color.mutedForeground,
     },
 });
+
+/** The results of a palette that never opened. */
+const NONE: PaletteResults = { recent: [], groups: [] };
 
 /** The properties of a command palette. */
 export interface CommandPaletteProperties {
@@ -105,8 +123,11 @@ function PaletteContent(properties: {
     });
     onSettled(() => control.restore());
 
-    // rank the shown page's entries and read the highlighted one
-    const results = createMemo(() => control.results());
+    // rank the shown page's entries while open, and leave the last ones as it closes
+    const isOpen = useContext(OpenContext);
+    const results = createMemo<PaletteResults>((last) =>
+        isOpen() ? control.results() : (last ?? NONE),
+    );
     const entries = createMemo(() => [
         ...results().recent,
         ...results().groups.flatMap((result) => result.items),
@@ -162,16 +183,16 @@ function PaletteContent(properties: {
                     <CommandEmpty>{locale.render(t`No results.`)}</CommandEmpty>
                     <Show when={results().recent.length > 0}>
                         <CommandGroup heading={locale.render(t`Recent`)}>
-                            <For each={results().recent}>
-                                {(item) => <PaletteEntry item={item} control={control} />}
+                            <For each={results().recent} keyed={(item) => item.id}>
+                                {(item) => <PaletteEntry item={item()} control={control} />}
                             </For>
                         </CommandGroup>
                     </Show>
-                    <For each={results().groups}>
+                    <For each={results().groups} keyed={({ group }) => group.id}>
                         {(result) => (
-                            <CommandGroup heading={result.group.title}>
-                                <For each={result.items}>
-                                    {(item) => <PaletteEntry item={item} control={control} />}
+                            <CommandGroup heading={result().group.title}>
+                                <For each={result().items} keyed={(item) => item.id}>
+                                    {(item) => <PaletteEntry item={item()} control={control} />}
                                 </For>
                             </CommandGroup>
                         )}
@@ -228,14 +249,15 @@ function PaletteEntry(properties: {
     /** The palette, which runs it. */
     readonly control: PaletteControl;
 }): JSX.Element {
-    const item = properties.item;
+    const value = untrack(() => properties.item.id);
 
     return (
         <CommandItem
-            value={item.id}
-            icon={iconOf(item.icon)}
+            value={value}
+            icon={iconOf(properties.item.icon)}
             onSelect={() => {
                 // open the entry's page when it has no action, else run its first action
+                const { item } = properties;
                 if (item.actions.length === 0) {
                     properties.control.drill(item);
                 } else {
@@ -243,20 +265,22 @@ function PaletteEntry(properties: {
                 }
             }}
         >
-            {item.title}
-            <Show when={item.subtitle}>
+            {properties.item.title}
+            <Show when={properties.item.subtitle}>
                 {(subtitle) => <CommandItemDescription>{subtitle()}</CommandItemDescription>}
             </Show>
             <CommandItemMeta>
-                <For each={item.accessories ?? []}>
+                <For each={properties.item.accessories ?? []}>
                     {(accessory) => (
                         <Show when={accessory.color} fallback={accessory.text}>
                             {(tint) => <Badge color={tint()}>{accessory.text}</Badge>}
                         </Show>
                     )}
                 </For>
-                <Show when={item.shortcut}>{(keys) => <CommandShortcut keys={keys()} />}</Show>
-                <Show when={item.page !== undefined}>
+                <Show when={properties.item.shortcut}>
+                    {(keys) => <CommandShortcut keys={keys()} />}
+                </Show>
+                <Show when={properties.item.page !== undefined}>
                     <Icon icon={caretRight} xstyle={styles.drill} />
                 </Show>
             </CommandItemMeta>

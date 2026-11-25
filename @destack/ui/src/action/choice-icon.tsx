@@ -1,7 +1,7 @@
 import * as style from "@destack/style";
 import { radius, space, swatch } from "@destack/theme/tokens.stylex";
 import type { Choice } from "@destack/object";
-import type { JSX } from "@destack/view";
+import { createMemo, type JSX, Show } from "@destack/view";
 import { Glyph } from "../glyph/index.ts";
 
 /** The styles of a choice's icon and of its color. */
@@ -28,17 +28,34 @@ export function ChoiceIcon(properties: {
     /** The choice. */
     readonly choice: Choice;
 }): JSX.Element {
-    const { icon, color: hue } = properties.choice;
-    if (icon !== undefined && !("file" in icon)) {
-        return (
-            <Glyph
-                glyph={icon}
-                xstyle={[styles.glyph, hue !== undefined && styles.hue(swatch[`${hue}Mark`])]}
-            />
-        );
-    }
+    // follow the choice, whose icon may be a file this draws nothing of
+    const hue = () => properties.choice.color;
+    const glyph = createMemo(() => {
+        const { icon } = properties.choice;
 
-    return hue === undefined ? undefined : (
-        <span aria-hidden="true" {...style.attrs(styles.dot(swatch[`${hue}Mark`]))} />
+        return icon === undefined || "file" in icon ? undefined : icon;
+    });
+    const tint = () => {
+        const own = hue();
+
+        return own === undefined ? undefined : swatch[`${own}Mark`];
+    };
+
+    return (
+        <Show
+            when={glyph()}
+            fallback={
+                <Show when={tint()}>
+                    {(fill) => <span aria-hidden="true" {...style.attrs(styles.dot(fill()))} />}
+                </Show>
+            }
+        >
+            {(shown) => <Glyph glyph={shown()} xstyle={[styles.glyph, colorOf(tint())]} />}
+        </Show>
     );
+}
+
+/** Color an icon, as the text around it without a color. */
+function colorOf(fill: string | undefined): style.Styles {
+    return fill !== undefined && styles.hue(fill);
 }

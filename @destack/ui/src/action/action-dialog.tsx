@@ -1,3 +1,4 @@
+import check from "@destack/icon/phosphor/check";
 import * as style from "@destack/style";
 import { space } from "@destack/theme/tokens.stylex";
 import { plural, t } from "@destack/locale";
@@ -5,15 +6,19 @@ import type { ActionInput, ActionValues, Choice } from "@destack/object";
 import type { JsonValue } from "@destack/schema";
 import {
     type Accessor,
+    type ActionAsk,
     type ActionQuestion,
+    createEffect,
+    createMemo,
     createSignal,
     For,
-    handleAsking,
     type JSX,
     onCleanup,
     Show,
     untrack,
+    useAction,
     useActions,
+    useContext,
     useLocale,
 } from "@destack/view";
 import {
@@ -26,15 +31,19 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "../alert-dialog/index.ts";
+import { Badge } from "../badge/index.ts";
 import { Button } from "../button/index.ts";
 import { ChoiceIcon } from "./choice-icon.tsx";
 import {
+    Command,
     CommandDialog,
     CommandEmpty,
     CommandGroup,
     CommandInput,
     CommandItem,
+    CommandItemMeta,
     CommandList,
+    CommandShortcut,
 } from "../command/index.ts";
 import {
     Dialog,
@@ -44,14 +53,34 @@ import {
     DialogHeader,
     DialogTitle,
 } from "../dialog/index.ts";
+import { Icon } from "../icon/index.ts";
 import { Field, FieldGroup, FieldLabel } from "../field/index.ts";
+import { OpenContext } from "../layer/index.ts";
+import { Popover, PopoverContent } from "../popover/index.ts";
 import { ValueField } from "../value-field/index.ts";
 
 /** The kinds of input a person picks from a list, however short. */
 const PICKED_KINDS: ReadonlySet<string> = new Set(["object", "choice", "person"]);
 
+/** The most choices digits pick from. */
+const NUMBERED = 9;
+
 /** The layout of the dialog's form. */
 const styles = style.create({
+    beside: {
+        padding: 0,
+    },
+    subject: {
+        display: "flex",
+        paddingBlockStart: space[3],
+        paddingInline: space[3],
+    },
+    subjectText: {
+        minWidth: 0,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+    },
     form: {
         display: "flex",
         flexDirection: "column",
@@ -68,6 +97,8 @@ interface Asking {
     readonly question: ActionQuestion;
     /** The choices of each input a person picks. */
     readonly choices: ReadonlyMap<string, readonly Choice[]>;
+    /** What the action runs on, where something says so. */
+    readonly subject: string | undefined;
     /** Whether the question is on screen, closing once answered. */
     readonly isOpen: Accessor<boolean>;
     /** Answer the question, cancelled without values. */
@@ -82,7 +113,7 @@ export function ActionDialog(): JSX.Element {
     const [asking, setAsking] = createSignal<Asking | undefined>(undefined, { ownedWrite: true });
     const cancel = () => untrack(asking)?.answer(undefined);
     onCleanup(cancel);
-    handleAsking(async (question) => {
+    const ask: ActionAsk = async (question) => {
         // read the choices of each input
         const { action, asked, element } = question;
         const choices = new Map(
@@ -97,14 +128,17 @@ export function ActionDialog(): JSX.Element {
             ),
         );
 
-        // cancel a question on screen, and answer once the person gives the values or cancels
+        // read what it runs on, and cancel a question on screen
+        const subject = await actions.subjectTitle(action, element, locale);
         cancel();
 
+        // answer once the person gives the values or cancels
         return new Promise<ActionValues | undefined>((resolve) => {
             const [isOpen, setOpen] = createSignal(true, { ownedWrite: true });
             setAsking({
                 question,
                 choices,
+                subject,
                 isOpen,
                 answer: (values) => {
                     setOpen(false);
@@ -112,7 +146,12 @@ export function ActionDialog(): JSX.Element {
                 },
             });
         });
-    });
+    };
+
+    // ask while what is around it is open, as a closed dialog shows nothing
+    createEffect(useContext(OpenContext), (isShown) =>
+        isShown ? untrack(() => actions.asks(ask)) : undefined,
+    );
 
     // pick the one input left where it has choices
     const picked = (current: Asking): ActionInput | undefined => {
@@ -141,48 +180,138 @@ export function ActionDialog(): JSX.Element {
     );
 }
 
-/** Render a searchable list of an input's choices. */
+/** Render an input's choices: beside the button that asked, else over the page. */
 function ActionPick(properties: {
     /** The question. */
     readonly asking: Asking;
     /** The input to pick. */
     readonly input: ActionInput;
 }): JSX.Element {
-    // title the list by the action
+    // title the list by the action, and start on the value it has
     const locale = useLocale();
     const { question, answer } = properties.asking;
-    const title = () => locale.render(question.action.title);
+    const { action, element } = question;
+    const title = () => locale.render(action.title);
+    const own = useAction(() => ({ action, element, given: question.values }));
+    const chosen = createMemo(() => own.chosen().map((value) => JSON.stringify(value)));
+    const [first] = untrack(chosen);
+    const start = first === undefined ? {} : { defaultValue: first };
+    const close = (isOpen: boolean): void => {
+        if (!isOpen) {
+            answer(undefined);
+        }
+    };
+    const list = () => (
+        <ActionChoices asking={properties.asking} input={properties.input} chosen={chosen()} />
+    );
+
+    // stand beside the button that asked
+    if (element instanceof HTMLButtonElement) {
+        return (
+            <Popover open={properties.asking.isOpen()} onOpenChange={close}>
+                <PopoverContent anchor={element} align="start" xstyle={styles.beside}>
+                    <Command aria-label={title()} {...start}>
+                        {list()}
+                    </Command>
+                </PopoverContent>
+            </Popover>
+        );
+    }
 
     return (
         <CommandDialog
             size="sm"
             open={properties.asking.isOpen()}
             title={title()}
-            onOpenChange={(isOpen) => {
-                if (!isOpen) {
-                    answer(undefined);
-                }
-            }}
+            onOpenChange={close}
+            {...start}
         >
-            <CommandInput placeholder={title()} />
+            <Show when={properties.asking.subject}>
+                {(subject) => (
+                    <div data-slot="action-subject" {...style.attrs(styles.subject)}>
+                        <Badge variant="secondary" xstyle={styles.subjectText}>
+                            {subject()}
+                        </Badge>
+                    </div>
+                )}
+            </Show>
+            {list()}
+        </CommandDialog>
+    );
+}
+
+/** Render the search and the list of an input's choices, those it has marked. */
+function ActionChoices(properties: {
+    /** The question. */
+    readonly asking: Asking;
+    /** The input to pick. */
+    readonly input: ActionInput;
+    /** The values it has, as JSON. */
+    readonly chosen: readonly string[];
+}): JSX.Element {
+    // list the choices, and run the action with the one picked
+    const locale = useLocale();
+    const actions = useActions();
+    const { question, answer } = properties.asking;
+    const choices = () => properties.asking.choices.get(properties.input.name) ?? [];
+    const pick = (choice: Choice) => {
+        // run it for this choice and stay open, or answer with it
+        const values = { [properties.input.name]: choice.value };
+        if (question.action.isRepeated) {
+            actions.start(question.action, question.element, { ...question.values, ...values });
+        } else {
+            answer(values);
+        }
+    };
+
+    // number a short list, unless its titles have digits a person searches for
+    const isNumbered = () =>
+        choices().length <= NUMBERED && choices().every((choice) => !/\d/u.test(choice.title));
+    const digit = (event: KeyboardEvent) => {
+        // pick the choice of a digit typed into an empty search
+        const isPlain = !event.metaKey && !event.ctrlKey && !event.altKey;
+        const choice = /^[1-9]$/u.test(event.key) ? choices()[Number(event.key) - 1] : undefined;
+        const { target } = event;
+        const isEmpty = target instanceof HTMLInputElement && target.value === "";
+        if (isNumbered() && isPlain && isEmpty && choice !== undefined) {
+            event.preventDefault();
+            pick(choice);
+        }
+    };
+
+    return (
+        <>
+            <CommandInput placeholder={locale.render(question.action.title)} onKeyDown={digit} />
             <CommandList>
                 <CommandEmpty>{locale.render(t`No results.`)}</CommandEmpty>
                 <CommandGroup>
-                    <For each={properties.asking.choices.get(properties.input.name) ?? []}>
-                        {(choice) => (
+                    <For each={choices()}>
+                        {(choice, index) => (
                             <CommandItem
                                 value={JSON.stringify(choice.value)}
                                 keywords={[choice.title]}
                                 icon={<ChoiceIcon choice={choice} />}
-                                onSelect={() => answer({ [properties.input.name]: choice.value })}
+                                onSelect={() => pick(choice)}
                             >
                                 {choice.title}
+                                <CommandItemMeta>
+                                    <Show
+                                        when={properties.chosen.includes(
+                                            JSON.stringify(choice.value),
+                                        )}
+                                    >
+                                        <Icon icon={check} label={locale.render(t`Chosen`)} />
+                                    </Show>
+                                    <Show when={isNumbered()}>
+                                        <CommandShortcut keys={String(index() + 1)} />
+                                    </Show>
+                                </CommandItemMeta>
                             </CommandItem>
                         )}
                     </For>
                 </CommandGroup>
             </CommandList>
-        </CommandDialog>
+        </>
     );
 }
 

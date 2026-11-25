@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { flush } from "@destack/view";
+import { createMemo, createSignal, flush } from "@destack/view";
 import { renderHook } from "@destack/view/test";
 import { AutocompleteControl } from "../autocomplete/index.ts";
 import { CommandControl } from "../command/index.ts";
@@ -118,4 +118,80 @@ test("open an entry's page over the root and go back, refusing an entry without 
     expect(() => palette.drill(entryOf("demo", "Record the demo", ran))).toThrow(
         new TypeError("palette entry 'demo' is invalid: it opens no page"),
     );
+});
+
+test("list the best fifty of a long group", () => {
+    // search two hundred tasks by a word the last starts with
+    const ran: string[] = [];
+    const tasks = Array.from({ length: 200 }, (_task, i) =>
+        entryOf(`task ${String(i)}`, i === 199 ? "Pack the case" : `Case ${String(i)} pack`, ran),
+    );
+    const root: PalettePage = {
+        id: "root",
+        title: "Tasks",
+        groups: [{ id: "tasks", title: "Tasks", items: () => tasks }],
+    };
+    const { result } = renderHook(() => {
+        const command = new CommandControl(new AutocompleteControl({}));
+
+        return new PaletteControl({
+            command,
+            root: () => root,
+            key: "long",
+            close: () => undefined,
+        });
+    });
+    const all = shownIds(result);
+    result.command.search.type("pack");
+    flush();
+    const found = shownIds(result);
+
+    expect([all.map((ids) => ids.length), found.map((ids) => ids.length), found[1]?.[0]]).toEqual([
+        [0, 50],
+        [0, 50],
+        "task 199",
+    ]);
+});
+
+test("list a group's entries once per change to them, not per key", () => {
+    // count the listings while a search is typed, and after the entries change
+    let listings = 0;
+    const [notes, setNotes] = createSignal(["Lisbon"]);
+    const root: PalettePage = {
+        id: "root",
+        title: "Notes",
+        groups: [
+            {
+                id: "notes",
+                title: "Notes",
+                items: () => {
+                    listings += 1;
+
+                    return notes().map((note) => entryOf(note, note, []));
+                },
+            },
+        ],
+    };
+    const { result } = renderHook(() => {
+        const palette = new PaletteControl({
+            command: new CommandControl(new AutocompleteControl({})),
+            root: () => root,
+            key: "listings",
+            close: () => undefined,
+        });
+
+        return { palette, results: createMemo(() => palette.results()) };
+    });
+    result.results();
+    for (const query of ["l", "li", "lis"]) {
+        result.palette.command.search.type(query);
+        flush();
+        result.results();
+    }
+    const typed = listings;
+    setNotes(["Lisbon", "Order form"]);
+    flush();
+    result.results();
+
+    expect({ typed, changed: listings }).toEqual({ typed: 1, changed: 2 });
 });

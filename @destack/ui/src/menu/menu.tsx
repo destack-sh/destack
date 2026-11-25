@@ -17,9 +17,10 @@ import {
 import { text } from "@destack/theme/text";
 import {
     flush,
-    createMemo,
     useActions,
+    useAction,
     type Accessor,
+    type ActionState,
     createContext,
     createEffect,
     createSignal,
@@ -47,8 +48,7 @@ import {
     mergeProperties,
 } from "../part/index.ts";
 import { type Direction, Shortcut } from "@destack/locale";
-import type { Action, ActionInput, ActionInputs, Choice, ValuesOf } from "@destack/object";
-import { type JsonValue, mapValues } from "@destack/schema";
+import type { Action, ActionInputs, ValuesOf } from "@destack/object";
 import { ChoiceIcon } from "../action/choice-icon.tsx";
 import type { IconBodies } from "@destack/icon";
 import { useCommandPlatform } from "../kbd/index.ts";
@@ -188,6 +188,8 @@ const styles = style.create({
         letterSpacing: "0.1em",
     },
     chevron: {
+        // show after the keys
+        order: 2,
         marginInlineStart: {
             default: "auto",
             [AFTER_SHORTCUT]: 0,
@@ -1119,25 +1121,13 @@ export function MenuAction<Inputs extends ActionInputs>(
     const control = useMenu();
     const element = () =>
         properties.element === undefined ? control.origin() : properties.element;
-    const isEnabled = createMemo(() => actions.has(properties.action.reference, element()));
     const keys = () => actions.keybindings(properties.action, isCommand())[0];
-    const start = () => actions.start(properties.action, element(), properties.given);
-
-    // read what it turns on, and the one input left that a person picks from a list
-    const isOn = createMemo(() =>
-        isEnabled() ? actions.isOn(properties.action, element()) : undefined,
-    );
-    const picked = createMemo(() => {
-        // take the one input left
-        const asked = isEnabled()
-            ? actions.asked(properties.action, element(), properties.given)
-            : [];
-        const [input, ...others] = asked;
-        const isListed =
-            input !== undefined && actions.isListed(properties.action, input, element());
-
-        return others.length === 0 && isListed ? input : undefined;
-    });
+    const own = useAction(() => ({
+        action: properties.action,
+        element: element(),
+        given: properties.given,
+        isFollowed: control.root().isOpen(),
+    }));
     const title = () => (
         <>
             <Show when={properties.icon}>{(icon) => <Icon icon={icon()} />}</Show>
@@ -1153,90 +1143,93 @@ export function MenuAction<Inputs extends ActionInputs>(
     );
 
     return (
-        <Show when={isEnabled()}>
+        <Show when={own.isEnabled()}>
             <Show
-                when={picked()}
+                when={own.input()}
                 fallback={
                     <Show
-                        when={isOn() !== undefined}
+                        when={own.isOn() !== undefined}
                         fallback={
                             <MenuItem
                                 variant={
                                     properties.action.isDestructive ? "destructive" : "default"
                                 }
-                                onSelect={start}
+                                onSelect={() => own.start()}
                             >
                                 {title()}
                                 {shortcut()}
                             </MenuItem>
                         }
                     >
-                        <MenuCheckboxItem checked={isOn() === true} onCheckedChange={start}>
+                        <MenuCheckboxItem
+                            checked={own.isOn() === true}
+                            onCheckedChange={() => own.start()}
+                        >
                             {title()}
                             {shortcut()}
                         </MenuCheckboxItem>
                     </Show>
                 }
             >
-                {(input) => (
-                    <Menu>
-                        <MenuSubTrigger>
-                            {title()}
-                            {shortcut()}
-                        </MenuSubTrigger>
-                        <MenuContent side="right" align="start">
-                            <MenuChoices
-                                input={input()}
-                                list={() =>
-                                    actions.choices(properties.action, input(), element(), locale)
-                                }
-                                onPick={(value) =>
-                                    actions.start(properties.action, element(), {
-                                        ...properties.given,
-                                        ...mapValues<
-                                            Record<string, JsonValue>,
-                                            Partial<ValuesOf<Inputs>>
-                                        >({ [input().name]: value }, (each) => each),
-                                    })
-                                }
-                            />
-                        </MenuContent>
-                    </Menu>
-                )}
+                <Menu>
+                    <MenuSubTrigger>
+                        {title()}
+                        {shortcut()}
+                    </MenuSubTrigger>
+                    <MenuContent side="right" align="start">
+                        <MenuChoices state={own} isRepeated={properties.action.isRepeated} />
+                    </MenuContent>
+                </Menu>
             </Show>
         </Show>
     );
 }
 
-/** Render the choices of an action's input as a submenu's items, read as its menu opens. */
+/** Render the choices of an action's input as a submenu's items, marking those it has. */
 function MenuChoices(properties: {
-    /** The input. */
-    readonly input: ActionInput;
-    /** List its choices. */
-    readonly list: () => Promise<readonly Choice[]>;
-    /** Pick one. */
-    readonly onPick: (value: JsonValue) => void;
+    /** The action's state. */
+    readonly state: ActionState;
+    /** Whether a person picks several in a row, the menu staying open. */
+    readonly isRepeated: boolean;
 }): JSX.Element {
-    // read the choices each time the menu around opens
-    const control = useMenu();
-    const [choices, setChoices] = createSignal<readonly Choice[]>([], { ownedWrite: true });
-    createEffect(
-        () => control.root().isOpen(),
-        (isOpen) => {
-            if (isOpen) {
-                void untrack(() => properties.list()).then(setChoices, reportError);
-            }
-        },
-    );
+    // read whether some are marked, the others then rendered alike
+    const own = untrack(() => properties.state);
+    const isMarked = () => properties.isRepeated || own.chosen().length > 0;
 
     return (
-        <For each={choices()}>
-            {(choice) => (
-                <MenuItem onSelect={() => properties.onPick(choice.value)}>
-                    <ChoiceIcon choice={choice} />
-                    {choice.title}
-                </MenuItem>
-            )}
+        <For each={own.choices()}>
+            {(choice) => {
+                const content = () => (
+                    <>
+                        <ChoiceIcon choice={choice} />
+                        {choice.title}
+                    </>
+                );
+
+                return (
+                    <Show
+                        when={isMarked()}
+                        fallback={
+                            <MenuItem onSelect={() => own.start(choice.value)}>
+                                {content()}
+                            </MenuItem>
+                        }
+                    >
+                        <MenuCheckboxItem
+                            checked={own.isChosen(choice)}
+                            onCheckedChange={() => own.start(choice.value)}
+                            onSelect={(event) => {
+                                // leave the menu open for another
+                                if (properties.isRepeated) {
+                                    event.preventDefault();
+                                }
+                            }}
+                        >
+                            {content()}
+                        </MenuCheckboxItem>
+                    </Show>
+                );
+            }}
         </For>
     );
 }

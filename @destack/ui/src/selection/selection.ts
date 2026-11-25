@@ -132,6 +132,13 @@ export class Selection {
         return anchor !== undefined && this.isSelected(anchor) ? anchor : undefined;
     }
 
+    /** List what an action on an item takes: the selection it is in, in order, else the item. */
+    targets<Item>(value: string, collection: Collection<Item>): readonly string[] {
+        return this.isSelected(value)
+            ? collection.keys().filter((key) => this.isSelected(key))
+            : [value];
+    }
+
     /** Report whether a press selects: with a modifier, or always where no press opens. */
     isSelecting(
         press: SelectionModifiers & { readonly pointerType: string },

@@ -1380,6 +1380,7 @@
         "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
         "@destack/style": "workspace:*",
+        "@destack/sync": "workspace:*",
         "@destack/telemetry": "workspace:*",
         "@destack/theme": "workspace:*",
         "@destack/view": "workspace:*",
@@ -1390,6 +1391,7 @@
         "solid-js": "2.0.3",
       },
       "devDependencies": {
+        "@destack/access": "workspace:*",
         "@destack/build": "workspace:*",
         "@destack/check": "workspace:*",
         "@destack/test": "workspace:*",

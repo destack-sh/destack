@@ -20,6 +20,7 @@ Components build on:
 - `renderPart`: builds a part from an element, its slot and styles.
 - Collections, focus, selection and positioning: after React Aria, under lists, menus, trees and tables.
 - `Press`, `LongPress`, `Hover`, `Move`, `Zoom` and `Swipe`: gestures, after React Aria.
+- `ActionButton`, `ActionSelect`, `ActionMenu`, `ActionBar` and `ActionPalette`: the page's actions, from `@destack/ui/action`.
 - `DragManager`, `Draggable` and `Droppable`: drags by pointer, touch and keys, after dnd-kit.
 - `Virtualizer`: the items of a long list in view, after TanStack Virtual, under `VirtualList` and `Feed`.
 - `@destack/ui/data-table` and `@destack/ui/chart`: TanStack Table's and TanStack Charts' engines, exported with the parts.
@@ -70,6 +71,20 @@ A part renders one element with `data-slot` and its state as `data-*` attributes
 `xstyle` adds styles after its own, and `render` swaps its element, as in Base UI.
 
 `Prose`, `Stack` and `Switcher` style their descendants, through `@destack/ui/prose.css`, `stack.css` and `switcher.css`.
+
+### Actions
+
+A page renders these instead of listing its actions by hand.
+Collections give their rows to actions by `reference(key)`.
+
+| Part                             | What it shows                                                    |
+| -------------------------------- | ---------------------------------------------------------------- |
+| `ActionButton`, `ActionSelect`   | one action, or the value it sets                                 |
+| `ActionMenu`                     | the actions on what a right click, long press or Shift+F10 is on |
+| `ActionBar`                      | the actions on the selected rows                                 |
+| `ActionPalette`                  | the actions where the person is                                  |
+| `ActionDialog`                   | what an action asks for                                          |
+| `ShortcutDialog`, `ShortcutHint` | the keys there, and what can follow a typed one                  |
 
 ### Conventions
 
@@ -765,6 +780,26 @@ export function Song(properties: { readonly source: string; readonly onNext: () 
                 <PlayerPlayButton />
                 <Left />
             </Player>
+        </>
+    );
+}
+```
+
+### List a page's actions
+
+`Actions` at the root of a page lists what runs where the person is.
+
+```tsx
+import { ActionDialog, ActionMenu, ActionPalette, ShortcutDialog } from "@destack/ui/action";
+
+/** Render what lists the page's actions. */
+export function Actions() {
+    return (
+        <>
+            <ActionMenu />
+            <ActionDialog />
+            <ActionPalette id="tasks" title="Tasks" />
+            <ShortcutDialog />
         </>
     );
 }

@@ -1,6 +1,8 @@
 import * as style from "@destack/style";
 import { type JSX, omit, onCleanup, untrack } from "@destack/view";
 import { Timeout } from "@destack/view/primitives/timer";
+import { MenuActionList } from "../action/action-menu.tsx";
+import { focusableAround } from "../focus/index.ts";
 import { controlOf, OpenChange, type TriggerProperties } from "../layer/index.ts";
 import {
     Menu,
@@ -24,7 +26,7 @@ import {
     type MenuRadioItemProperties,
     type MenuRootProperties,
 } from "../menu/index.ts";
-import { renderPart } from "../part/index.ts";
+import { contentOr, renderPart } from "../part/index.ts";
 
 /** The time a finger stays before it opens the menu, in milliseconds, as iOS and Android wait. */
 const LONG_PRESS = 500;
@@ -68,7 +70,7 @@ export function ContextMenuTrigger<Payload = unknown>(
     onCleanup(() => given?.drop(element));
     const change = (event: Event & { readonly currentTarget: HTMLElement }) =>
         new OpenChange("trigger-press", event, {
-            element: event.currentTarget,
+            element: focusableAround(event.target, event.currentTarget),
             payload: properties.payload,
         });
 
@@ -110,11 +112,17 @@ export function ContextMenuTrigger<Payload = unknown>(
     });
 }
 
-/** Render the menu at the point it opened at. */
+/** Render the menu at the point it opened at, the actions on what it is on by default. */
 export function ContextMenuContent(
     properties: Omit<MenuContentProperties, "side" | "align">,
 ): JSX.Element {
-    return <MenuContent data-slot="context-menu-content" {...properties} />;
+    return (
+        <MenuContent data-slot="context-menu-content" {...properties}>
+            {contentOr(properties, () => (
+                <MenuActionList />
+            ))}
+        </MenuContent>
+    );
 }
 
 /** Render a group of related items. */
