@@ -55,7 +55,6 @@ export default async function setup(project: TestProject): Promise<() => Promise
         installation: FRAME_VIEW,
         space: SPACE,
         account: SPACE,
-        residencyHome: SPACE,
         view: FRAME_VIEW,
         build: image.root,
         base: "",

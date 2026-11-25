@@ -75,7 +75,6 @@ const CONTEXT = {
     installation: "installation-cards",
     space: BOARD_ID,
     account: "account-01996ab0-0000-7000-8000-000000000002",
-    residencyHome: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000003"),
     view: "cards",
     build: Digest.parse("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"),
     base: "",

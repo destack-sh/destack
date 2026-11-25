@@ -6,7 +6,7 @@ import { SqliteDatabase } from "@destack/db/sqlite";
 import type { ObjectType } from "@destack/object";
 import { ObjectClient, ObjectConnection, ObjectRemote } from "@destack/object/client";
 import type { ExampleObjects } from "@destack/package/declare";
-import { Digest, schema } from "@destack/schema";
+import { Digest } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { CONTEXT_SCOPES, type ViewContext } from "../declare/context.ts";
 import type { View } from "../declare/view.ts";
@@ -32,11 +32,6 @@ const SAMPLE_BUILD = Digest.parse(
 
 /** The account of the sample space. */
 const SAMPLE_ACCOUNT = "account-01996ab0-0000-7000-8000-00000000e003";
-
-/** The home space of the sample account's residency. */
-const SAMPLE_RESIDENCY_HOME = schema
-    .identifier("space")
-    .parse("space-01996ab0-0000-7000-8000-00000000e005");
 
 /** The sample person. */
 const SAMPLE_USER = "user-01996ab0-0000-7000-8000-00000000e004";
@@ -88,7 +83,6 @@ async function openSample(
         installation: "installation-sample",
         space: SAMPLE_SPACE,
         account: SAMPLE_ACCOUNT,
-        residencyHome: SAMPLE_RESIDENCY_HOME,
         home: SAMPLE_HOME,
         view: view.name,
         build: SAMPLE_BUILD,

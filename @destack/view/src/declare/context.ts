@@ -80,8 +80,6 @@ const viewContext = schema.object({
     space: schema.string().min(1),
     /** The account of the space. */
     account: schema.string().min(1),
-    /** The home space of the account's residency, where its platform installations run. */
-    residencyHome: schema.identifier("space"),
     /** The declared view's name. */
     view: DeclarationName,
     /** The image of the build the page was served from. */

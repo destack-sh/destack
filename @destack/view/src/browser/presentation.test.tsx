@@ -44,9 +44,6 @@ const page: Page = {
             .parse("installation-01996ab0-0000-7000-8000-0000000000e3"),
         space: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000e4"),
         account: schema.identifier("account").parse("account-01996ab0-0000-7000-8000-0000000000e5"),
-        residencyHome: schema
-            .identifier("space")
-            .parse("space-01996ab0-0000-7000-8000-0000000000e7"),
         view: "home",
         build: Digest.parse("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"),
         base: "",

@@ -52,7 +52,6 @@ const CONTEXT: ViewContext = {
     installation: "installation-notes",
     space: "space-personal",
     account: "account-florian",
-    residencyHome: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000e05"),
     view: "notes",
     build: Digest.parse("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"),
     base: "",
