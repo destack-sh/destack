@@ -5,7 +5,7 @@ import type { Session } from "@destack/account/client";
 import type { PlatformDefinition } from "@destack/account/server";
 import * as stacks from "@platform/stack";
 import { PLATFORM_INPUTS, RESIDENCIES } from "@platform/stack";
-import { Claim, PackageMount, SERVER_EXPORT, SpaceMount } from "@destack/object";
+import { Claim, PackageMount, RetryAfter, SERVER_EXPORT, SpaceMount } from "@destack/object";
 import { InstallationDefinition } from "@destack/stack/declare";
 import {
     CompilerPool,
@@ -14,7 +14,7 @@ import {
     type WorkspaceUnitOptions,
 } from "@destack/build";
 import { CLOUD_RUNTIMES } from "@destack/machine/cloudflare";
-import type { Clock, Environment } from "@destack/environment";
+import type { Clock, Environment, Network } from "@destack/environment";
 import {
     DISTRIBUTION_LAYER,
     DISTRIBUTION_MANIFEST,
@@ -32,7 +32,7 @@ import type { packageObject } from "@destack/registry/object";
 import registryPackage from "@destack/registry/package";
 import { RequestId } from "@destack/sync";
 import { Toolchain } from "@destack/check/toolchain";
-import { readReleaseCommit, releaseVersion } from "../distribution/distribution.ts";
+import { readReleaseCommit } from "../distribution/distribution.ts";
 
 /** The prefix of a layer written beside the asset layers before it moves under its digest. */
 const ASSETS_STAGING = ".staging";
@@ -73,9 +73,6 @@ const SERVE_MILLISECONDS = 90_000;
 /** The status a machine answers to move a request to the machine serving its space, RFC 9110. */
 const PLACED_STATUS = 307;
 
-/** The status a starting machine answers with its Retry-After, RFC 9110. */
-const UNAVAILABLE_STATUS = 503;
-
 /** The checkout's store of first-party releases, which every universe and target shares. */
 export const RELEASES_DIRECTORY = "target/releases";
 
@@ -85,10 +82,10 @@ export type PublishOptions = Pick<
     "commit" | "visibility" | "tags"
 >;
 
-/** How a platform build builds: its release version, else the release's, and its stamping. */
+/** How a platform build builds: its releases' version, and whether they build unreleased. */
 export type PlatformBuildOptions = Pick<WorkspaceUnitOptions, "isUnreleased"> & {
     /** The version every release has. */
-    readonly version?: string;
+    readonly version: string;
 };
 
 /** The first-party releases a universe's homes run and its forge publishes. */
@@ -120,7 +117,7 @@ export class PlatformBuild implements AsyncDisposable {
     static async build(
         root: string,
         host: Environment<"files" | "process" | "host">,
-        options: PlatformBuildOptions = {},
+        options: PlatformBuildOptions,
     ): Promise<PlatformBuild> {
         // build in a span, which records the build once it succeeds
         return await TelemetryScope.of(import.meta.destack.package, host.telemetry).span(
@@ -143,8 +140,7 @@ export class PlatformBuild implements AsyncDisposable {
         await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
 
         // read the workspace once at the release's version, and the packages of the stacks, the desktop and the template
-        const { version: given, ...unitOptions } = options;
-        const version = given ?? releaseVersion(host);
+        const { version, ...unitOptions } = options;
         const workspace = await Workspace.open(root, compilers, { version });
         const packages = [
             await workspace.package(join(root, STACK)),
@@ -152,7 +148,7 @@ export class PlatformBuild implements AsyncDisposable {
             await workspace.package(join(root, TEMPLATE)),
         ];
 
-        // build and make an image of each unit, a unit both packages share once, the image attaching its graph
+        // build and make an image of each unit, a unit the packages share once, the image attaching its graph
         const releases = new Map<string, BuildReader>();
         const images = new Map<string, Digest>();
         const imaged = await Promise.all(
@@ -352,70 +348,42 @@ export class PlatformBuild implements AsyncDisposable {
 
         // call the forge at the machine serving the home, as the session bound to the home
         const { clock, network } = environment;
-        const send = PlatformBuild.#retry((request) => network.fetch(request), clock);
-        const mount = await PlatformBuild.#locate(SpaceMount.url(universe, home), send);
+        const mount = await PlatformBuild.#locate(SpaceMount.url(universe, home), network, clock);
         const url = `${mount}${PackageMount.path(registryPackage.id)}`;
-        const fetch = PlatformBuild.#retry(
-            session.fetch(registryPackage.id, { partition: home }),
-            clock,
-        );
+        const fetch = session.fetch(registryPackage.id, { partition: home });
         const registry = createClient(registryPackage, { url, fetch }, environment);
 
         return { registry, home, accountId, url, fetch };
     }
 
-    /** Locate a space's mount at the machine serving it, following its address's move once. */
+    /** Locate a space's mount at the machine serving it once it serves, following one move. */
     static async #locate(
         address: string,
-        send: (request: Request) => Promise<Response>,
-    ): Promise<string> {
-        // ask at the address, keeping a move to the machine serving the space
-        const response = await send(new Request(address, { redirect: "manual" }));
-        await response.body?.cancel();
-        const location = response.headers.get("location");
-
-        // take the moved address
-        if (response.status === PLACED_STATUS && location !== null) {
-            return new URL(location, address).href;
-        }
-        // refuse a failing space
-        else if (response.status >= 500) {
-            throw new Error(`space '${address}' answered '${response.status}'`);
-        }
-        // take the address, which serves the space here
-        else {
-            return address;
-        }
-    }
-
-    /** Wrap a fetch to send again as a 503's Retry-After says, until a deadline. */
-    static #retry(
-        fetch: (request: Request) => Promise<Response>,
+        network: Pick<Network, "fetch">,
         clock: Clock,
-    ): (request: Request) => Promise<Response> {
-        return async (request) => {
-            // read the body once, to send it again after each pause
-            const { url, method, headers, redirect } = request;
-            const body = request.body === null ? null : await request.arrayBuffer();
-            const send = () => fetch(new Request(url, { method, headers, body, redirect }));
-
-            // send again after the pause each 503 asks for, until the deadline
-            const deadline = clock.now() + SERVE_MILLISECONDS;
-            let response = await send();
-            let pause = response.headers.get("retry-after");
-            while (
-                response.status === UNAVAILABLE_STATUS &&
-                pause !== null &&
-                clock.now() < deadline
-            ) {
-                await response.body?.cancel();
-                await clock.sleep(Number(pause) * 1000);
-                response = await send();
-                pause = response.headers.get("retry-after");
-            }
+    ): Promise<string> {
+        // ask while the home starts, at its address and at the machine it moves to, under one deadline
+        const deadline = clock.now() + SERVE_MILLISECONDS;
+        const ask = async (url: string) => {
+            // send again while it starts, leaving the answer's body unread
+            const send = () => network.fetch(new Request(url, { redirect: "manual" }));
+            const response = await RetryAfter.wait(send, clock, deadline);
+            await response.body?.cancel();
 
             return response;
         };
+        const response = await ask(address);
+        const location = response.headers.get("location");
+        const isMoved = response.status === PLACED_STATUS && location !== null;
+        const moved = isMoved ? new URL(location, address).href : address;
+
+        // wait at the machine serving the space, refusing a failing one
+        const served = isMoved ? await ask(moved) : response;
+        if (served.status >= 500) {
+            throw new Error(`space '${moved}' answered '${served.status}'`);
+        }
+
+        return moved;
     }
 
     /** Group releases by handle, each handle after the handles its releases require. */

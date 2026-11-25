@@ -126,7 +126,7 @@ async function compileExecutable(
     );
 
     // build the first-party releases from the checkout, reusing their store across builds
-    await using releases = await PlatformBuild.build(CHECKOUT, environment);
+    await using releases = await PlatformBuild.build(CHECKOUT, environment, { version });
     const shipped = DistributionPlatform.parse(`${platform.system}-${platform.architecture}`);
     await releases.writeDistribution(join(bin, DISTRIBUTION_DIRECTORY), shipped, false);
 }
