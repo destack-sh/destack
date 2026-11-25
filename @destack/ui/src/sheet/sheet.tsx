@@ -29,7 +29,7 @@ const DEFAULTS: Required<Pick<SheetContentProperties, "side">> = { side: "right"
 /** The styles every sheet shares. */
 const styles = style.create({
     sheet: {
-        display: { default: "none", ":modal": "flex" },
+        display: { default: "none", ":is([open])": "flex" },
         flexDirection: "column",
         maxWidth: "none",
         maxHeight: "none",

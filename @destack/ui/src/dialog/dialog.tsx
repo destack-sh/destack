@@ -55,7 +55,7 @@ const SCRIM_FADE = `max(calc(${motion.durationMedium} * 2 / 3), 150ms)`;
 /** The styles of a dialog and its elements. */
 const styles = style.create({
     content: {
-        display: { default: "none", ":modal": "grid" },
+        display: { default: "none", ":is([open])": "grid" },
         gap: space[4],
         width: `min(100% - 2 * ${space[4]}, ${DIALOG_WIDTH})`,
         maxWidth: "none",
