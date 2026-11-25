@@ -21,6 +21,11 @@ test("read now at an offset, rounded to the start of a day, ISO week or month in
         week: now.start("week").at(VIENNA),
         month: now.start("month").at(VIENNA),
         spring: now.start("day").at({ now: SPRING, timeZone: "Europe/Vienna" }),
+        short: now
+            .start("day")
+            .plus({ days: 1, hours: 1 })
+            .at({ now: SPRING, timeZone: "Europe/Vienna" }),
+        before: now.start("week").minus({ days: 1 }).at({ now: SPRING, timeZone: "Europe/Vienna" }),
         utc: now.start("day").at({ now: NOON, timeZone: "UTC" }),
     }).toEqual({
         exact: NOON,
@@ -31,6 +36,8 @@ test("read now at an offset, rounded to the start of a day, ISO week or month in
         week: Date.UTC(2026, 10, 15, 23),
         month: Date.UTC(2026, 9, 31, 23),
         spring: Date.UTC(2026, 2, 28, 23),
+        short: Date.UTC(2026, 2, 29, 23),
+        before: Date.UTC(2026, 2, 21, 23),
         utc: Date.UTC(2026, 10, 19),
     });
 });

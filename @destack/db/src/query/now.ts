@@ -29,7 +29,7 @@ export interface Moment {
 
 /** The time a condition compares a field to: now, at an offset, rounded down to a unit. */
 export class Now extends Placeholder {
-    /** The offset from the time, in milliseconds, applied after rounding. */
+    /** The offset from the time, in milliseconds, its whole days by the calendar after rounding. */
     readonly offset: number;
     /** The compared field's units per millisecond: 1 for milliseconds, 1,000 for microseconds. */
     readonly scale: number;
@@ -85,9 +85,16 @@ export class Now extends Placeholder {
 
     /** Bind the time at a moment in the field's units, rounded in the moment's time zone. */
     at(moment: Moment): number {
-        const rounded = this.unit === undefined ? moment.now : startOf(moment, this.unit);
+        // read it exactly, at its offset
+        if (this.unit === undefined) {
+            return (moment.now + this.offset) * this.scale;
+        }
 
-        return (rounded + this.offset) * this.scale;
+        // step whole days by the calendar, as a day has 23 to 25 hours, then the rest of the offset
+        const days = Math.trunc(this.offset / DAY_MILLISECONDS);
+        const rest = this.offset - days * DAY_MILLISECONDS;
+
+        return (startOf(moment, this.unit, days) + rest) * this.scale;
     }
 
     /** Read the time at which a field's value comes due, inclusive or after it. */
@@ -101,8 +108,8 @@ export class Now extends Placeholder {
 /** The time, which conditions compare time fields to. */
 export const now = new Now();
 
-/** Read the start of a moment's day, ISO week or month in its time zone. */
-function startOf(moment: Moment, unit: NowUnit): number {
+/** Read the start of a moment's day, ISO week or month in its time zone, some days from there. */
+function startOf(moment: Moment, unit: NowUnit, days: number): number {
     // read the moment's local date and ISO weekday
     const parts = new Intl.DateTimeFormat("en-US", {
         timeZone: moment.timeZone,
@@ -115,13 +122,14 @@ function startOf(moment: Moment, unit: NowUnit): number {
     const date = Date.UTC(part("year"), part("month") - 1, part("day"));
     const weekday = new Date(date).getUTCDay() || 7;
 
-    // step back to the unit's first date, then to that date's local midnight
-    const first =
+    // step back to the unit's first date and by the days, then to that date's local midnight
+    const start =
         unit === "day"
             ? date
             : unit === "week"
               ? date - (weekday - 1) * DAY_MILLISECONDS
               : Date.UTC(part("year"), part("month") - 1, 1);
+    const first = start + days * DAY_MILLISECONDS;
 
     return first - offsetOf(first - offsetOf(first, moment.timeZone), moment.timeZone);
 }
