@@ -97,6 +97,46 @@ test("write each info span as one line once it ends with its trace, a failed one
     ]);
 });
 
+test("write the spans a span links, by trace and span", async () => {
+    // run a root span linked to an earlier one
+    const lines: string[] = [];
+    const telemetry = new LineExporter((line) => lines.push(line)).telemetry(
+        Clock.system,
+        new AsyncLocalStorageContextManager().enable(),
+    );
+    const span = SpanRunner.of(
+        telemetry.tracers.getTracer("@example/notes"),
+        telemetry.meters.getMeter("@example/notes"),
+        telemetry,
+    );
+    const cause = await span("notes.write", {}, (written) => written.spanContext(), {
+        level: "info",
+    });
+    await span("notes.pass", {}, () => undefined, { level: "info", links: [{ context: cause }] });
+
+    // expect the pass's line to name the write's trace and span as its link
+    const ids: string[] = [];
+    const named = (id: string) => {
+        // name each identifier by the order it first appears in
+        if (!ids.includes(id)) {
+            ids.push(id);
+        }
+
+        return `#${ids.indexOf(id)}`;
+    };
+    expect(
+        lines.map((line) =>
+            line
+                .replace(/^\d\d:\d\d:\d\d /u, "")
+                .replace(/duration_ms=\d+/u, "duration_ms=…")
+                .replaceAll(/(?<=[=,-])[\da-f]{16,32}\b/gu, named),
+        ),
+    ).toEqual([
+        "INFO  notes.write duration_ms=… trace_id=#0 span_id=#1\n",
+        "INFO  notes.pass duration_ms=… trace_id=#2 span_id=#3 links=#0-#1\n",
+    ]);
+});
+
 test("write each record as one JSON object when the options ask for json", () => {
     // log an event through a JSON line exporter
     const lines: string[] = [];

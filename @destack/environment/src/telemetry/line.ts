@@ -119,10 +119,11 @@ export class LineExporter {
             return;
         }
 
-        // write the span's end with its duration and its place in its trace, a failed one as an error
+        // write the span's end with its duration, trace, parent and links, a failed one as an error
         const isFailed = span.status.code === SpanStatusCode.ERROR;
         const { traceId, spanId } = span.spanContext();
         const parent = span.parentSpanContext?.spanId;
+        const links = span.links.map((link) => `${link.context.traceId}-${link.context.spanId}`);
         const [seconds, nanoseconds] = span.endTime;
         const at = seconds * MILLISECONDS_PER_SECOND + nanoseconds / NANOSECONDS_PER_MILLISECOND;
         const [spent, spentNanoseconds] = span.duration;
@@ -139,6 +140,7 @@ export class LineExporter {
             trace_id: traceId,
             span_id: spanId,
             ...(parent === undefined ? {} : { parent_span_id: parent }),
+            ...(links.length === 0 ? {} : { links: links.join(",") }),
         });
         this.#write(`${line}\n`, severity);
     }
