@@ -71,6 +71,9 @@ const styles = style.create({
         transitionDuration: motion.durationShort,
         transitionTimingFunction: motion.easingStandard,
     },
+    round: {
+        borderRadius: radius.full,
+    },
     flush: {
         paddingInline: 0,
     },
@@ -190,6 +193,8 @@ export interface ButtonVariantProperties {
     readonly variant?: ButtonVariant;
     /** The height and padding, default by default. */
     readonly size?: ButtonSize;
+    /** The corners, the control's by default, round as of a chat's send button. */
+    readonly shape?: "default" | "round";
 }
 
 /** Return the StyleX styles of a button in a variant and size. */
@@ -206,6 +211,7 @@ export function buttonVariants(options: ButtonVariantProperties): style.Styles {
         variants[options.variant ?? DEFAULTS.variant],
         sizes[height],
         options.variant === "link" && styles.flush,
+        options.shape === "round" && styles.round,
     ];
 }
 
@@ -218,6 +224,7 @@ export function Button(properties: ButtonProperties): JSX.Element {
         button,
         "variant",
         "size",
+        "shape",
         "xstyle",
         "style",
         "render",
