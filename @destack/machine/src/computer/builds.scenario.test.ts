@@ -388,8 +388,9 @@ test("finish a build its computer restarts during, compiling and deploying each 
     const first = await site.push(1);
     const installed = await site.install();
 
-    // wait until the installation follows a commit's build on a computer's space
+    // wait until a computer's machine serves, then until the installation follows a commit's build on its space
     const wait = async (computer: TestComputer, commit: string) => {
+        await computer.machine.health.waitUp();
         const served = (await computer.machine.space(space)).database;
         const isDeployed = await computer.world.simulation.wait(
             served.log.waitUntil(async () => {
