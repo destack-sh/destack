@@ -44,6 +44,10 @@
             "runtimes": ["bun"],
             "internal": true
         },
+        "./process": {
+            "runtimes": ["bun"],
+            "internal": true
+        },
         ".": {
             "internal": true
         },
