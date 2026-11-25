@@ -1,4 +1,4 @@
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { type FileSystem, FileSystemError } from "@destack/environment";
 import {
     type DeclarationKindDefinition,
@@ -42,51 +42,44 @@ export interface InspectedConstructor {
 
 /** The packages and constructors one inspection finds, each read once per directory. */
 export class ConstructorCatalog {
-    /** The package containing each module directory. */
-    readonly #locations = new Map<string, Promise<PackageLocation>>();
-    /** The identity of each package directory, a Destack package's or an npm package's. */
-    readonly #owners = new Map<string, Promise<PackageVersion | DependencyPackage>>();
-    /** The inspected constructors of each package directory. */
-    readonly #constructors = new Map<string, Promise<Map<string, InspectedConstructor>>>();
-    /** The exports of each package directory, absent when its package.json lists none. */
-    readonly #exports = new Map<
-        string,
-        Promise<Readonly<Record<string, PackageExport>> | undefined>
-    >();
+    /** The build's own cache of the packages outside its stored roots. */
+    readonly #own = new PackageCache();
     /** The packages and declared constructors the inspection finds. */
     readonly #packages: PackageLocator;
     /** The versions the build releases its source packages at, by package name. */
     readonly #versions: Readonly<Record<string, Version>>;
     /** The files the packages are read from. */
     readonly files: FileSystem;
+    /** The cache shared with other builds, for the stored roots of the build's tree. */
+    readonly #stored: PackageCache;
 
     /** Inspect the constructors of a build's packages, the sources at the versions it releases. */
-    constructor(versions: Readonly<Record<string, Version>>, files: FileSystem) {
+    constructor(
+        versions: Readonly<Record<string, Version>>,
+        files: FileSystem,
+        stored: PackageCache,
+    ) {
+        // read the packages at the versions, keeping the stored roots' cache for other builds
         this.#versions = versions;
         this.files = files;
         this.#packages = new PackageLocator(files, versions);
+        this.#stored = stored;
     }
 
     /** Find the package containing a module directory. */
     locate(directory: string): Promise<PackageLocation> {
-        let location = this.#locations.get(directory);
-        if (location === undefined) {
-            location = modulePackage(directory, this.#versions, this.files);
-            this.#locations.set(directory, location);
-        }
+        const { locations } = this.#cacheOf(directory);
 
-        return location;
+        return cached(locations, directory, () =>
+            modulePackage(directory, this.#versions, this.files),
+        );
     }
 
     /** Read a package's identity, with the stable id of its destack.json if declared. */
     owner(location: PackageLocation): Promise<PackageVersion | DependencyPackage> {
-        let owner = this.#owners.get(location.directory);
-        if (owner === undefined) {
-            owner = readOwner(location, this.files);
-            this.#owners.set(location.directory, owner);
-        }
+        const { owners } = this.#cacheOf(location.directory);
 
-        return owner;
+        return cached(owners, location.directory, () => readOwner(location, this.files));
     }
 
     /** Read a Destack package's identity, requiring its destack.json. */
@@ -104,13 +97,14 @@ export class ConstructorCatalog {
 
     /** Read a package's inspected constructors and locate their describing functions. */
     inspected(location: PackageLocation): Promise<Map<string, InspectedConstructor>> {
-        let inspected = this.#constructors.get(location.directory);
-        if (inspected === undefined) {
-            inspected = this.#readInspected(location);
-            this.#constructors.set(location.directory, inspected);
-        }
+        const { constructors } = this.#cacheOf(location.directory);
 
-        return inspected;
+        return cached(constructors, location.directory, () => this.#readInspected(location));
+    }
+
+    /** Return a directory's cache: the stored packages' below a root, else the build's own. */
+    #cacheOf(directory: string): PackageCache {
+        return this.#stored.isStored(directory) ? this.#stored : this.#own;
     }
 
     /** Parse the inspected constructors of a package once, with its exports and identity. */
@@ -220,6 +214,13 @@ export class ConstructorCatalog {
                 `kind ${kind} is invalid: '${location.name}' describes it, but '${name}' does not declare it`,
             );
         }
+        // refuse a stored package's kind outside the stored roots, as a stored root links what it requires
+        if (this.#stored.isStored(location.directory) && !this.#stored.isStored(directory)) {
+            throw BuildError.of(
+                "INVARIANT_BROKEN",
+                `kind ${kind} is invalid: stored '${location.name}' resolves '${name}' outside its tree, at '${directory}'`,
+            );
+        }
         const declaring = await this.locate(directory);
 
         return { package: await this.identify(declaring), location: declaring, entry };
@@ -263,13 +264,52 @@ export class ConstructorCatalog {
     #exported(
         location: PackageLocation,
     ): Promise<Readonly<Record<string, PackageExport>> | undefined> {
-        let exported = this.#exports.get(location.directory);
-        if (exported === undefined) {
-            exported = readExports(location, this.files);
-            this.#exports.set(location.directory, exported);
-        }
+        const { exports } = this.#cacheOf(location.directory);
+        const exported = cached(exports, location.directory, () =>
+            readExports(location, this.files),
+        );
 
         return exported;
+    }
+}
+
+/** What builds read of packages, by directory, shared below their trees' stored roots. */
+export class PackageCache {
+    /** The package containing each module directory. */
+    readonly locations = new Map<string, Promise<PackageLocation>>();
+    /** The identity of each package directory, a Destack package's or an npm package's. */
+    readonly owners = new Map<string, Promise<PackageVersion | DependencyPackage>>();
+    /** The inspected constructors of each package directory. */
+    readonly constructors = new Map<string, Promise<Map<string, InspectedConstructor>>>();
+    /** The exports of each package directory, absent when its package.json lists none. */
+    readonly exports = new Map<
+        string,
+        Promise<Readonly<Record<string, PackageExport>> | undefined>
+    >();
+    /** The stored roots of the current build's tree, below which the cache never changes. */
+    #roots: ReadonlySet<string> = new Set();
+
+    /** Take a build's stored roots, forgetting the entries below none of them. */
+    retain(roots: ReadonlySet<string>): void {
+        this.#roots = roots;
+        for (const entries of [this.locations, this.owners, this.constructors, this.exports]) {
+            for (const directory of entries.keys()) {
+                if (!this.isStored(directory)) {
+                    entries.delete(directory);
+                }
+            }
+        }
+    }
+
+    /** Report whether a directory lies below a stored root, walking up its ancestors to one. */
+    isStored(directory: string): boolean {
+        for (let current = directory; dirname(current) !== current; current = dirname(current)) {
+            if (this.#roots.has(current)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
 
@@ -306,4 +346,28 @@ async function readExports(
     );
 
     return manifest.exports;
+}
+
+/** Read a key's value from a cache, making it once and forgetting it when the making fails. */
+function cached<Value>(
+    cache: Map<string, Promise<Value>>,
+    key: string,
+    make: () => Promise<Value>,
+): Promise<Value> {
+    // reuse the key's value, else make it
+    const known = cache.get(key);
+    if (known !== undefined) {
+        return known;
+    }
+    const made = make();
+    cache.set(key, made);
+
+    // forget a failed value, so the next read makes it again
+    made.catch(() => {
+        if (cache.get(key) === made) {
+            cache.delete(key);
+        }
+    });
+
+    return made;
 }
