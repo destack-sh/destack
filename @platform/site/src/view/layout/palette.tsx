@@ -16,6 +16,7 @@ import {
     CommandList,
     CommandLoading,
 } from "@destack/ui/command";
+import { Highlight } from "@destack/ui/highlight";
 import { present, schema } from "@destack/schema";
 import { Kbd } from "@destack/ui/kbd";
 import { createMemo, createSignal, For, onSettled, Show, useEnvironment } from "@destack/view";
@@ -28,7 +29,6 @@ import {
     actionEvents,
     type ActionMatch,
     actionsFor,
-    highlightSegments,
     matchActions,
     type Menu,
     menuTitles,
@@ -95,7 +95,7 @@ export function CommandPalette(properties: { appearance: LocalAppearance }) {
             const opened = recent().flatMap((id) => actions().filter((action) => action.id === id));
             grouped.set(
                 "Recent",
-                opened.map((action) => ({ action, excerpt: "", terms: [] })),
+                opened.map((action) => ({ action, excerpt: "" })),
             );
         }
 
@@ -343,11 +343,10 @@ function Row(properties: {
             <Icon icon={action().icon} xstyle={styles.kind} />
             <span {...style.attrs(styles.body)}>
                 <span {...style.attrs(text.sm, styles.label)}>
-                    <Highlight terms={properties.match.terms} text={action().label} />
+                    <Highlight text={action().label} />
                 </span>
                 <Show when={detail() !== ""}>
                     <Detail
-                        terms={properties.match.terms}
                         text={detail()}
                         isCode={!(isContent() && properties.match.excerpt !== "")}
                     />
@@ -372,26 +371,11 @@ function Row(properties: {
 }
 
 /** Draw a row's quiet line: a route or version in code, or an excerpt in prose. */
-function Detail(properties: { terms: readonly string[]; text: string; isCode: boolean }) {
+function Detail(properties: { text: string; isCode: boolean }) {
     return (
         <span {...style.attrs(text.xs, styles.detail, properties.isCode && styles.detailCode)}>
-            <Highlight terms={properties.terms} text={properties.text} />
+            <Highlight text={properties.text} />
         </span>
-    );
-}
-
-/** Render a text with the searched terms marked, keeping its case. */
-function Highlight(properties: { terms: readonly string[]; text: string }) {
-    return (
-        <For each={highlightSegments(properties.text, properties.terms)}>
-            {(segment) =>
-                segment.isMatch ? (
-                    <mark {...style.attrs(styles.mark)}>{segment.text}</mark>
-                ) : (
-                    segment.text
-                )
-            }
-        </For>
     );
 }
 
@@ -543,11 +527,6 @@ const styles = style.create({
     },
     detailCode: {
         fontFamily: font.code,
-    },
-    mark: {
-        backgroundColor: "transparent",
-        color: swatch.accentSolid,
-        fontWeight: weight.medium,
     },
     end: {
         alignItems: "center",

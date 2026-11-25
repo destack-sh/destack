@@ -1,3 +1,4 @@
+import { Search } from "@destack/db";
 import type { IconBodies } from "@destack/icon";
 import arrowsLeftRight from "@destack/icon/phosphor/arrows-left-right";
 import circleHalf from "@destack/icon/phosphor/circle-half";
@@ -30,6 +31,14 @@ export const actionEvents = {
     switchStack: "destack:switch-stack",
     openMenu: "destack:open-menu",
 } as const;
+
+/** The order of actions that match as well. */
+const KIND_ORDER: Readonly<Record<Action["kind"], number>> = {
+    action: 0,
+    navigation: 0,
+    page: 1,
+    section: 2,
+};
 
 /** A list the palette shows: its root, or a submenu an action opens. */
 export type Menu = "root" | "theme" | "documentation" | "sections";
@@ -107,25 +116,13 @@ export type Site = {
     download: Download | undefined;
 };
 
-/** One ranked action and its query context. */
+/** One ranked action and its excerpt. */
 export type ActionMatch = {
     /** The matched action. */
     action: Action;
 
     /** A compact passage around the first content match. */
     excerpt: string;
-
-    /** The normalized query terms. */
-    terms: readonly string[];
-};
-
-/** One highlighted or plain search-result segment. */
-export type HighlightSegment = {
-    /** Whether this text matched the query. */
-    isMatch: boolean;
-
-    /** One contiguous text segment. */
-    text: string;
 };
 
 /** Build every action the current page offers, across the root and its submenus. */
@@ -247,12 +244,9 @@ export function matchActions(
     query: string,
     limit: number,
 ): readonly ActionMatch[] {
-    // read the query's terms
-    const terms = termsFor(query);
-    const [first] = terms;
-
     // list the menu's own actions while nothing is typed, its sections and community left to search
-    if (first === undefined) {
+    const search = Search.of(query);
+    if (search.isEmpty) {
         return actions
             .filter(
                 (action) =>
@@ -260,62 +254,18 @@ export function matchActions(
                     (menu !== "root" ||
                         (action.kind !== "section" && action.group !== "Community")),
             )
-            .map((action) => ({ action, excerpt: "", terms }));
+            .map((action) => ({ action, excerpt: "" }));
     }
 
-    // rank every action the root reaches, or the submenu's own
-    return actions
+    // rank every action the root reaches, or the submenu's own, equal ones by their kind
+    const listed = actions
         .filter((action) => menu === "root" || action.menu === menu)
-        .map((action) => ({ action, score: scoreAction(action, terms) }))
-        .filter((result) => result.score >= 0)
-        .toSorted((left, right) => right.score - left.score)
+        .toSorted((left, right) => KIND_ORDER[left.kind] - KIND_ORDER[right.kind]);
+
+    return search
+        .rank(listed, ({ label, group, text }) => [label, group, text])
         .slice(0, limit)
-        .map(({ action }) => ({ action, excerpt: excerptFor(action.text, first), terms }));
-}
-
-/** Split text into matched and unmatched segments without changing its case. */
-export function highlightSegments(
-    text: string,
-    terms: readonly string[],
-): readonly HighlightSegment[] {
-    if (text === "" || terms.length === 0) {
-        return [{ isMatch: false, text }];
-    }
-
-    // match the longest terms first
-    const normalizedTerms = [...new Set(terms.map((term) => term.toLowerCase()))]
-        .filter(Boolean)
-        .toSorted((left, right) => right.length - left.length);
-    const lower = text.toLowerCase();
-    const segments: HighlightSegment[] = [];
-    let start = 0;
-    let index = 0;
-
-    // split the text at each term match
-    while (index < text.length) {
-        const term = termAt(normalizedTerms, lower, index);
-        if (term == undefined) {
-            index += 1;
-            continue;
-        }
-
-        if (start < index) {
-            segments.push({ isMatch: false, text: text.slice(start, index) });
-        }
-        segments.push({
-            isMatch: true,
-            text: text.slice(index, index + term.length),
-        });
-        index += term.length;
-        start = index;
-    }
-
-    // keep the unmatched tail
-    if (start < text.length) {
-        segments.push({ isMatch: false, text: text.slice(start) });
-    }
-
-    return segments;
+        .map((action) => ({ action, excerpt: search.excerpt(action.text) ?? "" }));
 }
 
 /** The appearances the theme menu offers: each value, its label and its icon. */
@@ -404,86 +354,4 @@ function contentAction(entry: SearchEntry): Action {
         icon: entry.kind === "section" ? hash : fileText,
         text: entry.text,
     };
-}
-
-/** Find the first term starting at one position of lowercase text. */
-function termAt(terms: readonly string[], lower: string, index: number): string | undefined {
-    return terms.find((term) => lower.startsWith(term, index));
-}
-
-/** Normalize a free-form query into unique terms. */
-function termsFor(query: string) {
-    return [...new Set(query.toLowerCase().trim().split(/\s+/u).filter(Boolean))];
-}
-
-/** Score one action against all normalized query terms. */
-function scoreAction(action: Action, terms: readonly string[]) {
-    // lowercase the fields to match against
-    const label = action.label.toLowerCase();
-    const group = action.group.toLowerCase();
-    const text = action.text.toLowerCase();
-    // use category order only to break comparable text matches
-    let score = rankFor(action.kind) / 100;
-
-    // reject an action missing any term, and score the best field each term matches
-    for (const term of terms) {
-        if (!label.includes(term) && !group.includes(term) && !text.includes(term)) {
-            return -1;
-        }
-
-        if (label === term) {
-            score += 1000;
-        } else if (label.startsWith(term)) {
-            score += 500;
-        } else if (isWordStart(label, term)) {
-            score += 400;
-        } else if (label.includes(term)) {
-            score += 250;
-        } else if (group.includes(term)) {
-            score += 100;
-        } else if (isWordStart(text, term)) {
-            score += 10;
-        } else {
-            score += 2;
-        }
-    }
-
-    return score;
-}
-
-/** Return the base rank for one action class. */
-function rankFor(kind: Action["kind"]) {
-    switch (kind) {
-        case "action":
-        case "navigation":
-            return 1600;
-        case "page":
-            return 1200;
-        case "section":
-            return 800;
-    }
-}
-
-/** Report whether a term starts a word of the text. */
-function isWordStart(text: string, term: string) {
-    return text.startsWith(term) || text.includes(` ${term}`);
-}
-
-/** Extract a compact passage around one matching term, cut at word boundaries. */
-function excerptFor(text: string, term: string) {
-    // find the first match that starts a word, or else the first match
-    const normalized = text.replace(/\s+/gu, " ").trim();
-    const lower = normalized.toLowerCase();
-    const wordMatch = lower.indexOf(` ${term}`);
-    const match = lower.startsWith(term) ? 0 : wordMatch >= 0 ? wordMatch + 1 : lower.indexOf(term);
-
-    // widen the cut to the nearest spaces, so no word is broken
-    const from = Math.max(0, match - 42);
-    const start = from === 0 ? 0 : lower.indexOf(" ", from) + 1;
-    const to = Math.min(normalized.length, start + 132);
-    const end = to === normalized.length ? to : Math.max(start, normalized.lastIndexOf(" ", to));
-    const prefix = start === 0 ? "" : "…";
-    const suffix = end === normalized.length ? "" : "…";
-
-    return `${prefix}${normalized.slice(start, end)}${suffix}`;
 }
