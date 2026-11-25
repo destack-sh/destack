@@ -303,7 +303,7 @@ export class PackageLocator {
         if (name === undefined) {
             name = this.#files
                 .readTextFile(join(directory, "package.json"))
-                .catch(FileSystemError.absent)
+                .catch(FileSystemError.absentOrDenied)
                 .then((text) =>
                     text === undefined ? undefined : Manifest.parse(JSON.parse(text)).name,
                 );

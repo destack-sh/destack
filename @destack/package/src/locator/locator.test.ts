@@ -97,3 +97,26 @@ test("find no package for a host's scheme-named modules, and find an npm package
         await files.realPath(join(root, "node_modules", "left-pad")),
     ]);
 });
+
+test("pass a manifest the process cannot read while finding an installed package, as Node does", async () => {
+    // install a package below a project whose own manifest nobody may read
+    await using simulation = testSimulation();
+    const { files } = simulation.environment("test");
+    const root = await files.makeTemporaryDirectory("locator-");
+    const project = join(root, "project");
+    const installed = join(project, "build", "node_modules", "@example", "notes");
+    await writePackage(
+        files,
+        installed,
+        "@example/notes",
+        "package-01996ab0-0000-7000-8000-000000000001",
+    );
+    await files.writeTextFile(join(project, "package.json"), "{}", { mode: 0o000 });
+
+    // find the installation from inside it, and no other package past the unreadable manifest
+    const locator = new PackageLocator(files);
+    expect([
+        await locator.directory("@example/notes", join(installed, "src")),
+        await locator.directory("@example/tasks", join(installed, "src")),
+    ]).toEqual([await files.realPath(installed), undefined]);
+});
