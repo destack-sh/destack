@@ -3,6 +3,9 @@ import type { TimeScale } from "@destack/schema";
 import { type Accessor, createSignal, onCleanup } from "@destack/view";
 import { Move } from "./move.ts";
 
+/** The milliseconds a finger rests before it sweeps, scrolling until then, as a drag lifts. */
+const HOLD_DELAY = 500;
+
 /** The options of a sweep: how a pointer's place reads as a value, and what a swept span does. */
 export interface SweepOptions {
     /** Read the value under a pointer from its client coordinates, such as a snapped instant. */
@@ -43,6 +46,7 @@ export class Sweep {
         this.#move = new Move(
             {
                 keys: [],
+                delay: HOLD_DELAY,
                 ...(options.canStart === undefined ? {} : { canStart: options.canStart }),
                 ...(options.isDisabled === undefined ? {} : { isDisabled: options.isDisabled }),
                 onMoveStart: (event) => {

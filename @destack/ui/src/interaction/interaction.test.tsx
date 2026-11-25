@@ -987,6 +987,33 @@ test("sweep a span out from the press in either direction, by an owner's span, h
     });
 });
 
+test("sweep by a finger only once it rested, leaving it to scroll until then", () => {
+    const swept: string[] = [];
+    const clock = new ManualClock();
+    const sweep = rooted(
+        () =>
+            new Sweep(
+                {
+                    at: (x) => Math.round(x),
+                    onSweep: (span) => swept.push(`${String(span.start)}-${String(span.end)}`),
+                },
+                clock,
+            ),
+    );
+    const element = drawElement(() => sweep.attributes());
+    const finger = { pointerType: "touch" };
+
+    // a finger that moves at once scrolls, and one that rested sweeps
+    for (const rest of [0, 600]) {
+        pointer(element, "pointerdown", 40, 50, finger);
+        clock.pass(rest);
+        pointer(element, "pointermove", 90, 50, finger);
+        pointer(element, "pointerup", 90, 50, finger);
+    }
+
+    expect(swept).toEqual(["40-90"]);
+});
+
 /** Send a move of the pointer over an element at a point of the viewport. */
 function moveOver(element: Element, x: number, y: number): void {
     element.dispatchEvent(
