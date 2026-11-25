@@ -430,7 +430,7 @@ export class Setting<
         if (!parsed.success) {
             throw SettingError.of(
                 "VALUE_INVALID",
-                "setting value is invalid: it must match its declaration",
+                `setting '${this.definition.name}' value is invalid: '${schema.describeIssues(parsed.error.issues)}'`,
             );
         }
 

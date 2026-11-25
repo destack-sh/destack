@@ -113,7 +113,11 @@ test("set, recommend and require declared values in the space and refuse undecla
         await refusal(apply({ theme: { ...unknown, value: "vim", mode: "recommend" } })),
         await refusal(apply({ editor: { ...editor.reference, value: "vim", mode: "set" } })),
     ]).toEqual([
-        ["BAD_REQUEST", "VALUE_INVALID", "setting value is invalid: it must match its declaration"],
+        [
+            "BAD_REQUEST",
+            "VALUE_INVALID",
+            `setting 'template' value is invalid: 'invalid option: expected one of "standard"|"vim"'`,
+        ],
         ["NOT_FOUND", "SETTING_NOT_FOUND", `setting '${notes.id}/editor.theme' not found`],
         [
             "BAD_REQUEST",

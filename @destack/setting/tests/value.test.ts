@@ -80,7 +80,7 @@ test("write declared values at their placements and refuse invalid, undeclared a
     const mismatch = [
         "BAD_REQUEST",
         "VALUE_INVALID",
-        "setting value is invalid: it must match its declaration",
+        `setting 'editor.mode' value is invalid: 'invalid option: expected one of "standard"|"vim"'`,
     ];
     expect([
         await refusal(create()),
