@@ -2,11 +2,18 @@ import registryPackage from "@destack/registry/package";
 import { fileURLToPath } from "node:url";
 import forgePackage from "../src/package.ts";
 import { History } from "@destack/git/test";
-import { FOLLOWER_ACCOUNT_ID, FORGE_WORLD_OPTIONS, FOLLOW_TEMPLATE } from "../src/test/index.ts";
+import {
+    ACCOUNT_ID,
+    FOLLOWER_ACCOUNT_ID,
+    FOLLOWER_HOME,
+    FORGE_WORLD_OPTIONS,
+    FOLLOW_TEMPLATE,
+    PUBLISHER_HOME,
+} from "../src/test/index.ts";
 import { PackageId } from "@destack/package";
 import type { DatabaseConnection } from "@destack/db/database";
 import { reference, referenceShape } from "@destack/registry/object";
-import { Commit, present, schema } from "@destack/schema";
+import { Commit, present } from "@destack/schema";
 import { ObjectReference, RequestId } from "@destack/sync";
 import { build } from "@destack/stack/object";
 import stackPackage from "@destack/stack/package";
@@ -37,14 +44,12 @@ async function listBuilds(database: DatabaseConnection) {
 
 /** Serve a space whose installations follow repository references. */
 async function serveCommits() {
-    // serve the forge in the residency's home, and installations following references in the fixture's space
+    // serve the forge in the follower's home, and installations following references in its space
     const { spaces } = await TestSpace.copy(FOLLOW_TEMPLATE, FORGE_WORLD_OPTIONS);
-    const fixture = present(spaces.get(ids.space), "the fixture's space");
-    const residency = present(
-        [...spaces.values()].find((each) => each.id !== ids.space),
-        "the residency's home",
-    );
-    const home = residency.id;
+    const fixture = present(spaces.get(ids.space), "the follower's space");
+    const followerHome = present(spaces.get(FOLLOWER_HOME.id), "the follower's home");
+    const publisherHome = present(spaces.get(PUBLISHER_HOME.id), "the publisher's home");
+    const home = followerHome.id;
     const { database } = fixture;
     const { clock, environment } = fixture.machine;
     const universe = fixture.universe.storage.database;
@@ -56,7 +61,7 @@ async function serveCommits() {
         Promise.all([0, 1].map(() => reconcile(store, "destack.installation.reconcile", { id })));
 
     // create a platform repository of the space's account at the forge, as the account's owner
-    const forge = (await residency.serve())
+    const forge = (await followerHome.serve())
         .as(fixture.owner.subject)
         .client(registryPackage, forgePackage);
     const created = await forge.repository.create({
@@ -129,7 +134,7 @@ async function serveCommits() {
 
     return {
         fixture,
-        residency,
+        publisherHome,
         home,
         clock,
         environment,
@@ -181,17 +186,15 @@ test("request one replica of the references a space's installations follow", asy
 });
 
 test("refuse an installation following another account's reference", async () => {
-    // push the main branch of another account's repository
-    const { fixture, home, forge, owner, follows, install, move, environment } =
-        await serveCommits();
+    // push the main branch of the publishing account's repository in its own home
+    const { fixture, publisherHome, owner, install, move, environment } = await serveCommits();
     await move();
-    const other = schema
-        .identifier("account")
-        .parse("account-01996ab0-0000-7000-8000-0000000000a2");
-    await TestSpace.account(fixture.universe, fixture.owner, { id: other, handle: "other" });
-    const created = await forge.repository.create({
-        spaceId: home,
-        accountId: other,
+    const publisher = (await publisherHome.serve())
+        .as(fixture.owner.subject)
+        .client(registryPackage, forgePackage);
+    const created = await publisher.repository.create({
+        spaceId: publisherHome.id,
+        accountId: ACCOUNT_ID,
         requestId: RequestId.create(environment),
         name: "foreign",
         hosting: "platform",
@@ -199,12 +202,20 @@ test("refuse an installation following another account's reference", async () =>
     const history = new History();
     history.commit("main", "index.ts", "export const commit = 0;\n");
     await history.write(fileURLToPath(present(created.remote, "the foreign repository's remote")));
-    await forge.repository.refresh({
-        spaceId: home,
+    await publisher.repository.refresh({
+        spaceId: publisherHome.id,
         id: created.id,
         requestId: RequestId.create(environment),
     });
-    const foreign = await follows(MAIN, created.id);
+    const { items } = await publisher.reference.list({
+        spaceId: publisherHome.id,
+        where: { parentId: created.id, name: MAIN },
+        limit: 1,
+    });
+    const foreign = reference.reference(
+        publisherHome.id,
+        present(items[0], "the foreign branch").id,
+    );
 
     // refuse it, and create one following the account's own repository
     const create = (followed: ObjectReference) =>

@@ -155,9 +155,9 @@ async function check(
         throw ForgeError.of("NPM_NAME_EXISTS", "npm name already exists");
     }
 
-    // refuse a builtin outside the platform's organization
+    // refuse a builtin under a handle the host's builtins do not ship under
     if (contents.manifest.role === "builtin") {
-        await Forge.requireBuiltin(name, context, home);
+        await Forge.requireBuiltin(name, store);
     }
 
     // refuse a locked package hosted here, the versions this publish releases counting as released

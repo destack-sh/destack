@@ -4,13 +4,7 @@ import {
     BuildImage,
     PackageManifest,
 } from "@destack/package/manifest";
-import { install } from "@destack/stack/declare";
-import { Account, account, type ResidencyCode } from "@destack/account/object";
-import { principal } from "@destack/access";
-import { integration, Issuer } from "@destack/connection/object";
-import { defineConnection } from "@destack/connection/declare";
-import connectionPackage, { CONNECTION_INSTALLATION } from "@destack/connection/package";
-import { connectionVault } from "@destack/connection/stack";
+import { Account, account, type RegionCode } from "@destack/account/object";
 import accountPackage from "@destack/account/package";
 import type { TestPerson } from "@destack/account/test";
 import { RemoteBuildStore, BuildStore } from "@destack/build/store";
@@ -23,56 +17,30 @@ import { ClaimLookup, claimTable, type MethodInput } from "@destack/object";
 import { createClient } from "@destack/object/client";
 import registryPackage from "@destack/registry/package";
 import objectPackage from "@destack/object/package";
-import { PackageVersion, PackageName, type PackageId, type PackageRelease } from "@destack/package";
+import { PackageName, type PackageId, type PackageRelease } from "@destack/package";
 import { type Digest, Identifier, present, schema } from "@destack/schema";
 import { join } from "node:path";
 import { installationRevision } from "@destack/stack/object";
-import {
-    CONNECTION,
-    FORGE_HOME_OPTIONS,
-    FORGE_HOME_STACK,
-    FORGE_HOME_TYPES,
-    TestPackage,
-    TestSpace,
-    VAULT,
-    ids,
-} from "@destack/machine/test";
+import { FORGE_HOME_OPTIONS, OWNER_EMAIL, TestSpace, ids } from "@destack/machine/test";
 import { RequestId, type Subject } from "@destack/sync";
-import { secret } from "@destack/vault/object";
-import vaultPackage from "@destack/vault/package";
-import { onTestFinished } from "@destack/test";
 import { LocalGitStorage } from "@destack/git/local";
-import { issuer } from "../object/index.ts";
 import { TEST_COMMIT } from "./release.ts";
 import { LATEST_TAG, packageObject, type Release } from "@destack/registry/object";
-import forgePackage, { FORGE_INSTALLATION } from "../package.ts";
-import { github, repositoryStorage } from "../stack/index.ts";
-import { GITHUB_API } from "../github/index.ts";
-import { APP_ID, GITHUB_HOST, GitHubStandIn, githubPrivateKey, WEBHOOK_SECRET } from "./github.ts";
-
-/** The connection a person's GitHub installation is: GitHub's API, which the forge's app calls. */
-const GITHUB_CONNECTION = defineConnection({
-    name: "github",
-    spec: { resource: "https://api.github.com" },
-});
-/** The node GitHub's stand-in answers on in the world's network. */
-const GITHUB_NODE = "github";
-
-/** The port GitHub's hosts answer HTTPS at. */
-const HTTPS_PORT = 443;
+import forgePackage from "../package.ts";
+import { repositoryStorage } from "../stack/index.ts";
 
 /** The origin of the test requests. */
 const ORIGIN = "http://forge.test";
 
-/** The residency whose home the fixture's forge serves in. */
-export const RESIDENCY = "eu";
+/** The region of the fixture's accounts. */
+export const REGION = "eu";
 
-/** The residencies of the fixture's universe: the forge's, and another the forge serves none of. */
-const RESIDENCIES = [
+/** The regions of the fixture's universe: its accounts' region, and another one. */
+const REGIONS = [
     {
-        code: RESIDENCY,
+        code: REGION,
         name: "Europe",
-        relay: `https://relay-${RESIDENCY}.machine.test`,
+        relay: `https://relay-${REGION}.machine.test`,
         countries: ["DE"],
     },
     {
@@ -83,16 +51,11 @@ const RESIDENCIES = [
     },
 ];
 
-/** The account the fixture's owner publishes packages under, which scopes their npm names. */
-export const ACCOUNT_ID = schema
-    .identifier("account")
-    .parse("account-00000000-0000-7000-8000-000000000001");
+/** The account the fixture's owner publishes packages under, the machine fixtures' own. */
+export const ACCOUNT_ID = ids.account;
 
 /** The handle of the publishing account, the scope of its packages' npm names. */
 const ACCOUNT_HANDLE = "example";
-
-/** The email the publishing account's owner signs in with. */
-const OWNER_EMAIL = "owner@example.test";
 
 /** The email a person without access to the account signs in with. */
 const STRANGER_EMAIL = "stranger@example.test";
@@ -100,34 +63,18 @@ const STRANGER_EMAIL = "stranger@example.test";
 /** The tenants the templates sign in and create once, as most tests take one or two. */
 const TEMPLATE_TENANTS = 2;
 
-/** The tunnel the machines the fixture enrolls publish through the residency's relay. */
+/** The tunnel the machines the fixture enrolls publish through the region's relay. */
 const MACHINE_ORIGIN = "https://machine.relay.test/";
 
-/** The connections and their vault of an account's home stack, as the platform declares them. */
-const HOME_STACK = {
-    vaults: { credentials: connectionVault.provision() },
-    installations: {
-        vault: install(vaultPackage, {}, { isolation: "host", name: "vault" }),
-        connection: install(
-            connectionPackage,
-            { credentials: "credentials" },
-            { name: CONNECTION_INSTALLATION },
-        ),
-    },
-};
-
-/** Where the fixture GitHub App's setup returns to after an installation. */
-const SETUP_URL = "https://forge.test/github/setup";
-
-/** The residency's home template with vault, connection and forge, beside another residency. */
+/** The options of a home with vault, connection and forge, in a universe of two regions. */
 export const FORGE_WORLD_OPTIONS = {
     ...FORGE_HOME_OPTIONS,
-    residencies: RESIDENCIES,
+    regions: REGIONS,
     // test the forge's own releases alone, without the machine kit's fixture package
     isPublishingFixtures: false,
 };
 
-/** What the fixture's world shares: the forge installation in the residency's home. */
+/** What the fixture's world shares: the forge installation in the publisher's home. */
 const ForgeWorld = schema.object({
     /** The forge's installation. */
     installation: schema.identifier("installation"),
@@ -138,11 +85,14 @@ const ForgeWorld = schema.object({
 /** What the fixture's world shares. */
 type ForgeWorld = schema.Infer<typeof ForgeWorld>;
 
-/** The template of the residency's home serving the forge and its GitHub App. */
+/** The publishing account's home, whose forge serves its packages. */
+export const PUBLISHER_HOME = { id: Account.home(ACCOUNT_ID), account: ACCOUNT_ID, name: "home" };
+
+/** The template of the publishing account's home serving the forge. */
 export const FORGE_TEMPLATE = TestSpace.template(FORGE_WORLD_OPTIONS, {
     name: "forge",
     value: ForgeWorld,
-    spaces: [{ residency: RESIDENCY }],
+    spaces: [PUBLISHER_HOME],
     write: (home) => TestForge.write(home),
 });
 
@@ -151,13 +101,21 @@ export const FOLLOWER_ACCOUNT_ID = schema
     .identifier("account")
     .parse("account-00000000-0000-7000-8000-000000000002");
 
-/** The forge's residency home beside a space of its own account, which follows its forge. */
+/** The home of the account following its own forge, beside the publishing account's. */
+export const FOLLOWER_HOME = {
+    id: Account.home(FOLLOWER_ACCOUNT_ID),
+    account: FOLLOWER_ACCOUNT_ID,
+    name: "home",
+};
+
+/** The publishing account's home beside the follower's home and its following space. */
 export const FOLLOW_TEMPLATE = TestSpace.template(FORGE_WORLD_OPTIONS, {
     name: "forge-follow",
     value: ForgeWorld,
     spaces: [
-        { residency: RESIDENCY },
-        // the tenant's space serves none of the home's packages, following the forge's rows
+        PUBLISHER_HOME,
+        FOLLOWER_HOME,
+        // the follower's space serves none of the homes' packages, following its home forge's rows
         { id: ids.space, account: FOLLOWER_ACCOUNT_ID, name: "space", packages: [] },
     ],
     write: (home) => TestForge.write(home),
@@ -173,6 +131,8 @@ export interface Tenant {
     readonly reader: TestPerson;
     /** A person without access to the account. */
     readonly stranger: TestPerson;
+    /** The forge in the account's own home, which keeps its repositories and packages. */
+    readonly forge: TestForge;
 }
 
 /** A package the forge published: its build and release. */
@@ -189,14 +149,12 @@ export interface Published {
     readonly release: Release;
 }
 
-/** The forge installed in a residency's home, publishing as the owner of an account. */
+/** The forge installed in an account's home, publishing as the owner of the account. */
 export class TestForge {
-    /** The residency's home serving the forge. */
+    /** The account's home serving the forge. */
     readonly home: TestSpace;
     /** The forge's installation in the home. */
     readonly installation: Identifier<"installation">;
-    /** GitHub, as the world's stand-in answers at its hosts. */
-    readonly github: GitHubStandIn;
     /** The owner of the publishing account, on the client they last signed in on. */
     #owner: TestPerson;
     /** The accounts of the template's tenants, taken in order. */
@@ -208,14 +166,12 @@ export class TestForge {
     private constructor(fields: {
         readonly home: TestSpace;
         readonly installation: Identifier<"installation">;
-        readonly github: GitHubStandIn;
         readonly owner: TestPerson;
         readonly tenants: readonly Identifier<"account">[];
     }) {
-        // keep the home, the forge's installation, GitHub, the publisher and the tenants
+        // keep the home, the forge's installation, the publisher and the tenants
         this.home = fields.home;
         this.installation = fields.installation;
-        this.github = fields.github;
         this.#owner = fields.owner;
         this.#templated = fields.tenants;
     }
@@ -232,7 +188,7 @@ export class TestForge {
         return this.#owner;
     }
 
-    /** The residency's home, which stores every package of its residency. */
+    /** The account's home, which stores the account's packages. */
     get space(): Identifier<"space"> {
         return this.home.id;
     }
@@ -249,101 +205,28 @@ export class TestForge {
 
     /** Serve a copy of the template's home with the forge installed, in a fork of its world. */
     static async open(): Promise<TestForge> {
-        // copy the served home, with GitHub answering in its world
+        // copy the served home in a fork of its world
         const { space: home, world } = await TestSpace.copy(FORGE_TEMPLATE, FORGE_WORLD_OPTIONS);
-        const standIn = TestForge.#github(home);
         const owner = home.universe.person(OWNER_EMAIL);
         const { installation, tenants } = world;
 
-        return new TestForge({ home, installation, github: standIn, owner, tenants });
+        return new TestForge({ home, installation, owner, tenants });
     }
 
-    /** Answer as GitHub at its API and Git hosts on the world's network until the test ends. */
-    static #github(home: TestSpace): GitHubStandIn {
-        const standIn = new GitHubStandIn(home.environment);
-        for (const hostname of [GITHUB_API.hostname, GITHUB_HOST]) {
-            const listener = home.simulation.network.server(GITHUB_NODE).http({
-                hostname,
-                port: HTTPS_PORT,
-                fetch: (request) => standIn.fetch(request),
-            });
-            onTestFinished(() => listener.stop(true));
-        }
-
-        return standIn;
-    }
-
-    /** Run the forge's GitHub App: its key and webhook secret, and its setting. */
-    static async #runGitHubApp(home: TestSpace): Promise<void> {
-        // write the App's key and webhook secret into the platform vault as the operator stepped up
-        const operator = await home.universe.elevate(await home.universe.operator());
-        const vaults = home.person(operator).client(vaultPackage);
-        const values = {
-            "github-private-key": githubPrivateKey(),
-            "github-webhook": WEBHOOK_SECRET,
-        };
-        for (const [name, value] of Object.entries(values)) {
-            const row = await home.database
-                .snapshot()
-                .read(secret.table)
-                .findFirst({ where: { name } });
-            const { id } = present(row, `the platform secret ${name}`);
-            const version = await vaults.version.create({
-                scope: home.id,
-                parentId: id,
-                requestId: RequestId.create(home.environment),
-                value: { encoding: "text", value },
-            });
-            await vaults.secret.update({
-                scope: home.id,
-                id,
-                requestId: RequestId.create(home.environment),
-                currentVersion: version.number,
-            });
-        }
-
-        // select the App in the forge's setting, then stop serving for the forge to restart with it
-        await home.apply(FORGE_HOME_TYPES, {
-            ...FORGE_HOME_STACK,
-            settings: {
-                github: {
-                    ...github.reference,
-                    value: { kind: "app", appId: APP_ID },
-                    mode: "set",
-                },
-            },
-        });
-    }
-
-    /** Write the world: the forge, its GitHub App, the publishing account and the tenants. */
+    /** Write the world: the forge, the publishing account and the tenants. */
     static async write(home: TestSpace): Promise<ForgeWorld> {
-        // install the forge with its vaults, Git storage, secrets and the GitHub App's issuer, as the residency's stack declares it
-        await home.serve();
-        await home.apply(FORGE_HOME_TYPES, FORGE_HOME_STACK);
-
-        // create the publishing account as its owner, then stop serving
+        // create the publishing account as its owner, the one the machine fixtures publish under
         const owner = await home.universe.signIn(OWNER_EMAIL);
-        await owner.client(accountPackage).account.create({
-            scope: owner.subject.id,
-            id: ACCOUNT_ID,
-            requestId: RequestId.create(home.environment),
-            handle: ACCOUNT_HANDLE,
-            name: "Example",
-            kind: "shared",
-            residencyId: RESIDENCY,
-        });
+        await TestSpace.account(home.universe, owner);
         // sign in and create the tenants most tests take, and the stranger to them
         const tenants: Identifier<"account">[] = [];
         for (let index = 1; index <= TEMPLATE_TENANTS; index += 1) {
-            const created = await TestForge.#createTenant(home, `tenant-${index}`, RESIDENCY);
+            const created = await TestForge.#createTenant(home, `tenant-${index}`, REGION);
             tenants.push(created.accountId);
         }
         await home.universe.signIn(STRANGER_EMAIL);
         await home.simulation.idle();
         const installation = await TestForge.#installation(home);
-
-        // run the GitHub App, as the platform does
-        await TestForge.#runGitHubApp(home);
 
         return { installation, tenants };
     }
@@ -530,39 +413,51 @@ export class TestForge {
         return { url: ORIGIN, space: this.space, fetch: this.endpoint(person).fetch };
     }
 
-    /** Take the template's next tenant of its residency, else create an account of a new owner. */
-    async tenant(residency: ResidencyCode = RESIDENCY): Promise<Tenant> {
+    /** Take the template's next tenant of its region, else create an account of a new owner. */
+    async tenant(region: RegionCode = REGION): Promise<Tenant> {
         // take the template's next tenant, restoring its owner and viewer
         this.#tenants += 1;
         const handle = `tenant-${this.#tenants}`;
-        const templated = residency === RESIDENCY ? this.#templated[this.#tenants - 1] : undefined;
+        const templated = region === REGION ? this.#templated[this.#tenants - 1] : undefined;
         const { universe } = this.home;
-        if (templated !== undefined) {
-            return {
-                accountId: templated,
-                owner: universe.person(`${handle}@example.test`),
-                reader: universe.person(`${handle}-reader@example.test`),
-                stranger: this.stranger(),
-            };
-        }
-
-        // create one past the template's, once the home has it
-        const created = await TestForge.#createTenant(
-            this.home,
-            `tenant-${this.#tenants + TEMPLATE_TENANTS}`,
-            residency,
-        );
+        const created =
+            templated === undefined
+                ? await TestForge.#createTenant(
+                      this.home,
+                      `tenant-${this.#tenants + TEMPLATE_TENANTS}`,
+                      region,
+                  )
+                : {
+                      accountId: templated,
+                      owner: universe.person(`${handle}@example.test`),
+                      reader: universe.person(`${handle}-reader@example.test`),
+                  };
         await this.simulation.idle();
 
-        return { ...created, stranger: this.stranger() };
+        // host its home with its forge as its owner
+        const forge = await this.account(created.accountId, created.owner);
+
+        return { ...created, stranger: this.stranger(), forge };
+    }
+
+    /** Open the forge of an account's home as the account's owner, hosting the home once. */
+    async account(accountId: Identifier<"account">, owner: TestPerson): Promise<TestForge> {
+        const home = await this.home.home(accountId, owner);
+
+        return new TestForge({
+            home,
+            installation: await TestForge.#installation(home),
+            owner,
+            tenants: [],
+        });
     }
 
     /** Sign an account's owner and viewer in, and create the account as its owner. */
     static async #createTenant(
         home: TestSpace,
         handle: string,
-        residency: ResidencyCode,
-    ): Promise<Omit<Tenant, "stranger">> {
+        region: RegionCode,
+    ): Promise<Pick<Tenant, "accountId" | "owner" | "reader">> {
         // sign the owner and the viewer in, and create the account as its owner
         const owner = await home.universe.signIn(`${handle}@example.test`);
         const reader = await home.universe.signIn(`${handle}-reader@example.test`);
@@ -572,7 +467,7 @@ export class TestForge {
             handle,
             name: "Tenant",
             kind: "shared",
-            residencyId: residency,
+            regionId: region,
         });
 
         // let the viewer read and pull the account's repositories
@@ -587,77 +482,7 @@ export class TestForge {
         return { accountId: created.id, owner, reader };
     }
 
-    /** Connect a tenant's account to a GitHub App installation as its owner, bound to the forge. */
-    async connect(tenant: Tenant, installation: number): Promise<Identifier<"connection">> {
-        // host the account's home with its connections and their vault in the account
-        const home = await TestSpace.open({
-            world: this.home,
-            owner: tenant.owner,
-            account: tenant.accountId,
-            id: Account.home(tenant.accountId),
-            ...TestPackage.options([VAULT, CONNECTION]),
-        });
-        // apply the home's stack, and wait until its machine serves the installations
-        await home.serve();
-        await home.apply([vaultPackage], HOME_STACK);
-        await home.simulation.idle();
-
-        // register the forge's App and create the installation's connection as the owner
-        const scope = tenant.accountId;
-        const owner = home.person(tenant.owner, tenant.accountId).client(connectionPackage);
-        const id = await Issuer.declared({ id: this.space }, "github", this.environment.crypto);
-        const app = await owner.integration.create({
-            scope,
-            requestId: RequestId.create(this.environment),
-            issuer: {
-                kind: "installation",
-                package: PackageVersion.of(forgePackage),
-                name: FORGE_INSTALLATION,
-                issuer: issuer.reference(this.space, id),
-            },
-            endpoints: {
-                installation: `https://${GITHUB_HOST}/apps/fixture/installations/new`,
-                isIssuerReturned: false,
-            },
-            clientId: APP_ID,
-            authentication: "none",
-            redirectUris: [SETUP_URL],
-        });
-        const created = await owner.connection.create({
-            scope,
-            requestId: RequestId.create(this.environment),
-            ...GITHUB_CONNECTION.provision(),
-            name: "github",
-            protocol: { kind: "installation" },
-            integration: integration.reference(scope, app.id),
-        });
-
-        // authorize it, complete GitHub's setup redirect, and bind it to the forge
-        const { url } = await owner.connection.authorize({
-            scope,
-            id: created.id,
-            requestId: RequestId.create(this.environment),
-            redirectUri: SETUP_URL,
-        });
-        const state = present(new URL(url).searchParams.get("state"), "the installation's state");
-        await owner.connection.complete({
-            scope,
-            id: created.id,
-            requestId: RequestId.create(this.environment),
-            parameters: { installation_id: String(installation), setup_action: "install", state },
-        });
-        await owner.connection.bindConsumer({
-            scope,
-            id: created.id,
-            requestId: RequestId.create(this.environment),
-            consumer: principal.installation.reference(this.space, this.installation),
-        });
-        await this.simulation.idle();
-
-        return created.id;
-    }
-
-    /** Enroll a machine of an account as a person, published through the residency's relay. */
+    /** Enroll a machine of an account as a person, published through the region's relay. */
     async machine(
         accountId: Identifier<"account">,
         person: TestPerson,

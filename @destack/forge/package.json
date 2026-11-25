@@ -6,7 +6,6 @@
     "description": "Host the Git repositories of accounts and publish, resolve and distribute their Destack packages.",
     "exports": {
         "./error": "./src/error/index.ts",
-        "./object": "./src/object/index.ts",
         "./server": "./src/server.ts",
         "./test": "./src/test/index.ts",
         "./stack": "./src/stack/index.ts",
@@ -27,9 +26,7 @@
         "@destack/package": "workspace:*",
         "@destack/registry": "workspace:*",
         "@destack/schema": "workspace:*",
-        "@destack/setting": "workspace:*",
-        "@destack/vault": "workspace:*",
-        "@destack/workflow": "workspace:*"
+        "@destack/vault": "workspace:*"
     },
     "devDependencies": {
         "@destack/check": "workspace:*",

@@ -4,7 +4,7 @@ Host the Git repositories of accounts and publish, resolve and distribute their 
 
 ## Overview
 
-`@destack/forge` is GitHub-style hosting that implements `@destack/registry`: Git repositories, packages, releases by image, and tags, per residency.
+`@destack/forge` is GitHub-style hosting that implements `@destack/registry`: Git repositories, packages, releases by image, and tags, in every account's home.
 
 The forge serves the registry's object types:
 
@@ -13,8 +13,7 @@ The forge serves the registry's object types:
 
 It also keeps:
 
-- `issuer`: the forge's GitHub App, issuing tokens for the GitHub accounts it is installed on.
-- `TestForge`: a forge over a test database, with a GitHub stand-in.
+- `TestForge`: a forge over a test database.
 
 Create a hosted repository, and lease write access to push to it:
 
@@ -68,27 +67,27 @@ git clone https://destack.app/@ada/site.git
 
 ### Install the forge
 
-The forge installs in each residency's home with its bucket, Git storage, vault and GitHub App secrets.
+The forge installs in every account's home with its Git storage and its credential vault.
 
 ```sh
 destack install @destack/forge
 ```
 
-### Mirror a GitHub repository
+### Mirror a Git remote
 
-A mirror reads its references through a GitHub App token limited to the repository.
+A mirror reads its references with the credential the forge keeps in its vault.
 
 ```ts
 import type registryPackage from "@destack/registry/package";
 import type { ClientOf } from "@destack/object/client";
 import type { Identifier } from "@destack/schema";
 
-/** Mirror a GitHub repository through a connection, and read its branches. */
+/** Mirror a Git remote with a token, and read its branches. */
 export async function mirrorSite(
     client: ClientOf<typeof registryPackage>,
     spaceId: Identifier<"space">,
     accountId: Identifier<"account">,
-    connectionId: Identifier<"connection">,
+    token: string,
     requestId: string,
 ) {
     // create the mirror, then read its origin's references
@@ -98,9 +97,10 @@ export async function mirrorSite(
         accountId,
         requestId,
         name: "site",
-        hosting: "github",
+        hosting: "git",
         remote,
-        connectionId,
+        authentication: "credential",
+        credential: { user: "x-access-token", password: token },
     });
     await client.repository.refresh({ spaceId, id: site.id, requestId });
 }
@@ -136,7 +136,7 @@ export async function deprecate(
 
 ### Test against a forge
 
-`TestForge` serves a residency's home with the forge installed.
+`TestForge` serves an account's home with the forge installed.
 
 ```ts
 import { TestForge } from "@destack/forge/test";
@@ -153,8 +153,8 @@ const packages = await forge.client(owner).package.list({ spaceId: forge.home.id
 
 Repositories, releases and tags follow GitHub's.
 
-| GitHub          | `@destack/forge`      | Difference                                                         |
-| --------------- | --------------------- | ------------------------------------------------------------------ |
-| repositories    | `repository`          | Also mirrors GitHub or any remote, with its credential in a vault. |
-| releases        | `release`             | A release is an image of builds, checked by content.               |
-| one global host | each residency's home | Repositories and releases stay in the account's residency.         |
+| GitHub          | `@destack/forge`    | Difference                                                           |
+| --------------- | ------------------- | -------------------------------------------------------------------- |
+| repositories    | `repository`        | Also mirrors any Git remote, with its credential in a vault.         |
+| releases        | `release`           | A release is an image of builds, checked by content.                 |
+| one global host | each account's home | Repositories and releases stay in the account's home, in its region. |

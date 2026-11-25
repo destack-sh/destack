@@ -1,6 +1,6 @@
 import { auditedCalls } from "@destack/object/test";
-import { type TestPerson, OPERATOR_EMAIL } from "@destack/account/test";
-import { ACCOUNT_ID, TEST_COMMIT, TestForge } from "../src/test/index.ts";
+import type { TestPerson } from "@destack/account/test";
+import { ACCOUNT_ID, REGION, TEST_COMMIT, TestForge } from "../src/test/index.ts";
 import { expect, refusal, test } from "@destack/test";
 import { Digest, found, Identifier, present, Version } from "@destack/schema";
 import { RequestId } from "@destack/sync";
@@ -427,46 +427,6 @@ test("refuse an image pinning a yanked version of a hosted package", async () =>
     ]);
 });
 
-test("refuse an image pinning an unreleased version of another account's hosted package", async () => {
-    // host a tenant's library without releasing it
-    const forge = await TestForge.open();
-    const { crypto } = forge.environment;
-    const tenant = await forge.tenant();
-    const library = PackageVersion.parse({
-        id: "package-01996ab0-0000-7000-8000-0000000000f2",
-        name: "@tenant-1/library",
-        version: "2026.9.0",
-    });
-    await forge.client(tenant.owner).package.create({
-        spaceId: forge.space,
-        accountId: tenant.accountId,
-        id: library.id,
-        requestId: RequestId.create(forge.environment),
-        name: "library",
-        role: "library",
-    });
-
-    // refuse an app of the publishing account pinning the library
-    const app = PackageVersion.parse({
-        id: "package-01996ab0-0000-7000-8000-0000000000f3",
-        name: "@example/app",
-        version: "2026.9.0",
-    });
-    await using store = await TestBuildStore.create(forge.environment);
-    const root = await store.putIndexed(await MemoryBuild.of(app, [], crypto));
-    const built = await store.putIndexed(await MemoryBuild.of(library, [], crypto));
-    const image = await store.putImage(
-        BuildImage.of(root, { [root]: { [library.name]: built }, [built]: {} }),
-    );
-    expect(
-        await refusal(forge.publishImage(store, image, LATEST_TAG, { commit: TEST_COMMIT })),
-    ).toEqual([
-        "PRECONDITION_FAILED",
-        "DEPENDENCY_BLOCKED",
-        "cannot release with dependency '@tenant-1/library@2026.9.0': it is not published",
-    ]);
-});
-
 test("refuse publishing a version before the package's latest release", async () => {
     // publish the later release, then the earlier one
     const forge = await TestForge.open();
@@ -799,16 +759,17 @@ test("show packages to readers by their visibility", async () => {
 });
 
 test("publish builtins under the platform's account alone", async () => {
-    // find the account whose home the forge is in, which the operator manages, and a tenant's
+    // open the platform account's forge as its operator, and a tenant's
     const forge = await TestForge.open();
     const { crypto } = forge.environment;
-    const platformId = Account.ofHome(forge.space);
-    const platformAccount = await forge.home.database
+    const operator = await forge.home.universe.operator();
+    const platformId = Account.ofHome(await forge.home.universe.platformHome(REGION));
+    const platform = await forge.account(platformId, operator);
+    const platformAccount = await platform.home.database
         .snapshot()
         .read(account.table)
         .findFirst({ where: { id: platformId } });
     const platformHandle = present(platformAccount, "the platform account").handle;
-    const operator = forge.home.universe.person(OPERATOR_EMAIL);
     const tenant = await forge.tenant();
 
     // publish a builtin's package under each account and push its build as the account's manager
@@ -817,6 +778,7 @@ test("publish builtins under the platform's account alone", async () => {
         accountId: Identifier<"account">,
         handle: string,
         person: TestPerson,
+        at: TestForge,
     ) => {
         const build = await MemoryBuild.of(
             PackageVersion.parse({ id, name: `@${handle}/kernel`, version: "2026.9.0" }),
@@ -825,11 +787,11 @@ test("publish builtins under the platform's account alone", async () => {
             { role: "builtin" },
         );
         const packageId = PackageManifest.package(build.manifest).id;
-        const image = await forge.push(build, person);
+        const image = await at.push(build, person);
 
-        // release it as the manager
+        // release it as the manager in its account's forge
         return refusal(
-            forge.release(
+            at.release(
                 {
                     requestId: RequestId.create(forge.environment),
                     parentId: packageId,
@@ -849,19 +811,21 @@ test("publish builtins under the platform's account alone", async () => {
             platformId,
             platformHandle,
             operator,
+            platform,
         ),
         tenant: await builtin(
             "package-01996ab0-0000-7000-8000-00000000c202",
             tenant.accountId,
             "tenant-1",
             tenant.owner,
+            tenant.forge,
         ),
     }).toEqual({
         platform: "done",
         tenant: [
             "FORBIDDEN",
             "BUILTIN_DENIED",
-            "builtin '@tenant-1/kernel' is forbidden: only the platform's organization publishes builtins",
+            "builtin '@tenant-1/kernel' is forbidden: only the handle of the host's builtins publishes builtins",
         ],
     });
 });

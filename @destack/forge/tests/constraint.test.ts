@@ -46,21 +46,10 @@ test("refuse repository rows mixing the columns of their origins", async () => {
     const remote = "https://git.example.test/site.git";
     const machineId = Identifier.create("machine", world);
     expect([
-        await insert({
-            hosting: "platform",
-            provider: "local",
-            providerRepositoryId: "r",
-            remote,
-        }),
+        await insert({ hosting: "platform", provider: "local", remote }),
         await insert({ hosting: "platform", remote }),
         await insert({ hosting: "git", remote, authentication: "anonymous" }),
         await insert({ hosting: "git", remote, authentication: "credential" }),
-        await insert({
-            hosting: "github",
-            remote,
-            connectionId: Identifier.create("connection", world),
-        }),
-        await insert({ hosting: "github", remote }),
         await insert({ hosting: "machine", machineId, remote }),
         await insert({
             hosting: "git",
@@ -73,8 +62,6 @@ test("refuse repository rows mixing the columns of their origins", async () => {
         "RECORD_INVALID",
         "accepted",
         "accepted",
-        "accepted",
-        "RECORD_INVALID",
         "RECORD_INVALID",
         "RECORD_INVALID",
     ]);

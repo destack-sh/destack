@@ -1,5 +1,4 @@
 import { Caller, principal } from "@destack/access";
-import { connectionShape, Runner } from "@destack/connection/server";
 import { BuildStore } from "@destack/build/store";
 import type { BuildLayer } from "@destack/package/manifest";
 import type { Environment } from "@destack/environment";
@@ -8,7 +7,7 @@ import { type BlobStore, type Snapshot, Transaction } from "@destack/db/database
 import { Lease } from "@destack/resource";
 import { UniverseOrigin } from "@destack/account/address";
 import { Directory } from "@destack/account/client";
-import { Account, account, claimShape, spaceRecordShape } from "@destack/account/object";
+import { account, claimShape, spaceRecordShape } from "@destack/account/object";
 import {
     Claim,
     claimTable,
@@ -21,27 +20,18 @@ import {
 import type { ObjectStore, ImplementationInput, RequestContext } from "@destack/object/server";
 import { PackageName } from "@destack/package";
 import { type Digest, type Identifier, present, schema, Version } from "@destack/schema";
-import { RequestId, type ObjectReference, Scope, type Subject } from "@destack/sync";
-import type { ServerContext, PackageContext } from "@destack/object/workload";
-import type { WebhookDelivery } from "@destack/workflow";
-import { GITHUB_API, GitHubApp, GitHubHosting } from "../github/index.ts";
+import { RequestId, type ObjectReference, Scope } from "@destack/sync";
+import type { PackageContext } from "@destack/object/workload";
 import { packageObject, reference, release, repository, tag } from "@destack/registry/object";
 import { NpmPackument, NpmTarball } from "@destack/registry/npm";
 import forgePackage from "../package.ts";
-import { github } from "../stack/setting.ts";
-import {
-    credentialVault,
-    githubPrivateKey,
-    githubWebhook,
-    repositoryStorage,
-} from "../stack/index.ts";
+import { credentialVault, repositoryStorage } from "../stack/index.ts";
 import type { GitStorage } from "@destack/git";
 import { ForgeError, type ForgeReason } from "../error/index.ts";
 import { implementPackageObject } from "./package.ts";
 import { implementRelease } from "./release.ts";
 import { implementRepository, RepositoryHosting } from "./repository.ts";
 import { implementTag } from "./tag.ts";
-import { implementIssuer } from "./issuer.ts";
 
 /** How long the forge follows a read name: an hour, at most 2 renewals and 300 B per name. */
 const CLAIM_TTL = { hours: 1 } as const;
@@ -49,9 +39,9 @@ const CLAIM_TTL = { hours: 1 } as const;
 /** How long the forge leases an unreleased pushed build: two weeks, as Git's gc.pruneExpire. */
 export const UNRELEASED_MILLISECONDS = 14 * 24 * 60 * 60 * 1000;
 
-/** The home, stores, URL and GitHub App the forge serves with. */
+/** The home, stores and URL the forge serves with. */
 export interface ForgeOptions {
-    /** The residency home the forge serves, which stores every package of its residency. */
+    /** The home the forge serves, which stores its account's packages. */
     readonly home: Identifier<"space">;
     /** The home's blobs, with the store's tables beside the forge's objects. */
     readonly blobs: BlobStore;
@@ -63,16 +53,10 @@ export interface ForgeOptions {
     readonly endpoint: URL;
     /** The storage of platform repositories. */
     readonly storage: GitStorage;
-    /** The GitHub App that opens repositories connected through its installations. */
-    readonly github?: GitHubApp;
     /** The fetch calling Git remotes. */
     readonly fetch: Fetch;
     /** The forge's own vault, which stores the credentials of Git remotes. */
     readonly vault: ObjectReference;
-    /** The forge's installation, the consumer its accounts bind their connections to. */
-    readonly installation: Subject;
-    /** The installation's resources, which bind the GitHub App's webhook secret. */
-    readonly server: Pick<ServerContext, "resources">;
 }
 
 /** How long the forge follows a calling space's row: an hour, 2 renewals and 1 KB per space. */
@@ -119,28 +103,20 @@ export class Forge {
     readonly store: BuildStore;
     /** The forge's options: its home, storage and endpoint. */
     readonly #options: ForgeOptions;
-    /** The repositories hosted at GitHub, absent in a universe running no GitHub App. */
-    readonly #github: GitHubHosting | undefined;
-    /** Where repositories live: the forge's storage, GitHub and Git remotes. */
+    /** Where repositories live: the forge's storage and Git remotes. */
     readonly #repositories: RepositoryHosting;
     /** The host's builtins npm clients install, each packed on first ask, by name. */
     #builtins: Promise<ReadonlyMap<string, () => Promise<Builtin>>> | undefined;
 
-    /** Serve the forge over its home's storage, stores and GitHub App. */
+    /** Serve the forge over its home's storage and stores. */
     constructor(options: ForgeOptions) {
         // take the options and the server of published builds
         this.#options = options;
         this.store = Forge.openStore(options);
 
-        // open GitHub repositories through the replicas of their connections
-        const hosting =
-            options.github === undefined ? undefined : new GitHubHosting(options.github);
-        this.#github = hosting;
-
         // serve repositories at their origins, and releases packed from pushed builds
         this.#repositories = new RepositoryHosting({
             storage: options.storage,
-            github: hosting,
             fetch: options.fetch,
             vault: options.vault,
         });
@@ -150,7 +126,6 @@ export class Forge {
             implementPackageObject(this.store),
             implementRelease(),
             implementTag(),
-            implementIssuer(options.github),
         ];
     }
 
@@ -173,22 +148,8 @@ export class Forge {
         }
     }
 
-    /** Serve the forge as its installation: its bound storages, its GitHub App, and its URL. */
+    /** Serve the forge as its installation: its bound storages and its URL. */
     static of(context: PackageContext): Forge {
-        // open the GitHub App the installation's setting selects
-        const fetch = (request: Request) => context.fetch(request);
-        const app = github.read(context.settings);
-        const hosting =
-            app.kind === "none"
-                ? undefined
-                : new GitHubApp({
-                      id: app.appId,
-                      key: context.resources.get(githubPrivateKey),
-                      api: GITHUB_API,
-                      fetch,
-                      environment: context.environment,
-                  });
-
         // serve npm and builds below the forge's package on the installation's URL
         return new Forge({
             home: schema.identifier("space").parse(context.scope),
@@ -197,58 +158,24 @@ export class Forge {
             environment: context.environment,
             endpoint: new URL(`${context.url}${PackageMount.path(forgePackage.id)}`),
             storage: context.resources.get(repositoryStorage),
-            ...(hosting === undefined ? {} : { github: hosting }),
-            fetch,
+            fetch: (request) => context.fetch(request),
             vault: context.resources.get(credentialVault).reference,
-            installation: principal.installation.reference(context.scope, context.installation),
-            server: context,
         });
     }
 
-    /** Define the forge's server: its objects, follows, mounts and webhooks. */
+    /** Define the forge's server: its objects, follows and mounts. */
     definition(): ImplementationInput<typeof forgePackage> {
-        // take the GitHub App's deliveries, refusing them where the universe runs no GitHub App
-        const hosting = this.#github;
-        const webhook =
-            hosting === undefined
-                ? undefined
-                : githubWebhook.serve(
-                      (delivery, store) => this.#receive(delivery, store, hosting),
-                      this.#options.server,
-                  );
-
         return {
             objects: this.handled,
-            follows: [this.#connectionFollow(), claimFollow],
+            follows: [claimFollow],
             standing: [standingFollow],
-            // answer builds, and the GitHub App's deliveries
+            // answer builds, npm and Git
             mounts: {
                 builds: (request, _caller, context, store) => this.#builds(request, context, store),
                 npm: (request, _caller, context, store) => this.#npm(request, context, store),
                 git: (request, _caller, context, store) => this.#git(request, context, store),
-                github:
-                    webhook ??
-                    (async () => {
-                        throw ForgeError.of(
-                            "GITHUB_WEBHOOK_NOT_FOUND",
-                            "forge GitHub App not found",
-                        );
-                    }),
             },
         };
-    }
-
-    /** Follow the connection of each live repository from its account's home, as its consumer. */
-    #connectionFollow() {
-        const { installation } = this.#options;
-
-        return connectionShape.per(repository, {
-            where: { connectionId: { isNotNull: true }, deletedAt: { isNull: true } },
-            key: async (row) => ({
-                key: { scope: row.accountId, id: present(row.connectionId, "a connection") },
-                subject: installation,
-            }),
-        });
     }
 
     /** Open the store of pushed builds in the home's blobs over the host's distribution. */
@@ -352,29 +279,26 @@ export class Forge {
         return newest;
     }
 
-    /** Refuse a builtin outside the platform's organization, the one owning the forge's home. */
-    static async requireBuiltin(
-        name: string,
-        reader: ClaimReader,
-        home: Identifier<"space">,
-    ): Promise<void> {
-        // read the organization of the forge's home account and of the package's account
-        const homeAccount = await reader
-            .read(account.table)
-            .findFirst({ where: { id: Account.ofHome(home) } });
-        const platform = present(homeAccount, `the account of the forge's home ${home}`).scope;
-        const { handle } = PackageName.split(name);
-        await Forge.#acquire(reader, Claim.key(account, "handle", [handle]));
-        const holder = await Claim.owner(
-            reader.read(claimTable),
-            Claim.key(account, "handle", [handle]),
+    /** Refuse a builtin under a handle other than the one of the builtins the host ships. */
+    static async requireBuiltin(name: string, store: BuildStore): Promise<void> {
+        // read the handles of the builtins the host's distribution ships
+        const shipped = await Promise.all(
+            store.layer.releases.map(async (image) => {
+                const { root } = await store.image(image);
+                const { manifest } = await store.contents(root);
+
+                return manifest.role === "builtin"
+                    ? PackageName.split(manifest.package.name).handle
+                    : undefined;
+            }),
         );
 
-        // refuse another organization's or a person's package
-        if (holder?.owner !== platform) {
+        // refuse a builtin under another handle, which only the platform's account holds
+        const { handle } = PackageName.split(name);
+        if (!shipped.includes(handle)) {
             throw ForgeError.of(
                 "BUILTIN_DENIED",
-                `builtin '${name}' is forbidden: only the platform's organization publishes builtins`,
+                `builtin '${name}' is forbidden: only the handle of the host's builtins publishes builtins`,
             );
         }
     }
@@ -405,29 +329,6 @@ export class Forge {
         );
 
         return found;
-    }
-
-    /** Refresh the repositories a verified delivery of the forge's GitHub App changes. */
-    async #receive(
-        delivery: WebhookDelivery,
-        objects: ObjectStore,
-        hosting: GitHubHosting,
-    ): Promise<void> {
-        // read the repositories the delivery changes, none for a ping
-        const changed = await hosting.receive(delivery, Runner.of(objects));
-        if (changed.length === 0) {
-            return;
-        }
-
-        // refresh them, observing references as they are now
-        await objects.mutate(
-            objects.as(repository),
-            {
-                id: RequestId.create(objects.environment),
-                calls: changed.map((row) => repository.call("refresh", repository.target(row))),
-            },
-            { component: "github" },
-        );
     }
 
     /** Serve published builds by digest, and uploads below a package to its publishers. */

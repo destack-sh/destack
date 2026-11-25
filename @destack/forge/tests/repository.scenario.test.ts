@@ -42,16 +42,16 @@ async function storageGains(forge: TestForge): Promise<() => Promise<string[]>> 
 test("create, rename and refresh a platform repository as its owner", async () => {
     const forge = await TestForge.open();
     const tenant = await forge.tenant();
-    const owner = forge.client(tenant.owner);
-    const reader = forge.client(tenant.reader);
-    const stranger = forge.client(tenant.stranger);
+    const owner = tenant.forge.client(tenant.owner);
+    const reader = tenant.forge.client(tenant.reader);
+    const stranger = tenant.forge.client(tenant.stranger);
     const accountId = tenant.accountId;
 
     // create a platform repository with its name in the directory and its storage on the platform
     const created = await owner.repository.create({
-        spaceId: forge.space,
+        spaceId: tenant.forge.space,
         accountId,
-        requestId: RequestId.create(forge.environment),
+        requestId: RequestId.create(tenant.forge.environment),
         name: "site",
         hosting: "platform",
     });
@@ -62,27 +62,23 @@ test("create, rename and refresh a platform repository as its owner", async () =
         created.hosting,
         created.machineId,
         created.provider,
-        created.providerRepositoryId,
         created.remote,
         created.defaultReference,
         created.authentication,
-        created.connectionId,
         created.revision,
     ]).toEqual([
-        forge.space,
+        tenant.forge.space,
         accountId,
         "site",
         "platform",
         null,
         "local",
-        created.id,
-        `file://${(await forge.storage()).directory}/${created.id}.git`,
-        null,
+        `file://${(await tenant.forge.storage()).directory}/${created.id}.git`,
         null,
         null,
         1,
     ]);
-    const named = () => claimed(forge, accountId, ["site", "mixed", "web"]);
+    const named = () => claimed(tenant.forge, accountId, ["site", "mixed", "web"]);
     const site = { site: created.id };
     expect(await named()).toEqual(site);
 
@@ -90,18 +86,18 @@ test("create, rename and refresh a platform repository as its owner", async () =
     const refused = [
         await outcome(
             owner.repository.create({
-                spaceId: forge.space,
+                spaceId: tenant.forge.space,
                 accountId,
-                requestId: RequestId.create(forge.environment),
+                requestId: RequestId.create(tenant.forge.environment),
                 name: "site",
                 hosting: "platform",
             }),
         ),
         await outcome(
             owner.repository.create({
-                spaceId: forge.space,
+                spaceId: tenant.forge.space,
                 accountId,
-                requestId: RequestId.create(forge.environment),
+                requestId: RequestId.create(tenant.forge.environment),
                 name: "mixed",
                 hosting: "platform",
                 remote: "https://example.test/mixed.git",
@@ -110,37 +106,37 @@ test("create, rename and refresh a platform repository as its owner", async () =
     ];
     expect(refused).toEqual(["CONFLICT", "BAD_REQUEST"]);
     expect(await named()).toEqual(site);
-    expect(await stored(forge, [created.id])).toEqual([created.id]);
+    expect(await stored(tenant.forge, [created.id])).toEqual([created.id]);
 
-    // let the reader read, forbid its writes, and show strangers nothing in the public home
+    // let the reader read, forbid its writes, and show strangers none of the home's repositories
     expect([
         (
             await reader.repository.list({
-                spaceId: forge.space,
+                spaceId: tenant.forge.space,
                 where: { accountId },
             })
         ).items.map((item) => item.name),
-        await outcome(reader.repository.get({ spaceId: forge.space, id: created.id })),
+        await outcome(reader.repository.get({ spaceId: tenant.forge.space, id: created.id })),
         await outcome(
             reader.repository.create({
-                spaceId: forge.space,
+                spaceId: tenant.forge.space,
                 accountId,
-                requestId: RequestId.create(forge.environment),
+                requestId: RequestId.create(tenant.forge.environment),
                 name: "other",
                 hosting: "platform",
             }),
         ),
         await outcome(
             reader.repository.refresh({
-                spaceId: forge.space,
+                spaceId: tenant.forge.space,
                 id: created.id,
-                requestId: RequestId.create(forge.environment),
+                requestId: RequestId.create(tenant.forge.environment),
             }),
         ),
-        (await stranger.repository.list({ spaceId: forge.space, where: { accountId } })).items.map(
-            (item) => item.name,
-        ),
-        await outcome(stranger.repository.get({ spaceId: forge.space, id: created.id })),
+        (
+            await stranger.repository.list({ spaceId: tenant.forge.space, where: { accountId } })
+        ).items.map((item) => item.name),
+        await outcome(stranger.repository.get({ spaceId: tenant.forge.space, id: created.id })),
     ]).toEqual([["site"], "accepted", "FORBIDDEN", "FORBIDDEN", [], "NOT_FOUND"]);
 
     // push a commit and an annotated tag and observe them and the default branch on refresh
@@ -149,15 +145,15 @@ test("create, rename and refresh a platform repository as its owner", async () =
     history.tag("v1", history.commit("main", "README.md", "# Site\n"));
     const [commit, tag] = await history.write(origin);
     const refreshed = await owner.repository.refresh({
-        spaceId: forge.space,
+        spaceId: tenant.forge.space,
         id: created.id,
-        requestId: RequestId.create(forge.environment),
+        requestId: RequestId.create(tenant.forge.environment),
     });
     expect([refreshed.defaultReference, refreshed.revision]).toEqual(["refs/heads/main", 2]);
     const references = async () =>
         (
             await reader.reference.list({
-                spaceId: forge.space,
+                spaceId: tenant.forge.space,
                 where: { parentId: created.id },
                 orderBy: { name: "asc" },
             })
@@ -169,9 +165,9 @@ test("create, rename and refresh a platform repository as its owner", async () =
 
     // rename the repository, moving its name in the directory and keeping the old one finding it
     const renamed = await owner.repository.update({
-        spaceId: forge.space,
+        spaceId: tenant.forge.space,
         id: created.id,
-        requestId: RequestId.create(forge.environment),
+        requestId: RequestId.create(tenant.forge.environment),
         revision: 2,
         name: "web",
     });
@@ -180,9 +176,9 @@ test("create, rename and refresh a platform repository as its owner", async () =
     expect(
         await refusal(
             owner.repository.update({
-                spaceId: forge.space,
+                spaceId: tenant.forge.space,
                 id: created.id,
-                requestId: RequestId.create(forge.environment),
+                requestId: RequestId.create(tenant.forge.environment),
                 remote: "https://example.test/web.git",
             }),
         ),
@@ -197,12 +193,12 @@ test("create, rename and refresh a platform repository as its owner", async () =
     history.delete("refs/tags/v1");
     const [moved] = await history.write(origin);
     await owner.repository.refresh({
-        spaceId: forge.space,
+        spaceId: tenant.forge.space,
         id: created.id,
-        requestId: RequestId.create(forge.environment),
+        requestId: RequestId.create(tenant.forge.environment),
     });
     const { items } = await reader.reference.list({
-        spaceId: forge.space,
+        spaceId: tenant.forge.space,
         where: { parentId: created.id },
         orderBy: { name: "asc" },
     });
@@ -221,14 +217,14 @@ test("sync an account's references and packages to its readers and spaces", asyn
     const forge = await TestForge.open();
     const tenant = await forge.tenant();
     const other = await forge.tenant();
-    const owner = forge.client(tenant.owner);
+    const owner = tenant.forge.client(tenant.owner);
     const accountId = tenant.accountId;
 
     // observe one branch of a platform repository
     const site = await owner.repository.create({
-        spaceId: forge.space,
+        spaceId: tenant.forge.space,
         accountId,
-        requestId: RequestId.create(forge.environment),
+        requestId: RequestId.create(tenant.forge.environment),
         name: "site",
         hosting: "platform",
     });
@@ -236,14 +232,14 @@ test("sync an account's references and packages to its readers and spaces", asyn
     history.commit("main", "index.ts", "export {};\n");
     const [commit] = await history.write(remotePath(site.remote));
     await owner.repository.refresh({
-        spaceId: forge.space,
+        spaceId: tenant.forge.space,
         id: site.id,
-        requestId: RequestId.create(forge.environment),
+        requestId: RequestId.create(tenant.forge.environment),
     });
 
     // read the main branch's row
     const { items } = await owner.reference.list({
-        spaceId: forge.space,
+        spaceId: tenant.forge.space,
         where: { parentId: site.id, name: "refs/heads/main" },
         limit: 1,
     });
@@ -251,34 +247,34 @@ test("sync an account's references and packages to its readers and spaces", asyn
 
     // create a private package as the owner
     const id = PackageId.parse(
-        `package-${Identifier.create("space", forge.environment).slice("space-".length)}`,
+        `package-${Identifier.create("space", tenant.forge.environment).slice("space-".length)}`,
     );
     await owner.package.create({
-        spaceId: forge.space,
+        spaceId: tenant.forge.space,
         accountId,
         id,
-        requestId: RequestId.create(forge.environment),
+        requestId: RequestId.create(tenant.forge.environment),
         name: "notes",
         visibility: "private",
         role: "app",
     });
 
     // create a space of the account and one of another account, as their owner does
-    const inside = await forge.createSpace(accountId, tenant.owner);
-    const outside = await forge.createSpace(other.accountId, other.owner);
-    await forge.simulation.idle();
+    const inside = await tenant.forge.createSpace(accountId, tenant.owner);
+    const outside = await tenant.forge.createSpace(other.accountId, other.owner);
+    await tenant.forge.simulation.idle();
 
     // follow the account's references as the reader and as a stranger
     const query = async (user: TestPerson) => {
         const controller = new AbortController();
-        const connection = forge.home.person(user).connect(forgePackage);
+        const connection = tenant.forge.home.person(user).connect(forgePackage);
         onTestFinished(() => connection.close());
         const pages = await connection.store.stream(
             {
                 name: "objects",
                 publication: QUERIES_PUBLICATION,
-                scope: forge.space,
-                target: forge.space,
+                scope: tenant.forge.space,
+                target: tenant.forge.space,
                 parameters: { queries: { references: reference.query() } },
                 revision: FOLLOWER_REVISION,
             },
@@ -293,20 +289,20 @@ test("sync an account's references and packages to its readers and spaces", asyn
         return page.value.changes.map((change) => [change.row["name"], change.row["commit"]]);
     };
     expect(await query(tenant.reader)).toEqual([["refs/heads/main", commit]]);
-    // follow the public home as a stranger, seeing none of the account's references
+    // follow the account's home as a stranger, seeing none of its references
     expect(await query(tenant.stranger)).toEqual([]);
 
     // follow the selected branch as a space for a target space
     const follow = async (space: Identifier<"space">, target: string) => {
         const controller = new AbortController();
-        const connection = forge.home
+        const connection = tenant.forge.home
             .as(principal.space.reference(Scope.universe.id, space))
             .connect(forgePackage);
         onTestFinished(() => connection.close());
         const pages = await connection.store.stream(
             {
                 ...Shape.subscription(
-                    forge.space,
+                    tenant.forge.space,
                     [
                         {
                             shape: referenceShape,
@@ -342,11 +338,11 @@ test("sync an account's references and packages to its readers and spaces", asyn
         [],
     ]);
 
-    // read the private package as each space
+    // read the private package as each space, the other account's finding the home but not the package
     const read = async (space: Identifier<"space">) => {
-        const found = await forge
+        const found = await tenant.forge
             .asRegistry(principal.space.reference(Scope.universe.id, space))
-            .package.get({ spaceId: forge.space, id });
+            .package.get({ spaceId: tenant.forge.space, id });
 
         return found.name;
     };
@@ -359,15 +355,15 @@ test("sync an account's references and packages to its readers and spaces", asyn
 test("delete, restore and purge a repository through the trash", async () => {
     const forge = await TestForge.open();
     const tenant = await forge.tenant();
-    const owner = forge.client(tenant.owner);
-    const reader = forge.client(tenant.reader);
+    const owner = tenant.forge.client(tenant.owner);
+    const reader = tenant.forge.client(tenant.reader);
     const accountId = tenant.accountId;
 
     // store a platform repository with one observed branch, and an anonymous Git remote
     const site = await owner.repository.create({
-        spaceId: forge.space,
+        spaceId: tenant.forge.space,
         accountId,
-        requestId: RequestId.create(forge.environment),
+        requestId: RequestId.create(tenant.forge.environment),
         name: "site",
         hosting: "platform",
     });
@@ -375,14 +371,14 @@ test("delete, restore and purge a repository through the trash", async () => {
     history.commit("main", "README.md", "# Site\n");
     await history.write(remotePath(site.remote));
     await owner.repository.refresh({
-        spaceId: forge.space,
+        spaceId: tenant.forge.space,
         id: site.id,
-        requestId: RequestId.create(forge.environment),
+        requestId: RequestId.create(tenant.forge.environment),
     });
     const mirror = await owner.repository.create({
-        spaceId: forge.space,
+        spaceId: tenant.forge.space,
         accountId,
-        requestId: RequestId.create(forge.environment),
+        requestId: RequestId.create(tenant.forge.environment),
         name: "mirror",
         hosting: "git",
         remote: "https://git.example.test/mirror.git",
@@ -391,15 +387,15 @@ test("delete, restore and purge a repository through the trash", async () => {
     const state = async () => [
         (
             await owner.repository.list({
-                spaceId: forge.space,
+                spaceId: tenant.forge.space,
                 where: { accountId },
                 orderBy: { name: "asc" },
             })
         ).items.map((item) => item.name),
-        await held(forge, accountId, ["mirror", "site"]),
-        await stored(forge, [site.id, mirror.id]),
+        await held(tenant.forge, accountId, ["mirror", "site"]),
+        await stored(tenant.forge, [site.id, mirror.id]),
         (
-            await forge.home.database
+            await tenant.forge.home.database
                 .select()
                 .from(reference.table)
                 .where(inArray(reference.table.parentId, [site.id, mirror.id]))
@@ -410,52 +406,52 @@ test("delete, restore and purge a repository through the trash", async () => {
     expect(
         await outcome(
             reader.repository.delete({
-                spaceId: forge.space,
+                spaceId: tenant.forge.space,
                 id: site.id,
-                requestId: RequestId.create(forge.environment),
+                requestId: RequestId.create(tenant.forge.environment),
             }),
         ),
     ).toBe("FORBIDDEN");
     for (const id of [site.id, mirror.id]) {
         await owner.repository.delete({
-            spaceId: forge.space,
+            spaceId: tenant.forge.space,
             id,
-            requestId: RequestId.create(forge.environment),
+            requestId: RequestId.create(tenant.forge.environment),
         });
     }
     expect(await state()).toEqual([[], ["mirror", "site"], [site.id], ["refs/heads/main"]]);
 
     // refuse checkouts and refreshes of a repository in the trash
     expect([
-        await outcome(owner.repository.pull({ spaceId: forge.space, id: site.id })),
+        await outcome(owner.repository.pull({ spaceId: tenant.forge.space, id: site.id })),
         await outcome(
             owner.repository.refresh({
-                spaceId: forge.space,
+                spaceId: tenant.forge.space,
                 id: site.id,
-                requestId: RequestId.create(forge.environment),
+                requestId: RequestId.create(tenant.forge.environment),
             }),
         ),
     ]).toEqual(["PRECONDITION_FAILED", "PRECONDITION_FAILED"]);
 
     // restore the platform repository unchanged
     await owner.repository.restore({
-        spaceId: forge.space,
+        spaceId: tenant.forge.space,
         id: site.id,
-        requestId: RequestId.create(forge.environment),
+        requestId: RequestId.create(tenant.forge.environment),
     });
     expect(await state()).toEqual([["site"], ["mirror", "site"], [site.id], ["refs/heads/main"]]);
 
     // purge both, removing the platform repository's storage and references and both names
     await owner.repository.delete({
-        spaceId: forge.space,
+        spaceId: tenant.forge.space,
         id: site.id,
-        requestId: RequestId.create(forge.environment),
+        requestId: RequestId.create(tenant.forge.environment),
     });
     for (const id of [site.id, mirror.id]) {
         await owner.repository.purge({
-            spaceId: forge.space,
+            spaceId: tenant.forge.space,
             id,
-            requestId: RequestId.create(forge.environment),
+            requestId: RequestId.create(tenant.forge.environment),
         });
     }
     expect(await state()).toEqual([[], [], [], []]);
@@ -464,22 +460,22 @@ test("delete, restore and purge a repository through the trash", async () => {
 test("lease checkouts of platform and anonymous repositories by permission", async () => {
     const forge = await TestForge.open();
     const tenant = await forge.tenant();
-    const owner = forge.client(tenant.owner);
-    const reader = forge.client(tenant.reader);
-    const stranger = forge.client(tenant.stranger);
+    const owner = tenant.forge.client(tenant.owner);
+    const reader = tenant.forge.client(tenant.reader);
+    const stranger = tenant.forge.client(tenant.stranger);
     const accountId = tenant.accountId;
     const [site, mirror] = [
         await owner.repository.create({
-            spaceId: forge.space,
+            spaceId: tenant.forge.space,
             accountId,
-            requestId: RequestId.create(forge.environment),
+            requestId: RequestId.create(tenant.forge.environment),
             name: "site",
             hosting: "platform",
         }),
         await owner.repository.create({
-            spaceId: forge.space,
+            spaceId: tenant.forge.space,
             accountId,
-            requestId: RequestId.create(forge.environment),
+            requestId: RequestId.create(tenant.forge.environment),
             name: "mirror",
             hosting: "git",
             remote: "https://git.example.test/mirror.git",
@@ -487,13 +483,13 @@ test("lease checkouts of platform and anonymous repositories by permission", asy
         }),
     ];
 
-    // open the platform repository through the storage: the reader pulls, the owner pushes, strangers see nothing
+    // open the platform repository through the storage: the reader pulls, the owner pushes, strangers find none
     const local = (mode: "read" | "write") => ({ url: site.remote, mode, headers: {} });
     expect([
-        await reader.repository.pull({ spaceId: forge.space, id: site.id }),
-        await refusal(reader.repository.push({ spaceId: forge.space, id: site.id })),
-        await owner.repository.push({ spaceId: forge.space, id: site.id }),
-        await refusal(stranger.repository.pull({ spaceId: forge.space, id: site.id })),
+        await reader.repository.pull({ spaceId: tenant.forge.space, id: site.id }),
+        await refusal(reader.repository.push({ spaceId: tenant.forge.space, id: site.id })),
+        await owner.repository.push({ spaceId: tenant.forge.space, id: site.id }),
+        await refusal(stranger.repository.pull({ spaceId: tenant.forge.space, id: site.id })),
     ]).toEqual([
         local("read"),
         ["FORBIDDEN", "PERMISSION_DENIED", "permission 'push' is forbidden: it is not granted"],
@@ -503,8 +499,8 @@ test("lease checkouts of platform and anonymous repositories by permission", asy
 
     // pull an anonymous remote unchanged and push to it without a platform credential
     expect([
-        await owner.repository.pull({ spaceId: forge.space, id: mirror.id }),
-        await refusal(owner.repository.push({ spaceId: forge.space, id: mirror.id })),
+        await owner.repository.pull({ spaceId: tenant.forge.space, id: mirror.id }),
+        await refusal(owner.repository.push({ spaceId: tenant.forge.space, id: mirror.id })),
     ]).toEqual([
         { url: "https://git.example.test/mirror.git", mode: "read", headers: {} },
         [
@@ -518,19 +514,19 @@ test("lease checkouts of platform and anonymous repositories by permission", asy
 test("leave no storage of a platform repository its creation fails", async () => {
     const forge = await TestForge.open();
     const tenant = await forge.tenant();
-    const gained = await storageGains(forge);
-    const owner = forge.client(tenant.owner);
+    const gained = await storageGains(tenant.forge);
+    const owner = tenant.forge.client(tenant.owner);
     const create = () =>
         owner.repository.create({
-            spaceId: forge.space,
+            spaceId: tenant.forge.space,
             accountId: tenant.accountId,
-            requestId: RequestId.create(forge.environment),
+            requestId: RequestId.create(tenant.forge.environment),
             name: "site",
             hosting: "platform",
         });
 
     // take the storage's directory away, refusing the repository before its record commits
-    const { directory, environment } = await forge.storage();
+    const { directory, environment } = await tenant.forge.storage();
     await environment.files.remove(directory, { recursive: true });
     await environment.files.writeTextFile(directory, "");
     const refused = await refusal(create());
@@ -542,7 +538,7 @@ test("leave no storage of a platform repository its creation fails", async () =>
     // create the name again, then once more: the last creation makes storage, then its record conflicts
     const site = await create();
     const conflict = await outcome(create());
-    expect([refused, conflict, await gained(), await settlements(forge, site.id)]).toEqual([
+    expect([refused, conflict, await gained(), await settlements(tenant.forge, site.id)]).toEqual([
         ["SERVICE_UNAVAILABLE", "STORAGE_UNAVAILABLE", "repository storage is unavailable"],
         "CONFLICT",
         [`${site.id}.git`],
@@ -553,15 +549,17 @@ test("leave no storage of a platform repository its creation fails", async () =>
 test("leave a machine repository's references and checkouts to its machine", async () => {
     const forge = await TestForge.open();
     const tenant = await forge.tenant();
-    const owner = forge.client(tenant.owner);
-    const reader = forge.client(tenant.reader);
+    const owner = tenant.forge.client(tenant.owner);
+    const reader = tenant.forge.client(tenant.reader);
     const accountId = tenant.accountId;
-    const machineId = await forge.machine(accountId, tenant.owner);
-    const machine = forge.asRegistry(principal.machine.reference(Scope.universe.id, machineId));
+    const machineId = await tenant.forge.machine(accountId, tenant.owner);
+    const machine = tenant.forge.asRegistry(
+        principal.machine.reference(Scope.universe.id, machineId),
+    );
     const laptop = await owner.repository.create({
-        spaceId: forge.space,
+        spaceId: tenant.forge.space,
         accountId,
-        requestId: RequestId.create(forge.environment),
+        requestId: RequestId.create(tenant.forge.environment),
         name: "laptop",
         hosting: "machine",
         machineId,
@@ -577,23 +575,23 @@ test("leave a machine repository's references and checkouts to its machine", asy
         ],
     };
     const report = await machine.repository.report({
-        spaceId: forge.space,
+        spaceId: tenant.forge.space,
         id: laptop.id,
-        requestId: RequestId.create(forge.environment),
+        requestId: RequestId.create(tenant.forge.environment),
         ...listing,
     });
     expect([
         [report.defaultReference, report.revision],
         (
             await reader.reference.list({
-                spaceId: forge.space,
+                spaceId: tenant.forge.space,
                 where: { parentId: laptop.id },
                 orderBy: { name: "asc" },
             })
         ).items.map((item) => [item.name, item.object, item.commit, item.deletedAt]),
         (
             await machine.repository.list({
-                spaceId: forge.space,
+                spaceId: tenant.forge.space,
                 where: { accountId },
             })
         ).items.map((item) => item.name),
@@ -610,12 +608,12 @@ test("leave a machine repository's references and checkouts to its machine", asy
     expect([
         await refusal(
             owner.repository.refresh({
-                spaceId: forge.space,
+                spaceId: tenant.forge.space,
                 id: laptop.id,
-                requestId: RequestId.create(forge.environment),
+                requestId: RequestId.create(tenant.forge.environment),
             }),
         ),
-        await refusal(owner.repository.pull({ spaceId: forge.space, id: laptop.id })),
+        await refusal(owner.repository.pull({ spaceId: tenant.forge.space, id: laptop.id })),
     ]).toEqual([
         [
             "BAD_REQUEST",
@@ -633,18 +631,18 @@ test("leave a machine repository's references and checkouts to its machine", asy
     const hiding = (client: ReturnType<TestForge["asRegistry"]>) =>
         outcome(
             client.repository.report({
-                spaceId: forge.space,
+                spaceId: tenant.forge.space,
                 id: laptop.id,
-                requestId: RequestId.create(forge.environment),
+                requestId: RequestId.create(tenant.forge.environment),
                 ...listing,
             }),
         );
     const other = await forge.tenant();
     const otherMachine = principal.machine.reference(
         Scope.universe.id,
-        await forge.machine(other.accountId, other.owner),
+        await tenant.forge.machine(other.accountId, other.owner),
     );
-    expect([await hiding(forge.asRegistry(otherMachine)), await hiding(owner)]).toEqual([
+    expect([await hiding(tenant.forge.asRegistry(otherMachine)), await hiding(owner)]).toEqual([
         "NOT_FOUND",
         "FORBIDDEN",
     ]);
@@ -718,8 +716,8 @@ function basic(password: string): string {
 test("keep a Git remote's credential in the forge's vault", async () => {
     const forge = await TestForge.open();
     const tenant = await forge.tenant();
-    const owner = forge.client(tenant.owner);
-    const reader = forge.client(tenant.reader);
+    const owner = tenant.forge.client(tenant.owner);
+    const reader = tenant.forge.client(tenant.reader);
     const remote = "https://git.example.test/mirror.git";
     const create = (
         name: string,
@@ -727,9 +725,9 @@ test("keep a Git remote's credential in the forge's vault", async () => {
         credential?: { readonly user: string; readonly password: string },
     ) =>
         owner.repository.create({
-            spaceId: forge.space,
+            spaceId: tenant.forge.space,
             accountId: tenant.accountId,
-            requestId: RequestId.create(forge.environment),
+            requestId: RequestId.create(tenant.forge.environment),
             name,
             hosting: "git",
             remote,
@@ -738,25 +736,25 @@ test("keep a Git remote's credential in the forge's vault", async () => {
         });
     const mirror = await create("mirror", "credential", { user: "ada", password: "token-1" });
     const credentials = () =>
-        forge.home.database
+        tenant.forge.home.database
             .select({ name: secret.table.name, currentVersion: secret.table.currentVersion })
             .from(secret.table)
             .where(and(eq(secret.table.name, mirror.id), isNull(secret.table.purgedAt)));
 
     // lease the remote to pull and push with the credential as Basic authentication, refusing a reader the credential
-    const target = { spaceId: forge.space, id: mirror.id };
+    const target = { spaceId: tenant.forge.space, id: mirror.id };
     const leased = [
         await owner.repository.pull(target),
         await owner.repository.push(target),
-        await refusal(reader.repository.pull({ spaceId: forge.space, id: mirror.id })),
+        await refusal(reader.repository.pull({ spaceId: tenant.forge.space, id: mirror.id })),
     ];
 
     // rotate the credential, then move the remote to anonymous, which purges it from the vault
     const created = await credentials();
     const update = (input: object) =>
         owner.repository.update({
-            spaceId: forge.space,
-            requestId: RequestId.create(forge.environment),
+            spaceId: tenant.forge.space,
+            requestId: RequestId.create(tenant.forge.environment),
             id: mirror.id,
             ...input,
         });
