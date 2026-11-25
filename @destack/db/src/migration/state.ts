@@ -5,14 +5,15 @@ import { PackageVersion, type PackageId } from "@destack/package";
 import { TABLE, type Table } from "../table/table.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
-import { TableDescription } from "../table/description.ts";
+import { type IndexDescription, TableDescription } from "../table/description.ts";
 import { ChangeDescription } from "../log/description.ts";
 import { AggregateDescription } from "../aggregate/description.ts";
 import { DependentDescription } from "../dependent/description.ts";
-import { describeTable } from "../table/description.ts";
+import { describeColumn, describeTable } from "../table/description.ts";
 import { dialectSQL, inline, placed } from "../sql/index.ts";
 import { qualify, relation } from "../table/namespace.ts";
-import { describeLog, loggedKey } from "../log/schema.ts";
+import { describeLog, loggedKey, REPLICA_COLUMN } from "../log/schema.ts";
+import { integer } from "../table/column.ts";
 import { literal, quote } from "../dialect/quote.ts";
 import { DatabaseError } from "../error/error.ts";
 
@@ -128,7 +129,7 @@ export type DatabaseState = schema.Infer<typeof DatabaseState>;
 export interface DeclareOptions {
     /** Whether the whole database is a replica, without foreign keys. */
     readonly isReplica?: boolean;
-    /** The SQL names of replicated tables, which have no unique constraints or foreign keys. */
+    /** The SQL names of replicated tables, which enforce their keys on the home's rows only. */
     readonly replicated?: ReadonlySet<string>;
     /** The packages whose tables to describe, placing the others' tables; all when absent. */
     readonly packages?: readonly PackageId[];
@@ -236,9 +237,9 @@ export function declareState(
         const dependents = isReplica ? [] : describeDependents(table, tables, isReplicated);
         const aggregated = aggregates.get(definition.sqlName);
 
-        // leave a replicated table's uniqueness and references to the package that declares it
+        // keep a replicated table's keys unique among its home rows, leaving references logical
         const described = withinDatabase(describeTable(table, dialect), local, replicated);
-        const kept = replicated.has(definition.sqlName) ? asReplicated(described) : described;
+        const kept = isReplicated ? asReplicated(described, dialect) : described;
 
         return {
             package: definition.package,
@@ -840,26 +841,42 @@ function withinDatabase(
     };
 }
 
-/** Describe a replicated table as stored: unique keys as plain indexes, no foreign keys. */
-function asReplicated(table: TableDescription): TableDescription {
-    // turn unique constraints into plain indexes over the same columns
-    const unique = table.constraints.flatMap((constraint) =>
+/** Describe a replicated table: replicas marked, keys unique among the rest, no foreign keys. */
+function asReplicated(described: TableDescription, dialect: Dialect): TableDescription {
+    // cover the rows the home wrote
+    const home = `${quote(REPLICA_COLUMN)} = 0`;
+
+    return {
+        ...described,
+        columns: [
+            ...described.columns,
+            describeColumn(integer(REPLICA_COLUMN).notNull().default(0), dialect),
+        ],
+        constraints: described.constraints.filter(
+            (constraint) => constraint.kind !== "unique" && constraint.kind !== "foreignKey",
+        ),
+        indexes: [...described.indexes, ...uniqueIndexes(described)].map((index) =>
+            !index.unique
+                ? index
+                : {
+                      ...index,
+                      where: index.where === undefined ? home : `(${index.where}) AND ${home}`,
+                  },
+        ),
+    };
+}
+
+/** Describe a table's unique constraints as unique indexes over the same columns. */
+function uniqueIndexes(described: TableDescription): IndexDescription[] {
+    return described.constraints.flatMap((constraint) =>
         constraint.kind === "unique"
             ? [
                   {
                       name: constraint.name,
-                      unique: false,
+                      unique: true,
                       columns: constraint.columns.map((column) => ({ column })),
                   },
               ]
             : [],
     );
-
-    return {
-        ...table,
-        constraints: table.constraints.filter(
-            (constraint) => constraint.kind !== "unique" && constraint.kind !== "foreignKey",
-        ),
-        indexes: [...table.indexes.map((index) => ({ ...index, unique: false })), ...unique],
-    };
 }

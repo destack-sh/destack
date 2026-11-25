@@ -1797,7 +1797,7 @@ test("let replicas leave out the sensitive columns their log never records", () 
     ]);
 });
 
-test("declare a replicated table without its unique constraints or the foreign keys to it", () => {
+test("declare a replicated table unique among its home rows, without foreign keys", () => {
     // declare a list whose items reference it, both replicated by a reader
     const list = defineTable(
         "list",
@@ -1821,20 +1821,24 @@ test("declare a replicated table without its unique constraints or the foreign k
             (state) => [
                 state.table.name,
                 state.table.constraints.map((constraint) => constraint.kind),
-                state.table.indexes.map((described) => [described.name, described.unique]),
+                state.table.indexes.map((described) => [
+                    described.name,
+                    described.unique,
+                    described.where,
+                ]),
             ],
         );
 
-    // add the declarer's keys and leave a replica's to its package, under SQLite's key check
+    // add the declarer's keys, and keep a replicated table's unique among the rows its home wrote
     const [lists, items] = [list[TABLE].sqlName, item[TABLE].sqlName];
     const checks = TestDatabase.target() === "sqlite" ? ["check"] : [];
     expect([shape([]), shape([lists])]).toEqual([
         [
-            [lists, ["primaryKey", ...checks], [[`${lists}_name`, true]]],
+            [lists, ["primaryKey", ...checks], [[`${lists}_name`, true, undefined]]],
             [items, ["primaryKey", "foreignKey", ...checks], []],
         ],
         [
-            [lists, ["primaryKey", ...checks], [[`${lists}_name`, false]]],
+            [lists, ["primaryKey", ...checks], [[`${lists}_name`, true, `"is_replica" = 0`]]],
             [items, ["primaryKey", ...checks], []],
         ],
     ]);

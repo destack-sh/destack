@@ -182,7 +182,10 @@ function describe(table: Table, dialect: Dialect): TableDescription {
 }
 
 /** Describe a column. */
-function describeColumn(column: Column, dialect: Dialect): ColumnDescription {
+export function describeColumn(
+    column: Pick<Column, "definition">,
+    dialect: Dialect,
+): ColumnDescription {
     const definition = column.definition;
 
     return {

@@ -346,6 +346,9 @@ export class Log {
         const marker = sql.relation(LOG_REPLICA);
         let isMarked = false;
         transaction.replicaMark = async () => {
+            if (isMarked) {
+                return;
+            }
             isMarked = true;
             await this.database.run(sql`INSERT INTO ${marker} (slot) VALUES (1)`);
         };

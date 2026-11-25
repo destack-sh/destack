@@ -57,6 +57,11 @@ export class DatabaseDriver {
         this.reads = reads;
     }
 
+    /** Who writes in the driver's transaction: a replica copying rows, or the database's home. */
+    get writer(): "home" | "replica" {
+        return this.transaction?.replicaMark === undefined ? "home" : "replica";
+    }
+
     /** The SQL dialect. */
     get dialect(): Dialect {
         return this.session.dialect;
@@ -184,7 +189,6 @@ export class DatabaseDriver {
         if (transaction !== undefined) {
             const mark = transaction.replicaMark;
             if (mark !== undefined && this.#isDerived([...tables, ...scripted], statement)) {
-                transaction.replicaMark = undefined;
                 await mark();
             }
             const result = await this.run(operation, statement);

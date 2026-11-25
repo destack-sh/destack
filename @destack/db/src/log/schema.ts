@@ -27,6 +27,9 @@ export const LOG_EPOCH = "__destack_log_epoch";
 /** The SQL name of the replica write marker, set while a replica's transaction writes. */
 export const LOG_REPLICA = "__destack_log_replica";
 
+/** The SQL name of a replicated table's column marking the rows a replica wrote. */
+export const REPLICA_COLUMN = "is_replica";
+
 /** The transaction-local setting with the time the connection's clock stamped on it. */
 export const CHANGED_AT_SETTING = "destack.changed_at";
 

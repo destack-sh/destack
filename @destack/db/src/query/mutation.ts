@@ -12,11 +12,12 @@ import {
     type SQLWrapper,
 } from "../sql/index.ts";
 import type { DatabaseDriver } from "../database/driver.ts";
+import { quote } from "../dialect/quote.ts";
 import { Column, type ColumnValue } from "../table/column.ts";
 import { type Insert, TABLE, type Table } from "../table/table.ts";
 import { Projection, type SelectionResult } from "./selection.ts";
 import { DatabaseError } from "../error/error.ts";
-import { LOG_WINDOW_MILLISECONDS } from "../log/schema.ts";
+import { LOG_WINDOW_MILLISECONDS, REPLICA_COLUMN } from "../log/schema.ts";
 import { columnDigests } from "./statement.ts";
 import { PreparedQuery } from "./prepared.ts";
 import { present } from "@destack/schema";
@@ -336,6 +337,7 @@ export class MutationQuery<
         );
         const shape = [
             "insert",
+            driver.writer,
             written.join(","),
             masks.join(" "),
             conflict?.action ?? "none",
@@ -485,7 +487,7 @@ export class MutationQuery<
 
         // insert every written column of the records, with defaults for the rest, refusing properties of no column
         if (state.operation === "insert") {
-            clauses.push(insertSQL(table, records));
+            clauses.push(insertSQL(table, records, state.driver));
         }
         // update the matching rows
         else if (state.operation === "update") {
@@ -501,7 +503,7 @@ export class MutationQuery<
 
         // skip or update conflicting rows
         if (state.conflict !== undefined) {
-            clauses.push(conflictSQL(table, state.conflict, set));
+            clauses.push(conflictSQL(table, state.conflict, state.driver, set));
         }
 
         // return the changed rows' fields
@@ -514,7 +516,7 @@ export class MutationQuery<
 }
 
 /** Write an insert of every column some record sets. */
-function insertSQL(table: Table, records: readonly WriteRecord[]): SQL {
+function insertSQL(table: Table, records: readonly WriteRecord[], driver: DatabaseDriver): SQL {
     // require records of known columns
     if (records.length === 0) {
         throw DatabaseError.of(
@@ -537,39 +539,84 @@ function insertSQL(table: Table, records: readonly WriteRecord[]): SQL {
             column.definition.generated === undefined &&
             records.some((record) => record[property] !== undefined),
     );
+
+    // mark a replica's rows in a table that also stores the home's
+    const isMarked =
+        driver.writer === "replica" && driver.state.replicated.has(table[TABLE].sqlName);
+    const names = [
+        ...written.map(([, column]) => sql.identifier(column.definition.name)),
+        ...(isMarked ? [sql.identifier(REPLICA_COLUMN)] : []),
+    ];
     const rows = records.map(
         (record) =>
             sql`(${sql.join(
-                written.map(([property, column]) => valueOf(column, record[property])),
+                [
+                    ...written.map(([property, column]) => valueOf(column, record[property])),
+                    ...(isMarked ? [sql.raw("1")] : []),
+                ],
                 sql.raw(", "),
             )})`,
     );
 
-    return sql`INSERT INTO ${table} (${sql.join(
-        written.map(([, column]) => sql.identifier(column.definition.name)),
-        sql.raw(", "),
-    )}) VALUES ${sql.join(rows, sql.raw(", "))}`;
+    return sql`INSERT INTO ${table} (${sql.join(names, sql.raw(", "))}) VALUES ${sql.join(rows, sql.raw(", "))}`;
 }
 
 /** Write an insert's clause skipping or updating the rows that conflict with a unique key. */
 function conflictSQL<Definition extends Table>(
     table: Table,
     conflict: Conflict<Definition>,
+    driver: DatabaseDriver,
     set: WriteRecord = conflict.action === "update" ? conflict.set : {},
 ): SQL {
+    // target the unique key, a replicated table's among its home rows as its index covers them
+    const covered =
+        conflict.target === undefined ? undefined : homeRows(table, conflict.target, driver);
+    const targetWhere =
+        covered === undefined
+            ? conflict.targetWhere
+            : conflict.targetWhere === undefined
+              ? covered
+              : sql`(${conflict.targetWhere}) AND ${covered}`;
     const target =
         conflict.target === undefined
             ? sql.empty()
             : sql` (${sql.join(
                   conflict.target.map((column) => sql.identifier(column.definition.name)),
                   sql.raw(", "),
-              )})${conflict.targetWhere === undefined ? sql.empty() : sql` WHERE ${conflict.targetWhere}`}`;
+              )})${targetWhere === undefined ? sql.empty() : sql` WHERE ${targetWhere}`}`;
 
     return conflict.action === "nothing"
         ? sql` ON CONFLICT${target} DO NOTHING`
         : sql` ON CONFLICT${target} DO UPDATE SET ${assignments(table, set)}${
               conflict.setWhere === undefined ? sql.empty() : sql` WHERE ${conflict.setWhere}`
           }`;
+}
+
+/** Write the home rows' predicate of a replicated table's unique key, none for other keys. */
+function homeRows(
+    table: Table,
+    target: readonly Column[],
+    driver: DatabaseDriver,
+): SQL | undefined {
+    // leave tables without replicas and the primary key, which covers every row
+    const definition = table[TABLE];
+    const key = definition.key.map((property) => definition.column(property).definition.name);
+    const isKey =
+        target.length === key.length &&
+        target.every((column, index) => column.definition.name === key[index]);
+    if (!driver.state.replicated.has(definition.sqlName) || isKey) {
+        return undefined;
+    }
+
+    // refuse a replica's write by a unique key, which covers only the home's rows
+    if (driver.writer === "replica") {
+        throw DatabaseError.of(
+            "QUERY_INVALID",
+            `conflict target of '${definition.name}' is invalid: a replica must write by primary key`,
+        );
+    }
+
+    return sql.raw(`${quote(REPLICA_COLUMN)} = 0`);
 }
 
 /** Write `column = value` for each set property. */
