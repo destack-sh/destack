@@ -62,3 +62,32 @@ test("attach the wait a refusal states in its body to its headers, leaving every
         [404, null, JSON.stringify(limited.toJSON())],
     ]);
 });
+
+test("send again after each pause a starting server asks for, until the deadline", async () => {
+    // expect the served answer within the deadline, and the starting one once the next pause passes it
+    expect([await waitUntil(5000), await waitUntil(1500)]).toEqual([
+        [200, 3, 2000],
+        [503, 2, 1000],
+    ]);
+});
+
+/** Answer a request as a server starting for its first two attempts, then as serving. */
+function starting(attempt: number): Response {
+    return attempt < 2
+        ? new Response(null, { status: 503, headers: { "retry-after": "1" } })
+        : new Response("served");
+}
+
+/** Wait on the starting server until a deadline, reading the answer, attempts and time passed. */
+async function waitUntil(deadline: number): Promise<number[]> {
+    // advance the clock by each pause
+    let now = 0;
+    let attempts = 0;
+    const clock = {
+        now: () => now,
+        sleep: async (milliseconds: number) => void (now += milliseconds),
+    };
+    const response = await RetryAfter.wait(async () => starting(attempts++), clock, deadline);
+
+    return [response.status, attempts, now];
+}

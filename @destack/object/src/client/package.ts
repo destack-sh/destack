@@ -95,15 +95,7 @@ export function createClient<
                             signal: call.request.signal,
                         }),
                     });
-                let response = await send();
-                for (
-                    let pause = startingPause(response, clock.now());
-                    pause !== undefined && clock.now() + pause <= deadline;
-                    pause = startingPause(response, clock.now())
-                ) {
-                    await clock.sleep(pause, call.signal);
-                    response = await send();
-                }
+                const response = await RetryAfter.wait(send, clock, deadline, call.signal);
 
                 // observe the response's watermarks
                 const observed = response.headers.get(BOOKMARK_HEADER);
@@ -148,16 +140,6 @@ export function procedureHeaders(
 
         return headers;
     };
-}
-
-/** Read the pause a starting server asks for before a retry (RFC 9110 10.2.3). */
-function startingPause(
-    response: { readonly status: number; readonly headers: Headers },
-    now: number,
-): number | undefined {
-    const pause = response.status === 503 ? RetryAfter.read(response.headers, now) : undefined;
-
-    return pause !== undefined && pause > 0 ? pause : undefined;
 }
 
 /** Read a stream's failure event as its call error. */

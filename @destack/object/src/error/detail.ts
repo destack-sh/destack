@@ -1,4 +1,5 @@
 import { PermissionReference } from "@destack/access";
+import type { Clock } from "@destack/environment";
 import { schema } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
 
@@ -24,6 +25,9 @@ export type PartitionRoute = schema.Infer<typeof PartitionRoute>;
 
 /** The header saying when a refused request may be sent again (RFC 9110 10.2.3). */
 const RETRY_AFTER_HEADER = "retry-after";
+
+/** The status of a server that is starting or otherwise unavailable (RFC 9110 15.6.4). */
+const UNAVAILABLE_STATUS = 503;
 
 /** The statuses of refusals that state a wait: too many requests and unavailable. */
 const RETRIED_STATUSES: ReadonlySet<number> = new Set([429, 503]);
@@ -68,6 +72,36 @@ export const RetryAfter = Object.assign(
             } else {
                 return undefined;
             }
+        },
+
+        /** Read the pause a starting server asks for before a retry, absent for another answer. */
+        pause(response: Response, now: number): number | undefined {
+            const isStarting = response.status === UNAVAILABLE_STATUS;
+            const pause = isStarting ? RetryAfter.read(response.headers, now) : undefined;
+
+            return pause !== undefined && pause > 0 ? pause : undefined;
+        },
+
+        /** Send a request again after each pause a starting server asks for, until a deadline. */
+        async wait(
+            send: () => Promise<Response>,
+            clock: Pick<Clock, "now" | "sleep">,
+            deadline: number,
+            signal?: AbortSignal,
+        ): Promise<Response> {
+            // send again while a 503 asks for a pause that ends before the deadline
+            let response = await send();
+            for (
+                let pause = RetryAfter.pause(response, clock.now());
+                pause !== undefined && clock.now() + pause <= deadline;
+                pause = RetryAfter.pause(response, clock.now())
+            ) {
+                await response.body?.cancel();
+                await clock.sleep(pause, signal);
+                response = await send();
+            }
+
+            return response;
         },
 
         /** Attach the wait a refusal states in its body to its headers. */
