@@ -1,5 +1,5 @@
 import { readPackageJson } from "@destack/build/local";
-import type { FileSystem } from "@destack/environment";
+import { type FileSystem, Telemetry } from "@destack/environment";
 import { relative, sep } from "node:path";
 import type { PackageJson } from "@destack/package";
 import { PackageName } from "@destack/package";
@@ -8,6 +8,7 @@ import { reference } from "@destack/registry/object";
 import type { GitAuthor } from "@destack/git";
 import { type Commit, type Identifier, present } from "@destack/schema";
 import { type ObjectReference, RequestId } from "@destack/sync";
+import { TelemetryScope } from "@destack/telemetry";
 import type { CommandContext } from "../command/context.ts";
 import { CliError } from "../error/index.ts";
 
@@ -195,12 +196,23 @@ export class LocalCheckout {
             );
 
             // push after each settled burst until stopped
+            const { telemetry } = context.environment;
+            const { span } = TelemetryScope.of(import.meta.destack.package, telemetry);
+            const save = async () => {
+                const { commit } = await this.push(context, "tree");
+                await pushed(commit);
+            };
             const stopped = aborted(signal);
             while (!signal.aborted) {
                 await Promise.race([wake.promise, stopped]);
                 if (!signal.aborted) {
                     wake = awake();
-                    await pushed((await this.push(context, "tree")).commit);
+
+                    // save in a trace of its own, linked to the command's
+                    const attributes = { "destack.checkout.path": this.path };
+                    await Telemetry.detach(telemetry, (links) =>
+                        span("destack.checkout.save", attributes, save, { links }),
+                    );
                 }
             }
         } finally {
