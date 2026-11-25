@@ -127,14 +127,14 @@ export class CommitBuild {
             return;
         }
 
-        // build the commit once on the machine its checkout reference names, else on the space's runner
+        // build the commit once on the machine building its reference
         const source: CommitSource = {
             kind: "commit",
             repository: followed.repository,
             commit,
             directory,
         };
-        const runnerId = await this.#options.space.checkoutRunner(followed.name);
+        const runnerId = await this.#options.space.builder(followed.name);
         const built = await this.#create(reconciliation, source, runnerId);
 
         // fail the pass with the failed build's failure
@@ -224,13 +224,12 @@ export class CommitBuild {
     async #create(
         reconciliation: ObjectReconciliation,
         source: CommitSource,
-        runnerId: Identifier<"machine"> | undefined,
+        runnerId: Identifier<"machine">,
     ): Promise<Build> {
-        // create it in the installation's space, on the runner when one is named
+        // create it in the installation's space, on its runner
         const scope = Installation.space(this.#target);
-        const runner = runnerId === undefined ? {} : { runnerId };
         const [created] = await reconciliation.mutate([
-            build.call("create", { ...build.in(scope), source, ...runner }),
+            build.call("create", { ...build.in(scope), source, runnerId }),
         ]);
 
         return Build.of(present(created, "the created build"));

@@ -3119,14 +3119,14 @@ export class Space {
         return GitAuthor.of(personal);
     }
 
-    /** Read the machine a checkout's reference names, refusing a malformed or a cloud machine's. */
-    async checkoutRunner(name: string): Promise<Identifier<"machine"> | undefined> {
-        // leave a branch or tag, which the space's runner builds
+    /** Read the machine building a reference's commits: its checkout's machine, else the runner. */
+    async builder(name: string): Promise<Identifier<"machine">> {
+        // build a branch or tag on the space's runner
         if (!GitReference.isCheckout(name)) {
-            return undefined;
+            return this.runner();
         }
 
-        // refuse a reference naming no machine, or a cloud one, as a repository writer names it
+        // build a checkout's commits on its machine, refusing a malformed reference or a cloud machine
         const [machineId] = await this.#checkoutMachines([name]);
         if (machineId === undefined) {
             throw StackError.of(
@@ -3147,8 +3147,7 @@ export class Space {
             return machine === undefined ? [] : [schema.identifier("machine").parse(machine)];
         });
 
-        // read the named cloud machines, which build any commit, as a personal one builds only its own checkouts
-        // NOTE #Security: nothing binds refs/checkouts/<machine>/ to the machine pushing it, so a writer may name another account's personal machine, which then refuses the build
+        // read the named cloud machines, which build any commit, as a personal one builds only its own checkouts' commits
         const clouds = await this.database
             .snapshot()
             .read(accountObject.machine.table)
@@ -3161,20 +3160,13 @@ export class Space {
     }
 
     /** Identify the machine running the space's work, refusing a space without a runner. */
-    runnerId(): Identifier<"machine"> {
-        this.runner();
-
-        return this.machine.id;
-    }
-
-    /** Read the machine running the space's work: its serving machine, when it runs work. */
-    runner(): Subject {
+    runner(): Identifier<"machine"> {
         // refuse work no machine of the space runs
         if (!this.machine.isRunner) {
             throw StackError.of("RUNNER_BLOCKED", "cannot run the work: this space has no runner");
         }
 
-        return principal.machine.reference(Scope.universe.id, this.machine.id);
+        return this.machine.id;
     }
 
     /** Refuse a repository outside the space's account. */

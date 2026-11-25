@@ -1,5 +1,6 @@
 import { edit, EditOutput } from "@destack/stack/object";
-import { Subject } from "@destack/sync";
+import { principal } from "@destack/access";
+import { Scope, Subject } from "@destack/sync";
 import { recorded } from "@destack/workflow";
 import type { Space } from "../space/index.ts";
 
@@ -11,7 +12,9 @@ export function implementEdit(space: Space) {
     return edit.implement({
         run: async (step, input) => {
             // push the edit from the space's runner
-            const runner = await step.run("runner", Subject, async () => space.runner());
+            const runner = await step.run("runner", Subject, async () =>
+                principal.machine.reference(Scope.universe.id, space.runner()),
+            );
 
             return step.place(
                 "push",

@@ -37,7 +37,7 @@ export type CommitSource = Extract<BuildSource, { readonly kind: "commit" }>;
 /** The options of the build server. */
 export interface BuildOptions {
     /** The space whose builds the server records, reading through to its machine's builds. */
-    readonly space: Pick<RevisionOptions["space"], "builds" | "machine" | "runnerId">;
+    readonly space: Pick<RevisionOptions["space"], "builds" | "machine" | "runner">;
     /** Publish each of an account's packages in a stored image for a caller. */
     readonly publish: (
         store: BuildStore,
@@ -169,7 +169,7 @@ export function implementBuild(options: BuildOptions) {
                     }
 
                     // run it on the machine asked for, else on the space's own runner
-                    const runnerId = context.input.runnerId ?? options.space.runnerId();
+                    const runnerId = context.input.runnerId ?? options.space.runner();
 
                     // record it running under its source's key
                     const created = await next(

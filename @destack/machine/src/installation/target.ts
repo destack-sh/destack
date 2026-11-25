@@ -72,8 +72,7 @@ export interface RevisionOptions {
         | "exchange"
         | "author"
         | "runner"
-        | "runnerId"
-        | "checkoutRunner"
+        | "builder"
         | "requested"
     >;
     /** The space's blobs, storing the states its revisions require. */
