@@ -104,3 +104,42 @@ test("keep records on this computer alone without the store's variables, and ref
         "the test store needs DESTACK_CI_STORE, DESTACK_CI_STORE_KEY_ID and DESTACK_CI_STORE_TOKEN together",
     );
 });
+
+test("report the writes a bucket refuses, recording the passes on this computer", async () => {
+    // pass a file and record a check over a bucket refusing every write
+    const host = testHost();
+    const clock = new SimulatedClock(START);
+    const refusing = new (class extends MemoryBucket {
+        /** Refuse every write, as an unreachable bucket does. */
+        override async put(): Promise<never> {
+            throw new Error("bucket is unreachable");
+        }
+    })(clock);
+    const written: string[] = [];
+    const decoder = new TextDecoder();
+    const stderr = {
+        ...host.process.stderr,
+        writeSync: (chunk: string | Uint8Array) => {
+            written.push(typeof chunk === "string" ? chunk : decoder.decode(chunk));
+        },
+    };
+    const environment = { ...host, clock, process: { ...host.process, stderr } };
+    const directory = await host.files.makeTemporaryDirectory("store-refusing-");
+    onTestFinished(() => host.files.remove(directory, { recursive: true }));
+    const store = new TestStore(refusing, environment);
+    await store.pass(directory, "@example/notes", "inputs-a", new Map([["a.test.ts", 10]]));
+    await store.check("@example/notes", 1000);
+
+    // expect both refusals reported by key with the random identifier masked, and the pass on this computer
+    const local = new TestStore(undefined, environment);
+    const reported = written.map((line) =>
+        line.replace(/[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}/u, "<id>"),
+    );
+    expect([reported, await local.passed(directory, "@example/notes", "inputs-a")]).toEqual([
+        [
+            "cannot record 'tests/@example/notes/inputs-a/<id>.json': bucket is unreachable\n",
+            "cannot record 'checks/@example/notes/<id>.json': bucket is unreachable\n",
+        ],
+        new Set(["a.test.ts"]),
+    ]);
+});
