@@ -93,7 +93,7 @@ const styles = style.create({
         translate: {
             default: null,
             [style.when.ancestor(":has([data-slot=message-footer])", messageMarker)]:
-                `0 calc(-1lh - ${space[1]})`,
+                `0 calc(-1lh - ${space[2]})`,
         },
     },
     top: {
@@ -113,7 +113,7 @@ const styles = style.create({
         display: "flex",
         flexDirection: "column",
         flexGrow: 1,
-        gap: space[1],
+        gap: space[2],
         minWidth: 0,
     },
     contentEnd: {
@@ -150,6 +150,7 @@ const styles = style.create({
         minWidth: 0,
         width: "100%",
     },
+    // show at once, as fading bars of neighbouring messages overlap
     actions: {
         opacity: {
             default: 0,
@@ -169,9 +170,6 @@ const styles = style.create({
             },
             [style.when.ancestor("[data-active]", messageMarker)]: "auto",
         },
-        transitionProperty: "opacity",
-        transitionDuration: motion.durationShort,
-        transitionTimingFunction: motion.easingStandard,
     },
     // stay on the last row of a conversation
     last: {
